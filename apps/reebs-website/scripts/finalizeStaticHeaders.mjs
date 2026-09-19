@@ -6,6 +6,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
+import { finalizePortalRedirects } from "./staticRedirects.mjs";
 
 const appRoot = new URL("..", import.meta.url).pathname;
 const distRoot = join(appRoot, "dist");
@@ -64,7 +65,10 @@ const legacyRedirects = (catalogue.rentals || [])
     (item.legacyPaths || []).map((legacyPath) => `${legacyPath} ${item.path} 301`),
   )
   .sort((left, right) => left.localeCompare(right));
-const baseRedirects = (await readFile(redirectsPath, "utf8")).trim();
+const baseRedirects = finalizePortalRedirects(
+  (await readFile(redirectsPath, "utf8")).trim(),
+  process.env.VITE_REEBS_PORTAL_URL,
+);
 await writeFile(
   redirectsPath,
   `${baseRedirects}\n${legacyRedirects.join("\n")}\n`,

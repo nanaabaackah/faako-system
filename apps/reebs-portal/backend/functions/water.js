@@ -48,7 +48,6 @@ const MAX_CATEGORY_LENGTH = 80;
 const MAX_DESCRIPTION_LENGTH = 240;
 const MAX_NOTES_LENGTH = 500;
 const MAX_VENDOR_NAME_LENGTH = 160;
-const MAX_PRICE_OVERRIDE_REASON_LENGTH = 300;
 const WATER_READ_RATE_LIMIT = {
   limit: 180,
   windowMs: 60_000,
@@ -286,7 +285,6 @@ export const resolveWaterPriceDecision = ({
   submittedPriceCents = null,
   hasSubmittedPrice = false,
   canOverride = false,
-  overrideReason = "",
 } = {}) => {
   const standardPrice = Math.round(Number(standardPriceCents));
   if (!Number.isFinite(standardPrice) || standardPrice <= 0) {
@@ -320,15 +318,11 @@ export const resolveWaterPriceDecision = ({
     };
   }
 
-  const reason = cleanText(overrideReason, MAX_PRICE_OVERRIDE_REASON_LENGTH);
-  if (!reason) {
-    return { error: "A reason is required for a Water price override.", statusCode: 400 };
-  }
   return {
     unitPrice: submittedPrice,
     standardUnitPrice: standardPrice,
     isOverride: true,
-    overrideReason: reason,
+    overrideReason: null,
   };
 };
 
@@ -737,39 +731,6 @@ export const restateWaterSaleCostSnapshots = async (
   );
   return restatedSales.rowCount || 0;
 };
-
-const auditWaterPriceOverride = async (
-  client,
-  event,
-  {
-    organizationId,
-    authUser,
-    saleId,
-    standardUnitPrice,
-    overrideUnitPrice,
-    reason,
-    action,
-  }
-) => writeAuditLog(client, {
-  organizationId,
-  userId: Number(authUser.id) || null,
-  action,
-  targetType: "waterSale",
-  targetId: String(saleId),
-  category: "finance",
-  severity: "warning",
-  status: "ok",
-  summary: "An authorized Water sale price override was recorded.",
-  actorLabel: authUser.fullName || authUser.email,
-  requestId: getEventHeader(event, "x-request-id"),
-  ipAddress: getEventIpAddress(event),
-  metadata: {
-    businessUnit: COMMERCIAL_BUSINESS_UNITS.WATER,
-    standardUnitPrice,
-    overrideUnitPrice,
-    reason,
-  },
-});
 
 const runWaterTransaction = async (client, operation) => {
   await client.query("BEGIN");
@@ -1672,7 +1633,6 @@ export async function handler(event = {}) {
           submittedPriceCents: submittedUnitPrice,
           hasSubmittedPrice: hasSubmittedUnitPrice,
           canOverride: hasPermission(authUser, "water-pricing:manage"),
-          overrideReason: payload.priceOverrideReason,
         });
         if (priceDecision.error) {
           const priceError = new Error(priceDecision.error);
@@ -1782,17 +1742,6 @@ export async function handler(event = {}) {
               organizationId,
             ]
           );
-          if (priceDecision.isOverride) {
-            await auditWaterPriceOverride(client, event, {
-              organizationId,
-              authUser,
-              saleId: insertedSaleId,
-              standardUnitPrice: priceDecision.standardUnitPrice,
-              overrideUnitPrice: unitPrice,
-              reason: priceDecision.overrideReason,
-              action: "WATER_SALE_PRICE_OVERRIDDEN",
-            });
-          }
         }
         return insertedSaleId;
       });
@@ -1872,10 +1821,7 @@ export async function handler(event = {}) {
       let unitPrice = existingUnitPrice;
       let waterProductPriceId = Number(existingSale.waterProductPriceId) || null;
       let unitCostAtSaleCents = Number(existingSale.unitCostAtSaleCents) || null;
-      let priceOverrideReason = cleanText(
-        existingSale.priceOverrideReason,
-        MAX_PRICE_OVERRIDE_REASON_LENGTH
-      ) || null;
+      let priceOverrideReason = null;
       let priceOverriddenByUserId = Number(existingSale.priceOverriddenByUserId) || null;
       let priceOverriddenAt = existingSale.priceOverriddenAt || null;
       const requestedCustomerId = Object.prototype.hasOwnProperty.call(payload, "customerId")
@@ -1954,7 +1900,6 @@ export async function handler(event = {}) {
         date,
       });
       const pricingResolutionRequired = pricingBasisChanged || submittedPriceChanged;
-      let recordedPriceOverride = false;
       if (!unitPrice) return json(400, { error: "Sale price must be greater than zero." });
 
       const commercialTermsChanged = pricingResolutionRequired
@@ -2013,7 +1958,6 @@ export async function handler(event = {}) {
             submittedPriceCents: submittedUnitPrice,
             hasSubmittedPrice: submittedPriceChanged,
             canOverride: hasPermission(authUser, "water-pricing:manage"),
-            overrideReason: payload.priceOverrideReason,
           });
           if (priceDecision.error) {
             const priceError = new Error(priceDecision.error);
@@ -2027,7 +1971,6 @@ export async function handler(event = {}) {
           standardUnitPrice = priceDecision.standardUnitPrice;
           waterProductPriceId = Number(standardPriceRecord.id) || null;
           unitCostAtSaleCents = resolvedUnitCostAtSaleCents;
-          recordedPriceOverride = priceDecision.isOverride;
           priceOverrideReason = priceDecision.overrideReason;
           priceOverriddenByUserId = priceDecision.isOverride ? createdByUserId : null;
           priceOverriddenAt = priceDecision.isOverride ? new Date().toISOString() : null;
@@ -2121,17 +2064,7 @@ export async function handler(event = {}) {
           ]
         );
 
-        if (recordedPriceOverride) {
-          await auditWaterPriceOverride(client, event, {
-            organizationId,
-            authUser,
-            saleId,
-            standardUnitPrice,
-            overrideUnitPrice: unitPrice,
-            reason: priceOverrideReason,
-            action: "WATER_SALE_PRICE_CHANGED",
-          });
-        } else if (
+        if (
           pricingResolutionRequired
           && (
             unitPrice !== existingUnitPrice

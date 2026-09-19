@@ -1,5 +1,10 @@
-/home / 301
-/gallery /about 301
-/login https://portal.reebspartythemes.com/login 302
-/admin https://portal.reebspartythemes.com/admin 302
-/admin/* https://portal.reebspartythemes.com/admin/:splat 302
+/admin __REEBS_PORTAL_ORIGIN__/ 302
+/admin/* __REEBS_PORTAL_ORIGIN__/:splat 302
+/login __REEBS_PORTAL_ORIGIN__/ 302
+/Shop /shop 301
+/Shop/* /shop/:splat 301
+/Rentals /rentals 301
+/Rentals/* /rentals/:splat 301
+/Contact /contact 301
+/Book /book 301
+/* /404.html 404

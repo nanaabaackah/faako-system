@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getDeliveryFeeDetails } from "./deliveryFee.js";
 import { formatVariantLabel } from "./inventoryExtensions.js";
 import { sanitizeOrderLogisticsDetails } from "./orderDetails.js";
@@ -6,9 +7,29 @@ import {
   COMMERCIAL_CONFIG_KEYS,
   resolveCommercialConfiguration,
 } from "./commercialConfig.js";
+import { assertCheckoutQuoteGuard } from "./checkoutQuote.js";
 import {
-  assertCheckoutQuoteGuard,
-} from "./checkoutQuote.js";
+  FULFILLMENT_STATUS,
+  PAYMENT_STATUS,
+  SHOP_ORDER_STATUS,
+  canTransitionFulfillment,
+  canTransitionOrder,
+  getOrderNextActions,
+  getOrderStatusForFulfillment,
+  isClosedOrderStatus,
+  normalizeFulfillmentStatus,
+  normalizeOrderStatus,
+  requiresSettledPaymentForFulfillment,
+} from "../../modules/orders/orderPolicy.js";
+import { normalizePaymentMethod as normalizeSharedPaymentMethod } from "../../modules/payments/paymentDomain.js";
+
+export {
+  FULFILLMENT_STATUS,
+  PAYMENT_STATUS,
+  SHOP_ORDER_STATUS,
+  normalizeFulfillmentStatus,
+  normalizeOrderStatus,
+} from "../../modules/orders/orderPolicy.js";
 
 export const ORDER_METHODS = "GET,POST,PATCH,PUT,DELETE,OPTIONS";
 
@@ -25,8 +46,8 @@ const runSequentially = async (operations = []) => {
 // independently of a live database connection.
 export const buildBatchOrderItemParams = (organizationId, orderId, items) => {
   const placeholders = items.map((_, i) => {
-    const b = i * 8;
-    return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8})`;
+    const b = i * 11;
+    return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},$${b + 8},$${b + 9},$${b + 10},$${b + 11})`;
   });
   const params = items.flatMap((item) => [
     organizationId,
@@ -36,49 +57,13 @@ export const buildBatchOrderItemParams = (organizationId, orderId, items) => {
     item.quantity,
     item.unitPriceCents,
     item.lineTotalCents,
-    item.unitCostCents ?? null,
+    item.unitCostSnapshotCents ?? null,
+    0,
+    0,
+    "REEBS_CORE",
   ]);
   return { placeholders, params };
 };
-
-export const SHOP_ORDER_STATUS = {
-  DRAFT: "draft",
-  PENDING_PAYMENT: "pending_payment",
-  PARTIALLY_PAID: "partially_paid",
-  PAID: "paid",
-  PROCESSING: "processing",
-  READY_FOR_PICKUP: "ready_for_pickup",
-  OUT_FOR_DELIVERY: "out_for_delivery",
-  DELIVERED: "delivered",
-  COMPLETED: "completed",
-  CANCELLED: "cancelled",
-  REFUNDED: "refunded",
-};
-
-export const PAYMENT_STATUS = {
-  UNPAID: "unpaid",
-  PARTIALLY_PAID: "partially_paid",
-  PAID: "paid",
-  OVERPAID: "overpaid",
-  REFUNDED: "refunded",
-  REFUND_PENDING: "refund_pending",
-};
-
-export const FULFILLMENT_STATUS = {
-  NOT_STARTED: "not_started",
-  PREPARING: "preparing",
-  READY_FOR_PICKUP: "ready_for_pickup",
-  OUT_FOR_DELIVERY: "out_for_delivery",
-  DELIVERED: "delivered",
-  PICKED_UP: "picked_up",
-  COMPLETED: "completed",
-  CANCELLED: "cancelled",
-};
-
-const CLOSED_STATUSES = new Set([
-  SHOP_ORDER_STATUS.CANCELLED,
-  SHOP_ORDER_STATUS.REFUNDED,
-]);
 
 const STOCK_COMMIT_STATUSES = new Set([
   SHOP_ORDER_STATUS.PAID,
@@ -88,46 +73,6 @@ const STOCK_COMMIT_STATUSES = new Set([
   SHOP_ORDER_STATUS.DELIVERED,
   SHOP_ORDER_STATUS.COMPLETED,
 ]);
-
-const ORDER_STATUS_TRANSITIONS = {
-  [SHOP_ORDER_STATUS.DRAFT]: new Set([SHOP_ORDER_STATUS.PENDING_PAYMENT]),
-  [SHOP_ORDER_STATUS.PENDING_PAYMENT]: new Set([
-    SHOP_ORDER_STATUS.PARTIALLY_PAID,
-    SHOP_ORDER_STATUS.PAID,
-  ]),
-  [SHOP_ORDER_STATUS.PARTIALLY_PAID]: new Set([SHOP_ORDER_STATUS.PAID]),
-  [SHOP_ORDER_STATUS.PAID]: new Set([
-    SHOP_ORDER_STATUS.PROCESSING,
-    SHOP_ORDER_STATUS.READY_FOR_PICKUP,
-    SHOP_ORDER_STATUS.OUT_FOR_DELIVERY,
-    SHOP_ORDER_STATUS.DELIVERED,
-    SHOP_ORDER_STATUS.COMPLETED,
-  ]),
-  [SHOP_ORDER_STATUS.PROCESSING]: new Set([
-    SHOP_ORDER_STATUS.READY_FOR_PICKUP,
-    SHOP_ORDER_STATUS.OUT_FOR_DELIVERY,
-    SHOP_ORDER_STATUS.DELIVERED,
-    SHOP_ORDER_STATUS.COMPLETED,
-  ]),
-  [SHOP_ORDER_STATUS.READY_FOR_PICKUP]: new Set([
-    SHOP_ORDER_STATUS.OUT_FOR_DELIVERY,
-    SHOP_ORDER_STATUS.DELIVERED,
-    SHOP_ORDER_STATUS.COMPLETED,
-  ]),
-  [SHOP_ORDER_STATUS.OUT_FOR_DELIVERY]: new Set([
-    SHOP_ORDER_STATUS.DELIVERED,
-    SHOP_ORDER_STATUS.COMPLETED,
-  ]),
-  [SHOP_ORDER_STATUS.DELIVERED]: new Set([SHOP_ORDER_STATUS.COMPLETED]),
-};
-
-export const canTransitionOrderStatus = (currentStatus, nextStatus) => {
-  const current = normalizeOrderStatus(currentStatus, "");
-  const next = normalizeOrderStatus(nextStatus, "");
-  if (!current || !next) return false;
-  if (current === next) return true;
-  return ORDER_STATUS_TRANSITIONS[current]?.has(next) || false;
-};
 
 const normalizeText = (value, max = 500) => {
   if (typeof value !== "string") return "";
@@ -158,6 +103,33 @@ const normalizeMajorUnitsToCents = (value, fallback = 0) => {
   return Math.max(0, Math.round(parsed * 100));
 };
 
+export const buildOrderIdempotencyFingerprint = (payload = {}) => {
+  const items = (Array.isArray(payload.items) ? payload.items : [])
+    .map((item) => ({
+      productId: normalizePositiveId(item?.productId || item?.inventoryItemId),
+      variantId: normalizePositiveId(item?.variantId),
+      quantity: Math.max(1, normalizeInteger(item?.quantity, 0)),
+      digits: normalizeText(item?.digitString || item?.numberSequence || item?.digits || "", 40),
+    }))
+    .sort((left, right) =>
+      `${left.productId}:${left.variantId || 0}:${left.digits}`.localeCompare(
+        `${right.productId}:${right.variantId || 0}:${right.digits}`
+      )
+    );
+  const canonical = JSON.stringify({
+    customerId: normalizePositiveId(payload.customerId),
+    linkedBookingId: normalizePositiveId(payload.linkedBookingId || payload.bookingId),
+    deliveryMethod: normalizeDeliveryMethod(payload.deliveryMethod, "pickup"),
+    deliveryDetails: sanitizeOrderLogisticsDetails(payload.deliveryDetails),
+    pickupDetails: sanitizeOrderLogisticsDetails(payload.pickupDetails),
+    isPosOrder: Boolean(payload.isPosOrder),
+    discountCents: normalizeCents(payload.discountCents, normalizeMajorUnitsToCents(payload.discount, 0)),
+    serviceFeeCents: normalizeCents(payload.serviceFeeCents, normalizeMajorUnitsToCents(payload.serviceFee, 0)),
+    items,
+  });
+  return createHash("sha256").update(canonical).digest("hex");
+};
+
 export const getHeaderValue = (event, key) => {
   const headers = event?.headers || {};
   return normalizeText(
@@ -172,48 +144,6 @@ export const parseJsonBody = (event) => {
   } catch {
     return { error: "Invalid JSON body." };
   }
-};
-
-export const normalizeOrderStatus = (value, fallback = SHOP_ORDER_STATUS.PENDING_PAYMENT) => {
-  const normalized = normalizeText(value, 80).toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
-  const aliases = {
-    pending: SHOP_ORDER_STATUS.PENDING_PAYMENT,
-    pending_payment: SHOP_ORDER_STATUS.PENDING_PAYMENT,
-    partial: SHOP_ORDER_STATUS.PARTIALLY_PAID,
-    partially_paid: SHOP_ORDER_STATUS.PARTIALLY_PAID,
-    paid: SHOP_ORDER_STATUS.PAID,
-    fulfilled: SHOP_ORDER_STATUS.COMPLETED,
-    complete: SHOP_ORDER_STATUS.COMPLETED,
-    completed: SHOP_ORDER_STATUS.COMPLETED,
-    canceled: SHOP_ORDER_STATUS.CANCELLED,
-    cancelled: SHOP_ORDER_STATUS.CANCELLED,
-    refunded: SHOP_ORDER_STATUS.REFUNDED,
-    processing: SHOP_ORDER_STATUS.PROCESSING,
-    draft: SHOP_ORDER_STATUS.DRAFT,
-    ready_for_pickup: SHOP_ORDER_STATUS.READY_FOR_PICKUP,
-    out_for_delivery: SHOP_ORDER_STATUS.OUT_FOR_DELIVERY,
-    delivered: SHOP_ORDER_STATUS.DELIVERED,
-  };
-  return aliases[normalized] || fallback;
-};
-
-export const normalizeFulfillmentStatus = (value, fallback = FULFILLMENT_STATUS.NOT_STARTED) => {
-  const normalized = normalizeText(value, 80).toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
-  const aliases = {
-    not_started: FULFILLMENT_STATUS.NOT_STARTED,
-    pending: FULFILLMENT_STATUS.NOT_STARTED,
-    preparing: FULFILLMENT_STATUS.PREPARING,
-    ready_for_pickup: FULFILLMENT_STATUS.READY_FOR_PICKUP,
-    out_for_delivery: FULFILLMENT_STATUS.OUT_FOR_DELIVERY,
-    delivered: FULFILLMENT_STATUS.DELIVERED,
-    picked_up: FULFILLMENT_STATUS.PICKED_UP,
-    pickedup: FULFILLMENT_STATUS.PICKED_UP,
-    completed: FULFILLMENT_STATUS.COMPLETED,
-    complete: FULFILLMENT_STATUS.COMPLETED,
-    cancelled: FULFILLMENT_STATUS.CANCELLED,
-    canceled: FULFILLMENT_STATUS.CANCELLED,
-  };
-  return aliases[normalized] || fallback;
 };
 
 export const normalizePaymentStatus = (amountPaidCents, grandTotalCents) => {
@@ -264,12 +194,7 @@ export const resolveAuthoritativeDeliveryFee = async (
 };
 
 export const normalizePaymentMethod = (value) => {
-  const normalized = normalizeText(value, 80).toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
-  if (["cash"].includes(normalized)) return "Cash";
-  if (["momo", "mobile_money", "mobilemoney"].includes(normalized)) return "Mobile Money";
-  if (["bank", "bank_transfer", "transfer"].includes(normalized)) return "Bank Transfer";
-  if (["card", "credit_card", "debit_card"].includes(normalized)) return "Card";
-  return "Other";
+  return normalizeSharedPaymentMethod(value);
 };
 
 const getPaymentAssetCode = (method) => {
@@ -297,7 +222,7 @@ const buildPaymentMetadata = (paymentPreference = {}) => {
       160
     ),
     phoneNumber: normalizeNullableText(preference.phoneNumber || preference.phone, 80),
-    confirmationStatus: normalizeNullableText(preference.confirmationStatus, 80),
+    confirmationStatus: "manual_recorded",
     notes: normalizeNullableText(preference.notes, 500),
   };
 };
@@ -316,7 +241,20 @@ const inferFulfillmentStatus = ({ orderStatus, deliveryMethod, isPosOrder }) => 
   return FULFILLMENT_STATUS.NOT_STARTED;
 };
 
-const normalizeSourceContext = (payload = {}) => {
+const normalizeSourceContext = (payload = {}, creationMode = "staff") => {
+  if (creationMode === "public_checkout") {
+    const deliveryMethod = normalizeDeliveryMethod(payload.deliveryMethod, "pickup");
+    return {
+      linkedBookingId: null,
+      source: "Storefront",
+      purchaseChannel: "Online",
+      fulfillmentMethod: deliveryMethod === "delivery" ? "Delivery" : "Pickup",
+      deliveryRequired: deliveryMethod === "delivery",
+      isPosOrder: false,
+      deliveryMethod,
+      expectedFulfillmentDate: payload.deliveryDate || new Date(),
+    };
+  }
   const rawSource = normalizeText(payload.source, 120);
   const sourceKey = rawSource.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_");
   const isPosOrder = Boolean(payload.isPosOrder) || ["pos", "store_mode", "storemode"].includes(sourceKey);
@@ -385,11 +323,11 @@ const buildOrderNumber = async (client, organizationId) => {
   const lockKey = Number(dateStamp);
   await client.query(`SELECT pg_advisory_xact_lock($1, $2)`, [organizationId, lockKey]);
   const sequenceRes = await client.query(
-    `SELECT COUNT(*)::int + 1 AS next_number
+    `SELECT COALESCE(MAX(SUBSTRING("orderNumber" FROM '([0-9]+)$')::int), 0) + 1 AS next_number
      FROM "order"
      WHERE "organizationId" = $1
-       AND "orderDate"::date = CURRENT_DATE`,
-    [organizationId]
+       AND "orderNumber" ~ $2`,
+    [organizationId, `^ORD-${dateStamp}-[0-9]+$`]
   );
   return `ORD-${dateStamp}-${String(sequenceRes.rows[0]?.next_number || 1).padStart(3, "0")}`;
 };
@@ -398,11 +336,11 @@ const buildReceiptNumber = async (client, organizationId) => {
   const dateStamp = getDateStamp();
   await client.query(`SELECT pg_advisory_xact_lock($1, $2)`, [organizationId, Number(dateStamp) + 7]);
   const result = await client.query(
-    `SELECT COUNT(*)::int + 1 AS next_number
+    `SELECT COALESCE(MAX(SUBSTRING("receiptNumber" FROM '([0-9]+)$')::int), 0) + 1 AS next_number
      FROM "orderReceipt"
      WHERE "organizationId" = $1
-       AND "issuedAt"::date = CURRENT_DATE`,
-    [organizationId]
+       AND "receiptNumber" ~ $2`,
+    [organizationId, `^REC-${dateStamp}-[0-9]+$`]
   );
   return `REC-${dateStamp}-${String(result.rows[0]?.next_number || 1).padStart(3, "0")}`;
 };
@@ -444,11 +382,17 @@ const normalizeItems = async (client, organizationId, rawItems = []) => {
     error.statusCode = 400;
     throw error;
   }
+  if (rawItems.length > 100) {
+    const error = new Error("An order cannot contain more than 100 line items.");
+    error.statusCode = 400;
+    error.code = "ORDER_ITEM_LIMIT_EXCEEDED";
+    throw error;
+  }
   const normalized = rawItems
     .map((item) => ({
       productId: normalizePositiveId(item?.productId || item?.inventoryItemId),
       variantId: normalizePositiveId(item?.variantId),
-      quantity: Math.max(1, normalizeInteger(item?.quantity, 0)),
+      quantity: Math.min(1000, Math.max(1, normalizeInteger(item?.quantity, 0))),
       digitString: normalizeText(item?.digitString || item?.numberSequence || item?.digits || "", 40)
         .replace(/\D/g, "")
         .slice(0, 40),
@@ -479,10 +423,17 @@ export const loadAndPriceItems = async (
 ) => {
   const productIds = [...new Set(items.map((item) => item.productId))];
   const productRes = await client.query(
-    `SELECT id, name, sku, price, "purchasePriceGhs", stock, "isActive", "itemType", "sourceCategoryCode", "imageUrl"
-     FROM "product"
-     WHERE id = ANY($1::int[])
-       AND "organizationId" = $2
+    `SELECT p.id, p.name, p.sku, p.price, p."purchasePriceGhs", p.stock, p."isActive", p."itemType", p."sourceCategoryCode", p."imageUrl",
+            EXISTS (
+              SELECT 1
+              FROM "waterProductConfig" wpc
+              WHERE wpc."organizationId" = p."organizationId"
+                AND wpc."inventoryProductId" = p.id
+                AND wpc."isActive" = TRUE
+            ) AS "isWaterProduct"
+     FROM "product" p
+     WHERE p.id = ANY($1::int[])
+       AND p."organizationId" = $2
      ${lockForUpdate ? "FOR UPDATE" : ""}`,
     [productIds, organizationId]
   );
@@ -522,9 +473,10 @@ export const loadAndPriceItems = async (
       error.statusCode = 400;
       throw error;
     }
-    if (sourceCode === "WATER") {
-      const error = new Error(`"${product?.name || `Item ${item.productId}`}" belongs to the Water business. Record it in Water Business.`);
+    if (sourceCode === "WATER" || product?.isWaterProduct === true) {
+      const error = new Error(`"${product?.name || `Item ${item.productId}`}" belongs to the standalone Water business. Use Water Sales.`);
       error.statusCode = 400;
+      error.code = "WATER_PRODUCT_REQUIRES_WATER_SALE";
       throw error;
     }
     if (product?.isActive === false) {
@@ -561,6 +513,13 @@ export const loadAndPriceItems = async (
       throw error;
     }
 
+    if (unitPriceCents <= 0) {
+      const error = new Error(`A selling price must be configured for ${itemName} before it can be ordered.`);
+      error.statusCode = 409;
+      error.code = "ORDER_PRICE_UNAVAILABLE";
+      throw error;
+    }
+
     if (availableQty < item.quantity) {
       const error = new Error(`Insufficient stock for ${itemName}.`);
       error.statusCode = 409;
@@ -573,10 +532,10 @@ export const loadAndPriceItems = async (
       variant,
       itemName,
       unitPriceCents,
+      unitCostSnapshotCents: product?.purchasePriceGhs == null
+        ? null
+        : normalizeCents(product.purchasePriceGhs),
       lineTotalCents: unitPriceCents * item.quantity,
-      unitCostCents: Number.isFinite(Number(product?.purchasePriceGhs))
-        ? Math.max(0, Math.round(Number(product.purchasePriceGhs)))
-        : null,
     };
   });
 };
@@ -627,7 +586,7 @@ export const quoteShopOrder = async (
   client,
   { organizationId, payload, at = new Date() }
 ) => {
-  const sourceContext = normalizeSourceContext(payload);
+  const sourceContext = normalizeSourceContext(payload, "public_checkout");
   const normalizedItems = await normalizeItems(client, organizationId, payload.items);
   const pricedItems = await loadAndPriceItems(client, organizationId, normalizedItems, {
     lockForUpdate: false,
@@ -1050,7 +1009,21 @@ export const createReceiptForPayment = async (
 
 export const recordOrderPayment = async (
   client,
-  { organizationId, orderId, amountCents, method, provider = null, transactionReference = null, phoneNumber = null, confirmationStatus = null, status = "successful", notes = null, actor, idempotencyKey = "" }
+  {
+    organizationId,
+    orderId,
+    amountCents,
+    method,
+    provider = null,
+    transactionReference = null,
+    phoneNumber = null,
+    confirmationStatus = null,
+    status = "successful",
+    notes = null,
+    idempotencyKey = "",
+    isInitialPayment = false,
+    actor,
+  }
 ) => {
   const orderRes = await client.query(
     `SELECT *
@@ -1066,7 +1039,10 @@ export const recordOrderPayment = async (
     throw error;
   }
   const order = orderRes.rows[0];
-  if (CLOSED_STATUSES.has(normalizeOrderStatus(order.status))) {
+  if (
+    isClosedOrderStatus(order.status)
+    || (!isInitialPayment && normalizeOrderStatus(order.status) === SHOP_ORDER_STATUS.COMPLETED)
+  ) {
     const error = new Error("Payments cannot be recorded against a closed order.");
     error.statusCode = 409;
     throw error;
@@ -1081,39 +1057,57 @@ export const recordOrderPayment = async (
 
   const normalizedIdempotencyKey = normalizeText(idempotencyKey, 160);
   if (normalizedIdempotencyKey) {
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
+      `order-payment:${organizationId}:${normalizedIdempotencyKey}`,
+    ]);
     const existingPaymentRes = await client.query(
-      `SELECT *
-       FROM "orderPayment"
-       WHERE "organizationId" = $1
-         AND "idempotencyKey" = $2
+      `SELECT p.*, r.id AS "receiptId", r."receiptNumber", r."issuedAt"
+       FROM "orderPayment" p
+       LEFT JOIN "orderReceipt" r
+         ON r."organizationId" = p."organizationId"
+        AND r."paymentId" = p.id
+       WHERE p."organizationId" = $1
+         AND p."idempotencyKey" = $2
        LIMIT 1`,
       [organizationId, normalizedIdempotencyKey]
     );
     if (existingPaymentRes.rowCount > 0) {
-      const existingPayment = existingPaymentRes.rows[0];
+      const existing = existingPaymentRes.rows[0];
       if (
-        Number(existingPayment.orderId) !== Number(order.id)
-        || Number(existingPayment.amountCents) !== paymentAmountCents
+        Number(existing.orderId) !== Number(order.id)
+        || Number(existing.amountCents) !== paymentAmountCents
+        || normalizePaymentMethod(existing.method) !== normalizePaymentMethod(method)
       ) {
-        const error = new Error("Idempotency key was already used for a different payment.");
+        const error = new Error("That payment request key was already used with different payment details.");
         error.statusCode = 409;
+        error.code = "PAYMENT_IDEMPOTENCY_CONFLICT";
         throw error;
       }
-      const receiptRes = await client.query(
-        `SELECT id, "receiptNumber", "issuedAt"
-         FROM "orderReceipt"
-         WHERE "organizationId" = $1
-           AND "paymentId" = $2
-         LIMIT 1`,
-        [organizationId, existingPayment.id]
-      );
       return {
-        payment: existingPayment,
-        receipt: receiptRes.rows[0] || null,
+        payment: existing,
+        receipt: existing.receiptId
+          ? {
+              id: existing.receiptId,
+              receiptNumber: existing.receiptNumber,
+              issuedAt: existing.issuedAt,
+            }
+          : null,
         order,
         idempotentReplay: true,
       };
     }
+  }
+
+  const currentBalanceDueCents = isInitialPayment
+    ? normalizeCents(order.grandTotalCents ?? order.total_amount)
+    : normalizeCents(
+        order.balanceDueCents ?? (order.grandTotalCents ?? order.total_amount) - order.amountPaidCents
+      );
+  if (paymentAmountCents > currentBalanceDueCents) {
+    const error = new Error("Payment amount cannot be greater than the current balance due.");
+    error.statusCode = 409;
+    error.code = "PAYMENT_EXCEEDS_BALANCE";
+    throw error;
   }
 
   const paymentRes = await client.query(
@@ -1211,12 +1205,19 @@ export const recordOrderPayment = async (
     createdByUserId: actor.userId,
   });
 
-  return { payment, receipt, order: updatedOrder, idempotentReplay: false };
+  return { payment, receipt, order: updatedOrder };
 };
 
 export const createShopOrder = async (
   client,
-  { organizationId, payload, actor, idempotencyKey = "" }
+  {
+    organizationId,
+    payload,
+    actor,
+    idempotencyKey = "",
+    creationMode = "staff",
+    allowCommercialOverrides = true,
+  }
 ) => {
   const customerId = normalizePositiveId(payload.customerId);
   if (!customerId) {
@@ -1224,11 +1225,14 @@ export const createShopOrder = async (
     error.statusCode = 400;
     throw error;
   }
+  const idempotencyFingerprint = buildOrderIdempotencyFingerprint(payload);
 
   if (idempotencyKey) {
+    await client.query(`SELECT pg_advisory_xact_lock(hashtext($1))`, [
+      `shop-order:${organizationId}:${idempotencyKey}`,
+    ]);
     const existingRes = await client.query(
-      `SELECT id, "orderNumber", "subtotalCents", "discountCents", "deliveryFeeCents",
-              "serviceFeeCents", COALESCE("grandTotalCents", total_amount) AS "grandTotalCents"
+      `SELECT id, "orderNumber", "idempotencyFingerprint"
        FROM "order"
        WHERE "organizationId" = $1
          AND "idempotencyKey" = $2
@@ -1236,11 +1240,34 @@ export const createShopOrder = async (
       [organizationId, idempotencyKey]
     );
     if (existingRes.rowCount > 0) {
-      return { ...existingRes.rows[0], orderId: existingRes.rows[0].id, currency: "GHS", idempotentReplay: true };
+      if (
+        existingRes.rows[0].idempotencyFingerprint
+        && existingRes.rows[0].idempotencyFingerprint !== idempotencyFingerprint
+      ) {
+        const error = new Error("That order request key was already used with different order details.");
+        error.statusCode = 409;
+        error.code = "ORDER_IDEMPOTENCY_CONFLICT";
+        throw error;
+      }
+      return { ...existingRes.rows[0], idempotentReplay: true };
     }
   }
 
-  const sourceContext = normalizeSourceContext(payload);
+  const isPublicCheckout = creationMode === "public_checkout";
+  const requestedCommercialOverride = [
+    payload.discountCents,
+    payload.discount,
+    payload.deliveryFeeCents,
+    payload.serviceFeeCents,
+    payload.serviceFee,
+  ].some((value) => value != null && Number(value) !== 0);
+  if (!isPublicCheckout && requestedCommercialOverride && !allowCommercialOverrides) {
+    const error = new Error("You do not have permission to override order discounts or fees.");
+    error.statusCode = 403;
+    error.code = "ORDER_COMMERCIAL_OVERRIDE_FORBIDDEN";
+    throw error;
+  }
+  const sourceContext = normalizeSourceContext(payload, creationMode);
   if (sourceContext.linkedBookingId) {
     const bookingRes = await client.query(
       `SELECT id
@@ -1260,11 +1287,15 @@ export const createShopOrder = async (
   const normalizedItems = await normalizeItems(client, organizationId, payload.items);
   const pricedItems = await loadAndPriceItems(client, organizationId, normalizedItems);
   const subtotalCents = pricedItems.reduce((sum, item) => sum + item.lineTotalCents, 0);
-  const discountCents = Math.min(
-    subtotalCents,
-    normalizeCents(payload.discountCents, normalizeMajorUnitsToCents(payload.discount, 0))
-  );
-  const serviceFeeCents = normalizeCents(payload.serviceFeeCents, normalizeMajorUnitsToCents(payload.serviceFee, 0));
+  const discountCents = isPublicCheckout || !allowCommercialOverrides
+    ? 0
+    : Math.min(
+        subtotalCents,
+        normalizeCents(payload.discountCents, normalizeMajorUnitsToCents(payload.discount, 0))
+      );
+  const serviceFeeCents = isPublicCheckout || !allowCommercialOverrides
+    ? 0
+    : normalizeCents(payload.serviceFeeCents, normalizeMajorUnitsToCents(payload.serviceFee, 0));
   const deliveryDetails = sanitizeOrderLogisticsDetails(payload.deliveryDetails);
   const pickupDetails = sanitizeOrderLogisticsDetails(payload.pickupDetails);
   const deliveryPricing = await resolveAuthoritativeDeliveryFee(client, {
@@ -1273,18 +1304,26 @@ export const createShopOrder = async (
     deliveryDetails,
     at: new Date(),
   });
-  const deliveryFeeCents = deliveryPricing.feeCents;
+  const calculatedDeliveryFeeCents = deliveryPricing.feeCents;
+  const deliveryFeeCents = isPublicCheckout || !allowCommercialOverrides
+    ? calculatedDeliveryFeeCents
+    : normalizeCents(payload.deliveryFeeCents, calculatedDeliveryFeeCents);
   const grandTotalCents = Math.max(0, subtotalCents - discountCents + deliveryFeeCents + serviceFeeCents);
   const hasQuoteGuard = Boolean(payload.quoteFingerprint)
     || (Array.isArray(payload.items)
-      && payload.items.some((item) => item?.expectedUnitPriceCents !== null && item?.expectedUnitPriceCents !== undefined));
+      && payload.items.some((item) =>
+        item?.expectedUnitPriceCents !== null && item?.expectedUnitPriceCents !== undefined
+      ));
   if (hasQuoteGuard) {
     assertCheckoutQuoteGuard({
       organizationId,
       quote: toAuthoritativeQuote({
         sourceContext,
         pricedItems,
-        deliveryPricing,
+        deliveryPricing: {
+          ...deliveryPricing,
+          feeCents: deliveryFeeCents,
+        },
         discountCents,
         serviceFeeCents,
       }),
@@ -1297,12 +1336,15 @@ export const createShopOrder = async (
     ? payload.paymentPreference
     : {};
   const wantsPayLater = Boolean(paymentPreference.payLater) || normalizeText(paymentPreference.method).toLowerCase() === "pay-later";
-  let orderStatus = normalizeOrderStatus(payload.status, wantsPayLater ? SHOP_ORDER_STATUS.PENDING_PAYMENT : SHOP_ORDER_STATUS.PENDING_PAYMENT);
+  let orderStatus = isPublicCheckout
+    ? SHOP_ORDER_STATUS.PENDING_PAYMENT
+    : normalizeOrderStatus(payload.status, SHOP_ORDER_STATUS.PENDING_PAYMENT);
   if (sourceContext.isPosOrder && !wantsPayLater && orderStatus === SHOP_ORDER_STATUS.PAID) {
     orderStatus = SHOP_ORDER_STATUS.COMPLETED;
   }
   const shouldCreateInitialPayment =
-    !wantsPayLater
+    !isPublicCheckout
+    && !wantsPayLater
     && (orderStatus === SHOP_ORDER_STATUS.PAID
       || orderStatus === SHOP_ORDER_STATUS.COMPLETED
       || sourceContext.isPosOrder);
@@ -1340,12 +1382,13 @@ export const createShopOrder = async (
        "deliveryDetails", "pickupDetails", "total_amount", "orderDate", "deliveryDate",
        "linkedBookingId", source, "purchaseChannel", "fulfillmentMethod", "deliveryRequired",
        "isPosOrder", "expectedFulfillmentDate", "subtotalCents", "discountCents", "deliveryFeeCents",
-       "serviceFeeCents", "grandTotalCents", "amountPaidCents", "balanceDueCents",
+       "serviceFeeCents", "taxCents", currency, "businessUnit", "grandTotalCents", "amountPaidCents", "balanceDueCents",
        "paymentStatus", "fulfillmentStatus", "idempotencyKey", "assignedUserId",
-       "createdByUserId", "updatedByUserId", "lastModifiedAt", "createdAt", "updatedAt", "internalNotes"
+       "createdByUserId", "updatedByUserId", "lastModifiedAt", "createdAt", "updatedAt", "internalNotes",
+       "idempotencyFingerprint"
      )
      VALUES (
-       $1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,NOW(),NOW(),NOW(),$31
+       $1,$2,$3,$4,$5,$6,$7,$8,$9,NOW(),$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,0,'GHS','REEBS_CORE',$22,$23,$24,$25,$26,$27,$28,$29,$30,NOW(),NOW(),NOW(),$31,$32
      )
      RETURNING *`,
     [
@@ -1379,7 +1422,8 @@ export const createShopOrder = async (
       actor.userId,
       actor.userId,
       actor.userId,
-      normalizeNullableText(payload.internalNotes, 1000),
+      isPublicCheckout ? null : normalizeNullableText(payload.internalNotes, 1000),
+      idempotencyFingerprint,
     ]
   );
   const order = orderRes.rows[0];
@@ -1389,7 +1433,8 @@ export const createShopOrder = async (
     buildBatchOrderItemParams(organizationId, order.id, pricedItems);
   const insertedItems = await client.query(
     `INSERT INTO "orderItem" (
-       "organizationId", "orderId", "productId", "variantId", quantity, unit_price, total_amount, "unitCostCents"
+       "organizationId", "orderId", "productId", "variantId", quantity, unit_price, total_amount,
+       "unitCostSnapshotCents", "lineDiscountCents", "taxCents", "businessUnit"
      )
      VALUES ${itemPlaceholders.join(", ")}
      RETURNING id`,
@@ -1418,9 +1463,6 @@ export const createShopOrder = async (
       itemCount: pricedItems.length,
       subtotalCents,
       discountCents,
-      deliveryFeeCents,
-      deliveryRateCents: deliveryPricing.rateCents,
-      deliveryCommercialConfigId: deliveryPricing.commercialConfigId,
       grandTotalCents,
       stockCommitted: shouldCommitStock,
     },
@@ -1436,8 +1478,9 @@ export const createShopOrder = async (
       orderId: order.id,
       amountCents: grandTotalCents,
       ...paymentData,
-      actor,
       idempotencyKey: idempotencyKey ? `${idempotencyKey}:initial-payment` : "",
+      isInitialPayment: true,
+      actor,
     });
     payment = paymentResult.payment;
     receipt = paymentResult.receipt;
@@ -1447,12 +1490,6 @@ export const createShopOrder = async (
     id: order.id,
     orderId: order.id,
     orderNumber: order.orderNumber,
-    currency: "GHS",
-    subtotalCents,
-    discountCents,
-    deliveryFeeCents,
-    serviceFeeCents,
-    grandTotalCents,
     assignedUserId: order.assignedUserId,
     updatedByUserId: actor.userId,
     paymentId: payment?.id || null,
@@ -1461,7 +1498,10 @@ export const createShopOrder = async (
   };
 };
 
-export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
+export const fetchOrderDetail = async (
+  client,
+  { organizationId, orderId, includeCosts = false }
+) => {
   const orderRes = await client.query(
     `SELECT
        o.*,
@@ -1499,6 +1539,10 @@ export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
          oi.quantity,
          oi.unit_price,
          oi.total_amount,
+         oi."unitCostSnapshotCents",
+         oi."lineDiscountCents",
+         oi."taxCents",
+         oi."businessUnit",
          p.name AS "productName",
          p.sku,
          p."imageUrl",
@@ -1574,16 +1618,30 @@ export const fetchOrderDetail = async (client, { organizationId, orderId }) => {
     linkedBooking: order.linkedBookingId
       ? { id: order.linkedBookingId, eventDate: order.linkedBookingEventDate }
       : null,
-    items: itemsRes.rows.map((row) => ({
-      ...row,
-      unitPrice: Number(row.unit_price || 0) / 100,
-      total: Number(row.total_amount || 0) / 100,
-    })),
+    items: itemsRes.rows.map((row) => {
+      const { unitCostSnapshotCents, ...safeRow } = row;
+      const displayRow = includeCosts ? row : safeRow;
+      return {
+        ...displayRow,
+        unitPrice: Number(row.unit_price || 0) / 100,
+        total: Number(row.total_amount || 0) / 100,
+        ...(includeCosts
+          ? {
+              grossMarginCents: unitCostSnapshotCents == null
+                ? null
+                : Number(row.total_amount || 0)
+                  - Number(unitCostSnapshotCents || 0) * Number(row.quantity || 0)
+                  - Number(row.lineDiscountCents || 0),
+            }
+          : {}),
+      };
+    }),
     payments: paymentsRes.rows,
     receipts: receiptsRes.rows,
     events: eventsRes.rows,
     stockMovements: stockRes.rows,
     expenses: expensesRes.rows,
+    nextActions: getOrderNextActions(order),
   };
 };
 
@@ -1614,6 +1672,15 @@ export const fetchOrdersList = async (client, { organizationId, query = {} }) =>
   if (paymentStatus && paymentStatus !== "all") {
     params.push(paymentStatus.toLowerCase());
     where.push(`LOWER(COALESCE(o."paymentStatus", '')) = $${params.length}`);
+  }
+  if (normalizeText(query.reconciliation) === "1") {
+    where.push(`o."subtotalCents" IS NOT NULL
+      AND o."subtotalCents" <> COALESCE((
+        SELECT SUM(reconciliation_item.total_amount)
+        FROM "orderItem" reconciliation_item
+        WHERE reconciliation_item."orderId" = o.id
+          AND reconciliation_item."organizationId" = o."organizationId"
+      ), 0)`);
   }
   const fulfillmentStatus = normalizeNullableText(query.fulfillmentStatus, 80);
   if (fulfillmentStatus && fulfillmentStatus !== "all") {
@@ -1778,7 +1845,7 @@ export const updateOrderMetadata = async (
     throw error;
   }
   const order = orderRes.rows[0];
-  if (CLOSED_STATUSES.has(normalizeOrderStatus(order.status))) {
+  if (isClosedOrderStatus(order.status) || normalizeOrderStatus(order.status) === SHOP_ORDER_STATUS.COMPLETED) {
     const error = new Error("Closed orders cannot be edited.");
     error.statusCode = 409;
     throw error;
@@ -1793,12 +1860,7 @@ export const updateOrderMetadata = async (
   const params = [];
   const hasStatus = Object.prototype.hasOwnProperty.call(payload, "status");
   if (hasStatus) {
-    const nextStatus = normalizeOrderStatus(payload.status, "");
-    if (!nextStatus || !canTransitionOrderStatus(order.status, nextStatus)) {
-      const error = new Error("Invalid order status transition.");
-      error.statusCode = 409;
-      throw error;
-    }
+    const nextStatus = normalizeOrderStatus(payload.status, order.status);
     const grandTotalCents = normalizeCents(order.grandTotalCents ?? order.total_amount);
     const amountPaidCents = normalizeCents(order.amountPaidCents);
     if (
@@ -1809,6 +1871,16 @@ export const updateOrderMetadata = async (
       error.statusCode = 409;
       throw error;
     }
+    if (!canTransitionOrder(order.status, nextStatus)) {
+      const error = new Error("That order status change is not allowed.");
+      error.statusCode = 409;
+      error.code = "INVALID_ORDER_TRANSITION";
+      error.details = {
+        currentStatus: normalizeOrderStatus(order.status),
+        requestedStatus: nextStatus,
+      };
+      throw error;
+    }
     params.push(nextStatus);
     updates.push(`status = $${params.length}`);
   }
@@ -1817,8 +1889,31 @@ export const updateOrderMetadata = async (
       payload.fulfillmentStatus,
       order.fulfillmentStatus || FULFILLMENT_STATUS.NOT_STARTED
     );
+    if (!canTransitionFulfillment(
+      order.fulfillmentStatus,
+      nextFulfillmentStatus,
+      order.deliveryMethod
+    )) {
+      const error = new Error("That fulfillment step is not available from the current state.");
+      error.statusCode = 409;
+      error.code = "INVALID_FULFILLMENT_TRANSITION";
+      throw error;
+    }
+    const balanceDueCents = normalizeCents(
+      order.balanceDueCents ?? (order.grandTotalCents ?? order.total_amount) - order.amountPaidCents
+    );
+    if (requiresSettledPaymentForFulfillment(nextFulfillmentStatus) && balanceDueCents > 0) {
+      const error = new Error("Settle the order balance before handover or dispatch.");
+      error.statusCode = 409;
+      error.code = "ORDER_BALANCE_DUE";
+      throw error;
+    }
     params.push(nextFulfillmentStatus);
     updates.push(`"fulfillmentStatus" = $${params.length}`);
+    if (!hasStatus) {
+      params.push(getOrderStatusForFulfillment(nextFulfillmentStatus, order.status));
+      updates.push(`status = $${params.length}`);
+    }
   }
   if (Object.prototype.hasOwnProperty.call(payload, "internalNotes")) {
     params.push(normalizeNullableText(payload.internalNotes, 1000));
@@ -1881,7 +1976,10 @@ export const updateOrderMetadata = async (
     },
     createdByUserId: actor.userId,
   });
-  return updated.rows[0];
+  return {
+    ...updated.rows[0],
+    nextActions: getOrderNextActions(updated.rows[0]),
+  };
 };
 
 export const cancelOrder = async (

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatedLoadingState, ERPConfirmDialog, ERPFormNotice } from "@faako/ui";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimatedLoadingState, ERPFormNotice } from "@faako/ui";
 import "./AdminCustomers.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faUserPlus } from "/src/icons/iconSet";
@@ -10,13 +10,15 @@ import CustomerDetailModal from "./components/CustomerDetailModal";
 import CustomerResultsSection from "./components/CustomerResultsSection";
 import CustomerSummaryPanel from "./components/CustomerSummaryPanel";
 import CustomerToolbar from "./components/CustomerToolbar";
+import TablePagination from "../../components/TablePagination/TablePagination";
+import { useAuth } from "../../components/AuthContext/AuthContext";
+import { normalizeAdminRole } from "../../utils/adminAccess";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   EMPTY_CUSTOMER_FORM,
   CUSTOMER_SEGMENTS,
   KANBAN_COLUMNS,
   MOBILE_CARD_VIEW_QUERY,
-  buildSearchBlob,
   centsToMoneyAmount,
   getCustomerSegment,
   getDaysSince,
@@ -25,16 +27,24 @@ import {
   getQuantile,
   getSegmentLabel,
   readResponseError,
+  toCustomerForm,
   toNumber,
 } from "./crmShared";
-import { reebsApiResponse } from "../../api/client";
-import { customerMasterDataFormSchema, validationIssues } from "@faako/validation";
-import useUnsavedChanges from "../../hooks/useUnsavedChanges";
 
 export default function AdminCustomers() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canMutateCustomers = normalizeAdminRole(user?.role) !== "driver";
   const [customers, setCustomers] = useState([]);
+  const [customerPage, setCustomerPage] = useState(1);
+  const [customerPagination, setCustomerPagination] = useState({
+    page: 1,
+    pageSize: 25,
+    total: 0,
+    pageCount: 1,
+  });
+  const [customerPermissions, setCustomerPermissions] = useState({ canViewFinancials: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -58,24 +68,10 @@ export default function AdminCustomers() {
   const [detail, setDetail] = useState(null);
   const [detailForm, setDetailForm] = useState(EMPTY_CUSTOMER_FORM);
   const [removingCustomerId, setRemovingCustomerId] = useState(null);
-  const [pendingArchiveCustomer, setPendingArchiveCustomer] = useState(null);
   const [draggedCustomerId, setDraggedCustomerId] = useState(null);
   const [dragOverSegment, setDragOverSegment] = useState("");
   const [movingCustomerId, setMovingCustomerId] = useState(null);
   const detailRequestRef = useRef(0);
-  const createFormDirty = createOpen && Boolean(
-    createForm.name || createForm.email || createForm.phone
-  );
-  const detailFormDirty = Boolean(
-    detailOpen &&
-    activeCustomer &&
-    (detailForm.name !== (activeCustomer.name || "") ||
-      detailForm.email !== (activeCustomer.email || "") ||
-      detailForm.phone !== (activeCustomer.phone || ""))
-  );
-  useUnsavedChanges(
-    (createFormDirty && !createSaving) || (detailFormDirty && !detailSaving)
-  );
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -95,28 +91,40 @@ export default function AdminCustomers() {
     return () => mediaQuery.removeListener(handleChange);
   }, []);
 
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async ({ page = customerPage, query = searchTerm } = {}) => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await reebsApiResponse("/api/customers");
+      const params = new URLSearchParams({
+        format: "page",
+        page: String(page),
+        pageSize: "25",
+      });
+      if (query.trim()) params.set("q", query.trim());
+      const response = await fetch(`/api/customers?${params.toString()}`);
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to load customers."));
       }
       const payload = await response.json();
-      setCustomers(Array.isArray(payload) ? payload : []);
+      setCustomers(Array.isArray(payload?.items) ? payload.items : []);
+      setCustomerPagination(payload?.pagination || { page, pageSize: 25, total: 0, pageCount: 1 });
+      setCustomerPermissions(payload?.permissions || { canViewFinancials: false });
+      setCustomerPage(Number(payload?.pagination?.page || page));
     } catch (err) {
       console.error("Failed to load customers", err);
       setError(err.message || "Failed to load customers.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [customerPage, searchTerm]);
 
   useEffect(() => {
-    loadCustomers();
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      void loadCustomers({ page: customerPage, query: searchTerm });
+    }, searchTerm ? 250 : 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [customerPage, loadCustomers, searchTerm]);
 
   const enrichedCustomers = useMemo(() => {
     const base = customers.map((customer) => {
@@ -190,24 +198,17 @@ export default function AdminCustomers() {
 
     return {
       ...totals,
-      count: enrichedCustomers.length,
+      count: customerPagination.total,
+      pageCount: enrichedCustomers.length,
       avgValue: enrichedCustomers.length ? totals.value / enrichedCustomers.length : 0,
       contactGaps: enrichedCustomers.filter((customer) => !customer.phone || !customer.email).length,
     };
-  }, [enrichedCustomers]);
+  }, [customerPagination.total, enrichedCustomers]);
 
   const visibleCustomers = useMemo(() => {
-    const terms = searchTerm
-      .toLowerCase()
-      .split(/\s+/)
-      .map((term) => term.trim())
-      .filter(Boolean);
-
     const nextCustomers = enrichedCustomers.filter((customer) => {
       if (segmentFilter !== "all" && customer.segment !== segmentFilter) return false;
-      if (!terms.length) return true;
-      const blob = buildSearchBlob(customer);
-      return terms.every((term) => blob.includes(term));
+      return true;
     });
 
     nextCustomers.sort((left, right) => {
@@ -230,11 +231,30 @@ export default function AdminCustomers() {
     });
 
     return nextCustomers;
-  }, [enrichedCustomers, searchTerm, segmentFilter, sortKey]);
+  }, [enrichedCustomers, segmentFilter, sortKey]);
 
   const selectedCustomer =
     enrichedCustomers.find((customer) => customer.id === activeCustomer?.id) || activeCustomer;
   const activeViewMode = isMobileCardView ? "card" : viewMode;
+  const isCreateDirty = useMemo(
+    () => JSON.stringify(createForm) !== JSON.stringify(EMPTY_CUSTOMER_FORM),
+    [createForm]
+  );
+  const isDetailDirty = useMemo(
+    () => detailOpen
+      && JSON.stringify(detailForm) !== JSON.stringify(toCustomerForm(detail?.customer || selectedCustomer)),
+    [detail?.customer, detailForm, detailOpen, selectedCustomer]
+  );
+
+  useEffect(() => {
+    if (!isCreateDirty && !isDetailDirty) return undefined;
+    const warnBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [isCreateDirty, isDetailDirty]);
 
   const kanbanColumns = useMemo(
     () =>
@@ -272,6 +292,7 @@ export default function AdminCustomers() {
   };
 
   const moveCustomerToSegment = async (customer, nextSegment) => {
+    if (!canMutateCustomers) return;
     const customerId = Number(customer?.id);
     if (!Number.isFinite(customerId) || !CUSTOMER_SEGMENTS.has(nextSegment)) return;
     if (movingCustomerId === customerId || customer.segment === nextSegment) {
@@ -298,7 +319,7 @@ export default function AdminCustomers() {
     );
 
     try {
-      const response = await reebsApiResponse("/api/customers", {
+      const response = await fetch("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -401,11 +422,13 @@ export default function AdminCustomers() {
   };
 
   const closeCreate = () => {
+    if (isCreateDirty && !window.confirm("Discard the unsaved customer details?")) return;
     setCreateOpen(false);
     setCreateError("");
   };
 
   const openCreate = () => {
+    if (!canMutateCustomers) return;
     setCreateError("");
     setCreateForm(EMPTY_CUSTOMER_FORM);
     setCreateOpen(true);
@@ -417,8 +440,12 @@ export default function AdminCustomers() {
   };
 
   const archiveCustomer = async (customer) => {
+    if (!canMutateCustomers) return;
     const customerId = Number(customer?.id);
     if (!Number.isFinite(customerId) || removingCustomerId === customerId) return;
+
+    const confirmed = window.confirm(`Archive ${customer?.name || "this customer"}?`);
+    if (!confirmed) return;
 
     setRemovingCustomerId(customerId);
     setError("");
@@ -426,7 +453,7 @@ export default function AdminCustomers() {
     setDetailStatus("");
 
     try {
-      const response = await reebsApiResponse("/api/customers", {
+      const response = await fetch("/api/customers", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: customerId }),
@@ -439,9 +466,8 @@ export default function AdminCustomers() {
       setCustomers((current) => current.filter((item) => item.id !== customerId));
 
       if (activeCustomer?.id === customerId) {
-        closeDetail();
+        closeDetail({ force: true });
       }
-      setPendingArchiveCustomer(null);
     } catch (err) {
       console.error("Failed to archive customer", err);
       if (activeCustomer?.id === customerId) {
@@ -452,16 +478,6 @@ export default function AdminCustomers() {
     } finally {
       setRemovingCustomerId(null);
     }
-  };
-
-  const requestArchiveCustomer = (customer) => {
-    if (!customer || removingCustomerId) return;
-    setPendingArchiveCustomer(customer);
-  };
-
-  const closeArchiveConfirmation = () => {
-    if (removingCustomerId) return;
-    setPendingArchiveCustomer(null);
   };
 
   const openDetail = async (customer) => {
@@ -484,14 +500,10 @@ export default function AdminCustomers() {
         totalRented: customer.total_rented || 0,
       },
     });
-    setDetailForm({
-      name: customer.name || "",
-      email: customer.email || "",
-      phone: customer.phone || "",
-    });
+    setDetailForm(toCustomerForm(customer));
 
     try {
-      const response = await reebsApiResponse(`/api/customers?id=${customer.id}`);
+      const response = await fetch(`/api/customers?id=${customer.id}`);
       if (detailRequestRef.current !== requestId) return;
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to load customer."));
@@ -499,11 +511,7 @@ export default function AdminCustomers() {
       const payload = await response.json();
       if (detailRequestRef.current !== requestId) return;
       setDetail(payload);
-      setDetailForm({
-        name: payload?.customer?.name || "",
-        email: payload?.customer?.email || "",
-        phone: payload?.customer?.phone || "",
-      });
+      setDetailForm(toCustomerForm(payload?.customer));
     } catch (err) {
       if (detailRequestRef.current !== requestId) return;
       console.error("Failed to load customer detail", err);
@@ -515,7 +523,8 @@ export default function AdminCustomers() {
     }
   };
 
-  const closeDetail = () => {
+  const closeDetail = (options = {}) => {
+    if (options?.force !== true && isDetailDirty && !window.confirm("Discard the unsaved customer changes?")) return;
     detailRequestRef.current += 1;
     setDetailOpen(false);
     setActiveCustomer(null);
@@ -557,16 +566,12 @@ export default function AdminCustomers() {
     setDetailStatus("");
 
     try {
-      const validation = customerMasterDataFormSchema.safeParse(detailForm);
-      if (!validation.success) {
-        throw new Error(validationIssues(validation.error)[0]?.message || "Customer details are invalid.");
-      }
-      const response = await reebsApiResponse("/api/customers", {
+      const response = await fetch("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: selectedCustomer.id,
-          ...validation.data,
+          ...detailForm,
         }),
       });
 
@@ -603,14 +608,12 @@ export default function AdminCustomers() {
     setCreateError("");
 
     try {
-      const validation = customerMasterDataFormSchema.safeParse(createForm);
-      if (!validation.success) {
-        throw new Error(validationIssues(validation.error)[0]?.message || "Customer details are invalid.");
-      }
-      const response = await reebsApiResponse("/api/customers", {
+      const response = await fetch("/api/customers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validation.data),
+        body: JSON.stringify({
+          ...createForm,
+        }),
       });
 
       if (!response.ok) {
@@ -618,9 +621,14 @@ export default function AdminCustomers() {
       }
 
       const created = await response.json();
-      setCustomers((current) => [created, ...current.filter((customer) => customer.id !== created.id)]);
+      if (created?.duplicateMatch?.level === "exact") {
+        setCreateError(`${created.name || "This customer"} already exists (${created.reference || "existing record"}).`);
+        return;
+      }
       setCreateForm(EMPTY_CUSTOMER_FORM);
       setCreateOpen(false);
+      setCustomerPage(1);
+      await loadCustomers({ page: 1, query: searchTerm });
     } catch (err) {
       console.error("Failed to create customer", err);
       setCreateError(err.message || "Failed to create customer.");
@@ -638,7 +646,7 @@ export default function AdminCustomers() {
     setDetailStatus("");
 
     try {
-      const response = await reebsApiResponse("/api/contactRequests", {
+      const response = await fetch("/api/contactRequests", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: requestId, status }),
@@ -661,7 +669,7 @@ export default function AdminCustomers() {
           : current
       );
       setDetailStatus("Contact request updated.");
-      await loadCustomers();
+      await loadCustomers({ page: customerPage, query: searchTerm });
     } catch (err) {
       console.error("Failed to update contact request", err);
       setDetailError(err.message || "Failed to update contact request.");
@@ -673,41 +681,50 @@ export default function AdminCustomers() {
   return (
     <div className="admin-page crm-page">
       <div className="admin-shell crm-shell">
-        <AdminBreadcrumb items={[{ label: "Customers" }]} />
+        <AdminBreadcrumb items={[{ label: "CRM" }]} />
 
         <AdminPageHeader
           copyClassName="crm-header-copy"
           actionsClassName="admin-header-actions crm-header-actions"
-          title="Customers"
+          title="CRM"
           actions={(
             <>
               <button
                 type="button"
                 className="admin-secondary crm-button"
-                onClick={loadCustomers}
+                onClick={() => loadCustomers({ page: customerPage, query: searchTerm })}
                 disabled={loading}
               >
                 <AppIcon icon={faRotateRight} />
                 Refresh
               </button>
-              <button type="button" className="admin-primary crm-button" onClick={openCreate}>
-                <AppIcon icon={faUserPlus} />
-                Add customer
-              </button>
+              {canMutateCustomers ? (
+                <button type="button" className="admin-primary crm-button" onClick={openCreate}>
+                  <AppIcon icon={faUserPlus} />
+                  Add customer
+                </button>
+              ) : null}
             </>
           )}
         />
 
         <CustomerSummaryPanel
           summary={summary}
+          canViewFinancials={customerPermissions.canViewFinancials}
           segmentFilter={segmentFilter}
           onSegmentFilterChange={setSegmentFilter}
         />
 
         <CustomerToolbar
           searchTerm={searchTerm}
-          onSearchChange={(event) => setSearchTerm(event.target.value)}
-          onSearchClear={() => setSearchTerm("")}
+          onSearchChange={(event) => {
+            setSearchTerm(event.target.value);
+            setCustomerPage(1);
+          }}
+          onSearchClear={() => {
+            setSearchTerm("");
+            setCustomerPage(1);
+          }}
           segmentFilter={segmentFilter}
           onSegmentFilterChange={(event) => setSegmentFilter(event.target.value)}
           sortKey={sortKey}
@@ -722,7 +739,7 @@ export default function AdminCustomers() {
             compact
             className="glass-card crm-loading-state admin-module-loading"
             title="Loading customers"
-            message="Preparing customer history and segments."
+            message="Preparing CRM history and segments."
             variant="dashboard"
           />
         ) : null}
@@ -742,13 +759,25 @@ export default function AdminCustomers() {
             onKanbanDragLeave={handleKanbanDragLeave}
             onKanbanDrop={handleKanbanDrop}
             onOpenDetail={openDetail}
-            onArchiveCustomer={requestArchiveCustomer}
+            onArchiveCustomer={archiveCustomer}
             removingCustomerId={removingCustomerId}
             draggedCustomerId={draggedCustomerId}
             movingCustomerId={movingCustomerId}
             onKanbanDragStart={handleKanbanDragStart}
             onKanbanDragEnd={handleKanbanDragEnd}
             searchTerm={searchTerm}
+            canMutateCustomers={canMutateCustomers}
+          />
+        ) : null}
+
+        {!loading && !error && customerPagination.total > 0 ? (
+          <TablePagination
+            total={customerPagination.total}
+            pageIndex={Math.max(0, customerPagination.page - 1)}
+            pageSize={customerPagination.pageSize}
+            pageCount={customerPagination.pageCount}
+            onPrevious={() => setCustomerPage((page) => Math.max(1, page - 1))}
+            onNext={() => setCustomerPage((page) => Math.min(customerPagination.pageCount, page + 1))}
           />
         ) : null}
       </div>
@@ -777,33 +806,15 @@ export default function AdminCustomers() {
         onDetailStatusClear={() => setDetailStatus("")}
         selectedSegment={selectedSegment}
         selectedTotals={selectedTotals}
+        canViewFinancials={Boolean(detail?.permissions?.canViewFinancials)}
+        canMutateCustomers={canMutateCustomers}
         removingCustomerId={removingCustomerId}
         requestStatusSavingId={requestStatusSavingId}
         onClose={closeDetail}
         onSave={saveCustomer}
-        onArchive={requestArchiveCustomer}
+        onArchive={archiveCustomer}
         onFormChange={handleDetailFormChange}
         onRequestStatusChange={updateContactRequestStatus}
-      />
-
-      <ERPConfirmDialog
-        open={Boolean(pendingArchiveCustomer)}
-        title="Archive customer?"
-        description="This removes the customer from the active customer list."
-        message={
-          pendingArchiveCustomer
-            ? `Archive ${pendingArchiveCustomer.name || "this customer"}? Existing linked records are not deleted.`
-            : ""
-        }
-        confirmLabel="Archive customer"
-        loading={
-          removingCustomerId !== null
-          && removingCustomerId === Number(pendingArchiveCustomer?.id)
-        }
-        disabled={!pendingArchiveCustomer}
-        onCancel={closeArchiveConfirmation}
-        onClose={closeArchiveConfirmation}
-        onConfirm={() => archiveCustomer(pendingArchiveCustomer)}
       />
     </div>
   );

@@ -149,7 +149,7 @@ const getDocumentSourceLabel = (document) => {
   const sourceType = String(document?.sourceType || "").toLowerCase();
   if (sourceType === "bookings") return `Booking #${document.sourceId}`;
   if (sourceType === "orders") return `Order #${document.sourceId}`;
-  return "Built here";
+  return "Manual";
 };
 
 const getRentalHealth = (item, openMaintenanceCount = 0) => {

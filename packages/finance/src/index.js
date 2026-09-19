@@ -5,7 +5,8 @@ export * from "./types/index.js";
 
 // TODO(shared-payment-service): add app-adapter contracts before any shared payment write behavior.
 // TODO(shared-receipt-service): add app-adapter contracts before any shared receipt numbering or persistence.
-// TODO(gateway-integrations): add provider-specific contracts for Paystack, Hubtel, and Flutterwave after manual payment contracts are stable.
+// Server-only gateway adapters are exported from @faako/finance/gateways so browser bundles do not
+// receive Node crypto or provider code. Applications still own attempts, webhooks, and persistence.
 // TODO(offline-payment-sync): add pending/offline payment contracts only after online idempotency is proven.
 // TODO(audit-logging): use createAuditEvent / AUDIT_ACTION_TYPES from @faako/audit to record payment and
 //   receipt events without replacing app-owned writers. Wire only after payment idempotency, receipt

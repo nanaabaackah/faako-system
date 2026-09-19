@@ -74,6 +74,7 @@ export default function PaymentLedger({
   const draftWriteTimerRef = useRef(null);
   const draftRestoreSkipWriteRef = useRef(false);
   const paymentQueueSyncingRef = useRef(false);
+  const paymentSubmissionRef = useRef({ signature: "", key: "" });
   const isOnline = useOnlineStatus();
   const paymentQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
 
@@ -156,7 +157,9 @@ export default function PaymentLedger({
     });
 
     try {
-      const result = await onRecordPayment(queueItem.payload?.payment || {});
+      const result = await onRecordPayment(queueItem.payload?.payment || {}, {
+        idempotencyKey: queueItem.payload?.idempotencyKey || queueItem.id,
+      });
       await paymentQueueStorage.remove(queueItem.id);
       clearPaymentDraft();
       const receiptNumber = result?.receipt?.receiptNumber || "";
@@ -347,6 +350,23 @@ export default function PaymentLedger({
       phoneNumber: form.phoneNumber || null,
       notes: form.notes || null,
     };
+    if (["mobile_money", "bank_transfer", "card"].includes(form.method) && !form.transactionReference.trim()) {
+      setNotice({
+        tone: "error",
+        title: "Reference required",
+        message: "Enter the external transaction reference so this payment can be reconciled safely.",
+      });
+      return;
+    }
+    const balanceDueCents = Number(order?.balanceDueCents || 0);
+    if (balanceDueCents > 0 && amountCents > balanceDueCents) {
+      setNotice({
+        tone: "error",
+        title: "Amount exceeds balance",
+        message: `The remaining balance is ${formatCurrencyFromCents(balanceDueCents)}.`,
+      });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -355,7 +375,20 @@ export default function PaymentLedger({
         return;
       }
 
-      const result = await onRecordPayment(paymentPayload);
+      const signature = JSON.stringify(paymentPayload);
+      if (paymentSubmissionRef.current.signature !== signature) {
+        paymentSubmissionRef.current = {
+          signature,
+          key:
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `order-payment-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        };
+      }
+      const result = await onRecordPayment(paymentPayload, {
+        idempotencyKey: paymentSubmissionRef.current.key,
+      });
+      paymentSubmissionRef.current = { signature: "", key: "" };
       resetForm();
       setDrawerOpen(false);
       setNotice({
@@ -441,6 +474,7 @@ export default function PaymentLedger({
             <input
               type="number"
               min="0"
+              max={Number(order?.balanceDueCents || 0) > 0 ? Number(order.balanceDueCents) / 100 : undefined}
               step="0.01"
               value={form.amount}
               onChange={(event) => updateField("amount", event.target.value)}
@@ -484,6 +518,7 @@ export default function PaymentLedger({
             <input
               value={form.transactionReference}
               onChange={(event) => updateField("transactionReference", event.target.value)}
+              required={["mobile_money", "bank_transfer", "card"].includes(form.method)}
             />
           </label>
           <label className="orders-payment-field orders-payment-field--wide">
@@ -513,13 +548,17 @@ export default function PaymentLedger({
         </form>
       )}
 
-      <div className="orders-payment-list">
+      <div className="orders-payment-list" aria-live="polite">
         {payments.length ? (
           payments.map((payment) => (
             <article key={payment.id} className="bubble-card orders-payment-card">
               <div>
                 <strong>{formatCurrencyFromCents(payment.amountCents)}</strong>
-                <span>{getPaymentMethodLabel(payment.method)}</span>
+                <span>{getPaymentMethodLabel(payment.method)} · {payment.source === "ONLINE_PROVIDER" ? "Provider verified" : "Manual"}</span>
+                <small>{payment.paymentReference || `REEBS-PAY-${String(payment.id).padStart(6, "0")}`}</small>
+                {(payment.providerReference || payment.transactionReference) && (
+                  <small>External ref: {payment.providerReference || payment.transactionReference}</small>
+                )}
               </div>
               <div>
                 <span className={`orders-status-pill orders-status-pill--compact completed`}>

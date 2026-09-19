@@ -41,7 +41,8 @@ import {
 const STANDARD_NAV_ROLES = ["owner", "admin", "manager", "staff", "warehouse"];
 const PRIVILEGED_NAV_ROLES = ["owner", "admin", "manager"];
 const OWNER_ADMIN_NAV_ROLES = ["owner", "admin"];
-const WATER_NAV_ROLES = ["owner", "admin", "water"];
+const WATER_NAV_ROLES = ["owner", "admin", "manager", "water"];
+const PAYMENTS_NAV_ROLES = ["owner", "admin", "manager", "staff"];
 
 export { REEBS_NAVIGATION_GROUPS } from "./adminNavigationHierarchy.js";
 
@@ -61,6 +62,7 @@ const SIDEBAR_ICONS_BY_KEY = {
   invoicing: faFileInvoiceDollar,
   maintenance: faTools,
   marketing: faBullhorn,
+  payments: faMoneyCheckDollar,
   pos: faReceipt,
   rentals: faBoxesStacked,
   reports: faChartLine,
@@ -95,6 +97,8 @@ const getRolesForPermission = (requiredPermission) => {
       return PRIVILEGED_NAV_ROLES;
     case "water":
       return WATER_NAV_ROLES;
+    case "payments":
+      return PAYMENTS_NAV_ROLES;
     default:
       return undefined;
   }
@@ -189,7 +193,7 @@ const DRIVER_BOTTOM_NAV_ITEMS = [
   buildBottomItem("directory", {
     id: "customers",
     label: "Customers",
-    path: "/admin/directory?tab=customers",
+    path: "/admin/crm",
   }),
 ].filter(Boolean);
 

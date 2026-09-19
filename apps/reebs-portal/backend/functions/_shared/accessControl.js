@@ -32,8 +32,15 @@ const ROLE_PERMISSIONS = {
     "inventory:approve",
     "orders:read",
     "orders:write",
+    "payments:read",
+    "payments:record_manual",
+    "payments:verify",
+    "payments:reconcile",
+    "payments:provider_details_view",
     "bookings:read",
     "bookings:write",
+    "bookings:price_override",
+    "bookings:discount",
     "customers:read",
     "customers:write",
     "deliveries:read",
@@ -45,6 +52,10 @@ const ROLE_PERMISSIONS = {
     "documents:write",
     "invoices:read",
     "invoices:write",
+    "invoices:issue",
+    "invoices:send",
+    "invoices:void",
+    "invoices:export",
     "marketing:read",
     "marketing:write",
     "expenses:read",
@@ -66,6 +77,8 @@ const ROLE_PERMISSIONS = {
     "inventory:read",
     "orders:read",
     "orders:write",
+    "payments:read",
+    "payments:record_manual",
     "bookings:read",
     "bookings:write",
     "customers:read",
@@ -111,12 +124,19 @@ export const isProductionRuntime = (env = process.env) => {
   const runtime = String(env?.APP_ENV || env?.NODE_ENV || "")
     .trim()
     .toLowerCase();
-  return runtime === "production" || runtime === "prod";
+  return runtime === "production";
+};
+
+export const isDeployedRuntime = (env = process.env) => {
+  const runtime = String(env?.APP_ENV || "")
+    .trim()
+    .toLowerCase();
+  return runtime === "staging" || isProductionRuntime(env);
 };
 
 export const assertSeedActionsAllowed = (env = process.env) => {
-  if (isProductionRuntime(env)) {
-    const error = new Error("Seed actions are disabled in production.");
+  if (isDeployedRuntime(env)) {
+    const error = new Error("Seed actions are disabled in deployed environments.");
     error.statusCode = 403;
     throw error;
   }

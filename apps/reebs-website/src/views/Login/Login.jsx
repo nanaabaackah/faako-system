@@ -9,9 +9,9 @@ import { publicApiResponse } from "../../lib/publicApi";
 function Login({ mode = "staff" }) {
   const { login, authLoading, authError } = useAuth();
   const isCustomer = mode === "customer";
-  const heroKicker = isCustomer ? "Customer portal" : "Staff portal";
+  const heroKicker = isCustomer ? "Returning customer" : "Staff portal";
   const heroPills = isCustomer
-    ? ["Fast return", "Saved details", "Live support"]
+    ? ["Faster booking", "Prefilled contact", "Live support"]
     : ["Secure access", "Daily ops", "Team workspace"];
   const [form, setForm] = useState({
     email: "",
@@ -127,11 +127,11 @@ function Login({ mode = "staff" }) {
             <div className="login-stage-copy page-hero-copy">
               <span className="kicker">{heroKicker}</span>
               <h1 id={`${pageId}-heading`} className="page-hero-title">
-                {isCustomer ? "Customer login" : "Staff login"}
+                {isCustomer ? "Continue your booking" : "Staff login"}
               </h1>
               <p className="login-stage-subtitle">
                 {isCustomer
-                  ? "Use the same contact details from your booking to jump back into your party plans."
+                  ? "Enter your contact details once and continue into the booking form."
                   : "Secure sign-in for the REEBS team workspace, scheduling, and operations."}
               </p>
               <div className="login-stage-pills" aria-hidden="true">
@@ -143,21 +143,21 @@ function Login({ mode = "staff" }) {
 
             <div className="login-card">
               <header className="login-brand">
-                <span className="login-brand-name">{isCustomer ? "Customer access" : "Staff portal"}</span>
+                <span className="login-brand-name">{isCustomer ? "Booking access" : "Staff portal"}</span>
               </header>
 
               <div className="login-header">
                 <p className="login-eyebrow">{isCustomer ? "Continue your booking" : "Workspace access"}</p>
                 <h2>
                   {isCustomer
-                    ? "Pick up where you left off"
+                    ? "Continue to booking"
                     : forgotMode
                       ? "Reset your password"
                       : "Sign in to continue"}
                 </h2>
                 <p className="login-subtitle">
                   {isCustomer
-                    ? "Customer accounts run through your booking details. Enter your email and phone number and we’ll take you into the booking flow."
+                    ? "Enter the email and phone number you want attached to the booking. We’ll carry them into the booking flow."
                     : forgotMode
                       ? "Enter the staff email or username tied to your account. If it matches, we’ll send a secure reset link."
                       : "Use your staff email or username and password to open the REEBS portal."}
@@ -250,7 +250,7 @@ function Login({ mode = "staff" }) {
 
                 {isCustomer && (
                   <p className="login-customer-note">
-                    Use the same email and phone number attached to your booking request.
+                    This is booking prefill, not an authenticated customer account.
                   </p>
                 )}
 
@@ -289,9 +289,9 @@ function Login({ mode = "staff" }) {
 
               <div className="login-switches">
                 <div className="login-switch">
-                  <span>{isCustomer ? "Team member?" : "Booking customer?"}</span>
+                  <span>{isCustomer ? "Team member?" : "Returning customer?"}</span>
                   <Link to={isCustomer ? "/login" : "/customer-login"}>
-                    {isCustomer ? "Staff login" : "Customer login"}
+                    {isCustomer ? "Staff login" : "Continue booking"}
                   </Link>
                 </div>
 

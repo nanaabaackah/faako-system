@@ -10,5 +10,6 @@ export * from "./erpModules/moduleStates.js";
 export * from "./erpModules/registryHelpers.js";
 export * from "./erpShell/shellFoundation.js";
 export * from "./appModes/appModes.js";
+export * from "./environments/appEnvironment.js";
 export * from "./monorepoApps/appRegistry.js";
 export * from "./projectRegistry/projectRegistry.js";

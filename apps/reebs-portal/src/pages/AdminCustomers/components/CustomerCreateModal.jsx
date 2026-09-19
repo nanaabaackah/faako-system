@@ -2,6 +2,8 @@ import React from "react";
 import { ERPFormNotice } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faUserPlus, faXmark } from "/src/icons/iconSet";
+import CustomerFormFields from "./CustomerFormFields";
+import { useCustomerDialog } from "./useCustomerDialog";
 
 export default function CustomerCreateModal({
   isOpen,
@@ -13,15 +15,21 @@ export default function CustomerCreateModal({
   onSubmit,
   onFormChange,
 }) {
+  const panelRef = useCustomerDialog({ isOpen, onClose });
   if (!isOpen) return null;
 
   return (
-    <div className="admin-modal" role="dialog" aria-modal="true">
-      <div className="admin-modal-panel crm-modal-panel">
+    <div className="admin-modal">
+      <div
+        className="admin-modal-panel crm-modal-panel"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-customer-title"
+      >
         <header className="crm-modal-header">
           <div>
-            <p className="admin-eyebrow">Customers</p>
-            <h2>New customer</h2>
+            <h2 id="create-customer-title">New customer</h2>
           </div>
           <button type="button" className="admin-close" onClick={onClose} aria-label="Close">
             <AppIcon icon={faXmark} />
@@ -29,38 +37,11 @@ export default function CustomerCreateModal({
         </header>
 
         <form className="crm-form" onSubmit={onSubmit}>
-          <div className="crm-field-grid">
-            <label className="crm-field">
-              <span>Name</span>
-              <input
-                type="text"
-                value={createForm.name}
-                onChange={(event) => onFormChange("name", event.target.value)}
-                placeholder="Customer name"
-                required
-              />
-            </label>
-
-            <label className="crm-field">
-              <span>Phone</span>
-              <input
-                type="tel"
-                value={createForm.phone}
-                onChange={(event) => onFormChange("phone", event.target.value)}
-                placeholder="+233 ..."
-              />
-            </label>
-
-            <label className="crm-field crm-field-full">
-              <span>Email</span>
-              <input
-                type="email"
-                value={createForm.email}
-                onChange={(event) => onFormChange("email", event.target.value)}
-                placeholder="email@example.com"
-              />
-            </label>
-          </div>
+          <CustomerFormFields
+            form={createForm}
+            onChange={onFormChange}
+            idPrefix="create-customer"
+          />
 
           {createError ? (
             <ERPFormNotice tone="danger" title="Customer not created" onDismiss={onCreateErrorClear}>

@@ -110,6 +110,15 @@ const buildBookingItemLines = (items = []) =>
     })
     .filter(Boolean);
 
+const getBookingReference = (booking) =>
+  String(booking?.reference || (booking?.id ? `#${booking.id}` : "")).trim();
+
+const getBookingDepositLabel = (booking) => {
+  const rateBps = Number(booking?.depositRateBps);
+  if (!Number.isFinite(rateBps) || rateBps <= 0) return "the required deposit";
+  return `the ${(rateBps / 100).toFixed(rateBps % 100 === 0 ? 0 : 2)}% deposit`;
+};
+
 const buildBookingDetailRows = (booking) => {
   const start = booking?.startTime ? ` ${booking.startTime}` : "";
   const end = booking?.endTime ? `-${booking.endTime}` : "";
@@ -118,7 +127,11 @@ const buildBookingDetailRows = (booking) => {
     ["Email", booking?.customerEmail || "Not provided"],
     ["Phone", booking?.customerPhone || "Not provided"],
     ["Event date", `${booking?.eventDate || "Date TBD"}${start}${end}`],
+    ...(booking?.eventEndDate && String(booking.eventEndDate).slice(0, 10) !== String(booking.eventDate).slice(0, 10)
+      ? [["Rental end date", booking.eventEndDate]]
+      : []),
     ...(booking?.venueAddress ? [["Venue", booking.venueAddress]] : []),
+    ...(booking?.venueGhanaPostGps ? [["GhanaPost GPS", booking.venueGhanaPostGps]] : []),
   ];
 };
 
@@ -144,20 +157,18 @@ const renderPaymentPanel = ({ paymentPreference, reference, internal = false }) 
     ),
   });
 
-const buildBookingPaymentInstructionLines = (booking, reference = "", internal = false) =>
+const buildBookingPaymentInstructionLines = (reference = "") =>
   buildPaymentInstructionLines({
-    paymentPreference:
-      booking?.paymentPreference || { method: "pay-later", payLater: true },
+    paymentPreference: { method: "pay-later", payLater: true },
     reference,
-    internal,
   });
 
-const renderBookingPaymentPanel = ({ booking, reference = "", internal = false }) =>
+const renderBookingPaymentPanel = ({ reference = "" }) =>
   renderPanel({
     theme: REEBS_THEME,
     eyebrow: "Payment",
-    title: internal ? "Payment handling" : "Payment instructions",
-    bodyHtml: renderList(buildBookingPaymentInstructionLines(booking, reference, internal), {
+    title: "Payment instructions",
+    bodyHtml: renderList(buildBookingPaymentInstructionLines(reference), {
       theme: REEBS_THEME,
     }),
   });
@@ -384,10 +395,10 @@ export const buildInternalBookingEmailText = (booking) => {
   const itemLines = buildBookingItemLines(booking?.items || []);
   const start = booking?.startTime ? ` ${booking.startTime}` : "";
   const end = booking?.endTime ? `-${booking.endTime}` : "";
-  const bookingReference = booking?.id ? `#${booking.id}` : "";
+  const bookingReference = getBookingReference(booking);
 
   const lines = [
-    `New booking #${booking?.id || ""}`.trim(),
+    `New booking ${bookingReference}`.trim(),
     "",
     `Customer: ${booking?.customerName || "Unknown"}`,
     `Email: ${booking?.customerEmail || "Not provided"}`,
@@ -401,7 +412,7 @@ export const buildInternalBookingEmailText = (booking) => {
   }
 
   lines.push("", "Payment:");
-  lines.push(...buildBookingPaymentInstructionLines(booking, bookingReference, true));
+  lines.push(...buildBookingPaymentInstructionLines(bookingReference));
 
   lines.push("", "Booked items:");
   lines.push(...(itemLines.length ? itemLines.map((line) => `- ${line}`) : ["- No booking items listed"]));
@@ -412,11 +423,11 @@ export const buildInternalBookingEmailText = (booking) => {
 export const buildInternalBookingEmailHtml = (booking) =>
   renderEmailLayout({
     theme: REEBS_THEME,
-    preheader: `New booking #${booking?.id || ""} from ${booking?.customerName || "a customer"}.`,
+    preheader: `New booking ${getBookingReference(booking)} from ${booking?.customerName || "a customer"}.`,
     brandName: "REEBS Party Themes",
     brandTagline: "Booking operations",
     eyebrow: "New booking",
-    title: `Booking #${booking?.id || ""}`.trim(),
+    title: `Booking ${getBookingReference(booking)}`.trim(),
     subtitle: "A new event booking was created in the portal.",
     introHtml: renderParagraphs("A new booking has been captured and is ready for follow-up.", { theme: REEBS_THEME }),
     bodyHtml: [
@@ -435,9 +446,7 @@ export const buildInternalBookingEmailHtml = (booking) =>
         bodyHtml: renderKeyValueTable(buildBookingDetailRows(booking), { theme: REEBS_THEME, labelWidth: "34%" }),
       }),
       renderBookingPaymentPanel({
-        booking,
-        reference: booking?.id ? `#${booking.id}` : "",
-        internal: true,
+        reference: getBookingReference(booking),
       }),
       renderListPanel("Booked items", buildBookingItemLines(booking?.items || [])),
     ].join(""),
@@ -448,13 +457,13 @@ export const buildCustomerBookingEmailText = (booking, { supportEmail }) => {
   const itemLines = buildBookingItemLines(booking?.items || []);
   const start = booking?.startTime ? ` ${booking.startTime}` : "";
   const end = booking?.endTime ? `-${booking.endTime}` : "";
-  const bookingReference = booking?.id ? `#${booking.id}` : "";
+  const bookingReference = getBookingReference(booking);
 
   const lines = [
     `Hi ${booking?.customerName || "there"},`,
     "",
     "Thanks for booking with REEBS Party Themes.",
-    `Booking reference: #${booking?.id || ""}`.trim(),
+    `Booking reference: ${bookingReference}`.trim(),
     `Total: GHS ${formatAmount(booking?.totalAmount || 0)}`,
     `Event date: ${booking?.eventDate || "Date TBD"}${start}${end}`,
   ];
@@ -464,14 +473,14 @@ export const buildCustomerBookingEmailText = (booking, { supportEmail }) => {
   }
 
   lines.push("", "Payment:");
-  lines.push(...buildBookingPaymentInstructionLines(booking, bookingReference));
+  lines.push(...buildBookingPaymentInstructionLines(bookingReference));
 
   lines.push("", "Your booked items:");
   lines.push(...(itemLines.length ? itemLines.map((line) => `- ${line}`) : ["- No booking items listed"]));
   lines.push(
     "",
     "Next steps:",
-    "Review your booking details above and arrange the required deposit using the payment instructions provided.",
+    `Review your booking details above and arrange ${getBookingDepositLabel(booking)} using the payment instructions provided.`,
     "We will confirm your booking and event timing once payment is reviewed.",
     "",
     `If you need to make changes, reply to this email or contact ${supportEmail}.`,
@@ -484,18 +493,18 @@ export const buildCustomerBookingEmailText = (booking, { supportEmail }) => {
 
 export const buildCustomerBookingEmailHtml = (booking, { supportEmail }) => {
   const nextStepLines = [
-    "Review your booking details above and arrange the required deposit using the payment instructions provided.",
+    `Review your booking details above and arrange ${getBookingDepositLabel(booking)} using the payment instructions provided.`,
     "We will confirm your booking and event timing once payment is reviewed.",
     `If you need to make changes, reply to this email or contact ${supportEmail}.`,
   ];
 
   return renderEmailLayout({
     theme: REEBS_THEME,
-    preheader: `We received your REEBS booking #${booking?.id || ""}.`,
+    preheader: `We received your REEBS booking ${getBookingReference(booking)}.`,
     brandName: "REEBS Party Themes",
     brandTagline: "Celebration styling and event support",
     eyebrow: "Booking confirmation",
-    title: `We received your booking #${booking?.id || ""}`.trim(),
+    title: `We received your booking ${getBookingReference(booking)}`.trim(),
     subtitle: "Thanks for booking with REEBS Party Themes.",
     introHtml: renderParagraphs(
       `Hello ${booking?.customerName || "there"},\n\nThanks for booking with REEBS Party Themes. Your booking details are below.`,
@@ -518,8 +527,7 @@ export const buildCustomerBookingEmailHtml = (booking, { supportEmail }) => {
       }),
       renderListPanel("Your booked items", buildBookingItemLines(booking?.items || [])),
       renderBookingPaymentPanel({
-        booking,
-        reference: booking?.id ? `#${booking.id}` : "",
+        reference: getBookingReference(booking),
       }),
       renderPanel({
         theme: REEBS_THEME,

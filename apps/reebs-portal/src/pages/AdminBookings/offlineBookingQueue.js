@@ -43,6 +43,9 @@ export const sanitizeQueuedBookingPayload = (booking = {}) => {
   if (Object.prototype.hasOwnProperty.call(booking, "eventDate")) {
     payload.eventDate = booking.eventDate || "";
   }
+  if (Object.prototype.hasOwnProperty.call(booking, "eventEndDate")) {
+    payload.eventEndDate = booking.eventEndDate || booking.eventDate || "";
+  }
   if (Object.prototype.hasOwnProperty.call(booking, "startTime")) {
     payload.startTime = booking.startTime || null;
   }
@@ -51,6 +54,15 @@ export const sanitizeQueuedBookingPayload = (booking = {}) => {
   }
   if (Object.prototype.hasOwnProperty.call(booking, "venueAddress")) {
     payload.venueAddress = booking.venueAddress || "";
+  }
+  if (Object.prototype.hasOwnProperty.call(booking, "venueGhanaPostGps")) {
+    payload.venueGhanaPostGps = booking.venueGhanaPostGps || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(booking, "customerNotes")) {
+    payload.customerNotes = booking.customerNotes || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(booking, "internalNotes")) {
+    payload.internalNotes = booking.internalNotes || null;
   }
   if (Object.prototype.hasOwnProperty.call(booking, "status")) {
     payload.status = booking.status || "pending";
@@ -61,12 +73,17 @@ export const sanitizeQueuedBookingPayload = (booking = {}) => {
   if (Object.prototype.hasOwnProperty.call(booking, "discount")) {
     payload.discount = Number(booking.discount || 0);
   }
+  if (Object.prototype.hasOwnProperty.call(booking, "discountCents")) {
+    payload.discountCents = Math.max(0, Number(booking.discountCents || 0));
+  }
   if (Array.isArray(booking.items)) {
     payload.items = booking.items.map((item) => ({
       productId: Number(item.productId),
       variantId: toOptionalNumber(item.variantId),
       quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
-      price: Number.isFinite(Number(item.price)) ? Number(item.price) : undefined,
+      unitPriceCents: Number.isFinite(Number(item.unitPriceCents))
+        ? Math.max(0, Number(item.unitPriceCents))
+        : undefined,
     }));
   }
   if (booking.userId) payload.userId = booking.userId;

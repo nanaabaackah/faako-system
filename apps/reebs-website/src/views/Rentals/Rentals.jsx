@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import "./Rentals.css";
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import SideNav from '/src/components/SideNav/SideNav';
 import AddToCartButton from "/src/components/AddToCartButton/AddToCartButton";
 import { useCart } from "/src/components/CartContext/CartContext";
@@ -181,16 +181,14 @@ const mergeRentalCollections = (...collections) => {
 };
 
 function Rentals({ initialRentals = [] }) {
-    const hasInitialRentals = Array.isArray(initialRentals) && initialRentals.length > 0;
-    const [rentals, setRentals] = useState(() =>
-        hasInitialRentals ? initialRentals : []
-    );
+    const [rentals, setRentals] = useState(() => uniqueByKey(initialRentals));
     const { convertPrice, formatCurrency, openCart } = useCart();
     const [searchQuery, setSearchQuery] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("All");
-    const [loading, setLoading] = useState(!hasInitialRentals);
+    const [loading, setLoading] = useState(initialRentals.length === 0);
     const [showSideNav, setShowSideNav] = useState(false);
     const [activeHeroPanelIndex, setActiveHeroPanelIndex] = useState(0);
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const routeSearchQuery = clampRentalsQuery(searchParams.get("q") || "");
 
@@ -202,7 +200,7 @@ function Rentals({ initialRentals = [] }) {
             if (cached?.length) {
                 setRentals(cached);
             }
-            setLoading(!cached && !hasInitialRentals);
+            setLoading(!cached?.length && initialRentals.length === 0);
             try {
                 const inventoryPromise = fetchInventoryWithCache({ signal: controller.signal });
                 const indoorPromise = fetch("/api/indoor_games", { signal: controller.signal });
@@ -220,7 +218,9 @@ function Rentals({ initialRentals = [] }) {
                     (item) => !isCategoryStub(item) && !shouldExcludeFromRentals(item)
                 );
                 if (isMounted) {
-                    setRentals(uniqueByKey(mergeRentalCollections(initialRentals, baseCombined)));
+                    setRentals((current) =>
+                        baseCombined.length ? uniqueByKey(baseCombined) : current
+                    );
                     setLoading(false);
                 }
 
@@ -281,7 +281,6 @@ function Rentals({ initialRentals = [] }) {
                 }));
 
                 const merged = mergeRentalCollections(
-                    initialRentals,
                     rentalItems,
                     machineItems,
                     indoorItems,
@@ -293,7 +292,7 @@ function Rentals({ initialRentals = [] }) {
                     writeRentalsCache(merged);
                 }
             } catch (err) {
-                if (isMounted && !controller.signal.aborted && err?.name !== "AbortError") {
+                if (err?.name !== "AbortError") {
                     console.error("Error loading rentals:", err);
                 }
             } finally {
@@ -306,7 +305,7 @@ function Rentals({ initialRentals = [] }) {
             isMounted = false;
             controller.abort();
         };
-    }, [hasInitialRentals, initialRentals]);
+    }, [initialRentals]);
 
     useEffect(() => {
         document.body.classList.add("rentals-theme");
@@ -539,11 +538,17 @@ function Rentals({ initialRentals = [] }) {
     }, [groupedRentals]);
 
     if (loading) return (
-        <SiteLoader
-            label="Loading rentals"
-            sublabel="Pulling the latest party rental options."
-            variant="commerce"
-        />
+        <div className="rentals-page" id="main" role="main" aria-busy="true">
+            <main className="rentals-shell page-shell">
+                <SiteLoader
+                    label="Loading rentals"
+                    sublabel="Pulling the latest party rental options."
+                    variant="commerce"
+                    heroClassName="rentals-hero page-hero"
+                    className="storefront-page-loading"
+                />
+            </main>
+        </div>
     );
 
     return (
@@ -553,7 +558,7 @@ function Rentals({ initialRentals = [] }) {
                 <main className="rentals-shell page-shell">
                     <section id='rentals-intro' className="rentals-hero page-hero" aria-labelledby="rentals-hero-heading">
                         <div className="rentals-hero-copy page-hero-copy">
-                            <h2 id="rentals-hero-heading" className="page-hero-title">Party rentals by REEBS</h2>
+                            <h1 id="rentals-hero-heading" className="page-hero-title">Party rentals by REEBS</h1>
                             <p className="hero-sub rentals-sub">
                                 Bounce houses, decor, concessions, and full setup help. We prep, deliver, and style so you can enjoy the celebration.
                             </p>
@@ -644,7 +649,7 @@ function Rentals({ initialRentals = [] }) {
                                         />
                                     </div>
 
-                                    <div className="filter-chips" role="list" aria-label="Quick category filters">
+                                    <div className="filter-chips" role="group" aria-label="Quick category filters">
                                         {categoryOptions.map((cat) => (
                                             <button
                                                 key={cat}
@@ -674,7 +679,14 @@ function Rentals({ initialRentals = [] }) {
                                             <div className="rent-section-topline">
                                                 <span className="rent-section-count">{items.length} items</span>
                                             </div>
-                                            <h2>{category}</h2>
+                                            <h2>
+                                                <Link
+                                                    className="catalogue-heading-link"
+                                                    to={`/rentals/category/${slugifyRentalValue(category)}`}
+                                                >
+                                                    {category}
+                                                </Link>
+                                            </h2>
                                         </div>
                                         <div className='rent-grid'>
                                             {items.map((item) => {
@@ -688,11 +700,11 @@ function Rentals({ initialRentals = [] }) {
                                                     role="button"
                                                     tabIndex={0}
                                                     aria-label={`View ${itemDisplayName}`}
-                                                    onClick={() => window.location.assign(rentalPath(item))}
+                                                    onClick={() => navigate(rentalPath(item))}
                                                     onKeyDown={(e) => {
                                                         if (e.key === "Enter" || e.key === " ") {
                                                             e.preventDefault();
-                                                            window.location.assign(rentalPath(item));
+                                                            navigate(rentalPath(item));
                                                         }
                                                     }}
                                                 >
@@ -714,7 +726,15 @@ function Rentals({ initialRentals = [] }) {
                                                     <span className="rent-card-arrow" aria-hidden="true">→</span>
                                                     <div className="rent-details">
                                                         <div className="rent-title-row">
-                                                            <h3>{itemDisplayName}</h3>
+                                                            <h3>
+                                                                <Link
+                                                                    className="catalogue-heading-link"
+                                                                    to={rentalPath(item)}
+                                                                    onClick={(event) => event.stopPropagation()}
+                                                                >
+                                                                    {itemDisplayName}
+                                                                </Link>
+                                                            </h3>
                                                         </div>
                                                         <div className="rent-card-meta">
                                                             <p className="price">{getRentalPriceLabel(item)}</p>

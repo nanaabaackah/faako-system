@@ -97,6 +97,8 @@ export const MONOREPO_APP_REGISTRY = [
         envBaseUrlKeys: ["REEBS_API_BASE_URL", "REEBS_BACKEND_BASE_URL", "VITE_API_BASE_URL"],
         monitoringPages: [
           { label: "Health", path: "/health" },
+          { label: "Readiness", path: "/ready" },
+          { label: "Water readiness", path: "/health/water" },
           { label: "Inventory counts", path: "/api/inventoryCounts" },
           { label: "Bouncy castles", path: "/api/bouncy_castles" },
           { label: "Machines", path: "/api/machines" },

@@ -1,20 +1,11 @@
-/* eslint-disable no-undef */
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 import {
   resolveExpenseColumns,
   resolveExpenseTable,
 } from "./_shared/expenseAccounting.js";
-import {
-  buildAttendantChargeExpenseRow,
-  countRequiredAttendants,
-} from "./_shared/bookingCharges.js";
-import {
-  COMMERCIAL_BUSINESS_UNITS,
-  COMMERCIAL_CONFIG_KEYS,
-  resolveCommercialValue,
-} from "./_shared/commercialConfig.js";
+import { buildAttendantChargeExpenseRow } from "./_shared/bookingCharges.js";
+import { getAppliedAmount, PAYABLE_TYPES } from "../modules/payments/payableRepository.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,OPTIONS" });
@@ -59,10 +50,7 @@ export async function handler(event = {}) {
     return json(event, 400, { error: "Missing or invalid booking id" });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "booking-invoice-database" });
 
   try {
     await client.connect();
@@ -75,15 +63,24 @@ export async function handler(event = {}) {
 
     const { organizationId } = internal;
     const result = await client.query(
-      `SELECT
+       `SELECT
          b.id,
+         b.reference,
          b."eventDate",
+         b."eventEndDate",
          b."startTime",
          b."endTime",
          b."venueAddress",
+         b."venueGhanaPostGps",
+         b.currency,
+         b."subtotalCents",
+         b."discountCents",
+         b."feeCents",
+         b."taxCents",
+         b."depositRateBps",
+         b."depositRequiredCents",
          b."totalAmount",
          b.status,
-         b."createdAt",
          c.id AS "customerId",
          c.name AS "customerName",
          c.email AS "customerEmail",
@@ -96,6 +93,9 @@ export async function handler(event = {}) {
                'variantId', bi."variantId",
                'quantity', bi.quantity,
                'price', bi.price,
+               'catalogPrice', bi."catalogPrice",
+               'priceOverride', bi."priceOverride",
+               'lineTotal', bi."lineTotal",
                'productName', COALESCE(NULLIF(CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size), ''), p.name),
                'attendantsNeeded', p."attendantsNeeded",
                'rate', p.rate
@@ -130,6 +130,13 @@ export async function handler(event = {}) {
     }
 
     const bookingRow = result.rows[0];
+    const amountPaidCents = await getAppliedAmount(
+      client,
+      organizationId,
+      PAYABLE_TYPES.BOOKING,
+      id
+    );
+    const balanceDueCents = Math.max(0, Number(bookingRow.totalAmount || 0) - amountPaidCents);
     let bookingItems = bookingRow?.items || [];
     if (typeof bookingItems === "string") {
       try {
@@ -196,25 +203,9 @@ export async function handler(event = {}) {
       const haystack = `${row.category || ""} ${row.description || ""}`.toLowerCase();
       return haystack.includes("attendant");
     });
-    let attendantExpense = null;
-    if (!hasAttendantExpense && countRequiredAttendants(bookingItems) > 0) {
-      try {
-        const rateCents = await resolveCommercialValue(client, {
-          organizationId,
-          businessUnit: COMMERCIAL_BUSINESS_UNITS.REEBS_CORE,
-          key: COMMERCIAL_CONFIG_KEYS.BOOKING_ATTENDANT_UNIT_FEE_CENTS,
-          at: bookingRow.createdAt,
-        });
-        attendantExpense = buildAttendantChargeExpenseRow(bookingItems, {
-          date: bookingRow.eventDate || new Date().toISOString(),
-          rateCents,
-        });
-      } catch (error) {
-        if (error?.code !== "MISSING_COMMERCIAL_CONFIGURATION") throw error;
-        // Legacy bookings predate the effective-dated configuration. Their
-        // persisted total stays authoritative; do not invent a current-rate fee.
-      }
-    }
+    const attendantExpense = buildAttendantChargeExpenseRow(bookingItems, {
+      date: bookingRow.eventDate || new Date().toISOString(),
+    });
     const chargebackRows = attendantExpense && !hasAttendantExpense
       ? [...expenseRows, attendantExpense]
       : expenseRows;
@@ -235,6 +226,8 @@ export async function handler(event = {}) {
 
     return json(event, 200, {
       ...bookingRow,
+      amountPaidCents,
+      balanceDueCents,
       items: bookingItems,
       expenses,
       expensesTotal: expensesTotal / 100,

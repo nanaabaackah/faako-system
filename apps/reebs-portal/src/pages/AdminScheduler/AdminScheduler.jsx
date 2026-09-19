@@ -349,7 +349,7 @@ function AdminScheduler() {
 
   const fetchSupportData = async () => {
     const [customersRes, inventoryRes] = await Promise.all([
-      fetch("/api/customers"),
+      fetch("/api/customers?compact=1&limit=200"),
       fetch("/api/inventory"),
     ]);
 

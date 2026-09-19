@@ -16,9 +16,6 @@ export default function WaterCustomerPicker({
   typedCustomerName,
   matchedTypedCustomer,
   onCreateCustomer,
-  selectedCustomer,
-  directoryError = "",
-  showDirectoryError = false,
   required = false,
 }) {
   return (
@@ -66,17 +63,6 @@ export default function WaterCustomerPicker({
             ) : null}
           </div>
         ) : null
-      ) : null}
-      {selectedCustomer ? (
-        <p className="water-module-inline-note">
-          REEBS #{selectedCustomer.id}
-          {selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}
-        </p>
-      ) : typedCustomerName && !matchedTypedCustomer ? (
-        <p className="water-module-inline-note">New customer on save.</p>
-      ) : null}
-      {directoryError && showDirectoryError ? (
-        <p className="water-module-inline-note">{directoryError}</p>
       ) : null}
     </div>
   );

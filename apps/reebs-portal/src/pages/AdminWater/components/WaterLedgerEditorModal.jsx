@@ -14,6 +14,7 @@ export default function WaterLedgerEditorModal({
   ledgerRestockQuantity,
   ledgerRestockUnitCost,
   ledgerRestockCost,
+  canViewCost,
   ledgerAdjustmentReasonOptions,
   ledgerAdjustmentHasCustomReason,
   ledgerAdjustmentQuantity,
@@ -126,20 +127,22 @@ export default function WaterLedgerEditorModal({
                     required
                   />
                 </label>
-                <label>
-                  Cost price per pack (GHS)
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={ledgerForm.unitCost}
-                    onChange={(event) =>
-                      setLedgerForm((prev) => (prev ? { ...prev, unitCost: event.target.value } : prev))
-                    }
-                    required
-                  />
-                </label>
+                {canViewCost ? (
+                  <label>
+                    Cost price per pack (GHS)
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={ledgerForm.unitCost}
+                      onChange={(event) =>
+                        setLedgerForm((prev) => (prev ? { ...prev, unitCost: event.target.value } : prev))
+                      }
+                      required
+                    />
+                  </label>
+                ) : null}
                 <label>
                   Date
                   <DateField
@@ -169,14 +172,18 @@ export default function WaterLedgerEditorModal({
                   <span>Qty</span>
                   <strong>{ledgerRestockQuantity}</strong>
                 </div>
-                <div>
-                  <span>Cost per pack</span>
-                  <strong>{formatCurrency(ledgerRestockUnitCost)}</strong>
-                </div>
-                <div>
-                  <span>Total cost</span>
-                  <strong>{formatCurrency(ledgerRestockCost)}</strong>
-                </div>
+                {canViewCost ? (
+                  <>
+                    <div>
+                      <span>Cost per pack</span>
+                      <strong>{formatCurrency(ledgerRestockUnitCost)}</strong>
+                    </div>
+                    <div>
+                      <span>Total cost</span>
+                      <strong>{formatCurrency(ledgerRestockCost)}</strong>
+                    </div>
+                  </>
+                ) : null}
                 <div>
                   <span>Vendor</span>
                   <strong>{ledgerSelectedVendorName || ledgerForm.vendorName || "Unassigned"}</strong>

@@ -251,16 +251,13 @@ const buildVariantCartItem = (item, productLabel, variant) => {
 };
 
 function Shop({ initialInventory = [] }) {
-  const hasInitialInventory = Array.isArray(initialInventory) && initialInventory.length > 0;
-  const [inventory, setInventory] = useState(() =>
-    hasInitialInventory ? initialInventory.filter(isOnlineShopItem) : []
-  );
+  const [inventory, setInventory] = useState(() => initialInventory.filter(isOnlineShopItem));
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [inStockOnly, setInStockOnly] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
-  const [loading, setLoading] = useState(!hasInitialInventory);
+  const [loading, setLoading] = useState(initialInventory.length === 0);
   const [announce, setAnnounce] = useState("");
   const [activeHeroPanelIndex, setActiveHeroPanelIndex] = useState(0);
   const [activeCategory, setActiveCategory] = useState(null);
@@ -269,10 +266,9 @@ function Shop({ initialInventory = [] }) {
   const [selectedVariantIds, setSelectedVariantIds] = useState({});
   const [pendingScrollTarget, setPendingScrollTarget] = useState("");
   const gridRef = useRef(null);
-  const hasAppliedInitialCategoryRef = useRef(false);
   const [searchParams] = useSearchParams();
 
-  const { isAuthenticated, authReady } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { cart, convertPrice, formatCurrency, openCart } = useCart();
   const routeSearchQuery = clampShopQuery(searchParams.get("q") || "");
 
@@ -318,7 +314,7 @@ function Shop({ initialInventory = [] }) {
     if (hasCached) {
       setInventory(cached.filter(isOnlineShopItem));
     }
-    setLoading(!hasCached && !hasInitialInventory);
+    setLoading(!hasCached && initialInventory.length === 0);
 
     const controller = new AbortController();
     fetchInventoryWithCache({ signal: controller.signal })
@@ -327,11 +323,7 @@ function Shop({ initialInventory = [] }) {
           isOnlineShopItem
         );
         if (!isMounted) return;
-        setInventory((currentInventory) => {
-          if (visibleProducts.length > 0) return visibleProducts;
-          if (hasInitialInventory) return initialInventory.filter(isOnlineShopItem);
-          return currentInventory;
-        });
+        setInventory((current) => visibleProducts.length ? visibleProducts : current);
         setLoading(false);
       })
       .catch((err) => {
@@ -344,7 +336,7 @@ function Shop({ initialInventory = [] }) {
       isMounted = false;
       controller.abort();
     };
-  }, [hasInitialInventory, initialInventory]);
+  }, [initialInventory]);
 
   useEffect(() => {
     document.body.classList.add("shop-theme");
@@ -738,24 +730,23 @@ function Shop({ initialInventory = [] }) {
   }, [groupedProducts]);
 
   useEffect(() => {
-    if (!hasAppliedInitialCategoryRef.current) {
-      hasAppliedInitialCategoryRef.current = true;
-      return;
-    }
-
     const gridEl = gridRef.current;
     if (pendingScrollTarget) return;
     if (!gridEl || typeof gridEl.scrollIntoView !== "function") return;
     gridEl.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [categoryFilter, pendingScrollTarget]);
 
-  if (loading || (!authReady && inventory.length === 0)) {
+  if (loading) {
     return (
-      <SiteLoader
-        label="Loading shop"
-        sublabel="Pulling in the latest online-available party supplies."
-        variant="commerce"
-      />
+      <main className="shop-page page-shell" role="main" id="main" aria-busy="true">
+        <SiteLoader
+          label="Loading shop"
+          sublabel="Pulling in the latest online-available party supplies."
+          variant="commerce"
+          heroClassName="shop-hero page-hero"
+          className="storefront-page-loading"
+        />
+      </main>
     );
   }
 
@@ -768,7 +759,7 @@ function Shop({ initialInventory = [] }) {
       <main className="shop-page page-shell" role="main" id="main">
         <section id="shop-intro" className="shop-hero page-hero" aria-labelledby="shop-hero-heading">
           <div className="shop-hero-copy page-hero-copy">
-            <h2 id="shop-hero-heading" className="page-hero-title">Shop everyday and event essentials</h2>
+            <h1 id="shop-hero-heading" className="page-hero-title">Shop everyday and event essentials</h1>
             <p className="shop-sub">
               Party picks, home supplies, stationery, and practical extras ready for quick
               pickup or delivery, with options that still pair smoothly with your rentals.
@@ -876,7 +867,7 @@ function Shop({ initialInventory = [] }) {
                   />
                 </div>
 
-                <div className="filter-chips" role="list" aria-label="Shop category filters">
+                <div className="filter-chips" role="group" aria-label="Shop category filters">
                   <button
                     type="button"
                     className={`filter-chip ${categoryFilter === "All" ? "active" : ""}`}
@@ -1001,7 +992,14 @@ function Shop({ initialInventory = [] }) {
                       <div className="shop-section-topline">
                         <span className="shop-section-count">{items.length} items</span>
                       </div>
-                      <h2>{category}</h2>
+                      <h2>
+                        <Link
+                          className="catalogue-heading-link"
+                          to={`/shop/category/${slugify(category)}`}
+                        >
+                          {category}
+                        </Link>
+                      </h2>
                     </div>
 
                     <div className="shop-grid">
@@ -1116,7 +1114,13 @@ function Shop({ initialInventory = [] }) {
 
                             <div className="shop-details">
                               <span className="shop-pill">{getCategoryLabel(item)}</span>
-                              <h3>{itemDisplayName}</h3>
+                              <h3>
+                                {item.path ? (
+                                  <Link className="catalogue-heading-link" to={item.path}>
+                                    {itemDisplayName}
+                                  </Link>
+                                ) : itemDisplayName}
+                              </h3>
                               <p className="price">
                                 {showFromPrice ? "From " : ""}
                                 {formatCurrency(convertPrice(displayPrice || 0))}

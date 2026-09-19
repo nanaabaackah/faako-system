@@ -6,7 +6,7 @@
 
 ## Environment affected
 
-- Identify local, development, staging, private beta, or production.
+- Identify local development or production. Do not claim a REEBS staging environment unless one is separately provisioned and documented.
 - Confirm the target database, Cloudflare Pages project, and REEBS API service before deploy.
 
 ## Auth and roles
@@ -54,7 +54,7 @@
 - Confirm Cloudflare Pages build command is `pnpm --filter @faako/reebs-portal build`.
 - Confirm Cloudflare Pages output directory is `apps/reebs-portal/dist`.
 - Confirm frontend `VITE_API_BASE_URL` points to `https://api.reebspartythemes.com`.
-- Confirm the API service starts with `pnpm --filter @faako/reebs-portal run server:with-migrate`.
+- Confirm the API service currently starts with `pnpm --filter @faako/reebs-portal run server:with-migrate`. This compatibility path couples migration to startup; keep one deploying instance and follow the separation plan in `docs/apps/reebs/phase-9-operations.md`.
 - Confirm API service env includes server-only secrets such as `DATABASE_URL`, `USER_APP_SECRET`, email provider keys, and messaging provider keys.
 - Confirm hosted Postgres SSL config is valid. For Railway/self-signed chains, set `DATABASE_SSL_REJECT_UNAUTHORIZED=false` or provide `DATABASE_SSL_CA`.
 
@@ -75,3 +75,4 @@
 - Confirm the deployed portal loads and authenticated routes work.
 - Check affected API routes and API service logs.
 - Verify no unexpected permission, data, booking, order, receipt, or inventory regressions are visible.
+- Run the release checklist and smoke commands in `docs/apps/reebs/release-checklist.md`.

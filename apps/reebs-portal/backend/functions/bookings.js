@@ -1,22 +1,20 @@
-/* eslint-disable no-undef */
 // Filename: bookings.js
 // Booking API for admin bookings page (Booking + BookingItem)
 
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
 import {
   ensureAuditColumns,
   resolveActor,
   backfillAuditDefaults,
   normalizeActor,
 } from "./auditHelpers.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { notifyManager } from "./_shared/managerPush.js";
 import { sendManagerWhatsApp } from "./_shared/whatsapp.js";
 import {
   applyRequestOrganizationContext,
   resolveConfiguredPublicOrganizationId,
 } from "./_shared/organization.js";
-import { requireInternalUser } from "./_shared/internalApi.js";
+import { hasPermission, requirePermission } from "./_shared/internalApi.js";
 import { requireUser } from "./_shared/userAuth.js";
 import {
   getNotificationCatchallEmail,
@@ -25,12 +23,6 @@ import {
 import { sanitizePaymentPreference } from "./_shared/paymentInstructions.js";
 import { ensureInventoryVariantSchema, formatVariantLabel } from "./_shared/inventoryExtensions.js";
 import { calculateAttendantChargeCents } from "./_shared/bookingCharges.js";
-import {
-  calculateBundleDiscountCents,
-  resolveBookingCommercialPricingForMutation,
-  shouldPreserveBookingPriceSnapshot,
-} from "./_shared/bookingPricing.js";
-import { reebsBookingCreateInputSchema, validationIssues } from "@faako/validation";
 import {
   applyWindowRateLimit,
   getRequestClientIp,
@@ -47,76 +39,33 @@ import {
   buildInternalBookingEmailText,
 } from "./_shared/transactionEmailTemplates.js";
 import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
+import { createLogger } from "./_shared/logger.js";
+import {
+  buildBookingReference,
+  canTransitionBooking,
+  isBookingLocked,
+  isBookingReservationActive,
+  normalizeBookingStatus,
+  normalizeGhanaPhone,
+  validateBookingDateRange,
+} from "../modules/bookings/bookingPolicy.js";
+import { loadBookingCommercialRules } from "../modules/bookings/commercialRules.js";
+import {
+  findBookingById,
+  findLeastLoadedBookingAssignee,
+  listBookings,
+  resolveOrganizationUserId,
+  synchronizeBookingSequence,
+} from "../modules/bookings/bookingRepository.js";
+import {
+  buildBookingNotification,
+  buildBookingWhatsAppLines,
+} from "../modules/bookings/bookingNotifications.js";
 
 const BOOKING_METHODS = "GET,POST,PUT,OPTIONS";
 const MAX_BOOKING_ITEMS = 100;
-const ALLOWED_BOOKING_STATUSES = new Set(["pending", "confirmed", "completed", "cancelled"]);
-
-const formatAmount = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return "0.00";
-  return (parsed / 100).toFixed(2);
-};
-
-const buildBookingNotification = (booking) => {
-  const start = booking?.startTime ? ` ${booking.startTime}` : "";
-  const end = booking?.endTime ? `-${booking.endTime}` : "";
-  const itemsCount = Array.isArray(booking?.items) ? booking.items.length : 0;
-  const itemLabel = itemsCount === 1 ? "item" : "items";
-  const dateLabel = booking?.eventDate || "Date TBD";
-
-  const bodyParts = [
-    booking?.customerName || "New customer",
-    `GHS ${formatAmount(booking?.totalAmount || 0)}`,
-    `${itemsCount} ${itemLabel}`,
-    `${dateLabel}${start}${end}`,
-  ];
-
-  if (booking?.venueAddress) {
-    bodyParts.push(booking.venueAddress);
-  }
-
-  return {
-    title: `New booking #${booking?.id || ""}`.trim(),
-    body: bodyParts.filter(Boolean).join(" · "),
-    data: {
-      type: "booking",
-      id: booking?.id,
-    },
-  };
-};
-
-const buildBookingWhatsAppLines = (booking) => {
-  const start = booking?.startTime ? ` ${booking.startTime}` : "";
-  const end = booking?.endTime ? `-${booking.endTime}` : "";
-  const items = Array.isArray(booking?.items) ? booking.items : [];
-  const itemLines = items
-    .map((item) => {
-      const name = item?.productName || (item?.productId ? `Item ${item.productId}` : "");
-      const qty = Number.isFinite(Number(item?.quantity)) ? ` x${item.quantity}` : "";
-      return name ? `${name}${qty}` : "";
-    })
-    .filter(Boolean);
-
-  const lines = [
-    `New booking #${booking?.id || ""}`.trim(),
-    `Customer: ${booking?.customerName || "Unknown"}`,
-    `Total: GHS ${formatAmount(booking?.totalAmount || 0)}`,
-    `Event date: ${booking?.eventDate || "Date TBD"}${start}${end}`,
-  ];
-
-  if (booking?.venueAddress) {
-    lines.push(`Venue: ${booking.venueAddress}`);
-  }
-  if (itemLines.length) {
-    lines.push(`Items: ${items.length}`);
-    lines.push(...itemLines.slice(0, 6));
-    if (itemLines.length > 6) {
-      lines.push(`+${itemLines.length - 6} more`);
-    }
-  }
-  return lines;
-};
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const logger = createLogger("bookings");
 
 const json = (event, statusCode, body, options = {}) => ({
   statusCode,
@@ -147,175 +96,50 @@ const cleanText = (value, maxLength = 240) => {
 };
 
 const normalizeBookingStatusValue = (value, fallback = "pending") => {
-  const normalized = cleanText(value, 32).toLowerCase();
-  if (!normalized) return fallback;
-  if (normalized === "canceled") return "cancelled";
-  return ALLOWED_BOOKING_STATUSES.has(normalized) ? normalized : fallback;
+  return normalizeBookingStatus(cleanText(value, 32), fallback);
 };
+
+const errorResponse = (event, statusCode, code, error, details = undefined) =>
+  json(event, statusCode, {
+    error,
+    code,
+    ...(details ? { details } : {}),
+  });
+
+const getIdempotencyKey = (event) => cleanText(getHeaderValue(event, "idempotency-key"), 120);
+
+const toPublicBookingResponse = (booking) => ({
+  reference: booking?.reference || buildBookingReference(booking || {}),
+  eventDate: booking?.eventDate,
+  eventEndDate: booking?.eventEndDate,
+  startTime: booking?.startTime,
+  endTime: booking?.endTime,
+  venueAddress: booking?.venueAddress,
+  venueGhanaPostGps: booking?.venueGhanaPostGps || null,
+  currency: booking?.currency || "GHS",
+  subtotalCents: Number(booking?.subtotalCents || 0),
+  discountCents: Number(booking?.discountCents || 0),
+  feeCents: Number(booking?.feeCents || 0),
+  taxCents: Number(booking?.taxCents || 0),
+  depositRateBps: booking?.depositRateBps ?? null,
+  depositRequiredCents: booking?.depositRequiredCents ?? null,
+  totalAmount: Number(booking?.totalAmount || 0),
+  status: booking?.status || "pending",
+  items: (Array.isArray(booking?.items) ? booking.items : []).map((item) => ({
+    productId: item.productId,
+    variantId: item.variantId || null,
+    productName: item.productName,
+    variantLabel: item.variantLabel,
+    quantity: item.quantity,
+    price: item.price,
+    lineTotal: item.lineTotal,
+    productImage: item.productImage,
+  })),
+});
 
 const normalizeTimeValue = (value) => {
   const cleaned = cleanText(value, 32);
   return cleaned || null;
-};
-
-const compactSelectColumns = `
-  SELECT
-    b.id,
-    b."customerId",
-    c.name AS "customerName",
-    c.email AS "customerEmail",
-    c.phone AS "customerPhone",
-    b."eventDate",
-    b."startTime",
-    b."endTime",
-    b."venueAddress",
-    b."totalAmount",
-    b.status,
-    b."createdAt",
-    b."lastModifiedAt",
-    b."updatedAt"
-  FROM "booking" b
-  JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
-`;
-
-const fullSelectColumns = `
-  SELECT
-    b.id,
-    b."customerId",
-    c.name AS "customerName",
-    c.email AS "customerEmail",
-    c.phone AS "customerPhone",
-    b."eventDate",
-    b."startTime",
-    b."endTime",
-    b."venueAddress",
-    b."totalAmount",
-    b.status,
-    b."createdAt",
-    b."lastModifiedAt",
-    b."updatedAt",
-    b."assignedUserId",
-    b."createdByUserId",
-    b."updatedByUserId",
-    assignee."fullName" AS "assignedUserName",
-    updater."fullName" AS "updatedByName",
-    creator."fullName" AS "createdByName",
-    COALESCE(
-      json_agg(
-        json_build_object(
-          'id', bi.id,
-          'productId', bi."productId",
-          'variantId', bi."variantId",
-          'quantity', bi.quantity,
-          'price', bi.price,
-          'productName', p.name,
-          'sku', p.sku,
-          'attendantsNeeded', p."attendantsNeeded",
-          'variantLabel', CONCAT_WS(' / ', p.name, v."variantName", v."variantNumber", v.color, v.size),
-          'productImage', p."imageUrl"
-        )
-        ORDER BY bi.id
-      ) FILTER (WHERE bi.id IS NOT NULL),
-      '[]'::json
-    ) AS items
-  FROM "booking" b
-  JOIN "customer" c ON c.id = b."customerId" AND c."organizationId" = b."organizationId"
-  LEFT JOIN "user" assignee ON assignee.id = b."assignedUserId"
-  LEFT JOIN "user" updater ON updater.id = b."updatedByUserId"
-  LEFT JOIN "user" creator ON creator.id = b."createdByUserId"
-  LEFT JOIN "bookingItem" bi ON bi."bookingId" = b.id AND bi."organizationId" = b."organizationId"
-  LEFT JOIN "product" p ON p.id = bi."productId" AND p."organizationId" = b."organizationId"
-  LEFT JOIN "inventoryVariant" v ON v.id = bi."variantId" AND v."organizationId" = b."organizationId"
-`;
-
-const selectBookings = async (client, organizationId, { compact = false } = {}) => {
-  if (compact) {
-    const result = await client.query(
-      `${compactSelectColumns}
-       WHERE b."organizationId" = $1
-       ORDER BY b."eventDate" DESC, b.id DESC`,
-      [organizationId]
-    );
-    return result.rows || [];
-  }
-
-  const result = await client.query(
-    `${fullSelectColumns}
-     WHERE b."organizationId" = $1
-     GROUP BY b.id, c.id, assignee.id, updater.id, creator.id
-     ORDER BY b."eventDate" DESC, b.id DESC`,
-    [organizationId]
-  );
-  return result.rows || [];
-};
-
-const selectBookingById = async (client, organizationId, bookingId) => {
-  const result = await client.query(
-    `${fullSelectColumns}
-     WHERE b.id = $1
-       AND b."organizationId" = $2
-     GROUP BY b.id, c.id, assignee.id, updater.id, creator.id
-     LIMIT 1`,
-    [bookingId, organizationId]
-  );
-  return result.rows[0] || null;
-};
-
-const ensureBookingSequence = async (client) => {
-  try {
-    await client.query(
-      `SELECT setval(pg_get_serial_sequence('booking','id'),
-        COALESCE((SELECT MAX(id) FROM "booking"), 0) + 1,
-        false)`
-    );
-  } catch (err) {
-    console.warn("Booking sequence sync failed:", err?.message || err);
-  }
-};
-
-const ensureValidUserId = async (client, userId, organizationId = null) => {
-  const parsedId = Number(userId);
-  if (!Number.isFinite(parsedId)) return null;
-  const hasOrg = Number.isFinite(Number(organizationId));
-  const res = await client.query(
-    `SELECT id FROM "user" WHERE id = $1${hasOrg ? ` AND "organizationId" = $2` : ""}`,
-    hasOrg ? [parsedId, organizationId] : [parsedId]
-  );
-  return res.rowCount > 0 ? parsedId : null;
-};
-
-const pickAutoAssignee = async (client, organizationId) => {
-  try {
-    const result = await client.query(
-      `SELECT
-         u.id,
-         COALESCE(o.open_orders, 0) + COALESCE(b.open_bookings, 0) AS load
-       FROM "user" u
-       LEFT JOIN (
-         SELECT "assignedUserId" AS user_id, COUNT(*) AS open_orders
-         FROM "order"
-         WHERE "organizationId" = $1
-           AND LOWER(status) NOT IN ('completed', 'delivered', 'cancelled', 'canceled')
-         GROUP BY "assignedUserId"
-       ) o ON o.user_id = u.id
-       LEFT JOIN (
-         SELECT "assignedUserId" AS user_id, COUNT(*) AS open_bookings
-         FROM "booking"
-         WHERE "organizationId" = $1
-           AND LOWER(status) NOT IN ('completed', 'cancelled', 'canceled')
-         GROUP BY "assignedUserId"
-       ) b ON b.user_id = u.id
-       WHERE u."organizationId" = $1
-         AND LOWER(u.role) IN ('admin', 'manager', 'staff')
-       ORDER BY load ASC, u."updatedAt" DESC
-       LIMIT 1`,
-      [organizationId]
-    );
-    return result.rows?.[0]?.id || null;
-  } catch (err) {
-    console.warn("Auto-assign lookup failed:", err?.message || err);
-    return null;
-  }
 };
 
 export async function handler(event) {
@@ -324,16 +148,15 @@ export async function handler(event) {
       statusCode: 204,
       headers: buildResponseHeaders(event, {
         methods: BOOKING_METHODS,
-        allowHeaders: "Content-Type, Authorization, X-Organization-Id",
+        allowHeaders: "Content-Type, Authorization, X-Organization-Id, Idempotency-Key",
       }),
       body: "",
     };
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const requestId = getEventHeader(event, "x-request-id") || undefined;
+  const requestLogger = logger.child({ requestId });
+  const client = createDatabaseClient({ component: "bookings-database" });
 
   try {
     await client.connect();
@@ -361,22 +184,13 @@ export async function handler(event) {
       if (isCrossSiteBrowserRequest(event) && requestOrigin && !isAllowedAppOrigin(requestOrigin)) {
         return json(event, 403, { error: "Cross-site bookings are not allowed." });
       }
-      const parsedInput = reebsBookingCreateInputSchema.safeParse(data);
-      if (!parsedInput.success) {
-        return json(event, 400, {
-          error: "Check the booking information and try again.",
-          issues: validationIssues(parsedInput.error),
-        });
-      }
-      data = parsedInput.data;
     }
     let organizationId;
     if (authUser) {
-      const internal = await requireInternalUser(client, event, {
+      const permission = event.httpMethod === "GET" ? "bookings:read" : "bookings:write";
+      const internal = await requirePermission(client, event, permission, {
         methods: BOOKING_METHODS,
         body: data,
-        permission: event.httpMethod === "GET" ? "bookings:read" : "bookings:write",
-        permissionError: "Booking permission is required.",
       });
       if (internal.errorResponse) {
         return internal.errorResponse;
@@ -386,6 +200,27 @@ export async function handler(event) {
     } else {
       organizationId = await resolveConfiguredPublicOrganizationId(client);
       await applyRequestOrganizationContext(client, organizationId);
+    }
+    const idempotencyKey = event.httpMethod === "POST" ? getIdempotencyKey(event) : "";
+    if (event.httpMethod === "POST" && !idempotencyKey) {
+      return errorResponse(
+        event,
+        400,
+        "IDEMPOTENCY_KEY_REQUIRED",
+        "Idempotency-Key is required when creating a booking."
+      );
+    }
+    if (event.httpMethod === "POST" && idempotencyKey) {
+      const replay = await client.query(
+        `SELECT id FROM "booking"
+         WHERE "organizationId" = $1 AND "idempotencyKey" = $2
+         LIMIT 1`,
+        [organizationId, idempotencyKey]
+      );
+      if (replay.rowCount > 0) {
+        const booking = await findBookingById(client, organizationId, replay.rows[0].id);
+        return json(event, 200, authUser ? booking : toPublicBookingResponse(booking));
+      }
     }
     if (!authUser && event.httpMethod === "POST") {
       const publicRateLimit = await applyWindowRateLimit(client, {
@@ -411,13 +246,13 @@ export async function handler(event) {
       const bookingId = Number(event.queryStringParameters?.id);
       const compact = String(event.queryStringParameters?.compact || "").trim() === "1";
       if (Number.isFinite(bookingId) && bookingId > 0) {
-        const booking = await selectBookingById(client, organizationId, bookingId);
+        const booking = await findBookingById(client, organizationId, bookingId);
         if (!booking) {
           return json(event, 404, { error: "Booking not found." });
         }
         return json(event, 200, booking);
       }
-      const results = await selectBookings(client, organizationId, { compact });
+      const results = await listBookings(client, organizationId, { compact });
       return json(event, 200, results);
     }
 
@@ -427,13 +262,16 @@ export async function handler(event) {
 
     const parseDate = (value) => {
       if (!value) return null;
-      const date = new Date(value);
+      const date = new Date(`${String(value).slice(0, 10)}T00:00:00.000Z`);
       return Number.isNaN(date.getTime()) ? null : date;
     };
 
     const hasItemsPayload = Array.isArray(data.items);
     const requestedCustomerId = Number(data.customerId);
     const requestedEventDate = parseDate(data.eventDate);
+    const requestedEventEndDate = Object.prototype.hasOwnProperty.call(data, "eventEndDate")
+      ? parseDate(data.eventEndDate)
+      : undefined;
     const requestedStartTime = Object.prototype.hasOwnProperty.call(data, "startTime")
       ? normalizeTimeValue(data.startTime)
       : undefined;
@@ -443,15 +281,33 @@ export async function handler(event) {
     const requestedVenueAddress = Object.prototype.hasOwnProperty.call(data, "venueAddress")
       ? cleanText(data.venueAddress, 240)
       : undefined;
-    const requestedStatus = Object.prototype.hasOwnProperty.call(data, "status")
+    const requestedVenueGhanaPostGps = Object.prototype.hasOwnProperty.call(data, "venueGhanaPostGps")
+      ? cleanText(data.venueGhanaPostGps, 32).toUpperCase()
+      : undefined;
+    const requestedCustomerNotes = Object.prototype.hasOwnProperty.call(data, "customerNotes")
+      ? cleanText(data.customerNotes, 2000)
+      : undefined;
+    const requestedInternalNotes = Object.prototype.hasOwnProperty.call(data, "internalNotes")
+      ? cleanText(data.internalNotes, 4000)
+      : undefined;
+    const hasRequestedStatus = Object.prototype.hasOwnProperty.call(data, "status");
+    const rawRequestedStatus = hasRequestedStatus ? cleanText(data.status, 32).toLowerCase() : "";
+    if (hasRequestedStatus && !["pending", "confirmed", "completed", "cancelled", "canceled"].includes(rawRequestedStatus)) {
+      return errorResponse(event, 400, "INVALID_BOOKING_STATUS", "Booking status is invalid.");
+    }
+    const requestedStatus = hasRequestedStatus
       ? normalizeBookingStatusValue(data.status)
       : undefined;
     const assignedUserIdRaw = data.assignedUserId;
     const hasAssignedUser = Object.prototype.hasOwnProperty.call(data, "assignedUserId");
     const items = Array.isArray(data.items) ? data.items : [];
     const paymentPreference = sanitizePaymentPreference(data.paymentPreference);
-    let discountCents = 0;
     const applyBundleDiscount = data.applyBundleDiscount === true;
+    const requestedDiscountCents = Number.isInteger(Number(data.discountCents))
+      ? Math.max(0, Number(data.discountCents))
+      : Number.isFinite(Number(data.discount))
+        ? Math.max(0, Math.round(Number(data.discount) * 100))
+        : null;
 
     const normalizedItems = items
       .slice(0, MAX_BOOKING_ITEMS)
@@ -461,6 +317,10 @@ export async function handler(event) {
           ? Number(item.variantId)
           : null,
         quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
+        requestedUnitPriceCents:
+          Number.isInteger(Number(item.unitPriceCents)) && Number(item.unitPriceCents) >= 0
+            ? Number(item.unitPriceCents)
+            : null,
       }))
       .filter((item) => Number.isFinite(item.productId));
     let bookingId = null;
@@ -471,53 +331,153 @@ export async function handler(event) {
       if (!Number.isFinite(bookingId)) {
         return json(event, 400, { error: "id is required for update." });
       }
-      existingBooking = await selectBookingById(client, organizationId, bookingId);
+      existingBooking = await findBookingById(client, organizationId, bookingId);
       if (!existingBooking) {
         return json(event, 404, { error: "Booking not found." });
       }
-      if (normalizeBookingStatusValue(existingBooking.status, "pending") === "completed") {
-        return json(event, 409, { error: "Completed bookings are locked and can't be edited." });
+      if (isBookingLocked(existingBooking.status)) {
+        return errorResponse(event, 409, "BOOKING_LOCKED", "Completed and cancelled bookings are locked.");
       }
     }
 
-    const customerId = Number.isFinite(requestedCustomerId) ? requestedCustomerId : Number(existingBooking?.customerId);
+    let customerId = Number.isFinite(requestedCustomerId) ? requestedCustomerId : Number(existingBooking?.customerId);
     const eventDate = requestedEventDate || parseDate(existingBooking?.eventDate);
+    const eventEndDate = requestedEventEndDate !== undefined
+      ? requestedEventEndDate
+      : parseDate(existingBooking?.eventEndDate || existingBooking?.eventDate);
     const startTime =
       requestedStartTime !== undefined ? requestedStartTime : normalizeTimeValue(existingBooking?.startTime);
     const endTime =
       requestedEndTime !== undefined ? requestedEndTime : normalizeTimeValue(existingBooking?.endTime);
     const venueAddress =
       requestedVenueAddress !== undefined ? requestedVenueAddress : cleanText(existingBooking?.venueAddress, 240);
+    const venueGhanaPostGps = requestedVenueGhanaPostGps !== undefined
+      ? requestedVenueGhanaPostGps || null
+      : cleanText(existingBooking?.venueGhanaPostGps, 32) || null;
+    const customerNotes = requestedCustomerNotes !== undefined
+      ? requestedCustomerNotes || null
+      : cleanText(existingBooking?.customerNotes, 2000) || null;
+    const internalNotes = authUser
+      ? requestedInternalNotes !== undefined
+        ? requestedInternalNotes || null
+        : cleanText(existingBooking?.internalNotes, 4000) || null
+      : null;
     const status = requestedStatus || normalizeBookingStatusValue(existingBooking?.status, "pending");
+    const existingItemsByKey = new Map(
+      (Array.isArray(existingBooking?.items) ? existingBooking.items : []).map((item) => [
+        `${Number(item.productId)}:${Number(item.variantId) || "standard"}`,
+        item,
+      ])
+    );
     const mergedItems = hasItemsPayload
-      ? normalizedItems
+      ? normalizedItems.map((item) => {
+          const existingItem = existingItemsByKey.get(
+            `${Number(item.productId)}:${Number(item.variantId) || "standard"}`
+          );
+          if (!existingItem || Number(existingItem.price) !== Number(item.requestedUnitPriceCents)) {
+            return item;
+          }
+          return {
+            ...item,
+            requestedUnitPriceCents: Number(existingItem.price),
+            catalogPriceCents: Number(existingItem.catalogPrice ?? existingItem.price),
+            priceOverrideCents:
+              existingItem.priceOverride === null ? null : Number(existingItem.priceOverride),
+            priceOverriddenByUserId: existingItem.priceOverriddenByUserId || null,
+            priceOverriddenAt: existingItem.priceOverriddenAt || null,
+            preservePriceSnapshot: true,
+          };
+        })
       : (Array.isArray(existingBooking?.items) ? existingBooking.items : []).map((item) => ({
           productId: Number(item.productId),
           variantId: Number.isFinite(Number(item.variantId)) && Number(item.variantId) > 0
             ? Number(item.variantId)
             : null,
           quantity: Math.max(1, parseInt(item.quantity, 10) || 1),
+          requestedUnitPriceCents: Number(item.price),
+          catalogPriceCents: Number(item.catalogPrice ?? item.price),
+          priceOverrideCents: item.priceOverride === null ? null : Number(item.priceOverride),
+          preservePriceSnapshot: true,
         }));
-    const preservePriceSnapshot = shouldPreserveBookingPriceSnapshot({
-      method: event.httpMethod,
-      hasItemsPayload,
-      requestedItems: normalizedItems,
-      persistedItems: existingBooking?.items,
-    });
+    const itemsChanged = event.httpMethod === "POST" || (
+      hasItemsPayload
+      && (
+        normalizedItems.length !== existingItemsByKey.size
+        || normalizedItems.some((item) => {
+          const existingItem = existingItemsByKey.get(
+            `${Number(item.productId)}:${Number(item.variantId) || "standard"}`
+          );
+          return !existingItem
+            || Number(existingItem.quantity) !== Number(item.quantity)
+            || Number(existingItem.price) !== Number(item.requestedUnitPriceCents);
+        })
+      )
+    );
 
-    if (!Number.isFinite(customerId)) return json(event, 400, { error: "customerId is required." });
-    if (!eventDate) return json(event, 400, { error: "eventDate is required." });
+    const publicCustomer = !authUser && data.customer && typeof data.customer === "object"
+      ? {
+          name: cleanText(data.customer.name, 160),
+          email: cleanText(data.customer.email, 240).toLowerCase(),
+          phone: normalizeGhanaPhone(data.customer.phone),
+        }
+      : null;
+    if (!authUser && !publicCustomer) {
+      return errorResponse(event, 400, "BOOKING_CUSTOMER_REQUIRED", "Customer details are required.");
+    }
+    if (publicCustomer) {
+      if (!publicCustomer.name) {
+        return errorResponse(event, 400, "BOOKING_CUSTOMER_REQUIRED", "Customer name is required.");
+      }
+      if (publicCustomer.email && !EMAIL_PATTERN.test(publicCustomer.email)) {
+        return errorResponse(event, 400, "INVALID_CUSTOMER_EMAIL", "Enter a valid email address.");
+      }
+      if (!publicCustomer.email && !publicCustomer.phone) {
+        return errorResponse(event, 400, "INVALID_CUSTOMER_CONTACT", "A valid phone number or email is required.");
+      }
+    }
+    if (authUser && !Number.isFinite(customerId)) {
+      return errorResponse(event, 400, "BOOKING_CUSTOMER_REQUIRED", "customerId is required.");
+    }
+    if (!eventDate) return errorResponse(event, 400, "INVALID_BOOKING_DATE", "eventDate is required.");
+    const dateRange = validateBookingDateRange(eventDate.toISOString(), eventEndDate?.toISOString());
+    if (!dateRange.valid) {
+      return errorResponse(
+        event,
+        400,
+        dateRange.code,
+        dateRange.code === "INVALID_BOOKING_DATE_RANGE"
+          ? "Rental end date cannot be before the event date."
+          : "Enter a valid booking date range."
+      );
+    }
     if (eventDate < new Date()) {
       // Allow same-day bookings; only block dates strictly in the past.
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       if (eventDate < todayStart) {
-        return json(event, 400, { error: "eventDate cannot be in the past." });
+        return errorResponse(event, 400, "BOOKING_DATE_IN_PAST", "eventDate cannot be in the past.");
       }
     }
-    if (!venueAddress) return json(event, 400, { error: "venueAddress is required." });
+    if (!venueAddress) return errorResponse(event, 400, "BOOKING_ADDRESS_REQUIRED", "venueAddress is required.");
     if (mergedItems.length === 0) {
-      return json(event, 400, { error: "At least one booking item is required." });
+      return errorResponse(event, 400, "BOOKING_ITEMS_REQUIRED", "At least one booking item is required.");
+    }
+
+    if (!authUser && status !== "pending") {
+      return errorResponse(event, 403, "INVALID_BOOKING_TRANSITION", "Public booking requests must start as pending.");
+    }
+    if (!existingBooking && authUser && !["pending", "confirmed"].includes(status)) {
+      return errorResponse(event, 409, "INVALID_BOOKING_TRANSITION", "New bookings must start as pending or confirmed.");
+    }
+    if (
+      existingBooking
+      && requestedStatus
+      && !canTransitionBooking(existingBooking.status, requestedStatus)
+    ) {
+      return errorResponse(event, 409, "INVALID_BOOKING_TRANSITION", "That booking status change is not allowed.", {
+        currentStatus: normalizeBookingStatus(existingBooking.status),
+        requestedStatus,
+      });
     }
 
     // Validate that endTime is after startTime when both are provided.
@@ -544,32 +504,74 @@ export async function handler(event) {
     const actor = authUser
       ? { userId: authUser.id, userName: authUser.fullName, userEmail: authUser.email }
       : await resolveActor(client, normalizeActor(data), organizationId);
-    const actorUserId = await ensureValidUserId(client, actor.userId, organizationId);
+    const actorUserId = await resolveOrganizationUserId(client, actor.userId, organizationId);
     const assignedUserIdValue = hasAssignedUser
       ? assignedUserIdRaw === null
         ? null
-        : await ensureValidUserId(client, assignedUserIdRaw, organizationId)
+        : await resolveOrganizationUserId(client, assignedUserIdRaw, organizationId)
       : null;
     const autoAssignedUserId = hasAssignedUser
       ? assignedUserIdValue
-      : actorUserId || await pickAutoAssignee(client, organizationId);
+      : actorUserId || await findLeastLoadedBookingAssignee(client, organizationId);
 
     await client.query("BEGIN");
 
     try {
-      const commercialPricing = await resolveBookingCommercialPricingForMutation(client, {
-        organizationId,
-        preservePriceSnapshot,
-        at: new Date(),
-      });
-      const customerCheck = await client.query(
-        `SELECT id FROM "customer" WHERE id = $1 AND "organizationId" = $2`,
-        [customerId, organizationId]
-      );
-      if (customerCheck.rowCount === 0) {
-        await client.query("ROLLBACK");
-        return json(event, 404, { error: "Customer not found." });
+      if (publicCustomer) {
+        const phoneDigits = publicCustomer.phone.replace(/\D/g, "");
+        const localPhone = phoneDigits.startsWith("233") ? `0${phoneDigits.slice(3)}` : phoneDigits;
+        await client.query(
+          `SELECT pg_advisory_xact_lock(hashtext($1))`,
+          [`booking_customer:${organizationId}:${publicCustomer.email || phoneDigits}`]
+        );
+        const customerMatch = await client.query(
+          `SELECT id
+           FROM "customer"
+           WHERE "organizationId" = $1
+             AND (
+               ($2 <> '' AND LOWER(TRIM(email)) = LOWER(TRIM($2)))
+               OR ($3 <> '' AND regexp_replace(phone, '[^0-9]+', '', 'g') = ANY($4::text[]))
+             )
+           ORDER BY id
+           LIMIT 1
+           FOR UPDATE`,
+          [
+            organizationId,
+            publicCustomer.email,
+            phoneDigits,
+            [phoneDigits, localPhone].filter(Boolean),
+          ]
+        );
+        if (customerMatch.rowCount > 0) {
+          customerId = Number(customerMatch.rows[0].id);
+        } else {
+          const createdCustomer = await client.query(
+            `INSERT INTO "customer" (
+               "organizationId", name, email, phone, "createdAt", "updatedAt"
+             )
+             VALUES ($1,$2,$3,$4,NOW(),NOW())
+             RETURNING id`,
+            [
+              organizationId,
+              publicCustomer.name,
+              publicCustomer.email || null,
+              publicCustomer.phone || null,
+            ]
+          );
+          customerId = Number(createdCustomer.rows[0].id);
+        }
+      } else {
+        const customerCheck = await client.query(
+          `SELECT id FROM "customer" WHERE id = $1 AND "organizationId" = $2`,
+          [customerId, organizationId]
+        );
+        if (customerCheck.rowCount === 0) {
+          await client.query("ROLLBACK");
+          return errorResponse(event, 404, "BOOKING_CUSTOMER_NOT_FOUND", "Customer not found.");
+        }
       }
+
+      const commercialRules = await loadBookingCommercialRules(client, organizationId, eventDate);
 
       const productIds = [...new Set(mergedItems.map((item) => item.productId))];
       const productRes = await client.query(
@@ -619,7 +621,7 @@ export async function handler(event) {
           await client.query("ROLLBACK");
           return json(event, 404, { error: `Product ${item.productId} not found.` });
         }
-        if (product.isDeleted || product.isArchived || product.isActive === false) {
+        if (!item.preservePriceSnapshot && (product.isDeleted || product.isArchived || product.isActive === false)) {
           await client.query("ROLLBACK");
           return json(event, 409, { error: `${product.name || `Item ${item.productId}`} is unavailable.` });
         }
@@ -627,51 +629,75 @@ export async function handler(event) {
         const source = typeof product.sourceCategoryCode === "string"
           ? product.sourceCategoryCode.trim().toUpperCase()
           : "";
-        if (source !== "RENTAL" && !sku.startsWith("RENT") && !sku.startsWith("PUM")) {
+        if (!item.preservePriceSnapshot && source !== "RENTAL" && !sku.startsWith("RENT") && !sku.startsWith("PUM")) {
           await client.query("ROLLBACK");
           return json(event, 400, { error: `Bookings can only include rental items. Item ${item.productId} is not a rental.` });
         }
-        if (String(product.itemType || "STANDARD").toUpperCase() === "VARIANT_PARENT" && !item.variantId) {
+        if (!item.preservePriceSnapshot && String(product.itemType || "STANDARD").toUpperCase() === "VARIANT_PARENT" && !item.variantId) {
           await client.query("ROLLBACK");
           return json(event, 400, { error: `Choose a specific variant for ${product.name || `item ${item.productId}`}.` });
         }
       }
 
-      const pricedItems = mergedItems.filter((item) => {
+      const resolveCatalogPriceCents = (item) => {
         const product = productMap.get(item.productId);
         const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
         const variantPriceCents = Number(variant?.priceOverride);
-        const priceCents = Number.isFinite(variantPriceCents) && variantPriceCents >= 0
+        return Number.isFinite(variantPriceCents) && variantPriceCents >= 0
           ? variantPriceCents
-          : product?.price || 0;
-        return priceCents > 0;
-      });
-      bundleEligible = commercialPricing
-        ? pricedItems.length >= commercialPricing.bundleMinimumItems
-        : false;
+          : Number(product?.price || 0);
+      };
 
-      if (commercialPricing && applyBundleDiscount) {
-        if (bundleEligible) {
-          const bundleSubtotalCents = pricedItems.reduce((sum, item) => {
-            const product = productMap.get(item.productId);
-            const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
-            const variantPriceCents = Number(variant?.priceOverride);
-            const priceCents = Number.isFinite(variantPriceCents) && variantPriceCents >= 0
-              ? variantPriceCents
-              : product.price;
-            return sum + priceCents * item.quantity;
-          }, 0);
-          discountCents = calculateBundleDiscountCents({
-            subtotalCents: bundleSubtotalCents,
-            itemCount: pricedItems.length,
-            applyBundleDiscount: true,
-            bundleMinimumItems: commercialPricing.bundleMinimumItems,
-            bundleDiscountBps: commercialPricing.bundleDiscountBps,
-          });
-        } else {
-          discountCents = 0;
+      const priceItem = (item) => {
+        const currentCatalogPriceCents = resolveCatalogPriceCents(item);
+        const catalogPriceCents = item.preservePriceSnapshot
+          ? Number(item.catalogPriceCents ?? item.requestedUnitPriceCents ?? currentCatalogPriceCents)
+          : currentCatalogPriceCents;
+        const requestedPriceCents = Number(item.requestedUnitPriceCents);
+        const hasRequestedPrice = Number.isInteger(requestedPriceCents) && requestedPriceCents >= 0;
+        const isOverride = !item.preservePriceSnapshot
+          && hasRequestedPrice
+          && requestedPriceCents !== currentCatalogPriceCents;
+        if (isOverride && !authUser) {
+          const error = new Error("Public booking prices cannot be overridden.");
+          error.statusCode = 403;
+          error.code = "BOOKING_PRICE_OVERRIDE_FORBIDDEN";
+          throw error;
         }
-      }
+        if (isOverride && !hasPermission(authUser, "bookings:price_override")) {
+          const error = new Error("You do not have permission to override booking prices.");
+          error.statusCode = 403;
+          error.code = "BOOKING_PRICE_OVERRIDE_FORBIDDEN";
+          throw error;
+        }
+        const effectivePriceCents = item.preservePriceSnapshot
+          ? Math.max(0, Number(item.requestedUnitPriceCents || 0))
+          : isOverride
+            ? requestedPriceCents
+            : currentCatalogPriceCents;
+        if (!item.preservePriceSnapshot && effectivePriceCents <= 0) {
+          const error = new Error("A selected rental does not have a valid selling price. Ask an authorized manager to review it.");
+          error.statusCode = 409;
+          error.code = "BOOKING_PRICE_UNAVAILABLE";
+          throw error;
+        }
+        return {
+          ...item,
+          catalogPriceCents,
+          effectivePriceCents,
+          priceOverrideCents: item.preservePriceSnapshot
+            ? item.priceOverrideCents ?? null
+            : isOverride
+              ? requestedPriceCents
+              : null,
+          priceOverriddenByUserId: isOverride ? actorUserId : item.priceOverriddenByUserId || null,
+          priceOverriddenAt: isOverride ? new Date() : item.priceOverriddenAt || null,
+        };
+      };
+
+      const pricedMergedItems = mergedItems.map(priceItem);
+      const bundleItems = pricedMergedItems.filter((item) => item.effectivePriceCents > 0);
+      bundleEligible = bundleItems.length >= commercialRules.bundleMinItems;
 
       const motorsRes = await client.query(
         `SELECT "productId", COALESCE("motorsToPump", 0) AS motors
@@ -683,7 +709,7 @@ export async function handler(event) {
         motorsRes.rows.map((row) => [Number(row.productId), Number(row.motors) || 0])
       );
 
-      let finalItems = [...mergedItems];
+      let finalItems = [...pricedMergedItems];
       const pumpQuantity = mergedItems.reduce((sum, item) => {
         const motors = motorsMap.get(item.productId) || 0;
         return sum + motors * item.quantity;
@@ -721,7 +747,7 @@ export async function handler(event) {
         if (existingPump) {
           existingPump.quantity = pumpQuantity;
         } else {
-          finalItems.push({ productId: pumpProduct.id, quantity: pumpQuantity });
+          finalItems.push(priceItem({ productId: pumpProduct.id, variantId: null, quantity: pumpQuantity }));
         }
       }
 
@@ -737,10 +763,14 @@ export async function handler(event) {
       );
       const productsInMaintenance = new Set(maintenanceRes.rows.map((row) => Number(row.productId)));
 
-      const shouldReserveVariants = !["completed", "cancelled"].includes(status);
+      const shouldReserveVariants = isBookingReservationActive(status);
+      const scheduleOrItemsChanged = itemsChanged
+        || Boolean(requestedEventDate)
+        || requestedEventEndDate !== undefined;
       const releaseExistingReservations = event.httpMethod === "PUT"
         && existingBooking
-        && !["completed", "cancelled"].includes(normalizeBookingStatusValue(existingBooking.status, "pending"));
+        && isBookingReservationActive(existingBooking.status)
+        && (scheduleOrItemsChanged || !shouldReserveVariants);
       if (releaseExistingReservations) {
         const existingVariantItems = await client.query(
           `SELECT "variantId", quantity
@@ -764,7 +794,7 @@ export async function handler(event) {
 
       for (const item of finalItems) {
         const product = productMap.get(item.productId);
-        if (productsInMaintenance.has(Number(item.productId))) {
+        if (shouldReserveVariants && productsInMaintenance.has(Number(item.productId))) {
           await client.query("ROLLBACK");
           return json(event, 409, { error: `${product?.name || `Item ${item.productId}`} is currently in maintenance.` });
         }
@@ -775,7 +805,7 @@ export async function handler(event) {
             await client.query("ROLLBACK");
             return json(event, 409, { error: `Variant ${item.variantId} does not belong to product ${item.productId}.` });
           }
-          if (String(variant.status || "active").toLowerCase() !== "active") {
+          if (shouldReserveVariants && String(variant.status || "active").toLowerCase() !== "active") {
             await client.query("ROLLBACK");
             return json(event, 409, { error: `Variant ${item.variantId} is unavailable.` });
           }
@@ -789,12 +819,13 @@ export async function handler(event) {
                WHERE bi."variantId" = $1
                  AND bi."organizationId" = $2
                  AND LOWER(b.status) IN ('pending', 'confirmed')
-                 AND b."eventDate"::date = $3::date
+                 AND b."eventDate"::date <= $4::date
+                 AND b."eventEndDate"::date >= $3::date
                  ${bookingId ? `AND b.id != ${Number(bookingId)}` : ""}`,
-              [item.variantId, organizationId, eventDate]
+              [item.variantId, organizationId, eventDate, eventEndDate]
             );
             const reservedOnDate = Number(dateReservedRes.rows[0]?.reserved || 0);
-            const totalUnits = Math.max(Number(variant.stockQty || 0), Number(item.quantity) || 1);
+            const totalUnits = Math.max(Number(variant.stockQty || 0), 1);
             const availableOnDate = Math.max(totalUnits - reservedOnDate, 0);
             if (availableOnDate < item.quantity) {
               await client.query("ROLLBACK");
@@ -809,7 +840,7 @@ export async function handler(event) {
             // are already serialized by the FOR UPDATE lock on inventoryVariant above.
             await client.query(
               `SELECT pg_advisory_xact_lock(hashtext($1))`,
-              [`booking_avail:${item.productId}:${eventDate.toISOString().slice(0, 10)}`]
+              [`booking_avail:${organizationId}:${item.productId}`]
             );
             const productDateRes = await client.query(
               `SELECT COALESCE(SUM(bi.quantity), 0)::int AS reserved
@@ -819,12 +850,13 @@ export async function handler(event) {
                  AND bi."variantId" IS NULL
                  AND bi."organizationId" = $2
                  AND LOWER(b.status) IN ('pending', 'confirmed')
-                 AND b."eventDate"::date = $3::date
+                 AND b."eventDate"::date <= $4::date
+                 AND b."eventEndDate"::date >= $3::date
                  ${bookingId ? `AND b.id != ${Number(bookingId)}` : ""}`,
-              [item.productId, organizationId, eventDate]
+              [item.productId, organizationId, eventDate, eventEndDate]
             );
             const reservedOnDate = Number(productDateRes.rows[0]?.reserved || 0);
-            const totalUnits = Math.max(Number(product?.stock ?? 0), Number(item.quantity) || 1);
+            const totalUnits = Math.max(Number(product?.stock ?? 0), 1);
             const availableOnDate = Math.max(totalUnits - reservedOnDate, 0);
             if (availableOnDate < item.quantity) {
               await client.query("ROLLBACK");
@@ -834,41 +866,85 @@ export async function handler(event) {
         }
       }
 
-      const attendantCharge = preservePriceSnapshot
-        ? { attendants: 0, rateCents: 0, totalCents: 0 }
-        : calculateAttendantChargeCents(
-            finalItems.map((item) => ({
-              ...item,
-              attendantsNeeded: productMap.get(item.productId)?.attendantsNeeded,
-            })),
-            commercialPricing.attendantUnitFeeCents
-          );
-
-      const totalAmount = preservePriceSnapshot
-        ? Number(existingBooking.totalAmount)
-        : Math.max(
-            0,
-            finalItems.reduce((sum, item) => {
-              const product = productMap.get(item.productId);
-              const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
-              const variantPrice = Number(variant?.priceOverride);
-              const priceCents = Number.isFinite(variantPrice) && variantPrice >= 0
-                  ? variantPrice
-                  : product.price;
-              return sum + priceCents * item.quantity;
-            }, 0) - discountCents + attendantCharge.totalCents
-          );
+      const attendantCharge = calculateAttendantChargeCents(
+        finalItems.map((item) => ({
+          ...item,
+          attendantsNeeded: productMap.get(item.productId)?.attendantsNeeded,
+        })),
+        commercialRules.attendantUnitFeeCents
+      );
+      const linePricingChanged = event.httpMethod === "POST" || itemsChanged;
+      const subtotalCents = linePricingChanged
+        ? finalItems.reduce(
+            (sum, item) => sum + item.effectivePriceCents * item.quantity,
+            0
+          )
+        : Number(existingBooking?.subtotalCents ?? existingBooking?.totalAmount ?? 0);
+      const feeCents = linePricingChanged
+        ? attendantCharge.totalCents
+        : Number(existingBooking?.feeCents || 0);
+      const taxCents = event.httpMethod === "POST" ? 0 : Number(existingBooking?.taxCents || 0);
+      let discountCents = Number(existingBooking?.discountCents || 0);
+      if (applyBundleDiscount) {
+        discountCents = bundleEligible
+          ? Math.round(
+              bundleItems.reduce(
+                (sum, item) => sum + item.effectivePriceCents * item.quantity,
+                0
+              ) * commercialRules.bundleDiscountBps / 10000
+            )
+          : 0;
+      } else if (requestedDiscountCents !== null) {
+        if (requestedDiscountCents > 0 && !hasPermission(authUser, "bookings:discount")) {
+          const error = new Error("You do not have permission to discount bookings.");
+          error.statusCode = 403;
+          error.code = "BOOKING_DISCOUNT_FORBIDDEN";
+          throw error;
+        }
+        discountCents = requestedDiscountCents;
+      } else if (event.httpMethod === "POST") {
+        discountCents = 0;
+      }
+      const grossCents = subtotalCents + feeCents + taxCents;
+      if (discountCents > grossCents) {
+        const error = new Error("Booking discount cannot exceed the booking subtotal and fees.");
+        error.statusCode = 400;
+        error.code = "INVALID_BOOKING_DISCOUNT";
+        throw error;
+      }
+      const totalAmount = grossCents - discountCents;
+      const depositRateBps = event.httpMethod === "POST"
+        ? commercialRules.serviceDepositBps
+        : existingBooking?.depositRateBps === null || existingBooking?.depositRateBps === undefined
+          ? null
+          : Number(existingBooking.depositRateBps);
+      const depositRequiredCents = depositRateBps === null
+        ? existingBooking?.depositRequiredCents ?? null
+        : Math.round(totalAmount * depositRateBps / 10000);
 
       if (event.httpMethod === "POST") {
-        await ensureBookingSequence(client);
+        await synchronizeBookingSequence(client);
         const bookingRes = await client.query(
           `INSERT INTO "booking" (
              "organizationId",
              "customerId",
+             "reference",
+             "idempotencyKey",
              "eventDate",
+             "eventEndDate",
              "startTime",
              "endTime",
              "venueAddress",
+             "venueGhanaPostGps",
+             "customerNotes",
+             "internalNotes",
+             "currency",
+             "subtotalCents",
+             "discountCents",
+             "feeCents",
+             "taxCents",
+             "depositRateBps",
+             "depositRequiredCents",
              "totalAmount",
              "status",
              "createdAt",
@@ -878,15 +954,27 @@ export async function handler(event) {
              "updatedByUserId",
              "assignedUserId"
            )
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW(),NOW(),NOW(),$9,$9,$10)
-           RETURNING id`,
+           VALUES ($1,$2,'PENDING-' || $3,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,NOW(),NOW(),NOW(),$21,$21,$22)
+           RETURNING id, "createdAt"`,
           [
             organizationId,
             customerId,
+            idempotencyKey,
             eventDate,
+            eventEndDate,
             startTime || null,
             endTime || null,
             venueAddress,
+            venueGhanaPostGps,
+            customerNotes,
+            internalNotes,
+            commercialRules.currency,
+            subtotalCents,
+            discountCents,
+            feeCents,
+            taxCents,
+            depositRateBps,
+            depositRequiredCents,
             totalAmount,
             status,
             actorUserId,
@@ -894,27 +982,53 @@ export async function handler(event) {
           ]
         );
         bookingId = bookingRes.rows[0].id;
+        await client.query(
+          `UPDATE "booking" SET reference = $1 WHERE id = $2 AND "organizationId" = $3`,
+          [buildBookingReference(bookingRes.rows[0]), bookingId, organizationId]
+        );
       } else {
         await client.query(
           `UPDATE "booking"
            SET "customerId" = $1,
                "eventDate" = $2,
-               "startTime" = $3,
-               "endTime" = $4,
-               "venueAddress" = $5,
-               "totalAmount" = $6,
-               "status" = $7,
+               "eventEndDate" = $3,
+               "startTime" = $4,
+               "endTime" = $5,
+               "venueAddress" = $6,
+               "venueGhanaPostGps" = $7,
+               "customerNotes" = $8,
+               "internalNotes" = $9,
+               "currency" = $10,
+               "subtotalCents" = $11,
+               "discountCents" = $12,
+               "feeCents" = $13,
+               "taxCents" = $14,
+               "depositRateBps" = $15,
+               "depositRequiredCents" = $16,
+               "totalAmount" = $17,
+               "status" = $18,
                "updatedAt" = NOW(),
                "lastModifiedAt" = NOW(),
-               "updatedByUserId" = $9,
-               "assignedUserId" = CASE WHEN $10 THEN $11 ELSE "assignedUserId" END
-           WHERE id = $8 AND "organizationId" = $12`,
+               "updatedByUserId" = $20,
+               "assignedUserId" = CASE WHEN $21 THEN $22 ELSE "assignedUserId" END
+           WHERE id = $19 AND "organizationId" = $23`,
           [
             customerId,
             eventDate,
+            eventEndDate,
             startTime || null,
             endTime || null,
             venueAddress,
+            venueGhanaPostGps,
+            customerNotes,
+            internalNotes,
+            existingBooking?.currency || commercialRules.currency,
+            subtotalCents,
+            discountCents,
+            feeCents,
+            taxCents,
+            depositRateBps,
+            depositRequiredCents,
             totalAmount,
             status,
             bookingId,
@@ -925,7 +1039,7 @@ export async function handler(event) {
           ]
         );
 
-        if (!preservePriceSnapshot) {
+        if (itemsChanged) {
           await client.query(
             `DELETE FROM "bookingItem" WHERE "bookingId" = $1 AND "organizationId" = $2`,
             [bookingId, organizationId]
@@ -934,20 +1048,33 @@ export async function handler(event) {
       }
 
       for (const item of finalItems) {
-        if (!preservePriceSnapshot) {
-          const fallbackPrice = productMap.get(item.productId)?.price;
-          const variant = item.variantId ? variantMap.get(Number(item.variantId)) : null;
-          const variantPrice = Number(variant?.priceOverride);
-          const price = Number.isFinite(variantPrice) && variantPrice >= 0
-              ? variantPrice
-              : fallbackPrice;
+        if (event.httpMethod === "POST" || itemsChanged) {
           await client.query(
-            `INSERT INTO "bookingItem" ("organizationId", "bookingId", "productId", "variantId", quantity, price)
-             VALUES ($1,$2,$3,$4,$5,$6)`,
-            [organizationId, bookingId, item.productId, item.variantId || null, item.quantity, price]
+            `INSERT INTO "bookingItem" (
+               "organizationId", "bookingId", "productId", "variantId", quantity, price,
+               "catalogPrice", "priceOverride", "priceOverriddenByUserId", "priceOverriddenAt", "lineTotal"
+             )
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+            [
+              organizationId,
+              bookingId,
+              item.productId,
+              item.variantId || null,
+              item.quantity,
+              item.effectivePriceCents,
+              item.catalogPriceCents,
+              item.priceOverrideCents,
+              item.priceOverriddenByUserId,
+              item.priceOverriddenAt,
+              item.effectivePriceCents * item.quantity,
+            ]
           );
         }
-        if (shouldReserveVariants && item.variantId) {
+        if (
+          shouldReserveVariants
+          && item.variantId
+          && (event.httpMethod === "POST" || releaseExistingReservations)
+        ) {
           // Keep reservedQty counter in sync for display purposes (date check already done above).
           await client.query(
             `UPDATE "inventoryVariant"
@@ -962,7 +1089,7 @@ export async function handler(event) {
 
       await client.query("COMMIT");
 
-      const persistedBooking = await selectBookingById(client, organizationId, bookingId);
+      const persistedBooking = await findBookingById(client, organizationId, bookingId);
 
       if (event.httpMethod === "POST") {
         try {
@@ -970,14 +1097,20 @@ export async function handler(event) {
             lines: buildBookingWhatsAppLines(persistedBooking),
           });
         } catch (err) {
-          console.warn("WhatsApp notify failed:", err?.message || err);
+          requestLogger.warn({
+            err,
+            eventName: "booking.notification.whatsapp_failed",
+          }, "Booking WhatsApp notification failed");
         }
         try {
           await notifyManager(client, buildBookingNotification(persistedBooking), {
             organizationId,
           });
         } catch (err) {
-          console.warn("Manager push failed:", err?.message || err);
+          requestLogger.warn({
+            err,
+            eventName: "booking.notification.push_failed",
+          }, "Booking manager push notification failed");
         }
         const createdBooking = {
           ...persistedBooking,
@@ -987,14 +1120,14 @@ export async function handler(event) {
           [
             sendNotificationEmail({
               to: getNotificationCatchallEmail(),
-              subject: `New booking #${createdBooking?.id || ""}`.trim(),
+              subject: `New booking ${createdBooking?.reference || ""}`.trim(),
               text: buildInternalBookingEmailText(createdBooking),
               html: buildInternalBookingEmailHtml(createdBooking),
             }),
             createdBooking?.customerEmail
               ? sendNotificationEmail({
                   to: createdBooking.customerEmail,
-                  subject: `We received your booking #${createdBooking?.id || ""}`.trim(),
+                  subject: `We received your booking ${createdBooking?.reference || ""}`.trim(),
                   text: buildCustomerBookingEmailText(createdBooking, {
                     supportEmail: getNotificationCatchallEmail(),
                   }),
@@ -1007,56 +1140,112 @@ export async function handler(event) {
         );
         emailResults.forEach((result) => {
           if (result.status === "rejected") {
-            console.warn("Booking email failed:", result.reason?.message || result.reason);
+            requestLogger.warn({
+              err: result.reason,
+              eventName: "booking.notification.email_failed",
+            }, "Booking email notification failed");
           }
         });
       }
 
+      const previousStatus = normalizeBookingStatus(existingBooking?.status, "");
+      const statusChanged = Boolean(previousStatus && previousStatus !== status);
+      const auditAction = event.httpMethod === "POST"
+        ? "BOOKING_CREATED"
+        : statusChanged && status === "cancelled"
+          ? "BOOKING_CANCELLED"
+          : statusChanged && status === "completed"
+            ? "BOOKING_COMPLETED"
+            : statusChanged && status === "confirmed"
+              ? "BOOKING_CONFIRMED"
+              : "BOOKING_UPDATED";
       await writeAuditLog(client, {
         userId: actorUserId,
         organizationId,
-        action: event.httpMethod === "POST" ? "BOOKING_CREATED" : "BOOKING_UPDATED",
+        action: auditAction,
         targetType: "booking",
-        targetId: String(persistedBooking?.id || bookingId),
+        targetId: String(persistedBooking?.reference || bookingId),
         source: authUser ? "api" : "integration",
         category: "booking",
         severity: "info",
         status: "ok",
         summary:
           event.httpMethod === "POST"
-            ? `Created booking ${persistedBooking?.id || bookingId}.`
-            : `Updated booking ${persistedBooking?.id || bookingId}.`,
+            ? `Created booking ${persistedBooking?.reference || bookingId}.`
+            : `${statusChanged ? "Changed status for" : "Updated"} booking ${persistedBooking?.reference || bookingId}.`,
         actorLabel: actor.userName || actor.userEmail || "Guest",
-        requestId: getEventHeader(event, "x-request-id"),
+        requestId,
         ipAddress: getEventIpAddress(event),
         metadata: {
           customerId,
           itemCount: finalItems.length,
           totalAmount,
           status,
-          pricingSnapshotPreserved: preservePriceSnapshot,
-          commercialConfigurationIds: commercialPricing?.configurationIds || null,
-          bundleDiscountCents: preservePriceSnapshot ? null : discountCents,
-          attendantChargeCents: preservePriceSnapshot ? null : attendantCharge.totalCents,
+          previousStatus: previousStatus || null,
+          reservationActive: shouldReserveVariants,
         },
       });
 
-      return json(event, event.httpMethod === "POST" ? 201 : 200, persistedBooking);
+      const priceOverrides = finalItems.filter((item) => item.priceOverrideCents !== null && !item.preservePriceSnapshot);
+      for (const item of priceOverrides) {
+        await writeAuditLog(client, {
+          userId: actorUserId,
+          organizationId,
+          action: "BOOKING_PRICE_OVERRIDE",
+          targetType: "booking",
+          targetId: String(persistedBooking?.reference || bookingId),
+          source: "api",
+          category: "booking",
+          severity: "info",
+          status: "ok",
+          summary: `Overrode a rental line price for booking ${persistedBooking?.reference || bookingId}.`,
+          actorLabel: actor.userName || actor.userEmail || "User",
+          requestId,
+          ipAddress: getEventIpAddress(event),
+          metadata: {
+            productId: item.productId,
+            variantId: item.variantId || null,
+            catalogPriceCents: item.catalogPriceCents,
+            overridePriceCents: item.priceOverrideCents,
+          },
+        });
+      }
+
+      return json(
+        event,
+        event.httpMethod === "POST" ? 201 : 200,
+        authUser ? persistedBooking : toPublicBookingResponse(persistedBooking)
+      );
     } catch (err) {
       await client.query("ROLLBACK").catch(() => {});
+      if (err?.code === "23505" && idempotencyKey) {
+        const replay = await client.query(
+          `SELECT id FROM "booking"
+           WHERE "organizationId" = $1 AND "idempotencyKey" = $2
+           LIMIT 1`,
+          [organizationId, idempotencyKey]
+        );
+        if (replay.rowCount > 0) {
+          const booking = await findBookingById(client, organizationId, replay.rows[0].id);
+          return json(event, 200, authUser ? booking : toPublicBookingResponse(booking));
+        }
+      }
       throw err;
     }
   } catch (err) {
-    console.error("❌ Database error:", err);
-    const statusCode = Number(err?.statusCode) || 500;
-    return json(event, statusCode, {
-      error: statusCode === 503
-        ? "Booking pricing configuration is unavailable."
-        : statusCode >= 500
-          ? "Failed to process booking request."
-          : err.message,
-      ...(err?.code ? { code: err.code } : {}),
-    });
+    if (Number.isInteger(err?.statusCode) && err.statusCode >= 400 && err.statusCode < 500) {
+      return errorResponse(
+        event,
+        err.statusCode,
+        err.code || "BOOKING_REQUEST_INVALID",
+        err.message || "Booking request is invalid."
+      );
+    }
+    requestLogger.error({
+      err,
+      eventName: "booking.request.failed",
+    }, "Booking request failed");
+    return errorResponse(event, 500, "BOOKING_REQUEST_FAILED", "Failed to process booking request.");
   } finally {
     await client.end().catch(() => {});
   }

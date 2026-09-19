@@ -12,8 +12,6 @@ import SearchField from "../../components/SearchField/SearchField";
 import { useCart } from "../../components/CartContext/CartContext";
 import SiteLoader from "/src/components/SiteLoader/SiteLoader";
 import { fetchInventoryWithCache } from "/src/utils/inventoryCache";
-import { publicApiResponse } from "/src/lib/publicApi";
-import { normalizePublicCommercialTerms } from "/src/utils/commercialTerms";
 import {
   getCatalogItemBackgroundStyle,
   getCatalogItemDisplayName,
@@ -157,6 +155,13 @@ const formatDateShort = (value) => {
   });
 };
 
+const DEFAULT_BOOKING_RULES = Object.freeze({
+  currency: "GHS",
+  bundleMinItems: 3,
+  bundleDiscountBps: 1000,
+  attendantUnitFeeCents: 10000,
+  serviceDepositBps: 7000,
+});
 const BOOKING_DRAFT_KEY = "bookingDraft";
 const EVENT_WINDOW_OPTIONS = [
   { value: "Morning setup (7am - 11am)", label: "Morning setup (7am – 11am)", endMinutes: 11 * 60 },
@@ -166,22 +171,25 @@ const EVENT_WINDOW_OPTIONS = [
   { value: "Flex / tell us", label: "I’ll share a specific time" },
 ];
 
-function Book() {
+function Book({ initialRentals = [] }) {
   const { convertPrice, formatCurrency } = useCart();
   const defaultFormValues = {
     name: "",
     email: "",
     phone: "",
     eventDate: "",
+    eventEndDate: "",
     eventWindow: "",
     location: "",
+    ghanaPostGps: "",
     guestCount: "",
     contactPreference: "",
   };
-  const [rentals, setRentals] = useState([]);
+  const [rentals, setRentals] = useState(initialRentals);
   const [bouncyTypes, setBouncyTypes] = useState([]);
   const [pumpProduct, setPumpProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [bookingRules, setBookingRules] = useState(DEFAULT_BOOKING_RULES);
+  const [loading, setLoading] = useState(initialRentals.length === 0);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
   const [itemsNote, setItemsNote] = useState("");
@@ -190,56 +198,19 @@ function Book() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState("");
-  const [commercialTerms, setCommercialTerms] = useState(null);
-  const [commercialTermsLoading, setCommercialTermsLoading] = useState(true);
-  const [commercialTermsError, setCommercialTermsError] = useState("");
   const [bookingReceipt, setBookingReceipt] = useState(null);
   const [now, setNow] = useState(() => new Date());
   const [selectedIndoorGameIds, setSelectedIndoorGameIds] = useState([]);
   const [searchParams] = useSearchParams();
   const today = now.toISOString().split("T")[0];
   const draftLoadedRef = React.useRef(false);
+  const bookingSubmissionRef = React.useRef({ fingerprint: "", key: "" });
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const guestCountValue = Number.parseInt(formValues.guestCount, 10) || 0;
 
   useEffect(() => {
     const intervalId = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(intervalId);
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-
-    const loadCommercialTerms = async () => {
-      setCommercialTermsLoading(true);
-      setCommercialTermsError("");
-      try {
-        const response = await publicApiResponse("/v1/commercial-config/public", {
-          signal: controller.signal,
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          throw new Error(payload?.error || "Current booking prices are unavailable.");
-        }
-        const normalized = normalizePublicCommercialTerms(payload);
-        if (active) setCommercialTerms(normalized);
-      } catch (error) {
-        if (!active || controller.signal.aborted || error?.name === "AbortError") return;
-        setCommercialTerms(null);
-        setCommercialTermsError(
-          error?.message || "Current booking prices are unavailable."
-        );
-      } finally {
-        if (active) setCommercialTermsLoading(false);
-      }
-    };
-
-    loadCommercialTerms();
-    return () => {
-      active = false;
-      controller.abort();
-    };
   }, []);
 
   useEffect(() => {
@@ -273,13 +244,15 @@ function Book() {
 
     const load = async () => {
       try {
-        const [inventoryResult, bouncyRes] = await Promise.all([
+        const [inventoryResult, bouncyRes, rulesRes] = await Promise.all([
           fetchInventoryWithCache({ signal: controller.signal }),
           fetch("/api/bouncy_castles", { signal: controller.signal }),
+          fetch("/api/bookingRules", { signal: controller.signal }),
         ]);
 
         const inventoryData = inventoryResult.items;
         const bouncyData = bouncyRes.ok ? await bouncyRes.json() : [];
+        const rulesData = rulesRes.ok ? await rulesRes.json() : null;
 
         const inventoryItems = Array.isArray(inventoryData) ? inventoryData : [];
         const pumpItem = inventoryItems.find((item) => isPumpAccessory(item)) || null;
@@ -294,11 +267,14 @@ function Book() {
         });
 
         if (!active) return;
-        setRentals(rentalsOnly);
+        setRentals((current) => rentalsOnly.length ? rentalsOnly : current);
         setBouncyTypes(Array.isArray(bouncyData) ? bouncyData : []);
         setPumpProduct(pumpItem);
+        if (rulesData && typeof rulesData === "object") {
+          setBookingRules((current) => ({ ...current, ...rulesData }));
+        }
       } catch (err) {
-        if (!active || controller.signal.aborted || err?.name === "AbortError") return;
+        if (err?.name === "AbortError") return;
         console.error("❌ Error fetching rental:", err);
       } finally {
         if (active) setLoading(false);
@@ -310,7 +286,7 @@ function Book() {
       active = false;
       controller.abort();
     };
-  }, []);
+  }, [initialRentals]);
 
   useEffect(() => {
     document.body.classList.add("rentals-theme");
@@ -320,7 +296,7 @@ function Book() {
   const bookingRentals = useMemo(() => {
     if (!rentals.length) return [];
     const baseBouncy = rentals.find((item) => isBouncyRental(item));
-    if (!baseBouncy) return rentals;
+    if (!baseBouncy || !bouncyTypes.length) return rentals;
 
     const availableBouncy = bouncyTypes.filter((type) =>
       Number.isFinite(Number(type.productId))
@@ -443,15 +419,10 @@ function Book() {
   const getBookingQuantity = (item) =>
     isPerHeadRate(item?.rate) && guestCountValue > 0 ? guestCountValue : 1;
 
-  const bundleMinimumItems = commercialTerms?.booking?.bundleMinimumItems ?? null;
-  const bundleDiscountBps = commercialTerms?.booking?.bundleDiscountBps ?? null;
-  const attendantUnitFeeCents = commercialTerms?.booking?.attendantUnitFeeCents ?? null;
-  const commercialPricingReady = Number.isInteger(bundleMinimumItems)
-    && Number.isInteger(bundleDiscountBps)
-    && Number.isInteger(attendantUnitFeeCents);
-  const bundleDiscountRate = commercialPricingReady ? bundleDiscountBps / 10000 : 0;
-  const attendantRate = commercialPricingReady ? attendantUnitFeeCents / 100 : 0;
-  const bundleEligible = commercialPricingReady && selectedRentals.length >= bundleMinimumItems;
+  const bundleMinItems = Math.max(1, Number(bookingRules.bundleMinItems) || DEFAULT_BOOKING_RULES.bundleMinItems);
+  const bundleDiscountRate = Math.max(0, Number(bookingRules.bundleDiscountBps) || 0) / 10000;
+  const attendantRate = Math.max(0, Number(bookingRules.attendantUnitFeeCents) || 0) / 100;
+  const bundleEligible = selectedRentals.length >= bundleMinItems;
   const subtotal = selectedRentals.reduce((sum, item) => {
     return sum + getItemTotal(item);
   }, 0);
@@ -494,9 +465,7 @@ function Book() {
   const automaticChargeTotal = automaticChargeLines.reduce((sum, line) => sum + line.total, 0);
   const automaticChargeNote = automaticChargeLines.map((line) => `${line.label}: ${line.helper}`).join(", ");
   const totalAfterDiscount = Math.max(0, subtotal - bundleDiscount + automaticChargeTotal);
-  const bundleRemaining = commercialPricingReady
-    ? Math.max(0, bundleMinimumItems - selectedRentals.length)
-    : 0;
+  const bundleRemaining = Math.max(0, bundleMinItems - selectedRentals.length);
 
   useEffect(() => {
     if (!noteTouched) {
@@ -581,38 +550,14 @@ function Book() {
     if (!Number.isFinite(parsed) || parsed <= 0) return "TBD";
     return formatCurrency(convertPrice(parsed / 100));
   };
-  const bundleLabel = commercialPricingReady
-    ? `Bundle discount (${bundleDiscountBps / 100}% off ${bundleMinimumItems}+ items)`
-    : "Bundle discount (confirmed from current terms)";
-  const subtotalReady = subtotal > 0 && commercialPricingReady;
-  const discountDisplay = !commercialPricingReady
-    ? "Pricing unavailable"
-    : bundleEligible
+  const bundleLabel = `Bundle discount (${Math.round(bundleDiscountRate * 100)}% off ${bundleMinItems}+ items)`;
+  const subtotalReady = subtotal > 0;
+  const discountDisplay = bundleEligible
     ? subtotalReady
       ? `- ${formatAmount(bundleDiscount)}`
       : "Applied at confirmation"
     : `Add ${bundleRemaining} more`;
   const totalDisplay = subtotalReady ? formatAmount(totalAfterDiscount) : "TBD";
-
-  const fetchExistingCustomer = async ({ email: lookupEmail, phone: lookupPhone, name: lookupName }) => {
-    const lookups = [];
-    if (lookupEmail) {
-      lookups.push(`/api/customers?email=${encodeURIComponent(lookupEmail)}`);
-    }
-    if (lookupPhone) {
-      lookups.push(`/api/customers?phone=${encodeURIComponent(lookupPhone)}`);
-    }
-    if (lookupName) {
-      lookups.push(`/api/customers?name=${encodeURIComponent(lookupName)}`);
-    }
-    for (const lookupUrl of lookups) {
-      const existingRes = await publicApiResponse(lookupUrl.replace("/api/customers", "/v1/customers"));
-      if (!existingRes.ok) continue;
-      const payload = await existingRes.json();
-      if (payload?.id) return payload;
-    }
-    return null;
-  };
 
   const buildBookingItems = () => {
     const baseItems = selectedRentals
@@ -648,12 +593,8 @@ function Book() {
       setSubmitError("Select at least one rental item before booking.");
       return;
     }
-    if (!commercialPricingReady) {
-      setSubmitError("Current booking prices are unavailable. Please try again shortly.");
-      return;
-    }
-    if (bundleSelected && selectedIndoorGameIds.length < 3) {
-      setSubmitError("Select at least three indoor games for the board game bundle.");
+    if (bundleSelected && selectedIndoorGameIds.length < bundleMinItems) {
+      setSubmitError(`Select at least ${bundleMinItems} indoor games for the board game bundle.`);
       return;
     }
     if (selectedRentals.some((item) => isPerHeadRate(item?.rate)) && guestCountValue <= 0) {
@@ -670,81 +611,65 @@ function Book() {
     const email = formValues.email.trim();
     const phone = formValues.phone.trim();
     const eventDate = formValues.eventDate.trim();
+    const eventEndDate = formValues.eventEndDate.trim() || eventDate;
     const eventWindow = formValues.eventWindow.trim();
     const location = formValues.location.trim();
+    const ghanaPostGps = formValues.ghanaPostGps.trim();
 
     try {
-      let customerPayload = await fetchExistingCustomer({ email, phone, name });
-      if (!customerPayload?.id) {
-        const customerRes = await publicApiResponse("/v1/customers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, phone }),
-        });
-        customerPayload = await customerRes.json();
-        if (!customerRes.ok) {
-          if (customerRes.status === 409) {
-            const existing = await fetchExistingCustomer({ email, phone, name });
-            if (existing) {
-              customerPayload = existing;
-            }
-          }
-          if (!customerPayload?.id) {
-            throw new Error(customerPayload?.error || "Failed to save customer.");
-          }
-        }
-      }
-
       const bookingItems = buildBookingItems();
       if (!bookingItems.length) {
         throw new Error("Selected items are missing product data. Try again.");
       }
 
       const bookingBody = {
-        customerId: customerPayload.id,
+        customer: { name, email, phone },
         eventDate,
+        eventEndDate,
         startTime: eventWindow || null,
         endTime: null,
         venueAddress: location,
+        venueGhanaPostGps: ghanaPostGps || null,
+        customerNotes: itemsNote.trim() || null,
         items: bookingItems,
-        discount: bundleEligible ? bundleDiscount : 0,
         applyBundleDiscount: true,
         status: "pending",
       };
-      let bookingRes = await publicApiResponse("/v1/bookings", {
+      const submissionFingerprint = JSON.stringify(bookingBody);
+      if (bookingSubmissionRef.current.fingerprint !== submissionFingerprint) {
+        bookingSubmissionRef.current = {
+          fingerprint: submissionFingerprint,
+          key: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `booking-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        };
+      }
+      const bookingRes = await fetch("/api/bookings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": bookingSubmissionRef.current.key,
+        },
         body: JSON.stringify(bookingBody),
       });
-      let bookingPayload = await bookingRes.json();
-      if (!bookingRes.ok && typeof bookingPayload?.error === "string" && bookingPayload.error.toLowerCase().includes("customer")) {
-        const existing = await fetchExistingCustomer({ email, phone, name });
-        if (existing?.id) {
-          bookingBody.customerId = existing.id;
-          bookingRes = await publicApiResponse("/v1/bookings", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(bookingBody),
-          });
-          bookingPayload = await bookingRes.json();
-        }
-      }
+      const bookingPayload = await bookingRes.json();
       if (!bookingRes.ok) {
         throw new Error(bookingPayload?.error || "Failed to create booking.");
       }
 
       setBookingReceipt({
         ...bookingPayload,
-        bundleApplied: bundleEligible,
+        bundleApplied: Number(bookingPayload.discountCents || 0) > 0,
         bundleSubtotal: subtotal,
         bundleDiscount: bundleEligible ? bundleDiscount : 0,
         automaticChargeLines,
       });
-      setSubmitSuccess(`Booking #${bookingPayload.id} received! We’ll confirm availability shortly.`);
+      setSubmitSuccess(`${bookingPayload.reference || "Your booking"} received! We’ll confirm availability shortly.`);
       setSelectedIds([]);
       setItemsNote("");
       setNoteTouched(false);
       setFormValues(defaultFormValues);
+      bookingSubmissionRef.current = { fingerprint: "", key: "" };
       clearExpiringDraft(BOOKING_DRAFT_KEY);
       form.reset();
     } catch (err) {
@@ -756,11 +681,17 @@ function Book() {
 
   if (loading) {
     return (
-      <SiteLoader
-        label="Loading booking options"
-        sublabel="Preparing your rental list and pricing."
-        variant="commerce"
-      />
+      <div className="booking-page rentals-theme" id="main" aria-busy="true">
+        <main className="booking-shell page-shell">
+          <SiteLoader
+            label="Loading booking options"
+            sublabel="Preparing your rental list and pricing."
+            variant="commerce"
+            heroClassName="booking-hero glass-card page-hero"
+            className="storefront-page-loading"
+          />
+        </main>
+      </div>
     );
   }
 
@@ -769,11 +700,11 @@ function Book() {
       <a href="#main" className="skip-link">
         Skip to main content
       </a>
-      <div className="booking-page rentals-theme">
-        <div className="booking-shell page-shell">
+      <div className="booking-page rentals-theme" id="main">
+        <main className="booking-shell page-shell">
           <section className="booking-hero glass-card page-hero" aria-labelledby="booking-hero-heading">
             <div className="booking-hero-copy page-hero-copy">
-              <h2 id="booking-hero-heading" className="page-hero-title">Reserve your rentals</h2>
+              <h1 id="booking-hero-heading" className="page-hero-title">Reserve your rentals</h1>
               <p className="booking-hero-sub">
                 Pick the bounce house, decor, or concessions you want. We confirm availability, delivery,
                 and setup details for your date.
@@ -815,8 +746,8 @@ function Book() {
                   <span>Delivery & pickup</span>
                 </div>
                 <div>
-                  <strong>Live terms</strong>
-                  <span>Server-priced</span>
+                  <strong>48 hrs</strong>
+                  <span>Reschedule window</span>
                 </div>
               </div>
             </div>
@@ -929,6 +860,17 @@ function Book() {
                       />
                     </div>
                     <div className="form-group">
+                      <label htmlFor="eventEndDate">Rental end date</label>
+                      <DateField
+                        id="eventEndDate"
+                        name="eventEndDate"
+                        min={formValues.eventDate || today}
+                        value={formValues.eventEndDate}
+                        onChange={updateFormValue("eventEndDate")}
+                      />
+                      <small className="hint">Leave blank for a same-day rental.</small>
+                    </div>
+                    <div className="form-group">
                       <label htmlFor="eventWindow">Setup & pickup window</label>
                       <SelectField
                         id="eventWindow"
@@ -962,6 +904,19 @@ function Book() {
                         onChange={updateFormValue("location")}
                         required
                       />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="ghanaPostGps">GhanaPost GPS</label>
+                      <input
+                        id="ghanaPostGps"
+                        type="text"
+                        name="ghanaPostGps"
+                        placeholder="For example, GA-184-8164"
+                        autoComplete="off"
+                        value={formValues.ghanaPostGps}
+                        onChange={updateFormValue("ghanaPostGps")}
+                      />
+                      <small className="hint">Optional. Your written venue remains the main address.</small>
                     </div>
                     <div className="form-group">
                       <label htmlFor="guestCount">Guest count</label>
@@ -1022,23 +977,10 @@ function Book() {
 
                 <div className="form-footer">
                   <small className="hint">We reply same day for bookings within Accra.</small>
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={submitting || commercialTermsLoading || !commercialPricingReady}
-                  >
-                    {submitting
-                      ? "Submitting..."
-                      : commercialTermsLoading
-                        ? "Loading current prices..."
-                        : "Request booking"}
+                  <button type="submit" className="btn btn-primary" disabled={submitting}>
+                    {submitting ? "Submitting..." : "Request booking"}
                   </button>
                 </div>
-                {commercialTermsError && (
-                  <p className="form-error" role="alert">
-                    {commercialTermsError} Booking submission is paused so an outdated price cannot be used.
-                  </p>
-                )}
                 {submitError && <p className="form-error">{submitError}</p>}
                 {submitSuccess && <p className="form-success">{submitSuccess}</p>}
               </form>
@@ -1047,7 +989,7 @@ function Book() {
                   <div className="booking-receipt-head">
                     <div>
                       <p className="kicker">Booking received</p>
-                      <h3>Booking #{bookingReceipt.id}</h3>
+                      <h3>{bookingReceipt.reference || "Booking received"}</h3>
                       <p className="booking-receipt-meta">
                         {formatDateShort(bookingReceipt.eventDate)}
                         {bookingReceipt.startTime ? ` · ${bookingReceipt.startTime}` : ""}
@@ -1244,7 +1186,7 @@ function Book() {
               </div>
             </aside>
           </section>
-        </div>
+        </main>
       </div>
     </>
   );

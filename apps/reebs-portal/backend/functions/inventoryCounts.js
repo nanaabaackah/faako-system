@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 // Intentionally public: storefront inventory counts for the configured public organization only.
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import { Client } from "pg";
@@ -66,6 +65,16 @@ export async function handler(event = {}) {
     }
     if (hasColumn("isDeleted")) filters.push(`COALESCE(p."isDeleted", false) = false`);
     if (hasColumn("isArchived")) filters.push(`COALESCE(p."isArchived", false) = false`);
+    if (hasColumn("sourceCategoryCode")) {
+      filters.push(`UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'WATER'`);
+    }
+    filters.push(`NOT EXISTS (
+      SELECT 1
+      FROM "waterProductConfig" water_scope
+      WHERE water_scope."organizationId" = p."organizationId"
+        AND water_scope."inventoryProductId" = p.id
+        AND water_scope."isActive" = TRUE
+    )`);
 
     const rentalPredicate = hasColumn("sourceCategoryCode")
       ? `LOWER(COALESCE(p."sourceCategoryCode", '')) = 'rental'`

@@ -27,8 +27,10 @@ test("filters sales to the current stock window using the latest restock boundar
 
 test("water API requests include the cross-origin session cookie", () => {
   const source = readFileSync(new URL("./AdminWater.jsx", import.meta.url), "utf8");
-  const includeCredentials = source.match(/credentials:\s*["']include["']/g) || [];
+  const apiClientSource = readFileSync(new URL("../../api/client.js", import.meta.url), "utf8");
+  const sharedRequests = source.match(/reebsApiResponse\(/g) || [];
 
   assert.equal(source.includes('credentials: "same-origin"'), false);
-  assert.equal(includeCredentials.length, 4);
+  assert.equal(sharedRequests.length, 4);
+  assert.match(apiClientSource, /credentials:\s*["']include["']/);
 });

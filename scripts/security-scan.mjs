@@ -118,22 +118,19 @@ function isTrackedSecretEnvFile(filePath) {
 }
 
 function getTrackedFiles() {
-  let output;
+  let output = "";
   try {
-    // `rg --files` honours repository ignore files without invoking Git. This
-    // keeps the security check usable in restricted build environments and in
-    // workflows that explicitly prohibit Git commands.
     output = execFileSync(
       "rg",
       ["--files", "--hidden", "--null", "--glob", "!.git/**"],
       { cwd: rootDir, encoding: "utf8" }
     );
   } catch (error) {
-    if (error?.status === 1 && !error?.stdout) return [];
-    throw new Error(
-      "Security scan requires ripgrep (rg) to enumerate non-ignored workspace files without Git.",
-      { cause: error }
-    );
+    if (error?.code === "ENOENT") {
+      console.error("Security scan prerequisite missing: ripgrep (rg) is required. Run `pnpm run tooling:check` for setup guidance.");
+      process.exit(2);
+    }
+    throw error;
   }
 
   return output
@@ -176,6 +173,14 @@ function findSensitiveFiles(files) {
 
 function shouldSkipContentScan(filePath) {
   const lower = filePath.toLowerCase();
+  // Secret env files are classified by path above and must never be opened by
+  // the scanner. Allowed templates are checked separately by the security gate.
+  if (path.basename(lower).startsWith(".env")) {
+    return true;
+  }
+  if (/\.(pem|key|p12|pfx|jks|keystore)$/i.test(lower)) {
+    return true;
+  }
   if (CONTENT_SCAN_EXCLUDED_DIR_PREFIXES.some((prefix) => lower.startsWith(prefix))) {
     return true;
   }

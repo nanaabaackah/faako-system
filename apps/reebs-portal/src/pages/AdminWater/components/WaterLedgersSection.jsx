@@ -1,7 +1,14 @@
-import { AnimatedLoadingState } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faTrash } from "/src/icons/iconSet";
+
+function WaterLedgerLoading({ label }) {
+  return (
+    <p className="water-module-empty water-module-loading-copy" role="status" aria-live="polite">
+      {label}
+    </p>
+  );
+}
 
 export default function WaterLedgersSection({
   loading,
@@ -21,6 +28,7 @@ export default function WaterLedgersSection({
   normalizeSalePaymentStatus,
   getSalePaymentStatusLabel,
   stockTimeline,
+  canViewCost,
   netMovement,
   activeLedgerItem,
   openStockEntryEditor,
@@ -71,13 +79,7 @@ export default function WaterLedgersSection({
           </span>
         </div>
         {loading ? (
-          <AnimatedLoadingState
-            compact
-            className="glass-card admin-module-loading"
-            title="Loading water orders"
-            message="Preparing order, stock, and payment ledgers."
-            variant="dashboard"
-          />
+          <WaterLedgerLoading label="Loading Water orders…" />
         ) : sales.length ? (
           <>
             <div className="water-module-orders-toolbar">
@@ -231,13 +233,7 @@ export default function WaterLedgersSection({
           <span className="water-module-card-tag">Net movement {netMovement}</span>
         </div>
         {loading ? (
-          <AnimatedLoadingState
-            compact
-            className="glass-card admin-module-loading"
-            title="Loading stock history"
-            message="Fetching stock movement and restock values."
-            variant="dashboard"
-          />
+          <WaterLedgerLoading label="Loading stock movement…" />
         ) : stockTimeline.length ? (
           <div className="water-module-table-wrap water-module-table-wrap--stock">
             <table className="water-module-table water-module-table--stock">
@@ -324,7 +320,9 @@ export default function WaterLedgersSection({
                     </span>
                   </td>
                   <td className="admin-table-summary-cell" data-label="Value">
-                    <span className="admin-table-summary-value">{formatCurrency(stockSummary.value)}</span>
+                    <span className="admin-table-summary-value">
+                      {canViewCost ? formatCurrency(stockSummary.value) : "Restricted"}
+                    </span>
                   </td>
                   <td className="admin-table-summary-cell is-empty" />
                 </tr>
@@ -347,13 +345,7 @@ export default function WaterLedgersSection({
           </div>
         </div>
         {loading ? (
-          <AnimatedLoadingState
-            compact
-            className="glass-card admin-module-loading"
-            title="Loading water expenses"
-            message="Fetching expense ledger and totals."
-            variant="dashboard"
-          />
+          <WaterLedgerLoading label="Loading Water expenses…" />
         ) : expenses.length ? (
           <div className="water-module-table-wrap">
             <table className="water-module-table water-module-table--expenses">

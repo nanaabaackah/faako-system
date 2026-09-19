@@ -1,18 +1,20 @@
-/* eslint-disable no-undef */
 // Filename: bookingAvailability.js
-// GET /api/bookingAvailability?productId=X&variantId=Y&eventDate=2024-03-15
-// Returns availability for a rental item on a specific date.
+// GET /api/bookingAvailability?productId=X&variantId=Y&eventDate=2024-03-15&eventEndDate=2024-03-16
+// Returns availability for a rental item over an inclusive date range.
 // Intentionally public: storefront rental availability for the configured public organization only.
 
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
+import { getEventHeader } from "./_shared/auditLog.js";
+import { createLogger } from "./_shared/logger.js";
 import {
   applyRequestOrganizationContext,
   resolveConfiguredPublicOrganizationId,
 } from "./_shared/organization.js";
+import { validateBookingDateRange } from "../modules/bookings/bookingPolicy.js";
 
 const METHODS = "GET,OPTIONS";
+const logger = createLogger("booking-availability");
 
 const json = (event, statusCode, payload) => ({
   statusCode,
@@ -46,25 +48,52 @@ export async function handler(event = {}) {
   const productId = parsePositiveInt(params.productId);
   const variantId = parsePositiveInt(params.variantId);
   const eventDate = parseDate(params.eventDate);
+  const eventEndDate = parseDate(params.eventEndDate || params.eventDate);
 
   if (!productId) return json(event, 400, { error: "productId is required." });
   if (!eventDate) return json(event, 400, { error: "eventDate is required (YYYY-MM-DD)." });
+  const dateRange = validateBookingDateRange(params.eventDate, params.eventEndDate || params.eventDate);
+  if (!dateRange.valid) {
+    return json(event, 400, {
+      error: dateRange.code === "INVALID_BOOKING_DATE_RANGE"
+        ? "eventEndDate cannot be before eventDate."
+        : "A valid event date range is required.",
+      code: dateRange.code,
+    });
+  }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
+  const requestLogger = logger.child({
+    requestId: getEventHeader(event, "x-request-id") || undefined,
   });
+  const client = createDatabaseClient({ component: "booking-availability-database" });
 
   try {
     await client.connect();
     const organizationId = await resolveConfiguredPublicOrganizationId(client);
     await applyRequestOrganizationContext(client, organizationId);
 
-    // Fetch product to confirm it exists and is a rental.
     const productRes = await client.query(
-      `SELECT id, name, sku, stock, "sourceCategoryCode", "isActive", "isDeleted", "isArchived"
-       FROM "product"
-       WHERE id = $1 AND "organizationId" = $2`,
+      `SELECT
+         p.id,
+         p.name,
+         p.sku,
+         p.stock,
+         p."sourceCategoryCode",
+         p."isActive",
+         p."isDeleted",
+         p."isArchived",
+         EXISTS (
+           SELECT 1
+           FROM "maintenanceLog" ml
+           WHERE ml."productId" = p.id
+             AND ml."organizationId" = p."organizationId"
+             AND ml."resolvedAt" IS NULL
+             AND LOWER(COALESCE(ml.status, 'open')) NOT IN (
+               'closed', 'resolved', 'complete', 'completed', 'cancelled', 'canceled'
+             )
+         ) AS "hasOpenMaintenance"
+       FROM "product" p
+       WHERE p.id = $1 AND p."organizationId" = $2`,
       [productId, organizationId]
     );
     if (productRes.rowCount === 0) {
@@ -81,6 +110,7 @@ export async function handler(event = {}) {
         productId,
         variantId: variantId || null,
         eventDate: eventDate.toISOString().slice(0, 10),
+        eventEndDate: eventEndDate.toISOString().slice(0, 10),
         available: false,
         totalUnits: 0,
         reservedUnits: 0,
@@ -93,33 +123,22 @@ export async function handler(event = {}) {
     const sku = String(product.sku || "").trim().toUpperCase();
     const isRental = sourceCode === "RENTAL" || sku.startsWith("RENT") || sku.startsWith("REN-");
 
-    if (isRental) {
-      const maintenanceRes = await client.query(
-        `SELECT COUNT(*)::int AS open_count
-         FROM "maintenanceLog"
-         WHERE "productId" = $1
-           AND "organizationId" = $2
-           AND "resolvedAt" IS NULL
-           AND LOWER(COALESCE(status, 'open')) NOT IN ('closed', 'resolved', 'complete', 'completed', 'cancelled', 'canceled')`,
-        [productId, organizationId]
-      );
-      if (Number(maintenanceRes.rows[0]?.open_count || 0) > 0) {
-        return json(event, 200, {
-          productId,
-          variantId: variantId || null,
-          eventDate: eventDate.toISOString().slice(0, 10),
-          available: false,
-          totalUnits: 0,
-          reservedUnits: 0,
-          availableUnits: 0,
-          isRental,
-          reason: "Item is in maintenance.",
-        });
-      }
+    if (isRental && product.hasOpenMaintenance) {
+      return json(event, 200, {
+        productId,
+        variantId: variantId || null,
+        eventDate: eventDate.toISOString().slice(0, 10),
+        eventEndDate: eventEndDate.toISOString().slice(0, 10),
+        available: false,
+        totalUnits: 0,
+        reservedUnits: 0,
+        availableUnits: 0,
+        isRental,
+        reason: "Item is in maintenance.",
+      });
     }
 
     if (variantId) {
-      // Variant-level availability.
       const variantRes = await client.query(
         `SELECT id, "stockQty", status FROM "inventoryVariant"
          WHERE id = $1 AND "inventoryItemId" = $2 AND "organizationId" = $3`,
@@ -140,8 +159,9 @@ export async function handler(event = {}) {
          WHERE bi."variantId" = $1
            AND bi."organizationId" = $2
            AND LOWER(b.status) IN ('pending', 'confirmed')
-           AND b."eventDate"::date = $3::date`,
-        [variantId, organizationId, eventDate]
+           AND b."eventDate"::date <= $4::date
+           AND b."eventEndDate"::date >= $3::date`,
+        [variantId, organizationId, eventDate, eventEndDate]
       );
       const reservedUnits = Number(reservedRes.rows[0]?.reserved || 0);
       const availableUnits = Math.max(totalUnits - reservedUnits, 0);
@@ -150,6 +170,7 @@ export async function handler(event = {}) {
         productId,
         variantId,
         eventDate: eventDate.toISOString().slice(0, 10),
+        eventEndDate: eventEndDate.toISOString().slice(0, 10),
         available: availableUnits > 0 && String(variant.status || "active").toLowerCase() === "active",
         totalUnits,
         reservedUnits,
@@ -158,7 +179,6 @@ export async function handler(event = {}) {
       });
     }
 
-    // Product-level (non-variant) availability.
     const totalUnits = isRental
       ? Math.max(Number(product.stock || 0), 1)
       : Number(product.stock || 0);
@@ -171,8 +191,9 @@ export async function handler(event = {}) {
          AND bi."variantId" IS NULL
          AND bi."organizationId" = $2
          AND LOWER(b.status) IN ('pending', 'confirmed')
-         AND b."eventDate"::date = $3::date`,
-      [productId, organizationId, eventDate]
+         AND b."eventDate"::date <= $4::date
+         AND b."eventEndDate"::date >= $3::date`,
+      [productId, organizationId, eventDate, eventEndDate]
     );
     const reservedUnits = Number(reservedRes.rows[0]?.reserved || 0);
     const availableUnits = Math.max(totalUnits - reservedUnits, 0);
@@ -181,6 +202,7 @@ export async function handler(event = {}) {
       productId,
       variantId: null,
       eventDate: eventDate.toISOString().slice(0, 10),
+      eventEndDate: eventEndDate.toISOString().slice(0, 10),
       available: availableUnits > 0,
       totalUnits,
       reservedUnits,
@@ -188,7 +210,10 @@ export async function handler(event = {}) {
       isRental,
     });
   } catch (err) {
-    console.error("bookingAvailability error:", err);
+    requestLogger.error({
+      err,
+      eventName: "booking.availability.failed",
+    }, "Booking availability request failed");
     return json(event, 500, { error: "Failed to check availability." });
   } finally {
     await client.end().catch(() => {});

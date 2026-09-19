@@ -21,7 +21,6 @@ import {
 } from "@faako/utils";
 import HomeFeaturedRentalsSection from "../../components/home/HomeFeaturedRentalsSection";
 import HomeHeroSection from "../../components/home/HomeHeroSection";
-import HomeMomentsSection from "../../components/home/HomeMomentsSection";
 import HomeProcessSection from "../../components/home/HomeProcessSection";
 import HomeQuickAnswersSection from "../../components/home/HomeQuickAnswersSection";
 import HomeServicesSection from "../../components/home/HomeServicesSection";
@@ -33,7 +32,6 @@ import {
   hasHomeShopImage,
   isHomeShopSoldOut,
 } from "../../components/home/homeCatalog";
-import { SERVICE_START_YEAR } from "../../components/home/homeContent";
 
 const HOME_HERO_DRAFT_KEY = "homeHeroLeadDraft";
 
@@ -51,8 +49,6 @@ function Home() {
   const { convertPrice, formatCurrency } = useCart();
   const { config } = useTemplateConfig();
   const templateSettings = { ...DEFAULT_TEMPLATE_CONFIG, ...config };
-  const yearsServing = Math.max(0, new Date().getFullYear() - SERVICE_START_YEAR);
-  const yearsServingBadge = Math.floor(yearsServing / 5) * 5;
 
   useEffect(() => {
     const savedDraft = loadExpiringDraft(HOME_HERO_DRAFT_KEY);
@@ -212,7 +208,6 @@ function Home() {
           onHeroEmailChange={setHeroEmail}
           onHeroLeadSubmit={handleHeroLeadSubmit}
           heroStats={heroStats}
-          yearsServingBadge={yearsServingBadge}
         />
         <HomeWhySection />
         <HomeProcessSection />
@@ -229,7 +224,6 @@ function Home() {
           convertPrice={convertPrice}
           formatCurrency={formatCurrency}
         />
-        <HomeMomentsSection />
         <HomeQuickAnswersSection />
       </main>
     </>

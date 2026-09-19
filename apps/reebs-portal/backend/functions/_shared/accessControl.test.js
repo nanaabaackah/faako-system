@@ -16,6 +16,8 @@ test("hasPermission only grants scoped access to supported roles", () => {
   assert.equal(hasPermission({ role: "manager" }, "financials:read"), true);
   assert.equal(hasPermission({ role: "driver" }, "financials:read"), false);
   assert.equal(hasPermission({ role: "driver" }, "deliveries:write"), true);
+  assert.equal(hasPermission({ role: "manager" }, "bookings:price_override"), true);
+  assert.equal(hasPermission({ role: "staff" }, "bookings:price_override"), false);
 });
 
 test("core management access does not implicitly grant Water Business access", () => {
@@ -33,7 +35,21 @@ test("assertSeedActionsAllowed blocks production even when SEED_ENABLED is true"
         SEED_ENABLED: "true",
       }),
     {
-      message: "Seed actions are disabled in production.",
+      message: "Seed actions are disabled in deployed environments.",
+    }
+  );
+});
+
+test("assertSeedActionsAllowed treats staging as a deployed environment", () => {
+  assert.throws(
+    () =>
+      assertSeedActionsAllowed({
+        APP_ENV: "staging",
+        NODE_ENV: "production",
+        SEED_ENABLED: "true",
+      }),
+    {
+      message: "Seed actions are disabled in deployed environments.",
     }
   );
 });

@@ -136,7 +136,7 @@ export const REEBS_ADMIN_MODULES = [
     label: "Finance",
     ...DEFAULT_MODULE_STATE,
     path: "/admin/accounting",
-    matchPaths: ["/admin/expenses", "/admin/invoicing", "/admin/documents", "/admin/vendors"],
+    matchPaths: ["/admin/payments", "/admin/expenses", "/admin/invoicing", "/admin/documents", "/admin/vendors"],
     group: ERP_MODULE_GROUPS.FINANCE,
     status: ERP_MODULE_STATUSES.STABLE,
     requiredPermission: "privileged",
@@ -145,6 +145,13 @@ export const REEBS_ADMIN_MODULES = [
     // only after order payments, receipts, invoice documents, POS/order balance
     // behavior, and accounting/report dependencies are reviewed separately.
     children: [
+      {
+        key: "payments",
+        label: "Payments",
+        path: "/admin/payments",
+        requiredPermission: "payments",
+        sidebar: true,
+      },
       {
         key: "accounting",
         label: "Accounting",

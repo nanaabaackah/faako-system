@@ -25,11 +25,6 @@ export const HERO_STATS = [
     label: "Rentals",
     meta: "bookable party options",
   },
-  {
-    key: "years",
-    label: "Serving Ghana",
-    meta: "trusted celebrations delivered",
-  },
 ];
 
 export const WHY_REEBS_ITEMS = [
@@ -101,24 +96,6 @@ export const HOME_SERVICES = [
   },
 ];
 
-export const REAL_PARTY_MOMENTS = [
-  {
-    quote: "REEBS handled setup and pickup so smoothly. We actually enjoyed the party instead of stressing.",
-    name: "Ama, East Legon",
-    event: "Birthday setup",
-  },
-  {
-    quote: "The kids stayed busy all day and the team arrived early. Everything felt organized and fun.",
-    name: "Kwame, Tema Community 25",
-    event: "Kids party",
-  },
-  {
-    quote: "Fast response, clear pricing, no surprises. Exactly what we needed for our office fun day.",
-    name: "Nana, Airport Residential",
-    event: "Corporate fun day",
-  },
-];
-
 export const QUICK_ANSWERS = [
   {
     question: "How long does setup take?",
@@ -133,5 +110,3 @@ export const QUICK_ANSWERS = [
     answer: "Mobile money, bank transfer, and card options are available based on your booking.",
   },
 ];
-
-export const SERVICE_START_YEAR = 2004;

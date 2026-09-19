@@ -376,7 +376,7 @@ export async function handler(event = {}) {
     }
 
     const localResetRecipient =
-      user?.personalEmail && APP_ENV !== "production"
+      user?.personalEmail && APP_ENV === "development"
         ? await resolveLocalResetDeliveryRecipient(client, Number(user.organizationId))
         : "";
 
