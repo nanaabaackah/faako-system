@@ -1,5 +1,8 @@
 export const DEFAULT_SERVICE_PAYMENT_HEADING = "Payment instruction";
 
+export const DEFAULT_SERVICE_DEPOSIT_DUE_DAYS = 2;
+export const DEFAULT_SERVICE_DEPOSIT_DUE_LABEL = "the configured deposit deadline";
+
 export const DEFAULT_SERVICE_PAYMENT_LINES = [
   "Use the payment instructions issued with this document.",
   "Payment account details are supplied through configured server-side channels.",

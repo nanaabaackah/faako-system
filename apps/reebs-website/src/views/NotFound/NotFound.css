@@ -1,0 +1,54 @@
+.storefront-not-found {
+  display: grid;
+  min-height: min(72vh, 48rem);
+  place-items: center;
+  padding: clamp(7rem, 14vw, 10rem) clamp(1rem, 4vw, 3rem) 4rem;
+}
+
+.storefront-not-found__card {
+  display: grid;
+  width: min(100%, 46rem);
+  gap: 1rem;
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  border: 1px solid rgba(18, 18, 18, 0.12);
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1.5rem 4rem rgba(18, 18, 18, 0.08);
+}
+
+.storefront-not-found__eyebrow,
+.storefront-not-found__card h1,
+.storefront-not-found__card p {
+  margin: 0;
+}
+
+.storefront-not-found__eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.storefront-not-found__card h1 {
+  font-size: clamp(2.2rem, 8vw, 5rem);
+  line-height: 0.96;
+}
+
+.storefront-not-found__card > p:not(.storefront-not-found__eyebrow) {
+  max-width: 54ch;
+  line-height: 1.65;
+}
+
+.storefront-not-found__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .storefront-not-found__actions,
+  .storefront-not-found__actions .btn {
+    width: 100%;
+  }
+}

@@ -227,6 +227,14 @@ export const loadAnalyticsSnapshot = async (client, organizationId) => {
          AND COALESCE(p."isDeleted", false) = false
          AND COALESCE(p."isArchived", false) = false
          AND COALESCE(p."isActive", true) = true
+         AND UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'WATER'
+         AND NOT EXISTS (
+           SELECT 1
+           FROM "waterProductConfig" water_scope
+           WHERE water_scope."organizationId" = p."organizationId"
+             AND water_scope."inventoryProductId" = p.id
+             AND water_scope."isActive" = TRUE
+         )
        GROUP BY p.id, p.name, p.stock, p."reorderLevel"
        ORDER BY "unitsOut90d" DESC, p.stock ASC
        LIMIT 100`,

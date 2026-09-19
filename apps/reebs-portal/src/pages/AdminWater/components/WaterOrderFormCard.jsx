@@ -160,42 +160,21 @@ export default function WaterOrderFormCard({
                     inputMode="decimal"
                   value={unitPriceInputValue}
                   onChange={(event) => setSaleForm((prev) => ({ ...prev, unitPrice: event.target.value }))}
-                  placeholder="0.00"
-                  readOnly={!canManageWaterPricing}
-                  required
-                />
-              </label>
-              {salePreview.usesCustomUnitPrice ? (
-                <>
+                    placeholder="0.00"
+                    readOnly={!canManageWaterPricing}
+                    required
+                  />
+                </label>
+                {!canManageWaterPricing ? (
                   <p className="water-module-inline-note">
-                    Standard {formatCurrency(salePreview.suggestedUnitPrice)}. Overrides are audited.
+                    This is the active server-authoritative Water price.
                   </p>
-                  <label>
-                    <span className="water-module-field-label">Price override reason</span>
-                    <textarea
-                      rows="2"
-                      value={saleForm.priceOverrideReason}
-                      onChange={(event) =>
-                        setSaleForm((prev) => ({
-                          ...prev,
-                          priceOverrideReason: event.target.value,
-                        }))
-                      }
-                      placeholder="Why is this price changing?"
-                      required
-                    />
-                  </label>
-                </>
-              ) : !canManageWaterPricing ? (
-                <p className="water-module-inline-note">
-                  This is the active server-authoritative Water price.
-                </p>
-              ) : null}
-              {!pricingAvailable ? (
-                <p className="water-module-inline-note" role="alert">
-                  No active Water price is configured. An administrator must schedule one before sale.
-                </p>
-              ) : null}
+                ) : null}
+                {!pricingAvailable ? (
+                  <p className="water-module-inline-note" role="alert">
+                    No active Water price is configured. An administrator must schedule one before sale.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>

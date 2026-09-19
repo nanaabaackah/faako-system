@@ -1,10 +1,12 @@
 /* eslint-disable no-undef */
-import { Client } from "pg";
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
+import { createLogger } from "./_shared/logger.js";
+import { getEventHeader } from "./_shared/auditLog.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const METHODS = "GET,OPTIONS";
 const json = (event, statusCode, body) => respond(event, statusCode, body, { methods: METHODS });
+const logger = createLogger("order-receipts");
 
 const normalizeId = (value) => {
   const parsed = Number(value);
@@ -16,10 +18,8 @@ export async function handler(event = {}) {
   if (method === "OPTIONS") return json(event, 204, {});
   if (method !== "GET") return json(event, 405, { error: "Method Not Allowed" });
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "order-receipts-database" });
+  const requestLogger = logger.child({ requestId: getEventHeader(event, "x-request-id") || undefined });
 
   try {
     await client.connect();
@@ -57,7 +57,7 @@ export async function handler(event = {}) {
   } catch (error) {
     const statusCode = Number(error?.statusCode) || 500;
     if (statusCode >= 500) {
-      console.error("orderReceipts error", { message: error?.message, code: error?.code });
+      requestLogger.error({ err: error, code: error?.code }, "Order receipt request failed");
     }
     return json(event, statusCode, {
       error: statusCode >= 500 ? "Failed to fetch receipts." : error.message,

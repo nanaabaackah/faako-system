@@ -2,6 +2,7 @@ export {
   assertSeedActionsAllowed,
   hasAnyRole,
   hasPermission,
+  isDeployedRuntime,
   isProductionRuntime,
   isSystemAdminUser,
   normalizeRole,

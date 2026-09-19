@@ -7,7 +7,6 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: visible;
 }
 
 .water-module-shell {
@@ -16,7 +15,6 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: visible;
 }
 
 .water-module-kpi,
@@ -142,6 +140,24 @@ body.admin-theme .water-module-shell > .admin-header.water-module-header > .wate
 .water-module-feedback--error {
   background: rgba(248, 113, 113, 0.14);
   color: #991b1b;
+}
+
+.water-module-loading-copy {
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+  animation: water-module-loading-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes water-module-loading-pulse {
+  0%, 100% { opacity: 0.58; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .water-module-loading-copy {
+    animation: none;
+  }
 }
 
 .water-module-hero {

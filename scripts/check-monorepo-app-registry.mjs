@@ -1,4 +1,4 @@
-import { readdir } from "node:fs/promises";
+import { access, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,9 +19,19 @@ const toAppDirName = (appPath = "") => {
 
 const listAppDirectories = async () => {
   const entries = await readdir(appsDir, { withFileTypes: true });
-  return entries
+  const directories = entries
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
-    .map((entry) => entry.name)
+    .map((entry) => entry.name);
+  const deployable = await Promise.all(directories.map(async (name) => {
+    try {
+      await access(path.join(appsDir, name, "package.json"));
+      return name;
+    } catch {
+      return "";
+    }
+  }));
+  return deployable
+    .filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
 };
 

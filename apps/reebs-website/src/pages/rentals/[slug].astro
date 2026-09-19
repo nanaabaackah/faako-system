@@ -31,6 +31,7 @@ const productSchema = {
           "@type": "Offer",
           price: item.price,
           priceCurrency: item.currency || "GHS",
+          businessFunction: "http://purl.org/goodrelations/v1#LeaseOut",
           url: `${SITE_URL}${item.path}`,
         }
       : undefined,

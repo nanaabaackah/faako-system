@@ -1,6 +1,4 @@
-/* eslint-disable no-undef */
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 
@@ -21,6 +19,7 @@ const tableStatements = [
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
   `ALTER TABLE "maintenanceLog" ADD COLUMN IF NOT EXISTS "issue" TEXT`,
+  `ALTER TABLE "maintenanceLog" ADD COLUMN IF NOT EXISTS "organizationId" INTEGER NOT NULL DEFAULT 1`,
   `ALTER TABLE "maintenanceLog" ADD COLUMN IF NOT EXISTS "type" TEXT`,
   `ALTER TABLE "maintenanceLog" ADD COLUMN IF NOT EXISTS "cost" INTEGER NOT NULL DEFAULT 0`,
   `ALTER TABLE "maintenanceLog" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'open'`,
@@ -29,6 +28,7 @@ const tableStatements = [
   `ALTER TABLE "maintenanceLog" ADD COLUMN IF NOT EXISTS "resolvedAt" TIMESTAMPTZ`,
   `ALTER TABLE "maintenanceLog" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
   `CREATE INDEX IF NOT EXISTS "maintenanceLog_productId_idx" ON "maintenanceLog" ("productId")`,
+  `CREATE INDEX IF NOT EXISTS "maintenanceLog_organizationId_status_idx" ON "maintenanceLog" ("organizationId", status)`,
   `DO $$
    BEGIN
      IF NOT EXISTS (
@@ -61,10 +61,7 @@ export async function handler(event = {}) {
     return json(event, 204, {});
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "inventory-maintenance" });
 
   try {
     await client.connect();
@@ -97,7 +94,17 @@ export async function handler(event = {}) {
           m."createdAt",
           m."resolvedAt"
         FROM "maintenanceLog" m
-        JOIN "product" p ON p.id = m."productId" AND p."organizationId" = $1
+        JOIN "product" p
+          ON p.id = m."productId"
+         AND p."organizationId" = m."organizationId"
+        WHERE m."organizationId" = $1
+          AND NOT EXISTS (
+            SELECT 1
+            FROM "waterProductConfig" water_scope
+            WHERE water_scope."organizationId" = p."organizationId"
+              AND water_scope."inventoryProductId" = p.id
+              AND water_scope."isActive" = TRUE
+          )
         ORDER BY m."createdAt" DESC, m.id DESC`,
         [organizationId]
       );
@@ -130,25 +137,34 @@ export async function handler(event = {}) {
         return json(event, 400, { error: "Issue description is required." });
       }
 
+      await client.query("BEGIN");
       const productRes = await client.query(
-        `SELECT id
-         FROM "product"
-         WHERE id = $1 AND "organizationId" = $2
-         LIMIT 1`,
+        `SELECT p.id
+         FROM "product" p
+         WHERE p.id = $1 AND p."organizationId" = $2
+           AND NOT EXISTS (
+             SELECT 1
+             FROM "waterProductConfig" water_scope
+             WHERE water_scope."organizationId" = p."organizationId"
+               AND water_scope."inventoryProductId" = p.id
+               AND water_scope."isActive" = TRUE
+           )
+         LIMIT 1
+         FOR UPDATE`,
         [productId, organizationId]
       );
       if (productRes.rowCount === 0) {
+        await client.query("ROLLBACK");
         return json(event, 404, { error: "Product not found." });
       }
 
-      await client.query("BEGIN");
       try {
         const insert = await client.query(
           `INSERT INTO "maintenanceLog"
-            ("productId", issue, type, cost, status, notes, "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4, 'open', $5, NOW(), NOW())
+            ("organizationId", "productId", issue, type, cost, status, notes, "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4, $5, 'open', $6, NOW(), NOW())
            RETURNING id`,
-          [productId, issue, type, costCents, notes]
+          [organizationId, productId, issue, type, costCents, notes]
         );
 
         await client.query(
@@ -193,16 +209,29 @@ export async function handler(event = {}) {
     if (!status) {
       return json(event, 400, { error: "Status is required." });
     }
+    if (!new Set(["open", "resolved"]).has(status)) {
+      return json(event, 400, { error: "Status must be open or resolved." });
+    }
 
     await client.query("BEGIN");
     try {
       const existing = await client.query(
         `SELECT m."productId", m.status
          FROM "maintenanceLog" m
-         JOIN "product" p ON p.id = m."productId"
+         JOIN "product" p
+           ON p.id = m."productId"
+          AND p."organizationId" = m."organizationId"
          WHERE m.id = $1
-           AND p."organizationId" = $2
-         LIMIT 1`,
+           AND m."organizationId" = $2
+           AND NOT EXISTS (
+             SELECT 1
+             FROM "waterProductConfig" water_scope
+             WHERE water_scope."organizationId" = p."organizationId"
+               AND water_scope."inventoryProductId" = p.id
+               AND water_scope."isActive" = TRUE
+           )
+         LIMIT 1
+         FOR UPDATE OF m, p`,
         [logId, organizationId]
       );
       if (existing.rowCount === 0) {
@@ -215,10 +244,11 @@ export async function handler(event = {}) {
         `UPDATE "maintenanceLog"
          SET status = $1,
              notes = COALESCE($2, notes),
-             "resolvedAt" = CASE WHEN $1 = 'resolved' THEN NOW() ELSE "resolvedAt" END,
+             "resolvedAt" = CASE WHEN $1 = 'resolved' THEN COALESCE("resolvedAt", NOW()) ELSE NULL END,
              "updatedAt" = NOW()
-         WHERE id = $3`,
-        [status, notes, logId]
+         WHERE id = $3
+           AND "organizationId" = $4`,
+        [status, notes, logId, organizationId]
       );
 
       if (status === "resolved" && productId) {
@@ -226,8 +256,20 @@ export async function handler(event = {}) {
           `UPDATE "product"
            SET "isActive" = true,
                "updatedAt" = NOW()
-           WHERE id = $1 AND "organizationId" = $2`,
-          [productId, organizationId]
+           WHERE id = $1
+             AND "organizationId" = $2
+             AND COALESCE("isArchived", false) = false
+             AND COALESCE("isDeleted", false) = false
+             AND NOT EXISTS (
+               SELECT 1
+               FROM "maintenanceLog" other_log
+               WHERE other_log."organizationId" = $2
+                 AND other_log."productId" = $1
+                 AND other_log.id <> $3
+                 AND other_log."resolvedAt" IS NULL
+                 AND LOWER(COALESCE(other_log.status, 'open')) = 'open'
+             )`,
+          [productId, organizationId, logId]
         );
       }
 

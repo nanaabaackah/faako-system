@@ -15,7 +15,6 @@ const initialRentals = publicRentals.map((item) => ({
 ---
 
 <BaseLayout path="/rentals">
-  <h1 class="sr-only">Party rentals</h1>
   <RentalsIsland
     path={`/rentals${Astro.url.search}`}
     initialRentals={initialRentals}

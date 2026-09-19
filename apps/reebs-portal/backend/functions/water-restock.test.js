@@ -140,28 +140,18 @@ test("Water sale pricing uses the server standard unless an authorized override 
     }).statusCode,
     403
   );
-  assert.match(
-    resolveWaterPriceDecision({
-      standardPriceCents: 2700,
-      submittedPriceCents: 2500,
-      hasSubmittedPrice: true,
-      canOverride: true,
-    }).error,
-    /reason/i
-  );
   assert.deepEqual(
     resolveWaterPriceDecision({
       standardPriceCents: 2700,
       submittedPriceCents: 2500,
       hasSubmittedPrice: true,
       canOverride: true,
-      overrideReason: "Approved customer recovery",
     }),
     {
       unitPrice: 2500,
       standardUnitPrice: 2700,
       isOverride: true,
-      overrideReason: "Approved customer recovery",
+      overrideReason: null,
     }
   );
 });

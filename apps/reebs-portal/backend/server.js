@@ -2,23 +2,21 @@ import "../runtimeEnv.js";
 
 import express from "express";
 import { existsSync, readdirSync, statSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import {
-  createLogger,
-  createRequestContextMiddleware,
-} from "@faako/logger";
-import { json } from "./functions/_shared/http.js";
-import { REEBS_V1_HANDLER_ALIASES } from "./versionedRoutes.js";
+import { APP_ENV, DATABASE_URL, isDeployedRuntime } from "../runtimeEnv.js";
+import { buildHealthPayload, checkDatabaseReadiness, checkWaterReadiness, closeHealthPool } from "./health.js";
+import { buildResponseHeaders } from "./functions/_shared/http.js";
+import { isDatabaseConnectionError } from "./functions/_shared/databaseClient.js";
+import { createLogger } from "./functions/_shared/logger.js";
 
 const backendDir = path.dirname(fileURLToPath(import.meta.url));
 const functionsDir = path.join(backendDir, "functions");
 const FUNCTION_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
 const PORT = Number(process.env.PORT || process.env.REEBS_API_PORT || 8888);
-const apiLogger = createLogger("reebs-portal", {
-  component: "api-adapter",
-  environment: process.env.APP_ENV || process.env.NODE_ENV,
-});
+const logger = createLogger("reebs-api");
+const SHUTDOWN_GRACE_MS = Math.max(1_000, Number(process.env.REEBS_SHUTDOWN_GRACE_MS) || 10_000);
 const readIntegerSetting = (value, fallback) => {
   const parsed = Number.parseInt(String(value ?? ""), 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -94,7 +92,7 @@ const readFunctionFiles = () => {
 
 const functionFiles = readFunctionFiles();
 const handlerCache = new Map();
-const handlerMtimes = new Map();
+const cacheFunctionHandlers = isDeployedRuntime;
 
 const toPlainHeaders = (headers = {}) => {
   const plainHeaders = {};
@@ -137,6 +135,7 @@ const getQueryParameters = (req) => {
 
 const createEvent = (req, functionName = "") => {
   const headers = toPlainHeaders(req.headers);
+  headers["x-request-id"] = req.requestId || headers["x-request-id"] || "";
   if (!headers["x-forwarded-proto"]) {
     headers["x-forwarded-proto"] = req.secure ? "https" : "http";
   }
@@ -192,31 +191,33 @@ const sendFunctionResponse = (res, result = {}) => {
 
 const sendJson = (req, res, statusCode, payload, options = {}) => {
   const event = createEvent(req, options.functionName || "");
-  const result = json(event, statusCode, payload, {
-    methods: options.methods || "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-  });
-  res.status(result.statusCode);
-  applyResponseHeaders(res, result.headers);
-  return res.send(result.body);
+  res.status(statusCode);
+  applyResponseHeaders(
+    res,
+    {
+      "Content-Type": "application/json",
+      ...buildResponseHeaders(event, {
+        methods: options.methods || "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+      }),
+    }
+  );
+  return res.send(JSON.stringify(payload));
 };
 
 const loadHandler = async (functionName) => {
   if (!FUNCTION_NAME_PATTERN.test(functionName)) return null;
+  if (cacheFunctionHandlers && handlerCache.has(functionName)) return handlerCache.get(functionName);
 
   const functionFile = functionFiles.get(functionName);
   if (!functionFile) return null;
 
-  const currentMtime = statSync(functionFile).mtimeMs;
-  const cachedHandler = handlerCache.get(functionName);
-  const cachedMtime = handlerMtimes.get(functionName);
-  if (cachedHandler && cachedMtime === currentMtime) {
-    return cachedHandler;
+  const functionUrl = pathToFileURL(functionFile);
+  if (!cacheFunctionHandlers) {
+    functionUrl.searchParams.set("updated", String(statSync(functionFile).mtimeMs));
   }
-
-  const module = await import(`${pathToFileURL(functionFile).href}?t=${currentMtime}`);
+  const module = await import(functionUrl.href);
   const handler = typeof module.handler === "function" ? module.handler : null;
-  handlerCache.set(functionName, handler);
-  handlerMtimes.set(functionName, currentMtime);
+  if (cacheFunctionHandlers) handlerCache.set(functionName, handler);
   return handler;
 };
 
@@ -246,15 +247,12 @@ const dispatchFunctionRequest = async (req, res, functionNameInput) => {
     });
     return sendFunctionResponse(res, result);
   } catch (error) {
-    (req.log || apiLogger).error(
-      {
-        err: error,
-        eventName: "api.function.failed",
-        functionName,
-        requestId: req.requestId,
-      },
-      "REEBS API function failed"
-    );
+    logger.error({
+      requestId: req.requestId,
+      functionName,
+      err: error,
+      code: error?.code || undefined,
+    }, "REEBS API function failed");
     return sendJson(req, res, 500, {
       error: "Unexpected API error.",
     }, { functionName });
@@ -265,25 +263,46 @@ export const createReebsApiServer = () => {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", parseTrustProxySetting(process.env.TRUST_PROXY_HOPS));
-  app.use(
-    createRequestContextMiddleware({
-      application: "reebs-portal",
-      component: "api-adapter",
-      environment: process.env.APP_ENV || process.env.NODE_ENV,
-    })
-  );
+  app.use((req, res, next) => {
+    const suppliedRequestId = String(req.headers["x-request-id"] || "").trim();
+    req.requestId = /^[A-Za-z0-9._:-]{1,120}$/.test(suppliedRequestId)
+      ? suppliedRequestId
+      : randomUUID();
+    res.setHeader("X-Request-Id", req.requestId);
+    next();
+  });
   app.use(express.text({ type: "*/*", limit: process.env.REEBS_API_BODY_LIMIT || "10mb" }));
 
-  app.get(["/health", "/api/health"], (req, res) =>
+  app.get(["/live", "/api/live"], (req, res) =>
     sendJson(req, res, 200, {
       ok: true,
       service: "reebs-api",
-      adapter: "api-handler-adapter",
-      functions: functionFiles.size,
-      concurrencyLimit: API_CONCURRENCY_LIMIT,
-      readRetryLimit: READ_RETRY_LIMIT,
+      status: "alive",
+      timestamp: new Date().toISOString(),
     })
   );
+
+  app.get(["/health", "/api/health"], async (req, res) => {
+    const database = await checkDatabaseReadiness();
+    return sendJson(req, res, 200, {
+      ...buildHealthPayload({ database }),
+      adapter: "api-handler-adapter",
+      functions: functionFiles.size,
+    });
+  });
+
+  app.get(["/ready", "/api/ready"], async (req, res) => {
+    const database = await checkDatabaseReadiness();
+    const payload = buildHealthPayload({ database });
+    return sendJson(req, res, payload.ok ? 200 : 503, payload);
+  });
+
+  app.get(["/health/water", "/api/health/water"], async (req, res) => {
+    const database = await checkDatabaseReadiness();
+    const water = database.reachable ? await checkWaterReadiness() : { status: "unavailable", ready: false };
+    const payload = buildHealthPayload({ database, water, includeWater: true });
+    return sendJson(req, res, payload.ok ? 200 : 503, payload);
+  });
 
   app.get(["/", "/api"], (req, res) =>
     sendJson(req, res, 200, {
@@ -304,10 +323,6 @@ export const createReebsApiServer = () => {
     dispatchFunctionRequest(req, res, "railwayEvents")
   );
 
-  for (const [route, functionName] of Object.entries(REEBS_V1_HANDLER_ALIASES)) {
-    app.all(route, (req, res) => dispatchFunctionRequest(req, res, functionName));
-  }
-
   app.all("/api/:functionName", (req, res) =>
     dispatchFunctionRequest(req, res, req.params.functionName)
   );
@@ -321,13 +336,73 @@ export const createReebsApiServer = () => {
   return app;
 };
 
+export const validateDeployedRuntime = ({
+  appEnvironment = APP_ENV,
+  databaseUrl = DATABASE_URL,
+  userAppSecret = process.env.USER_APP_SECRET,
+  paystackSecretKey = process.env.PAYSTACK_SECRET_KEY,
+} = {}) => {
+  if (!new Set(["staging", "production"]).has(appEnvironment)) return;
+  const failures = [];
+  if (!databaseUrl) failures.push("DATABASE_URL");
+  if (String(userAppSecret || "").trim().length < 32) {
+    failures.push("USER_APP_SECRET (minimum 32 characters)");
+  }
+  const paystackKeyType = String(paystackSecretKey || "").trim().toLowerCase();
+  if (appEnvironment === "staging" && paystackKeyType.startsWith("sk_live_")) {
+    failures.push("PAYSTACK_SECRET_KEY must use Paystack test credentials in staging");
+  }
+  if (appEnvironment === "production" && paystackKeyType.startsWith("sk_test_")) {
+    failures.push("PAYSTACK_SECRET_KEY must use Paystack live credentials in production");
+  }
+  if (failures.length) {
+    throw new Error(
+      `REEBS ${appEnvironment} startup blocked: invalid or missing mandatory configuration: ${failures.join(", ")}.`
+    );
+  }
+};
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  validateDeployedRuntime();
   const app = createReebsApiServer();
   const server = app.listen(PORT, () => {
-    apiLogger.info(
-      { eventName: "server.started", port: PORT },
-      "REEBS API listening"
-    );
+    logger.info({ port: PORT, environment: APP_ENV }, "REEBS API listening");
   });
   globalThis.__reebsApiServer = server;
+
+  let shuttingDown = false;
+  const shutdown = async (signal, error = null) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger[error ? "error" : "info"]({ signal, err: error || undefined }, "REEBS API shutting down");
+
+    const forceTimer = setTimeout(() => {
+      logger.error({ signal }, "REEBS API shutdown grace period exceeded");
+      server.closeAllConnections?.();
+      process.exitCode = 1;
+    }, SHUTDOWN_GRACE_MS);
+    forceTimer.unref?.();
+
+    await new Promise((resolve) => server.close(resolve));
+    await closeHealthPool().catch((poolError) => {
+      logger.error({ err: poolError }, "REEBS health pool close failed");
+      process.exitCode = 1;
+    });
+    clearTimeout(forceTimer);
+  };
+
+  process.once("SIGTERM", () => void shutdown("SIGTERM"));
+  process.once("SIGINT", () => void shutdown("SIGINT"));
+  process.once("unhandledRejection", (error) => void shutdown("unhandledRejection", error));
+  process.on("uncaughtException", (error) => {
+    if (isDatabaseConnectionError(error)) {
+      logger.error({
+        err: error,
+        code: error?.code || undefined,
+        eventName: "database.unhandled_connection_error",
+      }, "Recovered an unhandled database connection error");
+      return;
+    }
+    void shutdown("uncaughtException", error);
+  });
 }

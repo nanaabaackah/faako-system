@@ -1,5 +1,6 @@
 import React from "react";
 import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
+import { Link } from "react-router-dom";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faBoxArchive, faFloppyDisk, faXmark } from "/src/icons/iconSet";
 import {
@@ -9,6 +10,8 @@ import {
   getSegmentLabel,
 } from "../crmShared";
 import CustomerActivityList from "./CustomerActivityList";
+import CustomerFormFields from "./CustomerFormFields";
+import { useCustomerDialog } from "./useCustomerDialog";
 
 const CONTACT_REQUEST_STATUS_OPTIONS = [
   { value: "new", label: "New" },
@@ -33,6 +36,8 @@ export default function CustomerDetailModal({
   onDetailStatusClear,
   selectedSegment,
   selectedTotals,
+  canViewFinancials,
+  canMutateCustomers,
   removingCustomerId,
   requestStatusSavingId,
   onClose,
@@ -41,17 +46,25 @@ export default function CustomerDetailModal({
   onFormChange,
   onRequestStatusChange,
 }) {
+  const panelRef = useCustomerDialog({ isOpen, onClose });
   if (!isOpen || !customer) return null;
 
   return (
-    <div className="admin-modal" role="dialog" aria-modal="true">
-      <div className="admin-modal-panel crm-modal-panel crm-detail-panel">
+    <div className="admin-modal">
+      <div
+        className="admin-modal-panel crm-modal-panel crm-detail-panel"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="customer-detail-title"
+      >
         <header className="crm-modal-header crm-detail-header">
           <div>
-            <p className="admin-eyebrow">Customer</p>
-            <h2>{detailForm.name || customer.name || "Customer"}</h2>
+            <h2 id="customer-detail-title">{detailForm.name || customer.name || "Customer"}</h2>
             <div className="crm-detail-header-meta">
               <span className={`crm-pill is-${selectedSegment}`}>{getSegmentLabel(selectedSegment)}</span>
+              {customer.reference ? <span>{customer.reference}</span> : null}
+              <span>{customer.customerType === "organization" ? "Organization" : "Individual"}</span>
               <span>{formatDate(customer.createdAt)}</span>
             </div>
           </div>
@@ -89,74 +102,78 @@ export default function CustomerDetailModal({
             <span>Bookings</span>
             <strong>{selectedTotals.bookings || 0}</strong>
           </article>
-          <article className="bubble-card crm-detail-stat">
-            <span>Retail</span>
-            <strong>{formatMoney(selectedTotals.totalSpent || 0)}</strong>
-          </article>
-          <article className="bubble-card crm-detail-stat">
-            <span>Rental</span>
-            <strong>{formatMoney(selectedTotals.totalRented || 0)}</strong>
-          </article>
+          {canViewFinancials ? (
+            <>
+              <article className="bubble-card crm-detail-stat">
+                <span>Retail</span>
+                <strong>{formatMoney(selectedTotals.totalSpent || 0)}</strong>
+              </article>
+              <article className="bubble-card crm-detail-stat">
+                <span>Rental</span>
+                <strong>{formatMoney(selectedTotals.totalRented || 0)}</strong>
+              </article>
+            </>
+          ) : null}
         </section>
 
-        <section className="glass-card crm-detail-editor">
-          <div className="crm-detail-block-header">
-            <h3>Edit customer</h3>
-          </div>
+        <nav className="crm-detail-actions" aria-label="Customer actions">
+          {canMutateCustomers ? (
+            <>
+              <Link className="admin-primary crm-button" to={`/admin/bookings?action=create&customerId=${customer.id}`}>
+                Start booking
+              </Link>
+              <Link className="admin-secondary crm-button" to={`/admin/orders/new?customerId=${customer.id}`}>
+                Start order
+              </Link>
+            </>
+          ) : null}
+          {customer.phone ? <a className="admin-secondary crm-button" href={`tel:${customer.phone}`}>Call</a> : null}
+          {customer.email ? <a className="admin-secondary crm-button" href={`mailto:${customer.email}`}>Email</a> : null}
+        </nav>
 
-          <form className="crm-form" onSubmit={onSave}>
-            <div className="crm-field-grid">
-              <label className="crm-field">
-                <span>Name</span>
-                <input
-                  type="text"
-                  value={detailForm.name}
-                  onChange={(event) => onFormChange("name", event.target.value)}
-                  required
-                />
-              </label>
-
-              <label className="crm-field">
-                <span>Phone</span>
-                <input
-                  type="tel"
-                  value={detailForm.phone}
-                  onChange={(event) => onFormChange("phone", event.target.value)}
-                  placeholder="+233 ..."
-                />
-              </label>
-
-              <label className="crm-field crm-field-full">
-                <span>Email</span>
-                <input
-                  type="email"
-                  value={detailForm.email}
-                  onChange={(event) => onFormChange("email", event.target.value)}
-                  placeholder="email@example.com"
-                />
-              </label>
+        {canMutateCustomers ? (
+          <section className="glass-card crm-detail-editor">
+            <div className="crm-detail-block-header">
+              <h3>Edit customer</h3>
             </div>
 
-            <div className="crm-modal-actions">
-              <button
-                type="button"
-                className="admin-secondary crm-button crm-button-danger"
-                onClick={() => onArchive(customer)}
-                disabled={detailSaving || removingCustomerId === customer.id}
-              >
-                <AppIcon icon={faBoxArchive} />
-                {removingCustomerId === customer.id ? "Archiving..." : "Archive"}
-              </button>
-              <button type="button" className="admin-secondary crm-button" onClick={onClose}>
-                Close
-              </button>
-              <button type="submit" className="admin-primary crm-button" disabled={detailSaving}>
-                <AppIcon icon={faFloppyDisk} />
-                {detailSaving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </form>
-        </section>
+            <form className="crm-form" onSubmit={onSave}>
+              <CustomerFormFields
+                form={detailForm}
+                onChange={onFormChange}
+                idPrefix={`customer-${customer.id}`}
+                showInternalNotes
+              />
+
+              <div className="crm-modal-actions">
+                <button
+                  type="button"
+                  className="admin-secondary crm-button crm-button-danger"
+                  onClick={() => onArchive(customer)}
+                  disabled={detailSaving || removingCustomerId === customer.id}
+                >
+                  <AppIcon icon={faBoxArchive} />
+                  {removingCustomerId === customer.id ? "Archiving..." : "Archive"}
+                </button>
+                <button type="button" className="admin-secondary crm-button" onClick={onClose}>
+                  Close
+                </button>
+                <button type="submit" className="admin-primary crm-button" disabled={detailSaving}>
+                  <AppIcon icon={faFloppyDisk} />
+                  {detailSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </section>
+        ) : (
+          <section className="glass-card crm-detail-editor crm-readonly-profile">
+            <h3>Contact profile</h3>
+            <p>{customer.contactPersonName || customer.name}</p>
+            <p>{customer.phone || "No phone"} · {customer.email || "No email"}</p>
+            <p>{[customer.addressLine1, customer.locality, customer.region].filter(Boolean).join(", ") || "No address saved"}</p>
+            {customer.ghanaPostGps ? <p>GhanaPost GPS: {customer.ghanaPostGps}</p> : null}
+          </section>
+        )}
 
         <section className="crm-detail-grid">
           <CustomerActivityList
@@ -168,7 +185,9 @@ export default function CustomerDetailModal({
               title: order.orderNumber || `Order #${order.id}`,
               subtitle: `${formatDate(order.orderDate)}${order.deliveryMethod ? ` · ${order.deliveryMethod}` : ""}`,
             })}
-            renderValue={(order) => formatMoney(centsToMoneyAmount(order.total_with_delivery ?? order.total_amount))}
+            renderValue={(order) => canViewFinancials
+              ? formatMoney(centsToMoneyAmount(order.total_with_delivery ?? order.total_amount))
+              : order.status || "-"}
           />
 
           <CustomerActivityList
@@ -180,8 +199,38 @@ export default function CustomerDetailModal({
               title: `Booking #${booking.id}`,
               subtitle: `${formatDate(booking.eventDate)}${booking.status ? ` · ${booking.status}` : ""}`,
             })}
-            renderValue={(booking) => formatMoney(centsToMoneyAmount(booking.totalAmount))}
+            renderValue={(booking) => canViewFinancials
+              ? formatMoney(centsToMoneyAmount(booking.totalAmount))
+              : booking.status || "-"}
           />
+
+          {detail?.permissions?.canViewFinancials ? (
+            <CustomerActivityList
+              title="Recent payments"
+              emptyText="No order payments recorded."
+              items={detail?.payments?.slice(0, 6) || []}
+              keyPrefix="payment"
+              renderMeta={(payment) => ({
+                title: payment.transactionReference || `Payment #${payment.id}`,
+                subtitle: `${formatDate(payment.paidAt)}${payment.method ? ` · ${String(payment.method).replaceAll("_", " ")}` : ""}`,
+              })}
+              renderValue={(payment) => formatMoney(centsToMoneyAmount(payment.amountCents))}
+            />
+          ) : null}
+
+          {detail?.permissions?.canViewInvoices ? (
+            <CustomerActivityList
+              title="Invoices and receipts"
+              emptyText="No linked Core invoices or receipts."
+              items={detail?.invoices?.slice(0, 6) || []}
+              keyPrefix="invoice"
+              renderMeta={(invoice) => ({
+                title: invoice.invoiceNumber || invoice.title || `Document #${invoice.id}`,
+                subtitle: `${formatDate(invoice.issueDate)} · ${invoice.documentType || "invoice"}`,
+              })}
+              renderValue={(invoice) => invoice.paymentStatus || "-"}
+            />
+          ) : null}
 
           <CustomerActivityList
             title="Planning requests"
@@ -192,7 +241,7 @@ export default function CustomerDetailModal({
               title: request.topic || `Request #${request.id}`,
               subtitle: `${formatDate(request.createdAt)}${request.eventDate ? ` · Event ${formatDate(request.eventDate)}` : ""}`,
             })}
-            renderValue={(request) => (
+            renderValue={(request) => canMutateCustomers ? (
               <SelectField
                 value={request.status || "new"}
                 onChange={(event) => onRequestStatusChange(request, event.target.value)}
@@ -205,7 +254,7 @@ export default function CustomerDetailModal({
                   </option>
                 ))}
               </SelectField>
-            )}
+            ) : request.status || "-"}
           />
 
           <CustomerActivityList

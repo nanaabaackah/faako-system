@@ -166,6 +166,8 @@ function InvoiceDocumentListSection({
                     <th>Date</th>
                     <th>Status</th>
                     <th>Total</th>
+                    <th>Paid</th>
+                    <th>Balance</th>
                     <th>Archive</th>
                   </tr>
                 </thead>
@@ -178,7 +180,7 @@ function InvoiceDocumentListSection({
                       onClick={() => handleSelectEntry(entry.key)}
                       onKeyDown={(event) => handleEntryKeyDown(event, entry.key)}
                     >
-                      <td className="table-row-index">{clampedPage * pageSize + index}</td>
+                      <td className="table-row-index">{clampedPage * pageSize + index + 1}</td>
                       <td>
                         <div className="admin-product invoice-hub-table-document">
                           <span className="admin-product-name">{getDocumentTableReference(entry)}</span>
@@ -194,13 +196,15 @@ function InvoiceDocumentListSection({
                       <td>{formatShortDate(entry.issueDate)}</td>
                       <td><DocumentPill value={entry.paymentStatus} /></td>
                       <td>{formatCurrency(entry.total, config.currency)}</td>
+                      <td>{formatCurrency(entry.amountPaid, config.currency)}</td>
+                      <td>{formatCurrency(entry.balanceDue, config.currency)}</td>
                       <td>
                         <button
                           type="button"
                           className="invoice-hub-table-action invoice-hub-table-action-danger"
                           onClick={(event) => archiveEntryFromList(entry, event)}
                           onKeyDown={(event) => event.stopPropagation()}
-                          disabled={archivingDocument}
+                          disabled={archivingDocument || Boolean(entry.issuedAt)}
                           aria-label={`Archive ${getDocumentArchiveLabel(entry)}`}
                           title={`Archive ${getDocumentArchiveLabel(entry)}`}
                         >
@@ -227,6 +231,16 @@ function InvoiceDocumentListSection({
                           {formatCurrency(pageSummary.total, config.currency)}
                         </span>
                       </td>
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">
+                          {formatCurrency(paginatedEntries.reduce((sum, entry) => sum + (Number(entry.amountPaid) || 0), 0), config.currency)}
+                        </span>
+                      </td>
+                      <td className="admin-table-summary-cell">
+                        <span className="admin-table-summary-value">
+                          {formatCurrency(paginatedEntries.reduce((sum, entry) => sum + (Number(entry.balanceDue) || 0), 0), config.currency)}
+                        </span>
+                      </td>
                       <td className="admin-table-summary-cell is-empty" />
                     </tr>
                   </tfoot>
@@ -249,7 +263,7 @@ function InvoiceDocumentListSection({
                 >
                   <div className="invoice-hub-mobile-card-head">
                     <div className="invoice-hub-mobile-card-copy">
-                      <span className="invoice-hub-mobile-card-index">#{clampedPage * pageSize + index}</span>
+                      <span className="invoice-hub-mobile-card-index">#{clampedPage * pageSize + index + 1}</span>
                       <strong>{getDocumentTableReference(entry)}</strong>
                       <p>{entry.customerName || "Customer"}</p>
                     </div>
@@ -262,7 +276,7 @@ function InvoiceDocumentListSection({
                         className="invoice-hub-table-action invoice-hub-table-action-danger"
                         onClick={(event) => archiveEntryFromList(entry, event)}
                         onKeyDown={(event) => event.stopPropagation()}
-                        disabled={archivingDocument}
+                        disabled={archivingDocument || Boolean(entry.issuedAt)}
                         aria-label={`Archive ${getDocumentArchiveLabel(entry)}`}
                         title={`Archive ${getDocumentArchiveLabel(entry)}`}
                       >
@@ -276,6 +290,11 @@ function InvoiceDocumentListSection({
                       {entry.documentType === "receipt" ? "Receipt" : "Invoice"}
                     </span>
                     <span>{formatShortDate(entry.issueDate)}</span>
+                  </div>
+
+                  <div className="invoice-hub-mobile-card-meta">
+                    <span>Paid {formatCurrency(entry.amountPaid, config.currency)}</span>
+                    <span>Balance {formatCurrency(entry.balanceDue, config.currency)}</span>
                   </div>
 
                   <div className="invoice-hub-mobile-card-foot">

@@ -113,6 +113,33 @@ const stubTimesheets = {
   history: [],
   totals: { weeklyHours: 0, monthlyHours: 0, weeklyShifts: 0, monthlyShifts: 0 },
 };
+const stubDashboardOverview = {
+  scope: { key: 'REEBS_CORE', label: 'REEBS Core', waterIncluded: false, consolidated: false },
+  period: { key: 'today', label: 'Today', start: '2026-08-30T00:00:00.000Z', end: '2026-08-30T12:00:00.000Z' },
+  generatedAt: '2026-08-30T12:00:00.000Z',
+  freshness: { generatedAt: '2026-08-30T12:00:00.000Z', staleAfterSeconds: 300, refreshMode: 'manual' },
+  permissions: {
+    canReadOrders: true, canWriteOrders: true, canReadBookings: true, canWriteBookings: true,
+    canReadInventory: true, canConfigureInventory: true, canReadDelivery: true,
+    canReadFinancials: true, canReadCustomers: true, canWriteCustomers: true,
+    canReadWater: true, canViewSystemHealthDetail: true,
+  },
+  attention: [],
+  summary: {
+    orders: { open: 0, inWindow: 0, outstandingCents: 0 },
+    bookings: { today: 0, upcoming: 0 },
+    inventory: { lowStock: 0, unavailable: 0 },
+    delivery: { today: 0, pending: 0 },
+    payments: { receivedInWindowCents: 0, mobileMoneyPayments: 0 },
+  },
+  activity: [],
+};
+const stubHealth = {
+  ok: true,
+  status: 'ready',
+  timestamp: '2026-08-30T12:00:00.000Z',
+  dependencies: { database: 'ready' },
+};
 
 // Accessibility helper; share across page groups
 async function runA11y(page: Page) {
@@ -136,6 +163,7 @@ const mockData = async (page: Page) => {
     createOrder: { id: 1, orderNumber: 'ORD-1' },
     customers: [],
     deliveries: [],
+    dashboardOverview: stubDashboardOverview,
     documents: [],
     expenses: [],
     finance: stubFinance,
@@ -144,6 +172,7 @@ const mockData = async (page: Page) => {
     geocode: {},
     getInvoiceDetails: {},
     hr: [],
+    health: stubHealth,
     indoor_games: [],
     inventory: stubProducts,
     login: stubAdminUser,
@@ -568,11 +597,11 @@ test.describe('REEBS Party Themes Pages', () => {
 
   test.describe('Admin routes (authenticated)', () => {
     const adminRoutes = [
-      { path: '/admin', heading: /welcome,/i },
+      { path: '/admin', heading: /^dashboard$/i },
       { path: '/admin/inventory', heading: /stock admin/i },
       { path: '/admin/orders', heading: /order ledger/i },
       { path: '/admin/orders/new', heading: /create order/i },
-      { path: '/admin/crm', heading: /user directory/i },
+      { path: '/admin/crm', heading: /^crm$/i },
       { path: '/admin/users', heading: /user directory/i },
       { path: '/admin/employees', heading: /user directory/i },
       { path: '/admin/bookings', heading: /rental bookings/i },
@@ -587,7 +616,7 @@ test.describe('REEBS Party Themes Pages', () => {
       { path: '/admin/delivery', heading: /delivery command/i },
       { path: '/admin/roles', heading: /staff & permissions/i },
       { path: '/admin/settings', heading: /settings/i },
-      { path: '/admin/customers', heading: /customer crm/i },
+      { path: '/admin/customers', heading: /^crm$/i },
       { path: '/admin/invoicing', heading: /invoicing/i },
       { path: '/admin/marketing', heading: /marketing & promotions/i },
     ];
@@ -603,29 +632,25 @@ test.describe('REEBS Party Themes Pages', () => {
       });
     }
 
-    test('keeps secondary dashboard details collapsed on desktop', async ({ page }) => {
+    test('shows the focused operational Dashboard on desktop', async ({ page }) => {
       test.setTimeout(120000);
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto('/admin');
 
-      const details = page.locator('.aw-dashboard-details');
-      await expect(details).toBeVisible({ timeout: 60000 });
-      await expect(details).not.toHaveAttribute('open', '');
-      await expect(page.getByRole('heading', { name: /business overview/i })).toBeHidden();
-      await expect(page.locator('.aw-nav')).toBeHidden();
-
-      await details.getByText(/business details/i).click();
-      await expect(details).toHaveAttribute('open', '');
-      await expect(page.getByRole('heading', { name: /business overview/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /immediate attention/i })).toBeVisible({ timeout: 60000 });
+      await expect(page.getByRole('heading', { name: /operational summary/i })).toBeVisible();
+      await expect(page.getByRole('heading', { name: /recent activity/i })).toBeVisible();
+      await expect(page.getByText(/water remains separate/i)).toBeVisible();
+      await expect(page.getByText(/advanced insights/i)).toHaveCount(0);
     });
 
-    test('retains the compact navigation on mobile', async ({ page }) => {
+    test('keeps the focused Dashboard inside the mobile viewport', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto('/admin');
 
-      await expect(page.locator('.aw-nav')).toBeVisible();
-      await expect(page.locator('.aw-dashboard-details')).toBeVisible();
-      await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 390);
+      await expect(page.getByRole('heading', { level: 1, name: /^dashboard$/i })).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(1);
     });
   });
 

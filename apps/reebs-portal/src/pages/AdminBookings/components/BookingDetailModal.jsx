@@ -1,7 +1,11 @@
 import React from "react";
 import { DateField, ERPFormNotice, SelectField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
-import SearchField from "/src/components/SearchField/SearchField";
+import {
+  BookingExpensesSection,
+  BookingPricingSection,
+  BookingRentalItemsSection,
+} from "./BookingDetailSections";
 import {
   faCalendarCheck,
   faChevronLeft,
@@ -12,7 +16,6 @@ import {
   faPen,
   faTruck,
   faXmark,
-  faPlus,
 } from "/src/icons/iconSet";
 
 const parseDetailDate = (value) => {
@@ -69,6 +72,8 @@ function BookingDetailModal({
   detailExpenseSaving,
   detailExpenseError,
   setDetailExpenseError,
+  detailExpenseSuccess,
+  setDetailExpenseSuccess,
   addDetailExpense,
   bookingLocked = false,
   formatDate,
@@ -86,20 +91,6 @@ function BookingDetailModal({
   if (!booking) return null;
 
   const canOpenEdit = typeof openEdit === "function";
-  const expenseQuery = String(detailExpenseDraft?.query || "").trim().toLowerCase();
-  const filteredExpenses = detailExpenses.filter((expense) => {
-    if (!expenseQuery) return true;
-    const haystack = [
-      expense?.description,
-      expense?.name,
-      expense?.item,
-      expense?.category,
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(expenseQuery);
-  });
   const hasScheduledDelivery = Number.isFinite(Number(detailDelivery?.deliveryId));
   const {
     save,
@@ -210,315 +201,56 @@ function BookingDetailModal({
     );
   };
 
-  const renderRentalItemsSection = () => (
-    <section className="glass-card bookings-detail-section">
-      <div className="bookings-detail-section-head">
-        <h3>Rental items</h3>
-        <span>{editableItems.length}</span>
-      </div>
-      {canInlineEdit ? (
-        <div className="bookings-detail-items-editor">
-          <label className="bookings-expense-field">
-            <span>Add items</span>
-            <SearchField
-              value={productQuery}
-              onChange={(event) => setProductQuery?.(event.target.value)}
-              onClear={() => setProductQuery?.("")}
-              placeholder="Search rentals"
-              aria-label="Search rentals"
-              disabled={saving}
-            />
-          </label>
-          <div className="booking-items-picker">
-            <div className="booking-items-list">
-              {filteredProducts.slice(0, 10).map((product) => {
-                const variants = listVariants(product).filter((variant) => String(variant.status || "active") === "active");
-                if (productIsVariantParent(product)) {
-                  return (
-                    <div key={product.id} className="booking-item-add booking-item-add--variants">
-                      <strong>{product.name}</strong>
-                      <div className="booking-item-variant-buttons">
-                        {variants.map((variant) => (
-                          <button
-                            key={variant.id}
-                            type="button"
-                            onClick={() => addItem?.(product, variant)}
-                            disabled={saving || availableForVariant(variant) <= 0}
-                          >
-                            {formatVariant(product, variant).replace(`${product.name} / `, "")}
-                            <small>{availableForVariant(variant)} left</small>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                }
-                return (
-                  <button
-                    key={product.id}
-                    type="button"
-                    className="booking-item-add"
-                    onClick={() => addItem?.(product)}
-                    disabled={saving}
-                  >
-                    {product.name}
-                  </button>
-                );
-              })}
-            </div>
-
-            {formItems.length > 0 ? (
-              <div className="booking-items-selected">
-                {formItems.map((item) => {
-                  const product = productMap.get(Number(item.productId));
-                  const lineKey = buildLineKey(item.productId, item.variantId);
-                  const itemName = item.variantLabel || item.productName || product?.name || `Product ${item.productId}`;
-                  return (
-                    <div key={lineKey} className="booking-item-row">
-                      <span>{itemName}</span>
-                      <div className="booking-item-controls">
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={item.price ?? ""}
-                          onChange={(event) => updateItemPrice?.(lineKey, event.target.value)}
-                          placeholder={product?.price ? (product.price / 100).toFixed(2) : "0.00"}
-                          aria-label="Override price"
-                          disabled={saving}
-                        />
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(event) => updateItemQuantity?.(lineKey, event.target.value)}
-                          aria-label="Quantity"
-                          disabled={saving}
-                        />
-                        <button type="button" onClick={() => removeItem?.(lineKey)} disabled={saving}>
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="booking-item-total">
-                  <div className="booking-item-total-left">
-                    <span>Discount</span>
-                    <div className="booking-discount-input">
-                      <SelectField
-                        value={form.discountType}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, discountType: event.target.value }))
-                        }
-                        ariaLabel="Discount type"
-                        disabled={saving}
-                      >
-                        <option value="amount">Amount</option>
-                        <option value="percent">Percent</option>
-                      </SelectField>
-                      <input
-                        type="number"
-                        min="0"
-                        step={form.discountType === "percent" ? "1" : "0.01"}
-                        value={form.discount}
-                        onChange={(event) =>
-                          setForm((prev) => ({ ...prev, discount: event.target.value }))
-                        }
-                        placeholder={form.discountType === "percent" ? "0" : "0.00"}
-                        disabled={saving}
-                      />
-                    </div>
-                  </div>
-                  <div className="booking-item-total-right">
-                    <span>Total</span>
-                    <strong>{formatBookingCurrency(bookingTotalCents / 100)}</strong>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className="bookings-muted">No rental items selected.</p>
-            )}
-          </div>
-        </div>
-      ) : detailItems.length > 0 ? (
-        <ul className="booking-detail-list">
-          {detailItems.map((item) => {
-            const product = productMap.get(Number(item.productId));
-            const productName = item.variantLabel || item.productName || product?.name || `Product ${item.productId}`;
-            const imageSrc = item.productImage || product?.imageUrl || product?.image || "";
-            const fallbackLabel = productName.slice(0, 1).toUpperCase();
-            const attendantsLabel = formatAttendantsNeeded(product?.attendantsNeeded);
-
-            return (
-              <li key={item._key || `${booking.id}-${item.productId}`}>
-                <div className="booking-detail-item">
-                  {imageSrc ? (
-                    <img
-                      className="booking-detail-item-image"
-                      src={imageSrc}
-                      alt={productName}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="booking-detail-item-fallback" aria-hidden="true">
-                      {fallbackLabel}
-                    </div>
-                  )}
-                  <div className="bookings-cell-stack bookings-cell-stack--primary">
-                    <strong>{productName}</strong>
-                    <span>{attendantsLabel}</span>
-                  </div>
-                </div>
-                <div className="booking-detail-metrics">
-                  <strong>x{item.quantity}</strong>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="bookings-muted">No items listed.</p>
-      )}
-    </section>
-  );
-
-  // ADDED: Render combined total section showing booking + expenses breakdown
-  const renderCombinedTotalSection = () => {
-    const bookingItemsTotal = canInlineEdit ? bookingTotalCents / 100 : (booking?.totalAmount || 0) / 100;
-    const expensesTotal = detailExpenseTotal || 0;
-    const combinedTotal = bookingItemsTotal + expensesTotal;
-
-    return (
-      <section className="glass-card bookings-detail-section bookings-detail-combined-total">
-        <div className="bookings-detail-section-head">
-          <h3>Booking Summary</h3>
-        </div>
-        <div className="bookings-detail-summary-breakdown" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "8px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-            <span>Booking Items</span>
-            <strong>{formatBookingCurrency(bookingItemsTotal)}</strong>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingBottom: "8px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-            <span>Expenses</span>
-            <strong>{formatMoney(expensesTotal, "GHS")}</strong>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "4px", fontSize: "1.1em" }}>
-            <span style={{ fontWeight: "600" }}>Full Total</span>
-            <strong style={{ fontSize: "1.2em", color: "#4ade80" }}>{formatMoney(combinedTotal, "GHS")}</strong>
-          </div>
-        </div>
-      </section>
-    );
+  const rentalItemsSectionProps = {
+    booking,
+    canInlineEdit,
+    editableItems,
+    detailItems,
+    productMap,
+    productQuery,
+    setProductQuery,
+    saving,
+    filteredProducts,
+    listVariants,
+    productIsVariantParent,
+    availableForVariant,
+    addItem,
+    formatVariant,
+    formItems,
+    buildLineKey,
+    updateItemPrice,
+    updateItemQuantity,
+    removeItem,
+    form,
+    setForm,
+    formatBookingCurrency,
+    bookingTotalCents,
+    formatAttendantsNeeded,
   };
-
-  const renderExpensesSection = () => (
-    <section className="glass-card bookings-detail-section">
-      <div className="bookings-detail-section-head">
-        <h3>Expenses</h3>
-        <span>{formatMoney(detailExpenseTotal, "GHS")}</span>
-      </div>
-      <form className="bookings-expense-entry" onSubmit={addDetailExpense}>
-        <label className="bookings-expense-field bookings-expense-field--search">
-          <span>Expense</span>
-          <SearchField
-            value={detailExpenseDraft?.query || ""}
-            onChange={(event) =>
-              setDetailExpenseDraft((current) => ({ ...current, query: event.target.value }))
-            }
-            onClear={() => setDetailExpenseDraft((current) => ({ ...current, query: "" }))}
-            placeholder="Fuel, setup, staff, extras"
-            aria-label="Search or add expense"
-            disabled={detailExpenseSaving}
-          />
-        </label>
-        <label className="bookings-expense-field bookings-expense-field--amount">
-          <span>Amount</span>
-          <input
-            type="number"
-            min="0.01"
-            step="0.01"
-            inputMode="decimal"
-            value={detailExpenseDraft?.amount || ""}
-            onChange={(event) =>
-              setDetailExpenseDraft((current) => ({ ...current, amount: event.target.value }))
-            }
-            placeholder="0.00"
-            disabled={detailExpenseSaving || bookingLocked}
-          />
-        </label>
-        <DateField
-          fieldClassName="bookings-expense-field bookings-expense-field--date"
-          label="Date"
-          value={detailExpenseDraft?.date || ""}
-          onChange={(event) =>
-            setDetailExpenseDraft((current) => ({ ...current, date: event.target.value }))
-          }
-          disabled={detailExpenseSaving || bookingLocked}
-        />
-        <button
-          type="submit"
-          className="bookings-primary"
-          disabled={
-            bookingLocked
-            ||
-            detailExpenseSaving
-            || !String(detailExpenseDraft?.query || "").trim()
-            || !String(detailExpenseDraft?.amount || "").trim()
-            || !String(detailExpenseDraft?.date || "").trim()
-          }
-          title={bookingLocked ? "Completed bookings are locked" : "Add expense"}
-        >
-          {detailExpenseSaving ? (
-            "Adding..."
-          ) : (
-            <>
-              <AppIcon icon={faPlus} />
-              <span>Add expense</span>
-            </>
-          )}
-        </button>
-      </form>
-      {bookingLocked ? (
-        <p className="bookings-inline-note">Completed bookings are locked. Existing expenses remain view-only.</p>
-      ) : null}
-      {detailExpenseError ? (
-        <ERPFormNotice
-          tone="danger"
-          title="Expense not added"
-          onDismiss={typeof setDetailExpenseError === "function" ? () => setDetailExpenseError("") : undefined}
-        >
-          {detailExpenseError}
-        </ERPFormNotice>
-      ) : null}
-      {expenseQuery && detailExpenses.length > 0 ? (
-        <p className="bookings-inline-note">
-          Showing {filteredExpenses.length} of {detailExpenses.length} linked expenses.
-        </p>
-      ) : null}
-      {filteredExpenses.length > 0 ? (
-        <ul className="bookings-expense-list">
-          {filteredExpenses.map((expense) => (
-            <li key={expense.id || `${booking.id}-${expense.name}-${expense.amount}`}>
-              <div className="bookings-cell-stack bookings-cell-stack--primary">
-                <strong>{expense.description || expense.name || expense.item || expense.category || "Expense"}</strong>
-                <span>
-                  {expense.category || "Expense"} · {formatDate(expense.expenseDate || expense.createdAt || expense.date)}
-                </span>
-              </div>
-              <div className="booking-detail-metrics">
-                <strong>{formatMoney(Number(expense.amount || 0) / 100, "GHS")}</strong>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="bookings-muted">
-          {detailExpenses.length > 0 && expenseQuery ? "No expenses match this search." : "No expenses linked."}
-        </p>
-      )}
-    </section>
-  );
+  const expenseSectionProps = {
+    booking,
+    detailExpenses,
+    detailExpenseTotal,
+    detailExpenseDraft,
+    setDetailExpenseDraft,
+    detailExpenseSaving,
+    detailExpenseError,
+    setDetailExpenseError,
+    detailExpenseSuccess,
+    setDetailExpenseSuccess,
+    addDetailExpense,
+    bookingLocked,
+    formatDate,
+    formatMoney,
+  };
+  const pricingSectionProps = {
+    booking,
+    canInlineEdit,
+    bookingTotalCents,
+    detailExpenseTotal,
+    formatBookingCurrency,
+    formatMoney,
+  };
 
   return (
     <div className="customers-modal bookings-modal bookings-modal--detail" role="dialog" aria-modal="true">
@@ -534,7 +266,7 @@ function BookingDetailModal({
 
         <header className="bookings-detail-header">
           <div className="bookings-detail-copy">
-            <p className="customers-eyebrow">Booking #{booking.id}</p>
+            <p className="customers-eyebrow">{booking.reference || `Booking #${booking.id}`}</p>
             <h2>{canInlineEdit ? form.customerName || "Customer" : booking.customerName || "Customer"}</h2>
             <p className="bookings-card-meta">
               {formatFullDate(displayDate)} · {formatBookingTimeWindow(displayTimeBooking)}
@@ -551,7 +283,6 @@ function BookingDetailModal({
                 aria-label="Previous booking"
               >
                 <AppIcon icon={faChevronLeft} />
-                <span>Previous</span>
               </button>
             ) : !detailEditing ? (
               <div className="detail-nav">
@@ -563,7 +294,6 @@ function BookingDetailModal({
                   aria-label="Previous booking"
                 >
                   <AppIcon icon={faChevronLeft} />
-                  <span>Previous</span>
                 </button>
                 <button
                   type="button"
@@ -573,7 +303,6 @@ function BookingDetailModal({
                   aria-label="Next booking"
                 >
                   <AppIcon icon={faChevronRight} />
-                  <span>Next</span>
                 </button>
               </div>
             ) : null}
@@ -596,6 +325,20 @@ function BookingDetailModal({
                       <span>Accept</span>
                     </>
                   )}
+                </button>
+                <button
+                  type="button"
+                  className={`bookings-edit${isMobileView ? " bookings-edit--icon" : ""}`}
+                  onClick={() => updateBookingStatus(booking, "cancelled")}
+                  disabled={
+                    statusUpdatingId === booking.id
+                    || !["pending", "confirmed"].includes(normalizeStatus(booking.status))
+                  }
+                  aria-label="Cancel booking"
+                  title="Cancel booking and release its reservation"
+                >
+                  <AppIcon icon={faXmark} />
+                  <span>Cancel booking</span>
                 </button>
                 <button
                   type="button"
@@ -671,7 +414,7 @@ function BookingDetailModal({
                 onClick={() => openEdit(booking)}
                 disabled={bookingLocked}
                 aria-label={bookingLocked ? "Booking locked" : "Edit booking"}
-                title={bookingLocked ? "Completed bookings are locked" : "Edit booking"}
+                title={bookingLocked ? "Completed and cancelled bookings are locked" : "Edit booking"}
               >
                 <AppIcon icon={bookingLocked ? faLock : faPen} />
                 <span>{bookingLocked ? "Locked" : "Edit"}</span>
@@ -686,7 +429,6 @@ function BookingDetailModal({
                 aria-label="Next booking"
               >
                 <AppIcon icon={faChevronRight} />
-                <span>Next</span>
               </button>
             ) : null}
           </div>
@@ -756,6 +498,14 @@ function BookingDetailModal({
                       ariaLabel="Event date"
                       required
                     />
+                    <DateField
+                      label="Rental end date"
+                      value={form.eventEndDate}
+                      min={form.eventDate || undefined}
+                      onChangeValue={(nextValue) => setForm((prev) => ({ ...prev, eventEndDate: nextValue }))}
+                      fieldClassName="bookings-detail-edit-field bookings-date-field"
+                      ariaLabel="Rental end date"
+                    />
                     <SelectField
                       label="Start time"
                       value={form.startTime}
@@ -796,6 +546,31 @@ function BookingDetailModal({
                         required
                       />
                     </label>
+                    <label className="bookings-detail-edit-field">
+                      GhanaPost GPS
+                      <input
+                        type="text"
+                        value={form.venueGhanaPostGps}
+                        onChange={(event) => setForm((prev) => ({ ...prev, venueGhanaPostGps: event.target.value }))}
+                        placeholder="For example, GA-184-8164"
+                      />
+                    </label>
+                    <label className="bookings-detail-edit-field bookings-detail-edit-field--full">
+                      Customer notes
+                      <textarea
+                        rows="3"
+                        value={form.customerNotes}
+                        onChange={(event) => setForm((prev) => ({ ...prev, customerNotes: event.target.value }))}
+                      />
+                    </label>
+                    <label className="bookings-detail-edit-field bookings-detail-edit-field--full">
+                      Internal notes <span className="bookings-optional-label">Staff only</span>
+                      <textarea
+                        rows="3"
+                        value={form.internalNotes}
+                        onChange={(event) => setForm((prev) => ({ ...prev, internalNotes: event.target.value }))}
+                      />
+                    </label>
                   </div>
                 </section>
 
@@ -819,7 +594,7 @@ function BookingDetailModal({
               </div>
 
               <div className="bookings-detail-layout bookings-detail-layout--secondary">
-                {renderRentalItemsSection()}
+                <BookingRentalItemsSection {...rentalItemsSectionProps} />
               </div>
 
               {saveError ? (
@@ -833,9 +608,9 @@ function BookingDetailModal({
               ) : null}
             </form>
 
-            <div className="bookings-detail-layout bookings-detail-layout--secondary">
-              {renderExpensesSection()}
-              {renderCombinedTotalSection()}
+            <div className="bookings-detail-layout bookings-detail-layout--secondary bookings-detail-layout--financials">
+              <BookingExpensesSection {...expenseSectionProps} />
+              <BookingPricingSection {...pricingSectionProps} />
             </div>
           </>
         ) : (
@@ -909,7 +684,12 @@ function BookingDetailModal({
                   <div className="bookings-detail-meta">
                     <span>Venue</span>
                     <strong>{displayAddress || "-"}</strong>
-                    <small>Delivery address</small>
+                    <small>{booking.venueGhanaPostGps || "Delivery address"}</small>
+                  </div>
+                  <div className="bookings-detail-meta">
+                    <span>Rental end</span>
+                    <strong>{formatFullDate(booking.eventEndDate || booking.eventDate)}</strong>
+                    <small>Inclusive reservation window</small>
                   </div>
                   <div className="bookings-detail-meta">
                     <span>Updated</span>
@@ -917,6 +697,18 @@ function BookingDetailModal({
                     <small>{detailItems.length} items in booking</small>
                   </div>
                 </div>
+                {booking.customerNotes ? (
+                  <div className="bookings-detail-note">
+                    <strong>Customer notes</strong>
+                    <p>{booking.customerNotes}</p>
+                  </div>
+                ) : null}
+                {booking.internalNotes ? (
+                  <div className="bookings-detail-note bookings-detail-note--internal">
+                    <strong>Internal notes</strong>
+                    <p>{booking.internalNotes}</p>
+                  </div>
+                ) : null}
               </section>
 
               <section className="glass-card bookings-detail-section">
@@ -939,9 +731,11 @@ function BookingDetailModal({
             </div>
 
             <div className="bookings-detail-layout bookings-detail-layout--secondary">
-              {renderRentalItemsSection()}
-              {renderExpensesSection()}
-              {renderCombinedTotalSection()}
+              <BookingRentalItemsSection {...rentalItemsSectionProps} />
+            </div>
+            <div className="bookings-detail-layout bookings-detail-layout--secondary bookings-detail-layout--financials">
+              <BookingExpensesSection {...expenseSectionProps} />
+              <BookingPricingSection {...pricingSectionProps} />
             </div>
           </>
         )}

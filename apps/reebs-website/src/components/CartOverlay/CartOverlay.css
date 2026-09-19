@@ -6,6 +6,8 @@
   visibility: hidden;
   display: grid;
   justify-items: end;
+  contain: layout paint;
+  overflow: clip;
 }
 
 .cart-backdrop {

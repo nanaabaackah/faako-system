@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import "./RentalItem.css";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import AddToCartButton from "/src/components/AddToCartButton/AddToCartButton";
 import { AppIcon } from "/src/components/Icon/Icon";
 import {
@@ -156,9 +156,18 @@ const BouncyVariantCard = ({ type, selected, onSelect }) => {
 
 function RentalItem({ initialRental = null }) {
   const { slug } = useParams();
+  const navigate = useNavigate();
   const { convertPrice, formatCurrency } = useCart();
-  const [rentals, setRentals] = useState(() => initialRental ? [initialRental] : []);
-  const [loading, setLoading] = useState(() => !initialRental);
+  const [rentals, setRentals] = useState(() => initialRental ? [{
+    ...initialRental,
+    productId: initialRental.productId || initialRental.id,
+    sourceCategoryCode: "RENTAL",
+    specificCategory: initialRental.specificCategory || initialRental.category,
+    imageUrl: initialRental.imageUrl || initialRental.image,
+    quantity: initialRental.availability === "out-of-stock" ? 0 : 1,
+    status: initialRental.availability !== "out-of-stock",
+  }] : []);
+  const [loading, setLoading] = useState(!initialRental);
   const [selectedBouncyType, setSelectedBouncyType] = useState(null);
   const [bouncyTypes, setBouncyTypes] = useState([]);
 
@@ -176,28 +185,11 @@ function RentalItem({ initialRental = null }) {
           );
         });
         if (!active) return;
-        setRentals(() => {
-          if (!initialRental) return rentalsOnly;
-
-          const hasCurrentRental = rentalsOnly.some((item) =>
-            matchesFrontendRentalDetailSlug(item, slug || initialRental.slug)
-          );
-          if (hasCurrentRental) return rentalsOnly;
-
-          // The Astro catalogue is the durable detail-page fallback. A missing,
-          // partial or temporarily unavailable live response must not erase a
-          // valid pre-rendered rental after hydration.
-          return [
-            initialRental,
-            ...rentalsOnly.filter(
-              (item) => getRentalIdentity(item) !== getRentalIdentity(initialRental)
-            ),
-          ];
-        });
+        setRentals((current) => rentalsOnly.length ? rentalsOnly : current);
         setLoading(false);
       })
       .catch((err) => {
-        if (!active || controller.signal.aborted || err?.name === "AbortError") return;
+        if (err?.name === "AbortError") return;
         console.error("❌ Error fetching rental:", err);
         if (active) setLoading(false);
       });
@@ -206,7 +198,7 @@ function RentalItem({ initialRental = null }) {
       active = false;
       controller.abort();
     };
-  }, [initialRental, slug]);
+  }, [initialRental]);
 
   useEffect(() => {
     fetch("/api/bouncy_castles")
@@ -269,6 +261,8 @@ useEffect(() => {
     () => getCatalogItemDisplayName(displayRental, "Rental item"),
     [displayRental]
   );
+  const rentalCategory = getFrontendRentalCategory(displayRental || rental) || "Rentals";
+  const rentalCategoryPath = `/rentals/category/${slugifyRentalValue(rentalCategory)}`;
   const requiresBouncySelection = isBouncyCastleRental(rental) && !selectedBouncyType;
   const cartReadyRental = useMemo(
     () => (displayRental && !requiresBouncySelection ? getRentalCartItem(displayRental) : null),
@@ -423,11 +417,17 @@ useEffect(() => {
 
   if (loading) {
     return (
-      <SiteLoader
-        label="Loading rental details"
-        sublabel="Getting item photos, pricing, and booking info."
-        variant="detail"
-      />
+      <div className="rental-detail rentals-page rental-item-page" id="main" aria-busy="true">
+        <main className="rental-detail-shell rental-item-shell page-shell">
+          <SiteLoader
+            label="Loading rental details"
+            sublabel="Getting item photos, pricing, and booking info."
+            variant="detail"
+            heroClassName="rental-hero-card glass-card rental-item-hero page-hero"
+            className="storefront-page-loading"
+          />
+        </main>
+      </div>
     );
   }
 
@@ -444,7 +444,7 @@ useEffect(() => {
                 <button
                   type="button"
                   className="hero-btn hero-btn-primary"
-                  onClick={() => window.location.assign("/rentals")}
+                  onClick={() => navigate("/rentals")}
                 >
                   Back to rentals
                 </button>
@@ -481,11 +481,13 @@ useEffect(() => {
             <button
               type="button"
               className="breadcrumb-back"
-              onClick={() => window.history.back()}
+              onClick={() => navigate(-1)}
             >
               <AppIcon icon={faArrowLeftLong} /> Back
             </button>
             <Link to="/rentals">Rentals</Link>
+            <AppIcon icon={faArrowRightLong} aria-hidden="true" />
+            <Link to={rentalCategoryPath}>{rentalCategory}</Link>
             <AppIcon icon={faArrowRightLong} aria-hidden="true" />
             <span>{displayRentalName}</span>
           </nav>

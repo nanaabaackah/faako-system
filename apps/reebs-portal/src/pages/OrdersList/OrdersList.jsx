@@ -20,7 +20,6 @@ import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
-import { reebsApiResponse } from "../../api/client.js";
 import { canAccessPrivilegedPortalArea } from "../../utils/adminAccess";
 import {
   faPlus,
@@ -65,6 +64,15 @@ const normalizeStatus = (status) => {
 const normalizeOrderStatusFilter = (value) => {
   const normalized = normalizeStatus(value);
   return ORDER_STATUS_FILTER_VALUES.has(normalized) ? normalized : "all";
+};
+
+const PAYMENT_STATUS_FILTER_VALUES = new Set(
+  PAYMENT_STATUS_FILTER_OPTIONS.map((option) => option.value)
+);
+
+const normalizePaymentStatusFilter = (value) => {
+  const normalized = normalizeStatus(value);
+  return PAYMENT_STATUS_FILTER_VALUES.has(normalized) ? normalized : "all";
 };
 
 const ORDER_VIEW_ICONS = {
@@ -179,6 +187,7 @@ function OrdersList() {
   const paymentActionDraftWriteTimerRef = useRef(null);
   const paymentActionDraftSkipWriteRef = useRef(false);
   const paymentQueueSyncingRef = useRef(false);
+  const paymentSubmissionRef = useRef({ signature: "", key: "" });
   const paymentQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
   const roleKey = String(user?.role || "").trim().toLowerCase();
   const canAccessInvoicing = canAccessPrivilegedPortalArea(roleKey);
@@ -208,6 +217,10 @@ function OrdersList() {
   const [paymentDraftNotice, setPaymentDraftNotice] = useState(null);
   const [paymentQueueNotice, setPaymentQueueNotice] = useState(null);
   const navigate = useNavigate();
+  const reconciliationOnly = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("reconciliation") === "1";
+  }, [location.search]);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -220,9 +233,12 @@ function OrdersList() {
     setLoading(true);
     setError("");
     try {
-      const response = await reebsApiResponse("/api/orders?compact=1&limit=500", {
+      const response = await fetch(
+        `/api/orders?compact=1&limit=500${reconciliationOnly ? "&reconciliation=1" : ""}`,
+        {
         signal: fetchSignal,
-      });
+        }
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch orders.");
       }
@@ -236,7 +252,7 @@ function OrdersList() {
     } finally {
       if (!fetchSignal.aborted) setLoading(false);
     }
-  }, []);
+  }, [reconciliationOnly]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -248,8 +264,10 @@ function OrdersList() {
     const params = new URLSearchParams(location.search);
     const nextQuery = params.get("q") || "";
     const nextStatus = normalizeOrderStatusFilter(params.get("status"));
+    const nextPaymentStatus = normalizePaymentStatusFilter(params.get("paymentStatus"));
     setQuery((current) => (current === nextQuery ? current : nextQuery));
     setStatusFilter((current) => (current === nextStatus ? current : nextStatus));
+    setPaymentFilter((current) => (current === nextPaymentStatus ? current : nextPaymentStatus));
   }, [location.search]);
 
   useEffect(() => {
@@ -537,6 +555,7 @@ function OrdersList() {
     setPaymentNotice(null);
     setPaymentDraftNotice(null);
     setPaymentSaving(false);
+    paymentSubmissionRef.current = { signature: "", key: "" };
   }, [clearPaymentActionDraft, paymentAction?.order?.id]);
 
   const updatePaymentField = (field, value) => {
@@ -704,7 +723,7 @@ function OrdersList() {
     });
 
     try {
-      const response = await reebsApiResponse("/api/orderPayments", {
+      const response = await fetch("/api/orderPayments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -850,6 +869,14 @@ function OrdersList() {
       });
       return;
     }
+    if (["mobile_money", "bank_transfer", "card"].includes(paymentForm.method) && !paymentForm.transactionReference.trim()) {
+      setPaymentNotice({
+        tone: "error",
+        title: "Reference required",
+        message: "Enter the external transaction reference so this payment can be reconciled safely.",
+      });
+      return;
+    }
     if (paymentAction.targetStage === "paid" && amountCents < balanceCents) {
       setPaymentNotice({
         tone: "error",
@@ -885,12 +912,22 @@ function OrdersList() {
         return;
       }
 
-      const response = await reebsApiResponse("/api/orderPayments", {
+      const paymentSignature = JSON.stringify(paymentPayload);
+      if (paymentSubmissionRef.current.signature !== paymentSignature) {
+        paymentSubmissionRef.current = {
+          signature: paymentSignature,
+          key:
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `order-payment-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        };
+      }
+
+      const response = await fetch("/api/orderPayments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Idempotency-Key": globalThis.crypto?.randomUUID?.()
-            || `payment-${paymentAction.order.id}-${Date.now()}`,
+          "Idempotency-Key": paymentSubmissionRef.current.key,
         },
         body: JSON.stringify(paymentPayload),
         signal: controller.signal,
@@ -1114,6 +1151,14 @@ function OrdersList() {
 
           {loading && <InlineNotice tone="loading" title="Loading orders" compact />}
           {!loading && error && <InlineNotice tone="error" title="Orders unavailable" message={error} compact />}
+          {!loading && !error && reconciliationOnly && (
+            <InlineNotice
+              tone="warning"
+              title="Financial reconciliation"
+              message="Showing orders whose saved subtotal differs from the saved line-item total. Review only; no historical value is changed here."
+              compact
+            />
+          )}
           {stateNotice && (
             <InlineNotice
               tone={stateNotice.tone}
@@ -1529,6 +1574,7 @@ function OrdersList() {
                   <input
                     value={paymentForm.transactionReference}
                     onChange={(event) => updatePaymentField("transactionReference", event.target.value)}
+                    required={["mobile_money", "bank_transfer", "card"].includes(paymentForm.method)}
                   />
                 </label>
                 <label className="orders-payment-field orders-payment-field--wide">

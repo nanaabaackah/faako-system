@@ -5,7 +5,8 @@ import { createGoogleAnalyticsHtmlPlugin } from "../../scripts/vite/googleAnalyt
 import { createManualChunks } from "../../scripts/vite/manualChunks.mjs";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+  const skipEnvironmentFiles = process.env.REEBS_SKIP_ENV_FILES === "true";
+  const env = skipEnvironmentFiles ? process.env : loadEnv(mode, process.cwd(), "");
   const apiProxyTarget = String(
     env.VITE_API_PROXY_TARGET
       || env.VITE_API_BASE_URL
@@ -14,6 +15,7 @@ export default defineConfig(({ mode }) => {
   ).trim();
 
   return {
+    envDir: skipEnvironmentFiles ? false : undefined,
     plugins: [
       react(),
       createGoogleAnalyticsHtmlPlugin({

@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
-import TablePagination from "../../../components/TablePagination/TablePagination";
+import React from "react";
 import CustomerArchiveButton from "./CustomerArchiveButton";
 import { getSegmentLabel, getTouchLabel } from "../crmShared";
 
-export function CustomerResultCard({ customer, onOpen, onArchive, isRemoving }) {
+export function CustomerResultCard({ customer, onOpen, onArchive, isRemoving, canMutateCustomers }) {
   return (
     <article className="bubble-card crm-customer-card">
       <button
@@ -16,6 +15,7 @@ export function CustomerResultCard({ customer, onOpen, onArchive, isRemoving }) 
           <div className="crm-customer-profile">
             <div>
               <h3>{customer.name || "Unnamed customer"}</h3>
+              <p>{customer.reference || "No reference"}{customer.contactPersonName ? ` · ${customer.contactPersonName}` : ""}</p>
             </div>
           </div>
           <span className={`crm-pill is-${customer.segment}`}>{getSegmentLabel(customer.segment)}</span>
@@ -42,12 +42,14 @@ export function CustomerResultCard({ customer, onOpen, onArchive, isRemoving }) 
         </div>
       </button>
 
-      <CustomerArchiveButton
-        customer={customer}
-        onArchive={onArchive}
-        isRemoving={isRemoving}
-        className="crm-item-remove"
-      />
+      {canMutateCustomers ? (
+        <CustomerArchiveButton
+          customer={customer}
+          onArchive={onArchive}
+          isRemoving={isRemoving}
+          className="crm-item-remove"
+        />
+      ) : null}
     </article>
   );
 }
@@ -61,13 +63,14 @@ export function CustomerKanbanCard({
   isMoving,
   onDragStart,
   onDragEnd,
+  canMutateCustomers,
 }) {
   return (
     <article
       className={`bubble-card crm-card crm-card--compact crm-kanban-card ${
         isDragging ? "is-dragging" : ""
       } ${isMoving ? "is-moving" : ""}`}
-      draggable={!isRemoving && !isMoving}
+      draggable={canMutateCustomers && !isRemoving && !isMoving}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
     >
@@ -81,6 +84,7 @@ export function CustomerKanbanCard({
           <div className="crm-profile">
             <div>
               <h4>{customer.name || "Unnamed customer"}</h4>
+              <p>{customer.reference || (customer.customerType === "organization" ? "Organization" : "Individual")}</p>
             </div>
           </div>
         </div>
@@ -101,46 +105,24 @@ export function CustomerKanbanCard({
         </div>
       </button>
 
-      <CustomerArchiveButton
-        customer={customer}
-        onArchive={onArchive}
-        isRemoving={isRemoving}
-        className="crm-item-remove crm-item-remove--kanban"
-      />
+      {canMutateCustomers ? (
+        <CustomerArchiveButton
+          customer={customer}
+          onArchive={onArchive}
+          isRemoving={isRemoving}
+          className="crm-item-remove crm-item-remove--kanban"
+        />
+      ) : null}
     </article>
   );
 }
 
-export function CustomerListTable({ customers, onOpen, onArchive, removingCustomerId }) {
-  const [page, setPage] = useState(0);
-  const pageSize = 10;
-  const pageCount = Math.max(1, Math.ceil(customers.length / pageSize));
-  const clampedPage = Math.min(page, pageCount - 1);
-  const paginatedCustomers = useMemo(() => {
-    const start = clampedPage * pageSize;
-    return customers.slice(start, start + pageSize);
-  }, [customers, clampedPage]);
-  const ordersTotal = paginatedCustomers.reduce((sum, customer) => sum + Number(customer.orders || 0), 0);
-  const bookingsTotal = paginatedCustomers.reduce((sum, customer) => sum + Number(customer.bookings || 0), 0);
-  const renderPagination = (header = false) => (
-    <TablePagination
-      total={customers.length}
-      pageIndex={clampedPage}
-      pageSize={pageSize}
-      pageCount={pageCount}
-      onPrevious={() => setPage((p) => Math.max(0, p - 1))}
-      onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-      header={header}
-    />
-  );
-
-  useEffect(() => {
-    setPage(0);
-  }, [customers.length]);
+export function CustomerListTable({ customers, onOpen, onArchive, removingCustomerId, canMutateCustomers }) {
+  const ordersTotal = customers.reduce((sum, customer) => sum + Number(customer.orders || 0), 0);
+  const bookingsTotal = customers.reduce((sum, customer) => sum + Number(customer.bookings || 0), 0);
 
   return (
     <section className="admin-table crm-list-table" aria-label="Customer list">
-      {renderPagination(true)}
       <div className="admin-table-scroll crm-list-table-scroll">
         <table>
           <thead>
@@ -153,29 +135,23 @@ export function CustomerListTable({ customers, onOpen, onArchive, removingCustom
               <th>Bookings</th>
               <th>Last</th>
               <th>Status</th>
-              <th>Archive</th>
+              <th><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
-            {paginatedCustomers.map((customer, index) => (
-              <tr
-                key={customer.id}
-                onClick={() => onOpen(customer)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(event) => {
-                  if (event.target !== event.currentTarget) return;
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onOpen(customer);
-                  }
-                }}
-              >
-                <td className="table-row-index">{clampedPage * pageSize + index}</td>
+            {customers.map((customer, index) => (
+              <tr key={customer.id}>
+                <td className="table-row-index">{index + 1}</td>
                 <td>
-                  <div className="admin-product crm-table-name">
+                  <button
+                    type="button"
+                    className="admin-product crm-table-name crm-table-open"
+                    onClick={() => onOpen(customer)}
+                    aria-label={`Open ${customer.name || "customer"}`}
+                  >
                     <span className="admin-product-name">{customer.name || "Unnamed customer"}</span>
-                  </div>
+                    <small>{customer.reference || "No reference"}{customer.contactPersonName ? ` · ${customer.contactPersonName}` : ""}</small>
+                  </button>
                 </td>
                 <td>
                   <div className="inventory-table-category crm-table-contact">
@@ -210,12 +186,14 @@ export function CustomerListTable({ customers, onOpen, onArchive, removingCustom
                   </div>
                 </td>
                 <td className="crm-table-action">
-                  <CustomerArchiveButton
-                    customer={customer}
-                    onArchive={onArchive}
-                    isRemoving={removingCustomerId === customer.id}
-                    className="crm-item-remove crm-item-remove--inline"
-                  />
+                  {canMutateCustomers ? (
+                    <CustomerArchiveButton
+                      customer={customer}
+                      onArchive={onArchive}
+                      isRemoving={removingCustomerId === customer.id}
+                      className="crm-item-remove crm-item-remove--inline"
+                    />
+                  ) : null}
                 </td>
               </tr>
             ))}
@@ -224,7 +202,7 @@ export function CustomerListTable({ customers, onOpen, onArchive, removingCustom
             <tfoot className="admin-table-footer">
               <tr>
                 <td className="admin-table-summary-cell is-count" colSpan={4}>
-                  <span className="admin-table-summary-value">{paginatedCustomers.length} customers</span>
+                  <span className="admin-table-summary-value">{customers.length} customers</span>
                 </td>
                 <td className="admin-table-summary-cell">
                   <span className="admin-table-summary-value">{ordersTotal}</span>
@@ -237,7 +215,6 @@ export function CustomerListTable({ customers, onOpen, onArchive, removingCustom
             </tfoot>
           )}
         </table>
-        {renderPagination()}
       </div>
     </section>
   );

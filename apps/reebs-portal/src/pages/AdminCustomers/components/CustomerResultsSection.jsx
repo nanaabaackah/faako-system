@@ -22,6 +22,7 @@ export default function CustomerResultsSection({
   onKanbanDragStart,
   onKanbanDragEnd,
   searchTerm,
+  canMutateCustomers,
 }) {
   if (!visibleCustomers.length) {
     return (
@@ -58,6 +59,7 @@ export default function CustomerResultsSection({
                     customer={customer}
                     onOpen={onOpenDetail}
                     onArchive={onArchiveCustomer}
+                    canMutateCustomers={canMutateCustomers}
                     isRemoving={removingCustomerId === customer.id}
                     isDragging={draggedCustomerId === customer.id}
                     isMoving={movingCustomerId === customer.id}
@@ -81,6 +83,7 @@ export default function CustomerResultsSection({
         customers={visibleCustomers}
         onOpen={onOpenDetail}
         onArchive={onArchiveCustomer}
+        canMutateCustomers={canMutateCustomers}
         removingCustomerId={removingCustomerId}
       />
     );
@@ -94,6 +97,7 @@ export default function CustomerResultsSection({
           customer={customer}
           onOpen={onOpenDetail}
           onArchive={onArchiveCustomer}
+          canMutateCustomers={canMutateCustomers}
           isRemoving={removingCustomerId === customer.id}
         />
       ))}

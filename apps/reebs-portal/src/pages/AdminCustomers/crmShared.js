@@ -1,6 +1,45 @@
 import { faClipboardList, faColumns, faTableCells } from "/src/icons/iconSet";
 
-export const EMPTY_CUSTOMER_FORM = { name: "", email: "", phone: "" };
+export const EMPTY_CUSTOMER_FORM = {
+  customerType: "individual",
+  name: "",
+  organizationName: "",
+  contactPersonName: "",
+  email: "",
+  phone: "",
+  secondaryPhone: "",
+  addressLine1: "",
+  addressLine2: "",
+  locality: "",
+  region: "",
+  ghanaPostGps: "",
+  preferredContactMethod: "",
+  internalNotes: "",
+};
+
+export const GHANA_REGIONS = [
+  "Ahafo",
+  "Ashanti",
+  "Bono",
+  "Bono East",
+  "Central",
+  "Eastern",
+  "Greater Accra",
+  "North East",
+  "Northern",
+  "Oti",
+  "Savannah",
+  "Upper East",
+  "Upper West",
+  "Volta",
+  "Western",
+  "Western North",
+];
+
+export const toCustomerForm = (customer = {}) =>
+  Object.fromEntries(
+    Object.keys(EMPTY_CUSTOMER_FORM).map((key) => [key, customer?.[key] || EMPTY_CUSTOMER_FORM[key]])
+  );
 
 export const SEGMENT_OPTIONS = [
   { key: "all", label: "All" },
@@ -67,8 +106,6 @@ export const toNumber = (value, fallback = 0) => {
 
 export const centsToMoneyAmount = (value) => toNumber(value) / 100;
 
-export const sanitizePhone = (value) => String(value || "").replace(/\D/g, "");
-
 export const getQuantile = (values, percentile) => {
   if (!values.length) return 0;
   const sorted = [...values].sort((left, right) => left - right);
@@ -124,23 +161,6 @@ export const getCustomerSegment = (record, thresholds) => {
   }
   return "active";
 };
-
-export const buildSearchBlob = (customer) =>
-  [
-    customer.name,
-    customer.email,
-    customer.phone,
-    sanitizePhone(customer.phone),
-    getSegmentLabel(customer.segment),
-    customer.orders,
-    customer.bookings,
-    customer.contactRequests,
-    customer.ltv,
-    formatDate(customer.lastTouch),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
 
 export const readResponseError = async (response, fallbackMessage) => {
   try {

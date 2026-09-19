@@ -3,10 +3,15 @@ import { AppIcon } from "/src/components/Icon/Icon";
 import { faCircleCheck, faPen, faUsers } from "/src/icons/iconSet";
 import { SEGMENT_OPTIONS, formatMoney } from "../crmShared";
 
-export default function CustomerSummaryPanel({ summary, segmentFilter, onSegmentFilterChange }) {
+export default function CustomerSummaryPanel({
+  summary,
+  canViewFinancials,
+  segmentFilter,
+  onSegmentFilterChange,
+}) {
   return (
     <>
-      <div className="crm-segment-bar" role="tablist" aria-label="Customer segments">
+      <div className="crm-segment-bar" aria-label="Customer segment filters">
         {SEGMENT_OPTIONS.map((option) => {
           const count = option.key === "all" ? summary.count : summary[option.key] || 0;
 
@@ -29,18 +34,20 @@ export default function CustomerSummaryPanel({ summary, segmentFilter, onSegment
         <article className="bubble-card crm-kpi-card">
           <p>Customers</p>
           <h2>{summary.count}</h2>
-          <span>{summary.connected} linked</span>
+          <span>{summary.pageCount} on this page</span>
         </article>
         <article className="bubble-card crm-kpi-card">
           <p>Active</p>
           <h2>{summary.active + summary.loyal}</h2>
           <span>{summary.loyal} loyal</span>
         </article>
-        <article className="bubble-card crm-kpi-card">
-          <p>Value</p>
-          <h2>{formatMoney(summary.value)}</h2>
-          <span>Avg {formatMoney(summary.avgValue)}</span>
-        </article>
+        {canViewFinancials ? (
+          <article className="bubble-card crm-kpi-card">
+            <p>Value</p>
+            <h2>{formatMoney(summary.value)}</h2>
+            <span>Current page · Avg {formatMoney(summary.avgValue)}</span>
+          </article>
+        ) : null}
         <article className="bubble-card crm-kpi-card">
           <p>At risk</p>
           <h2>{summary.risk}</h2>
@@ -62,8 +69,8 @@ export default function CustomerSummaryPanel({ summary, segmentFilter, onSegment
             <AppIcon icon={faCircleCheck} />
             <span>Reach</span>
           </div>
-          <strong>{summary.phone}/{summary.count || 0}</strong>
-          <p>Phone · Email {summary.email}/{summary.count || 0}</p>
+          <strong>{summary.phone}/{summary.pageCount || 0}</strong>
+          <p>Phone · Email {summary.email}/{summary.pageCount || 0}</p>
         </article>
         <article className="bubble-card crm-mini-card">
           <div className="crm-mini-card-head">

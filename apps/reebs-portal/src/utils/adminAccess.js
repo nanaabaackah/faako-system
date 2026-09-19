@@ -13,7 +13,8 @@ const STANDARD_PORTAL_ROLES = ["owner", "admin", "manager", "staff", "warehouse"
 const OWNER_ADMIN_ROLES = ["owner", "admin"];
 const PRIVILEGED_PORTAL_ROLES = ["owner", "admin", "manager"];
 const DRIVER_PORTAL_ROLES = ["driver"];
-const WATER_PORTAL_ROLES = ["owner", "admin", "water"];
+const WATER_PORTAL_ROLES = ["owner", "admin", "manager", "water"];
+const PAYMENTS_PORTAL_ROLES = ["owner", "admin", "manager", "staff"];
 
 const roleMatchesAllowedRoles = (role, allowedRoles = []) => {
   const normalizedRole = normalizeAdminRole(role);
@@ -51,8 +52,11 @@ const canAccessPrivilegedPortalArea = (role) =>
 const canAccessWaterPortalArea = (role) =>
   roleMatchesAllowedRoles(role, WATER_PORTAL_ROLES);
 
+const canAccessPortalPayments = (role) =>
+  roleMatchesAllowedRoles(role, PAYMENTS_PORTAL_ROLES);
+
 const canAccessPortalCustomerDirectory = (role) =>
-  canAccessStandardPortalArea(role) || isDriverPortalRole(role);
+  roleMatchesAllowedRoles(role, ["owner", "admin", "manager", "staff", "driver"]);
 const canAccessPortalInventory = (role) => canAccessStandardPortalArea(role);
 const canAccessPortalOrders = (role) => canAccessStandardPortalArea(role);
 const canAccessPortalBookings = (role) =>
@@ -76,8 +80,12 @@ const canAccessPortalRoute = (role, path = "") => {
     return canAccessWaterPortalArea(role);
   }
 
+  if (normalizedPath === "/admin/payments") {
+    return canAccessPortalPayments(role);
+  }
+
   if (normalizedPath === "/admin/settings") {
-    return canAccessPrivilegedPortalArea(role) || isWaterPortalRole(role);
+    return canAccessWaterPortalArea(role);
   }
 
   if (
@@ -125,7 +133,7 @@ const canAccessPortalRoute = (role, path = "") => {
   }
 
   if (normalizedPath === "/admin/crm" || normalizedPath === "/admin/customers") {
-    return canAccessStandardPortalArea(role);
+    return canAccessPortalCustomerDirectory(role);
   }
 
   if (
@@ -172,6 +180,7 @@ const getPortalAccessFallbackPath = (role) => {
 export {
   DRIVER_PORTAL_ROLES,
   OWNER_ADMIN_ROLES,
+  PAYMENTS_PORTAL_ROLES,
   PRIVILEGED_PORTAL_ROLES,
   STANDARD_PORTAL_ROLES,
   WATER_PORTAL_ROLES,
@@ -182,6 +191,7 @@ export {
   canAccessPortalInventory,
   canAccessPortalNavigationItem,
   canAccessPortalOrders,
+  canAccessPortalPayments,
   canAccessPortalRoute,
   canAccessPortalTimesheets,
   canAccessPrivilegedPortalArea,

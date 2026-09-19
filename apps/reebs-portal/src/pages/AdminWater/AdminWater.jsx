@@ -13,19 +13,8 @@ import WaterOperationsGrid from "./components/WaterOperationsGrid";
 import WaterOrderEditorModal from "./components/WaterOrderEditorModal";
 import WaterOrderFormCard from "./components/WaterOrderFormCard";
 import WaterRestockCard from "./components/WaterRestockCard";
-import { buildRestockPeriods, filterEntriesByRestockPeriod } from "./waterPeriodUtils";
-import {
-  parseMoneyInputValue,
-  toMoneyInputValue,
-} from "./waterPriceUtils";
-import { useAuth } from "../../components/AuthContext/AuthContext";
 import { reebsApiResponse } from "../../api/client";
-import {
-  calculateWaterCostBasis,
-  DEFAULT_WATER_UNIT_COST,
-} from "../../../shared/waterFinancials";
 
-const DEFAULT_PURCHASE_COST = DEFAULT_WATER_UNIT_COST;
 const WATER_SUPPLIER_NAME = "Ghana Water";
 const RESTOCK_QUICK_QUANTITIES = [5, 10, 20, 50];
 const ADJUSTMENT_QUICK_QUANTITIES = [1, 3, 5, 10];
@@ -60,14 +49,13 @@ const buildDefaultDashboard = () => ({
     name: "15pk Gwater",
     inventoryProductId: null,
     linkedVendorIds: [],
-    purchaseCost: DEFAULT_PURCHASE_COST,
+    purchaseCost: null,
+    pricingConfigured: false,
     pricing: {
-      currency: null,
       retailSingle: null,
       retailBulk: null,
       company: null,
-      bulkThreshold: null,
-      discountLimitBps: null,
+      bulkThreshold: 10,
     },
   },
   summary: {
@@ -78,9 +66,9 @@ const buildDefaultDashboard = () => ({
     revenue: 0,
     restockSpend: 0,
     extraExpenses: 0,
-    costOfGoodsSold: 0,
-    grossProfit: 0,
-    netProfit: 0,
+    costOfGoodsSold: null,
+    grossProfit: null,
+    netProfit: null,
     cashCollected: 0,
     outstandingCredit: 0,
     cashSalesTotal: 0,
@@ -88,8 +76,15 @@ const buildDefaultDashboard = () => ({
     pendingCash: 0,
     pendingMomo: 0,
     cashPosition: 0,
-    inventoryValue: 0,
-    currentUnitCost: DEFAULT_PURCHASE_COST,
+    inventoryValue: null,
+    profitabilityAvailable: false,
+    missingCostSaleCount: 0,
+  },
+  permissions: {
+    canManagePricing: false,
+    canOverridePrice: false,
+    canViewCost: false,
+    canViewFinance: false,
   },
   restocks: [],
   sales: [],
@@ -111,6 +106,11 @@ const formatCurrency = (amount) => {
     return `GHS ${((Number(amount) || 0) / 100).toFixed(2)}`;
   }
 };
+
+const formatOptionalCurrency = (amount) =>
+  amount !== null && amount !== undefined && Number.isFinite(Number(amount))
+    ? formatCurrency(amount)
+    : "Unavailable";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -134,6 +134,74 @@ const formatDateTime = (value) => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+const getTimestampValue = (value) => {
+  if (!value) return Number.NaN;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+};
+
+const getWaterRecordTimestamp = (record) => {
+  const datedAt = getTimestampValue(record?.date);
+  if (Number.isFinite(datedAt)) return datedAt;
+  const createdAt = getTimestampValue(record?.createdAt);
+  return Number.isFinite(createdAt) ? createdAt : Number.NEGATIVE_INFINITY;
+};
+
+const compareWaterRecords = (left, right) => {
+  const primaryDiff = getWaterRecordTimestamp(left) - getWaterRecordTimestamp(right);
+  if (primaryDiff !== 0) return primaryDiff;
+  const createdDiff = getTimestampValue(left?.createdAt) - getTimestampValue(right?.createdAt);
+  if (Number.isFinite(createdDiff) && createdDiff !== 0) return createdDiff;
+  return toNumber(left?.id) - toNumber(right?.id);
+};
+
+const formatPackCount = (value) => {
+  const quantity = Math.max(0, Math.round(toNumber(value, 0)));
+  return `${quantity} pack${quantity === 1 ? "" : "s"}`;
+};
+
+const buildRestockPeriods = (restocks = [], formatDateLabel = formatDate) => {
+  const ordered = [...restocks].sort(compareWaterRecords);
+  return ordered
+    .map((restock, index) => {
+      const nextRestock = ordered[index + 1] || null;
+      const restockId = Number(restock?.id);
+      const quantity = Math.max(0, Math.round(toNumber(restock?.quantity, 0)));
+      return {
+        value:
+          Number.isFinite(restockId) && restockId > 0
+            ? `restock:${restockId}`
+            : `restock:index:${index}`,
+        id: Number.isFinite(restockId) && restockId > 0 ? restockId : null,
+        quantity,
+        date: restock?.date || "",
+        startAt: getWaterRecordTimestamp(restock),
+        endAt: nextRestock ? getWaterRecordTimestamp(nextRestock) : null,
+        isCurrent: index === ordered.length - 1,
+        label: `${formatDateLabel(restock?.date)} · ${formatPackCount(quantity)}`,
+      };
+    })
+    .reverse();
+};
+
+const filterEntriesByRestockPeriod = (entries = [], period = null) => {
+  if (!Array.isArray(entries)) return [];
+  if (!period) return entries;
+  return entries.filter((entry) => {
+    const entryTime = getWaterRecordTimestamp(entry);
+    if (!Number.isFinite(entryTime)) return false;
+    if (entryTime < period.startAt) return false;
+    if (Number.isFinite(period.endAt) && entryTime >= period.endAt) return false;
+    return true;
+  });
+};
+
+const toMoneyInputValue = (value) => {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount <= 0) return "";
+  return (amount / 100).toFixed(2);
 };
 
 const toPercentInputValue = (value) => {
@@ -223,12 +291,13 @@ const getRecommendedWaterVendors = (vendors, productName) => {
 };
 
 const getPreviewUnitPrice = (quantity, pricing, saleChannel) => {
-  const companyPrice = Math.max(0, toNumber(pricing?.company, 0));
-  const retailPrice = Math.max(0, toNumber(pricing?.retailSingle, 0));
-  const bulkPrice = Math.max(0, toNumber(pricing?.retailBulk, 0));
-  const bulkThreshold = Math.max(1, Math.round(toNumber(pricing?.bulkThreshold, 1)));
-  if (saleChannel === "company") return companyPrice;
-  return quantity >= bulkThreshold ? bulkPrice : retailPrice;
+  const configuredPrice = saleChannel === "company"
+    ? pricing?.company
+    : quantity >= Math.max(1, Number(pricing?.bulkThreshold) || 1)
+      ? pricing?.retailBulk
+      : pricing?.retailSingle;
+  const numericPrice = Number(configuredPrice);
+  return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : null;
 };
 
 const normalizeChannel = (value) => {
@@ -272,13 +341,17 @@ const buildWaterSummary = ({
   sales = [],
   expenses = [],
   adjustments = [],
-  purchaseCost = DEFAULT_PURCHASE_COST,
+  currentCostPrice = null,
 }) => {
-  const resolvedPurchaseCost = Math.max(0, toNumber(purchaseCost, DEFAULT_PURCHASE_COST));
+  const resolvedCurrentCost = Number(currentCostPrice) > 0 ? Number(currentCostPrice) : null;
   const unitsRestocked = restocks.reduce((sum, row) => sum + toNumber(row?.quantity), 0);
   const unitsSold = sales.reduce((sum, row) => sum + toNumber(row?.quantity), 0);
   const adjustmentUnits = adjustments.reduce((sum, row) => sum + toNumber(row?.quantityDelta), 0);
   const stockOnHand = Math.max(0, unitsRestocked - unitsSold + adjustmentUnits);
+  const restockSpend = restocks.reduce(
+    (sum, row) => sum + (toNumber(row?.quantity) * toNumber(row?.unitCost)),
+    0
+  );
   const revenue = sales.reduce((sum, row) => sum + toNumber(row?.totalAmount), 0);
   const cashCollected = sales.reduce((sum, row) => {
     return normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid"
@@ -314,21 +387,26 @@ const buildWaterSummary = ({
       : sum;
   }, 0);
   const extraExpenses = expenses.reduce((sum, row) => sum + toNumber(row?.amount), 0);
-  const {
-    restockSpend,
-    currentUnitCost,
-    costOfGoodsSold,
-    inventoryValue,
-  } = calculateWaterCostBasis({
-    restocks,
-    sales,
-    unitsSold,
-    stockOnHand,
-    fallbackUnitCost: resolvedPurchaseCost,
-  });
-  const grossProfit = revenue - costOfGoodsSold;
-  const netProfit = grossProfit - extraExpenses;
+  const costRows = sales.map((row) => ({
+    quantity: Math.max(0, toNumber(row?.quantity)),
+    unitCost: Number(row?.unitCostAtTransaction),
+  }));
+  const missingCostSaleCount = costRows.filter(
+    (row) => !Number.isFinite(row.unitCost) || row.unitCost <= 0
+  ).length;
+  const profitabilityAvailable = missingCostSaleCount === 0;
+  const knownCostOfGoodsSold = costRows.reduce(
+    (sum, row) =>
+      Number.isFinite(row.unitCost) && row.unitCost > 0
+        ? sum + row.quantity * row.unitCost
+        : sum,
+    0
+  );
+  const costOfGoodsSold = profitabilityAvailable ? knownCostOfGoodsSold : null;
+  const grossProfit = profitabilityAvailable ? revenue - costOfGoodsSold : null;
+  const netProfit = profitabilityAvailable ? grossProfit - extraExpenses : null;
   const cashPosition = cashCollected - restockSpend - extraExpenses;
+  const inventoryValue = resolvedCurrentCost ? stockOnHand * resolvedCurrentCost : null;
 
   return {
     stockOnHand,
@@ -349,7 +427,8 @@ const buildWaterSummary = ({
     pendingMomo,
     cashPosition,
     inventoryValue,
-    currentUnitCost,
+    profitabilityAvailable,
+    missingCostSaleCount,
   };
 };
 
@@ -413,10 +492,6 @@ function AdminWater() {
   const [activeLedgerItem, setActiveLedgerItem] = useState(null);
   const [ledgerForm, setLedgerForm] = useState(null);
   const [ledgerError, setLedgerError] = useState("");
-  const { user, authReady } = useAuth();
-  const canManageWaterPricing = ["owner", "admin"].includes(
-    String(user?.role || "").trim().toLowerCase()
-  );
   const [removedRecordIds, setRemovedRecordIds] = useState({
     sale: [],
     expense: [],
@@ -435,7 +510,6 @@ function AdminWater() {
     saleChannel: "retail",
     paymentMethod: "cash",
     unitPrice: "",
-    priceOverrideReason: "",
     discountType: "none",
     discountValue: "",
     customerId: "",
@@ -467,10 +541,7 @@ function AdminWater() {
   }, []);
 
   const loadWater = async () => {
-    const response = await reebsApiResponse("/api/water", {
-      credentials: "include",
-      headers: { Accept: "application/json" },
-    });
+    const response = await reebsApiResponse("/api/water");
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error(data?.error || "Failed to load the water module.");
@@ -481,10 +552,7 @@ function AdminWater() {
   const loadVendors = async () => {
     setVendorError("");
     try {
-      const response = await reebsApiResponse("/api/vendors", {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
+      const response = await reebsApiResponse("/api/vendors");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load vendors.");
@@ -500,10 +568,7 @@ function AdminWater() {
   const loadCustomers = async () => {
     setCustomerError("");
     try {
-      const response = await reebsApiResponse("/api/customers", {
-        credentials: "include",
-        headers: { Accept: "application/json" },
-      });
+      const response = await reebsApiResponse("/api/customers?compact=1&scope=water&limit=200");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load customers.");
@@ -524,30 +589,14 @@ function AdminWater() {
     } catch (err) {
       console.error("Water module load failed", err);
       setError(err.message || "Unable to load the water module.");
-      setDashboard((previous) => ({
-        ...previous,
-        product: {
-          ...previous.product,
-          pricing: buildDefaultDashboard().product.pricing,
-        },
-      }));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!authReady) return;
-    if (!user) {
-      setError("Please sign in to access the water module.");
-      setDashboard(buildDefaultDashboard());
-      return;
-    }
     loadModule();
-  }, [authReady, user]);
-
-  const pricing = dashboard?.product?.pricing || buildDefaultDashboard().product.pricing;
-  const retailPriceCents = Math.max(0, toNumber(pricing?.retailSingle, 0));
+  }, []);
 
   const handleAction = async (action, payload, successMessage) => {
     setSaving(true);
@@ -556,11 +605,7 @@ function AdminWater() {
     try {
       const response = await reebsApiResponse("/api/water", {
         method: "POST",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, ...payload }),
       });
       const data = await response.json().catch(() => null);
@@ -588,6 +633,9 @@ function AdminWater() {
     }));
   };
 
+  const pricing = dashboard?.product?.pricing || buildDefaultDashboard().product.pricing;
+  const retailPriceCents = Math.max(0, toNumber(pricing?.retailSingle, 0));
+  const permissions = dashboard?.permissions || buildDefaultDashboard().permissions;
   const dashboardRestocks = Array.isArray(dashboard?.restocks) ? dashboard.restocks : [];
   const dashboardSales = Array.isArray(dashboard?.sales) ? dashboard.sales : [];
   const dashboardExpenses = Array.isArray(dashboard?.expenses) ? dashboard.expenses : [];
@@ -608,28 +656,18 @@ function AdminWater() {
     () => dashboardAdjustments.filter((entry) => !removedRecordIds.adjustment.includes(Number(entry.id))),
     [dashboardAdjustments, removedRecordIds.adjustment]
   );
-  const productPurchaseCost = Math.max(
-    0,
-    toNumber(dashboard?.product?.purchaseCost, buildDefaultDashboard().product.purchaseCost)
-  );
-  const latestRecordedRestockUnitCost = useMemo(() => {
-    const latest = [...dashboardRestocks]
-      .sort((left, right) => {
-        const dateDifference = new Date(right?.date || 0).getTime() - new Date(left?.date || 0).getTime();
-        if (dateDifference !== 0) return dateDifference;
-        return Number(right?.id || 0) - Number(left?.id || 0);
-      })
-      .find((entry) => toNumber(entry?.unitCost, 0) > 0);
-    return latest ? toNumber(latest.unitCost, 0) : 0;
-  }, [dashboardRestocks]);
+  const productPurchaseCost = Number(dashboard?.product?.purchaseCost) > 0
+    ? Number(dashboard.product.purchaseCost)
+    : null;
   useEffect(() => {
-    if (loading || latestRecordedRestockUnitCost <= 0) return;
-    setRestockForm((previous) =>
-      previous.unitCost
-        ? previous
-        : { ...previous, unitCost: toMoneyInputValue(latestRecordedRestockUnitCost) }
-    );
-  }, [latestRecordedRestockUnitCost, loading]);
+    const product = dashboard?.product || {};
+    if (Number(product.purchaseCost) > 0) {
+      setRestockForm((current) => ({
+        ...current,
+        unitCost: current.unitCost || toMoneyInputValue(product.purchaseCost),
+      }));
+    }
+  }, [dashboard?.product]);
   const summary = useMemo(
     () =>
       buildWaterSummary({
@@ -637,9 +675,9 @@ function AdminWater() {
         sales,
         expenses,
         adjustments,
-        purchaseCost: DEFAULT_PURCHASE_COST,
+        currentCostPrice: productPurchaseCost,
       }),
-    [adjustments, expenses, restocks, sales]
+    [adjustments, expenses, productPurchaseCost, restocks, sales]
   );
   const restockPeriods = useMemo(() => buildRestockPeriods(restocks, formatDate), [restocks]);
   const currentStockPeriod = useMemo(
@@ -680,9 +718,9 @@ function AdminWater() {
         sales: trackedSales,
         expenses: trackedExpenses,
         adjustments: trackedAdjustments,
-        purchaseCost: DEFAULT_PURCHASE_COST,
+        currentCostPrice: productPurchaseCost,
       }),
-    [trackedAdjustments, trackedExpenses, trackedRestocks, trackedSales]
+    [productPurchaseCost, trackedAdjustments, trackedExpenses, trackedRestocks, trackedSales]
   );
   const stockPeriodOptions = useMemo(
     () => [
@@ -821,10 +859,8 @@ function AdminWater() {
   const salePreview = useMemo(() => {
     const quantity = Math.max(0, Math.round(toNumber(saleForm.quantity, 0)));
     const suggestedUnitPrice = getPreviewUnitPrice(quantity, pricing, saleForm.saleChannel);
-    const enteredUnitPrice = canManageWaterPricing
-      ? Math.max(0, Math.round((Number(saleForm.unitPrice) || 0) * 100))
-      : 0;
-    const unitPrice = enteredUnitPrice || suggestedUnitPrice;
+    const enteredUnitPrice = Math.max(0, Math.round((Number(saleForm.unitPrice) || 0) * 100));
+    const unitPrice = enteredUnitPrice || suggestedUnitPrice || 0;
     const subtotal = quantity * unitPrice;
     const discountType = normalizeSaleDiscountType(saleForm.discountType);
     const parsedDiscountInput = Number(String(saleForm.discountValue || "").replace(/,/g, "").trim());
@@ -834,8 +870,7 @@ function AdminWater() {
       if (discountType === "amount") {
         discountAmount = Math.round(parsedDiscountInput * 100);
       } else {
-        const configuredLimit = Math.max(0, toNumber(pricing?.discountLimitBps, 0)) / 100;
-        const percent = Math.min(parsedDiscountInput, configuredLimit);
+        const percent = Math.min(parsedDiscountInput, 99.99);
         discountAmount = Math.round((subtotal * percent) / 100);
       }
       if (discountAmount >= subtotal) {
@@ -847,21 +882,13 @@ function AdminWater() {
       quantity,
       unitPrice,
       suggestedUnitPrice,
-      pricingAvailable: suggestedUnitPrice > 0,
+      pricingConfigured: Number(suggestedUnitPrice) > 0,
       usesCustomUnitPrice: enteredUnitPrice > 0 && enteredUnitPrice !== suggestedUnitPrice,
       subtotal,
       discountAmount,
       total: Math.max(0, subtotal - discountAmount),
     };
-  }, [
-    canManageWaterPricing,
-    pricing,
-    saleForm.discountType,
-    saleForm.discountValue,
-    saleForm.quantity,
-    saleForm.saleChannel,
-    saleForm.unitPrice,
-  ]);
+  }, [pricing, saleForm.discountType, saleForm.discountValue, saleForm.quantity, saleForm.saleChannel, saleForm.unitPrice]);
 
   const stockTimeline = useMemo(() => {
     const restockRows = trackedRestocks.map((item) => ({
@@ -875,9 +902,9 @@ function AdminWater() {
       note: item.notes || "",
       vendorId: Number(item.vendorId) || null,
       vendorName: item.vendorName || "",
-      unitCost: toNumber(item.unitCost),
+      unitCost: Number(item.unitCost) > 0 ? Number(item.unitCost) : null,
       createdAt: item.createdAt || "",
-      amount: toNumber(item.quantity) * toNumber(item.unitCost),
+      amount: Number(item.unitCost) > 0 ? toNumber(item.quantity) * Number(item.unitCost) : null,
     }));
     const adjustmentRows = trackedAdjustments.map((item) => ({
       id: `adjustment-${item.id}`,
@@ -1004,22 +1031,17 @@ function AdminWater() {
   }, [customers, deferredOrderCustomerQuery, orderForm?.customerName]);
 
   const restockQuantity = Math.max(0, Math.round(toNumber(restockForm.quantity, 0)));
-  const restockUnitCostInputValue = restockForm.unitCost;
-  const restockUnitCost = parseMoneyInputValue(restockUnitCostInputValue) || 0;
+  const restockUnitCost = Math.max(0, Math.round((Number(restockForm.unitCost) || 0) * 100));
   const restockCost = restockQuantity * restockUnitCost;
   const restockSupplierLabel = fixedWaterVendor?.name || WATER_SUPPLIER_NAME;
   const saleCustomerLabel = saleForm.saleChannel === "company" ? "Company name" : "Customer name";
-  const configuredBulkThreshold = Math.max(
-    1,
-    Math.round(toNumber(pricing?.bulkThreshold, 1))
-  );
   const saleRateLabel =
     salePreview.usesCustomUnitPrice
       ? "Custom rate"
       : saleForm.saleChannel === "company"
         ? "Company rate"
-        : salePreview.quantity >= configuredBulkThreshold
-          ? `Bulk rate (${configuredBulkThreshold}+)`
+        : salePreview.quantity >= pricing.bulkThreshold
+          ? `Bulk rate (${pricing.bulkThreshold}+)`
           : "Retail rate";
   const salePaymentLabel = getSalePaymentLabel(saleForm.paymentMethod);
   const saleDiscountType = normalizeSaleDiscountType(saleForm.discountType);
@@ -1037,7 +1059,9 @@ function AdminWater() {
   const ledgerRestockQuantity =
     ledgerForm?.type === "restock" ? Math.max(0, Math.round(toNumber(ledgerForm.quantity, 0))) : 0;
   const ledgerRestockUnitCost =
-    ledgerForm?.type === "restock" ? parseMoneyInputValue(ledgerForm.unitCost) || 0 : 0;
+    ledgerForm?.type === "restock"
+      ? Math.max(0, Math.round((Number(ledgerForm.unitCost) || 0) * 100))
+      : 0;
   const ledgerRestockCost = ledgerRestockQuantity * ledgerRestockUnitCost;
   const ledgerSelectedVendorName = selectedLedgerVendor?.name || "";
   const ledgerAdjustmentQuantity =
@@ -1191,12 +1215,6 @@ function AdminWater() {
       quantity: String(Math.max(1, toNumber(sale?.quantity, 1))),
       unitPrice: toMoneyInputValue(sale?.unitPrice),
       originalUnitPrice: Math.max(0, toNumber(sale?.unitPrice, 0)),
-      standardUnitPrice: Math.max(
-        0,
-        toNumber(sale?.standardUnitPrice, sale?.unitPrice)
-      ),
-      existingPriceOverrideReason: sale?.priceOverrideReason || "",
-      priceOverrideReason: "",
       discountType: normalizeSaleDiscountType(sale?.discountType),
       discountValue:
         normalizeSaleDiscountType(sale?.discountType) === "amount"
@@ -1252,19 +1270,15 @@ function AdminWater() {
 
   const orderPriceChanged = Boolean(
     orderForm
-      && parseMoneyInputValue(orderForm.unitPrice) !== Number(orderForm.originalUnitPrice)
+      && Math.round((Number(orderForm.unitPrice) || 0) * 100) !== Number(orderForm.originalUnitPrice)
   );
 
   const handleOrderSubmit = async (event) => {
     event.preventDefault();
     if (!orderForm?.id) return;
     setOrderError("");
-    if (orderPriceChanged && !canManageWaterPricing) {
+    if (orderPriceChanged && !permissions.canOverridePrice) {
       setOrderError("You do not have permission to change Water prices.");
-      return;
-    }
-    if (orderPriceChanged && !String(orderForm.priceOverrideReason || "").trim()) {
-      setOrderError("Add a reason for changing the Water sale price.");
       return;
     }
     const saved = await handleAction(
@@ -1278,7 +1292,6 @@ function AdminWater() {
         ...(orderPriceChanged
           ? {
               unitPrice: orderForm.unitPrice,
-              priceOverrideReason: orderForm.priceOverrideReason,
             }
           : {}),
         customerId: orderForm.customerId ? Number(orderForm.customerId) : null,
@@ -1502,7 +1515,7 @@ function AdminWater() {
       type: "restock",
       id: Number(restock?.id) || null,
       quantity: String(Math.max(1, toNumber(restock?.quantity, 1))),
-      unitCost: toMoneyInputValue(toNumber(restock?.unitCost, productPurchaseCost)),
+      unitCost: toMoneyInputValue(restock?.unitCost),
       vendorId:
         Number.isFinite(linkedVendorId) && linkedVendorId > 0 ? String(linkedVendorId) : "",
       vendorName: linkedVendor?.name || restock?.vendorName || "",
@@ -1574,16 +1587,12 @@ function AdminWater() {
 
     let saved = false;
     if (ledgerForm.type === "restock") {
-      if (!ledgerRestockUnitCost) {
-        setLedgerError("Enter a cost price per pack greater than zero.");
-        return;
-      }
       saved = await handleAction(
         "update_restock",
         {
           restockId: ledgerForm.id,
           quantity: ledgerForm.quantity,
-          unitCost: toMoneyInputValue(ledgerRestockUnitCost),
+          unitCost: ledgerForm.unitCost,
           vendorId: ledgerForm.vendorId ? Number(ledgerForm.vendorId) : null,
           vendorName: ledgerSelectedVendorName || ledgerForm.vendorName,
           date: ledgerForm.date,
@@ -1693,16 +1702,11 @@ function AdminWater() {
 
   const handleRestockSubmit = async (event) => {
     event.preventDefault();
-    if (!restockUnitCost) {
-      setError("Enter a restock cost price per pack greater than zero.");
-      setStatus("");
-      return;
-    }
     const saved = await handleAction(
       "restock",
       {
         quantity: restockForm.quantity,
-        unitCost: toMoneyInputValue(restockUnitCost),
+        unitCost: restockForm.unitCost,
         vendorId: Number.isFinite(Number(fixedWaterVendor?.id)) ? Number(fixedWaterVendor.id) : null,
         vendorName: restockSupplierLabel,
         date: restockForm.date,
@@ -1713,7 +1717,7 @@ function AdminWater() {
     if (saved) {
       setRestockForm({
         quantity: "",
-        unitCost: toMoneyInputValue(restockUnitCost),
+        unitCost: toMoneyInputValue(productPurchaseCost),
         date: todayValue(),
         notes: "",
       });
@@ -1722,19 +1726,6 @@ function AdminWater() {
 
   const handleSaleSubmit = async (event) => {
     event.preventDefault();
-    if (!salePreview.pricingAvailable) {
-      setError("Water pricing is unavailable. Ask an administrator to configure an active price.");
-      setStatus("");
-      return;
-    }
-    if (
-      salePreview.usesCustomUnitPrice
-      && !String(saleForm.priceOverrideReason || "").trim()
-    ) {
-      setError("Add a reason for the Water price override.");
-      setStatus("");
-      return;
-    }
     const shouldRefreshCustomers = true;
     const successMessage =
       saleForm.paymentMethod === "credit" ? "Water sale recorded on credit." : "Water sale recorded.";
@@ -1744,12 +1735,7 @@ function AdminWater() {
         quantity: saleForm.quantity,
         saleChannel: saleForm.saleChannel,
         paymentMethod: saleForm.paymentMethod,
-        ...(salePreview.usesCustomUnitPrice
-          ? {
-              unitPrice: saleForm.unitPrice,
-              priceOverrideReason: saleForm.priceOverrideReason,
-            }
-          : {}),
+        unitPrice: saleForm.unitPrice || toMoneyInputValue(salePreview.suggestedUnitPrice),
         discountType: saleForm.discountType,
         discountValue: saleForm.discountValue,
         customerId: saleForm.customerId ? Number(saleForm.customerId) : null,
@@ -1765,7 +1751,6 @@ function AdminWater() {
         ...prev,
         paymentMethod: "cash",
         unitPrice: "",
-        priceOverrideReason: "",
         discountType: "none",
         discountValue: "",
         customerId: "",
@@ -1842,15 +1827,6 @@ function AdminWater() {
   };
 
   const notices = [
-    pricing?.configurationError
-      ? {
-          key: "water-pricing-configuration",
-          tone: "warning",
-          title: "Water pricing unavailable",
-          message: `${pricing.configurationError} New Water sales are blocked until an authorized administrator schedules the required Water prices in Commercial Settings.`,
-          dismissible: false,
-        }
-      : null,
     error
       ? {
           key: "water-error",
@@ -1951,7 +1927,7 @@ function AdminWater() {
           title="GWater"
           actionsClassName="admin-header-actions water-module-header-actions"
           actions={
-            <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving} aria-label="Refresh GWater data" title="Refresh GWater data">
+            <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving}>
               <AppIcon icon={faRotateRight} />
             </button>
           }
@@ -1970,28 +1946,29 @@ function AdminWater() {
           stockPeriodOptions={stockPeriodOptions}
           stockPeriodDetail={stockPeriodDetail}
           formatCurrency={formatCurrency}
+          formatOptionalCurrency={formatOptionalCurrency}
+          canViewFinance={permissions.canViewFinance}
         />
 
         <WaterRestockCard
           onSubmit={handleRestockSubmit}
-          retailPriceLabel={formatCurrency(retailPriceCents)}
-          retailPriceAvailable={retailPriceCents > 0}
-          canManageWaterPricing={canManageWaterPricing}
-          formatCurrency={formatCurrency}
           quickQuantities={RESTOCK_QUICK_QUANTITIES}
           restockQuantity={restockQuantity}
           quantityValue={restockForm.quantity}
-          unitCostValue={restockUnitCostInputValue}
+          unitCostValue={restockForm.unitCost}
+          onUnitCostChange={(nextValue) => setRestockForm((prev) => ({ ...prev, unitCost: nextValue }))}
+          canViewCost={permissions.canViewCost}
           onSelectQuickQuantity={setRestockQuantityValue}
           onAdjustQuantity={adjustRestockQuantity}
           onQuantityChange={setRestockQuantityValue}
-          onUnitCostChange={(nextValue) =>
-            setRestockForm((prev) => ({ ...prev, unitCost: nextValue }))
-          }
           supplierLabel={restockSupplierLabel}
           restockCost={restockCost}
           saving={saving}
           loading={loading}
+          formatCurrency={formatCurrency}
+          retailPriceLabel={formatCurrency(retailPriceCents)}
+          retailPriceAvailable={retailPriceCents > 0}
+          canManageWaterPricing={permissions.canManagePricing}
         />
 
         <WaterOrderFormCard
@@ -2001,7 +1978,7 @@ function AdminWater() {
           saleCustomerLabel={saleCustomerLabel}
           customerPickerProps={saleCustomerPickerProps}
           unitPriceInputValue={saleUnitPriceInputValue}
-          canManageWaterPricing={canManageWaterPricing}
+          canManageWaterPricing={permissions.canOverridePrice}
           salePreview={salePreview}
           saleRateLabel={saleRateLabel}
           salePaymentLabel={salePaymentLabel}
@@ -2014,7 +1991,7 @@ function AdminWater() {
           formatCurrency={formatCurrency}
           saving={saving}
           loading={loading}
-          pricingAvailable={salePreview.pricingAvailable}
+          pricingAvailable={salePreview.pricingConfigured}
         />
 
         <WaterOperationsGrid
@@ -2064,6 +2041,7 @@ function AdminWater() {
           normalizeSalePaymentStatus={normalizeSalePaymentStatus}
           getSalePaymentStatusLabel={getSalePaymentStatusLabel}
           stockTimeline={stockTimeline}
+          canViewCost={permissions.canViewCost}
           netMovement={netMovement}
           activeLedgerItem={activeLedgerItem}
           openStockEntryEditor={openStockEntryEditor}
@@ -2087,6 +2065,7 @@ function AdminWater() {
           ledgerRestockQuantity={ledgerRestockQuantity}
           ledgerRestockUnitCost={ledgerRestockUnitCost}
           ledgerRestockCost={ledgerRestockCost}
+          canViewCost={permissions.canViewCost}
           ledgerAdjustmentReasonOptions={ledgerAdjustmentReasonOptions}
           ledgerAdjustmentHasCustomReason={ledgerAdjustmentHasCustomReason}
           ledgerAdjustmentQuantity={ledgerAdjustmentQuantity}
@@ -2115,7 +2094,7 @@ function AdminWater() {
           orderPreview={orderPreview}
           orderError={orderError}
           orderPriceChanged={orderPriceChanged}
-          canManageWaterPricing={canManageWaterPricing}
+          canManageWaterPricing={permissions.canOverridePrice}
           customerPickerProps={orderCustomerPickerProps}
           closeOrderEditor={closeOrderEditor}
           handleOrderSubmit={handleOrderSubmit}

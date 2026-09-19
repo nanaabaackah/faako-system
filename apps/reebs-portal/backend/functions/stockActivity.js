@@ -1,13 +1,11 @@
-/* eslint-disable no-undef */
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
 import { ensureProductVendorLinksTable } from "./_shared/productVendors.js";
 
 const json = (event, statusCode, body) =>
   respond(event, statusCode, body, { methods: "GET,OPTIONS" });
 
-const ACTIVITY_SCOPE_FILTERS = new Set(["all", "shop", "rental", "outsourced", "water"]);
+const ACTIVITY_SCOPE_FILTERS = new Set(["all", "shop", "rental", "outsourced"]);
 const ACTIVITY_STOCK_FILTERS = new Set(["all", "in", "out", "low"]);
 const ACTIVITY_MOVEMENT_TYPES = new Set(["in", "out"]);
 
@@ -41,15 +39,14 @@ export async function handler(event = {}) {
     return json(event, 405, { error: "Method not allowed" });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "inventory-activity" });
 
   try {
     await client.connect();
     const internal = await requireInternalUser(client, event, {
       methods: "GET,OPTIONS",
+      permission: "inventory:read",
+      permissionError: "You do not have permission to view Inventory activity.",
     });
     if (internal.errorResponse) {
       return internal.errorResponse;
@@ -60,6 +57,12 @@ export async function handler(event = {}) {
     const { organizationId } = internal;
     const params = [organizationId];
     const query = event.queryStringParameters || {};
+    if (normalizeFilterValue(query.scope) === "water") {
+      return json(event, 409, {
+        error: "Water activity is available only from the Water Business module.",
+        code: "INVENTORY_SCOPE_CONFLICT",
+      });
+    }
     const scopeFilter = normalizeScopeFilter(query.scope);
     const stockFilter = normalizeStockFilter(query.stock);
     const categoryFilter = normalizeFilterValue(query.category);
@@ -79,18 +82,22 @@ export async function handler(event = {}) {
       `p."organizationId" = $1`,
       `COALESCE(p."isDeleted", false) = false`,
       `COALESCE(p."isArchived", false) = false`,
+      `UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'WATER'`,
+      `NOT EXISTS (
+        SELECT 1
+        FROM "waterProductConfig" water_scope
+        WHERE water_scope."organizationId" = p."organizationId"
+          AND water_scope."inventoryProductId" = p.id
+          AND water_scope."isActive" = TRUE
+      )`,
     ];
 
-    if (scopeFilter === "water") {
-      productWhere.push(`UPPER(COALESCE(p."sourceCategoryCode", '')) = 'WATER'`);
-    } else if (scopeFilter === "outsourced") {
-      productWhere.push(`UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'WATER'`);
+    if (scopeFilter === "outsourced") {
       productWhere.push(vendorLinkedExpression);
     } else if (scopeFilter === "rental") {
       productWhere.push(`UPPER(COALESCE(p."sourceCategoryCode", '')) = 'RENTAL'`);
       productWhere.push(`NOT ${vendorLinkedExpression}`);
     } else if (scopeFilter === "shop") {
-      productWhere.push(`UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'WATER'`);
       productWhere.push(`UPPER(COALESCE(p."sourceCategoryCode", '')) <> 'RENTAL'`);
       productWhere.push(`NOT ${vendorLinkedExpression}`);
     }
@@ -121,6 +128,62 @@ export async function handler(event = {}) {
     } else if (stockFilter === "low") {
       productWhere.push(`COALESCE(p.stock, 0) > 0`);
       productWhere.push(`COALESCE(p.stock, 0) <= COALESCE(p."reorderLevel", 2)`);
+    }
+
+    if (normalizeFilterValue(query.view) === "movements") {
+      const page = Math.max(1, Number.parseInt(query.page || "1", 10) || 1);
+      const pageSize = Math.min(50, Math.max(10, Number.parseInt(query.pageSize || "20", 10) || 20));
+      const productId = Number(query.productId);
+      if (query.productId && (!Number.isSafeInteger(productId) || productId <= 0)) {
+        return json(event, 400, { error: "Choose a valid inventory item." });
+      }
+      if (productId) {
+        params.push(productId);
+        productWhere.push(`p.id = $${params.length}`);
+      }
+      params.push(pageSize);
+      const limitParam = `$${params.length}`;
+      params.push((page - 1) * pageSize);
+      const offsetParam = `$${params.length}`;
+      const movementResult = await client.query(
+        `WITH filtered_products AS (
+           SELECT p.id, p.name, p.sku
+           FROM "product" p
+           WHERE ${productWhere.join("\n             AND ")}
+         )
+         SELECT
+           sm.id,
+           sm."productId",
+           sm."variantId",
+           fp.name AS "productName",
+           fp.sku AS "productSku",
+           v.sku AS "variantSku",
+           sm.type,
+           sm.quantity,
+           sm.notes,
+           sm.reference,
+           sm."sourceType",
+           sm."sourceId",
+           sm."previousStock",
+           sm."resultingStock",
+           sm."performedByName",
+           sm.date,
+           COUNT(*) OVER()::int AS "totalCount"
+         FROM "stockMovement" sm
+         JOIN filtered_products fp ON fp.id = sm."productId"
+         LEFT JOIN "inventoryVariant" v
+           ON v."organizationId" = sm."organizationId"
+          AND v.id = sm."variantId"
+         WHERE sm."organizationId" = $1
+         ORDER BY sm.date DESC, sm.id DESC
+         LIMIT ${limitParam} OFFSET ${offsetParam}`,
+        params
+      );
+      const total = Number(movementResult.rows[0]?.totalCount || 0);
+      return json(event, 200, {
+        items: movementResult.rows.map(({ totalCount: _totalCount, ...row }) => row),
+        pagination: { page, pageSize, total, pageCount: Math.ceil(total / pageSize) },
+      });
     }
 
     if (detailMonth || detailMovementType) {

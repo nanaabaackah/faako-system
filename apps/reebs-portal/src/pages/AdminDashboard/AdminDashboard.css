@@ -1,0 +1,509 @@
+.reebs-dashboard-page,
+.reebs-dashboard-page * { box-sizing: border-box; }
+
+.reebs-dashboard-page {
+  --dashboard-muted: color-mix(in srgb, var(--admin-muted) 38%, var(--admin-text) 62%);
+  --dashboard-accent-text: color-mix(in srgb, var(--sys-accent) 62%, var(--admin-text) 38%);
+  --dashboard-success-text: color-mix(in srgb, var(--sys-success) 64%, var(--admin-text) 36%);
+  --dashboard-warning-text: color-mix(in srgb, var(--sys-warning) 62%, var(--admin-text) 38%);
+  --dashboard-danger-text: color-mix(in srgb, var(--sys-danger) 68%, var(--admin-text) 32%);
+  --dashboard-info-text: color-mix(in srgb, var(--sys-info) 66%, var(--admin-text) 34%);
+  width: min(100%, 75rem);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 0 0 2rem;
+  color: var(--sys-text);
+}
+
+.reebs-dashboard-page :is(a, button, select) { -webkit-tap-highlight-color: transparent; }
+.reebs-dashboard-page :is(a, button, select):focus-visible {
+  outline: 2px solid var(--sys-accent);
+  outline-offset: 3px;
+}
+
+body.admin-theme .reebs-dashboard-header { margin-bottom: 0.25rem; }
+body.admin-theme .reebs-dashboard-header .admin-subtitle { color: var(--dashboard-muted) !important; }
+
+.reebs-dashboard-header-actions,
+.reebs-dashboard-section-actions,
+.reebs-dashboard-section-head,
+.reebs-dashboard-water-boundary,
+.reebs-dashboard-water-boundary > div {
+  display: flex;
+  align-items: center;
+}
+
+.reebs-dashboard-header-actions { flex: 0 0 auto; gap: 0.65rem; }
+.reebs-dashboard-window {
+  display: grid;
+  gap: 0.24rem;
+  color: var(--dashboard-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+}
+
+.reebs-dashboard-window select,
+.reebs-dashboard-refresh,
+.reebs-dashboard-icon-button {
+  min-height: 2.75rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
+  font: inherit;
+  font-weight: 750;
+}
+
+.reebs-dashboard-window select {
+  min-width: 10.4rem;
+  padding: 0.55rem 2.2rem 0.55rem 0.75rem;
+}
+
+.reebs-dashboard-refresh,
+.reebs-dashboard-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42rem;
+  padding: 0.58rem 0.82rem;
+  cursor: pointer;
+}
+
+.reebs-dashboard-refresh {
+  align-self: end;
+  background: var(--sys-accent);
+  color: var(--sys-accent-contrast, #fff);
+}
+
+.reebs-dashboard-refresh:disabled,
+.reebs-dashboard-icon-button:disabled { cursor: wait; opacity: 0.65; }
+
+.reebs-dashboard-section {
+  min-width: 0;
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.reebs-dashboard-section-head {
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.reebs-dashboard-section-head h2 {
+  margin: 0;
+  color: var(--sys-text);
+  font-family: var(--sys-font-display);
+  font-size: clamp(1.08rem, 2vw, 1.28rem);
+  line-height: 1.25;
+}
+
+.reebs-dashboard-section-head > div > p {
+  max-width: 48rem;
+  margin: 0.32rem 0 0;
+  color: var(--dashboard-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.reebs-dashboard-attention-total {
+  flex: 0 0 auto;
+  padding: 0.38rem 0.68rem;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--sys-success-soft);
+  color: var(--admin-text);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.reebs-dashboard-attention-total.has-items {
+  background: var(--sys-warning-soft);
+  color: var(--admin-text);
+}
+
+.reebs-dashboard-alert-list { display: grid; }
+.reebs-dashboard-alert {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+  min-height: 4.5rem;
+  padding: 0.75rem 0.15rem;
+  border-bottom: 1px solid var(--sys-border);
+}
+.reebs-dashboard-alert:last-child { border-bottom: 0; }
+
+.reebs-dashboard-alert-icon,
+.reebs-dashboard-summary-icon,
+.reebs-dashboard-action-grid a > span:first-child {
+  display: grid;
+  place-items: center;
+  background: var(--sys-accent-soft);
+  color: var(--dashboard-accent-text);
+}
+
+.reebs-dashboard-alert-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--sys-radius-sm);
+}
+
+.reebs-dashboard-alert.is-critical .reebs-dashboard-alert-icon {
+  background: var(--sys-danger-soft);
+  color: var(--dashboard-danger-text);
+}
+.reebs-dashboard-alert.is-warning .reebs-dashboard-alert-icon {
+  background: var(--sys-warning-soft);
+  color: var(--dashboard-warning-text);
+}
+
+.reebs-dashboard-alert-copy { min-width: 0; }
+.reebs-dashboard-alert-copy > div { display: flex; align-items: center; gap: 0.55rem; }
+.reebs-dashboard-alert-copy strong { min-width: 0; color: var(--sys-text); font-size: 0.9rem; }
+.reebs-dashboard-alert-copy > div > span {
+  display: inline-grid;
+  min-width: 1.65rem;
+  min-height: 1.65rem;
+  place-items: center;
+  padding: 0.18rem 0.38rem;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--sys-warning-soft);
+  color: var(--admin-text);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+.reebs-dashboard-alert-copy p {
+  margin: 0.2rem 0 0;
+  color: var(--dashboard-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.reebs-dashboard-alert > a,
+.reebs-dashboard-activity-list a,
+.reebs-dashboard-water-boundary a {
+  color: var(--dashboard-accent-text);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-decoration: none;
+}
+.reebs-dashboard-alert > a {
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 0.65rem;
+}
+.reebs-dashboard-alert > a:hover,
+.reebs-dashboard-activity-list a:hover,
+.reebs-dashboard-water-boundary a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.reebs-dashboard-clear-state,
+.reebs-health-simple {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 5rem;
+  padding: 0.8rem 1rem;
+  border: 1px dashed var(--sys-border-strong);
+  border-radius: var(--sys-radius-md);
+  color: var(--dashboard-success-text);
+}
+.reebs-dashboard-clear-state div,
+.reebs-health-simple div { display: grid; gap: 0.15rem; }
+.reebs-dashboard-clear-state span,
+.reebs-health-simple span { color: var(--dashboard-muted); font-size: 0.8rem; }
+
+.reebs-dashboard-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.reebs-dashboard-summary-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  min-width: 0;
+  min-height: 9.25rem;
+  padding: 0.9rem 0.9rem 2rem;
+  color: var(--sys-text);
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.reebs-dashboard-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sys-shadow-lg);
+}
+.reebs-dashboard-summary-icon,
+.reebs-dashboard-action-grid a > span:first-child {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--sys-radius-sm);
+}
+.reebs-dashboard-summary-copy { display: contents; }
+.reebs-dashboard-summary-copy > span:first-child {
+  color: var(--dashboard-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+.reebs-dashboard-summary-copy strong {
+  margin-top: 0.1rem;
+  overflow-wrap: anywhere;
+  color: var(--sys-text);
+  font-family: var(--sys-font-display);
+  font-size: clamp(1.45rem, 2.4vw, 1.9rem);
+  line-height: 1.05;
+}
+.reebs-dashboard-summary-card.is-finance .reebs-dashboard-summary-copy strong {
+  overflow-wrap: normal;
+  font-size: clamp(1.3rem, 2vw, 1.7rem);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.reebs-dashboard-summary-copy small {
+  color: var(--dashboard-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.reebs-dashboard-card-action {
+  position: absolute;
+  right: 0.8rem;
+  bottom: 0.68rem;
+  color: var(--dashboard-accent-text);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.reebs-dashboard-action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.reebs-dashboard-action-grid a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.62rem;
+  min-height: 4.2rem;
+  padding: 0.72rem;
+  color: var(--sys-text);
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.reebs-dashboard-action-grid a:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sys-shadow-lg);
+}
+
+.reebs-dashboard-activity-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.reebs-dashboard-activity-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  min-height: 4rem;
+  padding: 0.7rem 0.1rem;
+  border-bottom: 1px solid var(--sys-border);
+}
+.reebs-dashboard-activity-list li:last-child { border-bottom: 0; }
+.reebs-dashboard-activity-mark {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  background: var(--sys-accent);
+}
+.reebs-dashboard-activity-mark.is-booking { background: var(--sys-warning); }
+.reebs-dashboard-activity-mark.is-inventory { background: var(--sys-info); }
+.reebs-dashboard-activity-list li > div { display: grid; min-width: 0; gap: 0.15rem; }
+.reebs-dashboard-activity-list strong {
+  overflow: hidden;
+  color: var(--sys-text);
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reebs-dashboard-activity-list li > div > span {
+  overflow: hidden;
+  color: var(--dashboard-muted);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reebs-dashboard-empty {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--sys-border-strong);
+  border-radius: var(--sys-radius-md);
+  color: var(--dashboard-muted);
+  text-align: center;
+}
+
+.reebs-dashboard-health { overflow: hidden; }
+.reebs-dashboard-section-actions { flex-wrap: wrap; justify-content: flex-end; gap: 0.55rem; }
+.reebs-dashboard-status {
+  display: inline-flex;
+  min-height: 1.75rem;
+  align-items: center;
+  padding: 0.28rem 0.55rem;
+  border-radius: var(--radius-pill, 999px);
+  font-size: 0.7rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+.reebs-dashboard-status.is-operational { background: var(--sys-success-soft); color: var(--admin-text); }
+.reebs-dashboard-status.is-degraded { background: var(--sys-warning-soft); color: var(--admin-text); }
+.reebs-dashboard-status.is-down { background: var(--sys-danger-soft); color: var(--admin-text); }
+.reebs-health-list { display: grid; min-width: 0; }
+.reebs-health-row {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 1.2fr) auto minmax(9rem, 2fr) minmax(5.4rem, auto);
+  align-items: center;
+  gap: 0.72rem;
+  min-width: 0;
+  min-height: 4rem;
+  padding: 0.7rem 0.1rem;
+  border-bottom: 1px solid var(--sys-border);
+}
+.reebs-health-row:last-child { border-bottom: 0; }
+.reebs-health-service { display: grid; min-width: 0; gap: 0.12rem; }
+.reebs-health-service strong { color: var(--sys-text); font-size: 0.86rem; }
+.reebs-health-service span { color: var(--dashboard-muted); font-size: 0.72rem; }
+.reebs-health-segments {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(4px, 1fr);
+  min-width: 0;
+  height: 1.05rem;
+  gap: 3px;
+  overflow: hidden;
+}
+.reebs-health-segments span { min-width: 4px; border-radius: 3px; background: var(--sys-warning); }
+.reebs-health-segments span.is-operational { background: var(--sys-success); }
+.reebs-health-segments span.is-degraded { background: var(--sys-warning); }
+.reebs-health-segments span.is-down { background: var(--sys-danger); }
+.reebs-health-uptime { display: grid; justify-items: end; line-height: 1.1; white-space: nowrap; }
+.reebs-health-uptime strong { color: var(--sys-text); font-size: 0.82rem; }
+.reebs-health-uptime small { color: var(--dashboard-muted); font-size: 0.62rem; }
+.reebs-health-loading {
+  height: 4.6rem;
+  border-radius: var(--sys-radius-md);
+  background: linear-gradient(90deg, var(--sys-surface), var(--sys-surface-strong), var(--sys-surface));
+  background-size: 220% 100%;
+  animation: reebs-dashboard-shimmer 1.25s ease-in-out infinite;
+}
+
+.reebs-dashboard-freshness { margin: 0.7rem 0 0; color: var(--dashboard-muted); font-size: 0.68rem; }
+.reebs-dashboard-page-freshness { padding: 0.4rem 0.2rem 1rem; text-align: center; }
+.reebs-dashboard-water-boundary {
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+}
+.reebs-dashboard-water-boundary > div { min-width: 0; gap: 0.7rem; color: var(--dashboard-info-text); }
+.reebs-dashboard-water-boundary > div > div { display: grid; min-width: 0; gap: 0.15rem; }
+.reebs-dashboard-water-boundary strong { color: var(--sys-text); }
+.reebs-dashboard-water-boundary span { color: var(--dashboard-muted); font-size: 0.78rem; line-height: 1.4; }
+
+.reebs-dashboard-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-md);
+  background: var(--sys-danger-soft);
+  color: var(--dashboard-danger-text);
+}
+.reebs-dashboard-error.is-stale { background: var(--sys-warning-soft); color: var(--dashboard-warning-text); }
+.reebs-dashboard-error > div { display: grid; gap: 0.16rem; }
+.reebs-dashboard-error span { font-size: 0.8rem; }
+.reebs-dashboard-error button {
+  min-height: 2.5rem;
+  padding: 0.48rem 0.7rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-sm);
+  background: var(--sys-surface-strong);
+  color: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.reebs-dashboard-inline-error { margin: 0 0 0.75rem; color: var(--dashboard-danger-text); font-size: 0.78rem; font-weight: 700; }
+
+@keyframes reebs-dashboard-shimmer { to { background-position: -120% 0; } }
+
+@media (max-width: 1000px) {
+  .reebs-dashboard-summary-grid,
+  .reebs-dashboard-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  body.admin-theme .reebs-dashboard-header {
+    gap: 0.75rem;
+    padding-block: 0.75rem;
+  }
+
+  body.admin-theme .reebs-dashboard-header > .reebs-dashboard-header-copy {
+    flex: 0 1 auto;
+  }
+
+  .reebs-dashboard-header-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    width: 100%;
+  }
+  .reebs-dashboard-window select { width: 100%; min-width: 0; }
+  .reebs-dashboard-refresh { min-width: 2.9rem; }
+  .reebs-dashboard-alert { grid-template-columns: auto minmax(0, 1fr); }
+  .reebs-dashboard-alert > a { grid-column: 2; justify-self: start; }
+  .reebs-health-row { grid-template-columns: minmax(0, 1fr) auto; gap: 0.45rem 0.7rem; }
+  .reebs-health-segments { grid-column: 1; grid-row: 2; }
+  .reebs-health-uptime { grid-column: 2; grid-row: 2; }
+}
+
+@media (max-width: 560px) {
+  .reebs-dashboard-section { padding: 0.85rem; }
+  .reebs-dashboard-section-head { align-items: flex-start; flex-direction: column; }
+  .reebs-dashboard-section-actions { width: 100%; justify-content: space-between; }
+  .reebs-dashboard-summary-grid,
+  .reebs-dashboard-action-grid { grid-template-columns: 1fr; }
+  .reebs-dashboard-summary-card { min-height: 8.6rem; }
+  .reebs-dashboard-activity-list li { align-items: start; }
+  .reebs-dashboard-activity-list strong,
+  .reebs-dashboard-activity-list li > div > span { white-space: normal; }
+  .reebs-dashboard-water-boundary,
+  .reebs-dashboard-error { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 350px) {
+  .reebs-dashboard-header-actions { grid-template-columns: 1fr; }
+  .reebs-dashboard-refresh { width: 100%; }
+  .reebs-dashboard-alert { grid-template-columns: minmax(0, 1fr); }
+  .reebs-dashboard-alert-icon { display: none; }
+  .reebs-dashboard-alert > a { grid-column: 1; }
+  .reebs-health-row { grid-template-columns: minmax(0, 1fr); }
+  .reebs-health-row > .reebs-dashboard-status { grid-row: 2; justify-self: start; }
+  .reebs-health-segments { grid-column: 1; grid-row: 3; }
+  .reebs-health-uptime { grid-column: 1; grid-row: 4; justify-items: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reebs-dashboard-summary-card,
+  .reebs-dashboard-action-grid a { transition: none; }
+  .reebs-dashboard-summary-card:hover,
+  .reebs-dashboard-action-grid a:hover { transform: none; }
+  .reebs-health-loading { animation: none; }
+}

@@ -1,4 +1,8 @@
-/* eslint-disable no-undef */
+import { buildCustomerInput } from "../../modules/customers/customerIdentity.js";
+import {
+  createCustomer,
+  findCustomerDuplicates,
+} from "../../modules/customers/customerRepository.js";
 
 const CUSTOMER_SEGMENTS = new Set(["prospect", "active", "loyal", "risk"]);
 
@@ -55,19 +59,6 @@ const crmTableStatements = [
 let crmTablesEnsured = false;
 let crmTablesPromise = null;
 
-const normalizePhoneVariants = (value) => {
-  const digits = typeof value === "string" ? value.replace(/\D/g, "") : "";
-  if (!digits) return [];
-  const variants = new Set([digits]);
-  if (digits.startsWith("233") && digits.length >= 12) {
-    variants.add(`0${digits.slice(-9)}`);
-  }
-  if (digits.startsWith("0") && digits.length === 10) {
-    variants.add(`233${digits.slice(1)}`);
-  }
-  return [...variants];
-};
-
 const addBusinessDays = (date, days) => {
   const next = new Date(date);
   let remaining = Math.max(0, Number(days) || 0);
@@ -107,59 +98,36 @@ export const upsertCrmCustomerFromContact = async (
     segmentOverride = "prospect",
   } = {}
 ) => {
-  const safeName = String(name || "").trim();
-  const safeEmail = String(email || "").trim().toLowerCase();
-  const safePhone = String(phone || "").trim();
-  const safeSegment = CUSTOMER_SEGMENTS.has(segmentOverride) ? segmentOverride : "prospect";
-  const phoneVariants = normalizePhoneVariants(safePhone);
-
-  const existingRes = await client.query(
-    `SELECT id, name, email, phone, "segmentOverride", "createdAt", "updatedAt", "deletedAt"
-     FROM "customer"
-     WHERE "organizationId" = $1
-       AND (
-         (LOWER(TRIM(email)) = LOWER(TRIM($2)) AND $2 <> '')
-         OR (regexp_replace(phone, '[^0-9]+', '', 'g') = ANY($3))
-         OR (
-           LOWER(regexp_replace(TRIM(name), '\\s+', ' ', 'g'))
-           = LOWER(regexp_replace(TRIM($4), '\\s+', ' ', 'g'))
-           AND $4 <> ''
-         )
-       )
-     LIMIT 1`,
-    [organizationId, safeEmail, phoneVariants, safeName]
-  );
-
-  if (existingRes.rowCount > 0) {
-    const existing = existingRes.rows[0];
-    const updatedRes = await client.query(
-      `UPDATE "customer"
-       SET name = COALESCE(NULLIF($1, ''), name),
-           email = COALESCE(email, NULLIF($2, '')),
-           phone = COALESCE(phone, NULLIF($3, '')),
-           "segmentOverride" = COALESCE("segmentOverride", $4),
-           "deletedAt" = NULL,
-           "deletedByUserId" = NULL,
-           "updatedAt" = NOW()
-       WHERE id = $5 AND "organizationId" = $6
-       RETURNING id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
-      [safeName, safeEmail, safePhone, safeSegment, existing.id, organizationId]
-    );
-    return updatedRes.rows[0];
+  const input = buildCustomerInput({ name, email, phone });
+  if (input.errors.length) {
+    const error = new Error("Valid customer identity details are required.");
+    error.code = input.errors[0].code;
+    throw error;
   }
 
-  const createdRes = await client.query(
-    `INSERT INTO "customer" ("organizationId", name, email, phone, "segmentOverride", "createdAt", "updatedAt")
-     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-     ON CONFLICT ("organizationId", email) DO UPDATE
-     SET name = COALESCE(NULLIF(EXCLUDED.name, ''), "customer".name),
-         phone = COALESCE(EXCLUDED.phone, "customer".phone),
-         "segmentOverride" = COALESCE("customer"."segmentOverride", EXCLUDED."segmentOverride"),
-         "updatedAt" = NOW()
-     RETURNING id, name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
-    [organizationId, safeName, safeEmail, safePhone, safeSegment]
+  const duplicates = await findCustomerDuplicates(client, organizationId, input.value, { includeArchived: true });
+  const existing = duplicates.find((candidate) => candidate.matchReason.startsWith("exact_"));
+  if (existing) {
+    if (!existing.deletedAt) return existing;
+    const restored = await client.query(
+      `UPDATE "customer"
+       SET "deletedAt" = NULL, "deletedByUserId" = NULL, "segmentOverride" = 'prospect', "updatedAt" = NOW()
+       WHERE id = $1 AND "organizationId" = $2
+       RETURNING id, reference, "customerType", name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
+      [existing.id, organizationId]
+    );
+    return restored.rows[0];
+  }
+
+  const customer = await createCustomer(client, organizationId, input.value);
+  const safeSegment = CUSTOMER_SEGMENTS.has(segmentOverride) ? segmentOverride : "prospect";
+  const result = await client.query(
+    `UPDATE "customer" SET "segmentOverride" = $1, "updatedAt" = NOW()
+     WHERE id = $2 AND "organizationId" = $3
+     RETURNING id, reference, "customerType", name, email, phone, "segmentOverride", "createdAt", "updatedAt"`,
+    [safeSegment, customer.id, organizationId]
   );
-  return createdRes.rows[0];
+  return result.rows[0] || customer;
 };
 
 export const createCrmContactRequest = async (

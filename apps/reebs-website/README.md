@@ -1,17 +1,26 @@
-# Reebs Website
+# REEBS Website
 
 Workspace package: `@faako/reebs-website`
 
-Reebs Website is the public REEBS storefront, rentals, booking, and contact-intake site. It is the customer-facing half of the REEBS stack and works against the portal/backend for real product, rental, booking, contact request, and portal-entry flows.
+The REEBS Website is the public Astro storefront for rentals, shop products,
+booking, checkout, policies, and customer access. React is retained only for
+interactive islands and the existing storefront views; this app is not a React
+SPA.
 
-## What Lives Here
+## Structure
 
-- `src/pages/` and `src/layouts/`: Astro route, metadata and static-output layer
-- `src/views/` and `src/components/`: preserved React storefront experiences mounted by Astro islands
-- `scripts/generateSitemap.mjs`: sitemap generation used before builds
-- `.env.example`: public runtime variable reference
+- `src/pages/`: Astro route files and static catalogue routes
+- `src/layouts/BaseLayout.astro`: canonical metadata, social metadata, robots,
+  and safely serialized JSON-LD
+- `src/views/`: existing React storefront designs mounted as Astro islands
+- `src/components/catalogue/`: crawlable category/product/status components
+- `src/components/islands/`: narrowly scoped React hydration boundaries
+- `src/content/public-catalogue.json`: generated, public-field-only snapshot
+- `scripts/refreshPublicCatalogue.mjs`: refreshes the snapshot from the public API
+- `scripts/auditStaticRoutes.mjs`: checks built links and catalogue route coverage
+- `scripts/validateSitemap.mjs`: validates sitemap inclusion and exclusion
 
-## Run It Locally
+## Run locally
 
 Frontend only:
 
@@ -25,87 +34,54 @@ Full local REEBS stack:
 pnpm --filter @faako/reebs-website run dev:with-backend
 ```
 
-This combined command runs the REEBS Portal local Prisma predeploy first because
-the portal backend owns the REEBS database/API used by the public website.
+The combined command runs the Portal Prisma predeploy because the Portal backend
+owns the REEBS database and API. Typical ports are website `5173`, Portal `5174`,
+and API `8888`.
 
-Equivalent root shortcut:
+## Catalogue and SEO
+
+Refresh the allowlisted public catalogue snapshot before a production build when
+catalogue data has changed:
 
 ```bash
-pnpm run dev:reebs
+pnpm --filter @faako/reebs-website run catalogue:refresh
 ```
 
-Typical local ports:
+The Astro build generates the sitemap from actual static routes. It excludes
+cart, checkout, customer login, reset-password, and status pages.
 
-- website: `5173`
-- companion portal frontend: `5174`
-- companion API backend: `8888`
-
-## Current System Notes
-
-- Astro owns every public route, metadata, structured data and static output.
-  The established React storefront views and shared chrome are rendered by
-  Astro, then hydrated for cart, filters, authentication and live inventory.
-- Shop and Rentals include useful catalogue content in the initial generated
-  HTML rather than a client-only loading shell. The Shop index renders a
-  representative set from every public category; the generated category and
-  product pages retain full catalogue coverage for search discovery.
-- The shared navbar and footer are also server-rendered on generated category,
-  product and error pages. The party-planning CTA therefore remains present
-  across the storefront.
-- About is intentionally omitted from the desktop and mobile navbar. The About
-  page remains public, crawlable and linked from the footer.
-- Shop, Rentals and rental-detail routes intentionally preserve the established
-  React site chrome and page designs inside Astro routes. Do not replace them
-  with a separate catalogue header/prelude/footer or disable their chrome.
-- rental listings and rental detail pages now resolve through the same shared rental catalog rules so storefront links and detail slugs stay in sync
-- this app should stay frontend-focused in production and point at `https://api.reebspartythemes.com` for data and auth-adjacent flows
-- the contact form posts to `/api/contact`; the portal backend validates/rate-limits the request, stores it in CRM as a planning request, links or creates a customer, creates follow-up activity, and then sends the notification email
-- the shared `AppUpdateNotice` is mounted in the app shell, enabled in production, and testable locally with `VITE_ENABLE_APP_UPDATE_NOTICE=true`; it prompts for a user-controlled refresh when a newer deployed bundle exists
-
-## Design Preservation
-
-REEBS website work is enhancement-first. Preserve existing page composition,
-navigation, branding, imagery, typography and conversion sections unless the
-owner explicitly approves a visual change. Any proposed redesign or visible
-layout change must be shown for approval before implementation. Bug fixes,
-accessibility corrections and responsive repairs should remain visually scoped
-and must not silently replace an established page design.
+```bash
+pnpm --filter @faako/reebs-website run build
+pnpm --filter @faako/reebs-website run sitemap:check
+pnpm --filter @faako/reebs-website run test:routes
+```
 
 ## Configuration
 
-Important browser-visible values:
+Browser-visible values include:
 
 - `VITE_API_BASE_URL`
-- `VITE_BACKEND_BASE_URL`
+- `VITE_BACKEND_BASE_URL` (legacy fallback)
 - `VITE_REEBS_PORTAL_URL`
+- `VITE_GA_MEASUREMENT_ID`
+- `VITE_ENABLE_GA_IN_DEV`
 
-Prefer `VITE_API_BASE_URL`; `VITE_BACKEND_BASE_URL` is a legacy fallback. Keep secrets in the portal/API backend environment, not in `VITE_*` values.
-
-## Common Commands
-
-```bash
-pnpm --filter @faako/reebs-website run sitemap
-pnpm --filter @faako/reebs-website run build
-pnpm --filter @faako/reebs-website run test:e2e
-pnpm run bundle:reebs
-```
-
-The bundle report requires current Portal and Website builds. Performance and dependency
-boundaries are documented in `docs/apps/reebs-portal/performance-and-dependencies.md`.
+Never place secrets in `VITE_*` values. Optional analytics only initializes after
+the customer has granted analytics consent.
 
 ## Deployment
 
-Cloudflare Pages builds with:
+Build command:
 
 ```bash
 pnpm --filter @faako/reebs-website run build
 ```
 
-Use these Cloudflare Pages settings:
+Output directory: `apps/reebs-website/dist`.
 
-- Build command: `pnpm --filter @faako/reebs-website build`
-- Output directory: `apps/reebs-website/dist`
-- Environment variable: `VITE_API_BASE_URL=https://api.reebspartythemes.com`
-- Environment variable: `VITE_REEBS_PORTAL_URL=https://portal.reebspartythemes.com`
+The production site should use the deployed REEBS API. The generated public
+catalogue contains no cost, margin, supplier, internal-note, customer, or Water
+finance fields.
 
-The site should point at the deployed REEBS API backend in production.
+See `docs/apps/reebs/storefront-seo-aeo-phase-8.md` for the indexability map,
+rendering model, data boundary, analytics map, and manual Search Console steps.

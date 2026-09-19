@@ -1,0 +1,148 @@
+# REEBS staging placeholders
+# Replace every <...> token with a staging-only value before deployment.
+# Do not copy production database URLs, credentials, tokens, webhook secrets,
+# customer email destinations, or live Paystack keys into staging.
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — required runtime identity
+# -----------------------------------------------------------------------------
+RAILWAY_WORKSPACE=@faako/reebs-portal
+APP_ENV=staging
+NODE_ENV=production
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — required database and authentication
+# Railway normally injects DATABASE_URL when staging Postgres is attached.
+# -----------------------------------------------------------------------------
+DATABASE_URL=<railway-staging-postgres-url>
+USER_APP_SECRET=<staging-random-secret-minimum-32-characters>
+ENFORCE_DATABASE_ISOLATION=true
+
+# Optional database TLS overrides. Remote database TLS is enabled by default.
+DATABASE_SSL_MODE=<require-or-provider-required-mode>
+DATABASE_SSL_REJECT_UNAUTHORIZED=<true-or-provider-required-value>
+DATABASE_SSL_CA=<staging-database-ca-if-required>
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — required staging URLs and CORS
+# Use comma-separated origins without wildcard entries.
+# -----------------------------------------------------------------------------
+APP_URL=<staging-api-origin>
+APP_BASE_URL=<staging-portal-origin>
+SITE_URL=<staging-storefront-origin>
+REEBS_PORTAL_URL=<staging-portal-origin>
+REEBS_WEBSITE_URL=<staging-storefront-origin>
+CORS_ORIGINS_STAGING=<staging-portal-origin,staging-storefront-origin>
+
+# Optional monitoring and operational base URLs.
+REEBS_API_BASE_URL=<staging-api-origin>
+REEBS_PORTAL_BASE_URL=<staging-portal-origin>
+REEBS_WEBSITE_BASE_URL=<staging-storefront-origin>
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — organization and session configuration
+# -----------------------------------------------------------------------------
+PUBLIC_ORGANIZATION_ID=<staging-public-organization-id>
+REEBS_PUBLIC_ORGANIZATION_ID=<same-staging-public-organization-id>
+ALLOWED_CHECKOUT_ORG_IDS=<comma-separated-staging-organization-ids>
+SYSTEM_ADMIN_EMAIL=<staging-system-admin-email>
+DEFAULT_ADMIN_EMAIL=<staging-default-admin-email>
+USER_SESSION_COOKIE_DOMAIN=<staging-cookie-domain>
+USER_SESSION_COOKIE_NAME=<staging-cookie-name>
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — manager application
+# -----------------------------------------------------------------------------
+MANAGER_APP_SECRET=<staging-manager-app-secret>
+MANAGER_PIN_HASH=<staging-manager-pin-hash>
+MANAGER_APP_ORIGIN=<staging-manager-app-origin>
+MANAGER_ORGANIZATION_ID=<staging-manager-organization-id>
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — Paystack TEST environment only
+# -----------------------------------------------------------------------------
+PAYSTACK_SECRET_KEY=<paystack-test-secret-key>
+PAYSTACK_CALLBACK_URL=<staging-portal-payment-callback-url>
+PAYSTACK_TIMEOUT_MS=12000
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — email
+# Keep notifications disabled until EMAIL_FORCE_TO is a controlled test inbox.
+# -----------------------------------------------------------------------------
+EMAIL_NOTIFICATIONS_ENABLED=false
+BREVO_API_KEY=<staging-email-provider-api-key>
+EMAIL_FORCE_TO=<controlled-staging-email-sink>
+EMAIL_FROM=<staging-sender-identity>
+EMAIL_REPLY_TO=<staging-reply-to-address>
+EMAIL_CATCHALL_TO=<staging-catchall-address>
+REEBS_EMAIL_TIMEOUT_MS=10000
+
+# Optional payment instructions rendered in transactional email.
+EMAIL_PAYMENT_MOMO_ACCOUNT_NAME=<staging-payment-account-name>
+EMAIL_PAYMENT_MOMO_MTN_NUMBER=<staging-test-number>
+EMAIL_PAYMENT_MOMO_TELECEL_NUMBER=<staging-test-number>
+EMAIL_PAYMENT_MOMO_AIRTELTIGO_NUMBER=<staging-test-number>
+EMAIL_PAYMENT_MOMO_GMONEY_NUMBER=<staging-test-number>
+EMAIL_PAYMENT_MOMO_DETAILS=<staging-test-payment-instructions>
+EMAIL_PAYMENT_BANK_DETAILS=<staging-test-bank-instructions>
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — webhooks and outbound providers
+# -----------------------------------------------------------------------------
+RAILWAY_WEBHOOK_SECRET=<staging-railway-webhook-secret>
+WATER_MOMO_WEBHOOK_SECRET=<staging-water-webhook-secret>
+WHATSAPP_ACCESS_TOKEN=<staging-whatsapp-token>
+WHATSAPP_PHONE_NUMBER_ID=<staging-whatsapp-phone-number-id>
+WHATSAPP_MANAGER_PHONE=<staging-manager-test-phone>
+GOOGLE_MAPS_API_KEY=<staging-restricted-google-maps-key>
+GOOGLE_GEOCODING_API_KEY=<staging-restricted-geocoding-key>
+OPENAI_API_KEY=<staging-restricted-openai-key>
+
+# Optional Dev ERP activity forwarding. Leave unset until a staging receiver exists.
+DEV_ERP_ACTIVITY_WEBHOOK_URL=<staging-activity-webhook-url>
+DEV_ERP_ACTIVITY_WEBHOOK_SECRET=<staging-activity-webhook-secret>
+
+# -----------------------------------------------------------------------------
+# Railway REEBS API service — optional advanced analytics and runtime tuning
+# -----------------------------------------------------------------------------
+REEBS_ANALYTICS_SERVICE_URL=<staging-analytics-service-url>
+REEBS_ANALYTICS_SERVICE_SECRET=<staging-analytics-service-secret>
+REEBS_API_BODY_LIMIT=10mb
+REEBS_API_CONCURRENCY_LIMIT=2
+REEBS_API_READ_RETRY_LIMIT=2
+REEBS_API_READ_RETRY_DELAY_MS=180
+REEBS_HEALTH_TIMEOUT_MS=2000
+REEBS_SHUTDOWN_GRACE_MS=10000
+TRUST_PROXY_HOPS=1
+
+# Optional commercial configuration. Confirm staging values with the business owner.
+REEBS_ATTENDANT_FEE_CENTS=<staging-attendant-fee-in-pesewas>
+REEBS_ATTENDANT_RATE_CENTS=<staging-attendant-rate-in-pesewas>
+ATTENDANT_RATE_CENTS=<legacy-staging-attendant-rate-if-needed>
+
+# -----------------------------------------------------------------------------
+# REEBS Portal staging frontend build variables
+# These are browser-visible. Never place server secrets in VITE_* variables.
+# -----------------------------------------------------------------------------
+VITE_API_BASE_URL=<staging-api-origin>
+VITE_REEBS_WEBSITE_URL=<staging-storefront-origin>
+VITE_GOOGLE_MAPS_KEY=<browser-restricted-staging-maps-key>
+VITE_GA_MEASUREMENT_ID=<staging-analytics-measurement-id>
+VITE_GA_ID=<legacy-staging-analytics-id-if-needed>
+VITE_ENABLE_GA_IN_DEV=false
+VITE_ENABLE_APP_UPDATE_NOTICE=true
+VITE_CURRENCY_API_KEY=<browser-restricted-staging-currency-key>
+VITE_EXCHANGE_API_KEY=<browser-restricted-staging-exchange-key>
+
+# -----------------------------------------------------------------------------
+# REEBS Website staging frontend build variables
+# Configure these on the staging website build, not the Railway API service.
+# -----------------------------------------------------------------------------
+VITE_API_BASE_URL=<staging-api-origin>
+VITE_REEBS_PORTAL_URL=<staging-portal-origin>
+VITE_GOOGLE_MAPS_KEY=<browser-restricted-staging-maps-key>
+VITE_GA_MEASUREMENT_ID=<staging-analytics-measurement-id>
+VITE_GA_ID=<legacy-staging-analytics-id-if-needed>
+VITE_ENABLE_GA_IN_DEV=false
+VITE_CURRENCY_API_KEY=<browser-restricted-staging-currency-key>
+VITE_EXCHANGE_API_KEY=<browser-restricted-staging-exchange-key>

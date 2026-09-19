@@ -7,10 +7,11 @@ export default function WaterRestockCard({
   restockQuantity,
   quantityValue,
   unitCostValue,
+  onUnitCostChange,
+  canViewCost,
   onSelectQuickQuantity,
   onAdjustQuantity,
   onQuantityChange,
-  onUnitCostChange,
   supplierLabel,
   restockCost,
   saving,
@@ -89,28 +90,36 @@ export default function WaterRestockCard({
                 <AppIcon icon={faPlus} />
               </button>
             </div>
-            <label>
-              <span className="water-module-field-label">Cost price per pack (GHS)</span>
-              <input
-                aria-label="Restock cost price per pack"
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                value={unitCostValue}
-                onChange={(event) => onUnitCostChange(event.target.value)}
-                placeholder="0.00"
-                required
-              />
-            </label>
+            {canViewCost ? (
+              <label>
+                <span className="water-module-field-label">Cost price per pack (GHS)</span>
+                <input
+                  aria-label="Restock cost price per pack"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={unitCostValue}
+                  onChange={(event) => onUnitCostChange(event.target.value)}
+                  placeholder="0.00"
+                  required
+                />
+              </label>
+            ) : null}
           </div>
           <div className="water-module-inline-summary">
             <span>{supplierLabel}</span>
-            <strong>Total cost: {formatCurrency(restockCost)}</strong>
+            {canViewCost ? (
+              <strong>Total cost: {formatCurrency(restockCost)}</strong>
+            ) : (
+              <strong>{restockQuantity} packs</strong>
+            )}
           </div>
-          <p className="water-module-inline-note">
-            Water cost of goods and profit use the cost recorded for each restock period.
-          </p>
+          {canViewCost ? (
+            <p className="water-module-inline-note">
+              Water cost of goods and profit use the cost recorded for each restock period.
+            </p>
+          ) : null}
           <button type="submit" className="admin-primary water-module-sale-submit" disabled={saving || loading}>
             <AppIcon icon={faPlus} />{" "}
             {saving

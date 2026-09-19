@@ -1,8 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import {
-  DEFAULT_CURRENCY_RATES as FALLBACK_RATES,
-  formatCurrencyMajor,
-} from "@faako/finance";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { DEFAULT_CURRENCY_RATES as FALLBACK_RATES } from "@faako/finance";
 import {
   getCartItemKey,
   getCartItemMaxSelectableQuantity,
@@ -12,8 +9,8 @@ import {
 } from "/src/utils/cart";
 
 const CartContext = createContext();
-const RATES_CACHE_KEY = "reebs_rates_cache_v1";
-const RATES_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const CART_SYNC_EVENT = "reebs:cart-updated";
+const CURRENCY_SYNC_EVENT = "reebs:currency-updated";
 const readStoredJson = (key, fallback) => {
   if (typeof window === "undefined") return fallback;
   try {
@@ -36,38 +33,74 @@ const readStoredCurrency = () => {
 };
 
 export const CartProvider = ({ children }) => {
-  // Keep the server render and the browser's first render identical. Persisted
-  // state is restored after hydration so Astro islands do not mismatch.
+  // Keep the first browser render identical to Astro's server render. Stored
+  // preferences are restored after hydration so React does not replace the
+  // island when the customer already has a cart.
   const [cart, setCart] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [currency, setCurrency] = useState("GHS");
-  const [storageHydrated, setStorageHydrated] = useState(false);
+  const [storageReady, setStorageReady] = useState(false);
+  const providerIdRef = useRef(Symbol("reebs-cart-provider"));
 
   const [rates, setRates] = useState(FALLBACK_RATES);
   const apiKey = import.meta.env.VITE_CURRENCY_API_KEY;
+  const RATES_CACHE_KEY = "reebs_rates_cache_v1";
+  const RATES_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
   useEffect(() => {
     setCart(readStoredCart());
     setCurrency(readStoredCurrency());
-    setStorageHydrated(true);
+    setStorageReady(true);
+
+    const handleCartSync = (event) => {
+      if (event.detail?.source === providerIdRef.current) return;
+      if (Array.isArray(event.detail?.cart)) setCart(event.detail.cart);
+    };
+    const handleCurrencySync = (event) => {
+      if (event.detail?.source === providerIdRef.current) return;
+      const nextCurrency = event.detail?.currency;
+      if (typeof nextCurrency === "string" && nextCurrency.trim()) {
+        setCurrency(nextCurrency);
+      }
+    };
+    const handleStorage = (event) => {
+      if (event.key === "cart") setCart(readStoredCart());
+      if (event.key === "currency") setCurrency(readStoredCurrency());
+    };
+
+    window.addEventListener(CART_SYNC_EVENT, handleCartSync);
+    window.addEventListener(CURRENCY_SYNC_EVENT, handleCurrencySync);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener(CART_SYNC_EVENT, handleCartSync);
+      window.removeEventListener(CURRENCY_SYNC_EVENT, handleCurrencySync);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   useEffect(() => {
-    if (!storageHydrated) return;
+    if (!storageReady) return;
     try {
       localStorage.setItem("cart", JSON.stringify(cart));
+      window.dispatchEvent(new CustomEvent(CART_SYNC_EVENT, {
+        detail: { cart, source: providerIdRef.current },
+      }));
     } catch {
       // ignore storage write failures
     }
-  }, [cart, storageHydrated]);
+  }, [cart, storageReady]);
 
   useEffect(() => {
-    if (!storageHydrated) return;
+    if (!storageReady) return;
     try {
       localStorage.setItem("currency", currency);
+      window.dispatchEvent(new CustomEvent(CURRENCY_SYNC_EVENT, {
+        detail: { currency, source: providerIdRef.current },
+      }));
     } catch {
       // ignore storage write failures
     }
-  }, [currency, storageHydrated]);
+  }, [currency, storageReady]);
 
   // fetch exchange rates
   useEffect(() => {
@@ -213,11 +246,14 @@ export const CartProvider = ({ children }) => {
   };
 
   const formatCurrency = (value) => {
-    const locale =
-      typeof navigator !== "undefined" && navigator.language
-        ? navigator.language
-        : "en-GH";
-    return formatCurrencyMajor(value, currency, { locale });
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency",
+        currency,
+      }).format(value);
+    } catch {
+      return value + " " + currency;
+    }
   };
 
   return (

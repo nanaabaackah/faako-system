@@ -1,9 +1,10 @@
 /* eslint-disable no-undef */
-import { Client } from "pg";
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
+import { createLogger } from "./_shared/logger.js";
 import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
 import {
   hasAnyRole,
+  hasPermission,
   requirePermission,
   respond,
 } from "./_shared/internalApi.js";
@@ -15,12 +16,17 @@ import {
   fetchOrdersList,
   getHeaderValue,
   parseJsonBody,
-  recordOrderPayment,
   updateOrderMetadata,
 } from "./_shared/shopOrders.js";
+import { recordManualOrderPayment } from "../modules/payments/manualPaymentService.js";
+import { PAYMENT_PERMISSIONS } from "../modules/payments/paymentPolicy.js";
 
 const json = (event, statusCode, body) =>
-  respond(event, statusCode, body, { methods: ORDER_METHODS });
+  respond(event, statusCode, body, {
+    methods: ORDER_METHODS,
+    allowHeaders: "Content-Type, Authorization, X-Organization-Id, X-CSRF-Token, X-Request-Id, Idempotency-Key",
+  });
+const logger = createLogger("orders");
 
 const getOrderIdFromEvent = (event, body = {}) => {
   const raw =
@@ -70,10 +76,8 @@ export async function handler(event = {}) {
     return json(event, 204, {});
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "orders-database" });
+  const requestLogger = logger.child({ requestId: getEventHeader(event, "x-request-id") || undefined });
 
   try {
     await client.connect();
@@ -90,7 +94,11 @@ export async function handler(event = {}) {
     if (method === "GET") {
       const orderId = getOrderIdFromEvent(event);
       if (orderId) {
-        const detail = await fetchOrderDetail(client, { organizationId, orderId });
+        const detail = await fetchOrderDetail(client, {
+          organizationId,
+          orderId,
+          includeCosts: hasPermission(authUser, "financials:read"),
+        });
         if (!detail) return json(event, 404, { error: "Order not found." });
         return json(event, 200, detail);
       }
@@ -107,6 +115,12 @@ export async function handler(event = {}) {
 
     if (method === "POST") {
       const idempotencyKey = getHeaderValue(event, "Idempotency-Key");
+      if (idempotencyKey.length < 8) {
+        return json(event, 400, {
+          error: "Idempotency-Key is required when creating an order.",
+          code: "IDEMPOTENCY_KEY_REQUIRED",
+        });
+      }
       await client.query("BEGIN");
       try {
         const result = await createShopOrder(client, {
@@ -114,6 +128,7 @@ export async function handler(event = {}) {
           payload: body,
           actor,
           idempotencyKey,
+          allowCommercialOverrides: hasAnyRole(authUser, ["owner", "admin", "manager"]),
         });
         await writeMutationAudit(client, event, {
           action: result.idempotentReplay ? "ORDER_IDEMPOTENT_REPLAY" : "ORDER_CREATED",
@@ -202,14 +217,23 @@ export async function handler(event = {}) {
       }
 
       if (body.payment || body.recordPayment) {
+        if (!hasPermission(authUser, PAYMENT_PERMISSIONS.RECORD_MANUAL)) {
+          return json(event, 403, {
+            error: "You do not have permission to record manual payments.",
+            code: "PERMISSION_DENIED",
+          });
+        }
         const paymentPayload = body.payment || body.recordPayment || {};
         const paymentIdempotencyKey = getHeaderValue(event, "Idempotency-Key");
-        if (!paymentIdempotencyKey) {
-          return json(event, 400, { error: "Idempotency-Key is required for payment writes." });
+        if (paymentIdempotencyKey.length < 8) {
+          return json(event, 400, {
+            error: "Idempotency-Key is required when recording a payment.",
+            code: "IDEMPOTENCY_KEY_REQUIRED",
+          });
         }
         await client.query("BEGIN");
         try {
-          const result = await recordOrderPayment(client, {
+          const result = await recordManualOrderPayment(client, {
             organizationId,
             orderId,
             amountCents: paymentPayload.amountCents ?? Math.round(Number(paymentPayload.amount || 0) * 100),
@@ -217,10 +241,9 @@ export async function handler(event = {}) {
             provider: paymentPayload.provider || null,
             transactionReference: paymentPayload.transactionReference || paymentPayload.reference || null,
             phoneNumber: paymentPayload.phoneNumber || null,
-            confirmationStatus: paymentPayload.confirmationStatus || null,
             notes: paymentPayload.notes || null,
-            actor,
             idempotencyKey: paymentIdempotencyKey,
+            actor,
           });
           await writeMutationAudit(client, event, {
             action: "ORDER_PAYMENT_RECORDED",
@@ -316,13 +339,16 @@ export async function handler(event = {}) {
   } catch (error) {
     const statusCode = Number(error?.statusCode) || 500;
     if (statusCode >= 500) {
-      console.error("orders error", {
-        message: error?.message,
+      requestLogger.error({
+        err: error,
         code: error?.code,
-      });
+        eventName: "orders.request_failed",
+      }, "Orders request failed");
     }
     return json(event, statusCode, {
       error: statusCode >= 500 ? "Failed to process order request." : error.message,
+      ...(error?.code ? { code: error.code } : {}),
+      ...(error?.details ? { details: error.details } : {}),
     });
   } finally {
     await client.end().catch(() => {});

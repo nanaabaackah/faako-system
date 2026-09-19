@@ -32,7 +32,7 @@ const hasApiEntrypoint = (appDir, scripts = {}) =>
 const hasPrisma = (appDir, manifest = {}) =>
   fs.existsSync(path.join(appDir, "prisma")) || hasDependency(manifest, "@prisma/client");
 
-const assertCloudflareFiles = ({ appLabel, appDir, requiresSpaFallback }) => {
+const assertCloudflareFiles = ({ appLabel, appDir, isAstro }) => {
   const headersPath = path.join(appDir, "public", "_headers");
   const redirectsPath = path.join(appDir, "public", "_redirects");
   const headers = readText(headersPath).toLowerCase();
@@ -49,10 +49,12 @@ const assertCloudflareFiles = ({ appLabel, appDir, requiresSpaFallback }) => {
     }
   }
 
-  if (requiresSpaFallback && !redirects) {
+  if (!redirects) {
     findings.push(`[cloudflare] ${appLabel}: missing public/_redirects`);
-  } else if (requiresSpaFallback && !redirects.includes("/index.html 200")) {
+  } else if (!isAstro && !redirects.includes("/index.html 200")) {
     findings.push(`[cloudflare] ${appLabel}: public/_redirects should include an SPA fallback to /index.html 200`);
+  } else if (isAstro && !redirects.includes("/404.html 404")) {
+    findings.push(`[cloudflare] ${appLabel}: Astro static routes should include a /404.html 404 fallback`);
   }
 };
 
@@ -64,6 +66,18 @@ const assertRailwayScripts = ({ appLabel, appDir, manifest }) => {
 
   if (hasPrisma(appDir, manifest) && !hasAnyScript(scripts, ["railway:build", "db:generate", "prisma:generate"])) {
     findings.push(`[railway] ${appLabel}: Prisma apps should expose db:generate, prisma:generate, or railway:build`);
+  }
+
+  if (scripts["railway:start"] && /\bAPP_ENV\s*=/.test(String(scripts["railway:start"]))) {
+    findings.push(`[railway] ${appLabel}: railway:start must preserve the platform-supplied APP_ENV`);
+  }
+  if (
+    appLabel === "@faako/reebs-portal"
+    && scripts["railway:start"]
+    && scripts["server:with-migrate"]
+    && /server:prod(?::|\b)/.test(String(scripts["server:with-migrate"]))
+  ) {
+    findings.push(`[railway] ${appLabel}: generic server:with-migrate must not force the production runtime`);
   }
 };
 
@@ -109,15 +123,14 @@ for (const project of graph.apps) {
   const manifest = readJson(path.join(rootDir, project.manifestPath));
   const appLabel = manifest.name || project.dir;
   const scripts = manifest.scripts || {};
-  const isAstroApp = hasDependency(manifest, "astro") || /astro build/.test(String(scripts.build || ""));
-  const isViteApp = hasDependency(manifest, "vite") || /vite build/.test(String(scripts.build || "")) || hasViteConfig(appDir);
-  const isStaticApp = isAstroApp || isViteApp;
+  const isAstro = hasDependency(manifest, "astro") || fs.existsSync(path.join(appDir, "astro.config.mjs"));
+  const isStaticApp = isAstro || hasDependency(manifest, "vite") || /vite build/.test(String(scripts.build || "")) || hasViteConfig(appDir);
   const isApiApp = hasApiEntrypoint(appDir, scripts);
 
   assertNoLegacyProviderFiles({ appLabel, appDir, manifest });
 
   if (isStaticApp) {
-    assertCloudflareFiles({ appLabel, appDir, requiresSpaFallback: isViteApp && !isAstroApp });
+    assertCloudflareFiles({ appLabel, appDir, isAstro });
   }
 
   if (isApiApp) {

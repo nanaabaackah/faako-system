@@ -1,7 +1,7 @@
 import React, { useDeferredValue, useEffect, useRef, useState } from 'react';
 import { SelectField } from "@faako/ui";
 import "./Navbar.css";
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from "../AuthContext/AuthContext";
 import { useCart } from "../CartContext/CartContext";
 import { SUPPORTED_CURRENCY_CODES as SUPPORTED_CURRENCIES } from "@faako/finance";
@@ -11,7 +11,13 @@ import { fetchInventoryWithCache, splitInventory } from '/src/utils/inventoryCac
 import { isOnlineShopItem, isTestCategoryItem } from '/src/utils/frontendInventoryFilters';
 import { getCatalogItemDisplayName } from '/src/utils/itemMediaBackgrounds';
 import { buildPortalUrl } from '../../utils/portal';
-import { STOREFRONT_HEADER_NAVIGATION } from '../../config/storefrontNavigation';
+
+const NAV_LINKS = [
+  { label: 'Home', path: '/' },
+  { label: 'Shop', path: '/shop' },
+  { label: 'Rentals', path: '/rentals' },
+  { label: 'Contact', path: '/contact' }
+];
 
 const SEARCH_SHORTCUTS = [
   {
@@ -276,6 +282,7 @@ const isPathActive = (pathname, path) => {
 
 const Navbar = ({ scrollContainerRef }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, logout, authReady } = useAuth();
   const { cart, openCart, currency, setCurrency } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -434,7 +441,7 @@ const Navbar = ({ scrollContainerRef }) => {
   const handleLogout = () => {
     logout();
     setMobileOpen(false);
-    window.location.assign(buildPortalUrl('/login'));
+    navigate('/login', { replace: true, state: { signedOut: true } });
   };
 
   const isAuthenticated = Boolean(authReady && user);
@@ -487,17 +494,17 @@ const Navbar = ({ scrollContainerRef }) => {
 
   const handleSearchNavigate = (path) => {
     closeSearch();
-    window.location.assign(path);
+    navigate(path);
   };
 
   const renderLinks = (onClick) => (
     <ul className="navbar-links" role="list">
-      {STOREFRONT_HEADER_NAVIGATION.map((item) => (
-        <li key={item.href}>
+      {NAV_LINKS.map((item) => (
+        <li key={item.path}>
           <Link
-            to={item.href}
-            className={isPathActive(location.pathname, item.href) ? 'is-active' : ''}
-            aria-current={isPathActive(location.pathname, item.href) ? 'page' : undefined}
+            to={item.path}
+            className={isPathActive(location.pathname, item.path) ? 'is-active' : ''}
+            aria-current={isPathActive(location.pathname, item.path) ? 'page' : undefined}
             onClick={onClick}
           >
             {item.label}

@@ -1,14 +1,12 @@
 /* eslint-disable no-undef */
+import {
+  isDeployedEnvironment,
+  isProductionEnvironment,
+  resolveAppEnvironment,
+} from "@faako/config";
 import dotenv from "dotenv";
 
 const LOCAL_DATABASE_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
-
-const normalizeEnvironmentName = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (!normalized || normalized === "dev") return "development";
-  if (normalized === "prod") return "production";
-  return normalized;
-};
 
 const parseEnvBoolean = (value, fallback = false) => {
   if (typeof value === "boolean") return value;
@@ -19,36 +17,35 @@ const parseEnvBoolean = (value, fallback = false) => {
   return fallback;
 };
 
-const getRuntimeEnvironment = () =>
-  normalizeEnvironmentName(process.env.NODE_ENV || process.env.APP_ENV || "development");
-
 const readEnvValue = (key) => {
   const value = process.env[key];
   return typeof value === "string" ? value.trim() : "";
 };
 
 const loadEnvironmentConfig = () => {
-  if (globalThis.__reebsRuntimeEnvLoaded) return getRuntimeEnvironment();
-
-  // dotenv.config() does not override already-set platform env vars,
-  // calling it here is safe — it only fills in missing values from .env files.
-  const baseEnvironment = dotenv.config();
-  if (baseEnvironment.error && baseEnvironment.error.code !== "ENOENT") {
-    throw baseEnvironment.error;
+  if (globalThis.__reebsRuntimeEnvLoaded) {
+    return resolveAppEnvironment(process.env);
   }
 
-  const runtimeEnvironment = getRuntimeEnvironment();
-  const envFile = `.env.${runtimeEnvironment}`;
-  // Override: false so local .env.* files never clobber platform-injected vars.
-  const loadedFile = dotenv.config({ path: envFile, override: false });
-  if (loadedFile.error && loadedFile.error.code !== "ENOENT") {
-    throw loadedFile.error;
+  const initialEnvironment = resolveAppEnvironment(process.env);
+  const skipEnvironmentFiles = parseEnvBoolean(process.env.REEBS_SKIP_ENV_FILES, false);
+
+  // Railway staging and production receive configuration from the platform.
+  // Local dotenv files are development-only and never supplement a deployed runtime.
+  if (initialEnvironment === "development" && !skipEnvironmentFiles) {
+    const baseEnvironment = dotenv.config();
+    if (baseEnvironment.error && baseEnvironment.error.code !== "ENOENT") {
+      throw baseEnvironment.error;
+    }
+
+    const loadedFile = dotenv.config({ path: ".env.development", override: false });
+    if (loadedFile.error && loadedFile.error.code !== "ENOENT") {
+      throw loadedFile.error;
+    }
   }
 
+  const runtimeEnvironment = resolveAppEnvironment(process.env);
   process.env.APP_ENV = runtimeEnvironment;
-  if (!readEnvValue("DATABASE_URL_PRODUCTION") && readEnvValue("DATABASE_URL")) {
-    process.env.DATABASE_URL_PRODUCTION = readEnvValue("DATABASE_URL");
-  }
   globalThis.__reebsRuntimeEnvLoaded = true;
   return runtimeEnvironment;
 };
@@ -70,6 +67,17 @@ const getConnectionHost = (value) => {
   }
 };
 
+export const isValidDatabaseUrl = (value) => {
+  try {
+    const parsed = new URL(value || "");
+    return ["postgres:", "postgresql:"].includes(parsed.protocol)
+      && Boolean(parsed.hostname)
+      && parsed.pathname.length > 1;
+  } catch {
+    return false;
+  }
+};
+
 const readOptionalMultilineEnv = (value) => {
   const normalized = String(value || "").trim();
   if (!normalized) return "";
@@ -77,13 +85,14 @@ const readOptionalMultilineEnv = (value) => {
 };
 
 const pickDatabaseUrl = (environment) => {
-  // In production: prefer DATABASE_URL_PRODUCTION, fall back to DATABASE_URL.
-  // In development: prefer DATABASE_URL_DEVELOPMENT, fall back to DATABASE_URL
-  // so that platform-injected vars are always honoured.
-  const candidates =
-    environment === "production"
-      ? ["DATABASE_URL_PRODUCTION", "DATABASE_URL"]
-      : ["DATABASE_URL_DEVELOPMENT", "DATABASE_URL"];
+  // Deployed environments use Railway's environment-scoped DATABASE_URL.
+  // The production alias remains a final compatibility fallback for intentional
+  // production maintenance outside Railway; staging never consumes it.
+  const candidates = environment === "development"
+    ? ["DATABASE_URL_DEVELOPMENT", "DATABASE_URL"]
+    : environment === "production"
+      ? ["DATABASE_URL", "DATABASE_URL_PRODUCTION"]
+      : ["DATABASE_URL"];
 
   for (const key of candidates) {
     const candidate = readEnvValue(key);
@@ -96,9 +105,18 @@ const pickDatabaseUrl = (environment) => {
 };
 
 export const APP_ENV = loadEnvironmentConfig();
-export const isProductionRuntime = APP_ENV === "production";
+export const isDevelopmentRuntime = APP_ENV === "development";
+export const isStagingRuntime = APP_ENV === "staging";
+export const isProductionRuntime = isProductionEnvironment(APP_ENV);
+export const isDeployedRuntime = isDeployedEnvironment(APP_ENV);
 
 const databaseUrl = pickDatabaseUrl(APP_ENV);
+if (isDeployedRuntime && databaseUrl && !isValidDatabaseUrl(databaseUrl)) {
+  throw new Error(`Refusing to run in ${APP_ENV}: DATABASE_URL is not a valid PostgreSQL URL.`);
+}
+if (isDeployedRuntime && databaseUrl && LOCAL_DATABASE_HOSTS.has(getConnectionHost(databaseUrl))) {
+  throw new Error(`Refusing to run in ${APP_ENV}: DATABASE_URL points to a local database host.`);
+}
 const shouldGuardDatabaseIsolation = parseEnvBoolean(
   process.env.ENFORCE_DATABASE_ISOLATION,
   !isProductionRuntime
@@ -113,13 +131,13 @@ if (
     normalizeDatabaseIdentity(process.env.DATABASE_URL_PRODUCTION)
 ) {
   throw new Error(
-    "Refusing to run in development: the selected DATABASE_URL matches DATABASE_URL_PRODUCTION."
+    `Refusing to run in ${APP_ENV}: the selected DATABASE_URL matches DATABASE_URL_PRODUCTION.`
   );
 }
 
 if (databaseUrl) {
   process.env.DATABASE_URL = databaseUrl;
-} else if (!isProductionRuntime && !readEnvValue("DATABASE_URL")) {
+} else if (!isDeployedRuntime && !readEnvValue("DATABASE_URL")) {
   // Only remove DATABASE_URL if there is genuinely nothing available —
   // never wipe a value that was already injected by the hosting platform.
   delete process.env.DATABASE_URL;

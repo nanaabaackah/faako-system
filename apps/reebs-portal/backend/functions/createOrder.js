@@ -1,6 +1,15 @@
 /* eslint-disable no-undef */
-import { Client } from "pg";
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
+import {
+  ensureCrmContactTables,
+  upsertCrmCustomerFromContact,
+} from "./_shared/crmContact.js";
+import {
+  buildResponseHeaders,
+  isAllowedAppOrigin,
+  isCrossSiteBrowserRequest,
+  json,
+} from "./_shared/http.js";
 import {
   applyRequestOrganizationContext,
   resolveConfiguredPublicOrganizationId,
@@ -9,34 +18,28 @@ import {
   applyWindowRateLimit,
   getRequestClientIp,
 } from "./_shared/requestRateLimit.js";
+import { createLogger } from "./_shared/logger.js";
 import {
-  buildResponseHeaders,
-  isAllowedAppOrigin,
-  isCrossSiteBrowserRequest,
-} from "./_shared/http.js";
-import {
-  createShopOrder,
-  getHeaderValue,
-  parseJsonBody,
-} from "./_shared/shopOrders.js";
+  getNotificationCatchallEmail,
+  sendNotificationEmail,
+} from "./_shared/email.js";
+import { notifyManager } from "./_shared/managerPush.js";
+import { createShopOrder, getHeaderValue, parseJsonBody } from "./_shared/shopOrders.js";
 import { normalizeCheckoutQuoteFingerprint } from "./_shared/checkoutQuote.js";
-import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
+import { normalizeGhanaPhone } from "../modules/customers/contactPolicy.js";
+import {
+  buildCustomerOrderPlacedText,
+  buildInternalOrderPlacedText,
+  buildOrderPlacedNotification,
+} from "../modules/orders/orderNotifications.js";
 
-const CHECKOUT_METHODS = "POST,OPTIONS";
+const METHODS = "POST,OPTIONS";
 const MAX_CHECKOUT_ITEMS = 100;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const logger = createLogger("public-orders");
 
-const json = (event, statusCode, body, extraHeaders = {}) => ({
-  statusCode,
-  headers: {
-    ...buildResponseHeaders(event, {
-      methods: CHECKOUT_METHODS,
-      headers: "Content-Type,Idempotency-Key,X-Request-Id",
-    }),
-    "Content-Type": "application/json",
-    ...extraHeaders,
-  },
-  body: statusCode === 204 ? "" : JSON.stringify(body),
-});
+const cleanText = (value, maxLength = 240) =>
+  typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maxLength) : "";
 
 const positiveInteger = (value) => {
   const parsed = Number(value);
@@ -118,8 +121,6 @@ export const sanitizePublicCheckoutPayload = (body = {}) => {
     throw error;
   }
 
-  // Public checkout can identify products and fulfilment only. Prices, discounts,
-  // fees, status, source, totals, and tenant context are owned by the server.
   return {
     customerId,
     items,
@@ -138,104 +139,190 @@ export const sanitizePublicCheckoutPayload = (body = {}) => {
   };
 };
 
+const publicOrderResponse = (order = {}) => ({
+  orderNumber: order.orderNumber,
+  reference: order.orderNumber,
+  status: order.status,
+  currency: "GHS",
+  subtotalCents: Number(order.subtotalCents || 0),
+  discountCents: Number(order.discountCents || 0),
+  deliveryFeeCents: Number(order.deliveryFeeCents || 0),
+  serviceFeeCents: Number(order.serviceFeeCents || 0),
+  grandTotalCents: Number(order.grandTotalCents ?? order.total_amount ?? 0),
+  paymentStatus: order.paymentStatus || "unpaid",
+  fulfillmentMethod: order.fulfillmentMethod,
+  idempotentReplay: Boolean(order.idempotentReplay),
+});
+
+const findPublicOrderByKey = async (client, organizationId, idempotencyKey) => {
+  const result = await client.query(
+    `SELECT "orderNumber", status, "subtotalCents", "discountCents", "deliveryFeeCents",
+            "serviceFeeCents", "grandTotalCents", total_amount, "paymentStatus", "fulfillmentMethod"
+     FROM "order"
+     WHERE "organizationId" = $1
+       AND "idempotencyKey" = $2
+     LIMIT 1`,
+    [organizationId, idempotencyKey]
+  );
+  return result.rows[0] || null;
+};
+
 export async function handler(event = {}) {
-  const method = String(event.httpMethod || "GET").toUpperCase();
-  if (method === "OPTIONS") return json(event, 204, {});
-  if (method !== "POST") return json(event, 405, { error: "Method Not Allowed" });
+  const method = String(event.httpMethod || "POST").toUpperCase();
+  if (method === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers: buildResponseHeaders(event, {
+        methods: METHODS,
+        allowHeaders: "Content-Type, X-Request-Id, Idempotency-Key",
+      }),
+      body: "",
+    };
+  }
+  if (method !== "POST") return json(event, 405, { error: "Method Not Allowed" }, { methods: METHODS });
 
   const requestOrigin = getHeaderValue(event, "origin");
-  if (requestOrigin && !isAllowedAppOrigin(requestOrigin)) {
-    return json(event, 403, { error: "Untrusted checkout origin." });
+  if (
+    (requestOrigin && !isAllowedAppOrigin(requestOrigin))
+    || (isCrossSiteBrowserRequest(event) && requestOrigin && !isAllowedAppOrigin(requestOrigin))
+  ) {
+    return json(event, 403, {
+      error: "Untrusted checkout origin.",
+      code: "UNTRUSTED_CHECKOUT_ORIGIN",
+    }, { methods: METHODS });
   }
-  if (isCrossSiteBrowserRequest(event) && requestOrigin && !isAllowedAppOrigin(requestOrigin)) {
-    return json(event, 403, { error: "Cross-site checkout is not allowed." });
-  }
-
   const contentType = getHeaderValue(event, "content-type").toLowerCase();
   if (contentType && !contentType.includes("application/json")) {
-    return json(event, 415, { error: "Content-Type must be application/json." });
+    return json(event, 415, { error: "Content-Type must be application/json." }, { methods: METHODS });
+  }
+
+  const idempotencyKey = cleanText(getHeaderValue(event, "idempotency-key"), 120);
+  if (idempotencyKey.length < 8) {
+    return json(event, 400, {
+      error: "Idempotency-Key is required when creating an order.",
+      code: "IDEMPOTENCY_KEY_REQUIRED",
+    }, { methods: METHODS });
   }
   const parsed = parseJsonBody(event);
-  if (parsed.error) return json(event, 400, { error: parsed.error });
-
-  let payload;
-  try {
-    payload = sanitizePublicCheckoutPayload(parsed.body);
-  } catch (error) {
-    return json(event, error?.statusCode || 400, {
-      error: error?.message || "Invalid checkout.",
-      ...(error?.code ? { code: error.code } : {}),
-    });
+  if (parsed.error) return json(event, 400, { error: parsed.error }, { methods: METHODS });
+  const body = parsed.body || {};
+  const customerInput = body.customer && typeof body.customer === "object" ? body.customer : {};
+  const customer = {
+    name: cleanText(customerInput.name, 160),
+    email: cleanText(customerInput.email, 240).toLowerCase(),
+    phone: normalizeGhanaPhone(customerInput.phone),
+  };
+  if (!customer.name || (!customer.email && !customer.phone)) {
+    return json(event, 400, {
+      error: "Customer name and a valid email or phone number are required.",
+      code: "ORDER_CUSTOMER_REQUIRED",
+    }, { methods: METHODS });
+  }
+  if (customer.email && !EMAIL_PATTERN.test(customer.email)) {
+    return json(event, 400, {
+      error: "Enter a valid email address.",
+      code: "INVALID_CUSTOMER_EMAIL",
+    }, { methods: METHODS });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
-
+  const requestId = getHeaderValue(event, "x-request-id") || undefined;
+  const requestLogger = logger.child({ requestId });
+  const client = createDatabaseClient({ component: "public-orders-database" });
   try {
     await client.connect();
     const organizationId = await resolveConfiguredPublicOrganizationId(client);
     await applyRequestOrganizationContext(client, organizationId);
     const rateLimit = await applyWindowRateLimit(client, {
-      scope: `public-checkout:${organizationId}:ip`,
+      scope: `public-orders:${organizationId}:ip`,
       identifier: getRequestClientIp(event),
       limit: 12,
       windowMs: 15 * 60 * 1000,
     });
     if (!rateLimit.allowed) {
-      return json(
-        event,
-        429,
-        { error: "Too many checkout attempts. Try again later." },
-        { "Retry-After": String(rateLimit.retryAfterSeconds) }
-      );
+      return json(event, 429, {
+        error: "Too many order attempts. Try again later.",
+        code: "ORDER_RATE_LIMITED",
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+      }, { methods: METHODS });
     }
+    await ensureCrmContactTables(client);
 
-    const idempotencyKey = getHeaderValue(event, "idempotency-key");
     await client.query("BEGIN");
     try {
+      const customerRecord = await upsertCrmCustomerFromContact(client, organizationId, {
+        ...customer,
+        segmentOverride: "active",
+        matchByName: false,
+      });
+      const payload = sanitizePublicCheckoutPayload({
+        ...body,
+        customerId: customerRecord.id,
+      });
       const result = await createShopOrder(client, {
         organizationId,
         payload,
-        actor: { userId: null, userName: "Website checkout", userEmail: null },
+        actor: { userId: null, userName: "Storefront customer", userEmail: customer.email || null },
         idempotencyKey,
+        creationMode: "public_checkout",
       });
-      await writeAuditLog(client, {
-        organizationId,
-        action: result.idempotentReplay ? "PUBLIC_ORDER_IDEMPOTENT_REPLAY" : "PUBLIC_ORDER_CREATED",
-        targetType: "order",
-        targetId: String(result.orderNumber || result.orderId || ""),
-        source: "website",
-        category: "order",
-        severity: "info",
-        status: "ok",
-        summary: result.idempotentReplay
-          ? `Replayed website order ${result.orderNumber}.`
-          : `Created website order ${result.orderNumber}.`,
-        actorType: "customer",
-        actorLabel: "Website checkout",
-        requestId: getEventHeader(event, "x-request-id"),
-        ipAddress: getEventIpAddress(event),
-        metadata: {
-          itemCount: payload.items.length,
-          priceChangeAcknowledged: payload.acknowledgePriceChanges,
-          quoteFingerprint: payload.quoteFingerprint || null,
-        },
-      });
+      const created = await findPublicOrderByKey(client, organizationId, idempotencyKey);
       await client.query("COMMIT");
-      return json(event, result.idempotentReplay ? 200 : 201, result);
+      requestLogger.info({
+        eventName: "public_order.created",
+        organizationId,
+        orderNumber: created?.orderNumber || result.orderNumber,
+      }, "Public storefront order created");
+      if (!result.idempotentReplay) {
+        const notificationOrder = {
+          ...(created || result),
+          customerName: customer.name,
+        };
+        const supportEmail = getNotificationCatchallEmail();
+        const notificationResults = await Promise.allSettled([
+          notifyManager(client, buildOrderPlacedNotification(notificationOrder), { organizationId }),
+          sendNotificationEmail({
+            to: supportEmail,
+            subject: `New storefront order ${notificationOrder.orderNumber || ""}`.trim(),
+            text: buildInternalOrderPlacedText(notificationOrder),
+          }),
+          customer.email
+            ? sendNotificationEmail({
+                to: customer.email,
+                subject: `We received your order ${notificationOrder.orderNumber || ""}`.trim(),
+                text: buildCustomerOrderPlacedText(notificationOrder, { supportEmail }),
+              })
+            : Promise.resolve({ skipped: true, reason: "missing_customer_email" }),
+        ]);
+        notificationResults.forEach((notificationResult) => {
+          if (notificationResult.status === "rejected") {
+            requestLogger.warn({
+              err: notificationResult.reason,
+              eventName: "public_order.notification_failed",
+            }, "Order notification failed");
+          }
+        });
+      }
+      return json(
+        event,
+        result.idempotentReplay ? 200 : 201,
+        publicOrderResponse({ ...(created || result), idempotentReplay: result.idempotentReplay }),
+        { methods: METHODS }
+      );
     } catch (error) {
       await client.query("ROLLBACK").catch(() => {});
       throw error;
     }
   } catch (error) {
-    console.error("Public checkout failed:", error?.message || error);
-    return json(event, error?.statusCode || 500, {
-      error: error?.statusCode ? error.message : "Unable to create the order.",
+    const statusCode = Number(error?.statusCode) || 500;
+    requestLogger.error({
+      err: error,
+      eventName: "public_order.failed",
+      statusCode,
+    }, "Public storefront order failed");
+    return json(event, statusCode, {
+      error: statusCode >= 500 ? "Failed to create order." : error.message,
       ...(error?.code ? { code: error.code } : {}),
-      ...(error?.quote ? { quote: error.quote } : {}),
-    });
+    }, { methods: METHODS });
   } finally {
     await client.end().catch(() => {});
   }

@@ -12,7 +12,6 @@ import { useCart } from "../../components/CartContext/CartContext";
 import SearchField from "../../components/SearchField/SearchField";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
-import { reebsApiResponse } from "../../api/client.js";
 import {
   SYNC_STATES,
   createIndexedDbQueueStorage,
@@ -21,13 +20,31 @@ import {
 } from "@faako/offline-sync";
 import {
   buildQueuedInventoryAdjustment,
+  createInventoryAdjustmentIdempotencyKey,
   getInventoryAdjustmentFailureState,
   getQueuedInventoryAdjustmentNotice,
   isQueuedInventoryAdjustmentForScope,
 } from "./offlineInventoryAdjustmentQueue";
 import {
+  formatStockStatus,
+  getAvailableQuantity,
+  getInUseQuantity,
+  getItemType,
+  getItemVariants,
+  getQuantity,
+  getReorderLevel,
+  getReorderQuantity,
+  getReservedQuantity,
+  getStockStatus,
+  getVariantAvailableQty,
+  getVariantParentStock,
+  isInactiveVariant,
+  isVariantParentItem,
+} from "../../domains/inventory/inventoryViewModel";
+import {
   faEllipsisHorizontal,
   faFolderOpen,
+  faFileLines,
   faGear,
   faPlus,
   faRotateRight,
@@ -37,24 +54,6 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "../../icons/iconSet";
-
-const getQuantity = (item) => {
-  const raw = item?.quantity ?? item?.stock ?? 0;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
-
-const getReorderLevel = (item) => {
-  const raw = item?.reorderLevel ?? item?.reorder_level ?? item?.reorderlevel;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : 2;
-};
-
-const getReorderQuantity = (item) => {
-  const raw = item?.reorderQuantity ?? item?.reorder_quantity ?? item?.reorderquantity;
-  const parsed = Number(raw);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
 
 const getCategory = (item) =>
   item?.specificCategory ||
@@ -70,31 +69,21 @@ const getSourceCategoryId = (item) => {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
 
-const getItemType = (item) =>
-  String(item?.itemType || item?.inventoryItemType || "STANDARD").trim().toUpperCase() || "STANDARD";
-
-const isVariantParentItem = (item) => getItemType(item) === "VARIANT_PARENT";
-
-const getItemVariants = (item) => (Array.isArray(item?.variants) ? item.variants : []);
-
-const getVariantAvailableQty = (variant) =>
-  Number.isFinite(Number(variant?.availableQty))
-    ? Math.max(0, Number(variant.availableQty))
-    : Math.max(0, Number(variant?.stockQty ?? 0) - Number(variant?.reservedQty ?? 0));
-
-const isInactiveVariant = (variant) =>
-  String(variant?.status || "active").trim().toLowerCase() === "inactive";
-
-const getVariantParentStock = (variants) =>
-  (Array.isArray(variants) ? variants : []).reduce((sum, variant) => {
-    if (isInactiveVariant(variant)) return sum;
-    return sum + Math.max(0, Number(variant?.stockQty) || 0);
-  }, 0);
-
 const formatVariantName = (itemName, variant) =>
   [itemName, variant?.variantName, variant?.variantNumber, variant?.color, variant?.size]
     .filter(Boolean)
     .join(" / ");
+
+const INCOMING_INVENTORY_MOVEMENT_TYPES = new Set([
+  "stockin",
+  "return",
+  "restore",
+  "shop_return_restock",
+  "shop_sale_cancelled",
+]);
+
+const isIncomingInventoryMovement = (movement) =>
+  INCOMING_INVENTORY_MOVEMENT_TYPES.has(String(movement?.type || "").trim().toLowerCase());
 
 const parseVariantDimensionInput = (value) =>
   String(value || "")
@@ -227,24 +216,6 @@ const formatMoney = (value, currency = "GHS") => {
   }
 };
 
-const formatWholeMoney = (value, currency = "GHS") => {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return "-";
-  try {
-    return new Intl.NumberFormat("en-GH", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(Math.round(numeric));
-  } catch {
-    return `${currency} ${Math.round(numeric)}`;
-  }
-};
-
-const formatWholeMoneyFromCents = (value, currency = "GHS") =>
-  formatWholeMoney((Number(value) || 0) / 100, currency);
-
 const capitalizeWords = (value) =>
   String(value || "")
     .replace(/\b([a-z])/gi, (match) => match.toUpperCase())
@@ -371,8 +342,9 @@ const LIMITED_INVENTORY_EDIT_FIELDS = new Set(["name", "price", "stock", "descri
 const getIsMobileView = () =>
   typeof window !== "undefined" && window.matchMedia(MOBILE_VIEW_QUERY).matches;
 
+const CAD_TAX_RATE = 0.13;
 const INVENTORY_VIEW_MODES = new Set(["table", "cards", "activity"]);
-const INVENTORY_SCOPE_FILTERS = new Set(["all", "shop", "rental", "outsourced", "water"]);
+const INVENTORY_SCOPE_FILTERS = new Set(["all", "shop", "rental", "outsourced"]);
 const INVENTORY_STOCK_FILTERS = new Set(["all", "in", "out", "low"]);
 const INVENTORY_ADD_CATEGORY_VALUE = "__add_category__";
 const INVENTORY_ITEM_TYPE_OPTIONS = [
@@ -587,7 +559,6 @@ function Admin() {
   const [stockActivityError, setStockActivityError] = useState("");
   const [stockActivityLoading, setStockActivityLoading] = useState(false);
   const [activityDetail, setActivityDetail] = useState(null);
-  const [waterSnapshot, setWaterSnapshot] = useState(null);
   const [formState, setFormState] = useState({
     type: "StockIn",
     quantity: "",
@@ -607,6 +578,13 @@ function Admin() {
   const [detailError, setDetailError] = useState("");
   const [detailAutosaveStatus, setDetailAutosaveStatus] = useState("idle");
   const [detailAutosaveAt, setDetailAutosaveAt] = useState("");
+  const [movementHistory, setMovementHistory] = useState({
+    items: [],
+    pagination: null,
+    loading: false,
+    loaded: false,
+    error: "",
+  });
   const detailAutosaveTimerRef = useRef(null);
   const detailAutosaveBaselineRef = useRef("");
   const [editRequests, setEditRequests] = useState([]);
@@ -687,6 +665,7 @@ function Admin() {
   const canCreateInventoryCategories = isOwnerOrAdmin;
   const canManageInventoryLifecycle = isOwnerOrAdmin;
   const canViewUpdatedColumn = isSystemAdmin || userRole === "manager";
+  const canAccessWaterBusiness = isOwnerOrAdmin || userRole === "manager";
   const shouldShowUpdatedColumn = canViewUpdatedColumn;
   const detailAccessMessage = canEditAllInventoryFields
     ? "Admins can update every editable field on this item."
@@ -704,6 +683,13 @@ function Admin() {
         description: "Categories, inventory types, and source links.",
         to: "/admin/inventory/products",
         icon: faTags,
+      },
+      {
+        key: "inventory-templates",
+        label: "Templates",
+        description: "Email templates, terms, and inventory notes.",
+        to: "/admin/inventory/templates",
+        icon: faFileLines,
       },
       {
         key: "inventory-settings",
@@ -728,6 +714,11 @@ function Admin() {
     if (!Number.isFinite(gbpRateRaw) || gbpRateRaw <= 0) return null;
     return (1 / cadRate) * gbpRateRaw;
   }, [rates]);
+  const cadToGbpWithTaxRate = useMemo(() => {
+    if (!cadToGbpRate) return null;
+    return cadToGbpRate * (1 + CAD_TAX_RATE);
+  }, [cadToGbpRate]);
+
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
     const mediaQuery = window.matchMedia(MOBILE_VIEW_QUERY);
@@ -811,7 +802,7 @@ function Admin() {
     setLoading(true);
     setError("");
     try {
-      const response = await reebsApiResponse("/api/inventory");
+      const response = await fetch("/api/inventory");
       if (!response.ok) {
         throw new Error("Unable to fetch inventory.");
       }
@@ -831,7 +822,7 @@ function Admin() {
 
   const loadVendors = useCallback(async () => {
     try {
-      const response = await reebsApiResponse("/api/vendors");
+      const response = await fetch("/api/vendors");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Unable to fetch vendors.");
@@ -850,7 +841,7 @@ function Admin() {
   const loadSourceCategories = useCallback(async () => {
     setSourceCategoryError("");
     try {
-      const response = await reebsApiResponse("/api/sourceCategories");
+      const response = await fetch("/api/sourceCategories");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Unable to fetch products.");
@@ -870,7 +861,7 @@ function Admin() {
   const loadSpecificCategories = useCallback(async () => {
     setSourceCategoryError("");
     try {
-      const response = await reebsApiResponse("/api/specificCategories");
+      const response = await fetch("/api/specificCategories");
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Unable to fetch categories.");
@@ -899,7 +890,7 @@ function Admin() {
     );
     if (existing) return existing;
 
-    const response = await reebsApiResponse("/api/sourceCategories", {
+    const response = await fetch("/api/sourceCategories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: categoryName }),
@@ -928,7 +919,7 @@ function Admin() {
     const categoryName = normalizeInventoryCategoryName(nextName);
     if (!categoryName || categoryName.toLowerCase() === String(category.name || "").toLowerCase()) return;
 
-    const response = await reebsApiResponse("/api/sourceCategories", {
+    const response = await fetch("/api/sourceCategories", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: category.id, name: categoryName }),
@@ -981,7 +972,7 @@ function Admin() {
     setEditRequestsLoading(true);
     setEditRequestsError("");
     try {
-      const response = await reebsApiResponse("/api/inventory?view=edit-requests");
+      const response = await fetch("/api/inventory?view=edit-requests");
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load edit requests.");
@@ -1006,7 +997,7 @@ function Admin() {
     setLoading(true);
     setErrorState("");
     try {
-      const response = await reebsApiResponse(`/api/inventory?view=${view}`);
+      const response = await fetch(`/api/inventory?view=${view}`);
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Failed to load items.");
       setter(Array.isArray(data) ? data : []);
@@ -1041,7 +1032,7 @@ function Admin() {
     setStockActivityError("");
     try {
       const query = buildStockActivityQuery();
-      const res = await reebsApiResponse(`/api/stockActivity${query ? `?${query}` : ""}`);
+      const res = await fetch(`/api/stockActivity${query ? `?${query}` : ""}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Unable to load stock history.");
       setStockActivity(Array.isArray(data?.months) ? data.months : []);
@@ -1053,25 +1044,6 @@ function Admin() {
       setStockActivityLoading(false);
     }
   }, [buildStockActivityQuery]);
-
-  const loadWaterSnapshot = useCallback(async () => {
-    try {
-      const response = await reebsApiResponse("/api/water");
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.error || "Unable to load water summary.");
-      }
-      const summary = data?.summary && typeof data.summary === "object" ? data.summary : {};
-      setWaterSnapshot({
-        stock: Math.max(0, Number(summary.stockOnHand) || 0),
-        revenue: Number(summary.revenue) || 0,
-        profit: Number(summary.netProfit) || 0,
-      });
-    } catch (err) {
-      console.error("Failed to load water snapshot", err);
-      setWaterSnapshot(null);
-    }
-  }, []);
 
   const closeActivityDetail = useCallback(() => {
     setActivityDetail(null);
@@ -1091,7 +1063,7 @@ function Admin() {
 
     try {
       const query = buildStockActivityQuery({ month: monthKey, movementType });
-      const response = await reebsApiResponse(`/api/stockActivity?${query}`);
+      const response = await fetch(`/api/stockActivity?${query}`);
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data?.error || "Unable to load movement items.");
@@ -1197,7 +1169,6 @@ function Admin() {
   const refreshInventorySurface = useCallback(async () => {
     await Promise.all([
       refreshInventory(),
-      loadWaterSnapshot(),
       loadStockActivity(),
       loadSourceCategories(),
       canApproveInventoryEdits ? loadEditRequests() : Promise.resolve(),
@@ -1212,7 +1183,6 @@ function Admin() {
     loadStatusItems,
     loadStockActivity,
     loadSourceCategories,
-    loadWaterSnapshot,
     refreshInventory,
   ]);
 
@@ -1256,7 +1226,7 @@ function Admin() {
     try {
       const endpoint = queueItem.payload?.endpoint || {};
       const adjustment = queueItem.payload?.adjustment || {};
-      const response = await reebsApiResponse(endpoint.path || "/api/stock", {
+      const response = await fetch(endpoint.path || "/api/stock", {
         method: endpoint.method || "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(adjustment),
@@ -1374,10 +1344,6 @@ function Admin() {
   }, [isOnline, syncQueuedInventoryAdjustments]);
 
   useEffect(() => {
-    loadWaterSnapshot();
-  }, [loadWaterSnapshot]);
-
-  useEffect(() => {
     if (viewMode === "activity") return;
     setActivityDetail(null);
   }, [viewMode]);
@@ -1415,7 +1381,7 @@ function Admin() {
     if (!window.confirm(`Archive "${formatInventoryItemName(item.name, "This Item")}"?`)) return;
     setActionItemId(item.id);
     try {
-      const response = await reebsApiResponse("/api/inventory", {
+      const response = await fetch("/api/inventory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: item.id, action: "archive", ...buildActorPayload() }),
@@ -1444,7 +1410,7 @@ function Admin() {
     try {
       const restored = [];
       for (const id of archivedSelected) {
-        const response = await reebsApiResponse("/api/inventory", {
+        const response = await fetch("/api/inventory", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, action: "unarchive", ...buildActorPayload() }),
@@ -1482,7 +1448,7 @@ function Admin() {
     try {
       const deleted = [];
       for (const id of archivedSelected) {
-        const response = await reebsApiResponse("/api/inventory", {
+        const response = await fetch("/api/inventory", {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id, ...buildActorPayload() }),
@@ -1702,18 +1668,10 @@ function Admin() {
   );
 
   const coreInventory = useMemo(() => {
-    if (scopeFilter === "water") return inventory;
     return inventory.filter((item) => getInventorySegment(item) !== "water");
   }, [inventory, scopeFilter]);
-  const waterInventory = useMemo(() => {
-    if (scopeFilter === "water") return inventory;
-    return baseFilteredInventory.filter((item) => getInventorySegment(item) === "water");
-  }, [baseFilteredInventory, inventory, scopeFilter]);
   const primaryInventoryStats = useMemo(() => buildInventoryStats(coreInventory), [coreInventory]);
-  const waterInventoryStats = useMemo(() => buildInventoryStats(waterInventory), [waterInventory]);
-  const waterSnapshotProfitLabel = (Number(waterSnapshot?.profit) || 0) < 0 ? "Loss" : "Profit";
-  const waterSnapshotProfitDisplayValue = Math.abs(Number(waterSnapshot?.profit) || 0);
-  const stockHealthInventory = scopeFilter === "water" ? inventory : coreInventory;
+  const stockHealthInventory = coreInventory;
   const scopeSummaries = useMemo(() => {
     const summaryMap = new Map(
       ["shop", "rental", "outsourced", "water"].map((key) => [
@@ -1817,8 +1775,8 @@ function Admin() {
   const primaryAttentionRate = primaryInventoryStats.totalItems
     ? Math.round((primaryAttentionCount / primaryInventoryStats.totalItems) * 100)
     : 0;
-  const stockHealthTitle = scopeFilter === "water" ? "Water stock health" : "Core stock health";
-  const categoryUnitsTitle = scopeFilter === "water" ? "Water units by category" : "Core units by category";
+  const stockHealthTitle = "Core stock health";
+  const categoryUnitsTitle = "Core units by category";
   const detailIndex = useMemo(() => {
     if (!detailItem) return -1;
     return inventory.findIndex((item) => item.id === detailItem.id);
@@ -2119,7 +2077,7 @@ function Admin() {
     if (!option) return null;
     const linkedSource = findCanonicalSourceCategory(option.sourceCategoryCode);
     const sourceCategoryId = Number(linkedSource?.id);
-    const response = await reebsApiResponse("/api/specificCategories", {
+    const response = await fetch("/api/specificCategories", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2268,7 +2226,7 @@ function Admin() {
     setSubmitError("");
     setSuccess("");
     try {
-      const response = await reebsApiResponse("/api/inventory", {
+      const response = await fetch("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -2344,7 +2302,7 @@ function Admin() {
     try {
       const archived = [];
       for (const item of selectedItems) {
-        const response = await reebsApiResponse("/api/inventory", {
+        const response = await fetch("/api/inventory", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: item.id, action: "archive", ...buildActorPayload() }),
@@ -2519,8 +2477,8 @@ function Admin() {
               cadConversionAccepted: false,
               cadConversionRate: null,
               purchasePriceGbp:
-                value !== "" && cadToGbpRate
-                  ? (Number(value) * cadToGbpRate).toFixed(2)
+                value !== "" && cadToGbpWithTaxRate
+                  ? (Number(value) * cadToGbpWithTaxRate).toFixed(2)
                   : row.purchasePriceGbp,
               conversionAccepted: false,
               conversionRate: null,
@@ -2534,7 +2492,7 @@ function Admin() {
     setNewItemRows((prev) =>
       prev.map((row, i) => {
         if (i !== index) return row;
-        if (!accepted || !cadToGbpRate) {
+        if (!accepted || !cadToGbpWithTaxRate) {
           return {
             ...row,
             cadConversionAccepted: false,
@@ -2544,7 +2502,7 @@ function Admin() {
         return {
           ...row,
           cadConversionAccepted: true,
-          cadConversionRate: cadToGbpRate,
+          cadConversionRate: cadToGbpWithTaxRate,
         };
       })
     );
@@ -2717,7 +2675,7 @@ function Admin() {
           : row
       );
     });
-  }, [cadToGbpRate]);
+  }, [cadToGbpWithTaxRate]);
 
   const detailPurchasePriceGbp = detailForm?.purchasePriceGbp;
   useEffect(() => {
@@ -2825,7 +2783,7 @@ function Admin() {
         setNewItemError(`Row ${i + 1}: Purchase price (CAD) must be zero or higher.`);
         return;
       }
-      if (hasCadPrice && !cadToGbpRate) {
+      if (hasCadPrice && !cadToGbpWithTaxRate) {
         setNewItemError(`Row ${i + 1}: CAD conversion rate is unavailable.`);
         return;
       }
@@ -2836,8 +2794,8 @@ function Admin() {
       if (
         hasCadPrice &&
         row.cadConversionRate &&
-        cadToGbpRate &&
-        Math.abs(row.cadConversionRate - cadToGbpRate) > 0.0001
+        cadToGbpWithTaxRate &&
+        Math.abs(row.cadConversionRate - cadToGbpWithTaxRate) > 0.0001
       ) {
         setNewItemError(`Row ${i + 1}: CAD conversion rate changed. Please accept again.`);
         return;
@@ -2857,10 +2815,10 @@ function Admin() {
         const hasCadPrice = row.purchasePriceCad !== "" && row.purchasePriceCad !== null;
         const purchasePriceCadValue = hasCadPrice ? Number(row.purchasePriceCad) : null;
         const purchasePriceGbpFromCadValue =
-          hasCadPrice && cadToGbpRate
-            ? purchasePriceCadValue * cadToGbpRate
+          hasCadPrice && cadToGbpWithTaxRate
+            ? purchasePriceCadValue * cadToGbpWithTaxRate
             : null;
-        const response = await reebsApiResponse("/api/inventory", {
+        const response = await fetch("/api/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -2905,7 +2863,7 @@ function Admin() {
           const vColors = String(row.variantColors || "").split(",").map((s) => s.trim()).filter(Boolean);
           const vSizes = String(row.variantSizes || "").split(",").map((s) => s.trim()).filter(Boolean);
           if (vNames.length || vNumbers.length || vColors.length || vSizes.length) {
-            const vResponse = await reebsApiResponse("/api/inventoryVariants", {
+            const vResponse = await fetch("/api/inventoryVariants", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -3147,6 +3105,7 @@ function Admin() {
     setDetailError("");
     setDetailAutosaveStatus("idle");
     setDetailAutosaveAt("");
+    setMovementHistory({ items: [], pagination: null, loading: false, loaded: false, error: "" });
     const nextForm = buildDetailFormState(item);
     detailAutosaveBaselineRef.current = getDetailAutosaveSignature(nextForm);
     setDetailForm(nextForm);
@@ -3168,7 +3127,38 @@ function Admin() {
     setDetailError("");
     setDetailAutosaveStatus("idle");
     setDetailAutosaveAt("");
+    setMovementHistory({ items: [], pagination: null, loading: false, loaded: false, error: "" });
     detailAutosaveBaselineRef.current = "";
+  };
+
+  const loadMovementHistory = async (pageNumber = 1) => {
+    if (!detailItem?.id) return;
+    setMovementHistory((prev) => ({ ...prev, loading: true, error: "" }));
+    try {
+      const params = new URLSearchParams({
+        view: "movements",
+        productId: String(detailItem.id),
+        page: String(pageNumber),
+        pageSize: "10",
+      });
+      const response = await fetch(`/api/stockActivity?${params}`);
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload?.error || "Unable to load movement history.");
+      setMovementHistory({
+        items: Array.isArray(payload.items) ? payload.items : [],
+        pagination: payload.pagination || null,
+        loading: false,
+        loaded: true,
+        error: "",
+      });
+    } catch (historyError) {
+      setMovementHistory((prev) => ({
+        ...prev,
+        loading: false,
+        loaded: true,
+        error: historyError.message || "Unable to load movement history.",
+      }));
+    }
   };
 
   const updateDetailForm = (field, value) => {
@@ -3223,7 +3213,7 @@ function Admin() {
   };
 
   const fetchItemVariants = async (itemId) => {
-    const response = await reebsApiResponse(`/api/inventoryVariants?itemId=${encodeURIComponent(itemId)}`);
+    const response = await fetch(`/api/inventoryVariants?itemId=${encodeURIComponent(itemId)}`);
     const payload = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error(payload?.error || "Unable to load variants.");
@@ -3289,7 +3279,7 @@ function Admin() {
     if (!variantsToSave.length) return nextVariants;
 
     for (const payload of variantsToSave) {
-      const response = await reebsApiResponse("/api/inventoryVariants", {
+      const response = await fetch("/api/inventoryVariants", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -3313,7 +3303,7 @@ function Admin() {
     setVariantActionId(variantId);
     setDetailError("");
     try {
-      const response = await reebsApiResponse(
+      const response = await fetch(
         `/api/inventoryVariants?id=${encodeURIComponent(variantId)}`,
         { method: "DELETE" }
       );
@@ -3361,7 +3351,7 @@ function Admin() {
         setDetailError("Enter at least one dimension — names, numbers, colors, or sizes.");
         return;
       }
-      const response = await reebsApiResponse("/api/inventoryVariants", {
+      const response = await fetch("/api/inventoryVariants", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -3497,7 +3487,7 @@ function Admin() {
       let payload = detailItem || {};
 
       if (hasCoreChanges) {
-        response = await reebsApiResponse("/api/inventory", {
+        response = await fetch("/api/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -3565,10 +3555,10 @@ function Admin() {
         setDetailAutosaveStatus("saved");
         setDetailAutosaveAt(new Date().toISOString());
         setSuccess(payload?.message || "Changes sent for manager approval.");
-        
+
         // Reload the item from the database to prevent stale state since staff changes don't update immediately
         try {
-          const refreshed = await reebsApiResponse(`/api/inventory`);
+          const refreshed = await fetch(`/api/inventory`);
           if (refreshed.ok) {
             const allItems = await refreshed.json();
             const updatedItem = allItems?.find((item) => Number(item.id) === Number(formSnapshot.id));
@@ -3678,7 +3668,7 @@ function Admin() {
     setEditRequestsError("");
     setSuccess("");
     try {
-      const response = await reebsApiResponse("/api/inventory", {
+      const response = await fetch("/api/inventory", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId: request.id, action }),
@@ -3729,11 +3719,21 @@ function Admin() {
     }
 
     const stockAdjustmentPayload = {
+      idempotencyKey: createInventoryAdjustmentIdempotencyKey(),
       productId: activeItem.id,
       variantId: formState.variantId || undefined,
       type: formState.type,
+      reasonCode:
+        getInventorySegment(activeItem) === "rental"
+          ? "CAPACITY_CORRECTION"
+          : formState.type === "StockIn"
+            ? "RECEIVE"
+            : "REMOVE",
       quantity: parsedQty,
-      soldMonth: formState.type === "StockOut" ? formState.soldMonth : null,
+      soldMonth:
+        formState.type === "StockOut" && getInventorySegment(activeItem) !== "rental"
+          ? formState.soldMonth
+          : null,
       notes: formState.notes.trim() || undefined,
       reference: formState.reference.trim() || undefined,
       userId: user?.id,
@@ -3752,7 +3752,7 @@ function Admin() {
         return;
       }
 
-      const response = await reebsApiResponse("/api/stock", {
+      const response = await fetch("/api/stock", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(stockAdjustmentPayload),
@@ -3923,30 +3923,6 @@ function Admin() {
               </div>
             </article>
           </div>
-
-          {waterInventoryStats.totalItems > 0 && scopeFilter !== "water" && waterSnapshot && (
-            <Link className="inventory-water-strip bubble-card" to="/admin/water" aria-label="Open water module">
-              <div className="inventory-water-strip-head">
-                <div className="inventory-water-strip-copy">
-                  <h3>GWater</h3>
-                </div>
-              </div>
-              <div className="inventory-water-strip-stats">
-                <div className="inventory-water-stat bubble-card">
-                  <span>Stock</span>
-                  <strong>{waterSnapshot.stock}</strong>
-                </div>
-                <div className="inventory-water-stat bubble-card">
-                  <span>Revenue</span>
-                  <strong>{formatWholeMoneyFromCents(waterSnapshot.revenue)}</strong>
-                </div>
-                <div className="inventory-water-stat bubble-card">
-                  <span>{waterSnapshotProfitLabel}</span>
-                  <strong>{formatWholeMoneyFromCents(waterSnapshotProfitDisplayValue)}</strong>
-                </div>
-              </div>
-            </Link>
-          )}
 
           <div className="inventory-kpi-visuals">
             <article className="inventory-kpi-chart-card bubble-card">
@@ -4408,7 +4384,6 @@ function Admin() {
                         aria-label="Select visible inventory items"
                       />
                     </th>
-                    <th className="table-row-index">#</th>
                     <th className="inventory-cell-id">
                       <button type="button" className="sort-header" onClick={() => requestSort("id")}>
                         ID <span className="sort-indicator">{sortIndicator("id")}</span>
@@ -4462,13 +4437,17 @@ function Admin() {
                 <tbody>
                   {!loading && inventory.length === 0 && (
                     <tr>
-                      <td colSpan={shouldShowUpdatedColumn ? 12 : 11} className="admin-empty">
+                      <td colSpan={shouldShowUpdatedColumn ? 11 : 10} className="admin-empty">
                         No items found in inventory.
                       </td>
                     </tr>
                   )}
                   {paginatedInventory.map((item, index) => {
                     const quantity = getQuantity(item);
+                    const availableQuantity = getAvailableQuantity(item);
+                    const reservedQuantity = getReservedQuantity(item);
+                    const inUseQuantity = getInUseQuantity(item);
+                    const stockStatus = getStockStatus(item);
                     const isOut = quantity <= 0;
                     const isLow = isLowStockItem(item);
                     const isMenuOpen = openMenuId === item.id;
@@ -4496,9 +4475,6 @@ function Admin() {
                             disabled={!canCreateInventoryCategories}
                             aria-label={`Select ${formatInventoryItemName(item.name, "item")}`}
                           />
-                        </td>
-                        <td className="table-row-index">
-                          <span className="inventory-table-text">{clampedPage * pageSize + index}</span>
                         </td>
                         <td className="inventory-cell-id">
                           <span className="inventory-table-text">{item.id}</span>
@@ -4533,7 +4509,7 @@ function Admin() {
                         )}
                         <td className="inventory-cell-stock">
                           <div className="inventory-table-stock">
-                            <span className="admin-stock">{quantity}</span>
+                            <strong className="admin-stock">{quantity}</strong>
                           </div>
                         </td>
                         <td className="inventory-cell-price">
@@ -4561,7 +4537,7 @@ function Admin() {
                                 }}
                               >
                                 <AppIcon icon={faEllipsisHorizontal} size={14} />
-                                <span>Actions</span>
+
                               </button>
                               <div
                                 className={`bookings-menu-list inventory-menu-list ${openMenuId === item.id ? "open" : ""}`}
@@ -4579,7 +4555,7 @@ function Admin() {
                                 >
                                   Edit item
                                 </button>
-                                  {canAdjustInventoryStockDirectly && getInventorySegment(item) !== "rental" && (
+                                  {canAdjustInventoryStockDirectly && (
                                     <button
                                       type="button"
                                       className="inventory-menu-adjust"
@@ -4649,7 +4625,6 @@ function Admin() {
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
                       <td className="admin-table-summary-cell is-empty" />
-                      <td className="admin-table-summary-cell is-empty" />
                       {shouldShowUpdatedColumn && <td className="admin-table-summary-cell is-empty" />}
                       <td className="admin-table-summary-cell">
                         <span className="admin-table-summary-value">{inventoryTableSummary.stockTotal}</span>
@@ -4681,6 +4656,10 @@ function Admin() {
                 )}
                 {paginatedInventory.map((item) => {
                 const quantity = getQuantity(item);
+                const availableQuantity = getAvailableQuantity(item);
+                const reservedQuantity = getReservedQuantity(item);
+                const inUseQuantity = getInUseQuantity(item);
+                const stockStatus = getStockStatus(item);
                 const isOut = quantity <= 0;
                 const isLow = isLowStockItem(item);
                 const isInteractive = true;
@@ -4708,9 +4687,11 @@ function Admin() {
 	                  >
 	                    <div className="inventory-card-head">
 	                      <div className="inventory-card-head-main">
-	                        <span className="admin-product-id">ID {item.id}</span>
                           <div className="inventory-card-badges">
                             <span className={`inventory-type-pill is-${segment}`}>{segmentLabel}</span>
+                            <span className={`inventory-stock-status is-${stockStatus}`}>
+                              {formatStockStatus(stockStatus)}
+                            </span>
                           </div>
 	                      </div>
 	                      <div className="inventory-card-head-actions">
@@ -4762,7 +4743,7 @@ function Admin() {
 	                              >
 	                                Edit item
 	                              </button>
-	                              {canAdjustInventoryStockDirectly && getInventorySegment(item) !== "rental" && (
+	                              {canAdjustInventoryStockDirectly && (
 	                                <button
 	                                  type="button"
 	                                  className="inventory-menu-adjust"
@@ -4829,6 +4810,12 @@ function Admin() {
 	                        <p className="inventory-card-sub">Barcode {item.barcode}</p>
 	                      )}
 	                      <p className="inventory-card-sub">{getCategory(item)}</p>
+                        <p className="inventory-card-sub inventory-card-subtle">
+                          {availableQuantity === null
+                            ? `Availability by booking date · ${reservedQuantity} committed`
+                            : `Available ${availableQuantity} · Reserved ${reservedQuantity}`}
+                          {inUseQuantity > 0 ? ` · In use ${inUseQuantity}` : ""}
+                        </p>
                         {segment === "rental" && Number(item.attendantsNeeded) > 0 && (
                           <p className="inventory-card-sub inventory-card-subtle">
                             {item.attendantsNeeded} attendants needed
@@ -5059,7 +5046,7 @@ function Admin() {
                 const hasPurchasePriceGbp = row.purchasePriceGbp !== "" && row.purchasePriceGbp !== null;
                 const hasPurchasePriceCad = row.purchasePriceCad !== "" && row.purchasePriceCad !== null;
                 const isGbpLockedToCad = hasPurchasePriceCad;
-                const isGbpDerivedFromCad = hasPurchasePriceCad && Boolean(cadToGbpRate);
+                const isGbpDerivedFromCad = hasPurchasePriceCad && Boolean(cadToGbpWithTaxRate);
 
                 return (
                   <div key={index} className="admin-new-item-row bubble-card">
@@ -5260,9 +5247,9 @@ function Admin() {
                               <span className="admin-purchase-cedis">
                                 <span>GBP Base</span>
                                 <strong>
-                                  {cadToGbpRate
+                                  {cadToGbpWithTaxRate
                                     ? formatMoney(
-                                        Number(row.purchasePriceCad) * cadToGbpRate,
+                                        Number(row.purchasePriceCad) * cadToGbpWithTaxRate,
                                         "GBP"
                                       )
                                     : "Rate unavailable"}
@@ -5270,17 +5257,17 @@ function Admin() {
                               </span>
                             )}
                             {hasPurchasePriceCad &&
-                              (cadToGbpRate ? (
+                              (cadToGbpWithTaxRate ? (
                                 <label className="admin-checkbox admin-purchase-accept">
                                   <input
                                     type="checkbox"
                                     checked={
                                       row.cadConversionAccepted &&
-                                      row.cadConversionRate === cadToGbpRate
+                                      row.cadConversionRate === cadToGbpWithTaxRate
                                     }
                                     onChange={(e) => handleCadConversionAccept(index, e.target.checked)}
                                   />
-                                  Use 1 CAD = GBP {cadToGbpRate.toFixed(4)} (taxes and fees not included)
+                                  Use 1 CAD = GBP {cadToGbpWithTaxRate.toFixed(4)}
                                 </label>
                               ) : (
                                 <p className="admin-purchase-note">CAD to GBP rate unavailable.</p>
@@ -5679,13 +5666,16 @@ function Admin() {
                     step="1"
                   value={detailForm.stock}
                   onChange={(event) => updateDetailForm("stock", event.target.value)}
-                    disabled={!isDetailFieldEditable("stock") || detailForm.itemType === "VARIANT_PARENT"}
+                    disabled
                   />
                   {detailForm.itemType === "VARIANT_PARENT" && (
                     <span className="admin-field-hint">Parent stock is the sum of its variants.</span>
                   )}
                   {getInventorySegment(detailForm) === "rental" && detailForm.itemType !== "VARIANT_PARENT" && (
-                    <span className="admin-field-hint">How many physical units you own. Availability is calculated per booking date.</span>
+                    <span className="admin-field-hint">Capacity is changed with Adjust stock. Availability is calculated per booking date.</span>
+                  )}
+                  {getInventorySegment(detailForm) !== "rental" && detailForm.itemType !== "VARIANT_PARENT" && (
+                    <span className="admin-field-hint">Use Adjust stock so every quantity change is validated and recorded.</span>
                   )}
                 </label>
                 <label>
@@ -6083,6 +6073,74 @@ function Admin() {
                 />
               </label>
 
+              <section className="inventory-detail-history bubble-card" aria-labelledby="inventory-history-title">
+                <div className="inventory-detail-history-head">
+                  <div>
+                    <h3 id="inventory-history-title">Movement history</h3>
+                    <p>Stock changes are append-only and show who changed what.</p>
+                  </div>
+                  {!movementHistory.loaded && (
+                    <button
+                      type="button"
+                      className="admin-secondary"
+                      onClick={() => loadMovementHistory(1)}
+                      disabled={movementHistory.loading}
+                    >
+                      {movementHistory.loading ? "Loading..." : "Load history"}
+                    </button>
+                  )}
+                </div>
+                {movementHistory.error && (
+                  <ERPFormNotice tone="danger" title="History unavailable">
+                    {movementHistory.error}
+                  </ERPFormNotice>
+                )}
+                {movementHistory.loaded && !movementHistory.loading && !movementHistory.error && movementHistory.items.length === 0 && (
+                  <p className="admin-empty">No stock movements have been recorded for this item.</p>
+                )}
+                {movementHistory.items.length > 0 && (
+                  <div className="inventory-detail-history-list">
+                    {movementHistory.items.map((movement) => {
+                      const isIncoming = isIncomingInventoryMovement(movement);
+                      return (
+                        <article key={movement.id} className="inventory-detail-history-row">
+                          <div>
+                            <strong>{isIncoming ? "Stock added" : "Stock removed"}</strong>
+                            <span>{movement.reference || movement.sourceType || "Inventory adjustment"}</span>
+                            <small>{movement.performedByName || "System"} · {formatDateTime(movement.date)}</small>
+                          </div>
+                          <div className="inventory-detail-history-quantity">
+                            <strong>{isIncoming ? "+" : "-"}{movement.quantity}</strong>
+                            {movement.resultingStock != null && <span>Balance {movement.resultingStock}</span>}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+                {movementHistory.pagination?.pageCount > 1 && (
+                  <div className="inventory-detail-history-pagination">
+                    <button
+                      type="button"
+                      className="admin-secondary"
+                      onClick={() => loadMovementHistory(movementHistory.pagination.page - 1)}
+                      disabled={movementHistory.loading || movementHistory.pagination.page <= 1}
+                    >
+                      Previous
+                    </button>
+                    <span>Page {movementHistory.pagination.page} of {movementHistory.pagination.pageCount}</span>
+                    <button
+                      type="button"
+                      className="admin-secondary"
+                      onClick={() => loadMovementHistory(movementHistory.pagination.page + 1)}
+                      disabled={movementHistory.loading || movementHistory.pagination.page >= movementHistory.pagination.pageCount}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </section>
+
               {detailError && (
                 <ERPFormNotice tone="danger" title="Item not saved" onDismiss={() => setDetailError("")}>
                   {detailError}
@@ -6170,7 +6228,9 @@ function Admin() {
                   <option value="StockOut">Remove stock</option>
                 </SelectField>
                 <small className="admin-form-hint">
-                  Add for new deliveries, remove for sales or damage.
+                  {getInventorySegment(activeItem) === "rental"
+                    ? "Add or remove physical rental capacity. Existing bookings protect the minimum capacity."
+                    : "Add for new deliveries, remove for sales or damage."}
                 </small>
               </label>
 
@@ -6214,7 +6274,7 @@ function Admin() {
                 <small className="admin-form-hint">Enter the number of items added or removed.</small>
               </label>
 
-              {formState.type === "StockOut" && (
+              {formState.type === "StockOut" && getInventorySegment(activeItem) !== "rental" && (
                 <div>
                   <MonthField
                     label="Month sold"
