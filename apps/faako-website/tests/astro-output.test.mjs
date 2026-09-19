@@ -97,7 +97,8 @@ test("404, error, redirects, and forms use the Astro deployment contract", () =>
 
   assert.ok(notFound.includes('content="noindex, nofollow"'));
   assert.ok(serverError.includes('content="noindex, nofollow"'));
-  assert.equal(redirects.trim(), "/case-studies/* /case-studies 301");
+  assert.match(redirects, /^\/case-studies\/\* \/case-studies 301$/m);
+  assert.match(redirects, /^\/\* \/404\.html 404$/m);
   assert.ok(!redirects.includes("index.html 200"), "SPA fallback must not remain");
   const signupAction = signup.match(/<form[^>]+action="([^"]+)"/)?.[1];
   const setupAction = clientSetup.match(/<form[^>]+action="([^"]+)"/)?.[1];
