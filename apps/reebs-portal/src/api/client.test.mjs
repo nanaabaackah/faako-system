@@ -59,3 +59,34 @@ test("REEBS compatibility client preserves legacy error-response handling", asyn
     error: "You do not have permission to complete this action.",
   });
 });
+
+test("login failures preserve the backend credential error instead of reporting an expired session", async () => {
+  const api = createReebsPortalApi({
+    fetch: async () =>
+      new Response(JSON.stringify({ error: "Invalid credentials." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", "X-Request-Id": "req-login" },
+      }),
+  });
+
+  const response = await api.response("/api/v1/auth/login", { method: "POST" });
+  assert.equal(response.status, 401);
+  assert.equal(response.headers.get("x-request-id"), "req-login");
+  assert.deepEqual(await response.json(), { error: "Invalid credentials." });
+});
+
+test("a rejected authenticated request reports that the session has expired", async () => {
+  const api = createReebsPortalApi({
+    fetch: async () =>
+      new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      }),
+  });
+
+  const response = await api.response("/api/inventory");
+  assert.equal(response.status, 401);
+  assert.deepEqual(await response.json(), {
+    error: "Your session has expired. Sign in again.",
+  });
+});
