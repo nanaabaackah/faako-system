@@ -16,6 +16,8 @@ NODE_ENV=production
 # -----------------------------------------------------------------------------
 DATABASE_URL=<railway-staging-postgres-url>
 USER_APP_SECRET=<staging-random-secret-minimum-32-characters>
+REEBS_ADMIN_BOOTSTRAP_ENABLED=false
+REEBS_ADMIN_BOOTSTRAP_SECRET=<temporary-staging-bootstrap-secret-minimum-32-characters>
 ENFORCE_DATABASE_ISOLATION=true
 
 # Optional database TLS overrides. Remote database TLS is enabled by default.

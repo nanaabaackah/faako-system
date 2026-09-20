@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./Login.css";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
@@ -28,12 +28,105 @@ function Login({ mode = "staff" }) {
   const [forgotError, setForgotError] = useState("");
   const [forgotStatus, setForgotStatus] = useState("");
   const [forgotSubmitting, setForgotSubmitting] = useState(false);
+  const [accountMode, setAccountMode] = useState("signin");
+  const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
+  const [accountSubmitting, setAccountSubmitting] = useState(false);
+  const [accountError, setAccountError] = useState("");
+  const [accountStatus, setAccountStatus] = useState("");
+  const [accountForm, setAccountForm] = useState({
+    token: "",
+    setupCode: "",
+    firstName: "",
+    lastName: "",
+    personalEmail: "",
+    password: "",
+    confirmPassword: "",
+  });
   const pageId = isCustomer ? "customer-login" : "staff-login";
   const errorMessage = isCustomer
     ? localError
-    : forgotMode
+    : accountMode !== "signin"
+      ? accountError
+      : forgotMode
       ? forgotError
       : localError || authError;
+
+  useEffect(() => {
+    if (isCustomer) return;
+    reebsApiResponse("/api/v1/auth/bootstrap/status", { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : { available: false })
+      .then((data) => setBootstrapAvailable(data?.available === true))
+      .catch(() => setBootstrapAvailable(false));
+
+    const hash = window.location.hash || "";
+    if (hash.startsWith("#invite=")) {
+      const token = decodeURIComponent(hash.slice("#invite=".length));
+      setAccountForm((current) => ({ ...current, token }));
+      setAccountMode("activate");
+      window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
+    }
+  }, [isCustomer]);
+
+  const openAccountMode = (mode) => {
+    setForgotMode(false);
+    setLocalError("");
+    setAccountError("");
+    setAccountStatus("");
+    setAccountMode(mode);
+  };
+
+  const closeAccountMode = () => {
+    setAccountMode("signin");
+    setAccountError("");
+    setAccountStatus("");
+  };
+
+  const handleAccountSubmit = async (event) => {
+    event.preventDefault();
+    setAccountError("");
+    setAccountStatus("");
+    if (accountForm.password.length < 12) {
+      setAccountError("Use a password of at least 12 characters.");
+      return;
+    }
+    if (accountForm.password !== accountForm.confirmPassword) {
+      setAccountError("The passwords do not match.");
+      return;
+    }
+    setAccountSubmitting(true);
+    try {
+      const isBootstrap = accountMode === "bootstrap";
+      const response = await reebsApiResponse(
+        isBootstrap ? "/api/v1/auth/bootstrap" : "/api/v1/auth/invitations/accept",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(isBootstrap ? {
+            setupCode: accountForm.setupCode,
+            firstName: accountForm.firstName,
+            lastName: accountForm.lastName,
+            personalEmail: accountForm.personalEmail,
+            password: accountForm.password,
+          } : {
+            token: accountForm.token,
+            personalEmail: accountForm.personalEmail,
+            password: accountForm.password,
+          }),
+        }
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "Unable to activate the account.");
+      setAccountStatus(data?.message || "Account created. You can now sign in.");
+      setForm((current) => ({ ...current, email: data?.username || (isBootstrap ? "system_admin" : current.email) }));
+      setBootstrapAvailable(false);
+      setAccountForm({ token: "", setupCode: "", firstName: "", lastName: "", personalEmail: "", password: "", confirmPassword: "" });
+      setAccountMode("signin");
+    } catch (error) {
+      setAccountError(error.message || "Unable to activate the account.");
+    } finally {
+      setAccountSubmitting(false);
+    }
+  };
 
   const openForgotPassword = () => {
     setForgotMode(true);
@@ -179,6 +272,10 @@ function Login({ mode = "staff" }) {
                 <h2>
                   {isCustomer
                     ? "Pick up where you left off"
+                    : accountMode === "bootstrap"
+                      ? "Set up administrator"
+                      : accountMode === "activate"
+                        ? "Activate your account"
                     : forgotMode
                       ? "Reset your password"
                       : "Sign in to continue"}
@@ -186,6 +283,10 @@ function Login({ mode = "staff" }) {
                 <p className="login-subtitle">
                   {isCustomer
                     ? "Customer accounts run through your booking details. Enter your email and phone number and we’ll take you into the booking flow."
+                    : accountMode === "bootstrap"
+                      ? "Create the first system administrator using the one-time setup code configured for this environment."
+                      : accountMode === "activate"
+                        ? "Use the single-use invitation from your administrator and choose your own password."
                     : forgotMode
                       ? forgotNeedsPersonalEmail
                         ? forgotRequiresPhoneVerification
@@ -198,7 +299,7 @@ function Login({ mode = "staff" }) {
 
               <form
                 className="login-form"
-                onSubmit={forgotMode && !isCustomer ? handleForgotSubmit : handleSubmit}
+                onSubmit={accountMode !== "signin" && !isCustomer ? handleAccountSubmit : forgotMode && !isCustomer ? handleForgotSubmit : handleSubmit}
               >
                 <div className="login-form-stack">
                   <label className="login-field">
@@ -248,6 +349,43 @@ function Login({ mode = "staff" }) {
                         required
                       />
                     </label>
+                  ) : accountMode !== "signin" ? (
+                    <>
+                      {accountMode === "bootstrap" && (
+                        <>
+                          <label className="login-field">
+                            <span className="login-field-label">First name</span>
+                            <input value={accountForm.firstName} onChange={(event) => setAccountForm((current) => ({ ...current, firstName: event.target.value }))} autoComplete="given-name" required />
+                          </label>
+                          <label className="login-field">
+                            <span className="login-field-label">Last name</span>
+                            <input value={accountForm.lastName} onChange={(event) => setAccountForm((current) => ({ ...current, lastName: event.target.value }))} autoComplete="family-name" required />
+                          </label>
+                          <label className="login-field">
+                            <span className="login-field-label">One-time setup code</span>
+                            <input type="password" value={accountForm.setupCode} onChange={(event) => setAccountForm((current) => ({ ...current, setupCode: event.target.value }))} autoComplete="off" required />
+                          </label>
+                        </>
+                      )}
+                      {accountMode === "activate" && (
+                        <label className="login-field">
+                          <span className="login-field-label">Invitation code</span>
+                          <input value={accountForm.token} onChange={(event) => setAccountForm((current) => ({ ...current, token: event.target.value }))} autoComplete="off" required />
+                        </label>
+                      )}
+                      <label className="login-field">
+                        <span className="login-field-label">Personal email</span>
+                        <input type="email" value={accountForm.personalEmail} onChange={(event) => setAccountForm((current) => ({ ...current, personalEmail: event.target.value }))} autoComplete="email" required />
+                      </label>
+                      <label className="login-field">
+                        <span className="login-field-label">Password</span>
+                        <input type="password" value={accountForm.password} onChange={(event) => setAccountForm((current) => ({ ...current, password: event.target.value }))} autoComplete="new-password" minLength={12} required />
+                      </label>
+                      <label className="login-field">
+                        <span className="login-field-label">Confirm password</span>
+                        <input type="password" value={accountForm.confirmPassword} onChange={(event) => setAccountForm((current) => ({ ...current, confirmPassword: event.target.value }))} autoComplete="new-password" minLength={12} required />
+                      </label>
+                    </>
                   ) : forgotMode ? (
                     <>
                       <p className="login-customer-note" role="note">
@@ -338,6 +476,7 @@ function Login({ mode = "staff" }) {
                 {forgotMode && forgotStatus && (
                   <p className="login-customer-note" role="status">{forgotStatus}</p>
                 )}
+                {accountStatus && <p className="login-customer-note" role="status">{accountStatus}</p>}
 
                 <button
                   type="submit"
@@ -352,6 +491,10 @@ function Login({ mode = "staff" }) {
                 >
                   {isCustomer
                     ? "Continue to booking"
+                    : accountMode !== "signin"
+                      ? accountSubmitting
+                        ? "Creating account..."
+                        : accountMode === "bootstrap" ? "Create administrator" : "Activate account"
                     : forgotMode
                       ? forgotSubmitting
                         ? forgotNeedsPersonalEmail
@@ -369,6 +512,11 @@ function Login({ mode = "staff" }) {
                     Back to sign in
                   </button>
                 )}
+                {accountMode !== "signin" && !isCustomer && (
+                  <button type="button" className="login-link" onClick={closeAccountMode} disabled={accountSubmitting}>
+                    Back to sign in
+                  </button>
+                )}
               </form>
 
               <div className="login-switches">
@@ -380,6 +528,19 @@ function Login({ mode = "staff" }) {
                     <a href={buildWebsiteUrl("/customer-login")}>Customer login</a>
                   )}
                 </div>
+
+                {!isCustomer && accountMode === "signin" && !forgotMode && (
+                  <div className="login-switch">
+                    <span>New team member?</span>
+                    <button type="button" className="login-link" onClick={() => openAccountMode("activate")}>Activate invitation</button>
+                  </div>
+                )}
+                {!isCustomer && accountMode === "signin" && !forgotMode && bootstrapAvailable && (
+                  <div className="login-switch">
+                    <span>First-time setup?</span>
+                    <button type="button" className="login-link" onClick={() => openAccountMode("bootstrap")}>Create first administrator</button>
+                  </div>
+                )}
 
                 <div className="login-switch">
                   <span>Need help?</span>

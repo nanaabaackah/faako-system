@@ -45,6 +45,7 @@ model Organization {
   websiteContents WebsiteContent[]
   accountingManualSales AccountingManualSales[]
   userSessions    UserSession[]
+  userInvitations UserInvitation[]
   managerDevices  ManagerDevice[]
   paymentAttempts PaymentAttempt[]
   paymentRecords PaymentRecord[]
@@ -436,6 +437,29 @@ model UserSession {
   @@index([userId, organizationId])
   @@index([organizationId, expiresAt, revokedAt])
   @@map("userSession")
+}
+
+model UserInvitation {
+  id              String       @id
+  organizationId  Int
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  email           String
+  firstName       String
+  lastName        String
+  fullName        String
+  role            String
+  permissions     Json?
+  tokenHash       String       @unique
+  createdByUserId Int?
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId, email])
+  @@index([organizationId, expiresAt, acceptedAt, revokedAt])
+  @@map("userInvitation")
 }
 
 model EmployeeProfile {
