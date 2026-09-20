@@ -13,11 +13,11 @@ const TEMPLATE = `/admin ${PORTAL_ORIGIN_MARKER}/ 302\n/login ${PORTAL_ORIGIN_MA
 test("storefront redirects use the configured staging portal origin", () => {
   const output = finalizePortalRedirects(
     TEMPLATE,
-    "https://portal-stage.reebspartythemes.com/admin?ignored=true",
+    "https://stage.portal.reebspartythemes.com/admin?ignored=true",
   );
 
-  assert.match(output, /\/admin https:\/\/portal-stage\.reebspartythemes\.com\/ 302/);
-  assert.match(output, /\/login https:\/\/portal-stage\.reebspartythemes\.com\/ 302/);
+  assert.match(output, /\/admin https:\/\/stage\.portal\.reebspartythemes\.com\/ 302/);
+  assert.match(output, /\/login https:\/\/stage\.portal\.reebspartythemes\.com\/ 302/);
   assert.doesNotMatch(output, new RegExp(PORTAL_ORIGIN_MARKER));
 });
 

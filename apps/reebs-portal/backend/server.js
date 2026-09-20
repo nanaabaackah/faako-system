@@ -10,6 +10,7 @@ import { buildHealthPayload, checkDatabaseReadiness, checkWaterReadiness, closeH
 import { buildResponseHeaders } from "./functions/_shared/http.js";
 import { isDatabaseConnectionError } from "./functions/_shared/databaseClient.js";
 import { createLogger } from "./functions/_shared/logger.js";
+import { REEBS_V1_HANDLER_ALIASES, resolveReebsV1Handler } from "./versionedRoutes.js";
 
 const backendDir = path.dirname(fileURLToPath(import.meta.url));
 const functionsDir = path.join(backendDir, "functions");
@@ -322,6 +323,16 @@ export const createReebsApiServer = () => {
   app.all("/api/webhook/railway", (req, res) =>
     dispatchFunctionRequest(req, res, "railwayEvents")
   );
+
+  app.all(Object.keys(REEBS_V1_HANDLER_ALIASES), (req, res, next) => {
+    const requestPath = new URL(
+      req.originalUrl || req.url || "/",
+      getRequestBaseUrl(req)
+    ).pathname;
+    const functionName = resolveReebsV1Handler(requestPath);
+    if (!functionName) return next();
+    return dispatchFunctionRequest(req, res, functionName);
+  });
 
   app.all("/api/:functionName", (req, res) =>
     dispatchFunctionRequest(req, res, req.params.functionName)
