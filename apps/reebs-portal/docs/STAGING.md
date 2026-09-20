@@ -82,6 +82,20 @@ Required when the corresponding staging workflow is exercised:
 - `WHATSAPP_PHONE_NUMBER_ID`
 - `WHATSAPP_MANAGER_PHONE`
 
+Required only while creating the first administrator in an empty staging
+organization:
+
+- `REEBS_ADMIN_BOOTSTRAP_ENABLED`
+- `REEBS_ADMIN_BOOTSTRAP_SECRET`
+
+Set the enable flag to `true` and use a unique secret of at least 32 characters.
+The login page exposes the setup form only while the configured public
+organization has no users. After creating the first administrator, remove the
+secret and set the enable flag back to `false`. Later accounts use single-use,
+72-hour invitations created by an authorized portal administrator; invitees set
+their own password on the login page. Raw invitation tokens are returned once
+and stored only as SHA-256 hashes.
+
 Optional operational controls are documented by name in `.env.example`.
 For a copy-ready placeholder inventory separated by API, portal, and storefront
 scope, use [RAILWAY_STAGING_VARIABLES.example.txt](./RAILWAY_STAGING_VARIABLES.example.txt).

@@ -124,10 +124,11 @@ function AdminRoles() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteSaving, setInviteSaving] = useState(false);
   const [inviteError, setInviteError] = useState("");
-  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", role: "Staff", password: "" });
+  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", role: "Staff" });
+  const [inviteResult, setInviteResult] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
   const inviteDirty = inviteOpen && Boolean(
-    inviteForm.firstName || inviteForm.lastName || inviteForm.password || inviteForm.role !== "Staff"
+    inviteForm.firstName || inviteForm.lastName || inviteForm.role !== "Staff"
   );
   const permissionDirty = Boolean(
     detailUser &&
@@ -321,41 +322,27 @@ function AdminRoles() {
     try {
       const trimmedFirst = inviteForm.firstName.trim();
       const trimmedLast = inviteForm.lastName.trim();
-      const trimmedPassword = inviteForm.password.trim();
       if (!trimmedFirst || !trimmedLast) {
         throw new Error("First and last name are required.");
       }
-      if (!trimmedPassword) {
-        throw new Error("Password is required.");
-      }
-
       const validation = userAccessFormSchema.safeParse({
         firstName: trimmedFirst,
         lastName: trimmedLast,
-        password: trimmedPassword,
         role: inviteForm.role,
       });
       if (!validation.success) {
         throw new Error(validationIssues(validation.error)[0]?.message || "User details are invalid.");
       }
 
-      const res = await reebsApiResponse("/api/users", {
+      const res = await reebsApiResponse("/api/v1/auth/invitations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(validation.data),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to invite user");
-      setUsers((prev) => {
-        const next = [data, ...prev];
-        return next.sort((a, b) => {
-          const nameA = (a.fullName || a.name || `${a.firstName || ""} ${a.lastName || ""}` || "").toLowerCase();
-          const nameB = (b.fullName || b.name || `${b.firstName || ""} ${b.lastName || ""}` || "").toLowerCase();
-          return nameA.localeCompare(nameB);
-        });
-      });
-      setInviteOpen(false);
-      setInviteForm({ firstName: "", lastName: "", role: "Staff", password: "" });
+      const activationUrl = `${window.location.origin}/login#invite=${encodeURIComponent(data.token)}`;
+      setInviteResult({ ...data, activationUrl });
     } catch (err) {
       console.error("Invite failed", err);
       setInviteError(err.message || "Failed to invite user");
@@ -423,7 +410,8 @@ function AdminRoles() {
                 className="bookings-primary"
                 onClick={() => {
                   setInviteError("");
-                  setInviteForm({ firstName: "", lastName: "", role: "Staff", password: "" });
+                  setInviteResult(null);
+                  setInviteForm({ firstName: "", lastName: "", role: "Staff" });
                   setInviteOpen(true);
                 }}
               >
@@ -669,15 +657,6 @@ function AdminRoles() {
                 <input type="text" value={generateEmailFromNames(inviteForm.firstName, inviteForm.lastName)} readOnly />
               </label>
               <label>
-                Password
-                <input
-                  type="password"
-                  value={inviteForm.password}
-                  onChange={(e) => setInviteForm((prev) => ({ ...prev, password: e.target.value }))}
-                  required
-                />
-              </label>
-              <label>
                 Role
                 <SelectField
                   value={inviteForm.role}
@@ -696,11 +675,20 @@ function AdminRoles() {
                   {inviteError}
                 </ERPFormNotice>
               )}
+              {inviteResult && (
+                <ERPFormNotice tone="success" title="Invitation ready">
+                  <p>Share this single-use link securely. It expires automatically.</p>
+                  <input type="text" value={inviteResult.activationUrl} readOnly aria-label="Account activation link" />
+                  <button type="button" className="customers-secondary" onClick={() => navigator.clipboard.writeText(inviteResult.activationUrl)}>
+                    Copy activation link
+                  </button>
+                </ERPFormNotice>
+              )}
               <div className="customers-form-actions">
-                <button type="button" className="customers-secondary" onClick={() => setInviteOpen(false)} disabled={inviteSaving}>
-                  Cancel
+                <button type="button" className="customers-secondary" onClick={() => { setInviteOpen(false); setInviteResult(null); setInviteForm({ firstName: "", lastName: "", role: "Staff" }); }} disabled={inviteSaving}>
+                  {inviteResult ? "Done" : "Cancel"}
                 </button>
-                <button type="submit" className="customers-primary" disabled={inviteSaving}>
+                <button type="submit" className="customers-primary" disabled={inviteSaving || Boolean(inviteResult)}>
                   {inviteSaving ? "Inviting..." : "Invite user"}
                 </button>
               </div>
