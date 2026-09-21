@@ -388,13 +388,13 @@ function Login({ mode = "staff" }) {
                     </>
                   ) : forgotMode ? (
                     <>
-                      <p className="login-customer-note" role="note">
-                        {forgotNeedsPersonalEmail
-                          ? forgotRequiresPhoneVerification
+                      {forgotNeedsPersonalEmail && (
+                        <p className="login-customer-note" role="note">
+                          {forgotRequiresPhoneVerification
                             ? "To protect the account, match the staff phone on file before we save the new delivery email."
-                            : "Your personal email becomes the delivery address for password resets and staff notifications."
-                          : "We do not reveal whether an account exists. If the details match a REEBS staff account, the reset link will expire after 30 minutes and active sessions will be signed out after the password change."}
-                      </p>
+                            : "Your personal email becomes the delivery address for password resets and staff notifications."}
+                        </p>
+                      )}
                       {forgotNeedsPersonalEmail && (
                         <>
                           {forgotRequiresPhoneVerification && (
