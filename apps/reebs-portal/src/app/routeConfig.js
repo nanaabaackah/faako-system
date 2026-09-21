@@ -1,6 +1,10 @@
 import { lazy } from "react";
 import { loadLoginPage, loadResetPasswordPage } from "../modules/auth";
-import { loadDashboardPage, loadStoreModePage } from "../modules/dashboard";
+import {
+  loadAdminWorkspacePage,
+  loadDashboardPage,
+  loadStoreModePage,
+} from "../modules/dashboard";
 import { loadBookingsPage, loadSchedulePage } from "../modules/bookings";
 import { loadRentalsPage } from "../modules/rentals";
 import { loadOrderBuilderPage, loadOrderDetailPage, loadOrdersPage } from "../modules/orders";
@@ -12,6 +16,7 @@ import {
 } from "../modules/inventory";
 import { loadDeliveryPage } from "../modules/delivery";
 import { loadInvoicingPage } from "../modules/invoicing";
+import { loadPaymentsPage } from "../modules/payments";
 import { loadAccountingPage } from "../modules/accounting";
 import { loadExpensesPage } from "../modules/expenses";
 import {
@@ -32,6 +37,7 @@ import { loadVendorsPage } from "../modules/vendors";
 const Login = lazy(loadLoginPage);
 const ResetPassword = lazy(loadResetPasswordPage);
 const Dashboard = lazy(loadDashboardPage);
+const AdminWorkspace = lazy(loadAdminWorkspacePage);
 const StoreMode = lazy(loadStoreModePage);
 const Bookings = lazy(loadBookingsPage);
 const Schedule = lazy(loadSchedulePage);
@@ -45,6 +51,7 @@ const InventoryProducts = lazy(loadInventoryProductsPage);
 const InventoryTemplates = lazy(loadInventoryTemplatesPage);
 const Delivery = lazy(loadDeliveryPage);
 const Invoicing = lazy(loadInvoicingPage);
+const Payments = lazy(loadPaymentsPage);
 const Accounting = lazy(loadAccountingPage);
 const Expenses = lazy(loadExpensesPage);
 const Directory = lazy(loadDirectoryPage);
@@ -65,10 +72,10 @@ const Vendors = lazy(loadVendorsPage);
 export const routeConfig = [
   { path: "/login", domain: "auth", component: Login, publicOnly: true },
   { path: "/reset-password", domain: "auth", component: ResetPassword },
-  { path: "/admin", domain: "dashboard", component: Dashboard, props: { section: "home" }, auth: true, access: "standard" },
+  { path: "/admin", domain: "dashboard", component: Dashboard, auth: true, access: "standard" },
   { path: "/admin/store-mode", domain: "dashboard", component: StoreMode, auth: true, access: "standard" },
-  { path: "/admin/purchases", domain: "dashboard", component: Dashboard, props: { section: "purchases" }, auth: true, access: "standard" },
-  { path: "/admin/offline", domain: "dashboard", component: Dashboard, props: { section: "offline" }, auth: true, access: "standard" },
+  { path: "/admin/purchases", domain: "dashboard", component: AdminWorkspace, props: { section: "purchases" }, auth: true, access: "standard" },
+  { path: "/admin/offline", domain: "dashboard", component: AdminWorkspace, props: { section: "offline" }, auth: true, access: "standard" },
   { path: "/admin/advanced", domain: "settings", redirect: "/admin/settings?tab=advanced" },
   { path: "/admin/bookings", domain: "bookings", component: Bookings, auth: true, accessPath: "/admin/bookings" },
   { path: "/admin/schedule", domain: "bookings", component: Schedule, auth: true, access: "privileged" },
@@ -82,6 +89,7 @@ export const routeConfig = [
   { path: "/admin/inventory/products", domain: "inventory", component: InventoryProducts, auth: true, access: "ownerAdmin" },
   { path: "/admin/inventory/templates", domain: "inventory", component: InventoryTemplates, auth: true, access: "ownerAdmin" },
   { path: "/admin/delivery", domain: "delivery", component: Delivery, auth: true, accessPath: "/admin/delivery" },
+  { path: "/admin/payments", domain: "payments", component: Payments, auth: true, accessPath: "/admin/payments" },
   { path: "/admin/invoicing", domain: "invoicing", component: Invoicing, auth: true, access: "privileged" },
   { path: "/admin/accounting", domain: "accounting", component: Accounting, auth: true, access: "privileged" },
   { path: "/admin/expenses", domain: "expenses", component: Expenses, auth: true, access: "privileged" },
