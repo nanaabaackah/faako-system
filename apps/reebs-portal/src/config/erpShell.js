@@ -37,6 +37,7 @@ export default defineErpShellConfig({
     "/admin/website-template": "Settings",
     "/admin/directory": "Directory",
     "/admin/accounting": "Accounting",
+    "/admin/payments": "Payments",
     "/admin/expenses": "Expenses",
     "/admin/water": "Water",
     "/admin/vendors": "Vendors",
