@@ -86,6 +86,20 @@ export const getNotificationCatchallEmail = () =>
 export const isEmailNotificationsEnabled = () =>
   parseBoolean(readEnv("EMAIL_NOTIFICATIONS_ENABLED"), true);
 
+export const getEmailDeliveryStatus = () => {
+  if (!isEmailNotificationsEnabled()) {
+    return { available: false, reason: "disabled" };
+  }
+  if (isStagingRuntime() && !getForcedEmailRecipient()) {
+    return { available: false, reason: "staging_recipient_policy_not_configured" };
+  }
+  if (!readEnv("BREVO_API_KEY")) {
+    return { available: false, reason: "missing_api_key" };
+  }
+
+  return { available: true, reason: "configured" };
+};
+
 export const sendNotificationEmail = async ({
   to,
   subject,
@@ -128,14 +142,10 @@ export const sendNotificationEmail = async ({
     ? `${redirectHtml}${html}`.trim()
     : "";
 
-  if (!isEmailNotificationsEnabled()) {
-    return { skipped: true, reason: "disabled" };
-  }
-  if (isStagingRuntime() && !forcedRecipient) {
-    return { skipped: true, reason: "staging_recipient_policy_not_configured" };
-  }
-  if (!apiKey) {
-    return { skipped: true, reason: "missing_api_key" };
+  const deliveryStatus = getEmailDeliveryStatus();
+
+  if (!deliveryStatus.available) {
+    return { skipped: true, reason: deliveryStatus.reason };
   }
   if (!recipients.length || !normalizedSubject || !normalizedText) {
     return { skipped: true, reason: "missing_payload" };
