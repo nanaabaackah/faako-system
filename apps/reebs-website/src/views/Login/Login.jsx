@@ -202,11 +202,7 @@ function Login({ mode = "staff" }) {
                       />
                     </label>
                   ) : forgotMode ? (
-                    <p className="login-customer-note" role="note">
-                      We do not reveal whether an account exists. If the details match a REEBS staff
-                      account, the reset link will expire after 30 minutes and active sessions will be
-                      signed out after the password change.
-                    </p>
+                    null
                   ) : (
                     <>
                       <label className="login-field login-password-row">

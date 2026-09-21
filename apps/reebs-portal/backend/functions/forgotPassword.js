@@ -7,6 +7,7 @@ import { Pool } from "pg";
 import emailKit from "../../../../packages/email-kit/src/index.cjs";
 import { isCrossSiteBrowserRequest, json } from "./_shared/http.js";
 import {
+  getEmailDeliveryStatus,
   getForcedEmailRecipient,
   getNotificationCatchallEmail,
   sendNotificationEmail,
@@ -299,6 +300,18 @@ export async function handler(event = {}) {
       });
     }
 
+    const emailDeliveryStatus = getEmailDeliveryStatus();
+    if (!emailDeliveryStatus.available) {
+      logger.warn({
+        eventName: "auth.password_reset.email_unavailable",
+        organizationId,
+        reason: emailDeliveryStatus.reason,
+      }, "Password reset email delivery is unavailable");
+      return respond(event, 503, {
+        error: "Password reset email is temporarily unavailable. Contact an administrator.",
+      });
+    }
+
     const isUsernameOnly = !identifier.includes("@");
     const result = isUsernameOnly
       ? await client.query(
@@ -392,7 +405,7 @@ export async function handler(event = {}) {
         const wasLocalResetRerouted =
           Boolean(localResetRecipient)
           && localResetRecipient.toLowerCase() !== String(user.personalEmail).trim().toLowerCase();
-        await sendNotificationEmail({
+        const emailResult = await sendNotificationEmail({
           to: emailRecipient,
           subject: "REEBS password reset request",
           text: [
@@ -432,8 +445,25 @@ export async function handler(event = {}) {
             .filter(Boolean)
             .join(""),
         });
+        if (emailResult?.skipped) {
+          logger.warn({
+            eventName: "auth.password_reset.email_skipped",
+            organizationId: Number(user.organizationId),
+            reason: emailResult.reason,
+          }, "Password reset email was skipped");
+        } else {
+          logger.info({
+            eventName: "auth.password_reset.email_sent",
+            organizationId: Number(user.organizationId),
+            redirected: Boolean(emailResult?.redirected),
+          }, "Password reset email was accepted by the provider");
+        }
       } catch (error) {
-        logger.error({ err: error }, "Forgot password email failed");
+        logger.error({
+          err: error,
+          eventName: "auth.password_reset.email_failed",
+          organizationId: Number(user.organizationId),
+        }, "Forgot password email failed");
       }
     }
 

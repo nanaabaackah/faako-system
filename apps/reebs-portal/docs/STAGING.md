@@ -137,6 +137,15 @@ instead of being sent to the requested customer address. Production does not
 force recipients. Provider credentials remain environment-supplied and are
 not selected from `NODE_ENV`.
 
+For password-reset email testing, configure `EMAIL_NOTIFICATIONS_ENABLED`,
+`BREVO_API_KEY`, `EMAIL_FORCE_TO`, `EMAIL_FROM`, and `EMAIL_REPLY_TO`, then
+redeploy the API. `EMAIL_NOTIFICATIONS_ENABLED` must be `true`, and the sender
+identity in `EMAIL_FROM` must be accepted by the staging Brevo account. Every
+staging reset message is delivered to `EMAIL_FORCE_TO`, not to the account's
+personal email. The API logs only safe delivery events and reason codes:
+`auth.password_reset.email_unavailable`, `auth.password_reset.email_skipped`,
+`auth.password_reset.email_sent`, or `auth.password_reset.email_failed`.
+
 Before enabling any other outbound provider in staging, confirm that its
 credential and destination belong to staging and cannot contact live customers
 unintentionally.
