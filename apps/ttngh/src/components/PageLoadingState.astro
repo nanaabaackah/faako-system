@@ -1,0 +1,41 @@
+---
+import "../styles/components/page-loading.css";
+---
+
+<script is:inline>
+  (() => {
+    const root = document.documentElement;
+    const startedAt = performance.now();
+    const minimumDuration = 650;
+    const maximumDuration = 4500;
+    let complete = false;
+
+    root.classList.add("is-page-loading");
+
+    const finish = () => {
+      if (complete) return;
+      complete = true;
+
+      const remaining = Math.max(0, minimumDuration - (performance.now() - startedAt));
+      window.setTimeout(() => {
+        root.classList.remove("is-page-loading");
+        root.classList.add("page-loading-complete");
+
+        window.setTimeout(() => {
+          root.classList.remove("page-loading-complete");
+        }, 520);
+      }, remaining);
+    };
+
+    const pageLoaded = document.readyState === "complete"
+      ? Promise.resolve()
+      : new Promise((resolve) => window.addEventListener("load", resolve, { once: true }));
+    const fontsLoaded = document.fonts?.ready || Promise.resolve();
+
+    Promise.all([pageLoaded, fontsLoaded]).then(finish).catch(finish);
+    window.addEventListener("pageshow", (event) => {
+      if (event.persisted) finish();
+    }, { once: true });
+    window.setTimeout(finish, maximumDuration);
+  })();
+</script>

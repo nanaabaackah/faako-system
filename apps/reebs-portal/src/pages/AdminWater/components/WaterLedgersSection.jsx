@@ -1,4 +1,8 @@
 import SearchField from "../../../components/SearchField/SearchField";
+import TableSortHeader from "../../../components/TableControls/TableSortHeader.jsx";
+import useTableView from "../../../components/TableControls/useTableView";
+import { tableDate } from "../../../components/TableControls/tableRows.js";
+import TablePagination from "../../../components/TablePagination/TablePagination";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faTrash } from "/src/icons/iconSet";
 
@@ -39,6 +43,30 @@ export default function WaterLedgersSection({
   openExpenseEditor,
   handleExpenseDelete,
 }) {
+  const ordersTable = useTableView(filteredSales, {
+    position: (_, index) => index,
+    date: (sale) => tableDate(sale.date),
+    customer: (sale) => sale.customerName || "Walk-in",
+    status: (sale) => getSalePaymentStatusLabel(sale.paymentStatus, sale.paymentMethod),
+    quantity: (sale) => Number(sale.quantity),
+    price: (sale) => Number(sale.unitPrice),
+    total: (sale) => Number(sale.totalAmount),
+  }, { resetKey: `${orderQuery}|${orderStatusFilter}|${stockScopeLabel}` });
+  const stockTable = useTableView(stockTimeline, {
+    position: (_, index) => index,
+    date: (entry) => tableDate(entry.date),
+    type: (entry) => entry.label,
+    details: (entry) => entry.detail,
+    quantity: (entry) => Number(entry.quantity),
+    value: (entry) => entry.amount == null ? null : Number(entry.amount),
+  }, { resetKey: stockScopeLabel });
+  const expensesTable = useTableView(expenses, {
+    position: (_, index) => index,
+    date: (expense) => tableDate(expense.date),
+    category: (expense) => expense.category,
+    description: (expense) => expense.description,
+    amount: (expense) => Number(expense.amount),
+  }, { resetKey: stockScopeLabel });
   const orderSummary = filteredSales.reduce(
     (accumulator, sale) => {
       accumulator.count += 1;
@@ -111,21 +139,22 @@ export default function WaterLedgersSection({
 
             {filteredSales.length ? (
               <div className="water-module-table-wrap">
+                <TablePagination {...ordersTable.pagination} header />
                 <table className="water-module-table water-module-table--orders">
                   <thead>
                     <tr>
-                      <th>#</th>
-                      <th>Date</th>
-                      <th>Customer</th>
-                      <th>Status</th>
-                      <th>Qty</th>
-                      <th>Price</th>
-                      <th>Total</th>
+                      <TableSortHeader {...ordersTable} column="position">#</TableSortHeader>
+                      <TableSortHeader {...ordersTable} column="date">Date</TableSortHeader>
+                      <TableSortHeader {...ordersTable} column="customer">Customer</TableSortHeader>
+                      <TableSortHeader {...ordersTable} column="status">Status</TableSortHeader>
+                      <TableSortHeader {...ordersTable} column="quantity">Qty</TableSortHeader>
+                      <TableSortHeader {...ordersTable} column="price">Price</TableSortHeader>
+                      <TableSortHeader {...ordersTable} column="total">Total</TableSortHeader>
                       <th aria-label="Actions" />
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSales.map((sale, index) => {
+                    {ordersTable.rows.map((sale) => {
                       const paymentStatus = normalizeSalePaymentStatus(sale.paymentStatus, sale.paymentMethod);
                       const isActive = Number(activeOrderId) === Number(sale.id);
                       return (
@@ -143,7 +172,7 @@ export default function WaterLedgersSection({
                           aria-label={`Edit water order ${sale.id}`}
                         >
                           <td data-label="#">
-                            <span className="water-module-table-value">{index}</span>
+                            <span className="water-module-table-value">{filteredSales.indexOf(sale) + 1}</span>
                           </td>
                           <td data-label="Date">
                             <span className="water-module-table-value">{formatDate(sale.date)}</span>
@@ -211,6 +240,7 @@ export default function WaterLedgersSection({
                     </tr>
                   </tfoot>
                 </table>
+                <TablePagination {...ordersTable.pagination} />
               </div>
             ) : (
               <p className="water-module-empty">
@@ -236,39 +266,40 @@ export default function WaterLedgersSection({
           <WaterLedgerLoading label="Loading stock movement…" />
         ) : stockTimeline.length ? (
           <div className="water-module-table-wrap water-module-table-wrap--stock">
+            <TablePagination {...stockTable.pagination} header />
             <table className="water-module-table water-module-table--stock">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Details</th>
-                  <th>Qty</th>
-                  <th>Value</th>
+                  <TableSortHeader {...stockTable} column="position">#</TableSortHeader>
+                  <TableSortHeader {...stockTable} column="date">Date</TableSortHeader>
+                  <TableSortHeader {...stockTable} column="type">Type</TableSortHeader>
+                  <TableSortHeader {...stockTable} column="details">Details</TableSortHeader>
+                  <TableSortHeader {...stockTable} column="quantity">Qty</TableSortHeader>
+                  <TableSortHeader {...stockTable} column="value">Value</TableSortHeader>
                   <th aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
-                {stockTimeline.map((entry, index) => {
+                {stockTable.rows.map((entry) => {
                   const isActive =
                     activeLedgerItem?.type === entry.type &&
                     Number(activeLedgerItem?.id) === Number(entry.sourceId);
                   return (
                     <tr
                       key={entry.id}
-                      className={`water-module-click-row ${isActive ? "is-active" : ""}`}
-                      onClick={() => openStockEntryEditor(entry)}
+                      className={`${canViewCost ? "water-module-click-row" : ""} ${isActive ? "is-active" : ""}`}
+                      onClick={canViewCost ? () => openStockEntryEditor(entry) : undefined}
                       onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
+                        if (canViewCost && (event.key === "Enter" || event.key === " ")) {
                           event.preventDefault();
                           openStockEntryEditor(entry);
                         }
                       }}
-                      tabIndex={0}
-                      aria-label={`Edit ${entry.label.toLowerCase()} ${entry.sourceId || ""}`}
+                      tabIndex={canViewCost ? 0 : undefined}
+                      aria-label={canViewCost ? `Edit ${entry.label.toLowerCase()} ${entry.sourceId || ""}` : undefined}
                     >
                       <td data-label="#">
-                        <span className="water-module-table-value">{index}</span>
+                        <span className="water-module-table-value">{stockTimeline.indexOf(entry) + 1}</span>
                       </td>
                       <td data-label="Date">
                         <span className="water-module-table-value">{formatDate(entry.date)}</span>
@@ -290,7 +321,7 @@ export default function WaterLedgersSection({
                         </span>
                       </td>
                       <td className="water-module-order-actions" data-label="Action">
-                        <button
+                        {canViewCost ? <button
                           type="button"
                           className="water-module-row-undo"
                           onClick={(event) => handleStockEntryUndo(entry, event)}
@@ -300,7 +331,7 @@ export default function WaterLedgersSection({
                         >
                           <AppIcon icon={faRotateRight} />
                           Undo
-                        </button>
+                        </button> : null}
                       </td>
                     </tr>
                   );
@@ -328,6 +359,7 @@ export default function WaterLedgersSection({
                 </tr>
               </tfoot>
             </table>
+            <TablePagination {...stockTable.pagination} />
           </div>
         ) : (
           <p className="water-module-empty">
@@ -338,7 +370,7 @@ export default function WaterLedgersSection({
         )}
       </article>
 
-      <article className="admin-card water-module-table-card">
+      {canViewCost ? <article className="admin-card water-module-table-card">
         <div className="water-module-card-head">
           <div>
             <h3>Expenses</h3>
@@ -348,19 +380,20 @@ export default function WaterLedgersSection({
           <WaterLedgerLoading label="Loading Water expenses…" />
         ) : expenses.length ? (
           <div className="water-module-table-wrap">
+            <TablePagination {...expensesTable.pagination} header />
             <table className="water-module-table water-module-table--expenses">
               <thead>
                 <tr>
-                  <th>#</th>
-                  <th>Date</th>
-                  <th>Category</th>
-                  <th>Description</th>
-                  <th>Amount</th>
+                  <TableSortHeader {...expensesTable} column="position">#</TableSortHeader>
+                  <TableSortHeader {...expensesTable} column="date">Date</TableSortHeader>
+                  <TableSortHeader {...expensesTable} column="category">Category</TableSortHeader>
+                  <TableSortHeader {...expensesTable} column="description">Description</TableSortHeader>
+                  <TableSortHeader {...expensesTable} column="amount">Amount</TableSortHeader>
                   <th aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
-                {expenses.map((expense, index) => {
+                {expensesTable.rows.map((expense) => {
                   const isActive =
                     activeLedgerItem?.type === "expense" &&
                     Number(activeLedgerItem?.id) === Number(expense.id);
@@ -379,7 +412,7 @@ export default function WaterLedgersSection({
                       aria-label={`Edit water expense ${expense.id}`}
                     >
                       <td data-label="#">
-                        <span className="water-module-table-value">{index}</span>
+                        <span className="water-module-table-value">{expenses.indexOf(expense) + 1}</span>
                       </td>
                       <td data-label="Date">
                         <span className="water-module-table-value">{formatDate(expense.date)}</span>
@@ -425,6 +458,7 @@ export default function WaterLedgersSection({
                 </tr>
               </tfoot>
             </table>
+            <TablePagination {...expensesTable.pagination} />
           </div>
         ) : (
           <p className="water-module-empty">
@@ -433,7 +467,7 @@ export default function WaterLedgersSection({
               : `No extra expenses in ${stockScopeLabel}.`}
           </p>
         )}
-      </article>
+      </article> : null}
     </section>
   );
 }

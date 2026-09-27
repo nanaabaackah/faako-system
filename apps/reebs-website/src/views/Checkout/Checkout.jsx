@@ -1,5 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
+import PublicCommercePaused from "../../components/PublicCommercePaused/PublicCommercePaused";
 import "./Checkout.css";
 import { Link } from "react-router-dom";
 import { DateField, SelectField } from "@faako/ui";
@@ -28,6 +30,7 @@ import {
 } from "/src/utils/cart";
 import { isOnlineShopItem } from "/src/utils/frontendInventoryFilters";
 import { fetchInventoryWithCache } from "/src/utils/inventoryCache";
+import { createCheckoutCommandItems, quoteCheckoutForConfirmation } from "/src/utils/checkoutPricing";
 import {
   clearExpiringDraft,
   loadExpiringDraft,
@@ -206,6 +209,7 @@ const Checkout = () => {
   const [paymentStatus, setPaymentStatus] = useState({ state: "idle", message: "" });
   const [orderSuccess, setOrderSuccess] = useState("");
   const [confirmedAmount, setConfirmedAmount] = useState("");
+  const [shopQuoteReview, setShopQuoteReview] = useState(null);
   const [deliveryDetails, setDeliveryDetails] = useState({
     address: "",
     contact: "",
@@ -237,7 +241,6 @@ const Checkout = () => {
   const formattedSubtotal = formatCurrency(convertPrice(subtotal));
   const itemLabel = itemCount === 1 ? "item" : "items";
   const today = now.toISOString().split("T")[0];
-  const modalAmount = confirmedAmount || formattedSubtotal;
   const draftKey = "checkoutPaymentDraft";
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
   const cartGroups = useMemo(() => splitCartItems(cart), [cart]);
@@ -265,6 +268,19 @@ const Checkout = () => {
   const needsPickupDetails =
     selectedFulfillment === "pickup" || (hasShopItems && !shopItemsRideWithRentalDelivery);
   const needsDeliveryDetails = hasRentalItems && selectedFulfillment === "delivery";
+  const shopQuotePayload = {
+    items: createCheckoutCommandItems(cartGroups.shop),
+    deliveryMethod: shopItemsRideWithRentalDelivery ? "delivery" : "pickup",
+    deliveryDetails: shopItemsRideWithRentalDelivery
+      ? sanitizeDraftDeliveryDetails(deliveryDetails) || deliveryDetails : null,
+    pickupDetails: shopItemsRideWithRentalDelivery ? null : pickupDetails,
+  };
+  const shopQuoteKey = JSON.stringify(shopQuotePayload);
+  const currentShopQuote = shopQuoteReview?.key === shopQuoteKey ? shopQuoteReview.quote : null;
+  const rentalSubtotal = cartGroups.rentals.reduce((total, item) => total + getCartItemLineTotal(item), 0);
+  const modalAmount = confirmedAmount || (currentShopQuote
+    ? formatCurrency(convertPrice(currentShopQuote.grandTotalCents / 100 + rentalSubtotal))
+    : formattedSubtotal);
   const fulfillmentBadgeLabel = isMixedCart
     ? selectedFulfillment === "delivery"
       ? shopItemsRideWithRentalDelivery
@@ -667,12 +683,31 @@ const Checkout = () => {
       const createdRefs = [];
       let createdShopOrderRef = null;
       const shopUsesDelivery = shopItemsRideWithRentalDelivery;
+      let confirmedShopTotalCents = 0;
 
       if (cartGroups.shop.length > 0) {
+        setPaymentStatus({ state: "saving", message: "Verifying current shop prices..." });
+        const { quote, priceChanges, requiresReview, acknowledgePriceChanges } = await quoteCheckoutForConfirmation({
+          payload: shopQuotePayload,
+          reviewedFingerprint: currentShopQuote?.fingerprint,
+        });
+        setShopQuoteReview({ key: shopQuoteKey, quote });
+        if (requiresReview) {
+          const changes = priceChanges.map((item) =>
+            `${item.name}: ${formatCurrency(convertPrice(item.expectedUnitPriceCents / 100))} → ${formatCurrency(convertPrice(item.authoritativeUnitPriceCents / 100))}`
+          ).join("; ");
+          setPaymentStatus({
+            state: "review",
+            message: `Review the current shop total of ${formatCurrency(convertPrice(quote.grandTotalCents / 100))} before confirming again. ${changes || "The current quote includes the latest prices and fees."}`,
+          });
+          return;
+        }
         setPaymentStatus({ state: "saving", message: "Creating shop order..." });
         const orderPayload = {
           customer,
-          items: createCheckoutItems(cartGroups.shop),
+          items: shopQuotePayload.items,
+          quoteFingerprint: quote.fingerprint,
+          acknowledgePriceChanges,
           status: "pending",
           deliveryMethod: shopUsesDelivery ? "delivery" : "pickup",
           deliveryDetails: shopUsesDelivery ? normalizedDeliveryDetails : null,
@@ -696,6 +731,7 @@ const Checkout = () => {
           throw new Error(orderData?.error || "Failed to create shop order.");
         }
         createdShopOrderRef = orderData.orderNumber || orderData.orderId;
+        confirmedShopTotalCents = Number(orderData.grandTotalCents ?? quote.grandTotalCents);
         createdRefs.push(`Order ${createdShopOrderRef}`);
       }
 
@@ -750,7 +786,7 @@ const Checkout = () => {
               ? `Booking created. ${paymentConfirmationMessage}`
               : `Order created. ${paymentConfirmationMessage}`,
       });
-      setConfirmedAmount(formattedSubtotal);
+      setConfirmedAmount(formatCurrency(convertPrice(confirmedShopTotalCents / 100 + rentalSubtotal)));
       setOrderSuccess(`${createdRefs.join(" and ")} confirmed.`);
       clearCart();
       clearExpiringDraft(draftKey);
@@ -1417,12 +1453,12 @@ const Checkout = () => {
 
                   <div className="checkout-modal-footer full-width">
                     <div className="checkout-modal-summary">
-                      <span>Order total</span>
+                      <span>{hasRentalItems ? "Total including rental estimate" : "Order total"}</span>
                       <strong>{modalAmount}</strong>
                     </div>
 
                     {paymentStatus.message && (
-                      <div className={`checkout-modal-status ${paymentStatus.state}`}>
+                      <div className={`checkout-modal-status ${paymentStatus.state}`} role={paymentStatus.state === "error" ? "alert" : "status"}>
                         {paymentStatus.message}
                       </div>
                     )}
@@ -1454,4 +1490,7 @@ const Checkout = () => {
   );
 };
 
-export default Checkout;
+export default function CheckoutRoute() {
+  return REEBS_PUBLIC_COMMERCE.checkoutEnabled && REEBS_PUBLIC_COMMERCE.bookingEnabled
+    ? <Checkout /> : <PublicCommercePaused />;
+}

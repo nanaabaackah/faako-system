@@ -110,15 +110,15 @@ const loadWaterOrder = async (client, organizationId, payableId, lockClause) => 
   const result = await client.query(
     `SELECT w.id, ('WATER-' || LPAD(w.id::text, 6, '0')) AS reference, w."customerId",
             COALESCE(c.name, w."customerName") AS "customerName", c.email AS "customerEmail",
-            w."totalAmount", w."paymentStatus", w.date
+            w."totalAmount", w."paymentStatus", w.date, w."archivedAt"
      FROM "waterSale" w
      LEFT JOIN "customer" c ON c.id = w."customerId" AND c."organizationId" = w."organizationId"
-     WHERE w."organizationId" = $1 AND w.id = $2
+     WHERE w."organizationId" = $1 AND w.id = $2 AND w."archivedAt" IS NULL
      ${lockClause}`,
     [organizationId, payableId]
   );
   const row = result.rows?.[0];
-  if (!row) throw notFound();
+  if (!row || row.archivedAt) throw notFound();
   const applied = await getAppliedAmount(client, organizationId, PAYABLE_TYPES.WATER_ORDER, payableId);
   const legacyPaid = String(row.paymentStatus || "").toLowerCase() === "paid"
     ? Number(row.totalAmount || 0)
@@ -200,6 +200,15 @@ export const loadPayable = async (
 };
 
 export const calculatePayableCharge = (payable, purpose = "AUTO") => {
+  // Both initialization and finalization pass here, so a cancellation after
+  // provider checkout also prevents applying money to a closed business record.
+  const sourceStatus = cleanPaymentText(payable?.sourceStatus, 40).toLowerCase();
+  if (["cancelled", "canceled", "refunded", "void", "voided", "archived"].includes(sourceStatus)) {
+    const error = new Error("This record is closed and cannot accept payment. Review the payment for reconciliation.");
+    error.statusCode = 409;
+    error.code = "PAYABLE_CLOSED";
+    throw error;
+  }
   const normalizedPurpose = cleanPaymentText(purpose, 20).toUpperCase() || "AUTO";
   const totalCents = Math.max(0, Math.round(Number(payable?.totalCents || 0)));
   const amountPaidCents = Math.max(0, Math.round(Number(payable?.amountPaidCents || 0)));

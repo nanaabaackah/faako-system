@@ -1,0 +1,60 @@
+---
+import "../styles/components/scroll-reveal.css";
+---
+
+<script>
+  const revealSelector = [
+    "main > section:not(.home-hero):not(.page-hero)",
+    ".site-footer-panel",
+  ].join(",");
+
+  const initialiseScrollReveal = () => {
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(revealSelector));
+    if (!elements.length) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    elements.forEach((element) => {
+      element.classList.add("scroll-reveal");
+
+      const bounds = element.getBoundingClientRect();
+      element.dataset.revealOrigin = bounds.bottom <= 0 ? "top" : "bottom";
+
+      if (reduceMotion || (bounds.top < window.innerHeight * 0.88 && bounds.bottom > 0)) {
+        element.classList.add("is-revealed");
+      }
+    });
+
+    document.documentElement.dataset.scrollRevealReady = "true";
+    if (reduceMotion || !("IntersectionObserver" in window)) {
+      elements.forEach((element) => element.classList.add("is-revealed"));
+      return;
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const element = entry.target as HTMLElement;
+
+        if (entry.isIntersecting) {
+          element.dataset.revealOrigin = entry.boundingClientRect.top < 0 ? "top" : "bottom";
+          requestAnimationFrame(() => element.classList.add("is-revealed"));
+          return;
+        }
+
+        element.dataset.revealOrigin = entry.boundingClientRect.bottom <= 0 ? "top" : "bottom";
+        element.classList.remove("is-revealed");
+      });
+    }, {
+      rootMargin: "-4% 0px -8% 0px",
+      threshold: 0.08,
+    });
+
+    elements.forEach((element) => observer.observe(element));
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initialiseScrollReveal, { once: true });
+  } else {
+    initialiseScrollReveal();
+  }
+</script>

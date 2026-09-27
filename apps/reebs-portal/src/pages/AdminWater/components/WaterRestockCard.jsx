@@ -45,7 +45,7 @@ export default function WaterRestockCard({
             </a>
           ) : null}
         </div>
-        <form className="water-module-form" onSubmit={onSubmit}>
+        {canManageWaterPricing ? <form className="water-module-form" onSubmit={onSubmit}>
           <div className="water-module-sale-block">
             <div className="water-module-inline-head">
               <span className="water-module-field-label">Quantity</span>
@@ -128,7 +128,9 @@ export default function WaterRestockCard({
                 ? `Add ${restockQuantity} pack${restockQuantity === 1 ? "" : "s"}`
                 : "Add stock"}
           </button>
-        </form>
+        </form> : (
+          <p className="water-module-inline-note">An owner or admin manages Water stock and purchase costs.</p>
+        )}
       </article>
     </section>
   );

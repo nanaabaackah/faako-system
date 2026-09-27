@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { EmptyState } from "./Primitives";
 import type { DataTableColumn, DataTableSummaryCell } from "../types";
 
@@ -6,6 +6,15 @@ const joinClasses = (...values: Array<string | false | null | undefined>) =>
   values.filter(Boolean).join(" ");
 
 type TableState = "ready" | "loading" | "empty" | "error";
+
+type DataTablePagination = {
+  total: number;
+  pageIndex: number;
+  pageSize: number;
+  pageCount: number;
+  onPrevious: () => void;
+  onNext: () => void;
+};
 
 const normalizeSortValue = (value: unknown) => {
   if (typeof value === "number") return value;
@@ -27,6 +36,8 @@ export function DataTable<Row>({
   className = "",
   dense = false,
   caption,
+  pageSize,
+  renderPagination,
 }: {
   title?: ReactNode;
   description?: ReactNode;
@@ -42,8 +53,13 @@ export function DataTable<Row>({
   className?: string;
   dense?: boolean;
   caption?: string;
+  /** Opt-in client pagination; rows must contain the complete result to sort. */
+  pageSize?: number;
+  renderPagination?: (pagination: DataTablePagination, header: boolean) => ReactNode;
 }) {
   const [sortConfig, setSortConfig] = useState<{ columnId: string; direction: "asc" | "desc" } | null>(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  useEffect(() => { setPageIndex(0); }, [rows, pageSize]);
 
   const sortedRows = useMemo(() => {
     if (!sortConfig) return rows;
@@ -83,7 +99,23 @@ export function DataTable<Row>({
       ? "empty"
       : state;
 
+  // Existing consumers remain unpaginated unless they provide both the size
+  // and controls. Never silently hide rows without a way to reach them.
+  const paginate = Boolean(renderPagination && Number.isInteger(pageSize) && Number(pageSize) > 0);
+  const safePageSize = paginate ? Number(pageSize) : Math.max(1, rows.length);
+  const pageCount = Math.max(1, Math.ceil(rows.length / safePageSize));
+  const safePageIndex = Math.min(pageIndex, pageCount - 1);
+  const visibleRows = paginate
+    ? sortedRows.slice(safePageIndex * safePageSize, (safePageIndex + 1) * safePageSize)
+    : sortedRows;
+  const pagination = {
+    total: rows.length, pageIndex: safePageIndex, pageSize: safePageSize, pageCount,
+    onPrevious: () => setPageIndex(Math.max(0, safePageIndex - 1)),
+    onNext: () => setPageIndex(Math.min(pageCount - 1, safePageIndex + 1)),
+  };
+
   const handleSort = (columnId: string) => {
+    setPageIndex(0);
     setSortConfig((current) => {
       if (!current || current.columnId !== columnId) {
         return { columnId, direction: "asc" };
@@ -120,6 +152,8 @@ export function DataTable<Row>({
       ) : null}
 
       {resolvedState === "ready" ? (
+        <>
+        {paginate ? renderPagination?.(pagination, true) : null}
         <div className="ui-data-table__scroll">
           <table>
             {caption ? <caption>{caption}</caption> : null}
@@ -164,7 +198,8 @@ export function DataTable<Row>({
               </tr>
             </thead>
             <tbody>
-              {sortedRows.map((row, rowIndex) => {
+              {visibleRows.map((row, visibleIndex) => {
+                const rowIndex = paginate ? safePageIndex * safePageSize + visibleIndex : visibleIndex;
                 const key =
                   typeof rowKey === "function"
                     ? rowKey(row, rowIndex)
@@ -207,6 +242,8 @@ export function DataTable<Row>({
             ) : null}
           </table>
         </div>
+        {paginate ? renderPagination?.(pagination, false) : null}
+        </>
       ) : null}
     </section>
   );

@@ -176,7 +176,14 @@ one database `SELECT 1` through the health connection pool and returns `503`
 when it cannot complete. It does not check Paystack, Brevo, email routing,
 manager access, webhooks, maps, OpenAI, WhatsApp, or Water configuration.
 `/health/water` separately checks the database and the Water commercial
-configuration record without folding Water into general REEBS readiness.
+configuration without folding Water into general REEBS readiness. It checks for
+at least one organisation with exactly one active, currently effective GHS
+`waterProductPrice` per retail/bulk/company tier and one valid current Water
+discount rule in `commercialConfiguration`. It does not read prices into the
+response. A legacy `waterProductConfig` row is not sufficient. This is a global
+probe: verify the actual signed-in organisation through its authorized Water
+screen. Stock, historical cost completeness, migrations, providers and database
+race/rollback behavior are not certified by this endpoint.
 
 ## First staging deployment checklist
 
@@ -192,6 +199,38 @@ configuration record without folding Water into general REEBS readiness.
 8. Verify `/live`, `/ready`, and `/health/water` without displaying provider or
    database configuration.
 9. Exercise login, Paystack test checkout, and email-sink delivery manually.
+
+## Core Inventory and Rentals CSV import
+
+The historical `scripts/imports/importProducts.js` importer remains evidence of
+the production-era CSV mapping, but it is not approved for staging because its
+reset mode truncates tables, it assumes an implicit organization, and it can
+mix Water-linked rows into generic product imports.
+
+Use the guarded staging importer instead. It reads the same Inventory, shop,
+rental, machine, bouncy-castle and indoor-game CSV sources, preserves the
+legacy SKU and price mapping, excludes every Water row, scopes writes to
+`REEBS_PUBLIC_ORGANIZATION_ID`, records idempotent opening stock movements and
+never deletes or overwrites an existing product. It only applies when both
+`APP_ENV` and Railway's `RAILWAY_ENVIRONMENT_NAME` are `staging`.
+
+Run the plan locally before deployment:
+
+```bash
+pnpm --filter @faako/reebs-portal run inventory:import:staging:plan
+```
+
+After the importer is deployed, run the apply command from the Railway staging
+API service so Railway injects the staging database configuration:
+
+```bash
+pnpm --filter @faako/reebs-portal run inventory:import:staging:apply
+```
+
+Then run `inventory:reconcile:staging` and verify Inventory, Rentals and the
+public catalogue in staging. Do not set `IMPORT_RESET`; this importer has no
+reset or production mode. Water stock and commercial configuration must be
+seeded separately through the Water Business domain.
 
 This phase does not create Railway services, set variables, deploy code, or
 apply any staging/production migration.

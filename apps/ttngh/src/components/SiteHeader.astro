@@ -1,0 +1,180 @@
+---
+import { organization } from "../content/home.js";
+import { FaArrowRight, FaMagnifyingGlass } from "react-icons/fa6";
+import "../styles/components/navigation.css";
+
+const navigation = [
+  {
+    label: "About",
+    path: "/about",
+    items: [
+      { label: "Our story", description: "How one conversation became a community", href: "/about#story" },
+      { label: "Mission & values", description: "The purpose and principles guiding our work", href: "/about#values" },
+      { label: "Our team", description: "Meet the people leading the work", href: "/team" },
+      { label: "Our direction", description: "The roadmap toward national presence", href: "/about#roadmap" },
+    ],
+  },
+  {
+    label: "Events",
+    path: "/events",
+    items: [
+      { label: "Support group sessions", description: "Monthly virtual and in-person gatherings", href: "/events#support-groups" },
+      { label: "Vision with Clarity", description: "Our annual reflection and well-being programme", href: "/events#vision-with-clarity" },
+      { label: "Community outreach", description: "Talks for schools, workplaces, and communities", href: "/events#community-outreach" },
+      { label: "Upcoming dates", description: "See confirmed activities and registration updates", href: "/events#upcoming" },
+    ],
+  },
+  {
+    label: "News",
+    path: "/news",
+    items: [
+      { label: "Mental health education", description: "Practical, accessible information", href: "/news#education" },
+      { label: "Programme updates", description: "News from our work in the community", href: "/news#programme-updates" },
+      { label: "Advocacy", description: "Conversations that challenge stigma", href: "/news#advocacy" },
+      { label: "Research & policy", description: "Evidence and developments from Ghana", href: "/news#research-policy" },
+    ],
+  },
+  {
+    label: "Contact",
+    path: "/contact",
+    items: [
+      { label: "Contact details", description: "Phone, email, location, and social channels", href: "/contact#details" },
+      { label: "Programs & support", description: "Ask about counselling or a support group", href: "/contact#program-support" },
+      { label: "Partnerships & media", description: "Start an organisational collaboration", href: "/contact#partnerships-media" },
+      { label: "Volunteer & contribute", description: "Offer time, skills, or financial support", href: "/contact#volunteer-contribute" },
+    ],
+  },
+];
+
+const currentPath = Astro.url.pathname === "/" ? "/" : Astro.url.pathname.replace(/\/$/, "");
+---
+
+<header class="site-header" data-site-header>
+  <nav class="desktop-nav" aria-label="Primary navigation">
+    {navigation.map((group) => (
+      <div class:list={["nav-dropdown", { "is-current": currentPath === group.path || (group.path === "/about" && currentPath === "/team") }]}>
+        <a class="nav-main-link" href={group.path}>{group.label}</a>
+        <div class="submenu">
+          <p class="submenu-heading">{group.label}</p>
+          <div class="submenu-links">
+            {group.items.map((item) => (
+              <a href={item.href}>
+                <strong>{item.label}</strong>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    ))}
+  </nav>
+
+  <details class="mobile-menu">
+    <summary>Menu</summary>
+    <nav class="mobile-menu-panel" aria-label="Mobile navigation">
+      <button class="mobile-search-button" type="button" data-search-open>
+        <FaMagnifyingGlass aria-hidden="true" focusable="false" />
+        <span>Search the site</span>
+      </button>
+      {navigation.map((group) => (
+        <details class="mobile-menu-group">
+          <summary><a class="menu-group-main-link" href={group.path}>{group.label}</a><span>Sections</span></summary>
+          <div>
+            {group.items.map((item) => <a href={item.href}>{item.label}</a>)}
+          </div>
+        </details>
+      ))}
+      <a href="/programmes">Programs</a>
+      <a href="/impact">Our impact</a>
+      <a href="/support-us">Support us</a>
+    </nav>
+  </details>
+
+  <details class="compact-menu">
+    <summary aria-label="Open navigation menu">
+      <img src="/icons/menu.svg" alt="" width="24" height="24" />
+    </summary>
+    <nav class="compact-menu-panel" aria-label="Collapsed navigation">
+      <p class="compact-menu-heading">Explore TTN GH</p>
+      {navigation.map((group) => (
+        <details class="compact-menu-group">
+          <summary><a class="menu-group-main-link" href={group.path}>{group.label}</a><span>Sections</span></summary>
+          <div>
+            {group.items.map((item) => <a href={item.href}>{item.label}</a>)}
+          </div>
+        </details>
+      ))}
+      <div class="compact-menu-secondary">
+        <button class="compact-search-button" type="button" data-search-open>
+          <FaMagnifyingGlass aria-hidden="true" focusable="false" />
+          <span>Search</span>
+        </button>
+        <a href="/programmes">Programs</a>
+        <a href="/impact">Our impact</a>
+        <a href="/support-us">Support us</a>
+        <a class="compact-collaborate" href="/get-involved#partnerships">Collaborate</a>
+      </div>
+    </nav>
+  </details>
+
+  <a class="header-logo" href="/" aria-label={`${organization.name} home`}>
+    <img src="/ttngh-logo-transparent.png" alt={organization.name} width="1927" height="816" />
+  </a>
+
+  <div class="header-actions">
+    <button class="header-search-button" type="button" data-search-open aria-label="Search the site">
+      <FaMagnifyingGlass aria-hidden="true" focusable="false" />
+    </button>
+    <a class="button button-inverse button-compact" href="/get-involved#partnerships">
+      <span class="button-label">Collaborate</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span>
+    </a>
+  </div>
+</header>
+
+<script>
+  const header = document.querySelector("[data-site-header]");
+  if (header) {
+    const menus = header.querySelectorAll("details");
+
+    menus.forEach((menu) => {
+      menu.addEventListener("toggle", () => {
+        if (!menu.open) return;
+        menus.forEach((other) => {
+          const isRelatedMenu = other.contains(menu) || menu.contains(other);
+          if (other !== menu && !isRelatedMenu) other.removeAttribute("open");
+        });
+      });
+    });
+
+    header.querySelectorAll(".compact-menu-group").forEach((group) => {
+      group.addEventListener("mouseenter", () => group.setAttribute("open", ""));
+      group.addEventListener("mouseleave", () => group.removeAttribute("open"));
+    });
+
+    header.querySelectorAll(".menu-group-main-link").forEach((link) => {
+      link.addEventListener("click", (event) => event.stopPropagation());
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!header.contains(event.target)) {
+        menus.forEach((menu) => menu.removeAttribute("open"));
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        menus.forEach((menu) => menu.removeAttribute("open"));
+      }
+    });
+
+    const updateHeaderState = () => {
+      const shouldCompact = window.scrollY > 96;
+      if (header.hasAttribute("data-compact") !== shouldCompact) {
+        menus.forEach((menu) => menu.removeAttribute("open"));
+      }
+      header.toggleAttribute("data-compact", shouldCompact);
+    };
+
+    updateHeaderState();
+    window.addEventListener("scroll", updateHeaderState, { passive: true });
+  }
+</script>

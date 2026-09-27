@@ -7,6 +7,10 @@ import { AppIcon } from "/src/components/Icon/Icon";
 import { faEllipsisVertical } from "/src/icons/iconSet";
 import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import SearchField from "../../components/SearchField/SearchField";
+import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
+import useTableView from "../../components/TableControls/useTableView";
+import { tableDate } from "../../components/TableControls/tableRows.js";
 import roleColors from "../../utils/roleColors";
 import { reebsApiResponse } from "../../api/client";
 import { userAccessFormSchema, validationIssues } from "@faako/validation";
@@ -266,6 +270,12 @@ function AdminRoles() {
         return nameA.localeCompare(nameB);
       });
   }, [users, query, roleFilter]);
+  const table = useTableView(filteredUsers, {
+    position: (_, index) => index,
+    user: (user) => user.fullName || user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed",
+    role: (user) => user.role || "Staff",
+    lastLogin: (user) => tableDate(user.lastSessionAt || user.updatedAt || user.createdAt),
+  }, { resetKey: `${query}|${roleFilter}` });
 
   const totalActiveSessions = useMemo(
     () => users.reduce((sum, entry) => sum + getSessionCount(entry.activeSessionCount), 0),
@@ -507,23 +517,24 @@ function AdminRoles() {
           )}
           {!loading && !error && (
             <div className="roles-table-wrapper">
+          <TablePagination {...table.pagination} header />
           <table className="roles-table">
                 <thead>
                   <tr>
-                    <th className="table-row-index">#</th>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Last login</th>
+                    <TableSortHeader {...table} column="position" className="table-row-index">#</TableSortHeader>
+                    <TableSortHeader {...table} column="user">User</TableSortHeader>
+                    <TableSortHeader {...table} column="role">Role</TableSortHeader>
+                    <TableSortHeader {...table} column="lastLogin">Last login</TableSortHeader>
                     <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((user, index) => {
+                  {table.rows.map((user) => {
                     const roleKey = normalizeRoleKey(user.role);
                     const menuOpen = openMenu?.userId === user.id;
                     return (
                         <tr key={user.id} onClick={() => openDetailModal(user)} className="roles-row">
-                        <td className="table-row-index">{index}</td>
+                        <td className="table-row-index">{filteredUsers.indexOf(user) + 1}</td>
                         <td>
                           <div className="roles-user">
                             <strong>{user.fullName || user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed"}</strong>
@@ -578,6 +589,7 @@ function AdminRoles() {
                   </tfoot>
                 )}
               </table>
+              <TablePagination {...table.pagination} />
             </div>
           )}
         </section>

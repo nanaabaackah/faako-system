@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
+import PublicCommercePaused from "../../components/PublicCommercePaused/PublicCommercePaused";
 import "./Book.css";
 import { Link, useSearchParams } from "react-router-dom";
 import { DateField, SelectField } from "@faako/ui";
@@ -1192,4 +1194,6 @@ function Book({ initialRentals = [] }) {
   );
 }
 
-export default Book;
+export default function BookingRoute(props) {
+  return REEBS_PUBLIC_COMMERCE.bookingEnabled ? <Book {...props} /> : <PublicCommercePaused booking />;
+}

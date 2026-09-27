@@ -73,9 +73,9 @@ const installFixtures = async (page) => {
   await page.addInitScript((user) => {
     localStorage.setItem("reebs_auth_user", JSON.stringify(user));
   }, adminUser);
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const endpoint = new URL(route.request().url()).pathname.split("/").pop();
-    const payload = endpoint === "authSession"
+    const payload = ["authSession", "session"].includes(endpoint || "")
       ? adminUser
       : endpoint === "dashboardOverview"
         ? dashboard
@@ -166,9 +166,13 @@ for (const width of [320, 375, 390, 430, 768, 1024, 1440]) {
     await installFixtures(page);
     await page.setViewportSize({ width, height: width < 768 ? 844 : 900 });
     await page.goto("/admin");
-    await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
-    if (process.env.CAPTURE_DASHBOARD === "1" && width === 390) {
-      await page.screenshot({ path: "/tmp/reebs-dashboard-faako-mobile.png", fullPage: true });
+    await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".reebs-health-segments").first()).toBeVisible();
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    if (process.env.CAPTURE_DASHBOARD === "1" && [390, 768].includes(width)) {
+      const screen = width === 390 ? "mobile" : "tablet";
+      await page.screenshot({ path: `/tmp/reebs-dashboard-faako-${screen}.png`, fullPage: true });
+      await page.locator(".reebs-dashboard-header").screenshot({ path: `/tmp/reebs-dashboard-faako-${screen}-header.png` });
     }
     const overflow = await page.evaluate(() => ({
       html: document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -181,14 +185,28 @@ for (const width of [320, 375, 390, 430, 768, 1024, 1440]) {
     expect(overflow.html).toBeLessThanOrEqual(1);
     expect(overflow.body).toBeLessThanOrEqual(1);
     expect(overflow.page).toBeLessThanOrEqual(1);
-    if (width <= 430) {
-      const copyBox = await page.locator(".reebs-dashboard-header-copy").boundingBox();
-      const actionsBox = await page.locator(".reebs-dashboard-header-actions").boundingBox();
-      expect(copyBox).not.toBeNull();
-      expect(actionsBox).not.toBeNull();
-      expect((actionsBox?.y || 0) - ((copyBox?.y || 0) + (copyBox?.height || 0))).toBeLessThanOrEqual(32);
+    if (width <= 860) {
+      // Read both boxes in the same browser frame, after the loaded content and
+      // fonts are ready. Separate round trips can straddle a layout shift.
+      const headerLayout = await page.evaluate(() => {
+        const copy = document.querySelector(".reebs-dashboard-header-copy");
+        const actions = document.querySelector(".reebs-dashboard-header-actions");
+        const text = copy?.lastElementChild;
+        if (!copy || !actions || !text) return null;
+        return {
+          containerGap: actions.getBoundingClientRect().top - copy.getBoundingClientRect().bottom,
+          textGap: actions.getBoundingClientRect().top - text.getBoundingClientRect().bottom,
+          copyFlex: getComputedStyle(copy).flex,
+          copyHeight: copy.getBoundingClientRect().height,
+        };
+      });
+      expect(headerLayout).not.toBeNull();
+      expect(headerLayout?.containerGap).toBeGreaterThanOrEqual(0);
+      expect(headerLayout?.containerGap).toBeLessThanOrEqual(32);
+      // A stretched flex child can have a small container gap but a large blank
+      // area below its text. Check the visible content, not just its wrapper.
+      expect(headerLayout?.textGap, JSON.stringify(headerLayout)).toBeLessThanOrEqual(32);
     }
-    await expect(page.locator(".reebs-health-segments").first()).toBeVisible();
   });
 }
 
@@ -208,9 +226,9 @@ test("ordinary staff do not receive financial or technical-detail widgets", asyn
     summary: { ...dashboard.summary, payments: null, delivery: null },
   };
   await page.addInitScript((user) => localStorage.setItem("reebs_auth_user", JSON.stringify(user)), staffUser);
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const endpoint = new URL(route.request().url()).pathname.split("/").pop();
-    const payload = endpoint === "authSession"
+    const payload = ["authSession", "session"].includes(endpoint || "")
       ? staffUser
       : endpoint === "dashboardOverview"
         ? staffDashboard

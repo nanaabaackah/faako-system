@@ -1,0 +1,207 @@
+.site-search-dialog {
+  width: min(52rem, calc(100% - 2rem));
+  max-height: min(48rem, calc(100dvh - 2rem));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / var(--opacity-border));
+  border-radius: var(--radius-xl);
+  background: transparent;
+  box-shadow: var(--shadow-panel);
+  color: var(--white);
+}
+
+.site-search-dialog::backdrop {
+  background: rgb(5 4 7 / 68%);
+  -webkit-backdrop-filter: blur(var(--blur-panel));
+  backdrop-filter: blur(var(--blur-panel));
+}
+
+.site-search-panel {
+  max-height: min(48rem, calc(100dvh - 2rem));
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  overflow-y: auto;
+  background: rgb(var(--brand-deep-rgb) / 88%);
+  -webkit-backdrop-filter: blur(var(--blur-expanded-menu)) saturate(1.2);
+  backdrop-filter: blur(var(--blur-expanded-menu)) saturate(1.2);
+}
+
+.site-search-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.site-search-heading p {
+  margin: 0 0 0.35rem;
+  color: var(--brand-pink-light);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.site-search-heading h2 {
+  margin: 0;
+  color: var(--white);
+  font-size: clamp(3rem, 7vw, 5rem);
+  line-height: 0.9;
+}
+
+.site-search-close {
+  display: grid;
+  width: 2.8rem;
+  height: 2.8rem;
+  flex: 0 0 auto;
+  padding: 0;
+  cursor: pointer;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: rgb(255 255 255 / 10%);
+  color: var(--white);
+}
+
+.site-search-close svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.site-search-form {
+  margin-top: 2rem;
+}
+
+.site-search-form label {
+  display: block;
+  margin-bottom: 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.site-search-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  min-height: 4rem;
+  padding-inline: 1.1rem;
+  gap: 0.8rem;
+  border: 1px solid rgb(255 255 255 / 42%);
+  border-radius: var(--radius-md);
+  background: var(--white);
+  color: var(--brand-black);
+}
+
+.site-search-field svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  color: var(--brand-pink-dark);
+}
+
+.site-search-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 1rem 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--brand-black);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.site-search-status {
+  margin: 1rem 0 0.65rem;
+  color: rgb(255 255 255 / 70%);
+  font-size: 0.72rem;
+}
+
+.site-search-results {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0.4rem;
+  list-style: none;
+}
+
+.site-search-results li[hidden] {
+  display: none;
+}
+
+.site-search-results a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 0.95rem;
+  gap: 1rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 7%);
+  color: var(--white);
+  text-decoration: none;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.site-search-results a:hover,
+.site-search-results a:focus-visible {
+  border-color: rgb(255 255 255 / 36%);
+  background: rgb(255 255 255 / 13%);
+  transform: translateX(0.2rem);
+}
+
+.site-search-results a > span:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.site-search-results strong {
+  font-size: 0.92rem;
+}
+
+.site-search-results small {
+  color: rgb(255 255 255 / 68%);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.search-result-arrow {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--brand-pink);
+  color: var(--white);
+}
+
+.search-result-arrow svg {
+  width: 0.8rem;
+  height: 0.8rem;
+}
+
+.site-search-empty {
+  margin: 1rem 0 0;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 8%);
+  color: rgb(255 255 255 / 76%);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 580px) {
+  .site-search-dialog,
+  .site-search-panel {
+    max-height: calc(100dvh - 1rem);
+  }
+
+  .site-search-dialog {
+    width: calc(100% - 1rem);
+  }
+
+  .site-search-panel {
+    padding: 1.1rem;
+  }
+
+  .site-search-results small {
+    display: none;
+  }
+}

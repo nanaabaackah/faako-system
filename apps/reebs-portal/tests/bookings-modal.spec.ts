@@ -80,13 +80,13 @@ const installBookingApi = async (page: Page) => {
     localStorage.setItem("reebs_auth_user", JSON.stringify(user));
   }, adminUser);
 
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const endpoint = url.pathname.split("/").pop() || "";
     let payload: unknown = [];
 
-    if (endpoint === "authSession") payload = adminUser;
+    if (["authSession", "session"].includes(endpoint || "")) payload = adminUser;
     else if (endpoint === "bookings") payload = url.searchParams.get("id") ? booking : [booking];
     else if (endpoint === "inventory") payload = [product];
     else if (endpoint === "customers") payload = [customer];

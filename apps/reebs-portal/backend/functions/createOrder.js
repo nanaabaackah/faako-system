@@ -1,4 +1,5 @@
 /* eslint-disable no-undef */
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 import { createDatabaseClient } from "./_shared/databaseClient.js";
 import {
   ensureCrmContactTables,
@@ -180,6 +181,12 @@ export async function handler(event = {}) {
     };
   }
   if (method !== "POST") return json(event, 405, { error: "Method Not Allowed" }, { methods: METHODS });
+  if (!REEBS_PUBLIC_COMMERCE.checkoutEnabled) {
+    return json(event, 403, {
+      error: REEBS_PUBLIC_COMMERCE.disabledMessage,
+      code: REEBS_PUBLIC_COMMERCE.disabledCode,
+    }, { methods: METHODS });
+  }
 
   const requestOrigin = getHeaderValue(event, "origin");
   if (

@@ -147,8 +147,8 @@ export const initializePayment = async (client, input = {}, dependencies = {}) =
     };
   }
 
-  const provider = dependencies.provider || getOnlinePaymentProvider(providerName, dependencies.providerOptions);
   try {
+    const provider = dependencies.provider || getOnlinePaymentProvider(providerName, dependencies.providerOptions);
     const initialized = await provider.initializePayment({
       email: prepared.customerEmail,
       amountCents: prepared.attempt.amountCents,
@@ -319,13 +319,6 @@ export const recordManualPayment = async (client, input = {}) => {
       forUpdate: true,
     });
     const amountCents = Math.round(Number(input.amountCents || 0));
-    const balance = calculatePayableCharge(payable, "BALANCE");
-    if (amountCents <= 0 || amountCents > balance.balanceDueCents) {
-      throw paymentError(
-        "Manual payment must be greater than zero and no more than the trusted balance due.",
-        "INVALID_PAYMENT_AMOUNT"
-      );
-    }
     const orderResult = await recordManualOrderPayment(client, {
       organizationId,
       orderId: payable.id,
@@ -339,13 +332,24 @@ export const recordManualPayment = async (client, input = {}) => {
       actor: input.actor,
     });
     const existing = await findPaymentRecordForOrderPayment(client, orderResult.payment.id);
-    if (existing) {
+    if (orderResult.idempotentReplay || existing) {
       await client.query("COMMIT");
       return {
         ...orderResult,
         universalPayment: toSafePaymentResult({ payment: existing }, true),
         idempotentReplay: true,
       };
+    }
+    // The locked Order writer validates new collections before writing. Check
+    // its denormalized balance against the pre-write payment-ledger snapshot as
+    // well, before committing any payment/receipt/stock/journal effects. An exact
+    // replay must bypass this new-collection check and must not backfill records.
+    const balance = calculatePayableCharge(payable, "BALANCE");
+    if (amountCents <= 0 || amountCents > balance.balanceDueCents) {
+      throw paymentError(
+        "Manual payment must be greater than zero and no more than the trusted balance due.",
+        "INVALID_PAYMENT_AMOUNT"
+      );
     }
     const paidAt = orderResult.payment.paidAt || new Date().toISOString();
     const recorded = await createPaymentRecordAndApplication(client, {

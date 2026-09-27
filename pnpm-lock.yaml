@@ -33,7 +33,7 @@ importers:
     dependencies:
       react-helmet:
         specifier: ^6.1.0
-        version: 6.1.0(react@19.2.4)
+        version: 6.1.0(react@19.3.0)
     devDependencies:
       '@eslint/js':
         specifier: ^9.25.0
@@ -327,7 +327,7 @@ importers:
         version: link:../../packages/security
       '@prisma/client':
         specifier: ^7.3.0
-        version: 7.5.0(prisma@7.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2))(typescript@6.0.2)
+        version: 7.5.0(prisma@7.5.0(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.2))(typescript@6.0.2)
       cors:
         specifier: ^2.8.6
         version: 2.8.6
@@ -385,7 +385,7 @@ importers:
         version: 16.5.0
       prisma:
         specifier: ^7.3.0
-        version: 7.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2)
+        version: 7.5.0(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.2)
 
   apps/faako-erp:
     dependencies:
@@ -628,7 +628,7 @@ importers:
         version: 19.2.3(@types/react@19.2.14)
       '@vitejs/plugin-react':
         specifier: ^4.4.1
-        version: 4.7.0(vite@6.4.3(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0))
+        version: 4.7.0(vite@6.4.3(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0))
       autoprefixer:
         specifier: ^10.4.21
         version: 10.4.27(postcss@8.5.22)
@@ -661,7 +661,7 @@ importers:
         version: 16.5.0
       jest:
         specifier: ^30.0.4
-        version: 30.3.0(@types/node@20.19.39)(ts-node@10.9.2(@types/node@20.19.39)(typescript@5.9.3))
+        version: 30.3.0(@types/node@25.5.0)(ts-node@10.9.2(@types/node@25.5.0)(typescript@5.9.3))
       playwright:
         specifier: ^1.55.1
         version: 1.58.2
@@ -679,19 +679,22 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^6.4.3
-        version: 6.4.3(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0)
+        version: 6.4.3(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0)
 
   apps/reebs-website:
     dependencies:
       '@astrojs/react':
         specifier: ^6.0.1
-        version: 6.0.1(@types/node@25.5.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(esbuild@0.28.1)(jiti@2.6.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.9.0)
+        version: 6.0.1(@types/node@20.19.39)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(esbuild@0.28.1)(jiti@2.6.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.9.0)
       '@astrojs/sitemap':
         specifier: ^3.7.3
         version: 3.7.3
       '@faako/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@faako/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@faako/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -718,7 +721,7 @@ importers:
         version: 2.20.8(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       astro:
         specifier: ^7.1.3
-        version: 7.1.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.5.0)(jiti@2.6.1)(rollup@4.59.0)(yaml@2.9.0)
+        version: 7.1.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@20.19.39)(jiti@2.6.1)(rollup@4.59.0)(yaml@2.9.0)
       iconsax-react:
         specifier: ^0.0.8
         version: 0.0.8(react@19.2.4)
@@ -791,7 +794,7 @@ importers:
         version: 16.5.0
       jest:
         specifier: ^30.0.4
-        version: 30.3.0(@types/node@25.5.0)(ts-node@10.9.2(@types/node@25.5.0)(typescript@5.9.3))
+        version: 30.3.0(@types/node@20.19.39)(ts-node@10.9.2(@types/node@20.19.39)(typescript@5.9.3))
       playwright:
         specifier: ^1.55.1
         version: 1.58.2
@@ -977,6 +980,51 @@ importers:
       vite:
         specifier: ^6.3.6
         version: 6.4.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0)
+
+  apps/ttngh:
+    dependencies:
+      '@astrojs/react':
+        specifier: ^6.0.4
+        version: 6.0.6(@types/node@25.5.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(esbuild@0.28.1)(jiti@2.6.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(yaml@2.9.0)
+      '@astrojs/sitemap':
+        specifier: ^3.7.3
+        version: 3.7.3
+      '@faako/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@faako/theme':
+        specifier: workspace:*
+        version: link:../../packages/theme
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@faako/utils':
+        specifier: workspace:*
+        version: link:../../packages/utils
+      '@react-google-maps/api':
+        specifier: ^2.20.7
+        version: 2.20.8(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      astro:
+        specifier: ^7.1.3
+        version: 7.1.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.5.0)(jiti@2.6.1)(rollup@4.59.0)(yaml@2.9.0)
+      iconsax-react:
+        specifier: ^0.0.8
+        version: 0.0.8(react@19.3.0)
+      ogl:
+        specifier: ^1.0.11
+        version: 1.0.11
+      prop-types:
+        specifier: ^15.8.1
+        version: 15.8.1
+      react:
+        specifier: ^19.2.8
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.3.0(react@19.3.0)
+      react-icons:
+        specifier: ^5.6.0
+        version: 5.6.0(react@19.3.0)
 
   apps/ui-workbench:
     dependencies:
@@ -1185,6 +1233,9 @@ packages:
   '@astrojs/internal-helpers@0.10.1':
     resolution: {integrity: sha512-5phcroT/vmOOrYuuAxtkbPixy5hePtlz9i8K4OeDv3dNK6/UQRuXPOSRTxIOBbUY5Sonw2UaxjbuVc43Mcir6Q==}
 
+  '@astrojs/internal-helpers@0.11.0':
+    resolution: {integrity: sha512-3rzxJ+xbo0+8YyqOzLziIN32wmsHdCjEVz2sGOpRxJ+Ben/KiLph4ItxBy1abEL+E8fkRzqjg0rfXmaHJGw9JA==}
+
   '@astrojs/language-server@2.16.13':
     resolution: {integrity: sha512-ekOa+CYprEq5n4EJC1qTIAhLk49HZIUQuFwrEuF+3JK/pdMaYnWoREFUI2A0KEPOJiFA2kamBzKzbYljDvUxLg==}
     hasBin: true
@@ -1206,6 +1257,15 @@ packages:
 
   '@astrojs/react@6.0.1':
     resolution: {integrity: sha512-Afs1sEm72P2plDnrOGxmIteJ7bjx/VqxlcaQLNip5eHJ5tIvKUORQetC9UKcvgwKnj51t60HWl5mOANkOsWs4w==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      '@types/react': ^17.0.50 || ^18.0.21 || ^19.0.0
+      '@types/react-dom': ^17.0.17 || ^18.0.6 || ^19.0.0
+      react: ^17.0.2 || ^18.0.0 || ^19.0.0
+      react-dom: ^17.0.2 || ^18.0.0 || ^19.0.0
+
+  '@astrojs/react@6.0.6':
+    resolution: {integrity: sha512-TQ9G2m2tIx9c105GmvjRAcTk+kV0QER5MsEPKUbK1Jm8SBYKzIzR89xh4L2vXAxI2zMfTMmsR7vln1TOLZpckw==}
     engines: {node: '>=22.12.0'}
     peerDependencies:
       '@types/react': ^17.0.50 || ^18.0.21 || ^19.0.0
@@ -5780,6 +5840,11 @@ packages:
     peerDependencies:
       react: ^19.2.4
 
+  react-dom@19.3.0:
+    resolution: {integrity: sha512-JDk8dgif51OjFoDE70+OT9ICyYr+69HlmihNwp1+Nsfbna3t5sIiCa9ZJktDmQ4/1b/rn26hIAR2uYXDMr5r0Q==}
+    peerDependencies:
+      react: ^19.3.0
+
   react-fast-compare@3.2.2:
     resolution: {integrity: sha512-nsO+KSNgo1SbJqJEYRE9ERzo7YtYbou/OqjSQKxV7jcKox7+usiUVZOAC+XnDOABXggQTno0Y1CpVnuWEc1boQ==}
 
@@ -5863,6 +5928,10 @@ packages:
 
   react@19.2.4:
     resolution: {integrity: sha512-9nfp2hYpCwOjAN+8TZFGhtWEwgvWHXqESH8qT89AT/lWklpLON22Lc8pEtnpsZz7VmawabSU0gCjnj8aC0euHQ==}
+    engines: {node: '>=0.10.0'}
+
+  react@19.3.0:
+    resolution: {integrity: sha512-E8LUcbtBWt20bbl2YoHfx4ZDBdxVTfOKtCZn9cDSJ4l6/nuoApcpIBcj47t2wZoVX8g2ZHuMHbiShgCR1T5Sog==}
     engines: {node: '>=0.10.0'}
 
   readdirp@4.1.2:
@@ -6007,6 +6076,9 @@ packages:
 
   scheduler@0.27.0:
     resolution: {integrity: sha512-eNv+WrVbKu1f3vbYJT/xtiF5syA5HPIMtf9IgY/nKg0sWqzAUEvqY/xm7OcZc/qafLx/iO9FgOmeSAp4v5ti/Q==}
+
+  scheduler@0.28.0:
+    resolution: {integrity: sha512-juorfCmIkIw8tT+p5BXSm6PJjQF/ycEYmKyzURCIt/RaZIhL+PulbQ9Yu2z1HdOJDdqDTlxA1+xKBmHXJsczAw==}
 
   selderee@0.11.0:
     resolution: {integrity: sha512-5TF+l7p4+OsnP8BCCvSyZiSPc4x4//p5uPwK8TCnVPJYRmU2aYKMpOXvw8zM5a5JvuuCGN1jmsMwuU2W02ukfA==}
@@ -7069,6 +7141,17 @@ snapshots:
       smol-toml: 1.7.0
       unified: 11.0.5
 
+  '@astrojs/internal-helpers@0.11.0':
+    dependencies:
+      '@types/hast': 3.0.5
+      '@types/mdast': 4.0.4
+      js-yaml: 4.3.0
+      picomatch: 4.0.5
+      retext-smartypants: 6.2.0
+      shiki: 4.3.1
+      smol-toml: 1.7.0
+      unified: 11.0.5
+
   '@astrojs/language-server@2.16.13(prettier@3.8.1)(typescript@5.9.3)':
     dependencies:
       '@astrojs/compiler': 2.13.1
@@ -7106,6 +7189,32 @@ snapshots:
     dependencies:
       prismjs: 1.30.0
 
+  '@astrojs/react@6.0.1(@types/node@20.19.39)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(esbuild@0.28.1)(jiti@2.6.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(yaml@2.9.0)':
+    dependencies:
+      '@astrojs/internal-helpers': 0.10.1
+      '@types/react': 19.2.14
+      '@types/react-dom': 19.2.3(@types/react@19.2.14)
+      '@vitejs/plugin-react': 5.2.0(vite@8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))
+      devalue: 5.8.2
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
+      ultrahtml: 1.7.0
+      vite: 8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
+
   '@astrojs/react@6.0.1(@types/node@25.5.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(esbuild@0.28.1)(jiti@2.6.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(yaml@2.9.0)':
     dependencies:
       '@astrojs/internal-helpers': 0.10.1
@@ -7141,6 +7250,32 @@ snapshots:
       devalue: 5.8.2
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+      ultrahtml: 1.7.0
+      vite: 8.1.5(@types/node@25.5.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+      - tsx
+      - yaml
+
+  '@astrojs/react@6.0.6(@types/node@25.5.0)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(esbuild@0.28.1)(jiti@2.6.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(yaml@2.9.0)':
+    dependencies:
+      '@astrojs/internal-helpers': 0.11.0
+      '@types/react': 19.2.14
+      '@types/react-dom': 19.2.3(@types/react@19.2.14)
+      '@vitejs/plugin-react': 5.2.0(vite@8.1.5(@types/node@25.5.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))
+      devalue: 5.8.2
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
       ultrahtml: 1.7.0
       vite: 8.1.5(@types/node@25.5.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
     transitivePeerDependencies:
@@ -8239,6 +8374,13 @@ snapshots:
       prisma: 7.5.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@6.0.2)
       typescript: 6.0.2
 
+  '@prisma/client@7.5.0(prisma@7.5.0(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.2))(typescript@6.0.2)':
+    dependencies:
+      '@prisma/client-runtime-utils': 7.5.0
+    optionalDependencies:
+      prisma: 7.5.0(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.2)
+      typescript: 6.0.2
+
   '@prisma/config@7.5.0':
     dependencies:
       c12: 3.1.0
@@ -8331,6 +8473,12 @@ snapshots:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
 
+  '@prisma/studio-core@0.21.1(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@types/react': 19.2.14
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
+
   '@react-aria/ssr@3.9.10(react@19.2.4)':
     dependencies:
       '@swc/helpers': 0.5.19
@@ -8354,6 +8502,17 @@ snapshots:
       invariant: 2.2.4
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+
+  '@react-google-maps/api@2.20.8(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+    dependencies:
+      '@googlemaps/js-api-loader': 1.16.8
+      '@googlemaps/markerclusterer': 2.5.3
+      '@react-google-maps/infobox': 2.20.0
+      '@react-google-maps/marker-clusterer': 2.20.0
+      '@types/google.maps': 3.58.1
+      invariant: 2.2.4
+      react: 19.3.0
+      react-dom: 19.3.0(react@19.3.0)
 
   '@react-google-maps/infobox@2.20.0': {}
 
@@ -9052,7 +9211,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@vitejs/plugin-react@4.7.0(vite@6.4.3(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0))':
+  '@vitejs/plugin-react@4.7.0(vite@6.4.3(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
@@ -9060,7 +9219,19 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.27
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 6.4.3(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0)
+      vite: 6.4.3(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vitejs/plugin-react@5.2.0(vite@8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))':
+    dependencies:
+      '@babel/core': 7.29.0
+      '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.29.0)
+      '@babel/plugin-transform-react-jsx-source': 7.27.1(@babel/core@7.29.0)
+      '@rolldown/pluginutils': 1.0.0-rc.3
+      '@types/babel__core': 7.20.5
+      react-refresh: 0.18.0
+      vite: 8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -9268,6 +9439,98 @@ snapshots:
       is-array-buffer: 3.0.5
 
   ast-types-flow@0.0.8: {}
+
+  astro@7.1.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@20.19.39)(jiti@2.6.1)(rollup@4.59.0)(yaml@2.9.0):
+    dependencies:
+      '@astrojs/compiler-rs': 0.3.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)
+      '@astrojs/internal-helpers': 0.10.1
+      '@astrojs/markdown-satteri': 0.3.4
+      '@astrojs/telemetry': 3.3.3
+      '@capsizecss/unpack': 4.0.1
+      '@clack/prompts': 1.7.0
+      '@oslojs/encoding': 1.1.0
+      '@rollup/pluginutils': 5.4.0(rollup@4.59.0)
+      am-i-vibing: 0.4.0
+      aria-query: 5.3.2
+      axobject-query: 4.1.0
+      ci-info: 4.4.0
+      clsx: 2.1.1
+      common-ancestor-path: 2.0.0
+      cookie: 2.0.1
+      devalue: 5.8.2
+      diff: 8.0.4
+      dset: 3.1.4
+      es-module-lexer: 2.3.1
+      esbuild: 0.28.1
+      flattie: 1.1.1
+      fontace: 0.4.1
+      get-tsconfig: 5.0.0-beta.4
+      github-slugger: 2.0.0
+      html-escaper: 3.0.3
+      http-cache-semantics: 4.2.0
+      js-yaml: 4.3.0
+      jsonc-parser: 3.3.1
+      magic-string: 0.30.21
+      magicast: 0.5.3
+      mrmime: 2.0.1
+      neotraverse: 1.0.1
+      obug: 2.1.4
+      p-limit: 7.3.1
+      p-queue: 9.3.3
+      package-manager-detector: 1.8.0
+      piccolore: 0.1.3
+      picomatch: 4.0.5
+      semver: 7.7.4
+      shiki: 4.3.1
+      smol-toml: 1.7.0
+      svgo: 4.0.2
+      tinyclip: 0.1.15
+      tinyexec: 1.0.4
+      tinyglobby: 0.2.17
+      ultrahtml: 1.7.0
+      unifont: 0.7.4
+      unstorage: 1.17.5
+      vite: 8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
+      vitefu: 1.1.3(vite@8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))
+      xxhash-wasm: 1.1.0
+      yargs-parser: 22.0.0
+      zod: 4.3.6
+    optionalDependencies:
+      sharp: 0.34.5
+    transitivePeerDependencies:
+      - '@azure/app-configuration'
+      - '@azure/cosmos'
+      - '@azure/data-tables'
+      - '@azure/identity'
+      - '@azure/keyvault-secrets'
+      - '@azure/storage-blob'
+      - '@capacitor/preferences'
+      - '@deno/kv'
+      - '@emnapi/core'
+      - '@emnapi/runtime'
+      - '@netlify/blobs'
+      - '@planetscale/database'
+      - '@types/node'
+      - '@upstash/redis'
+      - '@vercel/blob'
+      - '@vercel/functions'
+      - '@vercel/kv'
+      - '@vitejs/devtools'
+      - aws4fetch
+      - db0
+      - idb-keyval
+      - ioredis
+      - jiti
+      - less
+      - rollup
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - uploadthing
+      - yaml
 
   astro@7.1.3(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@types/node@25.5.0)(jiti@2.6.1)(rollup@4.59.0)(yaml@2.9.0):
     dependencies:
@@ -10795,6 +11058,11 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.4
 
+  iconsax-react@0.0.8(react@19.3.0):
+    dependencies:
+      prop-types: 15.8.1
+      react: 19.3.0
+
   iconsax@0.0.1: {}
 
   iconv-lite@0.7.2:
@@ -12215,6 +12483,22 @@ snapshots:
       - react
       - react-dom
 
+  prisma@7.5.0(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.2):
+    dependencies:
+      '@prisma/config': 7.5.0
+      '@prisma/dev': 0.20.0(typescript@6.0.2)
+      '@prisma/engines': 7.5.0
+      '@prisma/studio-core': 0.21.1(@types/react@19.2.14)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      mysql2: 3.15.3
+      postgres: 3.4.7
+    optionalDependencies:
+      typescript: 6.0.2
+    transitivePeerDependencies:
+      - '@types/react'
+      - magicast
+      - react
+      - react-dom
+
   prismjs@1.30.0: {}
 
   process-ancestry@0.1.0: {}
@@ -12315,6 +12599,11 @@ snapshots:
       react: 19.2.4
       scheduler: 0.27.0
 
+  react-dom@19.3.0(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+      scheduler: 0.28.0
+
   react-fast-compare@3.2.2: {}
 
   react-helmet@6.1.0(react@19.2.4):
@@ -12325,6 +12614,14 @@ snapshots:
       react-fast-compare: 3.2.2
       react-side-effect: 2.1.2(react@19.2.4)
 
+  react-helmet@6.1.0(react@19.3.0):
+    dependencies:
+      object-assign: 4.1.1
+      prop-types: 15.8.1
+      react: 19.3.0
+      react-fast-compare: 3.2.2
+      react-side-effect: 2.1.2(react@19.3.0)
+
   react-icons@5.6.0(react@18.3.1):
     dependencies:
       react: 18.3.1
@@ -12332,6 +12629,10 @@ snapshots:
   react-icons@5.6.0(react@19.2.4):
     dependencies:
       react: 19.2.4
+
+  react-icons@5.6.0(react@19.3.0):
+    dependencies:
+      react: 19.3.0
 
   react-is@16.13.1: {}
 
@@ -12379,6 +12680,10 @@ snapshots:
     dependencies:
       react: 19.2.4
 
+  react-side-effect@2.1.2(react@19.3.0):
+    dependencies:
+      react: 19.3.0
+
   react-transition-group@4.4.5(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       '@babel/runtime': 7.28.6
@@ -12393,6 +12698,8 @@ snapshots:
       loose-envify: 1.4.0
 
   react@19.2.4: {}
+
+  react@19.3.0: {}
 
   readdirp@4.1.2: {}
 
@@ -12602,6 +12909,8 @@ snapshots:
       loose-envify: 1.4.0
 
   scheduler@0.27.0: {}
+
+  scheduler@0.28.0: {}
 
   selderee@0.11.0:
     dependencies:
@@ -13313,7 +13622,7 @@ snapshots:
       lightningcss: 1.32.0
       yaml: 2.9.0
 
-  vite@6.4.3(@types/node@20.19.39)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0):
+  vite@6.4.3(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.32.0)(yaml@2.9.0):
     dependencies:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.4)
@@ -13322,10 +13631,24 @@ snapshots:
       rollup: 4.59.0
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 20.19.39
+      '@types/node': 25.5.0
       fsevents: 2.3.3
       jiti: 2.6.1
       lightningcss: 1.32.0
+      yaml: 2.9.0
+
+  vite@8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0):
+    dependencies:
+      lightningcss: 1.32.0
+      picomatch: 4.0.4
+      postcss: 8.5.22
+      rolldown: 1.1.5
+      tinyglobby: 0.2.17
+    optionalDependencies:
+      '@types/node': 20.19.39
+      esbuild: 0.28.1
+      fsevents: 2.3.3
+      jiti: 2.6.1
       yaml: 2.9.0
 
   vite@8.1.5(@types/node@25.5.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0):
@@ -13341,6 +13664,10 @@ snapshots:
       fsevents: 2.3.3
       jiti: 2.6.1
       yaml: 2.9.0
+
+  vitefu@1.1.3(vite@8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)):
+    optionalDependencies:
+      vite: 8.1.5(@types/node@20.19.39)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)
 
   vitefu@1.1.3(vite@8.1.5(@types/node@25.5.0)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0)):
     optionalDependencies:

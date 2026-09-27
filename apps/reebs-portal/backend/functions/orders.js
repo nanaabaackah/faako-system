@@ -175,23 +175,6 @@ export async function handler(event = {}) {
 
       const requestedStatus = String(body.status || "").trim().toLowerCase().replace(/\s+/g, "_");
       if (["cancelled", "canceled"].includes(requestedStatus)) {
-        const paidCheck = await client.query(
-          `SELECT "amountPaidCents", "paymentStatus"
-           FROM "order"
-           WHERE id = $1
-             AND "organizationId" = $2`,
-          [orderId, organizationId]
-        );
-        if (paidCheck.rowCount === 0) return json(event, 404, { error: "Order not found." });
-        const hasPayment = Number(paidCheck.rows[0]?.amountPaidCents || 0) > 0
-          || ["paid", "partially_paid", "overpaid"].includes(
-            String(paidCheck.rows[0]?.paymentStatus || "").toLowerCase()
-          );
-        if (hasPayment && !hasAnyRole(authUser, ["owner", "admin"])) {
-          return json(event, 403, {
-            error: "Only owners and admins can cancel paid orders.",
-          });
-        }
         await client.query("BEGIN");
         try {
           const cancelled = await cancelOrder(client, {
@@ -199,6 +182,7 @@ export async function handler(event = {}) {
             orderId,
             reason: body.cancelReason || body.reason || "",
             actor,
+            canCancelPaid: hasAnyRole(authUser, ["owner", "admin"]),
           });
           await writeMutationAudit(client, event, {
             action: "ORDER_CANCELLED",
@@ -206,7 +190,7 @@ export async function handler(event = {}) {
             authUser,
             order: cancelled,
             summary: `Cancelled order ${cancelled.orderNumber}.`,
-            metadata: { paidOrder: hasPayment },
+            metadata: { paidOrder: Number(cancelled.amountPaidCents || 0) > 0 },
           });
           await client.query("COMMIT");
           return json(event, 200, cancelled);
@@ -293,24 +277,6 @@ export async function handler(event = {}) {
       const orderId = getOrderIdFromEvent(event, body);
       if (!orderId) return json(event, 400, { error: "Order id is required." });
 
-      const paidCheck = await client.query(
-        `SELECT "amountPaidCents", "paymentStatus"
-         FROM "order"
-         WHERE id = $1
-           AND "organizationId" = $2`,
-        [orderId, organizationId]
-      );
-      if (paidCheck.rowCount === 0) return json(event, 404, { error: "Order not found." });
-      const hasPayment = Number(paidCheck.rows[0]?.amountPaidCents || 0) > 0
-        || ["paid", "partially_paid", "overpaid"].includes(
-          String(paidCheck.rows[0]?.paymentStatus || "").toLowerCase()
-        );
-      if (hasPayment && !hasAnyRole(authUser, ["owner", "admin"])) {
-        return json(event, 403, {
-          error: "Only owners and admins can cancel paid orders.",
-        });
-      }
-
       await client.query("BEGIN");
       try {
         const cancelled = await cancelOrder(client, {
@@ -318,6 +284,7 @@ export async function handler(event = {}) {
           orderId,
           reason: body.cancelReason || body.reason || event.queryStringParameters?.reason || "",
           actor,
+          canCancelPaid: hasAnyRole(authUser, ["owner", "admin"]),
         });
         await writeMutationAudit(client, event, {
           action: "ORDER_CANCELLED",
@@ -325,7 +292,7 @@ export async function handler(event = {}) {
           authUser,
           order: cancelled,
           summary: `Cancelled order ${cancelled.orderNumber}.`,
-          metadata: { paidOrder: hasPayment },
+          metadata: { paidOrder: Number(cancelled.amountPaidCents || 0) > 0 },
         });
         await client.query("COMMIT");
         return json(event, 200, cancelled);

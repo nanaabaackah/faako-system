@@ -1,0 +1,19 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import { FaArrowRight } from "react-icons/fa6";
+import errorStyles from "../styles/pages/error.css?url";
+---
+
+<BaseLayout title="Page not found | The Thriving Network GH" path="/404" overlayHeader={true} pageStyles={[errorStyles]} noIndex={true}>
+  <main id="main-content" class="error-page">
+    <SiteHeader />
+    <div class="error-message">
+      <p class="eyebrow">Page not found</p>
+      <h1>This page is not available.</h1>
+      <p>The link may be out of date, or the page may have moved.</p>
+      <a class="button button-primary" href="/"><span class="button-label">Go back home</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+    </div>
+    <p class="error-code" aria-hidden="true">404</p>
+  </main>
+</BaseLayout>

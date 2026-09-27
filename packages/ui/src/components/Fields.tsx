@@ -3,6 +3,7 @@ import {
   type CSSProperties,
   forwardRef,
   isValidElement,
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -470,7 +471,7 @@ export const SelectField = forwardRef<
     }
   };
 
-  const updatePanelPosition = () => {
+  const updatePanelPosition = useCallback(() => {
     const trigger = triggerRef.current;
     if (!trigger || typeof window === "undefined") return;
     const rect = trigger.getBoundingClientRect();
@@ -493,7 +494,7 @@ export const SelectField = forwardRef<
       left,
       width,
     });
-  };
+  }, [resolvedOptions.length]);
 
   useEffect(() => {
     if (!open) return;
@@ -513,7 +514,10 @@ export const SelectField = forwardRef<
         : openFocusDirectionRef.current === "first"
           ? optionButtons[0]
           : selectedButton || optionButtons[0];
-      target?.focus();
+      // The panel is portalled at the end of <body>. Focusing while its fixed
+      // position is being applied must not scroll the document to that DOM
+      // location and move the trigger (and therefore the panel) off screen.
+      target?.focus({ preventScroll: true });
       openFocusDirectionRef.current = "selected";
     });
     const handlePointerDown = (event: MouseEvent) => {
@@ -524,7 +528,7 @@ export const SelectField = forwardRef<
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
-        triggerRef.current?.focus();
+        triggerRef.current?.focus({ preventScroll: true });
       }
     };
     const handleViewportChange = () => updatePanelPosition();
@@ -539,12 +543,12 @@ export const SelectField = forwardRef<
       window.removeEventListener("scroll", handleViewportChange, true);
       window.cancelAnimationFrame(focusFrame);
     };
-  }, [open, resolvedOptions.length]);
+  }, [open, updatePanelPosition]);
 
   useEffect(() => {
     if (!open) return;
     updatePanelPosition();
-  }, [open, multiple, selectedValue, selectedValues]);
+  }, [open, multiple, selectedValue, selectedValues, updatePanelPosition]);
 
   const applyValue = (nextValue: string | string[]) => {
     onChangeValue?.(nextValue);
@@ -556,11 +560,11 @@ export const SelectField = forwardRef<
       setOpen(false);
       if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
         window.requestAnimationFrame(() => {
-          triggerRef.current?.focus();
+          triggerRef.current?.focus({ preventScroll: true });
         });
         return;
       }
-      triggerRef.current?.focus();
+      triggerRef.current?.focus({ preventScroll: true });
     }
   };
 
@@ -631,6 +635,14 @@ export const SelectField = forwardRef<
             setOpen((current) => !current);
           }}
           onKeyDown={(event) => {
+            // A fast Tab can arrive before the popover's initial-focus frame.
+            // Close it here as well as from the listbox to keep focus contained.
+            if (event.key === "Tab" && open) {
+              event.preventDefault();
+              setOpen(false);
+              triggerRef.current?.focus({ preventScroll: true });
+              return;
+            }
             if (disabled || !["ArrowDown", "ArrowUp"].includes(event.key)) return;
             event.preventDefault();
             openFocusDirectionRef.current = event.key === "ArrowUp" ? "last" : "first";
@@ -639,6 +651,7 @@ export const SelectField = forwardRef<
           aria-label={ariaLabel || (typeof label === "string" ? label : "Select option")}
           aria-haspopup="listbox"
           aria-expanded={open}
+          aria-controls={open ? `${fieldId}-options` : undefined}
           aria-invalid={error ? true : undefined}
           aria-describedby={joinDescribedBy(ariaDescribedBy, errorId, hintId)}
           disabled={disabled}
@@ -654,12 +667,19 @@ export const SelectField = forwardRef<
         ? createPortal(
             <div
               ref={panelRef}
+              id={`${fieldId}-options`}
               className="ui-dropdown-field__popover"
               style={panelStyle}
               role="listbox"
               aria-multiselectable={multiple || undefined}
               aria-label={ariaLabel || "Options"}
               onKeyDown={(event) => {
+                if (event.key === "Tab") {
+                  event.preventDefault();
+                  setOpen(false);
+                  triggerRef.current?.focus({ preventScroll: true });
+                  return;
+                }
                 if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
                 const optionButtons = Array.from(
                   panelRef.current?.querySelectorAll<HTMLButtonElement>(

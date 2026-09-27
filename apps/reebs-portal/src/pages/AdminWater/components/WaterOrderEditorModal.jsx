@@ -1,4 +1,4 @@
-import { DateField, InlineNotice, SelectField } from "@faako/ui";
+import { DateField, InlineNotice, SelectField, useERPDialog } from "@faako/ui";
 import WaterCustomerPicker from "./WaterCustomerPicker";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faTrash, faXmark } from "/src/icons/iconSet";
@@ -26,12 +26,16 @@ export default function WaterOrderEditorModal({
   saving,
   loading,
 }) {
+  const dialogRef = useERPDialog({
+    open: Boolean(activeOrderId && orderForm),
+    onClose: saving ? undefined : closeOrderEditor,
+  });
   if (!activeOrderId || !orderForm) return null;
 
   return (
-    <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-order-modal-title">
+    <div ref={dialogRef} className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-order-modal-title" tabIndex={-1}>
       <div className="admin-modal-panel water-order-modal water-order-editor-modal bubble-card">
-        <header>
+        <header role="presentation">
           <div>
             <p className="water-module-eyebrow">Edit order</p>
             <h2 id="water-order-modal-title">Order #{activeOrderId}</h2>

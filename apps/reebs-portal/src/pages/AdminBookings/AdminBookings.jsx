@@ -19,6 +19,9 @@ import {
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
+import useTableSort from "../../components/TableControls/useTableSort";
+import { tableDate } from "../../components/TableControls/tableRows.js";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import SearchField from "../../components/SearchField/SearchField";
@@ -62,6 +65,7 @@ import {
   matchesBookingTiming,
   normalizeBookingStatusFilter,
   normalizeBookingTimingFilter,
+  normalizeBookingTimeInput,
   normalizeBookingView,
   normalizeCurrency,
   normalizeCustomerName,
@@ -680,11 +684,23 @@ function AdminBookings() {
   );
 
   const pageCount = Math.max(1, Math.ceil(sortedBookings.length / pageSize));
+  const table = useTableSort(sortedBookings, {
+    id: (booking) => Number(booking.id),
+    booking: getBookingDisplayReference,
+    customer: (booking) => booking.customerName || "Customer",
+    date: (booking) => tableDate(booking.eventDate),
+    location: (booking) => booking.venueAddress,
+    time: (booking) => normalizeBookingTimeInput(booking.startTime),
+    invoice: (booking) => getBookingDocumentTitle(documentByBookingId.get(Number(booking.id))),
+    status: (booking) => booking.status || "pending",
+    total: (booking) => Number(booking.totalAmount),
+  });
+  const tableHeaders = { sort: table.sort, onSort: (key) => { table.onSort(key); setPage(0); } };
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedBookings = useMemo(() => {
     const start = clampedPage * pageSize;
-    return sortedBookings.slice(start, start + pageSize);
-  }, [sortedBookings, clampedPage, pageSize]);
+    return table.rows.slice(start, start + pageSize);
+  }, [table.rows, clampedPage, pageSize]);
   const bookingsFilteredTotal = useMemo(
     () => sortedBookings.reduce((sum, booking) => sum + toNumber(booking.totalAmount, 0) / 100, 0),
     [sortedBookings]
@@ -1975,33 +1991,15 @@ function AdminBookings() {
                   <table className="bookings-hub-table">
                     <thead>
                       <tr>
-                        <th className="table-row-index">
-                          <span className="bookings-table-heading">ID</span>
-                        </th>
-                        <th className="bookings-col-booking">
-                          <span className="bookings-table-heading">Booking</span>
-                        </th>
-                        <th className="bookings-col-customer">
-                          <span className="bookings-table-heading">Customer</span>
-                        </th>
-                        <th className="bookings-col-date">
-                          <span className="bookings-table-heading">Date</span>
-                        </th>
-                        <th className="bookings-col-address">
-                          <span className="bookings-table-heading">Location</span>
-                        </th>
-                        <th className="bookings-col-time">
-                          <span className="bookings-table-heading">Time</span>
-                        </th>
-                        <th className="bookings-col-invoice">
-                          <span className="bookings-table-heading">Invoice</span>
-                        </th>
-                        <th className="bookings-col-status">
-                          <span className="bookings-table-heading">Status</span>
-                        </th>
-                        <th className="bookings-col-total">
-                          <span className="bookings-table-heading">Total</span>
-                        </th>
+                        <TableSortHeader {...tableHeaders} column="id" className="table-row-index">ID</TableSortHeader>
+                        <TableSortHeader {...tableHeaders} column="booking" className="bookings-col-booking">Booking</TableSortHeader>
+                        <TableSortHeader {...tableHeaders} column="customer" className="bookings-col-customer">Customer</TableSortHeader>
+                        <TableSortHeader {...tableHeaders} column="date" className="bookings-col-date">Date</TableSortHeader>
+                        <TableSortHeader {...tableHeaders} column="location" className="bookings-col-address">Location</TableSortHeader>
+                        <TableSortHeader {...tableHeaders} column="time" className="bookings-col-time">Time</TableSortHeader>
+                        <TableSortHeader {...tableHeaders} column="invoice" className="bookings-col-invoice">Invoice</TableSortHeader>
+                        <TableSortHeader {...tableHeaders} column="status" className="bookings-col-status">Status</TableSortHeader>
+                        <TableSortHeader {...tableHeaders} column="total" className="bookings-col-total">Total</TableSortHeader>
                       </tr>
                     </thead>
                     <tbody>
@@ -2012,7 +2010,7 @@ function AdminBookings() {
                           </td>
                         </tr>
                       )}
-                      {paginatedBookings.map((booking, index) => {
+                      {paginatedBookings.map((booking) => {
                         const totalValue = toNumber(booking.totalAmount, 0) / 100;
                         const bookingDocument = documentByBookingId.get(Number(booking.id)) || null;
 
@@ -2025,7 +2023,7 @@ function AdminBookings() {
                             tabIndex={0}
                           >
                             <td className="table-row-index">
-                              <span className="bookings-table-text">{clampedPage * pageSize + index}</span>
+                              <span className="bookings-table-text">{booking.id}</span>
                             </td>
                             <td className="bookings-col-booking">
                               <span className="bookings-table-text">{getBookingDisplayReference(booking)}</span>

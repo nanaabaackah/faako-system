@@ -1,0 +1,25 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
+import { organization, partnershipGroups, supportPaths } from "../content/home.js";
+---
+
+<BaseLayout path="/get-involved" title={`Get involved | ${organization.name}`} description="Volunteer, partner, advocate, or contribute to The Thriving Network GH." image="/images/home/initiative-team.jpg" imageAlt="The Thriving Network GH team during a school mental health programme in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Get involved", path: "/get-involved" }]}>
+  <main id="main-content" class="editorial-main">
+    <PageHero eyebrow="Get involved" title="Bring your time, skills, platform, or partnership to the mission." intro="A stronger mental health community is built by people and institutions choosing to take part." images={[
+      { src: "/images/home/initiative-team.jpg", alt: "The TTNGH team at a school programme in Tema" },
+      { src: "/images/team/ruby-adeley.jpg", alt: "Ruby Adeley, Volunteer and Administrative Lead" },
+      { src: "/images/home/vision-gathering.jpg", alt: "Participants gathered at Vision with Clarity" },
+    ]} />
+    <section class="section-dark" aria-labelledby="paths-title">
+      <div class="section-heading"><p class="eyebrow">Ways to participate</p><h2 id="paths-title">Find the path that fits you.</h2></div>
+      <div class="grid grid-three">{supportPaths.map((path) => <article class="bubble-card card-link"><h3>{path.title}</h3><p>{path.description}</p><a class="text-link" href={path.href}>{path.linkLabel}</a></article>)}</div>
+    </section>
+    <section id="partnerships" aria-labelledby="partners-title">
+      <div class="section-heading"><p class="eyebrow">Who we work with</p><h2 id="partners-title">Partnerships across sectors and communities.</h2><p>We design collaborations around shared goals, from one-off engagements to longer-term programmes.</p></div>
+      <ul class="tag-list">{partnershipGroups.map((group) => <li>{group}</li>)}</ul>
+    </section>
+    <ScrollExpandSection image="/images/home/initiative-community.jpg" alt="The Thriving Network GH community gathered in Tema" eyebrow="Join the work" title="Ready to take part?" text="Tell us how you would like to contribute and a team member can respond." href="/contact?topic=volunteering" linkLabel="Contact the team" frameTitle="Bring what you can." id="join-title" />
+  </main>
+</BaseLayout>

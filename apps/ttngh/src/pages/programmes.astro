@@ -1,0 +1,35 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import FaqList from "../components/FaqList.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
+import { currentInitiatives, organization, programmePillars } from "../content/home.js";
+
+const faqItems = [
+  { question: "What are TTNGH's four programme areas?", answer: "TTNGH works through Mental Health Education, Counselling and Support Services, Advocacy and Awareness, and Research and Policy Engagement." },
+  { question: "Does TTNGH provide counselling?", answer: "Yes. The company profile states that TTNGH provides professional one-on-one counselling alongside peer support and safe virtual and in-person community spaces." },
+  { question: "Can TTNGH deliver outreach for an organisation?", answer: "TTNGH delivers mental health education for schools, workplaces, churches, community centres, and other community settings. Contact the team to discuss a programme." },
+];
+---
+
+<BaseLayout path="/programmes" title={`Programs and services | ${organization.name}`} description="Explore TTN GH mental health education, counselling, support groups, advocacy, research, and policy engagement." image="/images/home/programme-audience.jpg" imageAlt="Students attending a TTNGH mental health education programme in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Programs", path: "/programmes" }]} faqItems={faqItems}>
+  <main id="main-content" class="editorial-main">
+    <PageHero eyebrow="Programs and services" title="Support for people. Education for communities. Change for systems." intro="Our four programme pillars work together to improve access to support, strengthen mental health knowledge, and reduce stigma." images={[
+      { src: "/images/home/programme-audience.jpg", alt: "Students attending a TTNGH mental health education programme in Tema" },
+      { src: "/images/home/initiative-speaker.jpg", alt: "A TTNGH speaker leading a school outreach session" },
+      { src: "/images/home/initiative-community.jpg", alt: "Community members gathered at a TTNGH programme" },
+    ]} />
+    <section class="section-dark" aria-labelledby="pillars-title">
+      <div class="section-heading"><p class="eyebrow">Our core work</p><h2 id="pillars-title">Four programme pillars</h2></div>
+      <div class="grid grid-two">
+        {programmePillars.map((programme) => <article class="numbered-card glass-card motion-card"><span>{programme.number}</span><div><h3>{programme.title}</h3><p>{programme.description}</p></div></article>)}
+      </div>
+    </section>
+    <section class="section-pink" aria-labelledby="initiatives-title">
+      <div class="section-heading"><p class="eyebrow">Current initiatives</p><h2 id="initiatives-title">How the work takes shape</h2></div>
+      <div class="grid grid-two">{currentInitiatives.map((initiative) => <article class="glass-card motion-card"><h3>{initiative.title}</h3><p>{initiative.description}</p></article>)}</div>
+    </section>
+    <FaqList items={faqItems} />
+    <ScrollExpandSection image="/images/home/programme-team.jpg" alt="The TTNGH team during a mental health education programme in Tema" eyebrow="Connect with a programme" title="Ask about counselling, support groups, or outreach." text="Tell the team what kind of support or programme you are looking for." href="/contact" linkLabel="Contact our team" frameTitle="Support starts with a conversation." id="programme-contact-title" />
+  </main>
+</BaseLayout>

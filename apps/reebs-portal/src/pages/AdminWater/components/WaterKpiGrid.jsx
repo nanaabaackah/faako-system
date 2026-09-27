@@ -91,7 +91,7 @@ export default function WaterKpiGrid({
             <div><dt>Gross profit</dt><dd>{formatOptionalCurrency(trackingSummary.grossProfit)}</dd></div>
             <div><dt>Water stock costs</dt><dd>{formatOptionalCurrency(trackingSummary.costOfGoodsSold)}</dd></div>
             <div><dt>Extra expenses</dt><dd>{formatCurrency(trackingSummary.extraExpenses)}</dd></div>
-            <div><dt>Cash position</dt><dd>{formatCurrency(trackingSummary.cashPosition)}</dd></div>
+            <div><dt>Cash position</dt><dd>{formatOptionalCurrency(trackingSummary.cashPosition)}</dd></div>
             <div><dt>Outstanding credit</dt><dd>{formatCurrency(trackingSummary.outstandingCredit)} · {totalCreditCount} orders</dd></div>
             <div><dt>Cash sales</dt><dd>{formatCurrency(trackingSummary.cashSalesTotal)} · {formatCurrency(trackingSummary.pendingCash)} pending</dd></div>
             <div><dt>MoMo sales</dt><dd>{formatCurrency(trackingSummary.momoSalesTotal)} · {formatCurrency(trackingSummary.pendingMomo)} pending</dd></div>

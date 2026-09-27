@@ -34,9 +34,9 @@ const installFixtures = async (page) => {
   await page.addInitScript((user) => {
     localStorage.setItem("reebs_auth_user", JSON.stringify(user));
   }, adminUser);
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const endpoint = new URL(route.request().url()).pathname.split("/").pop();
-    const payload = endpoint === "authSession"
+    const payload = ["authSession", "session"].includes(endpoint || "")
       ? adminUser
       : endpoint === "payments"
         ? paymentResponse
@@ -48,6 +48,24 @@ const installFixtures = async (page) => {
     });
   });
 };
+
+test("payment column sorting requests the whole register and exposes no bulk archive", async ({ page }) => {
+  await installFixtures(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/admin/payments");
+  await expect(page.getByText("REEBS-PAY-000012")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "Sort by Amount", exact: true }).locator("svg path")).not.toHaveCount(0);
+  const request = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith("/payments") && url.searchParams.get("sortBy") === "amount" && url.searchParams.get("sortDirection") === "asc" && url.searchParams.get("page") === "1";
+  });
+  await page.getByRole("button", { name: "Sort by Amount", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await request;
+  await expect(page.locator('th[aria-sort="ascending"]')).toHaveText("Amount");
+  await expect(page.locator(".payments-results input[type=checkbox]")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Archive selected/i })).toHaveCount(0);
+});
 
 for (const width of [320, 375, 390, 430, 768, 1440]) {
   test(`Core payment register fits ${width}px and keeps Water visibly separate`, async ({ page }) => {

@@ -18,7 +18,15 @@ Confirm Cloudflare status and the public home, catalogue, product, cart, and che
 
 ## Water module outage
 
-Check API `/ready`, then `/health/water`. Verify Water role permissions, `waterProductConfig`, selling price, internal cost, inventory product linkage, and recent Water migrations. Do not substitute core REEBS price/revenue data. Restore the last compatible API/Portal or forward-fix configuration, then run authorized Water smoke and confirm core metrics remain unchanged.
+Check API `/ready`, then `/health/water`. The latter is a global configuration
+probe, not proof that every organisation is configured. Verify the actual
+organisation's Water roles, effective `waterProductPrice` tiers, Water discount
+rule in `commercialConfiguration`, recorded restock costs, cost snapshots and
+migration history. `waterProductConfig` is legacy linkage, not the authoritative
+new-sale price source. Do not substitute Core prices or inferred purchase costs.
+Restore the last compatible API/Portal or forward-fix configuration, then follow
+the [Water readiness checklist](water-release-readiness.md) and confirm Core
+metrics remain unchanged.
 
 ## Commercial pricing misconfiguration
 

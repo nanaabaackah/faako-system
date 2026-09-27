@@ -6,5 +6,15 @@
   Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin-allow-popups
 
-https://stage.portal.reebspartythemes.com/*
-  Cache-Control: public, max-age=0, must-revalidate, no-transform
+/
+  Cache-Control: private, no-store, max-age=0, no-transform
+/index.html
+  Cache-Control: private, no-store, max-age=0, no-transform
+/login
+  Cache-Control: private, no-store, max-age=0, no-transform
+/reset-password
+  Cache-Control: private, no-store, max-age=0, no-transform
+/admin*
+  Cache-Control: private, no-store, max-age=0, no-transform
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable, no-transform

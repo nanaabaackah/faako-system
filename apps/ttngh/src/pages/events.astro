@@ -1,0 +1,37 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import FaqList from "../components/FaqList.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
+import EventCalendar from "../components/EventCalendar.astro";
+import EventGalleryRail from "../components/EventGalleryRail.astro";
+import { organization } from "../content/home.js";
+import eventStyles from "../styles/pages/events.css?url";
+
+const faqItems = [
+  { question: "What events does TTNGH run?", answer: "TTNGH runs monthly virtual and in-person support group sessions, the annual Vision with Clarity programme, and mental health outreach for schools, workplaces, faith groups, and communities." },
+  { question: "Where can I find confirmed event dates?", answer: "Confirmed dates and registration details will be published on this page when they are available. You can also contact the TTNGH team directly." },
+];
+---
+
+<BaseLayout path="/events" pageStyles={[eventStyles]} title={`Events | ${organization.name}`} description="Discover The Thriving Network GH community sessions, outreach activities, and annual programmes." image="/images/home/vision-gathering.jpg" imageAlt="Participants gathered for TTNGH's Vision with Clarity programme" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Events", path: "/events" }]} faqItems={faqItems}>
+  <main id="main-content" class="editorial-main">
+    <PageHero eyebrow="Events and activities" title="Come together for honest conversation, learning, and support." intro="Our events create welcoming spaces for mental health education, connection, reflection, and community action." images={[
+      { src: "/images/home/vision-speaker.jpg", alt: "A facilitator speaking during Vision with Clarity" },
+      { src: "/images/home/vision-gathering.jpg", alt: "Participants gathered for Vision with Clarity" },
+      { src: "/images/home/initiative-audience.jpg", alt: "Community members gathered for a TTNGH programme in Tema" },
+    ]} />
+    <section class="section-dark" aria-labelledby="event-types-title">
+      <div class="section-heading"><p class="eyebrow">What to expect</p><h2 id="event-types-title">Our recurring activities</h2></div>
+      <div class="grid grid-three">
+        <article id="support-groups" class="bubble-card motion-card"><h3>Support group sessions</h3><p>Monthly virtual and in-person community sessions have been held since July 2023.</p></article>
+        <article id="vision-with-clarity" class="bubble-card motion-card"><h3>Vision with Clarity</h3><p>Our annual programme supports reflection, intention, connection, and personal well-being.</p></article>
+        <article id="community-outreach" class="bubble-card motion-card"><h3>Community outreach</h3><p>Talks, workshops, and educational programmes for schools, workplaces, faith groups, and communities.</p></article>
+      </div>
+    </section>
+    <EventCalendar />
+    <EventGalleryRail />
+    <FaqList items={faqItems} />
+    <div id="upcoming"><ScrollExpandSection image="/images/home/vision-gathering.jpg" alt="Participants gathered for TTNGH's Vision with Clarity programme" eyebrow="Upcoming dates" title="Join the next conversation." text="Confirmed event dates and registration details will be published here as they become available." href="/contact?topic=events" linkLabel="Ask about the next event" frameTitle="Come as you are." id="dates-title" /></div>
+  </main>
+</BaseLayout>

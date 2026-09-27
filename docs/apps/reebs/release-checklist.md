@@ -12,6 +12,7 @@
 - [ ] Production variable **names** match both `.env.example` contracts; values are verified in their provider, never copied into notes.
 - [ ] REEBS selling prices and workflow-specific delivery/tax/deposit settings are verified.
 - [ ] Water selling price, internal cost, permissions, inventory, payment route, expenses, and standalone finance/report scope are verified.
+- [ ] Complete the [Water readiness checks](water-release-readiness.md), including actual organisation configuration and real PostgreSQL concurrency/rollback; health responses alone do not certify these.
 - [ ] Backup status, rollback target, and release owner are recorded.
 
 ## Deployment
@@ -23,7 +24,7 @@
 - [ ] Run `pnpm run release:smoke:reebs` with the three production base URLs set.
 - [ ] Run authorized Portal checks: login, dashboard, bookings, customers, inventory, invoices, settings, and mobile.
 - [ ] Run authorized Water checks: navigation, roles, product/pricing, cost visibility, sale/order capability, inventory, payments, expenses, finance/reports, and mobile.
-- [ ] Validate storefront homepage, catalogue, product, SEO/structured data, cart, checkout start, customer login, analytics consent, and mobile.
+- [ ] Validate storefront homepage, catalogue, product, SEO/structured data, customer login, analytics consent, and mobile. Under the current public-commerce pause, cart/checkout/booking submissions must remain disabled in both UI and API while browsing works.
 - [ ] Validate payment in provider test/sandbox mode where available; do not charge a real payment method.
 - [ ] Confirm monitoring is green and no duplicate incident was created.
 

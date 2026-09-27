@@ -3,6 +3,39 @@ import { toPaymentAdminDto, toUniversalPaymentAdminDto } from "./paymentDomain.j
 const clampPageSize = (value) => Math.min(100, Math.max(10, Number(value) || 25));
 const normalizePage = (value) => Math.max(1, Number(value) || 1);
 
+// Only trusted expressions can enter ORDER BY. Sorting happens before LIMIT/OFFSET.
+const paymentMethodSortExpression = (column) => `CASE
+  WHEN REGEXP_REPLACE(LOWER(TRIM(COALESCE(${column}, ''))), '[- ]+', '_', 'g') IN ('momo', 'mobile_money', 'mobilemoney') THEN 'mobile money'
+  WHEN REGEXP_REPLACE(LOWER(TRIM(COALESCE(${column}, ''))), '[- ]+', '_', 'g') IN ('bank', 'bank_transfer', 'transfer') THEN 'bank transfer'
+  WHEN REGEXP_REPLACE(LOWER(TRIM(COALESCE(${column}, ''))), '[- ]+', '_', 'g') IN ('card', 'credit_card', 'debit_card') THEN 'card'
+  WHEN LOWER(TRIM(${column})) = 'cash' THEN 'cash'
+  ELSE 'other' END`;
+
+const paymentOrderBy = (query, universal = false) => {
+  const fields = universal ? {
+    payment: 'LOWER(register."paymentReference")',
+    source: "CASE WHEN register.source = 'MANUAL' THEN 'Manual' ELSE 'Provider' END",
+    customer: 'LOWER(register."customerName")',
+    related: 'LOWER(register."payableReference")',
+    method: paymentMethodSortExpression('register.method'),
+    status: "CASE WHEN LOWER(register.status) IN ('successful', 'confirmed', 'paid') THEN 'paid' ELSE LOWER(register.status) END",
+    date: 'register."paidAt"',
+    amount: 'register."amountCents"',
+  } : {
+    payment: 'p.id',
+    source: `CASE WHEN LOWER(COALESCE(p."confirmationStatus", '')) = 'provider_verified' THEN 'Provider' ELSE 'Manual' END`,
+    customer: 'LOWER(o."customerName")',
+    related: 'LOWER(o."orderNumber")',
+    method: paymentMethodSortExpression('p.method'),
+    status: "CASE WHEN LOWER(COALESCE(p.status, 'successful')) IN ('successful', 'confirmed', 'paid') THEN 'paid' ELSE LOWER(p.status) END",
+    date: 'p."paidAt"',
+    amount: 'p."amountCents"',
+  };
+  const validKey = Object.hasOwn(fields, query.sortBy) ? query.sortBy : "date";
+  const direction = query.sortDirection === "asc" ? "ASC" : "DESC";
+  return `${fields[validKey]} ${direction} NULLS LAST, ${universal ? 'register.id DESC, register."rowKey" DESC' : 'p.id DESC'}`;
+};
+
 export const listCorePayments = async (client, { organizationId, query = {} }) => {
   await client.query("SELECT set_config('app.current_organization_id', $1, false)", [String(organizationId)]);
   const foundationResult = await client.query(
@@ -67,7 +100,7 @@ export const listCorePayments = async (client, { organizationId, query = {} }) =
      JOIN "order" o ON o.id = p."orderId" AND o."organizationId" = p."organizationId"
      LEFT JOIN "customer" c ON c.id = p."customerId" AND c."organizationId" = p."organizationId"
      WHERE ${where.join(" AND ")}
-     ORDER BY p."paidAt" DESC, p.id DESC
+     ORDER BY ${paymentOrderBy(query)}
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
   );
@@ -177,7 +210,7 @@ const listCoreUniversalPayments = async (client, { organizationId, query = {} })
     `${registerCte}
      SELECT * FROM register
      WHERE ${whereSql}
-     ORDER BY "paidAt" DESC, id DESC
+     ORDER BY ${paymentOrderBy(query, true)}
      LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
     listParams
   );

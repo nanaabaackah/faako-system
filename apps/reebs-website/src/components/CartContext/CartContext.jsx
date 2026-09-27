@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 import { DEFAULT_CURRENCY_RATES as FALLBACK_RATES } from "@faako/finance";
 import {
   getCartItemKey,
@@ -161,6 +162,7 @@ export const CartProvider = ({ children }) => {
 
   // 🔹 Cart actions
   const addToCart = (item) => {
+    if (!(isRentalCartItem(item) ? REEBS_PUBLIC_COMMERCE.bookingEnabled : REEBS_PUBLIC_COMMERCE.checkoutEnabled)) return;
     const itemKey = getCartItemKey(item);
     if (!itemKey) return;
     const normalizedItem = {
@@ -214,6 +216,7 @@ export const CartProvider = ({ children }) => {
 
   // now updateQuantity expects a delta (+1 / -1)
   const updateQuantity = (itemOrKey, change) => {
+    if (change > 0 && !REEBS_PUBLIC_COMMERCE.checkoutEnabled && !REEBS_PUBLIC_COMMERCE.bookingEnabled) return;
     if (Number.isNaN(change) || change === 0) return;
     const targetKey =
       typeof itemOrKey === "object" ? getCartItemKey(itemOrKey) : normalizeCartKey(itemOrKey);

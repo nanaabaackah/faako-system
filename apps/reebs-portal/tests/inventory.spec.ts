@@ -55,12 +55,12 @@ const mockInventoryApi = async (page: Page) => {
     localStorage.setItem("reebs_auth_user", JSON.stringify(user));
   }, adminUser);
 
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const url = new URL(route.request().url());
     const endpoint = url.pathname.split("/").pop();
     let body: unknown = [];
 
-    if (endpoint === "authSession" || endpoint === "login") body = adminUser;
+    if (["authSession", "session", "login"].includes(endpoint || "")) body = adminUser;
     if (endpoint === "inventory") {
       body = url.searchParams.has("view") ? [] : inventory;
     }

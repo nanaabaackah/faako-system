@@ -1,0 +1,25 @@
+---
+import { FaCircleQuestion, FaPlus } from "react-icons/fa6";
+import "../styles/components/faq.css";
+
+const { items = [], title = "Frequently asked questions", eyebrow = "Quick answers", id = "faq-title" } = Astro.props;
+---
+
+<section class="faq-section section-pink" aria-labelledby={id}>
+  <div class="faq-heading">
+    <span class="faq-heading-icon" aria-hidden="true"><FaCircleQuestion focusable="false" /></span>
+    <div>
+      <p class="eyebrow">{eyebrow}</p>
+      <h2 id={id}>{title}</h2>
+      <p>Open a question for a clear, direct answer.</p>
+    </div>
+  </div>
+  <div class="faq-list">
+    {items.map((item, index) => (
+      <details class="bubble-card motion-card">
+        <summary><span class="faq-index">{String(index + 1).padStart(2, "0")}</span><span>{item.question}</span><span class="faq-toggle" aria-hidden="true"><FaPlus focusable="false" /></span></summary>
+        <div><p>{item.answer}</p></div>
+      </details>
+    ))}
+  </div>
+</section>

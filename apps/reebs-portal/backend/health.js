@@ -43,7 +43,7 @@ const withTimeout = async (operation, timeoutMs = HEALTH_TIMEOUT_MS) => {
 export const getBuildReference = () => BUILD_REFERENCE;
 
 export const checkDatabaseReadiness = async ({ query } = {}) => {
-  const pool = getHealthPool();
+  const pool = query ? null : getHealthPool();
   const runQuery = query || (pool ? (text) => pool.query(text) : null);
   if (!runQuery) return { status: "unavailable", reachable: false, reason: "not_configured" };
 
@@ -56,18 +56,40 @@ export const checkDatabaseReadiness = async ({ query } = {}) => {
 };
 
 export const checkWaterReadiness = async ({ query } = {}) => {
-  const pool = getHealthPool();
+  const pool = query ? null : getHealthPool();
   const runQuery = query || (pool ? (text) => pool.query(text) : null);
   if (!runQuery) return { status: "unavailable", ready: false, reason: "database_not_configured" };
 
   try {
     const result = await withTimeout(() => runQuery(
-      `SELECT EXISTS (
-         SELECT 1
-         FROM "waterProductConfig"
+      // Global configuration probe, not per-tenant authorization or a stock /
+      // provider check. A legacy productConfig row is no longer sufficient.
+      `WITH configured_prices AS (
+         SELECT "organizationId"
+         FROM "waterProductPrice"
          WHERE "productKey" = 'gwater-15pk'
-           AND "retailSinglePrice" > 0
-           AND "costPrice" > 0
+           AND active = true
+           AND "effectiveFrom" <= NOW()
+           AND ("effectiveTo" IS NULL OR "effectiveTo" > NOW())
+         GROUP BY "organizationId"
+         HAVING COUNT(*) = 3
+           AND COUNT(*) FILTER (WHERE "priceType" = 'RETAIL') = 1
+           AND COUNT(*) FILTER (WHERE "priceType" = 'BULK_RETAIL') = 1
+           AND COUNT(*) FILTER (WHERE "priceType" = 'COMPANY') = 1
+           AND BOOL_AND("priceCents" > 0 AND "minimumQuantity" > 0 AND currency = 'GHS')
+       )
+       SELECT EXISTS (
+         SELECT 1
+         FROM "commercialConfiguration" rule
+         JOIN configured_prices prices ON prices."organizationId" = rule."organizationId"
+         WHERE rule."businessUnit" = 'WATER'
+           AND rule."key" = 'water_discount_limit_bps'
+           AND rule.active = true
+           AND rule."effectiveFrom" <= NOW()
+           AND (rule."effectiveTo" IS NULL OR rule."effectiveTo" > NOW())
+         GROUP BY rule."organizationId"
+         HAVING COUNT(*) = 1
+           AND BOOL_AND(rule."valueType" = 'BASIS_POINTS' AND rule.value ~ '^[0-9]{1,4}$')
        ) AS ready`
     ));
     const ready = Boolean(result?.rows?.[0]?.ready);

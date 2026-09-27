@@ -13,3 +13,4 @@ export * from "./appModes/appModes.js";
 export * from "./environments/appEnvironment.js";
 export * from "./monorepoApps/appRegistry.js";
 export * from "./projectRegistry/projectRegistry.js";
+export * from "./publicCommerce/reebsPublicCommerce.js";

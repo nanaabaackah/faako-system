@@ -50,11 +50,11 @@ const paidOrder = {
 
 const installFixtures = async (page) => {
   await page.addInitScript((user) => localStorage.setItem("reebs_auth_user", JSON.stringify(user)), adminUser);
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const url = new URL(route.request().url());
     const endpoint = url.pathname.split("/").pop();
     let payload: unknown = [];
-    if (endpoint === "authSession") payload = adminUser;
+    if (["authSession", "session"].includes(endpoint || "")) payload = adminUser;
     if (endpoint === "invoice-documents") {
       payload = url.searchParams.has("id")
         ? { ...documents[Number(url.searchParams.get("id")) - 1], payments: [] }
@@ -64,6 +64,22 @@ const installFixtures = async (page) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(payload) });
   });
 };
+
+test("invoice sort uses every matching document and issued invoices have no bulk archive", async ({ page }) => {
+  await installFixtures(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/admin/invoicing");
+  await expect(page.getByText("INV-2026-000001").first()).toBeVisible({ timeout: 30_000 });
+  const table = page.locator(".invoice-hub-table-scroll");
+  await table.getByRole("button", { name: "Next", exact: true }).first().click();
+  await expect(table.getByText("Page 2 of 2").first()).toBeVisible();
+  await table.getByRole("button", { name: "Sort by Paid", exact: true }).click();
+  await table.getByRole("button", { name: "Sort by Paid", exact: true }).click();
+  await expect(table.getByText("Page 1 of 2").first()).toBeVisible();
+  await expect(table.locator("tbody tr").first()).toContainText("ORD-PAYMENT-CHECK");
+  await expect(table.locator("tbody tr").nth(1)).toContainText("INV-2026-000001");
+  await expect(table.locator('input[type="checkbox"]')).toHaveCount(0);
+});
 
 for (const width of [320, 375, 390, 430, 768, 1440]) {
   test(`invoice register fits ${width}px and retains pagination`, async ({ page }) => {

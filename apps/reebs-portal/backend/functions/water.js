@@ -1,6 +1,5 @@
 /* eslint-disable no-undef */
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import {
   backfillProductVendorLinksFromProducts,
   ensureProductVendorLinksTable,
@@ -25,17 +24,15 @@ import {
   writeAuditLog,
 } from "./_shared/auditLog.js";
 import { withWaterBusinessContext } from "@faako/api-contracts/reebs";
-import {
-  calculateWaterCostBasis,
-  DEFAULT_WATER_UNIT_COST,
-} from "../../shared/waterFinancials.js";
+import { calculateWaterCostBasis } from "../../shared/waterFinancials.js";
+import { buildWaterPricingPermissions } from "./_shared/waterPricing.js";
+import { canWriteWaterAction, presentWaterDashboard } from "../modules/water/dashboardAccess.js";
 
 const WATER_METHODS = "GET,POST,OPTIONS";
 const WATER_ALLOWED_ROLES = ["owner", "admin", "water"];
 const PRODUCT_NAME = "15pk Gwater";
 const PRODUCT_KEY = "gwater-15pk";
 const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "15 pk Gwater"];
-const DEFAULT_PURCHASE_COST = DEFAULT_WATER_UNIT_COST;
 const MAX_WATER_BODY_BYTES = 16 * 1024;
 const MAX_WATER_QUANTITY = 100000;
 const MAX_WATER_AMOUNT_CENTS = 100000000;
@@ -169,34 +166,9 @@ const ensureTables = async (client) => {
   for (const statement of tableStatements) {
     await client.query(statement);
   }
-
-  await client.query(
-    `UPDATE "waterSale"
-     SET "paymentStatus" = CASE
-       WHEN LOWER(COALESCE("paymentMethod", 'cash')) = 'credit' THEN 'unpaid'
-       ELSE 'paid'
-     END
-     WHERE COALESCE(NULLIF(TRIM("paymentStatus"), ''), '') = ''
-        OR (
-          LOWER(COALESCE("paymentMethod", 'cash')) = 'momo'
-          AND LOWER(COALESCE("paymentStatus", 'paid')) = 'pending'
-        )
-        OR (
-          LOWER(COALESCE("paymentMethod", 'cash')) = 'credit'
-          AND LOWER(COALESCE("paymentStatus", 'paid')) = 'paid'
-        )`
-  );
-  await client.query(
-    `UPDATE "waterSale"
-     SET "paymentReference" = 'WATER-' || "organizationId"::text || '-' || id::text
-     WHERE COALESCE(NULLIF(TRIM("paymentReference"), ''), '') = ''`
-  );
-  await client.query(
-    `UPDATE "waterSale"
-     SET "paidAt" = COALESCE("paidAt", date)
-     WHERE LOWER(COALESCE("paymentStatus", 'paid')) = 'paid'
-       AND "paidAt" IS NULL`
-  );
+  // Payment facts are written only by their owning mutations/provider workflows.
+  // Never mark pending MoMo paid, downgrade collected credit, or invent dates and
+  // references during a read. Legacy corrections require a reviewed data repair.
 };
 
 const ensureProductLinkColumns = async (client) => {
@@ -914,7 +886,7 @@ const resolveLinkedWaterVendors = async (client, organizationId) => {
   await backfillProductVendorLinksFromProducts(client, organizationId);
 
   const productResult = await client.query(
-    `SELECT id, name, price
+    `SELECT id, name
      FROM "product"
      WHERE "organizationId" = $1
        AND COALESCE("isDeleted", false) = false
@@ -954,10 +926,6 @@ const resolveLinkedWaterVendors = async (client, organizationId) => {
   return {
     inventoryProductId: Number(matchedProduct.id) || null,
     linkedVendorIds,
-    retailPrice:
-      Number.isFinite(Number(matchedProduct.price)) && Number(matchedProduct.price) > 0
-        ? Number(matchedProduct.price)
-        : RETAIL_PRICE,
   };
 };
 
@@ -1001,16 +969,17 @@ export const buildWaterSummary = ({ restocks, sales, expenses, adjustments }) =>
     costOfGoodsSold,
     inventoryValue,
     currentUnitCost,
+    profitabilityAvailable,
+    missingCostSaleCount,
+    missingCostRestockCount,
   } = calculateWaterCostBasis({
     restocks,
     sales,
-    unitsSold,
     stockOnHand,
-    fallbackUnitCost: DEFAULT_PURCHASE_COST,
   });
-  const grossProfit = revenue - costOfGoodsSold;
-  const netProfit = grossProfit - extraExpenses;
-  const cashPosition = cashCollected - restockSpend - extraExpenses;
+  const grossProfit = profitabilityAvailable ? revenue - costOfGoodsSold : null;
+  const netProfit = profitabilityAvailable ? grossProfit - extraExpenses : null;
+  const cashPosition = restockSpend === null ? null : cashCollected - restockSpend - extraExpenses;
 
   return {
     stockOnHand,
@@ -1032,6 +1001,9 @@ export const buildWaterSummary = ({ restocks, sales, expenses, adjustments }) =>
     cashPosition,
     inventoryValue,
     currentUnitCost,
+    profitabilityAvailable,
+    missingCostSaleCount,
+    missingCostRestockCount,
   };
 };
 
@@ -1146,6 +1118,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
   const latestRecordedUnitCost = Number(restocks[0]?.unitCost);
 
   return withWaterBusinessContext({
+    permissions: buildWaterPricingPermissions(options.role),
     product: {
       key: PRODUCT_KEY,
       name: PRODUCT_NAME,
@@ -1154,7 +1127,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
       purchaseCost:
         Number.isFinite(latestRecordedUnitCost) && latestRecordedUnitCost > 0
           ? Math.round(latestRecordedUnitCost)
-          : DEFAULT_PURCHASE_COST,
+          : null,
       pricing: {
         currency: commercialPricing?.currency || null,
         retailSingle: commercialPricing?.retailSingle ?? null,
@@ -1203,10 +1176,7 @@ export async function handler(event = {}) {
     return json(413, { error: "Water request body exceeds the 16 KB limit." });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "water" });
 
   try {
     await client.connect();
@@ -1221,6 +1191,13 @@ export async function handler(event = {}) {
       return authResult.errorResponse;
     }
     const { authUser, organizationId } = authResult;
+    const buildAuthorizedDashboard = (options = {}) =>
+      buildDashboard(client, organizationId, {
+        ...options,
+        role: authUser.role,
+      });
+    const respondWithDashboard = async () =>
+      json(200, presentWaterDashboard(await buildAuthorizedDashboard(), authUser.role));
 
     if (method === "GET") {
       const readRateLimit = await enforceWaterRateLimit(client, event, {
@@ -1237,7 +1214,7 @@ export async function handler(event = {}) {
       }
 
       await ensureTables(client);
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     let payload = {};
@@ -1269,6 +1246,12 @@ export async function handler(event = {}) {
     }
     if (!WATER_ACTIONS.has(action)) {
       return json(400, { error: "Unsupported action." });
+    }
+    if (!canWriteWaterAction(authUser.role, action)) {
+      return json(403, {
+        error: "Only an owner or admin can manage Water stock, costs and expenses. Water staff can manage sales.",
+        code: "WATER_ACTION_FORBIDDEN",
+      });
     }
 
     await ensureTables(client);
@@ -1330,7 +1313,7 @@ export async function handler(event = {}) {
         });
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_restock") {
@@ -1382,7 +1365,7 @@ export async function handler(event = {}) {
       if (!unitCost) return json(400, { error: "Restock cost price must be greater than zero." });
       if (!date) return json(400, { error: "A valid restock date is required." });
 
-      const dashboard = await buildDashboard(client, organizationId, {
+      const dashboard = await buildAuthorizedDashboard({
         includeLinkedProduct: false,
         includePricing: false,
       });
@@ -1420,7 +1403,7 @@ export async function handler(event = {}) {
           conflictError.code = "WATER_RECORD_CHANGED";
           throw conflictError;
         }
-        const lockedDashboard = await buildDashboard(client, organizationId, {
+        const lockedDashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -1480,7 +1463,7 @@ export async function handler(event = {}) {
         }
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_product_pricing") {
@@ -1512,7 +1495,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const existingRestock = existingRes.rows[0];
-        const dashboard = await buildDashboard(client, organizationId, {
+        const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -1536,7 +1519,7 @@ export async function handler(event = {}) {
         });
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "sale") {
@@ -1596,7 +1579,7 @@ export async function handler(event = {}) {
         customerName = cleanText(resolvedCustomer?.name, MAX_NAME_LENGTH) || customerName;
       }
 
-      const dashboard = await buildDashboard(client, organizationId, {
+      const dashboard = await buildAuthorizedDashboard({
         includeLinkedProduct: false,
         includePricing: false,
       });
@@ -1656,7 +1639,7 @@ export async function handler(event = {}) {
           throw discountError;
         }
         const totalAmount = subtotalAmount - discountDetails.discountAmount;
-        const lockedDashboard = await buildDashboard(client, organizationId, {
+        const lockedDashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -1750,7 +1733,7 @@ export async function handler(event = {}) {
         throw new Error("Water sale could not be recorded.");
       }
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_sale") {
@@ -1885,7 +1868,7 @@ export async function handler(event = {}) {
         customerName = cleanText(resolvedCustomer?.name, MAX_NAME_LENGTH) || customerName;
       }
 
-      const dashboard = await buildDashboard(client, organizationId, {
+      const dashboard = await buildAuthorizedDashboard({
         includeLinkedProduct: false,
         includePricing: false,
       });
@@ -1996,7 +1979,7 @@ export async function handler(event = {}) {
           throw discountError;
         }
         totalAmount = subtotalAmount - discountDetails.discountAmount;
-        const lockedDashboard = await buildDashboard(client, organizationId, {
+        const lockedDashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -2112,7 +2095,7 @@ export async function handler(event = {}) {
         }
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "delete_sale") {
@@ -2148,7 +2131,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "expense") {
@@ -2177,7 +2160,7 @@ export async function handler(event = {}) {
         [organizationId, category, amount, description, notes, date, createdByUserId, createdByName]
       );
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_expense") {
@@ -2241,7 +2224,7 @@ export async function handler(event = {}) {
         [expenseId, organizationId, category, amount, description, notes, date]
       );
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "delete_expense") {
@@ -2271,7 +2254,7 @@ export async function handler(event = {}) {
         [expenseId, organizationId, createdByUserId, createdByName]
       );
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "adjustment") {
@@ -2286,7 +2269,7 @@ export async function handler(event = {}) {
 
       await runWaterTransaction(client, async () => {
         await lockWaterInventory(client, organizationId);
-        const dashboard = await buildDashboard(client, organizationId, {
+        const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -2322,7 +2305,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_adjustment") {
@@ -2393,7 +2376,7 @@ export async function handler(event = {}) {
           conflictError.code = "WATER_RECORD_CHANGED";
           throw conflictError;
         }
-        const dashboard = await buildDashboard(client, organizationId, {
+        const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -2416,7 +2399,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "delete_adjustment") {
@@ -2440,7 +2423,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const existingAdjustment = existingRes.rows[0];
-        const dashboard = await buildDashboard(client, organizationId, {
+        const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -2459,7 +2442,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
   } catch (err) {

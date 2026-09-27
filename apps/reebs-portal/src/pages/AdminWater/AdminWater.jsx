@@ -14,6 +14,7 @@ import WaterOrderEditorModal from "./components/WaterOrderEditorModal";
 import WaterOrderFormCard from "./components/WaterOrderFormCard";
 import WaterRestockCard from "./components/WaterRestockCard";
 import { reebsApiResponse } from "../../api/client";
+import { calculateWaterCostBasis } from "../../../shared/waterFinancials.js";
 
 const WATER_SUPPLIER_NAME = "Ghana Water";
 const RESTOCK_QUICK_QUANTITIES = [5, 10, 20, 50];
@@ -348,10 +349,6 @@ const buildWaterSummary = ({
   const unitsSold = sales.reduce((sum, row) => sum + toNumber(row?.quantity), 0);
   const adjustmentUnits = adjustments.reduce((sum, row) => sum + toNumber(row?.quantityDelta), 0);
   const stockOnHand = Math.max(0, unitsRestocked - unitsSold + adjustmentUnits);
-  const restockSpend = restocks.reduce(
-    (sum, row) => sum + (toNumber(row?.quantity) * toNumber(row?.unitCost)),
-    0
-  );
   const revenue = sales.reduce((sum, row) => sum + toNumber(row?.totalAmount), 0);
   const cashCollected = sales.reduce((sum, row) => {
     return normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid"
@@ -387,26 +384,13 @@ const buildWaterSummary = ({
       : sum;
   }, 0);
   const extraExpenses = expenses.reduce((sum, row) => sum + toNumber(row?.amount), 0);
-  const costRows = sales.map((row) => ({
-    quantity: Math.max(0, toNumber(row?.quantity)),
-    unitCost: Number(row?.unitCostAtTransaction),
-  }));
-  const missingCostSaleCount = costRows.filter(
-    (row) => !Number.isFinite(row.unitCost) || row.unitCost <= 0
-  ).length;
-  const profitabilityAvailable = missingCostSaleCount === 0;
-  const knownCostOfGoodsSold = costRows.reduce(
-    (sum, row) =>
-      Number.isFinite(row.unitCost) && row.unitCost > 0
-        ? sum + row.quantity * row.unitCost
-        : sum,
-    0
-  );
-  const costOfGoodsSold = profitabilityAvailable ? knownCostOfGoodsSold : null;
+  const { restockSpend, costOfGoodsSold, inventoryValue, profitabilityAvailable,
+    missingCostSaleCount, missingCostRestockCount } = calculateWaterCostBasis({
+    restocks, sales, stockOnHand, currentUnitCost: resolvedCurrentCost,
+  });
   const grossProfit = profitabilityAvailable ? revenue - costOfGoodsSold : null;
   const netProfit = profitabilityAvailable ? grossProfit - extraExpenses : null;
-  const cashPosition = cashCollected - restockSpend - extraExpenses;
-  const inventoryValue = resolvedCurrentCost ? stockOnHand * resolvedCurrentCost : null;
+  const cashPosition = restockSpend === null ? null : cashCollected - restockSpend - extraExpenses;
 
   return {
     stockOnHand,
@@ -429,6 +413,7 @@ const buildWaterSummary = ({
     inventoryValue,
     profitabilityAvailable,
     missingCostSaleCount,
+    missingCostRestockCount,
   };
 };
 
@@ -1717,7 +1702,7 @@ function AdminWater() {
     if (saved) {
       setRestockForm({
         quantity: "",
-        unitCost: toMoneyInputValue(productPurchaseCost),
+        unitCost: restockForm.unitCost,
         date: todayValue(),
         notes: "",
       });
@@ -1927,7 +1912,7 @@ function AdminWater() {
           title="GWater"
           actionsClassName="admin-header-actions water-module-header-actions"
           actions={
-            <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving}>
+            <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving} aria-label="Refresh Water dashboard">
               <AppIcon icon={faRotateRight} />
             </button>
           }
@@ -1994,7 +1979,7 @@ function AdminWater() {
           pricingAvailable={salePreview.pricingConfigured}
         />
 
-        <WaterOperationsGrid
+        {permissions.canManagePricing ? <WaterOperationsGrid
           expenseCategoryOptions={EXPENSE_CATEGORY_OPTIONS}
           customExpenseCategory={CUSTOM_EXPENSE_CATEGORY}
           expenseQuickAmounts={EXPENSE_QUICK_AMOUNTS}
@@ -2021,7 +2006,7 @@ function AdminWater() {
           formatCurrency={formatCurrency}
           saving={saving}
           loading={loading}
-        />
+        /> : null}
 
         <WaterLedgersSection
           loading={loading}
