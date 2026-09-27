@@ -14,6 +14,7 @@
     "dev:dev-erp": "pnpm --filter @faako/dev-erp run dev:with-backend",
     "dev:reebs": "pnpm --filter @faako/reebs-website run dev:with-backend",
     "dev:stroane": "pnpm --filter @faako/stroane-web run dev:with-backend",
+    "dev:twe": "pnpm --parallel --filter @faako/travel-with-ease-web --filter @faako/travel-with-ease-portal --filter @faako/travel-with-ease-api run dev",
     "dev:workbench": "pnpm --filter @faako/ui-workbench run dev",
     "dev:starter": "pnpm --filter @faako/system-starter run dev",
     "affected:apps": "node ./scripts/affected-apps.mjs",

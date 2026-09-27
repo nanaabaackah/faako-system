@@ -612,3 +612,19 @@ modules; storefront 1,125 pages, six CSP hashes and 22 catalogue redirects. Fina
 raw bundle totals are Portal JS **2,863.4 KiB**, CSS **5,653.4 KiB**; website JS
 **981.0 KiB**, CSS **919.2 KiB**. The Portal entry budget warning remains at
 **86.8 KiB** against 80 KiB. These supersede the earlier pre-dialog bundle totals.
+
+### TTNGH gate follow-up — 2026-09-27
+
+The owner authorized completing TTNGH's partially created `appSystem.js` and
+confirmed that Cloudflare is not configured. Metadata now matches its existing
+pink/black Astro site and unauthenticated contact handoff; no design was changed.
+The repository security gate now passes, superseding the earlier missing-config
+failure. The hosting gate passes for non-deferred apps and explicitly reports
+only TTNGH as deferred through an exact package/path policy. Security, build,
+Railway and legacy-hosting checks remain enabled. Six focused configuration,
+hosting-policy and secret-path tests passed; the secret-safe scan passed across
+2,980 non-ignored files. Changed JavaScript lint and both registry checks pass.
+See [TTNGH deployment status](../ttngh/deployment.md) for the required removal of
+that deferral before launch. No Git, deployment, migration or secret-file operation
+was performed. Water still needs the manual staging/database/provider evidence
+listed in its release-readiness runbook.

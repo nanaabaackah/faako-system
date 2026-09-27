@@ -68,41 +68,22 @@ const currentPath = Astro.url.pathname === "/" ? "/" : Astro.url.pathname.replac
     ))}
   </nav>
 
-  <details class="mobile-menu">
-    <summary>Menu</summary>
-    <nav class="mobile-menu-panel" aria-label="Mobile navigation">
-      <button class="mobile-search-button" type="button" data-search-open>
-        <FaMagnifyingGlass aria-hidden="true" focusable="false" />
-        <span>Search the site</span>
-      </button>
-      {navigation.map((group) => (
-        <details class="mobile-menu-group">
-          <summary><a class="menu-group-main-link" href={group.path}>{group.label}</a><span>Sections</span></summary>
-          <div>
-            {group.items.map((item) => <a href={item.href}>{item.label}</a>)}
-          </div>
-        </details>
-      ))}
-      <a href="/programmes">Programs</a>
-      <a href="/impact">Our impact</a>
-      <a href="/support-us">Support us</a>
-    </nav>
-  </details>
-
   <details class="compact-menu">
     <summary aria-label="Open navigation menu">
       <img src="/icons/menu.svg" alt="" width="24" height="24" />
     </summary>
     <nav class="compact-menu-panel" aria-label="Collapsed navigation">
-      <p class="compact-menu-heading">Explore TTN GH</p>
-      {navigation.map((group) => (
-        <details class="compact-menu-group">
-          <summary><a class="menu-group-main-link" href={group.path}>{group.label}</a><span>Sections</span></summary>
-          <div>
-            {group.items.map((item) => <a href={item.href}>{item.label}</a>)}
-          </div>
-        </details>
-      ))}
+      <div class="compact-menu-intro"><div><p class="compact-menu-heading">Menu</p><span>Explore The Thriving Network GH</span></div><a href="/" aria-label="Go to the home page">Home</a></div>
+      <div class="compact-menu-groups">
+        {navigation.map((group, index) => (
+          <details class="compact-menu-group">
+            <summary><span class="compact-menu-index">{String(index + 1).padStart(2, "0")}</span><a class="menu-group-main-link" href={group.path}>{group.label}</a><span class="compact-menu-toggle" aria-hidden="true">+</span></summary>
+            <div>
+              {group.items.map((item) => <a href={item.href}>{item.label}</a>)}
+            </div>
+          </details>
+        ))}
+      </div>
       <div class="compact-menu-secondary">
         <button class="compact-search-button" type="button" data-search-open>
           <FaMagnifyingGlass aria-hidden="true" focusable="false" />
@@ -145,11 +126,6 @@ const currentPath = Astro.url.pathname === "/" ? "/" : Astro.url.pathname.replac
       });
     });
 
-    header.querySelectorAll(".compact-menu-group").forEach((group) => {
-      group.addEventListener("mouseenter", () => group.setAttribute("open", ""));
-      group.addEventListener("mouseleave", () => group.removeAttribute("open"));
-    });
-
     header.querySelectorAll(".menu-group-main-link").forEach((link) => {
       link.addEventListener("click", (event) => event.stopPropagation());
     });
@@ -166,15 +142,5 @@ const currentPath = Astro.url.pathname === "/" ? "/" : Astro.url.pathname.replac
       }
     });
 
-    const updateHeaderState = () => {
-      const shouldCompact = window.scrollY > 96;
-      if (header.hasAttribute("data-compact") !== shouldCompact) {
-        menus.forEach((menu) => menu.removeAttribute("open"));
-      }
-      header.toggleAttribute("data-compact", shouldCompact);
-    };
-
-    updateHeaderState();
-    window.addEventListener("scroll", updateHeaderState, { passive: true });
   }
 </script>

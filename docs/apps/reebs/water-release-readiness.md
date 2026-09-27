@@ -4,8 +4,9 @@
 
 The completed automated checkpoints below pass, including the final theme/dialog
 rerun. **Production use is not yet cleared.** Complete the
-isolated staging checks below and resolve the repository security gate before
-promotion. No live database, credentials, provider, deployment or Git operation
+isolated staging checks below before promotion. The repository security gate now
+passes after completing the owner-authorized TTNGH metadata. No live database,
+credentials, provider, deployment or Git operation
 was accessed/performed in this review. Build output uses dummy API addresses and
 is verification output, not a release artifact.
 
@@ -25,8 +26,10 @@ redesigned. Financial/history registers received no new bulk archive.
 | Builds | Portal 1,632 modules; Astro storefront 1,125 pages |
 | Storefront verification | 23 tests; 1,125 HTML routes (22 rental and 1,045 shop details); 1,119 sitemap URLs |
 | Lint/types | Portal zero errors/11 existing warnings; website zero errors/one existing warning; shared UI and Astro typechecks pass |
-| Secret-safe scan | Passed, 2,975 non-ignored workspace files; sensitive paths are rejected without opening their contents |
-| Security gate | **Failed:** deferred `apps/ttngh/appSystem.js` is missing; no bypass/scaffold added |
+| Secret-safe scan | Passed, 2,980 non-ignored workspace files; sensitive paths are rejected without opening their contents |
+| Security gate | Passed after completing the existing TTNGH app metadata; security checks were not disabled |
+| Hosting readiness | Passed for non-deferred apps; TTNGH alone is explicitly deferred because Cloudflare is not configured |
+| TTNGH/hosting regression checks | Six focused tests passed, including the two secret-path scanner tests; changed JavaScript lint and registry checks pass |
 
 The broader post-dialog run initially passed 30/32: a Payments cold-load timeout
 during simultaneous builds and a Water SelectField fast-Tab timing issue failed.
@@ -192,18 +195,33 @@ and [table matrix](public-commerce-and-table-controls.md) to check scope; unrela
 local work belongs in a separate reviewed commit. Ensure new imported files and
 the workspace lockfile are included together.
 
+Also review and include the owner-authorized TTNGH metadata/CI follow-up. These
+explicit paths include new files that patch staging alone would miss:
+
+```sh
+git add -- apps/ttngh/appSystem.js apps/ttngh/appSystem.test.js apps/ttngh/package.json
+git add -- scripts/hosting-policy.mjs scripts/hosting-policy.test.mjs scripts/check-cloudflare-railway-readiness.mjs
+git add -- .github/workflows/monorepo-ci.yml docs/apps/ttngh/deployment.md docs/apps/ttngh/README.md
+git add -- docs/apps/reebs/water-release-readiness.md docs/apps/reebs/roadmap-process-integrity-audit.md
+```
+
+Review each file first, including any unrelated local edits. TTNGH's existing
+Astro implementation must accompany its metadata when it is first added; select
+reviewed source files explicitly, never include local secret or generated files.
+
 ```sh
 git diff --cached --name-only
 git diff --cached --check
 pnpm run security:scan
 pnpm run security:gate
+pnpm run hosting:check
+node --test apps/ttngh/appSystem.test.js scripts/hosting-policy.test.mjs
 ```
 
-**The gate currently fails on TTNGH. Resolve the documented registry decision;
-do not bypass the hook/check.** You can preserve reviewed work on a review branch
-with this known failure documented, but do not merge or promote it while the gate
-fails. After the staged set is reviewed, commit before integrating the destination
-branch:
+**The TTNGH security-gate blocker is resolved.** Only its not-yet-configured
+Cloudflare readiness is explicitly deferred; security checks remain mandatory.
+Do not merge or promote if any required gate fails on the staged/merged revision.
+After the staged set is reviewed, commit before integrating the destination branch:
 
 ```sh
 git commit -m "fix(reebs): harden Water readiness and standardize table controls"
@@ -228,9 +246,11 @@ complete the checks above. Promote reviewed `develop` to `main` through a separa
 PR only after staging sign-off. Keep the previous compatible API/Portal/website
 deployment available; do not reverse a database migration as routine rollback.
 
-gh pr create \
+```sh
+gh pr update-branch \
   --base develop \
   --head fix/reebs-process-integrity-audit \
   --draft \
   --title "fix(reebs): process integrity audit and regression fixes" \
   --body "See docs/apps/reebs/roadmap-process-integrity-audit.md for fixes, verification and remaining release blockers."
+```

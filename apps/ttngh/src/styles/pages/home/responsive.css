@@ -33,6 +33,10 @@
 @media (max-width: 780px) {
   .home-hero .site-header {
     top: 1.5rem;
+    right: auto;
+    left: 50%;
+    width: calc(100% - 3rem);
+    transform: translateX(-50%);
   }
 
   .hero-shell {

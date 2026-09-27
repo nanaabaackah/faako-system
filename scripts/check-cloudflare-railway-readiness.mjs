@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { findWorkspaceRoot, getWorkspaceGraph } from "./workspace-graph.mjs";
+import { getCloudflareDeferral } from "./hosting-policy.mjs";
 
 const rootDir = findWorkspaceRoot();
 const graph = getWorkspaceGraph(rootDir);
@@ -130,7 +131,12 @@ for (const project of graph.apps) {
   assertNoLegacyProviderFiles({ appLabel, appDir, manifest });
 
   if (isStaticApp) {
-    assertCloudflareFiles({ appLabel, appDir, isAstro });
+    const deferral = getCloudflareDeferral(project);
+    if (deferral) {
+      console.log(`[cloudflare:deferred] ${appLabel}: ${deferral}. Security and build checks remain required.`);
+    } else {
+      assertCloudflareFiles({ appLabel, appDir, isAstro });
+    }
   }
 
   if (isApiApp) {
@@ -146,4 +152,4 @@ if (findings.length) {
   process.exit(1);
 }
 
-console.log("Cloudflare/Railway readiness check passed. Static apps have Cloudflare files, API apps have Railway start paths, and legacy hosting artifacts are absent.");
+console.log("Cloudflare/Railway readiness check passed for non-deferred surfaces. Any explicit Cloudflare deferrals are listed above; API start paths and legacy hosting checks remain enforced.");

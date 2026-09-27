@@ -14,7 +14,7 @@ main:not(.home-main):not(.error-page) {
 }
 
 .editorial-main > section:not(.page-hero),
-main:not(.home-main):not(.error-page) > section {
+main:not(.home-main):not(.error-page) > section:not(.page-hero) {
   padding-block: clamp(3.5rem, 8vw, 7rem);
 }
 
@@ -31,14 +31,6 @@ main:not(.home-main):not(.error-page) > section {
 
 .editorial-main > :is(.event-gallery-rail, .faq-section) {
   min-height: auto !important;
-}
-
-.editorial-main > section:nth-of-type(odd):not(.page-hero):not(.section-dark):not(.section-pink) {
-  background: var(--paper);
-}
-
-.editorial-main > section:nth-of-type(even):not(.page-hero):not(.section-dark):not(.section-pink) {
-  background: var(--surface-soft-pink);
 }
 
 .eyebrow {
@@ -91,7 +83,6 @@ h3 {
 }
 
 .section-heading > p:not(.eyebrow),
-.prose-grid p,
 blockquote p {
   color: var(--muted);
 }
@@ -346,14 +337,12 @@ blockquote p {
   margin-bottom: 2.5rem;
 }
 
-.prose-grid,
 .grid,
 .stats {
   display: grid;
   gap: 1rem;
 }
 
-.prose-grid,
 .grid-two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -369,14 +358,12 @@ blockquote p {
 
 .grid article,
 .stats article,
-blockquote,
-.mission-list > div {
+blockquote {
   padding: clamp(1.4rem, 2.4vw, 2.2rem);
 }
 
 .grid article p,
-.stats article p,
-.mission-list dd {
+.stats article p {
   margin-bottom: 0;
   color: var(--muted);
 }
@@ -540,7 +527,6 @@ blockquote footer span {
   object-fit: cover;
 }
 @media (max-width: 780px) {
-  .prose-grid,
   .grid-two,
   .grid-three,
   .grid-four,

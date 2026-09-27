@@ -2,6 +2,10 @@
 
 ## Current milestone
 
+Cloudflare is not configured yet. See [deployment status and CI policy](./deployment.md)
+for the explicit hosting deferral and the checks that still apply to the existing
+Astro implementation.
+
 Foundation only: Astro public surface, Cloudflare response headers, SEO/AEO launch gate, Railway API
 health boundary, input validation, and future Paystack/MTN MoMo integration seams.
 

@@ -44,14 +44,14 @@
   /* Shared opacity */
   --opacity-glass: 80%;
   --opacity-panel: 58%;
-  --opacity-compact-menu: 64%;
+  --opacity-compact-menu: 62%;
   --opacity-border: 24%;
   --opacity-hover: 22%;
 
   /* Shared blur and elevation */
-  --blur-navigation: 15px;
+  --blur-navigation: 30px;
   --blur-panel: 18px;
-  --blur-expanded-menu: 24px;
+  --blur-expanded-menu: 40px;
   --blur-chip: 8px;
   --blur-button-glass: 16px;
   --surface-button-glass: var(--white);
