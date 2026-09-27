@@ -7,6 +7,9 @@ import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import useTableSort from "../../components/TableControls/useTableSort";
+import { tableDate } from "../../components/TableControls/tableRows.js";
 
 const defaultForm = {
   productId: "",
@@ -142,12 +145,18 @@ function AdminMaintenance() {
     });
   }, [logs, filter, searchTerm]);
   const pageSize = 10;
+  const table = useTableSort(filteredLogs, {
+    position: (_, index) => index, asset: (log) => log.productName,
+    issue: (log) => log.issue, status: (log) => log.status,
+    cost: (log) => toNumber(log.cost), logged: (log) => tableDate(log.createdAt),
+  });
+  const tableHeaders = { sort: table.sort, onSort: (key) => { table.onSort(key); setPage(0); } };
   const pageCount = Math.max(1, Math.ceil(filteredLogs.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedLogs = useMemo(() => {
     const start = clampedPage * pageSize;
-    return filteredLogs.slice(start, start + pageSize);
-  }, [filteredLogs, clampedPage]);
+    return table.rows.slice(start, start + pageSize);
+  }, [table.rows, clampedPage]);
   const paginatedLogCostTotal = useMemo(
     () => paginatedLogs.reduce((sum, log) => sum + toNumber(log.cost), 0),
     [paginatedLogs]
@@ -376,12 +385,12 @@ function AdminMaintenance() {
               <table>
                 <thead>
                   <tr>
-                    <th className="table-row-index">#</th>
-                    <th>Asset</th>
-                    <th>Issue</th>
-                    <th>Status</th>
-                    <th>Cost</th>
-                    <th>Logged</th>
+                    <TableSortHeader {...tableHeaders} column="position" className="table-row-index">#</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="asset">Asset</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="issue">Issue</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="status">Status</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="cost">Cost</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="logged">Logged</TableSortHeader>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -403,9 +412,9 @@ function AdminMaintenance() {
                       <td colSpan={7} className="maintenance-empty">No maintenance logs found.</td>
                     </tr>
                   ) : (
-                    paginatedLogs.map((log, index) => (
+                    paginatedLogs.map((log) => (
                       <tr key={log.id}>
-                        <td className="table-row-index">{clampedPage * pageSize + index}</td>
+                        <td className="table-row-index">{filteredLogs.indexOf(log) + 1}</td>
                         <td>
                           <div className="maintenance-asset">
                             <strong>{log.productName || "Unknown"}</strong>

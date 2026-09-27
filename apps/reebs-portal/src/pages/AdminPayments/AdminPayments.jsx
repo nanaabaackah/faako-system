@@ -8,6 +8,8 @@ import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import { nextTableSort } from "../../components/TableControls/tableRows.js";
 import { faRotateRight } from "../../icons/iconSet";
 import { formatCurrencyFromCents, formatDateTime, formatStatusLabel } from "../Orders/orderUi";
 import "./AdminPayments.css";
@@ -49,6 +51,9 @@ export default function AdminPayments() {
   const [searchQuery, setSearchQuery] = useState("");
   const [method, setMethod] = useState("all");
   const [status, setStatus] = useState("all");
+  const [sort, setSort] = useState({ key: "date", direction: "desc" });
+  const requestSequence = useRef(0);
+  const tableHeaders = { sort, onSort: (key) => setSort((current) => nextTableSort(current, key)) };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState(null);
@@ -56,12 +61,15 @@ export default function AdminPayments() {
   const returnFocusRef = useRef(null);
 
   const loadPayments = useCallback(async ({ page = 1, signal } = {}) => {
+    const sequence = ++requestSequence.current;
     setLoading(true);
     setError("");
     try {
       const params = new URLSearchParams({
         page: String(page),
         pageSize: "25",
+        sortBy: sort.key,
+        sortDirection: sort.direction,
         ...(searchQuery ? { q: searchQuery } : {}),
         ...(method !== "all" ? { method } : {}),
         ...(status !== "all" ? { status } : {}),
@@ -69,17 +77,18 @@ export default function AdminPayments() {
       const response = await fetch(`/api/payments?${params.toString()}`, { signal });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || "Payments could not be loaded.");
+      if (signal?.aborted || sequence !== requestSequence.current) return;
       setPayments(Array.isArray(payload.items) ? payload.items : []);
       setPagination(payload.pagination || { page: 1, pageSize: 25, total: 0, totalPages: 1 });
     } catch (requestError) {
-      if (requestError.name !== "AbortError") {
+      if (requestError.name !== "AbortError" && !signal?.aborted && sequence === requestSequence.current) {
         setError(requestError.message || "Payments could not be loaded.");
         setPayments([]);
       }
     } finally {
-      if (!signal?.aborted) setLoading(false);
+      if (!signal?.aborted && sequence === requestSequence.current) setLoading(false);
     }
-  }, [method, searchQuery, status]);
+  }, [method, searchQuery, status, sort]);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -217,14 +226,14 @@ export default function AdminPayments() {
               <table className="payments-data-table">
                 <thead>
                   <tr>
-                    <th>Payment</th>
-                    <th>Type / source</th>
-                    <th>Customer</th>
-                    <th>Related record</th>
-                    <th>Method</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th className="payments-amount">Amount</th>
+                    <TableSortHeader {...tableHeaders} column="payment">Payment</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="source">Type / source</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="customer">Customer</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="related">Related record</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="method">Method</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="status">Status</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="date">Date</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="amount" className="payments-amount">Amount</TableSortHeader>
                     <th><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>

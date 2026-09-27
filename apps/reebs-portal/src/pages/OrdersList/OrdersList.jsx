@@ -20,6 +20,8 @@ import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import useTableSort from "../../components/TableControls/useTableSort";
 import { canAccessPrivilegedPortalArea } from "../../utils/adminAccess";
 import {
   faPlus,
@@ -382,11 +384,25 @@ function OrdersList() {
   }, [sortedOrders]);
 
   const pageCount = Math.max(1, Math.ceil(sortedOrders.length / pageSize));
+  const table = useTableSort(sortedOrders, {
+    position: (_, index) => index,
+    order: (order) => order.orderNumber || `#${order.id}`,
+    customer: (order) => order.customerName,
+    phone: (order) => order.customerPhone,
+    status: getOrderLifecycleStatusLabel,
+    payment: (order) => formatStatusLabel(order.paymentStatus, "Unpaid"),
+    fulfillment: (order) => formatStatusLabel(order.fulfillmentStatus || order.deliveryMethod, "Pickup"),
+    source: (order) => order.source || order.purchaseChannel,
+    total: getOrderTotalCents,
+    paid: getOrderAmountPaidCents,
+    balance: getOrderBalanceCents,
+  });
+  const tableHeaders = { sort: table.sort, onSort: (key) => { table.onSort(key); setPage(0); } };
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedOrders = useMemo(() => {
     const start = clampedPage * pageSize;
-    return sortedOrders.slice(start, start + pageSize);
-  }, [sortedOrders, clampedPage, pageSize]);
+    return table.rows.slice(start, start + pageSize);
+  }, [table.rows, clampedPage, pageSize]);
 
   const detailOrderSequence = useMemo(
     () =>
@@ -1123,7 +1139,7 @@ function OrdersList() {
                 label="Sort"
                 fieldClassName="orders-select orders-sort-select"
                 value={sortKey}
-                onChange={(event) => setSortKey(event.target.value)}
+                onChange={(event) => { setSortKey(event.target.value); table.clearSort(); }}
               >
                 {ORDER_SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
@@ -1187,22 +1203,22 @@ function OrdersList() {
                 <table className="orders-table orders-table--shop">
                   <thead>
                     <tr>
-                      <th className="table-row-index">#</th>
-                      <th>Order</th>
-                      <th>Customer</th>
-                      <th>Phone</th>
-                      <th>Status</th>
-                      <th>Payment</th>
-                      <th>Fulfillment</th>
-                      <th>Source</th>
-                      <th>Total</th>
-                      <th>Paid</th>
-                      <th>Balance</th>
+                      <TableSortHeader {...tableHeaders} column="position" className="table-row-index">#</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="order">Order</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="customer">Customer</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="phone">Phone</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="status">Status</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="payment">Payment</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="fulfillment">Fulfillment</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="source">Source</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="total">Total</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="paid">Paid</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="balance">Balance</TableSortHeader>
                       <th aria-label="Receipt" />
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedOrders.map((order, index) => (
+                    {paginatedOrders.map((order) => (
                       <tr
                         key={order.id}
                         onClick={() => openOrderDetail(order)}
@@ -1215,7 +1231,7 @@ function OrdersList() {
                           }
                         }}
                       >
-                        <td className="table-row-index">{clampedPage * pageSize + index + 1}</td>
+                        <td className="table-row-index">{sortedOrders.indexOf(order) + 1}</td>
                         <td>{order.orderNumber || `#${order.id}`}</td>
                         <td>{order.customerName || "-"}</td>
                         <td>{order.customerPhone || "-"}</td>

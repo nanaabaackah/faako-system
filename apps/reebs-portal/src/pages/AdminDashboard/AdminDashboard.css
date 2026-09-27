@@ -450,14 +450,18 @@ body.admin-theme .reebs-dashboard-header .admin-subtitle { color: var(--dashboar
   .reebs-dashboard-action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 860px) {
+  /* Keep the shared header's desktop flex basis from becoming mobile height,
+     including tablets where the shared header already stacks vertically. */
+  body.admin-theme .reebs-dashboard-header.admin-header > .reebs-dashboard-header-copy {
+    flex: 0 1 auto;
+  }
+}
+
 @media (max-width: 720px) {
-  body.admin-theme .reebs-dashboard-header {
+  body.admin-theme .reebs-dashboard-header.admin-header {
     gap: 0.75rem;
     padding-block: 0.75rem;
-  }
-
-  body.admin-theme .reebs-dashboard-header > .reebs-dashboard-header-copy {
-    flex: 0 1 auto;
   }
 
   .reebs-dashboard-header-actions {

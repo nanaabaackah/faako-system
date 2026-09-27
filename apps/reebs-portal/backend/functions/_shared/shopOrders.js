@@ -1039,15 +1039,6 @@ export const recordOrderPayment = async (
     throw error;
   }
   const order = orderRes.rows[0];
-  if (
-    isClosedOrderStatus(order.status)
-    || (!isInitialPayment && normalizeOrderStatus(order.status) === SHOP_ORDER_STATUS.COMPLETED)
-  ) {
-    const error = new Error("Payments cannot be recorded against a closed order.");
-    error.statusCode = 409;
-    throw error;
-  }
-
   const paymentAmountCents = normalizeCents(amountCents);
   if (paymentAmountCents <= 0) {
     const error = new Error("Payment amount must be greater than zero.");
@@ -1096,6 +1087,17 @@ export const recordOrderPayment = async (
         idempotentReplay: true,
       };
     }
+  }
+
+  // A matching retry returns the original result even if fulfillment or
+  // cancellation happened afterwards. Only new collections need an open order.
+  if (
+    isClosedOrderStatus(order.status)
+    || (!isInitialPayment && normalizeOrderStatus(order.status) === SHOP_ORDER_STATUS.COMPLETED)
+  ) {
+    const error = new Error("Payments cannot be recorded against a closed order.");
+    error.statusCode = 409;
+    throw error;
   }
 
   const currentBalanceDueCents = isInitialPayment
@@ -1984,7 +1986,7 @@ export const updateOrderMetadata = async (
 
 export const cancelOrder = async (
   client,
-  { organizationId, orderId, reason, actor }
+  { organizationId, orderId, reason, actor, canCancelPaid = false }
 ) => {
   const orderRes = await client.query(
     `SELECT *
@@ -2005,7 +2007,24 @@ export const cancelOrder = async (
     return order;
   }
 
+  if (!canTransitionOrder(status, SHOP_ORDER_STATUS.CANCELLED)) {
+    const error = new Error("This order can no longer be cancelled through the order workflow.");
+    error.statusCode = 409;
+    error.code = "INVALID_ORDER_TRANSITION";
+    throw error;
+  }
   const paidCents = normalizeCents(order.amountPaidCents);
+  const hasPayment = paidCents > 0 || ["paid", "partially_paid", "overpaid"].includes(
+    String(order.paymentStatus || "").toLowerCase()
+  );
+  // Use the locked row: a payment may finish while cancellation waits for it.
+  // The caller derives this capability from the authenticated user, never input.
+  if (hasPayment && !canCancelPaid) {
+    const error = new Error("Only owners and admins can cancel paid orders.");
+    error.statusCode = 403;
+    error.code = "PAID_ORDER_CANCELLATION_FORBIDDEN";
+    throw error;
+  }
   const nextPaymentStatus = paidCents > 0 ? PAYMENT_STATUS.REFUND_PENDING : PAYMENT_STATUS.UNPAID;
   const movementRes = await client.query(
     `SELECT sm.*, oi.id AS "orderItemId"

@@ -106,7 +106,7 @@ export const applyPaymentToPayable = async (client, attempt, transaction, actor)
     await client.query(
       `UPDATE "waterSale"
        SET "paymentStatus" = 'paid', "paymentMethod" = $3, "paymentReference" = $4,
-           "providerReference" = $5, "paidAt" = $6
+           "providerReference" = $5, "paidAt" = $6, "updatedAt" = NOW()
        WHERE "organizationId" = $1 AND id = $2`,
       [
         attempt.organizationId,

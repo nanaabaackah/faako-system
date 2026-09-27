@@ -83,7 +83,7 @@ export const routeConfig = [
   { path: "/admin/orders", domain: "orders", component: Orders, auth: true, access: "standard" },
   { path: "/admin/orders/new", domain: "orders", component: OrderBuilder, auth: true, access: "standard" },
   { path: "/admin/orders/:id", domain: "orders", component: OrderDetail, auth: true, access: "standard" },
-  { path: "/admin/crm", domain: "customers", component: Customers, auth: true, access: "standard" },
+  { path: "/admin/crm", domain: "customers", component: Customers, auth: true, accessPath: "/admin/crm" },
   { path: "/admin/customers", domain: "customers", redirect: "/admin/crm" },
   { path: "/admin/inventory", domain: "inventory", component: Inventory, auth: true, access: "standard" },
   { path: "/admin/inventory/products", domain: "inventory", component: InventoryProducts, auth: true, access: "ownerAdmin" },

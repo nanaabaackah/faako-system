@@ -42,10 +42,12 @@ test("Water profitability is unavailable when a transaction has no cost snapshot
   );
 });
 
-test("Water cost and pricing permissions exclude operational Water users", () => {
+test("Water cost and pricing permissions are owner/admin only", () => {
   assert.equal(buildWaterPricingPermissions("water").canViewCost, false);
   assert.equal(buildWaterPricingPermissions("water").canManagePricing, false);
-  assert.equal(buildWaterPricingPermissions("manager").canViewCost, true);
+  assert.equal(buildWaterPricingPermissions("manager").canViewCost, false);
+  assert.equal(buildWaterPricingPermissions("owner").canManagePricing, true);
+  assert.equal(buildWaterPricingPermissions("admin").canManagePricing, true);
 });
 
 test("Water profitability uses transaction cost snapshots instead of the current product cost", () => {

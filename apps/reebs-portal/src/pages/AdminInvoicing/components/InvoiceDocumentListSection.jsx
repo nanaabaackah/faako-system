@@ -2,6 +2,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
 import TablePagination from "../../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../../components/TableControls/TableSortHeader";
+import useTableSort from "../../../components/TableControls/useTableSort";
+import { tableDate } from "../../../components/TableControls/tableRows.js";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faBoxArchive } from "/src/icons/iconSet";
 
@@ -36,12 +39,25 @@ function InvoiceDocumentListSection({
   const [page, setPage] = useState(0);
   const [dismissedWorkspaceError, setDismissedWorkspaceError] = useState("");
   const pageSize = 10;
+  const table = useTableSort(visibleEntries, {
+    position: (_, index) => index,
+    document: getDocumentTableReference,
+    customer: (entry) => entry.customerName,
+    type: (entry) => entry.documentType === "receipt" ? "Receipt" : "Invoice",
+    source: (entry) => entry.linkedLabel,
+    date: (entry) => tableDate(entry.issueDate),
+    status: (entry) => entry.paymentStatus,
+    total: (entry) => Number(entry.total),
+    paid: (entry) => Number(entry.amountPaid),
+    balance: (entry) => Number(entry.balanceDue),
+  });
+  const tableHeaders = { sort: table.sort, onSort: (key) => { table.onSort(key); setPage(0); } };
   const pageCount = Math.max(1, Math.ceil(visibleEntries.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedEntries = useMemo(() => {
     const start = clampedPage * pageSize;
-    return visibleEntries.slice(start, start + pageSize);
-  }, [visibleEntries, clampedPage]);
+    return table.rows.slice(start, start + pageSize);
+  }, [table.rows, clampedPage]);
   const pageSummary = useMemo(
     () => ({
       count: paginatedEntries.length,
@@ -64,7 +80,7 @@ function InvoiceDocumentListSection({
 
   useEffect(() => {
     setPage(0);
-  }, [visibleEntries.length]);
+  }, [visibleEntries.length, searchTerm, documentFilter, paymentStatusFilter]);
 
   useEffect(() => {
     setDismissedWorkspaceError("");
@@ -158,21 +174,21 @@ function InvoiceDocumentListSection({
               <table>
                 <thead>
                   <tr>
-                    <th className="table-row-index">#</th>
-                    <th>Document</th>
-                    <th>Customer</th>
-                    <th>Type</th>
-                    <th>Source</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Total</th>
-                    <th>Paid</th>
-                    <th>Balance</th>
+                    <TableSortHeader {...tableHeaders} column="position" className="table-row-index">#</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="document">Document</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="customer">Customer</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="type">Type</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="source">Source</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="date">Date</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="status">Status</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="total">Total</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="paid">Paid</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="balance">Balance</TableSortHeader>
                     <th>Archive</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedEntries.map((entry, index) => (
+                  {paginatedEntries.map((entry) => (
                     <tr
                       key={entry.key}
                       className={`invoice-hub-table-row ${selectedKey === entry.key ? "is-active" : ""}`}
@@ -180,7 +196,7 @@ function InvoiceDocumentListSection({
                       onClick={() => handleSelectEntry(entry.key)}
                       onKeyDown={(event) => handleEntryKeyDown(event, entry.key)}
                     >
-                      <td className="table-row-index">{clampedPage * pageSize + index + 1}</td>
+                      <td className="table-row-index">{visibleEntries.indexOf(entry) + 1}</td>
                       <td>
                         <div className="admin-product invoice-hub-table-document">
                           <span className="admin-product-name">{getDocumentTableReference(entry)}</span>
@@ -250,7 +266,7 @@ function InvoiceDocumentListSection({
             </div>
 
             <div className="invoice-hub-mobile-list" role="list" aria-label="Invoices and receipts">
-              {paginatedEntries.map((entry, index) => (
+              {paginatedEntries.map((entry) => (
                 <article
                   key={`${entry.key}-mobile`}
                   role="button"
@@ -263,7 +279,7 @@ function InvoiceDocumentListSection({
                 >
                   <div className="invoice-hub-mobile-card-head">
                     <div className="invoice-hub-mobile-card-copy">
-                      <span className="invoice-hub-mobile-card-index">#{clampedPage * pageSize + index + 1}</span>
+                      <span className="invoice-hub-mobile-card-index">#{visibleEntries.indexOf(entry) + 1}</span>
                       <strong>{getDocumentTableReference(entry)}</strong>
                       <p>{entry.customerName || "Customer"}</p>
                     </div>

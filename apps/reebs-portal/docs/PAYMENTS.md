@@ -29,6 +29,33 @@ Payment attempt states are `PENDING`, `PAID`, `FAILED`, and `CANCELLED`. A pendi
 
 ## Authoritative amount and scope
 
+### Process-audit findings (2026-09-24)
+
+- Closed/cancelled/refunded/void payables and archived Water sales cannot accept
+  a new collection. A provider payment received after closure needs reconciliation;
+  it is not automatically refunded or silently applied.
+- Missing provider configuration marks an already-prepared initialization attempt
+  failed instead of leaving a pending blocker.
+- Exact manual Order retries return the original payment and receipt even after
+  the order is settled, completed or cancelled. Changed amounts still conflict.
+  A legacy replay does not backfill universal financial records. Fresh writes are
+  checked against both the locked Order and the payment-ledger snapshot before
+  the enclosing transaction commits.
+- Water provider settlement updates the sale's edit timestamp as well as its
+  paid fields, so an in-flight sale edit detects the changed record. It does not
+  create a Core order payment, Core journal or Core receipt.
+
+**Unresolved collection boundary:** an invoice linked to an Order or Booking is
+currently treated as an independent `INVOICE` payable. Its application does not
+settle the owning Order/Booking, and the invoice payable reader does not subtract
+the source's collections. Do not certify this path for release or assume that a
+paid invoice settled its source. A separate-collection guard versus a canonical
+source-application repair is awaiting a decision; no historical reallocation has
+been performed. See the roadmap process-integrity audit for evidence and limits.
+
+The tests for these audit changes use isolated SQL-client fixtures. Real database
+rollback/concurrency and test-provider delivery remain required before rollout.
+
 `payableRepository.js` resolves only `ORDER`, `BOOKING`, `INVOICE`, and `WATER_ORDER`. The request supplies a type, ID and optional purpose—not an amount, currency, customer or business unit.
 
 - Orders: total/currency/customer and paid balance come from the locked Core order and successful `orderPayment` rows.

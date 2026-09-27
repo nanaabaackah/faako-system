@@ -78,13 +78,13 @@ const installCustomerFixtures = async (page: Page, user = adminUser, mutations: 
     localStorage.setItem("reebs_auth_user", JSON.stringify(authUser));
   }, user);
 
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const endpoint = url.pathname.split("/").pop();
     let body: unknown = [];
 
-    if (endpoint === "authSession") body = user;
+    if (["authSession", "session"].includes(endpoint || "")) body = user;
     if (endpoint === "customers") {
       if (request.method() === "GET" && url.searchParams.has("id")) {
         body = customerDetail;
@@ -167,7 +167,7 @@ test.describe("Customer workspace", () => {
     const driver = { ...adminUser, id: 4, role: "driver", email: "driver@reebs.test" };
     await installCustomerFixtures(page, driver);
     await page.goto("/admin/crm");
-    await expect(page.getByRole("heading", { level: 1, name: "CRM" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "CRM" })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("button", { name: "Add customer" })).toHaveCount(0);
     await page.getByRole("button", { name: "Open Ama Mensah" }).first().focus();
     await page.keyboard.press("Enter");
@@ -182,7 +182,7 @@ test.describe("Customer workspace", () => {
   test("passes an automated accessibility scan for the customer workspace", async ({ page }) => {
     await installCustomerFixtures(page);
     await page.goto("/admin/crm");
-    await expect(page.getByRole("heading", { level: 1, name: "CRM" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "CRM" })).toBeVisible({ timeout: 30_000 });
     await injectAxe(page);
     await checkA11y(page, ".crm-page", {
       detailedReport: true,

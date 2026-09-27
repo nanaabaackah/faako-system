@@ -1,4 +1,6 @@
-const FINANCIAL_ROLES = new Set(["owner", "admin", "manager"]);
+export { calculateWaterCostSummary } from "../../../shared/waterFinancials.js";
+
+const FINANCIAL_ROLES = new Set(["owner", "admin"]);
 
 export const canManageWaterPricing = (role) =>
   FINANCIAL_ROLES.has(String(role || "").trim().toLowerCase());
@@ -29,28 +31,6 @@ export const resolveWaterUnitPrice = ({ pricing, quantity, saleChannel }) => {
   return normalizedQuantity >= threshold
     ? normalizeConfiguredCents(pricing?.retailBulk)
     : normalizeConfiguredCents(pricing?.retailSingle);
-};
-
-export const calculateWaterCostSummary = (sales = []) => {
-  let knownCostOfGoodsSold = 0;
-  let missingCostSaleCount = 0;
-
-  for (const sale of Array.isArray(sales) ? sales : []) {
-    const quantity = Math.max(0, Math.round(Number(sale?.quantity) || 0));
-    const unitCost = normalizeConfiguredCents(sale?.unitCostAtTransaction);
-    if (!unitCost) {
-      missingCostSaleCount += 1;
-      continue;
-    }
-    knownCostOfGoodsSold += quantity * unitCost;
-  }
-
-  return {
-    costOfGoodsSold: missingCostSaleCount > 0 ? null : knownCostOfGoodsSold,
-    knownCostOfGoodsSold,
-    missingCostSaleCount,
-    profitabilityAvailable: missingCostSaleCount === 0,
-  };
 };
 
 export const buildWaterPricingPermissions = (role) => {

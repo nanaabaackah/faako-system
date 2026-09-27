@@ -7,6 +7,9 @@ import { faPlus, faReceipt } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import useTableSort from "../../components/TableControls/useTableSort";
+import { tableDate } from "../../components/TableControls/tableRows.js";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { useLocation } from "react-router-dom";
 import {
@@ -184,12 +187,18 @@ function AdminExpenses() {
     return expenses.filter((expense) => String(expense?.bookingId || "") === requestedBookingId);
   }, [expenses, requestedBookingId]);
   const pageSize = 10;
+  const table = useTableSort(visibleExpenses, {
+    position: (_, index) => index, date: (expense) => tableDate(expense.date),
+    category: (expense) => expense.category, linked: formatExpenseLink,
+    amount: (expense) => toNumber(expense.amount), notes: (expense) => expense.description,
+  });
+  const tableHeaders = { sort: table.sort, onSort: (key) => { table.onSort(key); setPage(0); } };
   const pageCount = Math.max(1, Math.ceil(visibleExpenses.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedExpenses = useMemo(() => {
     const start = clampedPage * pageSize;
-    return visibleExpenses.slice(start, start + pageSize);
-  }, [visibleExpenses, clampedPage]);
+    return table.rows.slice(start, start + pageSize);
+  }, [table.rows, clampedPage]);
   const renderExpensesPagination = (header = false) => (
     <TablePagination
       total={visibleExpenses.length}
@@ -562,12 +571,12 @@ function AdminExpenses() {
               <table className="expenses-ledger-table">
                 <thead>
                   <tr>
-                    <th className="table-row-index">#</th>
-                    <th>Date</th>
-                    <th>Category</th>
-                    <th>Linked</th>
-                    <th>Amount</th>
-                    <th>Notes</th>
+                    <TableSortHeader {...tableHeaders} column="position" className="table-row-index">#</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="date">Date</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="category">Category</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="linked">Linked</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="amount">Amount</TableSortHeader>
+                    <TableSortHeader {...tableHeaders} column="notes">Notes</TableSortHeader>
                   </tr>
                 </thead>
                 <tbody>
@@ -590,9 +599,9 @@ function AdminExpenses() {
                       </td>
                     </tr>
                   ) : (
-                    paginatedExpenses.map((expense, index) => (
+                    paginatedExpenses.map((expense) => (
                       <tr key={expense.id}>
-                        <td className="table-row-index" data-label="#">{clampedPage * pageSize + index}</td>
+                        <td className="table-row-index" data-label="#">{visibleExpenses.indexOf(expense) + 1}</td>
                         <td data-label="Date">{formatDate(expense.date)}</td>
                         <td data-label="Category">
                           <span className="expenses-tag" style={getExpenseCategoryStyle(expense.category)}>

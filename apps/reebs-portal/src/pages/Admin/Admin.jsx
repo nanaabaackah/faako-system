@@ -10,6 +10,7 @@ import ModuleTopbarMenu from "../../components/ModuleTopbarMenu/ModuleTopbarMenu
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { useCart } from "../../components/CartContext/CartContext";
 import SearchField from "../../components/SearchField/SearchField";
+import { archiveSequentially } from "../../components/TableControls/bulkArchive.js";
 import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import {
@@ -2283,6 +2284,10 @@ function Admin() {
   };
 
   const archiveSelectedItems = async () => {
+    if (!canManageInventoryLifecycle) {
+      setSubmitError("Only owners and admins can archive inventory items.");
+      return;
+    }
     if (!selectedItemIds.size) {
       setSubmitError("Select at least one item to archive.");
       return;
@@ -2300,8 +2305,7 @@ function Admin() {
     setSubmitError("");
     setSuccess("");
     try {
-      const archived = [];
-      for (const item of selectedItems) {
+      const { archived, error: archiveError } = await archiveSequentially(selectedItems, async (item) => {
         const response = await fetch("/api/inventory", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -2311,8 +2315,8 @@ function Admin() {
         if (!response.ok) {
           throw new Error(data?.error || `Failed to archive ${formatInventoryItemName(item.name, "item")}.`);
         }
-        archived.push({ ...item, ...data, isArchived: true });
-      }
+        return data;
+      });
 
       const archivedIds = new Set(archived.map((item) => item.id));
       setItems((prev) => prev.filter((item) => !archivedIds.has(item.id)));
@@ -2320,8 +2324,9 @@ function Admin() {
         const existingIds = new Set(prev.map((item) => item.id));
         return [...archived.filter((item) => !existingIds.has(item.id)), ...prev];
       });
-      clearSelectedItems();
-      setSuccess(`Archived ${archived.length} item${archived.length === 1 ? "" : "s"}.`);
+      setSelectedItemIds((previous) => new Set([...previous].filter((id) => !archivedIds.has(id))));
+      if (archived.length) setSuccess(`Archived ${archived.length} item${archived.length === 1 ? "" : "s"}.`);
+      if (archiveError) setSubmitError(`${archiveError.message || "Archive failed."} Remaining items were not retried. Refresh before retrying if the connection was interrupted.`);
     } catch (err) {
       console.error("Bulk archive failed", err);
       setSubmitError(err.message || "Failed to archive selected items.");

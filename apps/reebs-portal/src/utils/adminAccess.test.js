@@ -12,3 +12,14 @@ test("Payments navigation matches the server-authorized operational roles", () =
     assert.equal(canAccessPortalRoute(role, "/admin/payments"), false);
   }
 });
+
+test("Customer routes retain driver read access but exclude Water-only and warehouse users", () => {
+  for (const path of ["/admin/crm", "/admin/customers"]) {
+    for (const role of ["owner", "admin", "manager", "staff", "driver"]) {
+      assert.equal(canAccessPortalRoute(role, path), true);
+    }
+    for (const role of ["water", "warehouse", "unknown"]) {
+      assert.equal(canAccessPortalRoute(role, path), false);
+    }
+  }
+});

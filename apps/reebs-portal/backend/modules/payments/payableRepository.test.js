@@ -61,6 +61,28 @@ test("settled records cannot create a payment attempt", () => {
   );
 });
 
+test("cancelled, refunded and void records cannot be charged despite a positive historical balance", () => {
+  for (const sourceStatus of ["Cancelled", "canceled", "refunded", "VOIDED", "archived"]) {
+    assert.throws(() => calculatePayableCharge({
+      totalCents: 5000, amountPaidCents: 0, sourceStatus,
+    }), (error) => error.code === "PAYABLE_CLOSED");
+  }
+  // Operational completion does not forgive an outstanding customer debt.
+  assert.equal(calculatePayableCharge({ totalCents: 5000, amountPaidCents: 0, sourceStatus: "Completed" }).amountCents, 5000);
+});
+
+test("an archived Water sale cannot accept payment or read its application balance", async () => {
+  const client = { async query(sql) {
+    if (sql.includes('FROM "waterSale"')) return { rows: [{
+      id: 5, totalAmount: 4500, paymentStatus: "pending", archivedAt: "2026-09-24T00:00:00Z",
+    }] };
+    assert.fail("archived sales must be rejected before loading payment applications");
+  } };
+  await assert.rejects(() => loadPayable(client, {
+    organizationId: 1, payableType: "WATER_ORDER", payableId: 5,
+  }), (error) => error.code === "PAYABLE_NOT_FOUND");
+});
+
 test("Water scope is derived from the Water sale rather than request data", async () => {
   const client = {
     async query(sql) {

@@ -41,4 +41,15 @@ Migration `20260904120000_invoicing_integrity` is additive. Apply it only throug
 
 ## Deferred boundaries
 
+### Linked-payment integrity finding (2026-09-24)
+
+The current payment-state reader totals `INVOICE` applications, not collections
+against the linked Order/Booking. Conversely, collecting against a linked invoice
+does not settle that source. The portal's source-balance display is not a backend
+settlement guarantee. Source collections must also be considered for safe voiding
+and all read projections. This is an unresolved high-risk process-audit finding,
+not an implemented source-reconciliation feature. No records have been repaired
+or reallocated. See `docs/apps/reebs/roadmap-process-integrity-audit.md` from the
+repository root; isolated database evidence is required for the repair.
+
 Customer self-service invoice history, credit notes, refunds, recurring invoices, automated reminders, statutory tax configuration, journal redesign and Water invoicing are not fabricated by this phase. PDF rendering remains dynamically loaded in the portal. Email uses the stored issued snapshot and trusted recipient; it does not accept a browser-authored financial document.

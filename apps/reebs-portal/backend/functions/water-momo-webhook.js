@@ -1,7 +1,6 @@
 /* eslint-disable no-undef */
 import crypto from "crypto";
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { buildResponseHeaders } from "./_shared/http.js";
 import { createLogger } from "./_shared/logger.js";
 
@@ -108,6 +107,8 @@ const saleTableStatements = [
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "paymentReference" TEXT`,
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "providerReference" TEXT`,
   `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "paidAt" TIMESTAMPTZ`,
+  `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+  `ALTER TABLE "waterSale" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ`,
   `CREATE TABLE IF NOT EXISTS "waterMomoWebhookEvent" (
     "id" BIGSERIAL PRIMARY KEY,
     "eventFingerprint" TEXT NOT NULL UNIQUE,
@@ -128,11 +129,8 @@ const ensureSaleTable = async (client) => {
     await client.query(statement);
   }
 
-  await client.query(
-    `UPDATE "waterSale"
-     SET "paymentReference" = 'WATER-' || "organizationId"::text || '-' || id::text
-     WHERE COALESCE(NULLIF(TRIM("paymentReference"), ''), '') = ''`
-  );
+  // A notification may update its locked sale only. Historical references in
+  // other sales/organizations must not be invented as part of webhook setup.
 };
 
 const cleanText = (value) => (typeof value === "string" ? value.trim() : "");
@@ -371,10 +369,7 @@ export async function handler(event = {}) {
     return json(event, 400, { error: "A sale id or payment reference is required." });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "water-momo-webhook-database" });
 
   let transactionOpen = false;
   try {
@@ -402,7 +397,7 @@ export async function handler(event = {}) {
            "totalAmount",
            "paidAt"
          FROM "waterSale"
-         WHERE id = $1${organizationFilter}
+         WHERE id = $1${organizationFilter} AND "archivedAt" IS NULL
          LIMIT 1
          FOR UPDATE`,
         values
@@ -419,7 +414,7 @@ export async function handler(event = {}) {
            "totalAmount",
            "paidAt"
          FROM "waterSale"
-         WHERE "paymentReference" = $1
+         WHERE "paymentReference" = $1 AND "archivedAt" IS NULL
          LIMIT 1
          FOR UPDATE`,
         [incomingReference]
@@ -553,6 +548,7 @@ export async function handler(event = {}) {
            "updatedAt" = NOW()
        WHERE id = $1
          AND "organizationId" = $7
+         AND "archivedAt" IS NULL
        RETURNING
          id,
          "organizationId",

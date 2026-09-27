@@ -492,7 +492,7 @@ body.admin-theme .water-module-shell > .admin-header.water-module-header > .wate
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--admin-muted);
+  color: var(--admin-text);
 }
 
 .water-module-order-form-summary strong {
@@ -791,7 +791,7 @@ body.admin-theme .water-module-shell > .admin-header.water-module-header > .wate
 }
 
 .water-module-inline-summary span {
-  color: var(--admin-muted);
+  color: var(--admin-text);
   min-width: 0;
   overflow-wrap: anywhere;
 }

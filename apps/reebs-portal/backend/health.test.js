@@ -35,8 +35,9 @@ test("database readiness fails safely without exposing connection errors", async
 });
 
 test("Water readiness reports configuration status without financial values", async () => {
+  let sql;
   const result = await checkWaterReadiness({
-    query: async () => ({ rows: [{ ready: true }] }),
+    query: async (text) => { sql = text; return { rows: [{ ready: true }] }; },
   });
   const payload = buildHealthPayload({
     database: { status: "ready", reachable: true },
@@ -48,4 +49,23 @@ test("Water readiness reports configuration status without financial values", as
   assert.equal(payload.dependencies.water, "ready");
   assert.equal(JSON.stringify(payload).includes("costPrice"), false);
   assert.equal(JSON.stringify(payload).includes("retailSinglePrice"), false);
+  assert.match(sql, /FROM "waterProductPrice"/);
+  assert.match(sql, /JOIN configured_prices prices ON prices\."organizationId" = rule\."organizationId"/);
+  assert.match(sql, /"effectiveFrom" <= NOW\(\)/);
+  assert.match(sql, /HAVING COUNT\(\*\) = 3/);
+  assert.match(sql, /HAVING COUNT\(\*\) = 1/);
+  assert.equal(sql.includes('"waterProductConfig"'), false);
+  assert.equal(sql.includes('"costPrice"'), false);
+});
+
+test("Water readiness fails closed when effective commercial configuration is missing", async () => {
+  assert.deepEqual(await checkWaterReadiness({ query: async () => ({ rows: [{ ready: false }] }) }), {
+    status: "unavailable", ready: false, reason: "commercial_config_missing",
+  });
+});
+
+test("Water readiness does not expose query errors", async () => {
+  assert.deepEqual(await checkWaterReadiness({ query: async () => { throw new Error("private diagnostic fixture"); } }), {
+    status: "unavailable", ready: false, reason: "query_failed",
+  });
 });

@@ -67,11 +67,11 @@ const installOrderApi = async (page: Page) => {
     localStorage.setItem("reebs_auth_user", JSON.stringify(user));
   }, adminUser);
 
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const endpoint = url.pathname.split("/").pop() || "";
-    if (endpoint === "authSession") {
+    if (["authSession", "session"].includes(endpoint || "")) {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(adminUser) });
       return;
     }
@@ -128,6 +128,16 @@ for (const viewport of [
       { id: order.id, fulfillmentStatus: "preparing" },
     ]);
     await expect(page.getByRole("button", { name: "Mark Ready For Pickup" })).toBeVisible();
+
+    // Re-read the updated API fixture after reload; local component state alone
+    // must not be the reason the new fulfillment step appears.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 1, name: order.orderNumber })).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(page.getByLabel("Next fulfillment step")).toHaveValue("ready_for_pickup");
+    await expect(page.getByRole("button", { name: "Mark Ready For Pickup" })).toBeVisible();
+    expect(state.fulfillmentBodies).toHaveLength(1);
 
     const overflow = await page.evaluate(() => ({
       html: document.documentElement.scrollWidth - document.documentElement.clientWidth,

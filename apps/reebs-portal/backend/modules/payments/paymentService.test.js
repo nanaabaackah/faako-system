@@ -24,6 +24,7 @@ const createInitializationClient = () => {
         status: "confirmed",
       }], rowCount: 1 };
       if (sql.includes('UPDATE "paymentAttempt"') && sql.includes("ATTEMPT_EXPIRED")) return { rows: [], rowCount: 0 };
+      if (sql.includes('UPDATE "paymentAttempt"') && sql.includes("status = 'FAILED'")) return { rows: [], rowCount: 1 };
       if (sql.includes('FROM "paymentAttempt"') && sql.includes("status = 'PENDING'") && !sql.includes('"idempotencyKey"')) return { rows: [], rowCount: 0 };
       if (sql.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 1 };
       if (sql.includes('FROM "paymentAttempt"') && sql.includes('"idempotencyKey"')) return { rows: [], rowCount: 0 };
@@ -101,6 +102,15 @@ test("client amount and business unit fields are ignored", async () => {
   });
   assert.equal(providerInput.amountCents, 8000);
   assert.equal(providerInput.currency, "GHS");
+});
+
+test("missing provider configuration marks the prepared attempt failed instead of leaving a pending blocker", async () => {
+  const client = createInitializationClient();
+  await assert.rejects(() => initializePayment(client, {
+    organizationId: 1, payableType: "ORDER", payableId: 8, idempotencyKey: "missing-provider-8",
+  }, { providerOptions: { secretKey: "" } }), (error) => error.code === "PAYMENT_PROVIDER_NOT_CONFIGURED");
+  assert.ok(client.calls.some(({ sql }) => sql.includes('UPDATE "paymentAttempt"') && sql.includes("status = 'FAILED'")));
+  assert.equal(client.calls.some(({ sql }) => sql.includes('INSERT INTO "paymentRecord"')), false);
 });
 
 test("verification rejects forged success, amount, currency, and reference values", () => {

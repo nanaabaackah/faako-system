@@ -1,4 +1,4 @@
-import { DateField, InlineNotice, SelectField } from "@faako/ui";
+import { DateField, InlineNotice, SelectField, useERPDialog } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faTrash, faXmark } from "/src/icons/iconSet";
 
@@ -34,6 +34,10 @@ export default function WaterLedgerEditorModal({
   saving,
   loading,
 }) {
+  const dialogRef = useERPDialog({
+    open: Boolean(activeLedgerItem && ledgerForm),
+    onClose: saving ? undefined : closeLedgerEditor,
+  });
   if (!activeLedgerItem || !ledgerForm) return null;
 
   const titleLabel =
@@ -50,9 +54,9 @@ export default function WaterLedgerEditorModal({
         : "Edit expense";
 
   return (
-    <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-ledger-modal-title">
+    <div ref={dialogRef} className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-ledger-modal-title" tabIndex={-1}>
       <div className="admin-modal-panel water-order-modal bubble-card">
-        <header>
+        <header role="presentation">
           <div>
             <p className="water-module-eyebrow">{eyebrowLabel}</p>
             <h2 id="water-ledger-modal-title">

@@ -9,6 +9,10 @@ import {
 } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
+import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import useTableView from "../../components/TableControls/useTableView";
+import { tableDate } from "../../components/TableControls/tableRows.js";
 
 const TYPE_OPTIONS = [
   { value: "PERCENTAGE", label: "% Off" },
@@ -85,6 +89,14 @@ const formatDiscountValue = (discount) => {
 
 function AdminMarketing() {
   const [discounts, setDiscounts] = useState([]);
+  const table = useTableView(discounts, {
+    position: (_, index) => index, code: (discount) => discount.code,
+    offer: formatDiscountValue, scope: (discount) => discount.scope || "both",
+    minimum: (discount) => Number(discount.minOrderValue) || 0,
+    expires: (discount) => tableDate(discount.expiryDate),
+    usage: (discount) => Number(discount.usageCount) || 0,
+    status: (discount) => discount.isActive && !isExpired(discount.expiryDate) ? "Active" : isExpired(discount.expiryDate) ? "Expired" : "Paused",
+  });
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -448,18 +460,19 @@ function AdminMarketing() {
               <p className="marketing-muted">Track codes, usage, and expiry dates.</p>
             </div>
             <div className="admin-table-scroll">
+              <TablePagination {...table.pagination} header />
               <table className="marketing-table">
                 <thead>
                   <tr>
-                    <th className="table-row-index">#</th>
-                    <th>Code</th>
-                    <th>Offer</th>
-                    <th>Scope</th>
-                    <th>Min order</th>
-                    <th>Expires</th>
-                    <th>Usage</th>
-                    <th>Status</th>
-                    <th />
+                    <TableSortHeader {...table} column="position" className="table-row-index">#</TableSortHeader>
+                    <TableSortHeader {...table} column="code">Code</TableSortHeader>
+                    <TableSortHeader {...table} column="offer">Offer</TableSortHeader>
+                    <TableSortHeader {...table} column="scope">Scope</TableSortHeader>
+                    <TableSortHeader {...table} column="minimum">Min order</TableSortHeader>
+                    <TableSortHeader {...table} column="expires">Expires</TableSortHeader>
+                    <TableSortHeader {...table} column="usage">Usage</TableSortHeader>
+                    <TableSortHeader {...table} column="status">Status</TableSortHeader>
+                    <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -483,12 +496,12 @@ function AdminMarketing() {
                       </td>
                     </tr>
                   )}
-                  {discounts.map((discount, index) => {
+                  {table.rows.map((discount) => {
                     const expired = isExpired(discount.expiryDate);
                     const isActive = discount.isActive && !expired;
                     return (
                       <tr key={discount.id}>
-                        <td className="table-row-index">{index}</td>
+                        <td className="table-row-index">{discounts.indexOf(discount) + 1}</td>
                         <td>
                           <strong>{discount.code}</strong>
                           {discount.reward && <p className="marketing-reward">{discount.reward}</p>}
@@ -540,6 +553,7 @@ function AdminMarketing() {
                   </tfoot>
                 )}
               </table>
+              <TablePagination {...table.pagination} />
             </div>
           </section>
 

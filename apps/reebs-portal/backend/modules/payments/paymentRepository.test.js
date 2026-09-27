@@ -2,6 +2,31 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { listCorePayments } from "./paymentRepository.js";
 
+for (const universal of [false, true]) {
+  test(`payment sorting is allowlisted and precedes pagination (${universal ? "universal" : "legacy"})`, async () => {
+    const queries = [];
+    const client = { async query(sql) {
+      queries.push(sql);
+      if (sql.includes("to_regclass")) return { rows: [{ available: universal }] };
+      return { rows: [] };
+    } };
+    for (const sortBy of ["payment", "source", "customer", "related", "method", "status", "date", "amount"]) {
+      await listCorePayments(client, { organizationId: 2, query: { sortBy, sortDirection: "asc", page: 2 } });
+      assert.match(queries.at(-1), /ORDER BY [\s\S]+ ASC NULLS LAST,[\s\S]+LIMIT \$2 OFFSET \$3/);
+      if (sortBy === "method") {
+        assert.match(queries.at(-1), /'bank_transfer', 'transfer'\) THEN 'bank transfer'/);
+        assert.match(queries.at(-1), /'mobilemoney'\) THEN 'mobile money'/);
+      }
+      assert.match(queries.at(-1), /REEBS_CORE/);
+    }
+    await listCorePayments(client, { organizationId: 2, query: { sortBy: 'amount; DROP TABLE "order"', sortDirection: "ASC; DROP" } });
+    assert.match(queries.at(-1), /ORDER BY (register|p)."paidAt" DESC NULLS LAST/);
+    assert.doesNotMatch(queries.at(-1), /DROP/);
+    await listCorePayments(client, { organizationId: 2, query: { sortBy: "__proto__" } });
+    assert.match(queries.at(-1), /ORDER BY (register|p)."paidAt" DESC NULLS LAST/);
+  });
+}
+
 test("payment register is paginated and explicitly excludes Water", async () => {
   const queries = [];
   const client = {

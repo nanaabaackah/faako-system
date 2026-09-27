@@ -1,5 +1,6 @@
 // Filename: bookings.js
 // Booking API for admin bookings page (Booking + BookingItem)
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 
 import {
   ensureAuditColumns,
@@ -15,7 +16,7 @@ import {
   resolveConfiguredPublicOrganizationId,
 } from "./_shared/organization.js";
 import { hasPermission, requirePermission } from "./_shared/internalApi.js";
-import { requireUser } from "./_shared/userAuth.js";
+import { getUserTokenFromEvent, requireUser } from "./_shared/userAuth.js";
 import {
   getNotificationCatchallEmail,
   sendNotificationEmail,
@@ -154,6 +155,14 @@ export async function handler(event) {
     };
   }
 
+  // Deny anonymous public submissions before opening a database connection.
+  // A supplied cookie/token is NOT authority: requireUser and requirePermission
+  // below still verify the session and staff capability before any booking work.
+  const publicBookingPaused = event.httpMethod === "POST" && !REEBS_PUBLIC_COMMERCE.bookingEnabled;
+  if (publicBookingPaused && !getUserTokenFromEvent(event)) {
+    return errorResponse(event, 403, REEBS_PUBLIC_COMMERCE.disabledCode, REEBS_PUBLIC_COMMERCE.disabledMessage);
+  }
+
   const requestId = getEventHeader(event, "x-request-id") || undefined;
   const requestLogger = logger.child({ requestId });
   const client = createDatabaseClient({ component: "bookings-database" });
@@ -161,6 +170,9 @@ export async function handler(event) {
   try {
     await client.connect();
     let authUser = await requireUser(client, event);
+    if (publicBookingPaused && !authUser) {
+      return errorResponse(event, 403, REEBS_PUBLIC_COMMERCE.disabledCode, REEBS_PUBLIC_COMMERCE.disabledMessage);
+    }
     let data = null;
     if (event.httpMethod === "POST" || event.httpMethod === "PUT") {
       const contentType = getHeaderValue(event, "content-type").toLowerCase();
