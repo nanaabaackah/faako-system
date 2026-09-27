@@ -10,7 +10,7 @@ import SearchField from "../../components/SearchField/SearchField";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { normalizeAdminRole } from "../../utils/adminAccess";
 import TablePagination from "../../components/TablePagination/TablePagination";
-import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
 import useTableSort from "../../components/TableControls/useTableSort";
 import { tableDate } from "../../components/TableControls/tableRows";
 import roleColors from "../../utils/roleColors";

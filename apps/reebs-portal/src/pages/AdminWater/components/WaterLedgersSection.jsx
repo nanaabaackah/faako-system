@@ -1,5 +1,5 @@
 import SearchField from "../../../components/SearchField/SearchField";
-import TableSortHeader from "../../../components/TableControls/TableSortHeader";
+import TableSortHeader from "../../../components/TableControls/TableSortHeader.jsx";
 import useTableView from "../../../components/TableControls/useTableView";
 import { tableDate } from "../../../components/TableControls/tableRows.js";
 import TablePagination from "../../../components/TablePagination/TablePagination";

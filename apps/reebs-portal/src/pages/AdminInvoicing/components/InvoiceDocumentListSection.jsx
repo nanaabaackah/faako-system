@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import SearchField from "../../../components/SearchField/SearchField";
 import TablePagination from "../../../components/TablePagination/TablePagination";
-import TableSortHeader from "../../../components/TableControls/TableSortHeader";
+import TableSortHeader from "../../../components/TableControls/TableSortHeader.jsx";
 import useTableSort from "../../../components/TableControls/useTableSort";
 import { tableDate } from "../../../components/TableControls/tableRows.js";
 import { AppIcon } from "/src/components/Icon/Icon";

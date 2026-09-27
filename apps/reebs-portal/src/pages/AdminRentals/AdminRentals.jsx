@@ -6,7 +6,7 @@ import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
-import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
 import TableSelectionCheckbox from "../../components/TableControls/TableSelectionCheckbox";
 import useTableSort from "../../components/TableControls/useTableSort";
 import useTableSelection from "../../components/TableControls/useTableSelection";

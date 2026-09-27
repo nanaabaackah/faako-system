@@ -10,7 +10,7 @@ import {
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import TablePagination from "../../components/TablePagination/TablePagination";
-import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
 import useTableView from "../../components/TableControls/useTableView";
 import { tableDate } from "../../components/TableControls/tableRows.js";
 

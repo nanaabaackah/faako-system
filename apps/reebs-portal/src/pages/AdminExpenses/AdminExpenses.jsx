@@ -7,7 +7,7 @@ import { faPlus, faReceipt } from "/src/icons/iconSet";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import TablePagination from "../../components/TablePagination/TablePagination";
-import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
 import useTableSort from "../../components/TableControls/useTableSort";
 import { tableDate } from "../../components/TableControls/tableRows.js";
 import { useAuth } from "../../components/AuthContext/AuthContext";
