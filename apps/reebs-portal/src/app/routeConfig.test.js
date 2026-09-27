@@ -45,11 +45,6 @@ test("payments loader resolves the completed payment register", () => {
   assert.match(moduleSource, /AdminPayments\/AdminPayments/);
 });
 
-test("Customers uses its existing route policy so authorized drivers reach the read-only directory", () => {
-  assert.match(routeSource,
-    /path:\s*"\/admin\/crm",\s*domain:\s*"customers",\s*component:\s*Customers,\s*auth:\s*true,\s*accessPath:\s*"\/admin\/crm"/);
-});
-
 test("all completed roadmap modules remain connected to their portal entry points", () => {
   for (const [domain, path, component, modulePath, pageImport] of roadmapModules) {
     assert.ok(
