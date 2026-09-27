@@ -8,7 +8,7 @@ import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
-import TableSortHeader from "../../components/TableControls/TableSortHeader";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
 import { nextTableSort } from "../../components/TableControls/tableRows.js";
 import { faRotateRight } from "../../icons/iconSet";
 import { formatCurrencyFromCents, formatDateTime, formatStatusLabel } from "../Orders/orderUi";
