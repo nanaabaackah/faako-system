@@ -4,6 +4,33 @@ Status: implemented foundation with explicit deployment prerequisites; not certi
 Date: 2026-08-30
 Scope: REEBS core retail Orders only
 
+## Process-audit update — 2026-09-24–25
+
+The implementation status below is a historical phase report. Payments now has an
+application-level provider foundation; consult `apps/reebs-portal/docs/PAYMENTS.md`
+for the current boundary and unresolved linked-invoice collection risk.
+
+Cancellation now checks paid-order authority on the locked Order inside the
+transaction, not an earlier unlocked read. Only authenticated owners/admins can
+cancel paid orders. The existing lifecycle also prevents cancellation of delivered,
+completed and refunded orders; a repeat cancellation has no second stock effect.
+Exact payment retries return the original receipt after settlement/closure without
+creating another collection. Focused tests use SQL-client doubles; real PostgreSQL
+two-session race/rollback verification remains outstanding.
+
+The Storefront's Shop checkout now requests `/api/checkoutQuote` before
+`/api/createOrder`, sends `expectedUnitPriceCents` and the returned fingerprint,
+and requires explicit re-confirmation in the existing modal when prices or fees
+change. A subsequent change invalidates that acknowledgement. Failed/malformed
+quotes cannot create an Order, and the browser fixture uses the server's pure
+stale-price guard rather than returning unconditional success. Rental items remain
+in the separate Booking workflow and their totals remain estimates.
+
+The existing combined Shop-with-Rentals delivery option still lacks distance
+capture even though authoritative delivery pricing requires it. Do not invent
+distance or waive that guard. This option and mixed-cart partial-success recovery
+are not end-to-end certified; see RI-018 in the process-integrity audit.
+
 ## Boundary and architecture
 
 Orders is the REEBS core retail-sale domain. It is distinct from rental Bookings and from the standalone Water business. New Order and OrderItem records are stamped `REEBS_CORE`. Products configured in `waterProductConfig`, and products categorized as `WATER` or `RENTAL`, are rejected by the Orders pricing path.
@@ -12,6 +39,7 @@ The current request path is:
 
 ```text
 Storefront Checkout (Astro-hosted React island)
+  -> POST /api/checkoutQuote -> explicit review if price/fee changes
   -> POST /api/createOrder (public, narrow checkout boundary)
   -> customer contact resolution
   -> createShopOrder transaction

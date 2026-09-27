@@ -221,7 +221,7 @@ export interface WaterProductDto {
   name: string;
   inventoryProductId?: string | number | null;
   linkedVendorIds?: Array<string | number>;
-  purchaseCost?: number;
+  purchaseCost?: number | null;
   pricing: {
     currency: string | null;
     retailSingle: number | null;
@@ -302,23 +302,36 @@ export interface WaterPaymentDto {
 
 export interface WaterFinancialSummaryDto {
   revenue: number;
-  restockSpend: number;
+  restockSpend: number | null;
   extraExpenses: number;
-  costOfGoodsSold: number;
-  grossProfit: number;
-  netProfit: number;
+  // Unknown historic costs must not be presented as zero or estimated profit.
+  costOfGoodsSold: number | null;
+  grossProfit: number | null;
+  netProfit: number | null;
   cashCollected: number;
   outstandingCredit: number;
-  cashPosition: number;
-  inventoryValue: number;
-  currentUnitCost: number;
+  cashPosition: number | null;
+  inventoryValue: number | null;
+  currentUnitCost: number | null;
+  profitabilityAvailable: boolean;
+  missingCostSaleCount: number;
+  missingCostRestockCount: number;
+}
+
+export interface WaterDashboardPermissionsDto {
+  canManagePricing: boolean;
+  canOverridePrice: boolean;
+  canViewCost: boolean;
+  canViewFinance: boolean;
 }
 
 export interface WaterDashboardDto extends ReebsScopedResponse {
   scope: "water";
   businessUnit: "WATER";
+  permissions: WaterDashboardPermissionsDto;
   product: WaterProductDto;
-  summary: WaterFinancialSummaryDto;
+  // Sales-only staff receive stock quantities, not internal cost/profit fields.
+  summary: Omit<WaterInventoryDto, "productKey"> & Partial<WaterFinancialSummaryDto>;
   restocks: unknown[];
   sales: unknown[];
   expenses: unknown[];

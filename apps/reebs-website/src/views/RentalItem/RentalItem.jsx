@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 import "./RentalItem.css";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import AddToCartButton from "/src/components/AddToCartButton/AddToCartButton";
@@ -362,7 +363,7 @@ useEffect(() => {
           displayRental.specificcategory ||
           displayRental.category ||
           "Party rental",
-        offers: offer,
+        offers: REEBS_PUBLIC_COMMERCE.bookingEnabled ? offer : undefined,
       };
 
       applySeo({
@@ -531,14 +532,17 @@ useEffect(() => {
               </div>
 
               <div className="rental-actions">
-                <Link
+                {REEBS_PUBLIC_COMMERCE.bookingEnabled ? <Link
                   className={`hero-btn hero-btn-primary ${showBouncyTable && !selectedBouncyType ? "is-disabled" : ""}`}
                   to={bookingLink}
                   onClick={handleBookingClick}
                   aria-disabled={showBouncyTable && !selectedBouncyType}
                 >
                   Book this rental
-                </Link>
+                </Link> : (
+                  <button type="button" className="hero-btn hero-btn-primary" disabled
+                    title={REEBS_PUBLIC_COMMERCE.disabledMessage}>Online booking unavailable</button>
+                )}
                 {cartReadyRental ? (
                   <div className="rental-cart-slot">
                     <AddToCartButton item={cartReadyRental} />

@@ -1,0 +1,68 @@
+---
+const measurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID || "";
+---
+
+<div data-analytics-config data-measurement-id={measurementId} hidden></div>
+
+<script>
+  import {
+    initializeGoogleAnalytics,
+    setGoogleAnalyticsConsent,
+    trackGoogleAnalyticsPageView,
+  } from "@faako/utils";
+
+  const storageKey = "ttngh-cookie-consent-v1";
+  const config = document.querySelector("[data-analytics-config]");
+  const measurementId = config?.getAttribute("data-measurement-id")?.trim() || "";
+  let started = false;
+
+  const readConsent = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+      return saved && typeof saved.analytics === "boolean" ? saved : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const clearAnalyticsCookies = () => {
+    document.cookie.split(";").forEach((entry) => {
+      const name = entry.split("=")[0]?.trim();
+      if (name && /^_ga(?:_|$)/.test(name)) {
+        document.cookie = `${name}=; Max-Age=0; path=/; SameSite=Lax`;
+      }
+    });
+  };
+
+  const applyConsent = (analytics) => {
+    if (!measurementId) return;
+
+    if (!analytics) {
+      setGoogleAnalyticsConsent(measurementId, { analytics: false, marketing: false });
+      clearAnalyticsCookies();
+      return;
+    }
+
+    if (!started) {
+      started = initializeGoogleAnalytics({
+        measurementId,
+        consent: { analytics: true, marketing: false },
+        respectDoNotTrack: true,
+      });
+    } else {
+      setGoogleAnalyticsConsent(measurementId, { analytics: true, marketing: false });
+    }
+
+    if (started) {
+      trackGoogleAnalyticsPageView({ measurementId });
+    }
+  };
+
+  const savedConsent = readConsent();
+  if (savedConsent) applyConsent(savedConsent.analytics);
+
+  document.addEventListener("ttngh:consent-changed", (event) => {
+    const analytics = Boolean(event.detail?.analytics);
+    applyConsent(analytics);
+  });
+</script>

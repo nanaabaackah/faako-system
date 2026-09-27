@@ -1,0 +1,33 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
+import { highlights, impactStats, organization, roadmap } from "../content/home.js";
+---
+
+<BaseLayout path="/impact" title={`Gallery and impact | ${organization.name}`} description="See TTN GH impact figures, programme milestones, outreach highlights, and future direction." image="/images/home/initiative-community.jpg" imageAlt="The Thriving Network GH community at a programme in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Impact", path: "/impact" }]}>
+  <main id="main-content" class="editorial-main">
+    <PageHero eyebrow="Gallery and impact" title="Real momentum built through trust, consistency, and community." intro="Since 2023, The Thriving Network GH has grown from one open conversation into an active network delivering support, education, and outreach." images={[
+      { src: "/images/home/initiative-community.jpg", alt: "The TTNGH community gathered during a programme in Tema" },
+      { src: "/images/home/vision-facilitator.jpg", alt: "A facilitator leading a TTNGH session" },
+      { src: "/images/home/programme-team.jpg", alt: "The TTNGH team during a school programme in Tema" },
+    ]} />
+    <section aria-labelledby="numbers-title">
+      <div class="section-heading"><p class="eyebrow">Impact so far</p><h2 id="numbers-title">The work in numbers</h2></div>
+      <div class="stats">{impactStats.map((stat) => <article class="bubble-card motion-card"><strong>{stat.value}</strong><p>{stat.label}</p></article>)}</div>
+    </section>
+    <section class="section-dark" aria-labelledby="milestones-title">
+      <div class="section-heading"><p class="eyebrow">Programme milestones</p><h2 id="milestones-title">Highlights from our journey</h2></div>
+      <ul class="check-list large-list">{highlights.map((highlight) => <li>{highlight}</li>)}</ul>
+    </section>
+    <section aria-labelledby="gallery-title">
+      <div class="section-heading"><p class="eyebrow">Community gallery</p><h2 id="gallery-title">Moments from our programmes and outreach.</h2></div>
+      <div class="image-gallery-grid"><figure><img src="/images/home/initiative-audience.jpg" alt="Community members at a TTNGH programme in Tema" width="1600" height="1066" loading="lazy" decoding="async" /></figure><figure><img src="/images/home/vision-speaker.jpg" alt="A speaker leading Vision with Clarity" width="1600" height="2400" loading="lazy" decoding="async" /></figure><figure><img src="/images/home/hero-community-3.jpg" alt="A speaker addressing students during a mental health education programme in Tema" width="1600" height="1066" loading="lazy" decoding="async" /></figure></div>
+    </section>
+    <section aria-labelledby="future-title">
+      <div class="section-heading"><p class="eyebrow">Looking ahead</p><h2 id="future-title">Our path toward national presence</h2></div>
+      <ol class="roadmap-list">{roadmap.map((item) => <li class="glass-card motion-card"><h3>{item.period}</h3><p>{item.description}</p></li>)}</ol>
+    </section>
+    <ScrollExpandSection image="/images/home/closing-community.jpg" alt="Students and TTNGH team members gathered in Tema" eyebrow="Build the next chapter" title="Help the work reach further." text="Support counselling, education, advocacy, outreach, research, and community spaces." href="/get-involved" linkLabel="Get involved" frameTitle="Impact becomes momentum." id="impact-cta-title" />
+  </main>
+</BaseLayout>

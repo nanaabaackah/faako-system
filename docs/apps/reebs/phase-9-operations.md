@@ -72,7 +72,7 @@ App registration rule: a deployable directory under `apps/` with its own `packag
 | `GET /live` | Process is responding | 200 while the process is alive |
 | `GET /health` | Safe service/build/database summary | 200 with `ready` or `degraded` status |
 | `GET /ready` | Database-backed traffic readiness | 200 ready; 503 unavailable |
-| `GET /health/water` | Database plus Water commercial configuration | 200 ready; 503 unavailable; no prices or costs returned |
+| `GET /health/water` | Database plus at least one organisation's current Water price tiers/discount rule | 200 ready; 503 unavailable; no prices or costs returned; not a tenant/stock/provider certification |
 
 Database checks use `SELECT 1`, a one-connection pool, and a bounded timeout. Health output includes only service, safe build reference, timestamp, and dependency status. Set `REEBS_BUILD_REFERENCE` to a safe commit SHA or release identifier.
 

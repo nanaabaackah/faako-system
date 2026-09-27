@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 
 const appRoot = new URL("..", import.meta.url).pathname;
 const distRoot = join(appRoot, "dist");
@@ -75,6 +76,9 @@ test("catalogue detail routes render durable content and truthful structured dat
     assert.ok(product, `${item.path} Product schema`);
     assert.equal(product.name, item.name);
     assert.equal(product.sku, item.sku || undefined);
+    if (!(item.kind === "rental" ? REEBS_PUBLIC_COMMERCE.bookingEnabled : REEBS_PUBLIC_COMMERCE.checkoutEnabled)) {
+      assert.equal(product.offers, undefined, `${item.path} must not advertise an online offer while commerce is paused`);
+    }
     assert.ok(entries.some((entry) => entry?.["@type"] === "BreadcrumbList"));
     assert.match(html, new RegExp(`/category/${item.categorySlug}`));
     if (item.kind === "rental" && product.offers) {

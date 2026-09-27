@@ -1,0 +1,31 @@
+/* Keep pagination inside narrow Faako table cards, independently of column widths. */
+body.admin-theme .table-pagination.inventory-register-pagination {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  body.admin-theme .table-pagination .inventory-register-pagination-meta {
+    min-width: 0;
+  }
+
+  body.admin-theme .table-pagination .inventory-register-pagination-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+  }
+
+  body.admin-theme .table-pagination .inventory-register-pagination-page {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    width: auto;
+    padding-inline: 0;
+  }
+
+  body.admin-theme .table-pagination .inventory-register-pagination-controls button {
+    width: 100%;
+    min-height: 44px;
+  }
+}

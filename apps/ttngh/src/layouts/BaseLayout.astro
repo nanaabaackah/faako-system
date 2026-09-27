@@ -1,0 +1,148 @@
+---
+import "@faako/theme/system.css";
+import "@faako/ui/compat.css";
+import "../styles/global.css";
+import "../styles/components/base.css";
+import "../styles/components/shared.css";
+import { organization } from "../content/home.js";
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import CookieNotice from "../components/CookieNotice.astro";
+import FloatingUtilities from "../components/FloatingUtilities.astro";
+import SiteSearch from "../components/SiteSearch.astro";
+import ScrollReveal from "../components/ScrollReveal.astro";
+import PageLoadingState from "../components/PageLoadingState.astro";
+import AnalyticsConsent from "../components/AnalyticsConsent.astro";
+
+const {
+  title = `${organization.name} | Mental health advocacy and support in Ghana`,
+  description = "The Thriving Network GH advances mental wellness through education, counselling, advocacy, community support, research, and policy engagement.",
+  path = Astro.url.pathname,
+  overlayHeader = false,
+  pageStyles = [],
+  image = "/images/home/closing-community.jpg",
+  imageAlt = "The Thriving Network GH team and community in Tema, Ghana",
+  breadcrumbs = [],
+  faqItems = [],
+  noIndex = false,
+} = Astro.props;
+
+const siteUrl = Astro.site || new URL("https://ttngh.example");
+const canonical = new URL(path, siteUrl).toString();
+const isPreviewDomain = siteUrl.hostname.endsWith(".example");
+const absoluteImage = new URL(image, siteUrl).toString();
+const graph = [
+  {
+    "@type": "NGO",
+    "@id": new URL("/#organization", siteUrl).toString(),
+    name: organization.name,
+    alternateName: organization.shortName,
+    slogan: organization.tagline,
+    description,
+    url: siteUrl.toString(),
+    logo: new URL("/ttngh-logo-transparent.png", siteUrl).toString(),
+    image: absoluteImage,
+    foundingDate: "2023-07",
+    founder: { "@type": "Person", name: "Anthonia Nonye Tony-Dibie" },
+    address: {
+      "@type": "PostalAddress",
+      postOfficeBoxNumber: "CO 4743",
+      addressLocality: "Tema",
+      addressCountry: "GH",
+    },
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "general enquiries",
+      email: organization.email,
+      telephone: organization.phoneHref,
+      areaServed: "GH",
+      availableLanguage: "English",
+    },
+    sameAs: organization.socials.filter((social) => social.href).map((social) => social.href),
+  },
+  {
+    "@type": "WebSite",
+    "@id": new URL("/#website", siteUrl).toString(),
+    name: organization.name,
+    url: siteUrl.toString(),
+    publisher: { "@id": new URL("/#organization", siteUrl).toString() },
+  },
+  {
+    "@type": "WebPage",
+    "@id": canonical,
+    name: title,
+    description,
+    url: canonical,
+    isPartOf: { "@id": new URL("/#website", siteUrl).toString() },
+    about: { "@id": new URL("/#organization", siteUrl).toString() },
+    primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage, caption: imageAlt },
+  },
+];
+
+if (breadcrumbs.length) {
+  graph.push({
+    "@type": "BreadcrumbList",
+    itemListElement: breadcrumbs.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: new URL(item.path, siteUrl).toString(),
+    })),
+  });
+}
+
+if (faqItems.length) {
+  graph.push({
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: { "@type": "Answer", text: item.answer },
+    })),
+  });
+}
+
+const structuredData = JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c");
+---
+
+<!doctype html>
+<html lang="en-GH" data-faako-theme="ttngh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="generator" content={Astro.generator} />
+    <PageLoadingState />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={organization.name} />
+    <meta name="robots" content={isPreviewDomain || noIndex ? "noindex, nofollow" : "index, follow, max-image-preview:large"} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    {pageStyles.map((href) => <link rel="stylesheet" href={href} />)}
+    <meta property="og:locale" content="en_GH" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={organization.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={absoluteImage} />
+    <meta property="og:image:alt" content={imageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={absoluteImage} />
+    <script type="application/ld+json" set:html={structuredData} />
+  </head>
+  <body id="top" class:list={{ "has-overlay-header": overlayHeader }}>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    {!overlayHeader && <SiteHeader />}
+    <slot />
+    <SiteFooter />
+    <FloatingUtilities />
+    <SiteSearch />
+    <CookieNotice />
+    <AnalyticsConsent />
+    <ScrollReveal />
+  </body>
+</html>

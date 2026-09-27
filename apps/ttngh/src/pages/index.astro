@@ -1,0 +1,165 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import HomePartnerBand from "../components/HomePartnerBand.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import { FaArrowRight } from "react-icons/fa6";
+import { impactStats, organization } from "../content/home.js";
+import { featuredProgrammes, initiatives, milestones, principles } from "../content/home-page.js";
+import homeStyles from "../styles/pages/home.css?url";
+---
+
+<BaseLayout path="/" overlayHeader={true} pageStyles={[homeStyles]} image="/images/home/closing-community.jpg" imageAlt="Students gathered for a TTNGH mental health education programme in Tema">
+  <main id="main-content" class="home-main">
+    <section class="home-hero" aria-labelledby="hero-title">
+      <SiteHeader />
+
+      <img
+        class="hero-background"
+        src="/images/home/closing-community.jpg"
+        alt="Students gathered for a TTNGH mental health education programme in Tema"
+        width="1600"
+        height="1066"
+        fetchpriority="high"
+        decoding="async"
+      />
+      <div class="hero-overlay" aria-hidden="true"></div>
+
+      <div class="home-shell hero-shell">
+        <h1 id="hero-title" class="hero-title">
+          <span class="hero-title-peace">Peace</span><span class="hero-title-rest">Over Everything.</span>
+        </h1>
+        <p class="hero-subtitle">A stigma-free society where mental health is embraced as an essential part of overall well-being.</p>
+        <div class="hero-actions" aria-label="Ways to support The Thriving Network GH">
+          <a class="button button-primary" href="/get-involved#partnerships"><span class="button-label">Collaborate</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+          <a class="button button-secondary" href="/get-involved"><span class="button-label">Volunteer</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+          <a class="button button-secondary" href="/support-us"><span class="button-label">Donate</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="impact-rail" aria-label="Our impact so far">
+      <a class="impact-rail-inner glass-card card-link card-link-self" href="/impact" aria-label="Explore The Thriving Network GH impact">
+        {impactStats.map((stat) => (
+          <article><strong>{stat.value}</strong><span>{stat.label}</span></article>
+        ))}
+        <article><strong>{organization.founded}</strong><span>founded in Tema, Ghana</span></article>
+      </a>
+    </section>
+
+    <section class="home-story home-shell" aria-labelledby="story-title">
+    
+      <div class="story-copy">
+        <div class="story-copy-intro">
+          <p class="section-label">Our why</p>
+          <h2 id="story-title">A stigma-free society where mental health is embraced.</h2>
+          <p>We exist to eradicate mental health stigma through education, advocacy, and support—empowering individuals and communities to seek help without fear.</p>
+        </div>
+        <a class="button button-on-pink" href="/about"><span class="button-label">Our story</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+      </div>
+
+      <ol class="story-principles" aria-label="How we pursue our mission">
+        {principles.map((principle) => (
+          <li><span>{principle.number}</span><div><strong>{principle.title}</strong><p>{principle.text}</p></div></li>
+        ))}
+      </ol>
+
+      <figure class="story-image">
+        <img src="/images/home/founder-anthonia.jpg" alt="Anthonia Nonye Tony-Dibie, Founder and Executive Director of The Thriving Network GH" loading="lazy" />
+        <figcaption>“I wanted to create a judgment-free community space where people could simply come, release, breathe, and be heard.”</figcaption>
+      </figure>
+    </section>
+
+    <section class="home-programmes" aria-labelledby="programmes-title">
+      <div class="home-shell">
+        <div class="section-intro section-intro-split">
+          <div><h2 id="programmes-title">Four programme pillars. One mission.</h2></div>
+          <div><p>Our connected programmes create lasting change through education, direct support, advocacy, and evidence-informed engagement.</p><a class="text-link" href="/programmes">View all programmes →</a></div>
+        </div>
+
+        <div class="programme-cards">
+          {featuredProgrammes.map((programme, index) => (
+            <article class="programme-card glass-card card-link">
+              <figure><img src={programme.image} alt={programme.alt} loading="lazy" /></figure>
+              <div class="programme-card-copy">
+                <span class="programme-index" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                <h3>{programme.title}</h3>
+                <p>{programme.text}</p>
+                <a class="text-link" href="/programmes">Learn more →</a>
+              </div>
+            </article>
+          ))}
+        </div>
+        <p class="image-context">Photography from TTNGH's mental health education programme at Presbyterian Senior High School, Tema.</p>
+      </div>
+    </section>
+
+    <section class="home-impact" aria-labelledby="impact-title">
+      <div class="home-shell impact-layout">
+        <div class="impact-copy">
+          <h2 id="impact-title">Real, measurable momentum.</h2>
+          <p>Since July 2023, TTNGH has grown a community rooted in education, professional support, and stigma-free conversation.</p>
+          <a class="button button-on-pink" href="/impact"><span class="button-label">Explore our impact</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+        </div>
+
+        <div class="impact-gallery">
+          <figure class="impact-image impact-image-large">
+            <img src="/images/home/vision-gathering.jpg" alt="Participants gathered for the Vision with Clarity programme" loading="lazy" />
+            <figcaption>Vision with Clarity supports reflection, intention, and personal well-being.</figcaption>
+          </figure>
+          <figure class="impact-image"><img src="/images/home/vision-facilitator.jpg" alt="A facilitator leading a Vision with Clarity session" loading="lazy" /></figure>
+          <div class="impact-note bubble-card motion-card"><strong>100+</strong><span>active support group members</span></div>
+          <figure class="impact-image"><img src="/images/home/initiative-team.jpg" alt="The TTNGH team at Presbyterian Senior High School, Tema" loading="lazy" /></figure>
+          <div class="impact-note bubble-card motion-card"><strong>100+</strong><span>one-on-one counselling sessions delivered</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="home-initiatives home-shell" aria-labelledby="initiatives-title">
+      <div class="section-intro section-intro-row">
+        <div><h2 id="initiatives-title">Support through recurring initiatives.</h2></div>
+        <a class="text-link" href="/events">View events →</a>
+      </div>
+
+      <div class="initiative-cards">
+        {initiatives.map((initiative, index) => (
+          <article class:list={["initiative-card", "card-link", index === 0 ? "glass-card" : "bubble-card"]}>
+            <figure><img src={initiative.image} alt={initiative.alt} loading="lazy" /></figure>
+            <div class="initiative-card-copy"><span>{initiative.label}</span><h3>{initiative.title}</h3><p>{initiative.text}</p><a class="text-link" href="/events">Learn more →</a></div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <ScrollExpandSection
+      image="/images/home/closing-community.jpg"
+      alt="Students and TTNGH team members gathered at Presbyterian Senior High School, Tema"
+      title="A stigma-free society, together."
+      text="Partner with us, volunteer your time, or help fund counselling, outreach, educational materials, and programme delivery."
+      href="/get-involved"
+      linkLabel="Collaborate"
+      frameTitle="Open the circle."
+      id="closing-title"
+    />
+
+    <section class="home-milestones" aria-labelledby="milestones-title">
+      <div class="home-shell">
+        <div class="section-intro section-intro-row">
+          <div><p class="section-label">Stories & milestones</p><h2 id="milestones-title">Highlights from our work.</h2></div>
+          <a class="text-link" href="/news">View all news →</a>
+        </div>
+
+        <div class="milestone-cards">
+          {milestones.map((milestone) => (
+            <article class="milestone-card bubble-card card-link">
+              <figure><img src={milestone.image} alt={milestone.alt} loading="lazy" /></figure>
+              <div><span>{milestone.label}</span><h3>{milestone.title}</h3><p>{milestone.text}</p><a class="text-link" href="/news">Read more →</a></div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+      <HomePartnerBand />
+  </main>
+</BaseLayout>

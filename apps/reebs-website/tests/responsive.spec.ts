@@ -55,7 +55,7 @@ const routes = [
 ];
 
 test.beforeEach(async ({ page }) => {
-  await page.route("**/api/**", async (route) => {
+  await page.route((url) => url.pathname.startsWith("/api/"), async (route) => {
     const pathname = new URL(route.request().url()).pathname;
     const payload = pathname.endsWith("/inventory") ? products : [];
     await route.fulfill({
@@ -120,7 +120,9 @@ test("mobile navigation and search remain keyboard-operable", async ({ page }) =
 });
 
 test("critical React islands hydrate without server/client mismatches", async ({ page }) => {
-  test.setTimeout(150_000);
+  // Six full navigations share this budget; cold compilation reached the final
+  // route before exhausting 150s. Keep every hydration/error assertion intact.
+  test.setTimeout(300_000);
   const hydrationErrors: string[] = [];
   page.on("console", (message) => {
     if (
@@ -145,8 +147,30 @@ test("unknown storefront URLs render a useful 404 page", async ({ page }) => {
   await expect(page.getByRole("link", { name: /browse shop/i })).toBeVisible();
 });
 
+test("catalogues stay browsable while shop and rental actions are disabled", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.goto("/shop", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
+  await expect(page.getByRole("button", { name: "Online ordering unavailable" }).first()).toBeDisabled();
+  await page.goto(rentalDetailPath, { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Online booking unavailable" }).first()).toBeDisabled();
+  for (const route of [rentalDetailPath, shopDetailPath]) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    const products = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => scripts.flatMap((script) => {
+      const value = JSON.parse(script.textContent || "{}");
+      return Array.isArray(value) ? value : value["@graph"] || [value];
+    }).filter((value) => value["@type"] === "Product"));
+    expect(products.length).toBeGreaterThan(0);
+    for (const product of products) expect(product.offers).toBeUndefined();
+  }
+});
+
 test("critical storefront pages have no serious or critical axe violations", async ({ page }) => {
-  test.setTimeout(150_000);
+  // Six navigations plus axe scans share this budget. Keep the same routes and
+  // severity assertions while allowing a complete cold development-server pass.
+  test.setTimeout(300_000);
   await page.setViewportSize({ width: 390, height: 844 });
 
   for (const route of ["/", "/shop", rentalDetailPath, "/book", "/checkout", "/missing-page"]) {

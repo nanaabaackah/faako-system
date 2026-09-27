@@ -1,6 +1,8 @@
 # REEBS Water architecture
 
-Status: Phase 7 verified implementation (2026-08-28)
+Status: local implementation reviewed 2026-09-27; deployed data/provider verification pending.
+
+Release evidence and manual go-live checks: [Water release readiness](water-release-readiness.md).
 
 ## Boundary
 
@@ -12,13 +14,13 @@ Default REEBS rental/event dashboards and financial totals must not include Wate
 
 `/admin/water` → `AdminWater` → `/api/water` → authenticated Water handler → organisation-scoped Water tables → permission-shaped response → Water UI.
 
-The portal route and navigation allow owners, admins, managers and Water operators. The API repeats role and organisation enforcement; navigation visibility is not authoritative.
+The Water API allows owners, admins and Water operators, with Water permission and organisation enforcement. A Core manager role alone does not grant Water access. Navigation visibility is not authoritative.
 
 ## Data ownership
 
-- `waterProductConfig` owns the current product name, retail/bulk/company selling prices, bulk threshold, optional cost price and active state. The current UI manages name and prices; active/inactive management is not yet exposed.
+- `waterProductPrice` owns effective-dated retail, bulk and company selling prices. `commercialConfiguration` owns the Water discount limit. Legacy `waterProductConfig` remains for compatibility/linkage; it is not the authoritative new-sale price resolver.
 - `waterRestock` owns Water stock-in records and their editable unit-cost snapshots.
-- `waterSale` owns Water orders, payment state, selling-price snapshot, optional cost snapshot and explicit price-override context.
+- `waterSale` owns Water orders, payment state, selling-price and cost snapshots. Authorised price overrides do not require a recorded reason.
 - `waterAdjustment` owns Water-only stock corrections.
 - `waterExpense` owns Water-only expenses.
 - `customer` and `vendor` identities may be shared, but Water activity is derived only through Water records.
@@ -31,20 +33,30 @@ Core Inventory APIs, stock activity, public inventory counts and Core inventory 
 
 New sale pricing follows:
 
-`Water product key` → server loads `waterProductConfig` → server selects the applicable configured selling price → optional authorised override → server calculates the total → `waterSale.unitPrice` stores the transaction snapshot.
+`Water product key + organisation + transaction date` → server resolves effective `waterProductPrice` and Water commercial rules → optional owner/admin override → server calculates the total → `waterSale` stores the transaction snapshot.
 
 The browser preview is informational. Missing required selling price blocks the sale with a controlled configuration error. No production fallback literal is used.
 
-Cost follows when it is known:
+New sale cost follows the recorded purchase history:
 
-`waterProductConfig.costPrice` → new `waterSale.unitCostAtTransaction` snapshot → Water gross-profit calculation.
+`latest eligible waterRestock.unitCost at the sale date` → `waterSale.unitCostAtSaleCents` snapshot → shared Water-only cost calculation.
 
-Changing current cost never rewrites historical sale cost. Existing sales created before cost snapshots remain `NULL`; their profitability is reported as unavailable rather than using zero or today's cost.
-Selling prices can be configured while cost remains unknown, so a missing internal cost does not create a free sale or force a fabricated profitability value.
+A new sale without an eligible recorded purchase cost fails closed. Changing a
+selling-price setting does not rewrite historical sales. Explicit restock
+correction can restate affected sale costs inside its scoped transaction and
+records a cost-correction audit event. Dashboard reads do not restate anything.
+API and Portal use `shared/waterFinancials.js`: missing historical snapshots leave
+COGS/profit unavailable, rather than substituting zero, a hardcoded cost, or a
+later restock price. The legacy `unitCostAtTransaction` field is accepted when
+present. Unknown restock spend/cash position and stock valuation also stay null.
+An empty ledger does not pre-fill a guessed purchase cost.
 
 ## Cost and finance access
 
-Owners, admins and managers can view and edit Water selling/cost configuration and can perform authorised price overrides. A reason is not required. Operational Water users can create Water activity but responses omit current cost, sale cost snapshots, override actor IDs and profitability fields.
+Only owners/admins can manage purchase costs, stock, expenses, adjustments and
+pricing. Water staff handle sales; their responses omit purchase costs, sale-cost
+snapshots, private finance aggregates and expenses. Backend action checks and
+response projection enforce this policy even for forged browser requests.
 
 ## Core Dashboard boundary
 
@@ -58,18 +70,23 @@ Public inventory/storefront DTOs expose customer selling prices only. They must 
 
 Migration `20260828143000_water_pricing_integrity` creates the Water pricing configuration and transaction snapshot fields. It initializes existing organisations from an eligible linked Water product when available and otherwise preserves the previously established Water rates. It intentionally does not backfill historical cost snapshots.
 
-Apply the reviewed migration in each environment before deploying code that requires it:
+The effective-dated commercial tables and sale cost snapshot also depend on the
+reviewed Phase 6 commercial migration. Verify the complete migration history in
+the intended environment, not just the Phase 7 migration. Previously reported
+failed migration state has not been checked against a live database here. Never
+mark a failed migration applied blindly or reset a shared database. Deployment
+and migration execution remain manual; this review performs neither.
 
-```sh
-pnpm --filter @faako/reebs-portal run db:deploy:dev
-pnpm --filter @faako/reebs-portal run db:deploy:prod
-```
-
-Production deployment is a manual release step. Phase 7 does not apply production migrations.
+`/ready` checks database `SELECT 1` only. `/health/water` checks for at least one
+organisation with one current price per tier and a current Water discount rule;
+it returns status only. It does not certify the signed-in organisation, available
+stock, historical cost completeness, migration history, providers or concurrency.
 
 ## Deferred work
 
 - Dedicated Water reporting exports and a labelled consolidated REEBS/Water report do not currently exist.
-- Water payment records remain embedded in `waterSale`; a separate shared payment ledger integration requires an explicit accounting design.
+- Direct Water payment state remains embedded in `waterSale`. The existing shared Payments application targets `WATER_ORDER`/`WATER`; it must not create Core order/journal/receipt entries. Selecting MoMo in the Water form does not itself initiate a provider charge.
+- The legacy MoMo callback locks the active target sale, validates exact amount/currency, and ignores exact replays. It no longer backfills unrelated sale references or settles archived sales. Real PostgreSQL/provider replay and race checks remain outstanding.
+- New Water sale/restock submissions have no durable request-idempotency key. After an ambiguous save failure, reload and inspect the ledger before manually retrying.
 - Runtime defensive DDL in the legacy Water handler should eventually be removed after migration adoption is verified in every environment.
 - The frontend remains a large page component and should be decomposed gradually without changing the domain contract.

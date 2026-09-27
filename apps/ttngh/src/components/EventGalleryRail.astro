@@ -1,0 +1,20 @@
+---
+const images = [
+  { src: "/images/home/vision-gathering.jpg", alt: "Participants gathered for TTNGH's Vision with Clarity programme", caption: "Vision with Clarity" },
+  { src: "/images/home/programme-audience.jpg", alt: "Students attending a TTNGH mental health education programme in Tema", caption: "School outreach" },
+  { src: "/images/home/initiative-community.jpg", alt: "Community members gathered during a TTNGH programme in Tema", caption: "Community conversation" },
+  { src: "/images/home/vision-reflection.jpg", alt: "Participants completing a guided reflection exercise", caption: "Guided reflection" },
+  { src: "/images/home/programme-team.jpg", alt: "The TTNGH team during a school programme in Tema", caption: "Programme delivery" },
+  { src: "/images/home/vision-facilitator.jpg", alt: "A facilitator leading a Vision with Clarity session", caption: "Facilitated learning" },
+];
+const loop = [...images, ...images];
+---
+
+<section class="event-gallery-rail" aria-labelledby="event-gallery-title">
+  <div class="section-heading"><p class="eyebrow">Across our events</p><h2 id="event-gallery-title">Moments of learning, reflection, and connection.</h2></div>
+  <div class="event-gallery-viewport">
+    <div class="event-gallery-track">
+      {loop.map((image, index) => <figure aria-hidden={index >= images.length ? "true" : undefined}><img src={image.src} alt={index >= images.length ? "" : image.alt} width="900" height="1100" loading="lazy" decoding="async" /><figcaption>{image.caption}</figcaption></figure>)}
+    </div>
+  </div>
+</section>

@@ -1,0 +1,12 @@
+---
+import { team } from "../content/team.js";
+---
+
+<div class="team-grid">
+  {team.map((member) => (
+    <article class="team-card bubble-card motion-card">
+      <figure><img src={member.image} alt={member.name} width="800" height="1100" loading="lazy" decoding="async" /></figure>
+      <div><h3>{member.name}</h3><p>{member.role}</p></div>
+    </article>
+  ))}
+</div>
