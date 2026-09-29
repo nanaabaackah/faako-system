@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import "./AdminWater.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight } from "/src/icons/iconSet";
@@ -466,6 +466,9 @@ function AdminWater() {
   const [status, setStatus] = useState("");
   const [, setVendorError] = useState("");
   const [customerError, setCustomerError] = useState("");
+  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  const [customerCreateError, setCustomerCreateError] = useState("");
+  const customerCreatePending = useRef(false);
   const [saleCustomerMenuOpen, setSaleCustomerMenuOpen] = useState(false);
   const [orderQuery, setOrderQuery] = useState("");
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
@@ -1217,6 +1220,7 @@ function AdminWater() {
   };
 
   const closeOrderEditor = () => {
+    if (customerCreatePending.current) return;
     setActiveOrderId(null);
     setOrderForm(null);
     setOrderError("");
@@ -1260,6 +1264,7 @@ function AdminWater() {
 
   const handleOrderSubmit = async (event) => {
     event.preventDefault();
+    if (customerCreatePending.current) return;
     if (!orderForm?.id) return;
     setOrderError("");
     if (orderPriceChanged && !permissions.canOverridePrice) {
@@ -1320,6 +1325,7 @@ function AdminWater() {
   };
 
   const handleOrderCustomerChange = (nextValue) => {
+    setCustomerCreateError("");
     const customerId = Number(nextValue);
     if (!Number.isFinite(customerId) || customerId <= 0) {
       setOrderForm((prev) => (prev ? { ...prev, customerId: "" } : prev));
@@ -1340,6 +1346,7 @@ function AdminWater() {
   };
 
   const handleOrderCustomerInputChange = (nextValue) => {
+    setCustomerCreateError("");
     setOrderCustomerMenuOpen(true);
     setOrderForm((prev) => {
       if (!prev) return prev;
@@ -1358,7 +1365,36 @@ function AdminWater() {
     });
   };
 
-  const commitOrderCustomerInput = () => {
+  const saveWaterCustomer = async (name, phone) => {
+    if (customerCreatePending.current) return null;
+    customerCreatePending.current = true;
+    setCreatingCustomer(true);
+    setCustomerCreateError("");
+    setStatus("");
+    try {
+      const response = await reebsApiResponse("/api/water", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create_customer", name, phone }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.customer?.id) {
+        throw new Error(data?.error || "Could not save the customer. Please try again.");
+      }
+      const customer = data.customer;
+      setCustomers((previous) => [...previous.filter((item) => Number(item.id) !== Number(customer.id)), customer]);
+      setStatus(data.created ? "Water customer created." : "Existing customer selected.");
+      return customer;
+    } catch (err) {
+      setCustomerCreateError(err.message || "Could not save the customer. Please try again.");
+      return null;
+    } finally {
+      customerCreatePending.current = false;
+      setCreatingCustomer(false);
+    }
+  };
+
+  const commitOrderCustomerInput = async () => {
     const typedName = typedOrderCustomerName;
     if (!typedName) {
       setOrderForm((prev) => (prev ? { ...prev, customerId: "", customerName: "" } : prev));
@@ -1369,12 +1405,15 @@ function AdminWater() {
       handleOrderCustomerChange(String(matchedTypedOrderCustomer.id));
       return;
     }
+    const customer = await saveWaterCustomer(typedName, orderForm?.customerPhone);
+    if (!customer) return;
     setOrderForm((prev) =>
       prev
         ? {
             ...prev,
-            customerId: "",
-            customerName: typedName,
+            customerId: String(customer.id),
+            customerName: customer.name,
+            customerPhone: customer.phone || "",
           }
         : prev
     );
@@ -1394,6 +1433,7 @@ function AdminWater() {
   };
 
   const handleSaleCustomerChange = (nextValue) => {
+    setCustomerCreateError("");
     const customerId = Number(nextValue);
     if (!Number.isFinite(customerId) || customerId <= 0) {
       setSaleForm((prev) => ({ ...prev, customerId: "" }));
@@ -1410,6 +1450,7 @@ function AdminWater() {
   };
 
   const handleSaleCustomerInputChange = (nextValue) => {
+    setCustomerCreateError("");
     setSaleCustomerMenuOpen(true);
     setSaleForm((prev) => {
       const normalizedValue = normalizeCustomerName(nextValue);
@@ -1430,7 +1471,7 @@ function AdminWater() {
     });
   };
 
-  const commitSaleCustomerInput = () => {
+  const commitSaleCustomerInput = async () => {
     const typedName = typedSaleCustomerName;
     if (!typedName) {
       setSaleForm((prev) => ({ ...prev, customerId: "", customerName: "" }));
@@ -1441,10 +1482,13 @@ function AdminWater() {
       handleSaleCustomerChange(String(matchedTypedSaleCustomer.id));
       return;
     }
+    const customer = await saveWaterCustomer(typedName, saleForm.customerPhone);
+    if (!customer) return;
     setSaleForm((prev) => ({
       ...prev,
-      customerId: "",
-      customerName: typedName,
+      customerId: String(customer.id),
+      customerName: customer.name,
+      customerPhone: customer.phone || "",
     }));
     setSaleCustomerMenuOpen(false);
   };
@@ -1711,6 +1755,7 @@ function AdminWater() {
 
   const handleSaleSubmit = async (event) => {
     event.preventDefault();
+    if (customerCreatePending.current) return;
     const shouldRefreshCustomers = true;
     const successMessage =
       saleForm.paymentMethod === "credit" ? "Water sale recorded on credit." : "Water sale recorded.";
@@ -1858,6 +1903,8 @@ function AdminWater() {
     typedCustomerName: typedSaleCustomerName,
     matchedTypedCustomer: matchedTypedSaleCustomer,
     onCreateCustomer: commitSaleCustomerInput,
+    creatingCustomer,
+    createError: customerCreateError,
     selectedCustomer: selectedSaleCustomer,
     directoryError: customerError,
     showDirectoryError: !customers.length,
@@ -1895,6 +1942,10 @@ function AdminWater() {
     typedCustomerName: typedOrderCustomerName,
     matchedTypedCustomer: matchedTypedOrderCustomer,
     onCreateCustomer: commitOrderCustomerInput,
+    creatingCustomer,
+    createError: customerCreateError,
+    directoryError: customerError,
+    showDirectoryError: !customers.length,
     selectedCustomer: selectedOrderCustomer,
   };
 
@@ -1974,7 +2025,7 @@ function AdminWater() {
           onAdjustQuantity={adjustSaleQuantity}
           onDiscountChange={setSaleDiscountValue}
           formatCurrency={formatCurrency}
-          saving={saving}
+          saving={saving || creatingCustomer}
           loading={loading}
           pricingAvailable={salePreview.pricingConfigured}
         />
@@ -2092,7 +2143,7 @@ function AdminWater() {
           orderStatusOptions={ORDER_STATUS_FILTER_OPTIONS}
           formatDateTime={formatDateTime}
           formatCurrency={formatCurrency}
-          saving={saving}
+          saving={saving || creatingCustomer}
           loading={loading}
         />
       </div>

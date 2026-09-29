@@ -16,6 +16,10 @@ export default function WaterCustomerPicker({
   typedCustomerName,
   matchedTypedCustomer,
   onCreateCustomer,
+  creatingCustomer = false,
+  createError = "",
+  directoryError = "",
+  showDirectoryError = false,
   required = false,
 }) {
   return (
@@ -31,6 +35,7 @@ export default function WaterCustomerPicker({
         aria-label={ariaLabel}
         inputClassName="water-order-customer-search"
         required={required}
+        disabled={creatingCustomer}
       />
       {menuOpen ? (
         options.length || typedCustomerName ? (
@@ -41,6 +46,7 @@ export default function WaterCustomerPicker({
                 <button
                   key={customer.id}
                   type="button"
+                  disabled={creatingCustomer}
                   className={`water-module-customer-option ${isActive ? "is-active" : ""}`}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onSelectCustomer(String(customer.id))}
@@ -56,6 +62,7 @@ export default function WaterCustomerPicker({
                 className="water-module-customer-option water-order-customer-option--create"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={onCreateCustomer}
+                disabled={creatingCustomer}
               >
                 <span>Create "{typedCustomerName}"</span>
                 <small>Press Enter</small>
@@ -64,6 +71,9 @@ export default function WaterCustomerPicker({
           </div>
         ) : null
       ) : null}
+      {creatingCustomer ? <small role="status">Saving customer…</small> : null}
+      {createError ? <small role="alert">{createError}</small> : null}
+      {showDirectoryError && directoryError ? <small role="alert">{directoryError}</small> : null}
     </div>
   );
 }

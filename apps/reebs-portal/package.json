@@ -42,6 +42,7 @@
     "inventory:reconcile:staging": "node scripts/maintenance/reconcileInventory.mjs staging",
     "inventory:reconcile:prod": "node scripts/maintenance/reconcileInventory.mjs production",
     "inventory:import:staging:plan": "node scripts/imports/importCoreInventoryCsv.mjs",
+    "inventory:import:staging:check": "node scripts/imports/importCoreInventoryCsv.mjs --check-staging",
     "inventory:import:staging:apply": "node scripts/imports/importCoreInventoryCsv.mjs --apply --confirm-staging",
     "payments:reconcile:dev": "node scripts/maintenance/reconcilePayments.mjs development",
     "payments:reconcile:staging": "node scripts/maintenance/reconcilePayments.mjs staging",

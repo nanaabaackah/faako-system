@@ -3,7 +3,7 @@ import test from "node:test";
 import { canWriteWaterAction, presentWaterDashboard } from "./dashboardAccess.js";
 
 test("only owners/admins manage Water operations; Water staff retain all sale actions", () => {
-  for (const action of ["sale", "update_sale", "delete_sale"]) {
+  for (const action of ["sale", "update_sale", "delete_sale", "create_customer"]) {
     assert.equal(canWriteWaterAction("water", action), true);
     assert.equal(canWriteWaterAction("staff", action), false);
     assert.equal(canWriteWaterAction("manager", action), false);

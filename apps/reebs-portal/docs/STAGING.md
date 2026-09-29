@@ -227,10 +227,98 @@ API service so Railway injects the staging database configuration:
 pnpm --filter @faako/reebs-portal run inventory:import:staging:apply
 ```
 
+If Inventory shows zero, first verify the Railway service uses the separate
+staging database reference, then run this **read-only** check in that staging API
+service (available after deploying the 2026-09-29 follow-up):
+
+```bash
+pnpm --filter @faako/reebs-portal run inventory:import:staging:check
+```
+
+It uses a read-only transaction and reports counts for CSV SKUs in the configured
+organization, not credentials or individual product rows:
+
+- `missingProducts`: items the apply command can insert.
+- `existingZeroStockWithCsvStock`: existing items with zero stock but a positive
+  historical CSV opening quantity. Apply deliberately leaves these unchanged;
+  review their stock history before any correction, since zero may be legitimate.
+- `currentMatchedStockUnits`: stock already present for those CSV SKUs. If this
+  is positive while the Portal shows zero, check the logged-in organization,
+  Inventory filters and the Portal's staging API connection.
+
+The check refuses non-staging environments and cannot be combined with `--apply`.
+The normal local `:plan` command remains offline and never writes to a database.
+No import is automatically run on deploy, startup, or opening Inventory.
+
+Before the new check command is deployed, the owner can obtain a count-only
+snapshot from the **staging database's** query console. This does not change data
+and does not expose customer records or credentials:
+
+```sql
+SELECT "organizationId",
+       COUNT(*) AS items,
+       COUNT(*) FILTER (WHERE stock > 0) AS items_with_stock,
+       COALESCE(SUM(stock), 0) AS total_units
+FROM "product"
+GROUP BY "organizationId";
+```
+
+No rows means the product table is empty; rows with zero units mean existing
+items have no recorded stock. Positive units under a different organization can
+explain an empty scoped Portal view. These are stored product counts, not Water
+stock, availability or financial metrics. Do not use a production query console.
+The diagnostic follow-up's nine CSV/apply/read-only tests and changed-file lint
+pass locally. The previously noted Travel With Ease security-gate blockers remain;
+no deployment, push or live database operation was performed for this follow-up.
+
 Then run `inventory:reconcile:staging` and verify Inventory, Rentals and the
 public catalogue in staging. Do not set `IMPORT_RESET`; this importer has no
 reset or production mode. Water stock and commercial configuration must be
 seeded separately through the Water Business domain.
+
+### Water customer search and import troubleshooting — 2026-09-28
+
+The Water search's **Create** action now persists a customer immediately via
+`POST /api/water` with `action: create_customer`; previously it only filled the
+form and creation was deferred until a sale was recorded. The response selects
+the saved identity in either the new-order form or the order editor. Failures
+leave the typed name intact and show a retryable error. No sale or stock entry
+is created by this action.
+
+The API requires an authenticated owner/admin/Water operator with `water:write`,
+uses the authenticated organization, accepts only name/phone identity fields,
+and does not grant general Customers-module editing permissions. Duplicate
+identities are reused without editing their details; archived matches require
+administrator reactivation. Stock/cost writes remain owner/admin-only.
+
+For a failed staging stock load, distinguish the guarded **Core CSV importer**
+above from **Water Pricing & Restock**. The Core importer intentionally excludes
+Water. Capture the command or Water action and the sanitized error/SQLSTATE code;
+do not share connection URLs, environment values, cookies or authorization headers.
+Do not retry a different importer, enable reset, or relax environment guards to
+work around an unexplained failure.
+
+Before any owner-run import, verify in Railway that the staging API's database
+reference points to the separate staging database. Environment labels alone
+cannot prove that a misconfigured database reference is safe. Mocked import tests
+cover production/mismatched-environment rejection, explicit organization and
+confirmation, scoped opening stock, no repeated stock on rerun, and rollback.
+They do not certify the live staging schema, database reference or imported data.
+
+No staging or production import, migration or database inspection was performed
+for this code correction. The reported live import failure still needs its
+sanitized error before a cause or successful fix can be claimed.
+
+Local verification for this follow-up: 42 focused customer, Water and mocked
+import tests passed; changed-file lint and the Portal production build passed
+with environment-file loading disabled. Desktop (1280px) and mobile (390px,
+isolated rerun after a cold-load timeout) browser scenarios passed for creation,
+error/retry, persistence after reload and creation inside the order editor, with
+all API calls mocked. The secret-safe scan passed. The global
+security gate is separately blocked by Travel With Ease metadata (missing API/web
+`appSystem.js`, and a missing Portal origin allowlist); those unrelated apps were
+not modified by this fix. Deploy both the Water API and Portal changes to staging
+before verifying the new creation behavior there.
 
 This phase does not create Railway services, set variables, deploy code, or
 apply any staging/production migration.

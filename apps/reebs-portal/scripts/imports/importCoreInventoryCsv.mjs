@@ -10,6 +10,7 @@ const packageDirectory = path.resolve(scriptDirectory, "../..");
 const dataDirectory = path.join(packageDirectory, "data");
 const APPLY_FLAG = "--apply";
 const CONFIRM_FLAG = "--confirm-staging";
+const CHECK_FLAG = "--check-staging";
 
 const cleanText = (value) => String(value || "").trim();
 const normalizeKey = (value) => cleanText(value).toLowerCase();
@@ -476,7 +477,7 @@ const insertShopItem = async (client, organizationId, productId, product) => {
   return result.rowCount > 0;
 };
 
-export const applyCoreInventoryPlan = async (products) => {
+const requireStagingOrganization = () => {
   const appEnvironment = normalizeKey(process.env.APP_ENV);
   const railwayEnvironment = normalizeKey(process.env.RAILWAY_ENVIRONMENT_NAME);
   const organizationId = Number(process.env.REEBS_PUBLIC_ORGANIZATION_ID);
@@ -486,20 +487,70 @@ export const applyCoreInventoryPlan = async (products) => {
   if (!Number.isSafeInteger(organizationId) || organizationId <= 0) {
     throw new Error("Inventory import refused: REEBS_PUBLIC_ORGANIZATION_ID must be a positive integer.");
   }
-  if (!process.argv.includes(CONFIRM_FLAG)) {
-    throw new Error(`Inventory import refused: ${CONFIRM_FLAG} is required with ${APPLY_FLAG}.`);
-  }
+  return organizationId;
+};
 
+const createStagingImportClient = async () => {
   const { DATABASE_URL, resolvePgSslConfig } = await import("../../runtimeEnv.js");
   if (!DATABASE_URL) throw new Error("Inventory import refused: staging DATABASE_URL is unavailable.");
   const { Client } = await import("pg");
-  const client = new Client({
+  return new Client({
     connectionString: DATABASE_URL,
     ssl: resolvePgSslConfig(),
     connectionTimeoutMillis: 10_000,
     statement_timeout: 120_000,
     application_name: "reebs-staging-core-inventory-import",
   });
+};
+
+export const checkCoreInventoryPlan = async (products) => {
+  const organizationId = requireStagingOrganization();
+  const client = await createStagingImportClient();
+  try {
+    await client.connect();
+    await client.query("BEGIN READ ONLY");
+    const organization = await client.query(`SELECT id FROM organization WHERE id = $1 LIMIT 1`, [organizationId]);
+    if (organization.rowCount !== 1) throw new Error("Inventory import refused: configured staging organization was not found.");
+    const result = await client.query(
+      `SELECT sku, stock FROM "product" WHERE "organizationId" = $1 AND sku = ANY($2::text[])`,
+      [organizationId, products.map((product) => product.sku)]
+    );
+    const existing = new Map(result.rows.map((row) => [row.sku, Number(row.stock)]));
+    const missing = products.filter((product) => !existing.has(product.sku));
+    const existingZeroStockWithCsvStock = products.filter((product) =>
+      existing.has(product.sku) && existing.get(product.sku) === 0 && product.stock > 0
+    ).length;
+    await client.query("COMMIT");
+    return {
+      readOnly: true,
+      organizationId,
+      csvProducts: products.length,
+      csvOpeningStockUnits: products.reduce((sum, product) => sum + product.stock, 0),
+      matchingProducts: existing.size,
+      missingProducts: missing.length,
+      currentMatchedStockUnits: [...existing.values()].reduce((sum, stock) => sum + stock, 0),
+      unitsForMissingProducts: missing.reduce((sum, product) => sum + product.stock, 0),
+      existingZeroStockWithCsvStock,
+      nextStep: existingZeroStockWithCsvStock
+        ? "Review existing zero-stock records and their movement history; apply will not overwrite them."
+        : missing.length
+          ? "Missing CSV items can be inserted with the guarded staging apply command after verifying the staging database reference."
+          : "CSV items already exist. Check the portal organization and Inventory filters if it still shows zero.",
+    };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    await client.end().catch(() => {});
+  }
+};
+
+export const applyCoreInventoryPlan = async (products) => {
+  const organizationId = requireStagingOrganization();
+  if (!process.argv.includes(CONFIRM_FLAG)) {
+    throw new Error(`Inventory import refused: ${CONFIRM_FLAG} is required with ${APPLY_FLAG}.`);
+  }
+  const client = await createStagingImportClient();
   const result = { createdProducts: 0, existingProducts: 0, openingMovements: 0, relationships: 0, shopItems: 0 };
   try {
     await client.connect();
@@ -531,9 +582,14 @@ export const applyCoreInventoryPlan = async (products) => {
 const isDirectRun = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isDirectRun) {
   try {
+    if (process.argv.includes(CHECK_FLAG) && process.argv.includes(APPLY_FLAG)) {
+      throw new Error("Choose either --check-staging (read only) or --apply, not both.");
+    }
     const products = buildCoreInventoryPlan();
-    console.log(JSON.stringify({ mode: process.argv.includes(APPLY_FLAG) ? "apply" : "plan", ...summarize(products) }, null, 2));
-    if (process.argv.includes(APPLY_FLAG)) {
+    console.log(JSON.stringify({ mode: process.argv.includes(CHECK_FLAG) ? "check" : process.argv.includes(APPLY_FLAG) ? "apply" : "plan", ...summarize(products) }, null, 2));
+    if (process.argv.includes(CHECK_FLAG)) {
+      console.log(JSON.stringify(await checkCoreInventoryPlan(products), null, 2));
+    } else if (process.argv.includes(APPLY_FLAG)) {
       const result = await applyCoreInventoryPlan(products);
       console.log(JSON.stringify({ applied: true, ...result }, null, 2));
     } else {

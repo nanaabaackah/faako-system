@@ -1,6 +1,6 @@
 import { buildWaterPricingPermissions } from "../../functions/_shared/waterPricing.js";
 
-const SALES_ACTIONS = new Set(["sale", "update_sale", "delete_sale"]);
+const SALES_ACTIONS = new Set(["sale", "update_sale", "delete_sale", "create_customer"]);
 const pick = (record, fields) => Object.fromEntries(
   fields.filter((field) => Object.hasOwn(record || {}, field)).map((field) => [field, record[field]])
 );

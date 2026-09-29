@@ -27,6 +27,7 @@ import { withWaterBusinessContext } from "@faako/api-contracts/reebs";
 import { calculateWaterCostBasis } from "../../shared/waterFinancials.js";
 import { buildWaterPricingPermissions } from "./_shared/waterPricing.js";
 import { canWriteWaterAction, presentWaterDashboard } from "../modules/water/dashboardAccess.js";
+import { createWaterCustomer } from "../modules/water/customerCreation.js";
 
 const WATER_METHODS = "GET,POST,OPTIONS";
 const WATER_ALLOWED_ROLES = ["owner", "admin", "water"];
@@ -54,6 +55,7 @@ const WATER_WRITE_RATE_LIMIT = {
   windowMs: 60_000,
 };
 const WATER_ACTIONS = new Set([
+  "create_customer",
   "restock",
   "update_restock",
   "delete_restock",
@@ -1252,6 +1254,22 @@ export async function handler(event = {}) {
         error: "Only an owner or admin can manage Water stock, costs and expenses. Water staff can manage sales.",
         code: "WATER_ACTION_FORBIDDEN",
       });
+    }
+
+    if (action === "create_customer") {
+      const result = await runWaterTransaction(client, async () => {
+        const created = await createWaterCustomer(client, organizationId, payload);
+        if (created.created) {
+          await writeAuditLog(client, {
+            organizationId, userId: authUser.id, action: "WATER_CUSTOMER_CREATED",
+            targetType: "customer", targetId: String(created.customer.id),
+            requestId: getEventHeader(event, "x-request-id"),
+            summary: "Customer created from Water customer search.",
+          });
+        }
+        return created;
+      });
+      return json(result.created ? 201 : 200, withWaterBusinessContext(result));
     }
 
     await ensureTables(client);
