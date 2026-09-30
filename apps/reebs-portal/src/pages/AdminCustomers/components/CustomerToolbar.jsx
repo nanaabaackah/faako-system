@@ -25,7 +25,7 @@ export default function CustomerToolbar({
         value={searchTerm}
         onChange={onSearchChange}
         onClear={onSearchClear}
-        placeholder="Search customer, phone, segment or value"
+        placeholder="Search name, reference, phone or email"
       />
 
       {!isMobileCardView ? (
@@ -51,7 +51,7 @@ export default function CustomerToolbar({
         <CrmSelectField
           value={segmentFilter}
           onChange={onSegmentFilterChange}
-          ariaLabel="Filter customers"
+          ariaLabel="Filter customers on this page by segment"
         >
           {SEGMENT_OPTIONS.map((option) => (
             <option key={option.key} value={option.key}>

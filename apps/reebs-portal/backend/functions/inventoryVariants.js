@@ -1,6 +1,4 @@
-/* eslint-disable no-undef */
-import { Client } from "pg";
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { ensureAuditColumns } from "./auditHelpers.js";
 import { requireInternalUser, respond } from "./_shared/internalApi.js";
 import {
@@ -25,6 +23,11 @@ const parseBody = (event) => {
 const toInt = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : fallback;
+};
+
+const parseNonnegativeWholeNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
 };
 
 const toMoneyCents = (value) => {
@@ -96,6 +99,13 @@ const selectVariants = async (client, organizationId, itemId) => {
       AND p."organizationId" = v."organizationId"
      WHERE v."organizationId" = $1
        AND v."inventoryItemId" = $2
+       AND NOT EXISTS (
+         SELECT 1
+         FROM "waterProductConfig" water_scope
+         WHERE water_scope."organizationId" = p."organizationId"
+           AND water_scope."inventoryProductId" = p.id
+           AND water_scope."isActive" = TRUE
+       )
      ORDER BY
        lower(COALESCE(v."variantName", '')),
        NULLIF(regexp_replace(COALESCE(v."variantNumber", ''), '[^0-9]', '', 'g'), '')::int NULLS LAST,
@@ -111,9 +121,16 @@ const getParent = async (client, organizationId, itemId) => {
   const parsedItemId = Number(itemId);
   if (!Number.isFinite(parsedItemId) || parsedItemId <= 0) return null;
   const result = await client.query(
-    `SELECT id, sku, name, price, "itemType"
-     FROM "product"
-     WHERE id = $1 AND "organizationId" = $2
+    `SELECT p.id, p.sku, p.name, p.price, p."itemType"
+     FROM "product" p
+     WHERE p.id = $1 AND p."organizationId" = $2
+       AND NOT EXISTS (
+         SELECT 1
+         FROM "waterProductConfig" water_scope
+         WHERE water_scope."organizationId" = p."organizationId"
+           AND water_scope."inventoryProductId" = p.id
+           AND water_scope."isActive" = TRUE
+       )
      LIMIT 1`,
     [parsedItemId, organizationId]
   );
@@ -143,13 +160,18 @@ const createVariant = async (client, organizationId, body) => {
   const variantNumber = cleanInventoryText(String(body.variantNumber ?? ""), 40) || null;
   const color = cleanInventoryText(body.color || "", 80) || null;
   const size = cleanInventoryText(body.size || "", 80) || null;
-  const stockQty = toInt(body.stockQty ?? body.stock ?? body.quantity, 0);
-  const reservedQty = toInt(body.reservedQty, 0);
-  if (reservedQty > stockQty) {
-    const error = new Error("Reserved quantity cannot exceed stock quantity.");
+  const stockQty = parseNonnegativeWholeNumber(body.stockQty ?? body.stock ?? body.quantity ?? 0);
+  if (stockQty === null) {
+    const error = new Error("Variant stock must be a non-negative whole number.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "reservedQty") && Number(body.reservedQty) !== 0) {
+    const error = new Error("Reserved quantity is managed by Bookings and cannot be edited here.");
     error.statusCode = 409;
     throw error;
   }
+  const reservedQty = 0;
   const reorderLevel = toInt(body.reorderLevel, 2);
   const priceOverride = readPriceOverrideCents(body);
   const status = cleanInventoryText(body.status || "active", 32).toLowerCase() || "active";
@@ -275,13 +297,18 @@ const generateVariants = async (client, organizationId, body) => {
   const numberValues = numbers.length ? numbers : [null];
   const colorValues = colors.length ? colors : [null];
   const sizeValues = sizes.length ? sizes : [null];
-  const stockQty = toInt(body.stockQty ?? body.defaultStockQty, 0);
-  const reservedQty = toInt(body.reservedQty, 0);
-  if (reservedQty > stockQty) {
-    const error = new Error("Reserved quantity cannot exceed stock quantity.");
+  const stockQty = parseNonnegativeWholeNumber(body.stockQty ?? body.defaultStockQty ?? 0);
+  if (stockQty === null) {
+    const error = new Error("Variant stock must be a non-negative whole number.");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, "reservedQty") && Number(body.reservedQty) !== 0) {
+    const error = new Error("Reserved quantity is managed by Bookings and cannot be edited here.");
     error.statusCode = 409;
     throw error;
   }
+  const reservedQty = 0;
   const reorderLevel = toInt(body.reorderLevel, 2);
   const priceOverride = readPriceOverrideCents(body);
   const created = [];
@@ -421,10 +448,18 @@ const updateVariant = async (client, organizationId, body, actor) => {
     assign("size", cleanInventoryText(body.size || "", 80) || null);
   }
   if (Object.prototype.hasOwnProperty.call(body, "stockQty")) {
-    assign(`"stockQty"`, toInt(body.stockQty, 0));
+    const stockQty = parseNonnegativeWholeNumber(body.stockQty);
+    if (stockQty === null) {
+      const error = new Error("Variant stock must be a non-negative whole number.");
+      error.statusCode = 400;
+      throw error;
+    }
+    assign(`"stockQty"`, stockQty);
   }
   if (Object.prototype.hasOwnProperty.call(body, "reservedQty")) {
-    assign(`"reservedQty"`, toInt(body.reservedQty, 0));
+    const error = new Error("Reserved quantity is managed by Bookings and cannot be edited here.");
+    error.statusCode = 409;
+    throw error;
   }
   if (Object.prototype.hasOwnProperty.call(body, "reorderLevel")) {
     assign(`"reorderLevel"`, toInt(body.reorderLevel, 0));
@@ -448,9 +483,19 @@ const updateVariant = async (client, organizationId, body, actor) => {
   await client.query("BEGIN");
   try {
     const currentRes = await client.query(
-      `SELECT id, "inventoryItemId", sku, "stockQty", "reservedQty"
-       FROM "inventoryVariant"
-       WHERE id = $1 AND "organizationId" = $2
+      `SELECT v.id, v."inventoryItemId", v.sku, v."stockQty", v."reservedQty"
+       FROM "inventoryVariant" v
+       JOIN "product" p
+         ON p.id = v."inventoryItemId"
+        AND p."organizationId" = v."organizationId"
+       WHERE v.id = $1 AND v."organizationId" = $2
+         AND NOT EXISTS (
+           SELECT 1
+           FROM "waterProductConfig" water_scope
+           WHERE water_scope."organizationId" = p."organizationId"
+             AND water_scope."inventoryProductId" = p.id
+             AND water_scope."isActive" = TRUE
+         )
        FOR UPDATE`,
       [variantId, organizationId]
     );
@@ -462,11 +507,9 @@ const updateVariant = async (client, organizationId, body, actor) => {
 
     const current = currentRes.rows[0];
     const nextStockQty = Object.prototype.hasOwnProperty.call(body, "stockQty")
-      ? toInt(body.stockQty, 0)
+      ? parseNonnegativeWholeNumber(body.stockQty)
       : Number(current.stockQty || 0);
-    const nextReservedQty = Object.prototype.hasOwnProperty.call(body, "reservedQty")
-      ? toInt(body.reservedQty, 0)
-      : Number(current.reservedQty || 0);
+    const nextReservedQty = Number(current.reservedQty || 0);
     if (nextReservedQty > nextStockQty) {
       const error = new Error("Reserved quantity cannot exceed stock quantity.");
       error.statusCode = 409;
@@ -565,9 +608,19 @@ const deleteVariant = async (client, organizationId, variantId) => {
   await client.query("BEGIN");
   try {
     const currentRes = await client.query(
-      `SELECT id, "inventoryItemId", "stockQty", "reservedQty"
-       FROM "inventoryVariant"
-       WHERE id = $1 AND "organizationId" = $2
+      `SELECT v.id, v."inventoryItemId", v."stockQty", v."reservedQty"
+       FROM "inventoryVariant" v
+       JOIN "product" p
+         ON p.id = v."inventoryItemId"
+        AND p."organizationId" = v."organizationId"
+       WHERE v.id = $1 AND v."organizationId" = $2
+         AND NOT EXISTS (
+           SELECT 1
+           FROM "waterProductConfig" water_scope
+           WHERE water_scope."organizationId" = p."organizationId"
+             AND water_scope."inventoryProductId" = p.id
+             AND water_scope."isActive" = TRUE
+         )
        FOR UPDATE`,
       [parsedId, organizationId]
     );
@@ -624,10 +677,7 @@ export async function handler(event = {}) {
     return json(event, 405, { error: "Method not allowed." });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "inventory-variants" });
 
   try {
     await client.connect();
@@ -635,7 +685,9 @@ export async function handler(event = {}) {
     const auth = await requireInternalUser(client, event, {
       methods: METHODS,
       roles: ["GET"].includes(method) ? [] : ["owner", "admin", "manager"],
+      permission: method === "GET" ? "inventory:read" : "inventory:write",
       roleError: "Only owners, admins, and managers can manage inventory variants.",
+      permissionError: "You do not have permission to manage inventory variants.",
     });
     if (auth.errorResponse) return auth.errorResponse;
 

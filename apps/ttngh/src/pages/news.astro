@@ -1,0 +1,27 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
+import { organization } from "../content/home.js";
+---
+
+<BaseLayout path="/news" title={`News and resources | ${organization.name}`} description="Mental health resources, programme updates, and stories from The Thriving Network GH." image="/images/home/initiative-speaker.jpg" imageAlt="A TTNGH speaker delivering mental health education in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "News", path: "/news" }]}>
+  <main id="main-content" class="editorial-main">
+    <PageHero eyebrow="Blog, news, and resources" title="Local conversations and practical mental health knowledge." intro="This space will bring together educational resources, programme news, advocacy updates, and stories from our community work." images={[
+      { src: "/images/home/initiative-speaker.jpg", alt: "A TTNGH speaker delivering mental health education in Tema" },
+      { src: "/images/home/vision-conversation.jpg", alt: "A participant listening during Vision with Clarity" },
+      { src: "/images/home/initiative-audience.jpg", alt: "Community members gathered during a TTNGH programme" },
+    ]} />
+    <section class="section-dark" aria-labelledby="topics-title">
+      <div class="section-heading"><p class="eyebrow">What we will share</p><h2 id="topics-title">Useful information, grounded in our mission.</h2></div>
+      <div class="grid grid-two">
+        <article id="education" class="glass-card motion-card"><h3>Mental health education</h3><p>Accessible information that helps people understand mental wellness and recognise when support may be needed.</p></article>
+        <article id="programme-updates" class="glass-card motion-card"><h3>Programme updates</h3><p>News from support sessions, outreach activities, annual programmes, and community collaborations.</p></article>
+        <article id="advocacy" class="glass-card motion-card"><h3>Advocacy and awareness</h3><p>Campaign updates and conversations that challenge stigma and encourage people to seek help without fear.</p></article>
+        <article id="research-policy" class="glass-card motion-card"><h3>Research and policy</h3><p>Evidence, community insights, and policy developments relevant to mental health in Ghana.</p></article>
+      </div>
+    </section>
+    <section class="photo-feature" aria-labelledby="documenting-title"><figure><img src="/images/home/vision-reflection.jpg" alt="Participants completing a guided reflection exercise during Vision with Clarity" width="1600" height="1067" loading="lazy" decoding="async" /></figure><div class="photo-feature-copy"><p class="eyebrow">Stories from the work</p><h2 id="documenting-title">Documenting programmes with care.</h2><p>News and resources will draw from TTNGH's education, support, advocacy, research, and policy work. The first approved publications will appear here once publication begins.</p></div></section>
+    <div id="latest"><ScrollExpandSection image="/images/home/initiative-speaker.jpg" alt="A TTNGH speaker leading a mental health education session in Tema" eyebrow="News and resources" title="Have a topic or media collaboration in mind?" text="Speak with the team about a relevant mental health education, programme, advocacy, research, or policy conversation." href="/contact" linkLabel="Contact the team" frameTitle="Share useful knowledge." id="articles-title" /></div>
+  </main>
+</BaseLayout>

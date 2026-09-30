@@ -181,11 +181,7 @@ export default function OrderDetail() {
 
   const refreshAll = async () => {
     const orderController = new AbortController();
-    const paymentsController = new AbortController();
-    await Promise.all([
-      refetch(orderController.signal),
-      paymentsHook.refetch(paymentsController.signal),
-    ]);
+    await refetch(orderController.signal);
   };
 
   const handleFulfillmentUpdated = (payload) => {
@@ -223,7 +219,7 @@ export default function OrderDetail() {
               </button>
               {order?.id && canUseInvoicing && (
                 <Link to={`/admin/invoicing?type=orders&id=${order.id}`} className="orders-primary">
-                  Generate receipt
+                  Create invoice
                 </Link>
               )}
             </div>

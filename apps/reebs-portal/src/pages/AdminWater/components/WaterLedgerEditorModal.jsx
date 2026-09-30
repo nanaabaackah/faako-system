@@ -1,4 +1,4 @@
-import { DateField, InlineNotice, SelectField } from "@faako/ui";
+import { DateField, InlineNotice, SelectField, useERPDialog } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight, faTrash, faXmark } from "/src/icons/iconSet";
 
@@ -14,6 +14,7 @@ export default function WaterLedgerEditorModal({
   ledgerRestockQuantity,
   ledgerRestockUnitCost,
   ledgerRestockCost,
+  canViewCost,
   ledgerAdjustmentReasonOptions,
   ledgerAdjustmentHasCustomReason,
   ledgerAdjustmentQuantity,
@@ -33,6 +34,10 @@ export default function WaterLedgerEditorModal({
   saving,
   loading,
 }) {
+  const dialogRef = useERPDialog({
+    open: Boolean(activeLedgerItem && ledgerForm),
+    onClose: saving ? undefined : closeLedgerEditor,
+  });
   if (!activeLedgerItem || !ledgerForm) return null;
 
   const titleLabel =
@@ -49,9 +54,9 @@ export default function WaterLedgerEditorModal({
         : "Edit expense";
 
   return (
-    <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-ledger-modal-title">
+    <div ref={dialogRef} className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-ledger-modal-title" tabIndex={-1}>
       <div className="admin-modal-panel water-order-modal bubble-card">
-        <header>
+        <header role="presentation">
           <div>
             <p className="water-module-eyebrow">{eyebrowLabel}</p>
             <h2 id="water-ledger-modal-title">
@@ -126,20 +131,22 @@ export default function WaterLedgerEditorModal({
                     required
                   />
                 </label>
-                <label>
-                  Cost price per pack (GHS)
-                  <input
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    inputMode="decimal"
-                    value={ledgerForm.unitCost}
-                    onChange={(event) =>
-                      setLedgerForm((prev) => (prev ? { ...prev, unitCost: event.target.value } : prev))
-                    }
-                    required
-                  />
-                </label>
+                {canViewCost ? (
+                  <label>
+                    Cost price per pack (GHS)
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={ledgerForm.unitCost}
+                      onChange={(event) =>
+                        setLedgerForm((prev) => (prev ? { ...prev, unitCost: event.target.value } : prev))
+                      }
+                      required
+                    />
+                  </label>
+                ) : null}
                 <label>
                   Date
                   <DateField
@@ -169,14 +176,18 @@ export default function WaterLedgerEditorModal({
                   <span>Qty</span>
                   <strong>{ledgerRestockQuantity}</strong>
                 </div>
-                <div>
-                  <span>Cost per pack</span>
-                  <strong>{formatCurrency(ledgerRestockUnitCost)}</strong>
-                </div>
-                <div>
-                  <span>Total cost</span>
-                  <strong>{formatCurrency(ledgerRestockCost)}</strong>
-                </div>
+                {canViewCost ? (
+                  <>
+                    <div>
+                      <span>Cost per pack</span>
+                      <strong>{formatCurrency(ledgerRestockUnitCost)}</strong>
+                    </div>
+                    <div>
+                      <span>Total cost</span>
+                      <strong>{formatCurrency(ledgerRestockCost)}</strong>
+                    </div>
+                  </>
+                ) : null}
                 <div>
                   <span>Vendor</span>
                   <strong>{ledgerSelectedVendorName || ledgerForm.vendorName || "Unassigned"}</strong>

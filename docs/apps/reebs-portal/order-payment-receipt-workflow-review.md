@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This review maps the current REEBS Portal order, payment, receipt, invoice, and balance workflows before any shared finance platform extraction. It is documentation-only and does not change application logic, routes, permissions, database schema, payment behavior, receipt generation, invoice generation, POS behavior, or order calculations.
+This document is the pre-implementation workflow review and remains useful as historical discovery. The implemented 2026-08-30 Orders boundary, current behavior, validation evidence and remaining gaps are documented in [the Orders deep dive](../reebs/orders-deep-dive.md). Where the two documents differ, the deep-dive document is current.
 
 ## 1. Order Flow Mapping
 

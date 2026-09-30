@@ -7,6 +7,10 @@ import { AppIcon } from "/src/components/Icon/Icon";
 import { faEllipsisVertical } from "/src/icons/iconSet";
 import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
 import SearchField from "../../components/SearchField/SearchField";
+import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
+import useTableView from "../../components/TableControls/useTableView";
+import { tableDate } from "../../components/TableControls/tableRows.js";
 import roleColors from "../../utils/roleColors";
 import { reebsApiResponse } from "../../api/client";
 import { userAccessFormSchema, validationIssues } from "@faako/validation";
@@ -124,10 +128,11 @@ function AdminRoles() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteSaving, setInviteSaving] = useState(false);
   const [inviteError, setInviteError] = useState("");
-  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", role: "Staff", password: "" });
+  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", role: "Staff" });
+  const [inviteResult, setInviteResult] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
   const inviteDirty = inviteOpen && Boolean(
-    inviteForm.firstName || inviteForm.lastName || inviteForm.password || inviteForm.role !== "Staff"
+    inviteForm.firstName || inviteForm.lastName || inviteForm.role !== "Staff"
   );
   const permissionDirty = Boolean(
     detailUser &&
@@ -265,6 +270,12 @@ function AdminRoles() {
         return nameA.localeCompare(nameB);
       });
   }, [users, query, roleFilter]);
+  const table = useTableView(filteredUsers, {
+    position: (_, index) => index,
+    user: (user) => user.fullName || user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed",
+    role: (user) => user.role || "Staff",
+    lastLogin: (user) => tableDate(user.lastSessionAt || user.updatedAt || user.createdAt),
+  }, { resetKey: `${query}|${roleFilter}` });
 
   const totalActiveSessions = useMemo(
     () => users.reduce((sum, entry) => sum + getSessionCount(entry.activeSessionCount), 0),
@@ -321,41 +332,27 @@ function AdminRoles() {
     try {
       const trimmedFirst = inviteForm.firstName.trim();
       const trimmedLast = inviteForm.lastName.trim();
-      const trimmedPassword = inviteForm.password.trim();
       if (!trimmedFirst || !trimmedLast) {
         throw new Error("First and last name are required.");
       }
-      if (!trimmedPassword) {
-        throw new Error("Password is required.");
-      }
-
       const validation = userAccessFormSchema.safeParse({
         firstName: trimmedFirst,
         lastName: trimmedLast,
-        password: trimmedPassword,
         role: inviteForm.role,
       });
       if (!validation.success) {
         throw new Error(validationIssues(validation.error)[0]?.message || "User details are invalid.");
       }
 
-      const res = await reebsApiResponse("/api/users", {
+      const res = await reebsApiResponse("/api/v1/auth/invitations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(validation.data),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Failed to invite user");
-      setUsers((prev) => {
-        const next = [data, ...prev];
-        return next.sort((a, b) => {
-          const nameA = (a.fullName || a.name || `${a.firstName || ""} ${a.lastName || ""}` || "").toLowerCase();
-          const nameB = (b.fullName || b.name || `${b.firstName || ""} ${b.lastName || ""}` || "").toLowerCase();
-          return nameA.localeCompare(nameB);
-        });
-      });
-      setInviteOpen(false);
-      setInviteForm({ firstName: "", lastName: "", role: "Staff", password: "" });
+      const activationUrl = `${window.location.origin}/login#invite=${encodeURIComponent(data.token)}`;
+      setInviteResult({ ...data, activationUrl });
     } catch (err) {
       console.error("Invite failed", err);
       setInviteError(err.message || "Failed to invite user");
@@ -423,7 +420,8 @@ function AdminRoles() {
                 className="bookings-primary"
                 onClick={() => {
                   setInviteError("");
-                  setInviteForm({ firstName: "", lastName: "", role: "Staff", password: "" });
+                  setInviteResult(null);
+                  setInviteForm({ firstName: "", lastName: "", role: "Staff" });
                   setInviteOpen(true);
                 }}
               >
@@ -519,23 +517,24 @@ function AdminRoles() {
           )}
           {!loading && !error && (
             <div className="roles-table-wrapper">
+          <TablePagination {...table.pagination} header />
           <table className="roles-table">
                 <thead>
                   <tr>
-                    <th className="table-row-index">#</th>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Last login</th>
+                    <TableSortHeader {...table} column="position" className="table-row-index">#</TableSortHeader>
+                    <TableSortHeader {...table} column="user">User</TableSortHeader>
+                    <TableSortHeader {...table} column="role">Role</TableSortHeader>
+                    <TableSortHeader {...table} column="lastLogin">Last login</TableSortHeader>
                     <th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.map((user, index) => {
+                  {table.rows.map((user) => {
                     const roleKey = normalizeRoleKey(user.role);
                     const menuOpen = openMenu?.userId === user.id;
                     return (
                         <tr key={user.id} onClick={() => openDetailModal(user)} className="roles-row">
-                        <td className="table-row-index">{index}</td>
+                        <td className="table-row-index">{filteredUsers.indexOf(user) + 1}</td>
                         <td>
                           <div className="roles-user">
                             <strong>{user.fullName || user.name || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Unnamed"}</strong>
@@ -590,6 +589,7 @@ function AdminRoles() {
                   </tfoot>
                 )}
               </table>
+              <TablePagination {...table.pagination} />
             </div>
           )}
         </section>
@@ -669,15 +669,6 @@ function AdminRoles() {
                 <input type="text" value={generateEmailFromNames(inviteForm.firstName, inviteForm.lastName)} readOnly />
               </label>
               <label>
-                Password
-                <input
-                  type="password"
-                  value={inviteForm.password}
-                  onChange={(e) => setInviteForm((prev) => ({ ...prev, password: e.target.value }))}
-                  required
-                />
-              </label>
-              <label>
                 Role
                 <SelectField
                   value={inviteForm.role}
@@ -696,11 +687,20 @@ function AdminRoles() {
                   {inviteError}
                 </ERPFormNotice>
               )}
+              {inviteResult && (
+                <ERPFormNotice tone="success" title="Invitation ready">
+                  <p>Share this single-use link securely. It expires automatically.</p>
+                  <input type="text" value={inviteResult.activationUrl} readOnly aria-label="Account activation link" />
+                  <button type="button" className="customers-secondary" onClick={() => navigator.clipboard.writeText(inviteResult.activationUrl)}>
+                    Copy activation link
+                  </button>
+                </ERPFormNotice>
+              )}
               <div className="customers-form-actions">
-                <button type="button" className="customers-secondary" onClick={() => setInviteOpen(false)} disabled={inviteSaving}>
-                  Cancel
+                <button type="button" className="customers-secondary" onClick={() => { setInviteOpen(false); setInviteResult(null); setInviteForm({ firstName: "", lastName: "", role: "Staff" }); }} disabled={inviteSaving}>
+                  {inviteResult ? "Done" : "Cancel"}
                 </button>
-                <button type="submit" className="customers-primary" disabled={inviteSaving}>
+                <button type="submit" className="customers-primary" disabled={inviteSaving || Boolean(inviteResult)}>
                   {inviteSaving ? "Inviting..." : "Invite user"}
                 </button>
               </div>

@@ -70,9 +70,10 @@ import {
   getVariantUnitPrice,
   isVariantParentItem,
 } from "../../utils/productVariants";
+import { isLowStockItem } from "../../domains/inventory/inventoryViewModel";
+import { createInventoryAdjustmentIdempotencyKey } from "../../domains/inventory/inventoryAdjustment";
 
 const STOCK_ACTION_OPTIONS = [1, 5, 10];
-const LOW_STOCK_THRESHOLD = 3;
 const APPROVAL_ORDER_MIN = 2000;
 const APPROVAL_BOOKING_MIN = 3000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1403,7 +1404,7 @@ function AdminWorkspace({ section = "home" }) {
   }, [isOnline, queue, syncQueue]);
 
   const inventoryLowStockItems = useMemo(
-    () => inventory.filter((item) => getQuantity(item) <= LOW_STOCK_THRESHOLD),
+    () => inventory.filter((item) => isLowStockItem(item, getQuantity(item))),
     [inventory]
   );
   const pendingQueue = useMemo(
@@ -2722,7 +2723,7 @@ function AdminWorkspace({ section = "home" }) {
       if (stockFilter === "rental") return isRentalItem(item);
       if (stockFilter === "in") return quantity > 0 && !isRentalItem(item);
       if (stockFilter === "out") return quantity <= 0;
-      if (stockFilter === "low") return quantity <= LOW_STOCK_THRESHOLD && !isRentalItem(item);
+      if (stockFilter === "low") return isLowStockItem(item, quantity);
       return true;
     });
   }, [purchaseQtyByLineKey, searchedInventory, stockFilter]);
@@ -2982,9 +2983,11 @@ function AdminWorkspace({ section = "home" }) {
     const movementType = direction === "in" ? "StockIn" : "StockOut";
     const delta = direction === "in" ? quantity : -quantity;
     const payload = {
+      idempotencyKey: createInventoryAdjustmentIdempotencyKey(),
       productId: item.id,
       variantId: chosenVariant?.id || undefined,
       type: movementType,
+      reasonCode: direction === "in" ? "RECEIVE" : "REMOVE",
       quantity,
       notes: "Quick mobile stock update",
       reference: `MOBILE-${new Date().toISOString().slice(0, 10)}`,
@@ -3006,8 +3009,7 @@ function AdminWorkspace({ section = "home" }) {
     try {
       if (!isOnline) {
         queueAction(queueItem);
-        adjustProductQuantity(item.id, delta, { variantId: chosenVariant?.id });
-        setSurfaceNotice(`${chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : item.name}: saved offline.`);
+        setSurfaceNotice(`${chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : item.name}: queued. Stock changes after server confirmation.`);
         return;
       }
 
@@ -3034,8 +3036,7 @@ function AdminWorkspace({ section = "home" }) {
     } catch (error) {
       if (isLikelyOfflineError(error)) {
         queueAction(queueItem);
-        adjustProductQuantity(item.id, delta, { variantId: chosenVariant?.id });
-        setSurfaceNotice(`${chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : item.name}: queued for sync.`);
+        setSurfaceNotice(`${chosenVariant ? buildVariantOptionLabel(item, chosenVariant) : item.name}: queued for sync. Stock is unchanged until confirmation.`);
       } else {
         setSurfaceError(error.message || "Stock update failed.");
       }
@@ -3178,7 +3179,7 @@ function AdminWorkspace({ section = "home" }) {
               const outBusy = stockBusyId === `${variantBusyPrefix}-out`;
               const inBusy = stockBusyId === `${variantBusyPrefix}-in`;
               const quantity = getQuantity(item, purchaseQtyByLineKey);
-              const isLow = quantity <= LOW_STOCK_THRESHOLD;
+              const isLow = isLowStockItem(item, quantity);
               const isRental = isRentalItem(item);
               const hasVariants = isVariantParentItem(item) && variants.length > 0;
               const selectedVariantStock = selectedVariant ? getVariantAvailableQty(selectedVariant) : 0;

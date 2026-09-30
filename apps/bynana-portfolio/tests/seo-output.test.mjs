@@ -45,9 +45,11 @@ test('the generated sitemap matches the current public content routes', () => {
   assert.equal(sitemap.includes('/404'), false);
 });
 
-test('404 output is non-indexable and SPA fallback is removed', () => {
+test('404 output is non-indexable and Cloudflare uses the static 404 fallback', () => {
   const html = readFileSync(join(DIST_DIR, '404.html'), 'utf8');
+  const redirects = readFileSync(join(DIST_DIR, '_redirects'), 'utf8');
 
   assert.match(html, /<meta name="robots" content="noindex, nofollow">/);
-  assert.equal(existsSync(join(DIST_DIR, '_redirects')), false);
+  assert.match(redirects, /^\/\* \/404\.html 404$/m);
+  assert.equal(redirects.includes('/index.html 200'), false);
 });

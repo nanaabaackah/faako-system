@@ -12,9 +12,10 @@ const PARTY_BITS = [
 ];
 
 function PartyConfetti({ className = "" }) {
-  // Match the server's first render, then opt into decorative motion once the
-  // browser's motion, data, and viewport preferences are known.
-  const [enabled, setEnabled] = useState(false);
+  // Keep the first browser render identical to Astro's server render. The
+  // media-query effect disables the decoration immediately after hydration
+  // where motion, data, or viewport preferences require it.
+  const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;

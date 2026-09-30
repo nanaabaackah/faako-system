@@ -1,0 +1,33 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import FaqList from "../components/FaqList.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
+import { organization } from "../content/home.js";
+
+const faqItems = [
+  { question: "What can a contribution support?", answer: "Contributions can support counselling services, community outreach, educational materials, awareness work, and programme delivery." },
+  { question: "Where are the verified donation details?", answer: "Verified Mobile Money and secure online donation details are still being prepared. Contact TTNGH directly before sending funds." },
+];
+---
+
+<BaseLayout path="/support-us" title={`Donate and support us | ${organization.name}`} description="Support TTN GH counselling, mental health education, outreach, advocacy, and community programmes." image="/images/home/closing-community.jpg" imageAlt="The Thriving Network GH team and students gathered in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Support us", path: "/support-us" }]} faqItems={faqItems}>
+  <main id="main-content" class="editorial-main">
+    <PageHero eyebrow="Donate and support us" title="Every contribution helps create access, safety, and hope." intro="Your support helps us deliver counselling, community outreach, educational materials, awareness work, and programmes for people across Ghana." images={[
+      { src: "/images/home/closing-community.jpg", alt: "TTNGH team members and students gathered in Tema" },
+      { src: "/images/home/vision-reflection.jpg", alt: "Participants completing a guided reflection exercise" },
+      { src: "/images/home/programme-audience.jpg", alt: "Students attending a TTNGH mental health education programme" },
+    ]} />
+    <section class="section-dark" aria-labelledby="funds-title">
+      <div class="section-heading"><p class="eyebrow">What support makes possible</p><h2 id="funds-title">Help sustain the work behind every conversation.</h2></div>
+      <div class="grid grid-two">
+        <article class="glass-card motion-card"><h3>Counselling and support</h3><p>Help more people access professional counselling, peer support, and safe community spaces.</p></article>
+        <article class="glass-card motion-card"><h3>Education and outreach</h3><p>Support workshops, school programmes, workplace talks, and practical educational materials.</p></article>
+        <article class="glass-card motion-card"><h3>Advocacy and awareness</h3><p>Strengthen public campaigns and conversations that challenge stigma and encourage help-seeking.</p></article>
+        <article class="glass-card motion-card"><h3>Programme delivery</h3><p>Contribute to the coordination, venues, resources, and people required to deliver meaningful programmes.</p></article>
+      </div>
+    </section>
+    <FaqList items={faqItems} />
+    <ScrollExpandSection eyebrow="Verified giving" title="Request donation details directly." text="Verified Mobile Money instructions and secure online donation details are being prepared. Please contact the organisation before sending funds." href="/contact?topic=donations" linkLabel="Contact the team" frameTitle="Every contribution matters." id="donate-title" />
+  </main>
+</BaseLayout>

@@ -1,4 +1,5 @@
 import React from "react";
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 import "./AddToCartButton.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faMinus, faPlus, faShoppingCart, faTrash } from "/src/icons/iconSet";
@@ -65,6 +66,16 @@ function AddToCartButton({
     updateQuantity(item, 1);
     onCartChange?.("incremented");
   };
+
+  if (!(isRental ? REEBS_PUBLIC_COMMERCE.bookingEnabled : REEBS_PUBLIC_COMMERCE.checkoutEnabled)) {
+    return (
+      <button type="button" className="shop-add-to-cart" data-variant={variant}
+        disabled title={REEBS_PUBLIC_COMMERCE.disabledMessage}>
+        <AppIcon icon={faShoppingCart} />
+        <span>{isRental ? "Online booking unavailable" : "Online ordering unavailable"}</span>
+      </button>
+    );
+  }
 
   return inCart ? (
     <div

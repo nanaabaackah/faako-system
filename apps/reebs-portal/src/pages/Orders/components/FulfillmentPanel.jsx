@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { SelectField } from "@faako/ui";
 import { InlineNotice } from "../../../components/InlineNotice/InlineNotice";
 import { reebsApiResponse } from "../../../api/client.js";
@@ -10,16 +10,22 @@ import {
 } from "../orderUi";
 
 export default function FulfillmentPanel({ order, onUpdated }) {
-  const [status, setStatus] = useState(order?.fulfillmentStatus || "not_started");
+  const allowedTransitions = useMemo(() => {
+    const values = Array.isArray(order?.nextActions?.fulfillmentTransitions)
+      ? order.nextActions.fulfillmentTransitions
+      : [];
+    return FULFILLMENT_STATUS_OPTIONS.filter((option) => values.includes(option.value));
+  }, [order?.nextActions?.fulfillmentTransitions]);
+  const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState(null);
 
   useEffect(() => {
-    setStatus(order?.fulfillmentStatus || "not_started");
-  }, [order?.fulfillmentStatus]);
+    setStatus(allowedTransitions[0]?.value || "");
+  }, [allowedTransitions, order?.fulfillmentStatus]);
 
   const handleSave = async () => {
-    if (!order?.id || status === order.fulfillmentStatus) return;
+    if (!order?.id || !status || status === order.fulfillmentStatus) return;
     setSaving(true);
     setNotice(null);
     const controller = new AbortController();
@@ -110,26 +116,32 @@ export default function FulfillmentPanel({ order, onUpdated }) {
         )}
       </div>
 
-      <div className="orders-fulfillment-actions">
-        <label className="orders-fulfillment-field">
-          Fulfillment status
-          <SelectField value={status} onChange={(event) => setStatus(event.target.value)}>
-            {FULFILLMENT_STATUS_OPTIONS.map((option) => (
+      {allowedTransitions.length ? (
+        <div className="orders-fulfillment-actions">
+          <label className="orders-fulfillment-field">
+            Next fulfillment step
+            <SelectField value={status} onChange={(event) => setStatus(event.target.value)}>
+            {allowedTransitions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
-          </SelectField>
-        </label>
-        <button
-          type="button"
-          className="orders-primary"
-          onClick={handleSave}
-          disabled={saving || status === order?.fulfillmentStatus}
-        >
-          {saving ? "Saving..." : "Save fulfillment"}
-        </button>
-      </div>
+            </SelectField>
+          </label>
+          <button
+            type="button"
+            className="orders-primary"
+            onClick={handleSave}
+            disabled={saving || !status}
+          >
+            {saving ? "Saving..." : `Mark ${formatStatusLabel(status)}`}
+          </button>
+        </div>
+      ) : (
+        <p className="orders-panel-empty">
+          No further fulfillment step is available. Use the order cancellation action when a sale must be cancelled.
+        </p>
+      )}
     </section>
   );
 }

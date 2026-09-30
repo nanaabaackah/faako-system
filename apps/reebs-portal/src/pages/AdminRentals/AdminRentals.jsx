@@ -6,6 +6,11 @@ import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
+import TableSelectionCheckbox from "../../components/TableControls/TableSelectionCheckbox";
+import useTableSort from "../../components/TableControls/useTableSort";
+import useTableSelection from "../../components/TableControls/useTableSelection";
+import { archiveSequentially } from "../../components/TableControls/bulkArchive.js";
 import { AppIcon } from "../../components/Icon/Icon";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { reebsApiResponse } from "../../api/client.js";
@@ -149,7 +154,7 @@ const getDocumentSourceLabel = (document) => {
   const sourceType = String(document?.sourceType || "").toLowerCase();
   if (sourceType === "bookings") return `Booking #${document.sourceId}`;
   if (sourceType === "orders") return `Order #${document.sourceId}`;
-  return "Built here";
+  return "Manual";
 };
 
 const getRentalHealth = (item, openMaintenanceCount = 0) => {
@@ -225,6 +230,7 @@ const fetchJson = async (url, init) => {
 
 function AdminRentals() {
   const { user } = useAuth();
+  const canArchiveRentals = ["owner", "admin"].includes(String(user?.role || "").toLowerCase());
   const navigate = useNavigate();
   const location = useLocation();
   const detailSyncRef = useRef("");
@@ -440,12 +446,26 @@ function AdminRentals() {
   }, [categoryFilter, healthFilter, maintenanceByProductId, query, rentals]);
 
   const pageSize = 10;
+  const table = useTableSort(filteredRentals, {
+    position: (_, index) => index,
+    sku: (item) => item.sku,
+    name: (item) => item.name,
+    category: getSpecificCategory,
+    rate: (item) => item.rate || "Per item",
+    units: getQuantity,
+    upcoming: (item) => (bookingsByProductId.get(Number(item.id)) || []).filter((booking) => isUpcomingBooking(booking, todayStart)).length,
+    maintenance: (item) => (maintenanceByProductId.get(Number(item.id)) || []).filter((log) => normalizeStatus(log.status) === "open").length,
+    documents: (item) => (documentsByProductId.get(Number(item.id)) || []).length,
+    status: (item) => getRentalHealthLabel(getRentalHealth(item, (maintenanceByProductId.get(Number(item.id)) || []).filter((log) => normalizeStatus(log.status) === "open").length)),
+  });
+  const tableHeaders = { sort: table.sort, onSort: (key) => { table.onSort(key); setPage(0); } };
+  const selection = useTableSelection(canArchiveRentals ? filteredRentals : [], `${query}|${categoryFilter}|${healthFilter}`);
   const pageCount = Math.max(1, Math.ceil(filteredRentals.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedRentals = useMemo(() => {
     const start = clampedPage * pageSize;
-    return filteredRentals.slice(start, start + pageSize);
-  }, [filteredRentals, clampedPage]);
+    return table.rows.slice(start, start + pageSize);
+  }, [table.rows, clampedPage]);
   const rentalsTableSummary = useMemo(
     () =>
       paginatedRentals.reduce(
@@ -708,7 +728,7 @@ function AdminRentals() {
   };
 
   const handleArchiveRental = async () => {
-    if (!detailForm?.id) return;
+    if (!detailForm?.id || !canArchiveRentals) return;
     if (typeof window !== "undefined" && !window.confirm("Archive this rental item?")) {
       return;
     }
@@ -739,6 +759,27 @@ function AdminRentals() {
     } catch (err) {
       console.error("Failed to archive rental item", err);
       setDetailError(err.message || "Unable to archive the rental item.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const archiveSelectedRentals = async () => {
+    if (!canArchiveRentals || saving) return;
+    const selectedItems = table.rows.filter((item) => selection.ids.has(item.id));
+    if (!selectedItems.length || !window.confirm(`Archive ${selectedItems.length} rental catalogue items? Existing bookings and financial records will not be archived.`)) return;
+    setSaving(true);
+    setNotice("");
+    try {
+      const { archived, error: archiveError } = await archiveSequentially(selectedItems, (item) => fetchJson("/api/inventory", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: item.id, action: "archive", userId: user?.id, userName: user?.fullName || user?.name, userEmail: user?.email }),
+      }));
+      const archivedIds = new Set(archived.map((item) => item.id));
+      setInventoryItems((previous) => previous.filter((item) => !archivedIds.has(item.id)));
+      await loadModuleData({ force: true });
+      setNotice(`${archived.length} rental item${archived.length === 1 ? "" : "s"} archived.${archiveError ? ` ${archiveError.message} Remaining items were not retried. Refresh before retrying after a connection error.` : " Restore items from Inventory’s archived view if needed."}`);
+      setNoticeTone(archiveError ? "danger" : "success");
     } finally {
       setSaving(false);
     }
@@ -945,26 +986,33 @@ function AdminRentals() {
           </div>
 
           <div className="admin-table-scroll rentals-table-scroll">
+            {canArchiveRentals && <div className="table-bulk-actions" aria-label="Rental bulk actions">
+              <span aria-live="polite">{selection.ids.size} selected</span>
+              <button type="button" className="admin-secondary" disabled={!selection.ids.size || saving || loading} onClick={archiveSelectedRentals}>Archive selected</button>
+              <button type="button" className="admin-secondary" disabled={!selection.ids.size || saving} onClick={selection.clear}>Clear selection</button>
+            </div>}
             {renderRentalsPagination(true)}
+            <div className="rentals-table-viewport" tabIndex={0} role="region" aria-label="Rental catalogue table">
             <table className="rentals-table">
               <thead>
                 <tr>
-                  <th className="table-row-index">#</th>
-                  <th className="rentals-col-sku">SKU</th>
-                  <th className="rentals-col-name">Item</th>
-                  <th className="rentals-col-category">Category</th>
-                  <th className="rentals-col-rate">Rate</th>
-                  <th className="rentals-col-stock">Units</th>
-                  <th className="rentals-col-bookings">Upcoming</th>
-                  <th className="rentals-col-maintenance">Maint.</th>
-                  <th className="rentals-col-documents">Docs</th>
-                  <th className="rentals-col-status">Status</th>
+                  {canArchiveRentals && <th scope="col" className="table-selection-cell"><TableSelectionCheckbox label="Select rental items on this page" checked={paginatedRentals.length > 0 && paginatedRentals.every((item) => selection.ids.has(item.id))} mixed={paginatedRentals.some((item) => selection.ids.has(item.id)) && !paginatedRentals.every((item) => selection.ids.has(item.id))} onChange={() => selection.togglePage(paginatedRentals)} disabled={saving || loading || !paginatedRentals.length} /></th>}
+                  <TableSortHeader {...tableHeaders} column="position" className="table-row-index">#</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="sku" className="rentals-col-sku">SKU</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="name" className="rentals-col-name">Item</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="category" className="rentals-col-category">Category</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="rate" className="rentals-col-rate">Rate</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="units" className="rentals-col-stock">Units</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="upcoming" className="rentals-col-bookings">Upcoming</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="maintenance" className="rentals-col-maintenance">Maint.</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="documents" className="rentals-col-documents">Docs</TableSortHeader>
+                  <TableSortHeader {...tableHeaders} column="status" className="rentals-col-status">Status</TableSortHeader>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={10} className="rentals-empty">
+                    <td colSpan={canArchiveRentals ? 11 : 10} className="rentals-empty">
                       <AnimatedLoadingState
                         compact
                         className="rentals-loading-state admin-module-loading"
@@ -975,7 +1023,7 @@ function AdminRentals() {
                     </td>
                   </tr>
                 ) : filteredRentals.length ? (
-                  paginatedRentals.map((item, index) => {
+                  paginatedRentals.map((item) => {
                     const productId = Number(item.id);
                     const category = getSpecificCategory(item) || "Rental";
                     const linkedBookings = bookingsByProductId.get(productId) || [];
@@ -1001,7 +1049,8 @@ function AdminRentals() {
                           }
                         }}
                       >
-                        <td className="table-row-index">{clampedPage * pageSize + index}</td>
+                        {canArchiveRentals && <td className="table-selection-cell"><TableSelectionCheckbox label={`Select ${item.name || item.sku}`} checked={selection.ids.has(item.id)} onChange={() => selection.toggle(item.id)} disabled={saving || loading} /></td>}
+                        <td className="table-row-index">{filteredRentals.indexOf(item) + 1}</td>
                         <td className="rentals-col-sku">
                           <span className="rentals-table-text">{item.sku || "-"}</span>
                         </td>
@@ -1038,7 +1087,7 @@ function AdminRentals() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={10} className="rentals-empty">
+                    <td colSpan={canArchiveRentals ? 11 : 10} className="rentals-empty">
                       No rental items match the current filters.
                     </td>
                   </tr>
@@ -1046,6 +1095,7 @@ function AdminRentals() {
               </tbody>
               <tfoot>
                 <tr>
+                  {canArchiveRentals && <td />}
                   <td className="table-row-index">
                     <span className="admin-table-summary-value">{rentalsTableSummary.count}</span>
                   </td>
@@ -1071,6 +1121,7 @@ function AdminRentals() {
                 </tr>
               </tfoot>
             </table>
+            </div>
             {renderRentalsPagination()}
           </div>
         </section>
@@ -1099,7 +1150,7 @@ function AdminRentals() {
                   </p>
                 </div>
                 <div className="rentals-lightbox-actions">
-                  {detailForm.id ? (
+                  {detailForm.id && canArchiveRentals ? (
                     <button
                       type="button"
                       className="admin-secondary rentals-header-action"

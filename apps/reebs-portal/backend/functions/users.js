@@ -21,15 +21,15 @@ const logger = createLogger("users");
 const respond = (event, statusCode, body = {}) =>
   json(event, statusCode, body, { methods: "GET,POST,PUT,OPTIONS" });
 
-const cleanNamePart = (value) => (typeof value === "string" ? value.trim() : "");
+export const cleanNamePart = (value) => (typeof value === "string" ? value.trim() : "");
 const stripSpaces = (value) => cleanNamePart(value).replace(/\s+/g, "");
-const buildEmailFromNames = (firstName, lastName) => {
+export const buildEmailFromNames = (firstName, lastName) => {
   const first = stripSpaces(firstName).toLowerCase();
   const last = stripSpaces(lastName).toLowerCase();
   if (!first || !last) return null;
   return `${first}_${last}@reebs.com`;
 };
-const buildFullName = (firstName, lastName) => {
+export const buildFullName = (firstName, lastName) => {
   return [cleanNamePart(firstName), cleanNamePart(lastName)].filter(Boolean).join(" ").trim();
 };
 const LEGACY_ROLE_ALIASES = {
@@ -37,7 +37,7 @@ const LEGACY_ROLE_ALIASES = {
   custodian: "staff",
   sales: "staff",
 };
-const VALID_USER_ROLE_KEYS = new Set([
+export const VALID_USER_ROLE_KEYS = new Set([
   "owner",
   "admin",
   "manager",
@@ -46,11 +46,11 @@ const VALID_USER_ROLE_KEYS = new Set([
   "driver",
   "water",
 ]);
-const normalizeRoleKey = (value) => {
+export const normalizeRoleKey = (value) => {
   const normalized = String(value || "").trim().toLowerCase();
   return LEGACY_ROLE_ALIASES[normalized] || normalized;
 };
-const formatStoredRole = (value) => {
+export const formatStoredRole = (value) => {
   const normalized = normalizeRoleKey(value);
   if (!normalized) return "";
   return `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;

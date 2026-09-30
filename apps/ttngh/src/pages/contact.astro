@@ -1,0 +1,45 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import FaqList from "../components/FaqList.astro";
+import ContactForm from "../components/ContactForm.astro";
+import SocialIcon from "../components/SocialIcon.jsx";
+import { FaEnvelopeOpenText, FaHandshake, FaHeart, FaLocationDot } from "react-icons/fa6";
+import { organization } from "../content/home.js";
+import contactStyles from "../styles/pages/contact.css?url";
+import contactFormStyles from "../styles/components/contact-form.css?url";
+
+const faqItems = [
+  { question: "How can I contact The Thriving Network GH?", answer: "Use the contact form on this page, or use the organisation details listed beside it. TTNGH is based in Tema, Ghana." },
+  { question: "What can I contact TTNGH about?", answer: "You can contact the team about counselling, support groups, programmes, outreach, volunteering, donations, partnerships, research, campaigns, or media collaboration." },
+];
+---
+
+<BaseLayout path="/contact" pageStyles={[contactStyles, contactFormStyles]} title={`Contact us | ${organization.name}`} description="Contact The Thriving Network GH in Tema about support, programmes, volunteering, donations, partnerships, or media." image="/images/home/initiative-community.jpg" imageAlt="The Thriving Network GH community gathered in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Contact", path: "/contact" }]} faqItems={faqItems}>
+  <main id="main-content" class="editorial-main">
+    <PageHero eyebrow="Contact us" title="Start a conversation with The Thriving Network GH." intro="Reach out about counselling and support groups, an event, volunteering, donations, partnerships, school or workplace outreach, or media collaboration." images={[
+      { src: "/images/home/initiative-community.jpg", alt: "The Thriving Network GH community gathered in Tema" },
+      { src: "/images/home/vision-conversation.jpg", alt: "A participant listening during Vision with Clarity" },
+      { src: "/images/team/ruby-adeley.jpg", alt: "Ruby Adeley, Volunteer and Administrative Lead" },
+    ]} />
+    <section class="contact-workspace" id="details" aria-labelledby="details-title">
+      <div class="section-heading"><p class="eyebrow">Contact TTNGH</p><h2 id="details-title">One form. The right conversation.</h2><p>Select the purpose of your enquiry and prepare a message for the team. No message is uploaded to this website.</p></div>
+      <div class="contact-workspace-grid">
+        <ContactForm />
+        <aside class="contact-sidebar">
+          <address class="bubble-card motion-card"><span class="contact-card-icon"><FaLocationDot focusable="false" /></span><h3>Organisation details</h3><p>{organization.address}</p><a href={`tel:${organization.phoneHref}`}>{organization.phoneDisplay}</a><a href={`mailto:${organization.email}`}>{organization.email}</a></address>
+          <div class="bubble-card motion-card"><h3>Connect socially</h3><ul class="contact-socials">{organization.socials.map((social) => <li>{social.href ? <a href={social.href} target="_blank" rel="noopener noreferrer"><SocialIcon name={social.icon} /><span><strong>{social.platform}</strong>{social.label}</span></a> : <span><SocialIcon name={social.icon} /><span><strong>{social.platform}</strong>{social.label}</span></span>}</li>)}</ul></div>
+        </aside>
+      </div>
+    </section>
+    <section class="section-dark" aria-labelledby="reason-title">
+      <div class="section-heading"><p class="eyebrow">How can we help?</p><h2 id="reason-title">Choose a conversation starter.</h2></div>
+      <div class="grid grid-three">
+        <article id="program-support" class="bubble-card card-link"><span class="contact-card-icon"><FaEnvelopeOpenText focusable="false" /></span><h3>Programs and support</h3><p>Ask about counselling, support groups, education, or outreach.</p><a class="text-link" href="#details">Send an enquiry</a></article>
+        <article id="partnerships-media" class="bubble-card card-link"><span class="contact-card-icon"><FaHandshake focusable="false" /></span><h3>Partnerships and media</h3><p>Discuss a workplace, school, research, campaign, or media collaboration.</p><a class="text-link" href="#details">Start a conversation</a></article>
+        <article id="volunteer-contribute" class="bubble-card card-link"><span class="contact-card-icon"><FaHeart focusable="false" /></span><h3>Volunteer or contribute</h3><p>Tell us how you would like to give your time, skills, or financial support.</p><a class="text-link" href="#details">Get involved</a></article>
+      </div>
+    </section>
+    <FaqList items={faqItems} />
+  </main>
+</BaseLayout>

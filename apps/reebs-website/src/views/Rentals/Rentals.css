@@ -748,6 +748,12 @@
 
   .rentals-page .rent-card-actions .shop-add-to-cart,
   .rentals-page .rent-card-actions .shop-cart-controls {
-    min-height: 2.2rem;
+    min-height: 2.75rem;
+  }
+}
+
+@media (max-width: 340px) {
+  .rent-grid {
+    grid-template-columns: 1fr;
   }
 }

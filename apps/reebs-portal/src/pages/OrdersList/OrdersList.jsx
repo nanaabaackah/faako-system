@@ -20,7 +20,8 @@ import { InlineNotice } from "../../components/InlineNotice/InlineNotice";
 import { AppIcon } from "../../components/Icon/Icon";
 import SearchField from "../../components/SearchField/SearchField";
 import TablePagination from "../../components/TablePagination/TablePagination";
-import { reebsApiResponse } from "../../api/client.js";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
+import useTableSort from "../../components/TableControls/useTableSort";
 import { canAccessPrivilegedPortalArea } from "../../utils/adminAccess";
 import {
   faPlus,
@@ -65,6 +66,15 @@ const normalizeStatus = (status) => {
 const normalizeOrderStatusFilter = (value) => {
   const normalized = normalizeStatus(value);
   return ORDER_STATUS_FILTER_VALUES.has(normalized) ? normalized : "all";
+};
+
+const PAYMENT_STATUS_FILTER_VALUES = new Set(
+  PAYMENT_STATUS_FILTER_OPTIONS.map((option) => option.value)
+);
+
+const normalizePaymentStatusFilter = (value) => {
+  const normalized = normalizeStatus(value);
+  return PAYMENT_STATUS_FILTER_VALUES.has(normalized) ? normalized : "all";
 };
 
 const ORDER_VIEW_ICONS = {
@@ -179,6 +189,7 @@ function OrdersList() {
   const paymentActionDraftWriteTimerRef = useRef(null);
   const paymentActionDraftSkipWriteRef = useRef(false);
   const paymentQueueSyncingRef = useRef(false);
+  const paymentSubmissionRef = useRef({ signature: "", key: "" });
   const paymentQueueStorage = useMemo(() => createIndexedDbQueueStorage(), []);
   const roleKey = String(user?.role || "").trim().toLowerCase();
   const canAccessInvoicing = canAccessPrivilegedPortalArea(roleKey);
@@ -208,6 +219,10 @@ function OrdersList() {
   const [paymentDraftNotice, setPaymentDraftNotice] = useState(null);
   const [paymentQueueNotice, setPaymentQueueNotice] = useState(null);
   const navigate = useNavigate();
+  const reconciliationOnly = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("reconciliation") === "1";
+  }, [location.search]);
 
   useEffect(() => {
     document.body.classList.add("admin-theme");
@@ -220,9 +235,12 @@ function OrdersList() {
     setLoading(true);
     setError("");
     try {
-      const response = await reebsApiResponse("/api/orders?compact=1&limit=500", {
+      const response = await fetch(
+        `/api/orders?compact=1&limit=500${reconciliationOnly ? "&reconciliation=1" : ""}`,
+        {
         signal: fetchSignal,
-      });
+        }
+      );
       if (!response.ok) {
         throw new Error("Failed to fetch orders.");
       }
@@ -236,7 +254,7 @@ function OrdersList() {
     } finally {
       if (!fetchSignal.aborted) setLoading(false);
     }
-  }, []);
+  }, [reconciliationOnly]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -248,8 +266,10 @@ function OrdersList() {
     const params = new URLSearchParams(location.search);
     const nextQuery = params.get("q") || "";
     const nextStatus = normalizeOrderStatusFilter(params.get("status"));
+    const nextPaymentStatus = normalizePaymentStatusFilter(params.get("paymentStatus"));
     setQuery((current) => (current === nextQuery ? current : nextQuery));
     setStatusFilter((current) => (current === nextStatus ? current : nextStatus));
+    setPaymentFilter((current) => (current === nextPaymentStatus ? current : nextPaymentStatus));
   }, [location.search]);
 
   useEffect(() => {
@@ -364,11 +384,25 @@ function OrdersList() {
   }, [sortedOrders]);
 
   const pageCount = Math.max(1, Math.ceil(sortedOrders.length / pageSize));
+  const table = useTableSort(sortedOrders, {
+    position: (_, index) => index,
+    order: (order) => order.orderNumber || `#${order.id}`,
+    customer: (order) => order.customerName,
+    phone: (order) => order.customerPhone,
+    status: getOrderLifecycleStatusLabel,
+    payment: (order) => formatStatusLabel(order.paymentStatus, "Unpaid"),
+    fulfillment: (order) => formatStatusLabel(order.fulfillmentStatus || order.deliveryMethod, "Pickup"),
+    source: (order) => order.source || order.purchaseChannel,
+    total: getOrderTotalCents,
+    paid: getOrderAmountPaidCents,
+    balance: getOrderBalanceCents,
+  });
+  const tableHeaders = { sort: table.sort, onSort: (key) => { table.onSort(key); setPage(0); } };
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedOrders = useMemo(() => {
     const start = clampedPage * pageSize;
-    return sortedOrders.slice(start, start + pageSize);
-  }, [sortedOrders, clampedPage, pageSize]);
+    return table.rows.slice(start, start + pageSize);
+  }, [table.rows, clampedPage, pageSize]);
 
   const detailOrderSequence = useMemo(
     () =>
@@ -537,6 +571,7 @@ function OrdersList() {
     setPaymentNotice(null);
     setPaymentDraftNotice(null);
     setPaymentSaving(false);
+    paymentSubmissionRef.current = { signature: "", key: "" };
   }, [clearPaymentActionDraft, paymentAction?.order?.id]);
 
   const updatePaymentField = (field, value) => {
@@ -704,7 +739,7 @@ function OrdersList() {
     });
 
     try {
-      const response = await reebsApiResponse("/api/orderPayments", {
+      const response = await fetch("/api/orderPayments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -850,6 +885,14 @@ function OrdersList() {
       });
       return;
     }
+    if (["mobile_money", "bank_transfer", "card"].includes(paymentForm.method) && !paymentForm.transactionReference.trim()) {
+      setPaymentNotice({
+        tone: "error",
+        title: "Reference required",
+        message: "Enter the external transaction reference so this payment can be reconciled safely.",
+      });
+      return;
+    }
     if (paymentAction.targetStage === "paid" && amountCents < balanceCents) {
       setPaymentNotice({
         tone: "error",
@@ -885,12 +928,22 @@ function OrdersList() {
         return;
       }
 
-      const response = await reebsApiResponse("/api/orderPayments", {
+      const paymentSignature = JSON.stringify(paymentPayload);
+      if (paymentSubmissionRef.current.signature !== paymentSignature) {
+        paymentSubmissionRef.current = {
+          signature: paymentSignature,
+          key:
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : `order-payment-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        };
+      }
+
+      const response = await fetch("/api/orderPayments", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Idempotency-Key": globalThis.crypto?.randomUUID?.()
-            || `payment-${paymentAction.order.id}-${Date.now()}`,
+          "Idempotency-Key": paymentSubmissionRef.current.key,
         },
         body: JSON.stringify(paymentPayload),
         signal: controller.signal,
@@ -1086,7 +1139,7 @@ function OrdersList() {
                 label="Sort"
                 fieldClassName="orders-select orders-sort-select"
                 value={sortKey}
-                onChange={(event) => setSortKey(event.target.value)}
+                onChange={(event) => { setSortKey(event.target.value); table.clearSort(); }}
               >
                 {ORDER_SORT_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
@@ -1114,6 +1167,14 @@ function OrdersList() {
 
           {loading && <InlineNotice tone="loading" title="Loading orders" compact />}
           {!loading && error && <InlineNotice tone="error" title="Orders unavailable" message={error} compact />}
+          {!loading && !error && reconciliationOnly && (
+            <InlineNotice
+              tone="warning"
+              title="Financial reconciliation"
+              message="Showing orders whose saved subtotal differs from the saved line-item total. Review only; no historical value is changed here."
+              compact
+            />
+          )}
           {stateNotice && (
             <InlineNotice
               tone={stateNotice.tone}
@@ -1142,22 +1203,22 @@ function OrdersList() {
                 <table className="orders-table orders-table--shop">
                   <thead>
                     <tr>
-                      <th className="table-row-index">#</th>
-                      <th>Order</th>
-                      <th>Customer</th>
-                      <th>Phone</th>
-                      <th>Status</th>
-                      <th>Payment</th>
-                      <th>Fulfillment</th>
-                      <th>Source</th>
-                      <th>Total</th>
-                      <th>Paid</th>
-                      <th>Balance</th>
+                      <TableSortHeader {...tableHeaders} column="position" className="table-row-index">#</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="order">Order</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="customer">Customer</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="phone">Phone</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="status">Status</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="payment">Payment</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="fulfillment">Fulfillment</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="source">Source</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="total">Total</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="paid">Paid</TableSortHeader>
+                      <TableSortHeader {...tableHeaders} column="balance">Balance</TableSortHeader>
                       <th aria-label="Receipt" />
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedOrders.map((order, index) => (
+                    {paginatedOrders.map((order) => (
                       <tr
                         key={order.id}
                         onClick={() => openOrderDetail(order)}
@@ -1170,7 +1231,7 @@ function OrdersList() {
                           }
                         }}
                       >
-                        <td className="table-row-index">{clampedPage * pageSize + index + 1}</td>
+                        <td className="table-row-index">{sortedOrders.indexOf(order) + 1}</td>
                         <td>{order.orderNumber || `#${order.id}`}</td>
                         <td>{order.customerName || "-"}</td>
                         <td>{order.customerPhone || "-"}</td>
@@ -1529,6 +1590,7 @@ function OrdersList() {
                   <input
                     value={paymentForm.transactionReference}
                     onChange={(event) => updatePaymentField("transactionReference", event.target.value)}
+                    required={["mobile_money", "bank_transfer", "card"].includes(paymentForm.method)}
                   />
                 </label>
                 <label className="orders-payment-field orders-payment-field--wide">

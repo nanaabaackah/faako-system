@@ -1,0 +1,82 @@
+.section-gradient-waves {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background:
+    repeating-radial-gradient(
+      ellipse at 50% 108%,
+      transparent 0 9%,
+      rgb(var(--brand-pink-rgb) / 34%) 10% 14%,
+      transparent 15% 22%
+    ),
+    linear-gradient(
+      118deg,
+      transparent 8%,
+      rgb(var(--brand-pink-rgb) / 16%) 32%,
+      rgb(255 195 221 / 38%) 50%,
+      transparent 74%
+    ),
+    var(--paper);
+  background-position: center 3%, -15% center, center;
+  background-size: 112% 112%, 150% 150%, auto;
+  filter: saturate(1.35) contrast(1.08);
+  animation: section-gradient-flow 11s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.section-gradient-waves::before {
+  position: absolute;
+  z-index: 0;
+  inset: -35% -18%;
+  background: repeating-radial-gradient(
+    ellipse at 50% 110%,
+    transparent 0 8%,
+    rgb(var(--brand-pink-rgb) / 15%) 9% 12%,
+    transparent 13% 21%
+  );
+  filter: blur(14px);
+  content: "";
+  animation: section-wave-drift 12s ease-in-out infinite alternate;
+}
+
+.section-gradient-waves > div,
+.section-gradient-waves canvas {
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0.95;
+  mix-blend-mode: multiply;
+}
+
+@keyframes section-wave-drift {
+  from {
+    transform: translate3d(-2%, 2%, 0) scale(1.02) rotate(-2deg);
+  }
+
+  to {
+    transform: translate3d(3%, -3%, 0) scale(1.08) rotate(2deg);
+  }
+}
+
+@keyframes section-gradient-flow {
+  from {
+    background-position: center 5%, -18% center, center;
+  }
+
+  to {
+    background-position: center -5%, 18% center, center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-gradient-waves {
+    filter: saturate(1.12);
+    animation: none;
+  }
+
+  .section-gradient-waves::before {
+    animation: none;
+  }
+}

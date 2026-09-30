@@ -1,4 +1,4 @@
-import { DateField, InlineNotice, SelectField } from "@faako/ui";
+import { DateField, InlineNotice, SelectField, useERPDialog } from "@faako/ui";
 import WaterCustomerPicker from "./WaterCustomerPicker";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faTrash, faXmark } from "/src/icons/iconSet";
@@ -10,7 +10,6 @@ export default function WaterOrderEditorModal({
   setOrderForm,
   orderPreview,
   orderError,
-  orderPriceChanged,
   canManageWaterPricing,
   customerPickerProps,
   closeOrderEditor,
@@ -27,12 +26,16 @@ export default function WaterOrderEditorModal({
   saving,
   loading,
 }) {
+  const dialogRef = useERPDialog({
+    open: Boolean(activeOrderId && orderForm),
+    onClose: saving ? undefined : closeOrderEditor,
+  });
   if (!activeOrderId || !orderForm) return null;
 
   return (
-    <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-order-modal-title">
+    <div ref={dialogRef} className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="water-order-modal-title" tabIndex={-1}>
       <div className="admin-modal-panel water-order-modal water-order-editor-modal bubble-card">
-        <header>
+        <header role="presentation">
           <div>
             <p className="water-module-eyebrow">Edit order</p>
             <h2 id="water-order-modal-title">Order #{activeOrderId}</h2>
@@ -53,9 +56,6 @@ export default function WaterOrderEditorModal({
                   Edited {formatDateTime(orderForm.updatedAt)}
                   {orderForm.updatedByName ? ` by ${orderForm.updatedByName}` : ""}
                 </span>
-              ) : null}
-              {Number(orderForm.unitPrice) * 100 !== Number(orderForm.standardUnitPrice) ? (
-                <span className="water-module-order-pill is-pending">Price override</span>
               ) : null}
             </div>
           </div>
@@ -126,28 +126,6 @@ export default function WaterOrderEditorModal({
                 required
               />
             </label>
-            {orderPriceChanged ? (
-              <label className="water-order-modal-field--wide">
-                Price change reason
-                <textarea
-                  rows="2"
-                  value={orderForm.priceOverrideReason}
-                  onChange={(event) =>
-                    setOrderForm((prev) =>
-                      prev ? { ...prev, priceOverrideReason: event.target.value } : prev
-                    )
-                  }
-                  placeholder="Why is this historical sale price changing?"
-                  required
-                />
-              </label>
-            ) : (
-              <p className="water-module-inline-note water-order-modal-field--wide">
-                {canManageWaterPricing
-                  ? "Changing the recorded price requires a reason and creates an audit event."
-                  : "Recorded Water prices are read-only for your role."}
-              </p>
-            )}
             <label>
               Payment
               <SelectField

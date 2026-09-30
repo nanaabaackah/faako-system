@@ -1,0 +1,85 @@
+---
+import { organization } from "../content/home.js";
+import { FaArrowRight } from "react-icons/fa6";
+---
+
+<form class="contact-form glass-card" data-contact-form data-recipient={organization.email} novalidate>
+  <div class="contact-form-heading">
+    <p class="eyebrow">Send an enquiry</p>
+    <h2>Tell us how we can help.</h2>
+    <p>Your message stays in this browser until you choose to open your email app. This website does not store the form contents.</p>
+  </div>
+
+  <div class="contact-form-grid">
+    <label><span>Name</span><input name="name" autocomplete="name" maxlength="80" required /></label>
+    <label><span>Email</span><input name="email" type="email" autocomplete="email" maxlength="160" required /></label>
+    <label class="contact-form-wide"><span>What would you like to discuss?</span><select name="topic" required><option value="">Choose a topic</option><option>Programmes or support</option><option>Events</option><option>Volunteering</option><option>Donations</option><option>Partnerships</option><option>Media collaboration</option><option>Privacy question</option><option>Other enquiry</option></select></label>
+    <label class="contact-form-wide"><span>Message</span><textarea name="message" rows="7" minlength="20" maxlength="2000" required></textarea><small>20–2,000 characters. Please do not include medical records or highly sensitive personal information.</small></label>
+    <label class="contact-form-trap" aria-hidden="true"><span>Leave this field empty</span><input name="website" tabindex="-1" autocomplete="off" /></label>
+    <input type="hidden" name="startedAt" value="" />
+    <label class="contact-form-consent contact-form-wide"><input name="privacy" type="checkbox" required /><span>I have read the <a href="/privacy">privacy notice</a> and understand that my email app will handle the message.</span></label>
+  </div>
+
+  <div class="contact-form-submit">
+    <button class="button button-primary" type="submit"><span class="button-label">Prepare message</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></button>
+    <p class="contact-form-status" data-form-status role="status" aria-live="polite"></p>
+    <a class="button button-secondary" data-email-handoff hidden><span class="button-label">Open email app</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+  </div>
+</form>
+
+<script>
+  const form = document.querySelector("[data-contact-form]");
+
+  if (form instanceof HTMLFormElement) {
+    const startedAt = form.elements.namedItem("startedAt");
+    const status = form.querySelector("[data-form-status]");
+    const handoff = form.querySelector("[data-email-handoff]");
+    if (startedAt instanceof HTMLInputElement) startedAt.value = String(Date.now());
+
+    const topicMap = {
+      events: "Events",
+      volunteering: "Volunteering",
+      donations: "Donations",
+      partnerships: "Partnerships",
+      privacy: "Privacy question",
+    };
+    const requestedTopic = topicMap[new URLSearchParams(window.location.search).get("topic") || ""];
+    const topicSelect = form.elements.namedItem("topic");
+    if (requestedTopic && topicSelect instanceof HTMLSelectElement) topicSelect.value = requestedTopic;
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (!(status instanceof HTMLElement) || !(handoff instanceof HTMLAnchorElement)) return;
+
+      const data = new FormData(form);
+      const elapsed = Date.now() - Number(data.get("startedAt") || 0);
+      const trap = String(data.get("website") || "").trim();
+      const name = String(data.get("name") || "").trim().slice(0, 80);
+      const email = String(data.get("email") || "").trim().slice(0, 160);
+      const topic = String(data.get("topic") || "").trim().slice(0, 80);
+      const message = String(data.get("message") || "").trim().slice(0, 2000);
+      const recipient = form.dataset.recipient || "";
+
+      handoff.hidden = true;
+      handoff.removeAttribute("href");
+
+      if (trap || elapsed < 3000) {
+        status.textContent = "Please wait a moment, then try again.";
+        return;
+      }
+
+      if (!form.checkValidity() || message.length < 20) {
+        form.reportValidity();
+        status.textContent = "Please complete the required fields.";
+        return;
+      }
+
+      const subject = `[TTNGH website] ${topic}`;
+      const body = [`Name: ${name}`, `Email: ${email}`, `Topic: ${topic}`, "", message].join("\n");
+      handoff.href = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      handoff.hidden = false;
+      status.textContent = "Your message is ready. Choose “Open email app” to review and send it.";
+      handoff.focus();
+    });
+  }
+</script>

@@ -1,0 +1,49 @@
+.scroll-reveal {
+  --scroll-reveal-distance: 2.25rem;
+}
+
+html[data-scroll-reveal-ready] .scroll-reveal {
+  transition:
+    opacity 760ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 900ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 760ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, filter, transform;
+}
+
+html[data-scroll-reveal-ready] .scroll-reveal:not(.is-revealed) {
+  opacity: 0;
+  filter: blur(14px);
+  transform: translate3d(0, var(--scroll-reveal-distance), 0);
+}
+
+html[data-scroll-reveal-ready] .scroll-reveal[data-reveal-origin="top"]:not(.is-revealed) {
+  transform: translate3d(0, calc(var(--scroll-reveal-distance) * -1), 0);
+}
+
+html[data-scroll-reveal-ready] .scroll-reveal.is-revealed {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0);
+  will-change: auto;
+}
+
+@media (max-width: 780px) {
+  .scroll-reveal {
+    --scroll-reveal-distance: 1.5rem;
+  }
+
+  html[data-scroll-reveal-ready] .scroll-reveal:not(.is-revealed) {
+    filter: blur(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-scroll-reveal-ready] .scroll-reveal,
+  html[data-scroll-reveal-ready] .scroll-reveal:not(.is-revealed),
+  html[data-scroll-reveal-ready] .scroll-reveal.is-revealed {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
+}

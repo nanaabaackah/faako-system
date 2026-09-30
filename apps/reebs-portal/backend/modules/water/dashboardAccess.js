@@ -1,0 +1,47 @@
+import { buildWaterPricingPermissions } from "../../functions/_shared/waterPricing.js";
+
+const SALES_ACTIONS = new Set(["sale", "update_sale", "delete_sale", "create_customer"]);
+const pick = (record, fields) => Object.fromEntries(
+  fields.filter((field) => Object.hasOwn(record || {}, field)).map((field) => [field, record[field]])
+);
+
+export const canWriteWaterAction = (role, action) => {
+  const normalizedRole = String(role || "").trim().toLowerCase();
+  return normalizedRole === "owner" || normalizedRole === "admin"
+    || (normalizedRole === "water" && SALES_ACTIONS.has(action));
+};
+
+// Apply only at the HTTP response boundary. Stock validation and cost snapshots
+// must continue using the full, server-private ledger inside the transaction.
+export const presentWaterDashboard = (dashboard, role) => {
+  // Keep this boundary restricted even if reused by another route.
+  const permissions = buildWaterPricingPermissions(canWriteWaterAction(role, "restock") ? role : null);
+  if (permissions.canViewFinance && permissions.canViewCost) {
+    return { ...dashboard, permissions };
+  }
+  return {
+    ...pick(dashboard, ["scope", "businessUnit", "includedInCoreMetrics"]),
+    permissions,
+    product: {
+      ...pick(dashboard.product, ["key", "name", "pricingConfigured"]),
+      pricing: pick(dashboard.product?.pricing, [
+        "currency", "retailSingle", "retailBulk", "company", "bulkThreshold", "discountLimitBps",
+        "configurationErrorCode",
+      ]),
+    },
+    summary: pick(dashboard.summary, ["stockOnHand", "unitsRestocked", "unitsSold", "adjustmentUnits"]),
+    restocks: (dashboard.restocks || []).map((row) => pick(row, [
+      "id", "productKey", "productName", "quantity", "date", "createdAt",
+    ])),
+    sales: (dashboard.sales || []).map((row) => pick(row, [
+      "id", "productKey", "productName", "quantity", "saleChannel", "paymentMethod",
+      "paymentStatus", "paymentReference", "providerReference", "discountType", "discountValue",
+      "discountAmount", "unitPrice", "standardUnitPrice", "totalAmount", "customerId",
+      "customerName", "notes", "date", "paidAt", "createdAt", "updatedAt",
+    ])),
+    expenses: [],
+    adjustments: (dashboard.adjustments || []).map((row) => pick(row, [
+      "id", "productKey", "productName", "quantityDelta", "reason", "date", "createdAt",
+    ])),
+  };
+};

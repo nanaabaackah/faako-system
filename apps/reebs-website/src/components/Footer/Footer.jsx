@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { AppBottomBar } from '@faako/ui';
 import "./Footer.css";
-import { Link } from 'react-router-dom';
-import { ArrowRight, Call, Facebook, Instagram, Location, Sms, Whatsapp } from 'iconsax-react';
+import { Link, useNavigate } from 'react-router-dom';
+import {
+  ArrowRight2,
+  Call,
+  Facebook,
+  Instagram,
+  Location,
+  MusicPlay,
+  Sms,
+  Whatsapp,
+} from 'iconsax-react';
 import { SUPPORTED_CURRENCY_CODES as SUPPORTED_CURRENCIES } from '@faako/finance';
 import { useCart } from '../CartContext/CartContext';
 import {
@@ -10,16 +19,35 @@ import {
   loadExpiringDraft,
   saveExpiringDraft,
 } from '@faako/utils';
-import {
-  STOREFRONT_ACCOUNT_NAVIGATION,
-  STOREFRONT_HELP_NAVIGATION,
-  STOREFRONT_PRIMARY_NAVIGATION,
-} from '../../config/storefrontNavigation';
-import { buildPortalUrl } from '../../utils/portal';
+
+const MENU_LINKS = [
+  { to: '/', label: 'Home' },
+  { to: '/about', label: 'About Us' },
+  { to: '/rentals', label: 'Rentals' },
+  { to: '/shop', label: 'Shop' },
+  { to: '/book', label: 'Book a party' },
+  { to: '/contact', label: 'Contact' },
+];
+
+const ACCOUNT_LINKS = [
+  { to: '/login', label: 'Staff login' },
+  { to: '/customer-login', label: 'Continue booking' },
+  { to: '/book', label: 'Booking portal' },
+  { to: '/checkout', label: 'Checkout' },
+];
+
+const COMPANY_LINKS = [
+  { to: '/faq', label: 'FAQ' },
+  { to: '/refund-policy', label: 'Refund policy' },
+  { to: '/delivery-policy', label: 'Delivery policy' },
+  { to: '/privacy-policy', label: 'Privacy & cookie policy' },
+  { to: '/terms-of-service', label: 'Terms of service' },
+];
 
 const FOOTER_PROMO_DRAFT_KEY = "footerPromoDraft";
 
 function Footer() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const { currency, rates } = useCart();
 
@@ -56,10 +84,9 @@ function Footer() {
     event.preventDefault();
     const leadEmail = email.trim();
     clearExpiringDraft(FOOTER_PROMO_DRAFT_KEY);
-    if (leadEmail) {
-      sessionStorage.setItem("reebs_contact_lead_email", leadEmail);
-    }
-    window.location.assign('/contact');
+    navigate('/contact', {
+      state: leadEmail ? { leadEmail } : undefined,
+    });
   };
 
   return (
@@ -86,7 +113,7 @@ function Footer() {
             />
             <button type="submit">
               <span>Book your party</span>
-              <ArrowRight aria-hidden="true" />
+              <ArrowRight2 aria-hidden="true" />
             </button>
           </form>
         </div>
@@ -110,8 +137,8 @@ function Footer() {
           <div className="footer-columns">
             <nav className="footer-column" aria-label="Main links">
               <h3>Menu</h3>
-              {STOREFRONT_PRIMARY_NAVIGATION.map((link) => (
-                <Link key={link.href} to={link.href} className="footer-link">
+              {MENU_LINKS.map((link) => (
+                <Link key={link.to} to={link.to} className="footer-link">
                   {link.label}
                 </Link>
               ))}
@@ -119,18 +146,17 @@ function Footer() {
 
             <nav className="footer-column" aria-label="Account links">
               <h3>Accounts</h3>
-              {STOREFRONT_ACCOUNT_NAVIGATION.map((link) => (
-                <Link key={link.href} to={link.href} className="footer-link">
+              {ACCOUNT_LINKS.map((link) => (
+                <Link key={link.to} to={link.to} className="footer-link">
                   {link.label}
                 </Link>
               ))}
-              <a href={buildPortalUrl('/login')} className="footer-link">Staff login</a>
             </nav>
 
             <nav className="footer-column" aria-label="Company links">
               <h3>Company</h3>
-              {STOREFRONT_HELP_NAVIGATION.map((link) => (
-                <Link key={link.href} to={link.href} className="footer-link">
+              {COMPANY_LINKS.map((link) => (
+                <Link key={link.to} to={link.to} className="footer-link">
                   {link.label}
                 </Link>
               ))}
@@ -144,7 +170,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <Facebook />
+                <Facebook aria-hidden="true" />
                 <span>Facebook</span>
               </a>
               <a
@@ -153,7 +179,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <Instagram />
+                <Instagram aria-hidden="true" />
                 <span>Instagram</span>
               </a>
               <a
@@ -162,7 +188,7 @@ function Footer() {
                 rel="noreferrer"
                 className="footer-link footer-social-link"
               >
-                <span aria-hidden="true" className="footer-social-monogram">T</span>
+                <MusicPlay aria-hidden="true" />
                 <span>TikTok</span>
               </a>
               <a
@@ -171,7 +197,7 @@ function Footer() {
                 rel="noopener noreferrer"
                 className="footer-link footer-social-link"
               >
-                <Whatsapp />
+                <Whatsapp aria-hidden="true" />
                 <span>WhatsApp</span>
               </a>
             </div>

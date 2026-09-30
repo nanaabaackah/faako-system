@@ -30,15 +30,15 @@ test("Water restock cost rejects zero, negative and invalid values", () => {
   assert.equal(resolveWaterRestockUnitCost({ unitCost: "not money" }), null);
 });
 
-test("Water summary applies each recorded restock cost to its own sales period", () => {
+test("Water summary applies recorded sale cost snapshots from each restock period", () => {
   const summary = buildWaterSummary({
     restocks: [
       { id: 1, quantity: 10, unitCost: 2000, date: "2026-01-01" },
       { id: 2, quantity: 30, unitCost: 2400, date: "2026-02-01" },
     ],
     sales: [
-      { quantity: 2, totalAmount: 6000, paymentMethod: "cash", paymentStatus: "paid", date: "2026-01-10" },
-      { quantity: 6, totalAmount: 18000, paymentMethod: "cash", paymentStatus: "paid", date: "2026-02-10" },
+      { quantity: 2, totalAmount: 6000, paymentMethod: "cash", paymentStatus: "paid", date: "2026-01-10", unitCostAtSaleCents: 2000 },
+      { quantity: 6, totalAmount: 18000, paymentMethod: "cash", paymentStatus: "paid", date: "2026-02-10", unitCostAtSaleCents: 2400 },
     ],
     expenses: [{ amount: 1000 }],
     adjustments: [],
@@ -52,7 +52,7 @@ test("Water summary applies each recorded restock cost to its own sales period",
   assert.equal(summary.inventoryValue, 76800);
 });
 
-test("editing an old restock price corrects profit without changing Water stock", () => {
+test("an explicit restock and sale-cost restatement corrects profit without changing Water stock", () => {
   const input = {
     sales: [{ quantity: 3, totalAmount: 9000, date: "2026-01-10" }],
     expenses: [],
@@ -60,10 +60,12 @@ test("editing an old restock price corrects profit without changing Water stock"
   };
   const before = buildWaterSummary({
     ...input,
+    sales: input.sales.map((row) => ({ ...row, unitCostAtSaleCents: 2000 })),
     restocks: [{ quantity: 10, unitCost: 2000, date: "2026-01-01" }],
   });
   const after = buildWaterSummary({
     ...input,
+    sales: input.sales.map((row) => ({ ...row, unitCostAtSaleCents: 2300 })),
     restocks: [{ quantity: 10, unitCost: 2300, date: "2026-01-01" }],
   });
 
@@ -71,6 +73,21 @@ test("editing an old restock price corrects profit without changing Water stock"
   assert.equal(before.stockOnHand, 7);
   assert.equal(after.costOfGoodsSold - before.costOfGoodsSold, 900);
   assert.equal(before.grossProfit - after.grossProfit, 900);
+});
+
+test("Water API summary does not report profit for an unsnapshotted sale", () => {
+  const summary = buildWaterSummary({
+    restocks: [{ quantity: 10, unitCost: 2000, date: "2026-01-01" }],
+    sales: [{ quantity: 3, totalAmount: 9000, date: "2026-01-10" }],
+    expenses: [], adjustments: [],
+  });
+  assert.equal(summary.revenue, 9000);
+  assert.equal(summary.stockOnHand, 7);
+  assert.equal(summary.costOfGoodsSold, null);
+  assert.equal(summary.grossProfit, null);
+  assert.equal(summary.netProfit, null);
+  assert.equal(summary.profitabilityAvailable, false);
+  assert.equal(summary.missingCostSaleCount, 1);
 });
 
 test("the explicit restock correction workflow restates snapshotted Water sale costs", () => {
@@ -140,28 +157,18 @@ test("Water sale pricing uses the server standard unless an authorized override 
     }).statusCode,
     403
   );
-  assert.match(
-    resolveWaterPriceDecision({
-      standardPriceCents: 2700,
-      submittedPriceCents: 2500,
-      hasSubmittedPrice: true,
-      canOverride: true,
-    }).error,
-    /reason/i
-  );
   assert.deepEqual(
     resolveWaterPriceDecision({
       standardPriceCents: 2700,
       submittedPriceCents: 2500,
       hasSubmittedPrice: true,
       canOverride: true,
-      overrideReason: "Approved customer recovery",
     }),
     {
       unitPrice: 2500,
       standardUnitPrice: 2700,
       isOverride: true,
-      overrideReason: "Approved customer recovery",
+      overrideReason: null,
     }
   );
 });

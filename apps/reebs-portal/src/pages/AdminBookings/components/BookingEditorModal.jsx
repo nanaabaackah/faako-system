@@ -125,6 +125,16 @@ function BookingEditorModal({
           />
         </label>
 
+        <label>
+          GhanaPost GPS <span className="bookings-optional-label">Optional</span>
+          <input
+            type="text"
+            value={form.venueGhanaPostGps}
+            onChange={(event) => setForm((prev) => ({ ...prev, venueGhanaPostGps: event.target.value }))}
+            placeholder="For example, GA-184-8164"
+          />
+        </label>
+
         <DateField
           label="Event date"
           value={form.eventDate}
@@ -132,6 +142,15 @@ function BookingEditorModal({
           fieldClassName="bookings-date-field"
           ariaLabel="Event date"
           required
+        />
+
+        <DateField
+          label="Rental end date"
+          value={form.eventEndDate}
+          min={form.eventDate || undefined}
+          onChangeValue={(nextValue) => setForm((prev) => ({ ...prev, eventEndDate: nextValue }))}
+          fieldClassName="bookings-date-field"
+          ariaLabel="Rental end date"
         />
 
         <SelectField
@@ -167,6 +186,26 @@ function BookingEditorModal({
           onChangeValue={(nextValue) => setForm((prev) => ({ ...prev, assignedUserId: nextValue }))}
           ariaLabel="Assigned user"
         />
+
+        <label className="bookings-editor-full-field">
+          Customer notes <span className="bookings-optional-label">Shared from the request</span>
+          <textarea
+            rows="3"
+            value={form.customerNotes}
+            onChange={(event) => setForm((prev) => ({ ...prev, customerNotes: event.target.value }))}
+            placeholder="Theme, setup, access, or customer requests"
+          />
+        </label>
+
+        <label className="bookings-editor-full-field">
+          Internal notes <span className="bookings-optional-label">Staff only</span>
+          <textarea
+            rows="3"
+            value={form.internalNotes}
+            onChange={(event) => setForm((prev) => ({ ...prev, internalNotes: event.target.value }))}
+            placeholder="Private operational notes"
+          />
+        </label>
 
         <label>
           Add items

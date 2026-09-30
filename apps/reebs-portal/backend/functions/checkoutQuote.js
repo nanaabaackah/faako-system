@@ -1,4 +1,5 @@
 /* eslint-disable no-undef */
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 import { Client } from "pg";
 import { resolvePgSslConfig } from "../../runtimeEnv.js";
 import {
@@ -108,6 +109,12 @@ export async function handler(event = {}) {
   const method = String(event.httpMethod || "GET").toUpperCase();
   if (method === "OPTIONS") return json(event, 204, {});
   if (method !== "POST") return json(event, 405, { error: "Method Not Allowed" });
+  if (!REEBS_PUBLIC_COMMERCE.checkoutEnabled) {
+    return json(event, 403, {
+      error: REEBS_PUBLIC_COMMERCE.disabledMessage,
+      code: REEBS_PUBLIC_COMMERCE.disabledCode,
+    });
+  }
 
   const requestOrigin = getHeaderValue(event, "origin");
   if (requestOrigin && !isAllowedAppOrigin(requestOrigin)) {
@@ -179,4 +186,3 @@ export async function handler(event = {}) {
     await client.end().catch(() => {});
   }
 }
-

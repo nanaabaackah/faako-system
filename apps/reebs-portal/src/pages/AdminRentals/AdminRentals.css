@@ -190,6 +190,25 @@
   width: 52px;
 }
 
+/* Fixed-layout tables must reserve space for selection; otherwise percentage
+   data columns consume the checkbox column and adjacent headers overlap it. */
+.rentals-table .table-selection-cell {
+  width: 64px;
+  min-width: 64px;
+  padding-inline: 10px;
+}
+
+.rentals-table-viewport {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+body.admin-theme .rentals-page .rentals-table-viewport .rentals-table {
+  min-width: 1220px !important;
+}
+
 .rentals-col-sku {
   width: 11%;
 }

@@ -1,0 +1,46 @@
+---
+import "../styles/global.css";
+const { title, description, path = Astro.url.pathname, type = "website" } = Astro.props;
+const site = Astro.site || new URL("https://travelwithease.example");
+const canonical = new URL(path === "/" ? "/" : path.replace(/\/$/, ""), site);
+const schema = {
+  "@context": "https://schema.org",
+  "@type": "TravelAgency",
+  name: "Travel With Ease",
+  url: site.toString(),
+  areaServed: "Ghana",
+  description,
+};
+const jsonLd = JSON.stringify(schema).replace(/</g, "\\u003c");
+---
+<!doctype html>
+<html lang="en-GH">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#010c33" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:site_name" content="Travel With Ease" />
+    <meta property="og:locale" content="en_GH" />
+    <meta property="og:type" content={type} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary" />
+    <script is:inline type="application/ld+json" set:html={jsonLd}></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Travel With Ease home"><span>TWE</span> Travel With Ease</a>
+      <nav aria-label="Primary navigation">
+        <a href="/destinations">Destinations</a><a href="/services">Services</a><a href="/about">About</a><a class="nav-cta" href="/#plan">Plan a trip</a>
+      </nav>
+    </header>
+    <main id="main-content"><slot /></main>
+    <footer><div><strong>Travel With Ease</strong><p>Thoughtful journeys from Ghana to the world.</p></div><div><a href="mailto:hello@travelwithease.example">Email us</a><span>Accra, Ghana</span></div></footer>
+  </body>
+</html>

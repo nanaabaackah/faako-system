@@ -1,6 +1,4 @@
-/* eslint-disable no-undef */
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import {
   EXPENSE_CATEGORIES,
   buildExpenseFilter,
@@ -45,10 +43,7 @@ export async function handler(event = {}) {
     return respond(event, 204, {}, { methods: EXPENSE_METHODS });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "expenses-database" });
 
   try {
     await client.connect();

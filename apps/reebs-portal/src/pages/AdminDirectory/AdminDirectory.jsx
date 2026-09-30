@@ -10,6 +10,9 @@ import SearchField from "../../components/SearchField/SearchField";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { normalizeAdminRole } from "../../utils/adminAccess";
 import TablePagination from "../../components/TablePagination/TablePagination";
+import TableSortHeader from "../../components/TableControls/TableSortHeader.jsx";
+import useTableSort from "../../components/TableControls/useTableSort";
+import { tableDate } from "../../components/TableControls/tableRows";
 import roleColors from "../../utils/roleColors";
 import { reebsApiResponse } from "../../api/client";
 import {
@@ -52,6 +55,8 @@ const toNumber = (value, fallback = 0) => {
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
 };
+
+const directoryName = (row) => row.fullName || row.name || [row.firstName, row.lastName].filter(Boolean).join(" ");
 
 const tabs = [
   { key: "users", label: "Users" },
@@ -237,12 +242,31 @@ function AdminDirectory() {
     setDetailError("");
   }, [activeTab, query, customers.length, users.length, vendors.length]);
 
+  const directoryAccessors = useMemo(() => ({
+    position: (row) => currentList.indexOf(row),
+    name: directoryName,
+    email: (row) => row.email,
+    phone: (row) => row.phone,
+    role: (row) => row.role || "Staff",
+    contact: (row) => row.contactName,
+    products: (row) => toNumber(row.products),
+    leadTime: (row) => toNumber(row.leadTimeDays) > 0 ? toNumber(row.leadTimeDays) : null,
+    created: (row) => tableDate(row.createdAt),
+  }), [currentList]);
+  const directorySort = useTableSort(currentList, directoryAccessors);
+  const directoryHeaders = {
+    sort: directorySort.sort,
+    onSort: (key) => { directorySort.onSort(key); setPage(0); },
+  };
+  // Customer responses on this legacy Directory endpoint are capped at 100.
+  // Do not present a page-local sort as a whole-register customer sort.
+  const sortedDirectoryList = activeTab === "customers" ? currentList : directorySort.rows;
   const pageCount = Math.max(1, Math.ceil(currentList.length / pageSize));
   const clampedPage = Math.min(page, pageCount - 1);
   const paginatedList = useMemo(() => {
     const start = clampedPage * pageSize;
-    return currentList.slice(start, start + pageSize);
-  }, [currentList, clampedPage, pageSize]);
+    return sortedDirectoryList.slice(start, start + pageSize);
+  }, [sortedDirectoryList, clampedPage, pageSize]);
   const renderDirectoryPagination = (header = false) => (
     <TablePagination
       total={currentList.length}
@@ -647,31 +671,31 @@ function AdminDirectory() {
                     </tr>
                   ) : activeTab === "vendors" ? (
                     <tr>
-                      <th className="table-row-index">#</th>
-                      <th>Name</th>
-                      <th>Contact</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>Products</th>
-                      <th>Lead time</th>
+                      <TableSortHeader {...directoryHeaders} column="position" className="table-row-index">#</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="name">Name</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="contact">Contact</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="email">Email</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="phone">Phone</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="products">Products</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="leadTime">Lead time</TableSortHeader>
                       <th aria-label="Actions" />
                     </tr>
                   ) : (
                     <tr>
-                      <th className="table-row-index">#</th>
-                      <th>Email</th>
-                      <th>Name</th>
-                      <th>Role</th>
-                      <th>Created</th>
+                      <TableSortHeader {...directoryHeaders} column="position" className="table-row-index">#</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="email">Email</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="name">Name</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="role">Role</TableSortHeader>
+                      <TableSortHeader {...directoryHeaders} column="created">Created</TableSortHeader>
                       <th aria-label="Actions" />
                     </tr>
                   )}
                 </thead>
                 <tbody>
-                  {paginatedList.map((row, index) => {
+                  {paginatedList.map((row) => {
                     return (
                       <tr key={`${activeTab}-${row.id}`}>
-                        <td className="table-row-index">{clampedPage * pageSize + index}</td>
+                        <td className="table-row-index">{currentList.indexOf(row) + 1}</td>
                         {activeTab === "customers" ? (
                           <>
                             <td>{row.name || "-"}</td>

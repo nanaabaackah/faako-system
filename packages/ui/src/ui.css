@@ -2310,6 +2310,326 @@
   }
 }
 
+/* Surface-preserving page loading states.
+ * The application shell and real page sections remain visible while only
+ * content shapes shimmer. This prevents route loading from flashing a second
+ * navigation or an unrelated page design. */
+.ui-animated-loading-state {
+  --ui-loading-block: color-mix(
+    in srgb,
+    var(--sys-text, var(--ink, #0f172a)) 10%,
+    var(--ui-loading-surface)
+  );
+  --ui-loading-shimmer: color-mix(
+    in srgb,
+    var(--sys-text, var(--ink, #0f172a)) 5%,
+    var(--ui-loading-surface)
+  );
+}
+
+.ui-animated-loading-state.is-page {
+  height: auto;
+  min-height: max(34rem, calc(100dvh - var(--ui-app-header-height, 0px)));
+  overflow: visible;
+  background: transparent;
+}
+
+.ui-animated-loading-state.is-page.is-embedded {
+  min-height: min(44rem, calc(100dvh - 8rem));
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__page-skeleton {
+  align-content: start;
+  width: 100%;
+  height: auto;
+  min-height: inherit;
+  gap: clamp(1rem, 2.4vw, 1.5rem);
+  padding: 0;
+  background: transparent;
+}
+
+.ui-animated-loading-state__skeleton-section {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  gap: clamp(0.75rem, 1.8vw, 1rem);
+  padding: clamp(1rem, 2.4vw, 1.5rem);
+  border: 1px solid var(--ui-loading-border);
+  border-radius: var(--sys-radius-lg, 1.25rem);
+  background: var(--admin-card, var(--ui-loading-surface));
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.ui-animated-loading-state__skeleton-section.is-hero {
+  min-height: clamp(25rem, 68vh, 46rem);
+  place-items: center;
+  align-content: center;
+  border: 0;
+  text-align: center;
+}
+
+.ui-animated-loading-state__skeleton-section.is-hero,
+.ui-animated-loading-state__skeleton-section.is-detail-hero {
+  --ui-loading-block: rgba(255, 255, 255, 0.25);
+  --ui-loading-shimmer: rgba(255, 255, 255, 0.48);
+}
+
+.ui-animated-loading-state__skeleton-section.is-hero .ui-animated-loading-state__skeleton-hero-copy {
+  width: min(42rem, 100%);
+  justify-items: center;
+}
+
+.ui-animated-loading-state__skeleton-section.is-controls,
+.ui-animated-loading-state__skeleton-section.is-content,
+.ui-animated-loading-state__skeleton-section.is-cta {
+  width: min(1180px, calc(100% - clamp(1rem, 4vw, 3rem)));
+  margin-inline: auto;
+}
+
+.ui-animated-loading-state__skeleton-section.is-controls {
+  grid-template-columns: minmax(12rem, 0.55fr) minmax(18rem, 1fr);
+  align-items: end;
+}
+
+.ui-animated-loading-state__skeleton-section.is-content {
+  align-content: start;
+}
+
+.ui-animated-loading-state__skeleton-section.is-cta {
+  min-height: clamp(12rem, 28vh, 18rem);
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+  background: color-mix(in srgb, var(--ui-loading-surface) 94%, var(--ui-loading-block));
+}
+
+.ui-animated-loading-state__skeleton-section-heading {
+  display: grid;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.ui-animated-loading-state__skeleton-section-heading .is-title,
+.ui-animated-loading-state__skeleton-section.is-cta .is-title {
+  width: min(18rem, 72%);
+  height: 1.15rem;
+}
+
+.ui-animated-loading-state__skeleton-section.is-cta .is-body {
+  width: min(30rem, 82%);
+}
+
+.ui-animated-loading-state__skeleton-section.is-detail-hero {
+  grid-template-columns: minmax(18rem, 1fr) minmax(18rem, 0.82fr);
+  align-items: stretch;
+  overflow: hidden;
+}
+
+.ui-animated-loading-state__skeleton-breadcrumb {
+  width: min(18rem, 68%);
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--ui-loading-border);
+  border-radius: 999px;
+  background: var(--admin-card, var(--ui-loading-surface));
+}
+
+.ui-animated-loading-state__skeleton-breadcrumb .is-body {
+  width: 100%;
+}
+
+.ui-animated-loading-state__skeleton-detail-copy {
+  align-content: center;
+  padding: clamp(1rem, 3vw, 2rem);
+}
+
+.ui-animated-loading-state__skeleton-gallery .ui-animated-loading-state__skeleton-media {
+  min-height: clamp(20rem, 54vh, 38rem);
+}
+
+.ui-animated-loading-state__skeleton-card {
+  min-height: 10rem;
+  align-content: end;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--ui-loading-surface) 94%, var(--ui-loading-block));
+  box-shadow: none;
+}
+
+.ui-animated-loading-state__skeleton-card i.is-media {
+  min-height: 5.5rem;
+}
+
+.ui-animated-loading-state__page-skeleton[data-layout="portal"],
+.ui-animated-loading-state__page-skeleton[data-layout="dashboard"] {
+  grid-template-columns: var(--portal-sidebar-collapsed, 88px) minmax(0, 1fr);
+  gap: 0;
+  background: var(--admin-bg, var(--ui-loading-bg));
+}
+
+.ui-animated-loading-state__page-skeleton[data-layout="portal"][data-embedded="true"],
+.ui-animated-loading-state__page-skeleton[data-layout="dashboard"][data-embedded="true"] {
+  grid-template-columns: minmax(0, 1fr);
+  background: transparent;
+}
+
+.ui-animated-loading-state__skeleton-sidebar {
+  gap: 0.65rem;
+  min-height: 100dvh;
+  padding: 1rem 0.75rem;
+  border-right: 1px solid var(--portal-sidebar-border, var(--ui-loading-border));
+  background: var(--portal-sidebar-bg, var(--ui-loading-surface));
+}
+
+.ui-animated-loading-state__skeleton-sidebar .ui-animated-loading-state__skeleton-line {
+  min-width: 0;
+  height: 2.4rem;
+}
+
+.ui-animated-loading-state__skeleton-main {
+  gap: clamp(1rem, 2vw, 1.3rem);
+  padding: clamp(1rem, 3vw, 2rem);
+  background: transparent;
+}
+
+.ui-animated-loading-state.is-embedded .ui-animated-loading-state__skeleton-main {
+  padding: 0;
+}
+
+.ui-animated-loading-state__skeleton-section.is-page-header {
+  grid-template-columns: minmax(12rem, 0.55fr) minmax(10rem, 1fr) minmax(5rem, 0.18fr);
+  align-items: center;
+  min-height: 6rem;
+}
+
+.ui-animated-loading-state__skeleton-section.is-page-header .is-title {
+  height: 1.35rem;
+}
+
+.ui-animated-loading-state__skeleton-section.is-summary,
+.ui-animated-loading-state__skeleton-section.is-filters {
+  padding: clamp(0.9rem, 2vw, 1.2rem);
+}
+
+.ui-animated-loading-state__skeleton-section.is-summary .ui-animated-loading-state__skeleton-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 0;
+}
+
+.ui-animated-loading-state__skeleton-section.is-summary .ui-animated-loading-state__skeleton-metrics span {
+  min-height: 5.25rem;
+}
+
+.ui-animated-loading-state__skeleton-section.is-filters .ui-animated-loading-state__skeleton-toolbar {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.ui-animated-loading-state__skeleton-section.is-main-content {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.ui-animated-loading-state__skeleton-panel,
+.ui-animated-loading-state__skeleton-console {
+  background: var(--admin-card, var(--ui-loading-surface));
+  box-shadow: none;
+}
+
+.ui-animated-loading-state.is-page .ui-animated-loading-state__copy {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 780px) {
+  .ui-animated-loading-state.is-page {
+    min-height: max(30rem, calc(100dvh - var(--ui-app-header-height, 0px)));
+  }
+
+  .ui-animated-loading-state__skeleton-section.is-controls,
+  .ui-animated-loading-state__skeleton-section.is-detail-hero,
+  .ui-animated-loading-state__skeleton-panel-grid,
+  .ui-animated-loading-state__skeleton-workspace,
+  .ui-animated-loading-state__skeleton-api {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ui-animated-loading-state__skeleton-section.is-controls,
+  .ui-animated-loading-state__skeleton-section.is-content,
+  .ui-animated-loading-state__skeleton-section.is-cta {
+    width: calc(100% - 1rem);
+  }
+
+  .ui-animated-loading-state__skeleton-section.is-hero {
+    min-height: max(28rem, calc(100dvh - var(--ui-app-header-height, 0px)));
+    padding-inline: 1rem;
+  }
+
+  .ui-animated-loading-state__skeleton-section.is-page-header {
+    grid-template-columns: minmax(0, 1fr) 3rem;
+  }
+
+  .ui-animated-loading-state__skeleton-section.is-page-header .is-body {
+    display: none;
+  }
+
+  .ui-animated-loading-state__skeleton-section.is-summary .ui-animated-loading-state__skeleton-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ui-animated-loading-state__skeleton-card-grid,
+  .ui-animated-loading-state__skeleton-card-grid.is-recommendations {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ui-animated-loading-state__skeleton-card {
+    min-height: 9rem;
+  }
+
+  .ui-animated-loading-state__skeleton-card:nth-child(n + 5) {
+    display: none;
+  }
+
+  .ui-animated-loading-state__page-skeleton[data-layout="portal"],
+  .ui-animated-loading-state__page-skeleton[data-layout="dashboard"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ui-animated-loading-state__skeleton-sidebar {
+    display: none;
+  }
+
+  .ui-animated-loading-state__skeleton-main {
+    min-height: 100dvh;
+    padding: 1rem;
+  }
+
+  .ui-animated-loading-state.is-embedded .ui-animated-loading-state__skeleton-main {
+    min-height: 0;
+    padding: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .ui-animated-loading-state__skeleton-card-grid,
+  .ui-animated-loading-state__skeleton-card-grid.is-recommendations {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ui-animated-loading-state__skeleton-card:nth-child(n + 4) {
+    display: none;
+  }
+}
+
 .ui-modal-frame {
   position: fixed;
   inset: 0;

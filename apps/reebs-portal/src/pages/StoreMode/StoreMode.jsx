@@ -9,11 +9,10 @@ import {
   useOnlineStatus,
 } from "@faako/offline-sync";
 import { useAuth } from "../../components/AuthContext/AuthContext";
-import { reebsApiResponse } from "../../api/client.js";
 import { StoreModeLayout } from "./components/StoreModeLayout";
 import {
   EMAIL_PATTERN,
-  LOW_STOCK_THRESHOLD,
+  getReorderLevel,
   applyInventoryLineQuantityDelta,
   clearStoreModeDraft,
   buildProductSearchText,
@@ -134,7 +133,7 @@ function StoreMode() {
     setLoading(true);
     setError("");
     try {
-      const response = await reebsApiResponse("/api/inventory", { signal: fetchSignal });
+      const response = await fetch("/api/inventory", { signal: fetchSignal });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load stock.");
@@ -160,7 +159,7 @@ function StoreMode() {
     setCustomersLoading(true);
     setCustomersError("");
     try {
-      const response = await reebsApiResponse("/api/customers", { signal: fetchSignal });
+      const response = await fetch("/api/customers?compact=1&limit=200", { signal: fetchSignal });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error || "Unable to load customers.");
@@ -268,7 +267,7 @@ function StoreMode() {
         }
         if (categoryFilter !== "all" && getCategory(item) !== categoryFilter) return false;
         if (stockFilter === "in" && stock <= 0) return false;
-        if (stockFilter === "low" && (stock <= 0 || stock > LOW_STOCK_THRESHOLD)) return false;
+        if (stockFilter === "low" && (stock <= 0 || stock > getReorderLevel(item))) return false;
         if (stockFilter === "out" && stock > 0) return false;
         return true;
       })
@@ -897,7 +896,7 @@ function StoreMode() {
         return selectedCustomer;
       }
 
-      const response = await reebsApiResponse("/api/customers", {
+      const response = await fetch("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(nextPayload),
@@ -912,7 +911,7 @@ function StoreMode() {
       return payload;
     }
 
-    const response = await reebsApiResponse("/api/customers", {
+    const response = await fetch("/api/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -949,7 +948,7 @@ function StoreMode() {
     };
 
     if (Number.isFinite(existingCustomerId) && existingCustomerId > 0) {
-      const response = await reebsApiResponse("/api/customers", {
+      const response = await fetch("/api/customers", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -966,7 +965,7 @@ function StoreMode() {
       return payload;
     }
 
-    const response = await reebsApiResponse("/api/customers", {
+    const response = await fetch("/api/customers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(customerPayload),
@@ -999,7 +998,7 @@ function StoreMode() {
         ...(queuedPayload.orderPayload || {}),
         customerId: Number(customer?.id),
       };
-      const response = await reebsApiResponse("/api/orders", {
+      const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1173,7 +1172,7 @@ function StoreMode() {
     const controller = new AbortController();
     try {
       const customer = await ensureCustomer(receiptContact, controller.signal);
-      const response = await reebsApiResponse("/api/orders", {
+      const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

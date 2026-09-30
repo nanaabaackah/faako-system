@@ -1,0 +1,10 @@
+[
+  { "code": "GHS", "name": "Ghanaian Cedi", "minorUnit": 2, "enabled": true },
+  { "code": "USD", "name": "US Dollar", "minorUnit": 2, "enabled": true },
+  { "code": "EUR", "name": "Euro", "minorUnit": 2, "enabled": true },
+  { "code": "GBP", "name": "Pound Sterling", "minorUnit": 2, "enabled": true },
+  { "code": "CAD", "name": "Canadian Dollar", "minorUnit": 2, "enabled": true },
+  { "code": "AED", "name": "UAE Dirham", "minorUnit": 2, "enabled": true },
+  { "code": "TRY", "name": "Turkish Lira", "minorUnit": 2, "enabled": true },
+  { "code": "ZAR", "name": "South African Rand", "minorUnit": 2, "enabled": true }
+]

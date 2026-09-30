@@ -1,0 +1,100 @@
+---
+import { FaArrowRight, FaMagnifyingGlass, FaXmark } from "react-icons/fa6";
+import "../styles/components/site-search.css";
+
+const searchPages = [
+  { title: "Home", href: "/", description: "Mental wellness, advocacy, community support, programmes, and TTNGH highlights.", keywords: "peace over everything mental health Ghana" },
+  { title: "About us", href: "/about", description: "Our story, mission, values, founder, and future direction.", keywords: "vision NGO Tema" },
+  { title: "Our team", href: "/team", description: "Meet the people leading and delivering The Thriving Network GH's work.", keywords: "leadership founder staff" },
+  { title: "Programs", href: "/programmes", description: "Mental health education, counselling, advocacy, research, and policy engagement.", keywords: "support services workshops outreach" },
+  { title: "Events", href: "/events", description: "Support groups, Vision with Clarity, and community outreach activities.", keywords: "sessions upcoming dates" },
+  { title: "Our impact", href: "/impact", description: "The people reached, counselling delivered, and milestones achieved since July 2023.", keywords: "results statistics community" },
+  { title: "News", href: "/news", description: "Mental health education, programme updates, advocacy, research, and policy news.", keywords: "stories updates articles" },
+  { title: "Get involved", href: "/get-involved", description: "Collaborate with TTNGH or contribute your time and professional skills.", keywords: "partner volunteer corporate media" },
+  { title: "Support us", href: "/support-us", description: "Help fund counselling, outreach, educational materials, and programme delivery.", keywords: "donate funding contribute" },
+  { title: "Contact", href: "/contact", description: "Contact TTNGH about support, programmes, volunteering, partnerships, or media.", keywords: "email phone Tema enquiry" },
+  { title: "Privacy", href: "/privacy", description: "How this website handles personal information and local storage.", keywords: "data cookies notice" },
+  { title: "Terms of use", href: "/terms", description: "The terms that apply when using this website.", keywords: "legal website" },
+];
+---
+
+<dialog id="site-search-dialog" class="site-search-dialog" data-site-search-dialog aria-labelledby="site-search-title">
+  <div class="site-search-panel">
+    <div class="site-search-heading">
+      <div>
+        <p>Explore TTN GH</p>
+        <h2 id="site-search-title">Search the site</h2>
+      </div>
+      <button class="site-search-close" type="button" data-search-close aria-label="Close site search">
+        <FaXmark aria-hidden="true" focusable="false" />
+      </button>
+    </div>
+
+    <form class="site-search-form" data-site-search-form role="search">
+      <label for="site-search-input">What are you looking for?</label>
+      <div class="site-search-field">
+        <FaMagnifyingGlass aria-hidden="true" focusable="false" />
+        <input id="site-search-input" type="search" name="q" autocomplete="off" placeholder="Search programmes, events, support…" data-site-search-input />
+      </div>
+    </form>
+
+    <p class="site-search-status" data-site-search-status aria-live="polite">Showing all pages</p>
+    <ul class="site-search-results" data-site-search-results>
+      {searchPages.map((page) => (
+        <li data-search-item data-search-text={`${page.title} ${page.description} ${page.keywords}`.toLowerCase()}>
+          <a href={page.href}>
+            <span><strong>{page.title}</strong><small>{page.description}</small></span>
+            <span class="search-result-arrow" aria-hidden="true"><FaArrowRight focusable="false" /></span>
+          </a>
+        </li>
+      ))}
+    </ul>
+    <p class="site-search-empty" data-site-search-empty hidden>No matching page found. Try a broader phrase or <a href="/contact">contact TTNGH</a>.</p>
+  </div>
+</dialog>
+
+<script>
+  const dialog = document.querySelector("[data-site-search-dialog]");
+
+  if (dialog instanceof HTMLDialogElement) {
+    const input = dialog.querySelector("[data-site-search-input]");
+    const form = dialog.querySelector("[data-site-search-form]");
+    const status = dialog.querySelector("[data-site-search-status]");
+    const empty = dialog.querySelector("[data-site-search-empty]");
+    const items = [...dialog.querySelectorAll("[data-search-item]")];
+
+    const updateResults = () => {
+      const query = input instanceof HTMLInputElement ? input.value.trim().toLowerCase() : "";
+      let visibleCount = 0;
+
+      items.forEach((item) => {
+        const matches = !query || item.getAttribute("data-search-text")?.includes(query);
+        item.toggleAttribute("hidden", !matches);
+        if (matches) visibleCount += 1;
+      });
+
+      if (status) status.textContent = query
+        ? `${visibleCount} ${visibleCount === 1 ? "result" : "results"} for “${query}”`
+        : "Showing all pages";
+      if (empty) empty.toggleAttribute("hidden", visibleCount !== 0);
+    };
+
+    document.querySelectorAll("[data-search-open]").forEach((trigger) => {
+      trigger.addEventListener("click", () => {
+        if (!dialog.open) dialog.showModal();
+        requestAnimationFrame(() => input instanceof HTMLInputElement && input.focus());
+      });
+    });
+
+    dialog.querySelector("[data-search-close]")?.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+    input?.addEventListener("input", updateResults);
+    form?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const firstResult = items.find((item) => !item.hasAttribute("hidden"))?.querySelector("a");
+      if (firstResult instanceof HTMLAnchorElement) firstResult.click();
+    });
+  }
+</script>

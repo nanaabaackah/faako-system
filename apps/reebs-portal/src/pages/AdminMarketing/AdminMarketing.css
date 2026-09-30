@@ -1,1 +1,8 @@
 @import "../../styles/admin.css";
+
+@media (max-width: 720px) {
+  .marketing-page .marketing-link {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

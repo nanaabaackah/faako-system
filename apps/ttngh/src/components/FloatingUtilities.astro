@@ -1,0 +1,35 @@
+---
+import { FaArrowUp, FaWhatsapp } from "react-icons/fa6";
+import { organization } from "../content/home.js";
+import "../styles/components/floating-utilities.css";
+
+const whatsappNumber = organization.phoneHref.replace(/\D/g, "");
+const whatsappHref = `https://wa.me/${whatsappNumber}`;
+---
+
+<nav class="floating-utilities" aria-label="Quick actions">
+  <a class="floating-action floating-action-whatsapp" href={whatsappHref} target="_blank" rel="noreferrer noopener" aria-label="Chat with The Thriving Network GH on WhatsApp">
+    <FaWhatsapp aria-hidden="true" focusable="false" />
+  </a>
+  <button class="floating-action floating-action-top" type="button" data-scroll-top aria-label="Scroll to the top of the page" hidden>
+    <FaArrowUp aria-hidden="true" focusable="false" />
+  </button>
+</nav>
+
+<script>
+  const scrollTopButton = document.querySelector("[data-scroll-top]");
+
+  if (scrollTopButton instanceof HTMLButtonElement) {
+    const updateVisibility = () => {
+      const isVisible = window.scrollY > Math.max(480, window.innerHeight * 0.65);
+      scrollTopButton.toggleAttribute("hidden", !isVisible);
+    };
+
+    scrollTopButton.addEventListener("click", () => {
+      window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    });
+
+    updateVisibility();
+    window.addEventListener("scroll", updateVisibility, { passive: true });
+  }
+</script>

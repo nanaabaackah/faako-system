@@ -1,8 +1,8 @@
 @import "../../styles/admin.css";
 
 .settings-page .settings-actions {
-  position: sticky;
-  bottom: 0.75rem;
+  /* Stay after the fields: bottom-sticky bars cover controls in short cards. */
+  position: relative;
   z-index: 4;
   margin-top: 0.5rem;
   padding: 0.7rem;

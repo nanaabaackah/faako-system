@@ -3,6 +3,9 @@ import { AnimatedLoadingState, DataTable, ERPFormNotice, SelectField } from "@fa
 import "./AdminReports.css";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
+import TablePagination from "../../components/TablePagination/TablePagination";
+
+const renderReportPagination = (pagination, header) => <TablePagination {...pagination} header={header} />;
 
 const RANGE_OPTIONS = [
   { value: "24h", label: "Last 24 hours" },
@@ -303,6 +306,9 @@ function AdminReports() {
             </div>
 
             <DataTable
+              key={`trend-${range}`}
+              pageSize={10}
+              renderPagination={renderReportPagination}
               className="admin-reports-data-table"
               columns={seriesColumns}
               rows={summary?.series || []}
@@ -419,6 +425,9 @@ function AdminReports() {
           </div>
 
           <DataTable
+            key={`events-${range}`}
+            pageSize={10}
+            renderPagination={renderReportPagination}
             className="admin-reports-data-table"
             columns={latestEventColumns}
             rows={summary?.recentEvents || []}

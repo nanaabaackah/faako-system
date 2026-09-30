@@ -19,6 +19,7 @@ test("buildQueuedInventoryAdjustment stores minimal stock adjustment payload", (
       quantity: 8,
     },
     adjustment: {
+      idempotencyKey: "inventory-adjustment-test-42",
       productId: 42,
       type: "StockOut",
       quantity: 2,
@@ -38,8 +39,10 @@ test("buildQueuedInventoryAdjustment stores minimal stock adjustment payload", (
   assert.equal(queued.payload.targetId, 42);
   assert.equal(queued.payload.endpoint.path, "/api/stock");
   assert.deepEqual(queued.payload.adjustment, {
+    idempotencyKey: "inventory-adjustment-test-42",
     productId: 42,
     type: "StockOut",
+    reasonCode: "REMOVE",
     quantity: 2,
     soldMonth: "2026-05",
     notes: "Damaged during setup",

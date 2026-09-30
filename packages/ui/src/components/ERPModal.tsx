@@ -43,19 +43,27 @@ type ERPDialogBaseProps = Omit<HTMLAttributes<HTMLDivElement>, "title"> & {
   ariaDescribedBy?: string;
 };
 
-function useDialogEscape(open: boolean, closeOnEscape: boolean, onClose?: () => void) {
+function useDialogEscape(
+  open: boolean,
+  closeOnEscape: boolean,
+  onClose?: () => void,
+  dialogRef?: { current: HTMLElement | null },
+) {
   useEffect(() => {
     if (!open || !closeOnEscape || !onClose) return undefined;
 
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      // Faako field popovers own the first Escape. Do not discard the parent
+      // form when the user only meant to close a select/date picker.
+      if (dialogRef?.current?.querySelector('[aria-haspopup][aria-expanded="true"]')) return;
       event.stopPropagation();
       onClose();
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [closeOnEscape, onClose, open]);
+  }, [closeOnEscape, dialogRef, onClose, open]);
 }
 
 function useDialogFocus(
@@ -84,11 +92,12 @@ function useDialogFocus(
         dialog.querySelector<HTMLElement>("[data-dialog-initial-focus]")
         || getFocusableElements()[0]
         || dialog;
-      preferred.focus();
+      preferred.focus({ preventScroll: true });
     });
 
     const containFocus = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || event.defaultPrevented) return;
+      if (dialog.querySelector('[aria-haspopup][aria-expanded="true"]')) return;
 
       const focusable = getFocusableElements();
       if (!focusable.length) {
@@ -119,9 +128,17 @@ function useDialogFocus(
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", containFocus);
       document.body.style.overflow = previousBodyOverflow;
-      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+      if (previouslyFocused?.isConnected) previouslyFocused.focus({ preventScroll: true });
     };
   }, [dialogRef, open]);
+}
+
+// Reuse the Faako dialog lifecycle without replacing approved legacy markup.
+export function useERPDialog({ open, onClose }: { open: boolean; onClose?: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialogEscape(open, true, onClose, dialogRef);
+  useDialogFocus(open, dialogRef);
+  return dialogRef;
 }
 
 function getDialogAria({
@@ -171,7 +188,7 @@ export function ERPModal({
   const titleId = `${baseId}-title`;
   const descriptionId = `${baseId}-description`;
   const dialogRef = useRef<HTMLDivElement>(null);
-  useDialogEscape(open, closeOnEscape, onClose);
+  useDialogEscape(open, closeOnEscape, onClose, dialogRef);
   useDialogFocus(open, dialogRef);
 
   if (!open) return null;
@@ -241,7 +258,7 @@ export function ERPDrawer({
   const titleId = `${baseId}-title`;
   const descriptionId = `${baseId}-description`;
   const drawerRef = useRef<HTMLElement>(null);
-  useDialogEscape(open, closeOnEscape, onClose);
+  useDialogEscape(open, closeOnEscape, onClose, drawerRef);
   useDialogFocus(open, drawerRef);
 
   if (!open) return null;

@@ -129,6 +129,8 @@
 
 .rental-item-page .rental-cart-slot {
   flex: 1 1 220px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .rental-item-page .rental-cart-slot .shop-add-to-cart,
@@ -453,6 +455,21 @@
 }
 
 @media (max-width: 640px) {
+  .rental-item-page .rental-actions {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .rental-item-page .rental-actions .hero-btn,
+  .rental-item-page .rental-cart-slot .shop-add-to-cart {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
   .rental-item-page .rental-item-shell {
     width: min(1180px, calc(100% - 1rem));
   }

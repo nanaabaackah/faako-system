@@ -1,0 +1,49 @@
+---
+import "../styles/components/cookie.css";
+---
+
+<aside class="cookie-notice" data-cookie-notice hidden aria-label="Cookie notice">
+  <div>
+    <strong>Your privacy, your choice.</strong>
+    <p>Essential browser storage remembers your preference. Optional Google Analytics helps us understand visits only when you allow it; advertising cookies are not used.</p>
+  </div>
+  <div class="cookie-notice-actions">
+    <a href="/privacy">Privacy</a>
+    <button class="cookie-choice-secondary" type="button" data-cookie-essential>Essential only</button>
+    <button type="button" data-cookie-analytics>Allow analytics</button>
+  </div>
+</aside>
+
+<script is:inline>
+  (() => {
+    const key = "ttngh-cookie-consent-v1";
+    const notice = document.querySelector("[data-cookie-notice]");
+    if (!notice) return;
+
+    const show = () => notice.removeAttribute("hidden");
+    const hide = () => notice.setAttribute("hidden", "");
+
+    try {
+      if (!localStorage.getItem(key)) show();
+    } catch {
+      show();
+    }
+
+    const save = (analytics) => {
+      const choice = { essential: true, analytics, updatedAt: new Date().toISOString() };
+      try { localStorage.setItem(key, JSON.stringify(choice)); } catch {}
+      document.dispatchEvent(new CustomEvent("ttngh:consent-changed", { detail: choice }));
+      hide();
+    };
+
+    notice.querySelector("[data-cookie-essential]")?.addEventListener("click", () => save(false));
+    notice.querySelector("[data-cookie-analytics]")?.addEventListener("click", () => save(true));
+
+    document.querySelectorAll("[data-cookie-settings]").forEach((button) => {
+      button.addEventListener("click", () => {
+        show();
+        notice.querySelector("[data-cookie-essential]")?.focus();
+      });
+    });
+  })();
+</script>

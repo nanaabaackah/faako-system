@@ -1,6 +1,5 @@
 /* eslint-disable no-undef */
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import {
   backfillProductVendorLinksFromProducts,
   ensureProductVendorLinksTable,
@@ -25,17 +24,16 @@ import {
   writeAuditLog,
 } from "./_shared/auditLog.js";
 import { withWaterBusinessContext } from "@faako/api-contracts/reebs";
-import {
-  calculateWaterCostBasis,
-  DEFAULT_WATER_UNIT_COST,
-} from "../../shared/waterFinancials.js";
+import { calculateWaterCostBasis } from "../../shared/waterFinancials.js";
+import { buildWaterPricingPermissions } from "./_shared/waterPricing.js";
+import { canWriteWaterAction, presentWaterDashboard } from "../modules/water/dashboardAccess.js";
+import { createWaterCustomer } from "../modules/water/customerCreation.js";
 
 const WATER_METHODS = "GET,POST,OPTIONS";
 const WATER_ALLOWED_ROLES = ["owner", "admin", "water"];
 const PRODUCT_NAME = "15pk Gwater";
 const PRODUCT_KEY = "gwater-15pk";
 const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "15 pk Gwater"];
-const DEFAULT_PURCHASE_COST = DEFAULT_WATER_UNIT_COST;
 const MAX_WATER_BODY_BYTES = 16 * 1024;
 const MAX_WATER_QUANTITY = 100000;
 const MAX_WATER_AMOUNT_CENTS = 100000000;
@@ -48,7 +46,6 @@ const MAX_CATEGORY_LENGTH = 80;
 const MAX_DESCRIPTION_LENGTH = 240;
 const MAX_NOTES_LENGTH = 500;
 const MAX_VENDOR_NAME_LENGTH = 160;
-const MAX_PRICE_OVERRIDE_REASON_LENGTH = 300;
 const WATER_READ_RATE_LIMIT = {
   limit: 180,
   windowMs: 60_000,
@@ -58,6 +55,7 @@ const WATER_WRITE_RATE_LIMIT = {
   windowMs: 60_000,
 };
 const WATER_ACTIONS = new Set([
+  "create_customer",
   "restock",
   "update_restock",
   "delete_restock",
@@ -170,34 +168,9 @@ const ensureTables = async (client) => {
   for (const statement of tableStatements) {
     await client.query(statement);
   }
-
-  await client.query(
-    `UPDATE "waterSale"
-     SET "paymentStatus" = CASE
-       WHEN LOWER(COALESCE("paymentMethod", 'cash')) = 'credit' THEN 'unpaid'
-       ELSE 'paid'
-     END
-     WHERE COALESCE(NULLIF(TRIM("paymentStatus"), ''), '') = ''
-        OR (
-          LOWER(COALESCE("paymentMethod", 'cash')) = 'momo'
-          AND LOWER(COALESCE("paymentStatus", 'paid')) = 'pending'
-        )
-        OR (
-          LOWER(COALESCE("paymentMethod", 'cash')) = 'credit'
-          AND LOWER(COALESCE("paymentStatus", 'paid')) = 'paid'
-        )`
-  );
-  await client.query(
-    `UPDATE "waterSale"
-     SET "paymentReference" = 'WATER-' || "organizationId"::text || '-' || id::text
-     WHERE COALESCE(NULLIF(TRIM("paymentReference"), ''), '') = ''`
-  );
-  await client.query(
-    `UPDATE "waterSale"
-     SET "paidAt" = COALESCE("paidAt", date)
-     WHERE LOWER(COALESCE("paymentStatus", 'paid')) = 'paid'
-       AND "paidAt" IS NULL`
-  );
+  // Payment facts are written only by their owning mutations/provider workflows.
+  // Never mark pending MoMo paid, downgrade collected credit, or invent dates and
+  // references during a read. Legacy corrections require a reviewed data repair.
 };
 
 const ensureProductLinkColumns = async (client) => {
@@ -286,7 +259,6 @@ export const resolveWaterPriceDecision = ({
   submittedPriceCents = null,
   hasSubmittedPrice = false,
   canOverride = false,
-  overrideReason = "",
 } = {}) => {
   const standardPrice = Math.round(Number(standardPriceCents));
   if (!Number.isFinite(standardPrice) || standardPrice <= 0) {
@@ -320,15 +292,11 @@ export const resolveWaterPriceDecision = ({
     };
   }
 
-  const reason = cleanText(overrideReason, MAX_PRICE_OVERRIDE_REASON_LENGTH);
-  if (!reason) {
-    return { error: "A reason is required for a Water price override.", statusCode: 400 };
-  }
   return {
     unitPrice: submittedPrice,
     standardUnitPrice: standardPrice,
     isOverride: true,
-    overrideReason: reason,
+    overrideReason: null,
   };
 };
 
@@ -738,39 +706,6 @@ export const restateWaterSaleCostSnapshots = async (
   return restatedSales.rowCount || 0;
 };
 
-const auditWaterPriceOverride = async (
-  client,
-  event,
-  {
-    organizationId,
-    authUser,
-    saleId,
-    standardUnitPrice,
-    overrideUnitPrice,
-    reason,
-    action,
-  }
-) => writeAuditLog(client, {
-  organizationId,
-  userId: Number(authUser.id) || null,
-  action,
-  targetType: "waterSale",
-  targetId: String(saleId),
-  category: "finance",
-  severity: "warning",
-  status: "ok",
-  summary: "An authorized Water sale price override was recorded.",
-  actorLabel: authUser.fullName || authUser.email,
-  requestId: getEventHeader(event, "x-request-id"),
-  ipAddress: getEventIpAddress(event),
-  metadata: {
-    businessUnit: COMMERCIAL_BUSINESS_UNITS.WATER,
-    standardUnitPrice,
-    overrideUnitPrice,
-    reason,
-  },
-});
-
 const runWaterTransaction = async (client, operation) => {
   await client.query("BEGIN");
   try {
@@ -1036,16 +971,17 @@ export const buildWaterSummary = ({ restocks, sales, expenses, adjustments }) =>
     costOfGoodsSold,
     inventoryValue,
     currentUnitCost,
+    profitabilityAvailable,
+    missingCostSaleCount,
+    missingCostRestockCount,
   } = calculateWaterCostBasis({
     restocks,
     sales,
-    unitsSold,
     stockOnHand,
-    fallbackUnitCost: DEFAULT_PURCHASE_COST,
   });
-  const grossProfit = revenue - costOfGoodsSold;
-  const netProfit = grossProfit - extraExpenses;
-  const cashPosition = cashCollected - restockSpend - extraExpenses;
+  const grossProfit = profitabilityAvailable ? revenue - costOfGoodsSold : null;
+  const netProfit = profitabilityAvailable ? grossProfit - extraExpenses : null;
+  const cashPosition = restockSpend === null ? null : cashCollected - restockSpend - extraExpenses;
 
   return {
     stockOnHand,
@@ -1067,6 +1003,9 @@ export const buildWaterSummary = ({ restocks, sales, expenses, adjustments }) =>
     cashPosition,
     inventoryValue,
     currentUnitCost,
+    profitabilityAvailable,
+    missingCostSaleCount,
+    missingCostRestockCount,
   };
 };
 
@@ -1181,6 +1120,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
   const latestRecordedUnitCost = Number(restocks[0]?.unitCost);
 
   return withWaterBusinessContext({
+    permissions: buildWaterPricingPermissions(options.role),
     product: {
       key: PRODUCT_KEY,
       name: PRODUCT_NAME,
@@ -1189,7 +1129,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
       purchaseCost:
         Number.isFinite(latestRecordedUnitCost) && latestRecordedUnitCost > 0
           ? Math.round(latestRecordedUnitCost)
-          : DEFAULT_PURCHASE_COST,
+          : null,
       pricing: {
         currency: commercialPricing?.currency || null,
         retailSingle: commercialPricing?.retailSingle ?? null,
@@ -1238,10 +1178,7 @@ export async function handler(event = {}) {
     return json(413, { error: "Water request body exceeds the 16 KB limit." });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "water" });
 
   try {
     await client.connect();
@@ -1256,6 +1193,13 @@ export async function handler(event = {}) {
       return authResult.errorResponse;
     }
     const { authUser, organizationId } = authResult;
+    const buildAuthorizedDashboard = (options = {}) =>
+      buildDashboard(client, organizationId, {
+        ...options,
+        role: authUser.role,
+      });
+    const respondWithDashboard = async () =>
+      json(200, presentWaterDashboard(await buildAuthorizedDashboard(), authUser.role));
 
     if (method === "GET") {
       const readRateLimit = await enforceWaterRateLimit(client, event, {
@@ -1272,7 +1216,7 @@ export async function handler(event = {}) {
       }
 
       await ensureTables(client);
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     let payload = {};
@@ -1304,6 +1248,28 @@ export async function handler(event = {}) {
     }
     if (!WATER_ACTIONS.has(action)) {
       return json(400, { error: "Unsupported action." });
+    }
+    if (!canWriteWaterAction(authUser.role, action)) {
+      return json(403, {
+        error: "Only an owner or admin can manage Water stock, costs and expenses. Water staff can manage sales.",
+        code: "WATER_ACTION_FORBIDDEN",
+      });
+    }
+
+    if (action === "create_customer") {
+      const result = await runWaterTransaction(client, async () => {
+        const created = await createWaterCustomer(client, organizationId, payload);
+        if (created.created) {
+          await writeAuditLog(client, {
+            organizationId, userId: authUser.id, action: "WATER_CUSTOMER_CREATED",
+            targetType: "customer", targetId: String(created.customer.id),
+            requestId: getEventHeader(event, "x-request-id"),
+            summary: "Customer created from Water customer search.",
+          });
+        }
+        return created;
+      });
+      return json(result.created ? 201 : 200, withWaterBusinessContext(result));
     }
 
     await ensureTables(client);
@@ -1365,7 +1331,7 @@ export async function handler(event = {}) {
         });
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_restock") {
@@ -1417,7 +1383,7 @@ export async function handler(event = {}) {
       if (!unitCost) return json(400, { error: "Restock cost price must be greater than zero." });
       if (!date) return json(400, { error: "A valid restock date is required." });
 
-      const dashboard = await buildDashboard(client, organizationId, {
+      const dashboard = await buildAuthorizedDashboard({
         includeLinkedProduct: false,
         includePricing: false,
       });
@@ -1455,7 +1421,7 @@ export async function handler(event = {}) {
           conflictError.code = "WATER_RECORD_CHANGED";
           throw conflictError;
         }
-        const lockedDashboard = await buildDashboard(client, organizationId, {
+        const lockedDashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -1515,7 +1481,7 @@ export async function handler(event = {}) {
         }
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_product_pricing") {
@@ -1547,7 +1513,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const existingRestock = existingRes.rows[0];
-        const dashboard = await buildDashboard(client, organizationId, {
+        const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -1571,7 +1537,7 @@ export async function handler(event = {}) {
         });
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "sale") {
@@ -1631,7 +1597,7 @@ export async function handler(event = {}) {
         customerName = cleanText(resolvedCustomer?.name, MAX_NAME_LENGTH) || customerName;
       }
 
-      const dashboard = await buildDashboard(client, organizationId, {
+      const dashboard = await buildAuthorizedDashboard({
         includeLinkedProduct: false,
         includePricing: false,
       });
@@ -1668,7 +1634,6 @@ export async function handler(event = {}) {
           submittedPriceCents: submittedUnitPrice,
           hasSubmittedPrice: hasSubmittedUnitPrice,
           canOverride: hasPermission(authUser, "water-pricing:manage"),
-          overrideReason: payload.priceOverrideReason,
         });
         if (priceDecision.error) {
           const priceError = new Error(priceDecision.error);
@@ -1692,7 +1657,7 @@ export async function handler(event = {}) {
           throw discountError;
         }
         const totalAmount = subtotalAmount - discountDetails.discountAmount;
-        const lockedDashboard = await buildDashboard(client, organizationId, {
+        const lockedDashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -1778,17 +1743,6 @@ export async function handler(event = {}) {
               organizationId,
             ]
           );
-          if (priceDecision.isOverride) {
-            await auditWaterPriceOverride(client, event, {
-              organizationId,
-              authUser,
-              saleId: insertedSaleId,
-              standardUnitPrice: priceDecision.standardUnitPrice,
-              overrideUnitPrice: unitPrice,
-              reason: priceDecision.overrideReason,
-              action: "WATER_SALE_PRICE_OVERRIDDEN",
-            });
-          }
         }
         return insertedSaleId;
       });
@@ -1797,7 +1751,7 @@ export async function handler(event = {}) {
         throw new Error("Water sale could not be recorded.");
       }
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_sale") {
@@ -1868,10 +1822,7 @@ export async function handler(event = {}) {
       let unitPrice = existingUnitPrice;
       let waterProductPriceId = Number(existingSale.waterProductPriceId) || null;
       let unitCostAtSaleCents = Number(existingSale.unitCostAtSaleCents) || null;
-      let priceOverrideReason = cleanText(
-        existingSale.priceOverrideReason,
-        MAX_PRICE_OVERRIDE_REASON_LENGTH
-      ) || null;
+      let priceOverrideReason = null;
       let priceOverriddenByUserId = Number(existingSale.priceOverriddenByUserId) || null;
       let priceOverriddenAt = existingSale.priceOverriddenAt || null;
       const requestedCustomerId = Object.prototype.hasOwnProperty.call(payload, "customerId")
@@ -1935,7 +1886,7 @@ export async function handler(event = {}) {
         customerName = cleanText(resolvedCustomer?.name, MAX_NAME_LENGTH) || customerName;
       }
 
-      const dashboard = await buildDashboard(client, organizationId, {
+      const dashboard = await buildAuthorizedDashboard({
         includeLinkedProduct: false,
         includePricing: false,
       });
@@ -1950,7 +1901,6 @@ export async function handler(event = {}) {
         date,
       });
       const pricingResolutionRequired = pricingBasisChanged || submittedPriceChanged;
-      let recordedPriceOverride = false;
       if (!unitPrice) return json(400, { error: "Sale price must be greater than zero." });
 
       const commercialTermsChanged = pricingResolutionRequired
@@ -2009,7 +1959,6 @@ export async function handler(event = {}) {
             submittedPriceCents: submittedUnitPrice,
             hasSubmittedPrice: submittedPriceChanged,
             canOverride: hasPermission(authUser, "water-pricing:manage"),
-            overrideReason: payload.priceOverrideReason,
           });
           if (priceDecision.error) {
             const priceError = new Error(priceDecision.error);
@@ -2023,7 +1972,6 @@ export async function handler(event = {}) {
           standardUnitPrice = priceDecision.standardUnitPrice;
           waterProductPriceId = Number(standardPriceRecord.id) || null;
           unitCostAtSaleCents = resolvedUnitCostAtSaleCents;
-          recordedPriceOverride = priceDecision.isOverride;
           priceOverrideReason = priceDecision.overrideReason;
           priceOverriddenByUserId = priceDecision.isOverride ? createdByUserId : null;
           priceOverriddenAt = priceDecision.isOverride ? new Date().toISOString() : null;
@@ -2049,7 +1997,7 @@ export async function handler(event = {}) {
           throw discountError;
         }
         totalAmount = subtotalAmount - discountDetails.discountAmount;
-        const lockedDashboard = await buildDashboard(client, organizationId, {
+        const lockedDashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -2117,17 +2065,7 @@ export async function handler(event = {}) {
           ]
         );
 
-        if (recordedPriceOverride) {
-          await auditWaterPriceOverride(client, event, {
-            organizationId,
-            authUser,
-            saleId,
-            standardUnitPrice,
-            overrideUnitPrice: unitPrice,
-            reason: priceOverrideReason,
-            action: "WATER_SALE_PRICE_CHANGED",
-          });
-        } else if (
+        if (
           pricingResolutionRequired
           && (
             unitPrice !== existingUnitPrice
@@ -2175,7 +2113,7 @@ export async function handler(event = {}) {
         }
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "delete_sale") {
@@ -2211,7 +2149,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "expense") {
@@ -2240,7 +2178,7 @@ export async function handler(event = {}) {
         [organizationId, category, amount, description, notes, date, createdByUserId, createdByName]
       );
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_expense") {
@@ -2304,7 +2242,7 @@ export async function handler(event = {}) {
         [expenseId, organizationId, category, amount, description, notes, date]
       );
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "delete_expense") {
@@ -2334,7 +2272,7 @@ export async function handler(event = {}) {
         [expenseId, organizationId, createdByUserId, createdByName]
       );
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "adjustment") {
@@ -2349,7 +2287,7 @@ export async function handler(event = {}) {
 
       await runWaterTransaction(client, async () => {
         await lockWaterInventory(client, organizationId);
-        const dashboard = await buildDashboard(client, organizationId, {
+        const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -2385,7 +2323,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "update_adjustment") {
@@ -2456,7 +2394,7 @@ export async function handler(event = {}) {
           conflictError.code = "WATER_RECORD_CHANGED";
           throw conflictError;
         }
-        const dashboard = await buildDashboard(client, organizationId, {
+        const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -2479,7 +2417,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
     if (action === "delete_adjustment") {
@@ -2503,7 +2441,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const existingAdjustment = existingRes.rows[0];
-        const dashboard = await buildDashboard(client, organizationId, {
+        const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
         });
@@ -2522,7 +2460,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return json(200, await buildDashboard(client, organizationId));
+      return await respondWithDashboard();
     }
 
   } catch (err) {
