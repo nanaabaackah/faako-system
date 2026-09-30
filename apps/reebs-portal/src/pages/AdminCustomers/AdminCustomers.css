@@ -313,9 +313,8 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
 }
 
 .crm-item-remove {
-  position: absolute;
-  top: 16px;
-  right: 16px;
+  position: static;
+  justify-self: end;
   width: auto;
   min-height: 2.2rem;
   padding: 0.45rem 0.8rem;
@@ -442,11 +441,11 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  padding-right: 3rem;
+  flex-wrap: wrap;
 }
 
 .crm-kanban-card .crm-card-top {
-  padding-right: 3rem;
+  padding-right: 0;
 }
 
 .crm-customer-profile {
@@ -815,8 +814,9 @@ body.admin-theme .crm-view-tabs .admin-chip:focus-visible {
   overflow-x: auto;
 }
 
-.crm-list-table table {
-  min-width: 860px;
+body.admin-theme .crm-page .crm-list-table table {
+  /* Preserve the existing scrollable register instead of shrinking its actions. */
+  min-width: 860px !important;
 }
 
 .crm-list-table thead th:nth-child(1),
@@ -945,6 +945,18 @@ body.admin-theme .admin-table.crm-list-table tbody td:first-child > .admin-produ
 
 .crm-table-action .crm-item-remove--inline {
   margin-inline: auto;
+  width: 44px;
+  min-height: 44px;
+  padding-inline: 0;
+}
+
+.crm-table-action .crm-item-remove--inline > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .crm-modal-actions .crm-button-danger {
@@ -1112,7 +1124,7 @@ body.admin-theme .admin-table.crm-list-table tbody td:first-child > .admin-produ
 
   .crm-customer-card-top {
     gap: 10px;
-    padding-right: 2.7rem;
+    padding-right: 0;
   }
 
   .crm-contact-row span {

@@ -15,6 +15,10 @@
 }
 
 @media (max-width: 720px) {
+  body.admin-theme .inventory-page :is(.inventory-register-filter-trigger, .inventory-menu-trigger) {
+    min-height: 44px;
+  }
+
   body.admin-theme .inventory-page .admin-header > :last-child:not(:first-child) {
     width: 100%;
     justify-self: center;
@@ -25,7 +29,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 0.4rem;
   }
 

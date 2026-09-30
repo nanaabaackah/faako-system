@@ -12078,6 +12078,13 @@ body.admin-theme .admin-header > :last-child:not(:first-child) {
   margin-left: auto;
 }
 
+/* A desktop width basis becomes a 288px height when the header stacks. */
+@media (max-width: 860px) {
+  body.admin-theme .admin-header > :first-child {
+    flex: 0 1 auto;
+  }
+}
+
 body.admin-theme .admin-eyebrow {
   color: var(--muted);
   letter-spacing: 0.08em;
@@ -15057,9 +15064,9 @@ body.admin-theme .portal-app-content :is(
   display: block !important;
   max-width: 100% !important;
   min-width: 0 !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-  white-space: nowrap !important;
+  overflow: var(--admin-table-copy-overflow, hidden) !important;
+  text-overflow: var(--admin-table-copy-text-overflow, ellipsis) !important;
+  white-space: var(--admin-table-copy-white-space, nowrap) !important;
 }
 
 :is(body.admin-theme, .store-mode-page) :is(

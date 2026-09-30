@@ -44,6 +44,19 @@
   box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
   backdrop-filter: blur(22px);
   -webkit-backdrop-filter: blur(22px);
+  max-height: min(65dvh, 32rem);
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .admin-header .module-topbar-menu {
+    margin-left: auto;
+  }
+
+  .module-topbar-menu__panel {
+    width: min(320px, calc(100vw - 4rem));
+    box-sizing: border-box;
+  }
 }
 
 .module-topbar-menu__title {
