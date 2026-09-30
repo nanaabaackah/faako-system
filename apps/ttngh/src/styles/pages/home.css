@@ -1,0 +1,43 @@
+@import "./home/foundations-and-hero.css";
+@import "./home/partners-story-programmes.css";
+@import "./home/impact-initiatives-milestones.css";
+@import "./home/responsive.css";
+
+/* Shared homepage section frame. Scroll-expand CTAs keep their edge-to-edge treatment. */
+.home-main > section:not(.impact-rail):not(.home-partners) {
+  width: calc(100% - 2rem);
+  min-height: 100dvh;
+  margin: .5rem;
+  overflow: hidden;
+}
+
+.home-main > section:not(.impact-rail):not(.home-partners):not(.home-programmes):not(.home-initiatives) {
+  border: 1px solid rgb(var(--brand-berry-rgb) / 7%);
+  border-radius: var(--radius-xl);
+}
+
+.home-main > .home-hero {
+  overflow: visible;
+  border: 0;
+}
+
+.home-main > .impact-rail,
+.home-main > .home-partners,
+.home-main > .home-initiatives {
+  width: 100%;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+/* Match the programmes shell while keeping the initiatives background full width. */
+.home-main > .home-initiatives {
+  padding-inline: max(var(--page-gutter), calc((100vw - 1248px) / 2));
+}
+
+@media (max-width: 780px) {
+  .home-main > section:not(.impact-rail):not(.home-partners) {
+    min-height: 100svh;
+  }
+}

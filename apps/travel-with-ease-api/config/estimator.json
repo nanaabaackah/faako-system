@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "sourceCurrency": "USD",
+  "accommodation": {
+    "comfortable": ["90", "130"],
+    "premium": ["170", "260"],
+    "luxury": ["320", "520"]
+  },
+  "tripStyle": {
+    "relaxed": ["35", "60"],
+    "balanced": ["60", "100"],
+    "immersive": ["95", "160"]
+  },
+  "flightPreference": {
+    "economy": ["650", "1050"],
+    "premium_economy": ["1200", "1900"],
+    "business": ["2800", "4800"]
+  },
+  "activities": { "few": "30", "some": "75", "many": "140" }
+}

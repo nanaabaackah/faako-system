@@ -60,7 +60,7 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 820px) {
   .about-hero {
     min-height: auto;
     padding-top: clamp(6.2rem, 12vh, 7.8rem);

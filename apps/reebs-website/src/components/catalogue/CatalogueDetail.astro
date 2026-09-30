@@ -1,4 +1,5 @@
 ---
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 const { item } = Astro.props;
 const isRental = item.kind === "rental";
 const basePath = isRental ? "/rentals" : "/shop";
@@ -43,7 +44,9 @@ const formatter = new Intl.NumberFormat("en-GH", {
           : "Contact REEBS for current pricing"}
       </p>
       <p>
-        {item.availability === "in-stock"
+        {!(isRental ? REEBS_PUBLIC_COMMERCE.bookingEnabled : REEBS_PUBLIC_COMMERCE.checkoutEnabled)
+          ? REEBS_PUBLIC_COMMERCE.disabledMessage
+          : item.availability === "in-stock"
           ? "Listed as available. Stock is confirmed during checkout."
           : item.availability === "out-of-stock"
             ? "Currently listed as out of stock."

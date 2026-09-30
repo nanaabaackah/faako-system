@@ -201,15 +201,20 @@ const skeletonTableRows = (count: number) =>
     </span>
   ));
 
-const CommercePageSkeleton = ({ variant }: { variant: LoadingLayoutVariant }) => (
+const CommercePageSkeleton = ({
+  variant,
+  heroClassName,
+}: {
+  variant: LoadingLayoutVariant;
+  heroClassName?: string;
+}) => (
   <div className="ui-animated-loading-state__page-skeleton" data-layout={variant} aria-hidden="true">
-    <div className="ui-animated-loading-state__skeleton-topbar">
-      <span className="ui-animated-loading-state__skeleton-mark" />
-      <span className="ui-animated-loading-state__skeleton-line is-title" />
-      <span className="ui-animated-loading-state__skeleton-line" />
-      <span className="ui-animated-loading-state__skeleton-line is-action" />
-    </div>
-    <div className="ui-animated-loading-state__skeleton-hero">
+    <section
+      className={joinClasses(
+        "ui-animated-loading-state__skeleton-section is-hero",
+        heroClassName,
+      )}
+    >
       <div className="ui-animated-loading-state__skeleton-hero-copy">
         <span className="ui-animated-loading-state__skeleton-line is-kicker" />
         <span className="ui-animated-loading-state__skeleton-line is-heading" />
@@ -217,35 +222,48 @@ const CommercePageSkeleton = ({ variant }: { variant: LoadingLayoutVariant }) =>
         <span className="ui-animated-loading-state__skeleton-line is-body is-short" />
         <span className="ui-animated-loading-state__skeleton-line is-button" />
       </div>
-      <span className="ui-animated-loading-state__skeleton-media" />
-    </div>
-    <div className="ui-animated-loading-state__skeleton-toolbar">
-      <span />
-      <span />
-      <span />
-    </div>
-    <div className="ui-animated-loading-state__skeleton-card-grid">
-      {skeletonCards(variant === "portfolio" ? 4 : 6)}
-    </div>
+    </section>
+    <section className="ui-animated-loading-state__skeleton-section is-controls">
+      <div className="ui-animated-loading-state__skeleton-section-heading">
+        <span className="ui-animated-loading-state__skeleton-line is-title" />
+        <span className="ui-animated-loading-state__skeleton-line is-body is-short" />
+      </div>
+      <div className="ui-animated-loading-state__skeleton-toolbar">
+        <span />
+        <span />
+        <span />
+      </div>
+    </section>
+    <section className="ui-animated-loading-state__skeleton-section is-content">
+      <div className="ui-animated-loading-state__skeleton-section-heading">
+        <span className="ui-animated-loading-state__skeleton-line is-title" />
+        <span className="ui-animated-loading-state__skeleton-line is-body" />
+      </div>
+      <div className="ui-animated-loading-state__skeleton-card-grid">
+        {skeletonCards(variant === "portfolio" ? 4 : 6)}
+      </div>
+    </section>
+    <section className="ui-animated-loading-state__skeleton-section is-cta">
+      <span className="ui-animated-loading-state__skeleton-line is-title" />
+      <span className="ui-animated-loading-state__skeleton-line is-body" />
+      <span className="ui-animated-loading-state__skeleton-line is-button" />
+    </section>
   </div>
 );
 
-const DetailPageSkeleton = () => (
+const DetailPageSkeleton = ({ heroClassName }: { heroClassName?: string }) => (
   <div className="ui-animated-loading-state__page-skeleton" data-layout="detail" aria-hidden="true">
-    <div className="ui-animated-loading-state__skeleton-topbar">
-      <span className="ui-animated-loading-state__skeleton-mark" />
-      <span className="ui-animated-loading-state__skeleton-line is-title" />
-      <span className="ui-animated-loading-state__skeleton-line" />
-      <span className="ui-animated-loading-state__skeleton-line is-action" />
-    </div>
-    <div className="ui-animated-loading-state__skeleton-detail">
+    <nav className="ui-animated-loading-state__skeleton-breadcrumb">
+      <span className="ui-animated-loading-state__skeleton-line is-body" />
+    </nav>
+    <section
+      className={joinClasses(
+        "ui-animated-loading-state__skeleton-section is-detail-hero",
+        heroClassName,
+      )}
+    >
       <div className="ui-animated-loading-state__skeleton-gallery">
         <span className="ui-animated-loading-state__skeleton-media" />
-        <div className="ui-animated-loading-state__skeleton-toolbar">
-          <span />
-          <span />
-          <span />
-        </div>
       </div>
       <div className="ui-animated-loading-state__skeleton-detail-copy">
         <span className="ui-animated-loading-state__skeleton-line is-kicker" />
@@ -260,50 +278,80 @@ const DetailPageSkeleton = () => (
         </div>
         <span className="ui-animated-loading-state__skeleton-line is-button" />
       </div>
-    </div>
-    <div className="ui-animated-loading-state__skeleton-card-grid is-recommendations">
-      {skeletonCards(4)}
-    </div>
+    </section>
+    <section className="ui-animated-loading-state__skeleton-section is-content">
+      <div className="ui-animated-loading-state__skeleton-section-heading">
+        <span className="ui-animated-loading-state__skeleton-line is-title" />
+        <span className="ui-animated-loading-state__skeleton-line is-body is-short" />
+      </div>
+      <div className="ui-animated-loading-state__skeleton-card-grid is-recommendations">
+        {skeletonCards(4)}
+      </div>
+    </section>
   </div>
 );
 
-const PortalPageSkeleton = ({ variant }: { variant: LoadingLayoutVariant }) => (
-  <div className="ui-animated-loading-state__page-skeleton" data-layout={variant} aria-hidden="true">
-    <aside className="ui-animated-loading-state__skeleton-sidebar">
-      <span className="ui-animated-loading-state__skeleton-mark" />
-      <span className="ui-animated-loading-state__skeleton-line is-title" />
-      <span className="ui-animated-loading-state__skeleton-line" />
-      <span className="ui-animated-loading-state__skeleton-line" />
-      <span className="ui-animated-loading-state__skeleton-line" />
-      <span className="ui-animated-loading-state__skeleton-line" />
-      <span className="ui-animated-loading-state__skeleton-line is-action" />
-    </aside>
-    <main className="ui-animated-loading-state__skeleton-main">
-      <div className="ui-animated-loading-state__skeleton-topbar">
+const PortalPageSkeleton = ({
+  variant,
+  embedded,
+}: {
+  variant: LoadingLayoutVariant;
+  embedded?: boolean;
+}) => (
+  <div
+    className="ui-animated-loading-state__page-skeleton"
+    data-layout={variant}
+    data-embedded={embedded ? "true" : undefined}
+    aria-hidden="true"
+  >
+    {!embedded ? (
+      <aside className="ui-animated-loading-state__skeleton-sidebar">
+        <span className="ui-animated-loading-state__skeleton-mark" />
         <span className="ui-animated-loading-state__skeleton-line is-title" />
         <span className="ui-animated-loading-state__skeleton-line" />
+        <span className="ui-animated-loading-state__skeleton-line" />
+        <span className="ui-animated-loading-state__skeleton-line" />
+        <span className="ui-animated-loading-state__skeleton-line" />
         <span className="ui-animated-loading-state__skeleton-line is-action" />
-      </div>
-      <div className="ui-animated-loading-state__skeleton-metrics">
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="ui-animated-loading-state__skeleton-panel-grid">
-        <section className="ui-animated-loading-state__skeleton-panel is-table">
-          <span className="ui-animated-loading-state__skeleton-line is-title" />
-          <div className="ui-animated-loading-state__skeleton-table">
-            {skeletonTableRows(5)}
+      </aside>
+    ) : null}
+    <main className="ui-animated-loading-state__skeleton-main">
+      <section className="ui-animated-loading-state__skeleton-section is-page-header">
+        <span className="ui-animated-loading-state__skeleton-line is-title" />
+        <span className="ui-animated-loading-state__skeleton-line is-body" />
+        <span className="ui-animated-loading-state__skeleton-line is-action" />
+      </section>
+      <section className="ui-animated-loading-state__skeleton-section is-summary">
+        <div className="ui-animated-loading-state__skeleton-metrics">
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </section>
+      <section className="ui-animated-loading-state__skeleton-section is-filters">
+        <div className="ui-animated-loading-state__skeleton-toolbar">
+          <span />
+          <span />
+          <span />
+        </div>
+      </section>
+      <section className="ui-animated-loading-state__skeleton-section is-main-content">
+        <div className="ui-animated-loading-state__skeleton-panel-grid">
+          <div className="ui-animated-loading-state__skeleton-panel is-table">
+            <span className="ui-animated-loading-state__skeleton-line is-title" />
+            <div className="ui-animated-loading-state__skeleton-table">
+              {skeletonTableRows(5)}
+            </div>
           </div>
-        </section>
-        <section className="ui-animated-loading-state__skeleton-panel">
-          <span className="ui-animated-loading-state__skeleton-line is-title" />
-          <span className="ui-animated-loading-state__skeleton-media" />
-          <span className="ui-animated-loading-state__skeleton-line is-body" />
-          <span className="ui-animated-loading-state__skeleton-line is-body is-short" />
-        </section>
-      </div>
+          <div className="ui-animated-loading-state__skeleton-panel">
+            <span className="ui-animated-loading-state__skeleton-line is-title" />
+            <span className="ui-animated-loading-state__skeleton-media" />
+            <span className="ui-animated-loading-state__skeleton-line is-body" />
+            <span className="ui-animated-loading-state__skeleton-line is-body is-short" />
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 );
@@ -360,12 +408,22 @@ const ApiPageSkeleton = () => (
   </div>
 );
 
-const PageSkeleton = ({ variant }: { variant: LoadingLayoutVariant }) => {
-  if (variant === "portal" || variant === "dashboard") return <PortalPageSkeleton variant={variant} />;
+const PageSkeleton = ({
+  variant,
+  embedded,
+  heroClassName,
+}: {
+  variant: LoadingLayoutVariant;
+  embedded?: boolean;
+  heroClassName?: string;
+}) => {
+  if (variant === "portal" || variant === "dashboard") {
+    return <PortalPageSkeleton variant={variant} embedded={embedded} />;
+  }
   if (variant === "workspace") return <WorkspacePageSkeleton />;
   if (variant === "api") return <ApiPageSkeleton />;
-  if (variant === "detail") return <DetailPageSkeleton />;
-  return <CommercePageSkeleton variant={variant} />;
+  if (variant === "detail") return <DetailPageSkeleton heroClassName={heroClassName} />;
+  return <CommercePageSkeleton variant={variant} heroClassName={heroClassName} />;
 };
 
 export function AnimatedLoadingState({
@@ -374,6 +432,8 @@ export function AnimatedLoadingState({
   compact = false,
   page = false,
   overlay = false,
+  embedded = false,
+  heroClassName = "",
   className = "",
   variant,
 }: {
@@ -382,12 +442,18 @@ export function AnimatedLoadingState({
   compact?: boolean;
   page?: boolean;
   overlay?: boolean;
+  embedded?: boolean;
+  heroClassName?: string;
   className?: string;
   variant?: LoadingLayoutVariant;
 }) {
   const resolvedVariant = variant || inferLoadingVariant(title);
   const skeleton = page ? (
-    <PageSkeleton variant={resolvedVariant} />
+    <PageSkeleton
+      variant={resolvedVariant}
+      embedded={embedded}
+      heroClassName={heroClassName}
+    />
   ) : (
     <div className="ui-animated-loading-state__skeleton" aria-hidden="true">
       <div className="ui-animated-loading-state__skeleton-head">
@@ -415,6 +481,7 @@ export function AnimatedLoadingState({
         compact && "is-compact",
         page && "is-page",
         overlay && "is-overlay",
+        embedded && "is-embedded",
         page && `is-${resolvedVariant}-layout`,
         className,
       )}

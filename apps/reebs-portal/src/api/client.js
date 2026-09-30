@@ -4,6 +4,25 @@ import {
   isApiClientError,
 } from "@faako/api-client";
 
+const AUTH_CREDENTIAL_PATHS = new Set([
+  "/api/login",
+  "/api/v1/auth/login",
+  "/api/forgotPassword",
+  "/api/v1/auth/forgot-password",
+  "/api/resetPassword",
+  "/api/v1/auth/reset-password",
+]);
+
+const isAuthCredentialRequest = (path) => {
+  try {
+    return AUTH_CREDENTIAL_PATHS.has(
+      new URL(String(path), "https://reebs.invalid").pathname
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const createReebsPortalApi = ({ fetch: configuredFetch } = {}) => {
   const fetcher = configuredFetch || ((input, init) => globalThis.fetch(input, init));
   const client = createBrowserApiClient({
@@ -34,9 +53,11 @@ export const createReebsPortalApi = ({ fetch: configuredFetch } = {}) => {
           error.payload && typeof error.payload === "object"
             ? error.payload
             : { error: error.message };
+        const shouldShowSessionExpired =
+          error.status === 401 && !isAuthCredentialRequest(path);
         const payload = {
           ...legacyPayload,
-          ...(error.status === 401
+          ...(shouldShowSessionExpired
             ? { error: "Your session has expired. Sign in again." }
             : error.status === 403
               ? { error: "You do not have permission to complete this action." }

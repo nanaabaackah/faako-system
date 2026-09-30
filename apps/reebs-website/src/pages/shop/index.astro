@@ -23,7 +23,6 @@ const initialInventory = getPublicCategories("shop")
 ---
 
 <BaseLayout path="/shop">
-  <h1 class="sr-only">Party supplies shop</h1>
   <ShopIsland
     path={`/shop${Astro.url.search}`}
     initialInventory={initialInventory}

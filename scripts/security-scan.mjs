@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { lstatSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { sensitivePathReason } from "./security-sensitive-paths.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, "..");
@@ -59,6 +60,7 @@ const CONTENT_SCAN_EXCLUDED_DIR_PREFIXES = [
 const CONTENT_SCAN_LINE_ALLOWLIST_MARKER = "security-scan-ok";
 
 const SENSITIVE_FILE_PATTERNS = [
+  { name: "sensitive path (contents not read)", test: (filePath) => Boolean(sensitivePathReason(filePath)) },
   { name: "tracked env file", test: isTrackedSecretEnvFile },
   { name: "private key file", test: (filePath) => /\.(pem|key|p12|pfx|jks|keystore)$/i.test(filePath) },
 ];
@@ -118,22 +120,19 @@ function isTrackedSecretEnvFile(filePath) {
 }
 
 function getTrackedFiles() {
-  let output;
+  let output = "";
   try {
-    // `rg --files` honours repository ignore files without invoking Git. This
-    // keeps the security check usable in restricted build environments and in
-    // workflows that explicitly prohibit Git commands.
     output = execFileSync(
       "rg",
       ["--files", "--hidden", "--null", "--glob", "!.git/**"],
       { cwd: rootDir, encoding: "utf8" }
     );
   } catch (error) {
-    if (error?.status === 1 && !error?.stdout) return [];
-    throw new Error(
-      "Security scan requires ripgrep (rg) to enumerate non-ignored workspace files without Git.",
-      { cause: error }
-    );
+    if (error?.code === "ENOENT") {
+      console.error("Security scan prerequisite missing: ripgrep (rg) is required. Run `pnpm run tooling:check` for setup guidance.");
+      process.exit(2);
+    }
+    throw error;
   }
 
   return output
@@ -175,7 +174,16 @@ function findSensitiveFiles(files) {
 }
 
 function shouldSkipContentScan(filePath) {
+  if (sensitivePathReason(filePath)) return true;
   const lower = filePath.toLowerCase();
+  // Secret env files are classified by path above and must never be opened by
+  // the scanner. Allowed templates are checked separately by the security gate.
+  if (path.basename(lower).startsWith(".env")) {
+    return true;
+  }
+  if (/\.(pem|key|p12|pfx|jks|keystore)$/i.test(lower)) {
+    return true;
+  }
   if (CONTENT_SCAN_EXCLUDED_DIR_PREFIXES.some((prefix) => lower.startsWith(prefix))) {
     return true;
   }
@@ -233,13 +241,13 @@ function findSensitiveContent(files) {
 }
 
 const trackedFiles = getTrackedFiles();
-const findings = [
-  ...findSensitiveFiles(trackedFiles),
-  ...findSensitiveContent(trackedFiles),
-];
+const pathFindings = findSensitiveFiles(trackedFiles);
+// Fail before content reads when a sensitive export is present. Never silently
+// skip it and report a clean scan; file names alone require owner review.
+const findings = pathFindings.length > 0 ? pathFindings : findSensitiveContent(trackedFiles);
 
 if (findings.length > 0) {
-  console.error("Security scan failed. Potential secrets or key material found in tracked files:");
+  console.error("Security scan failed. Potential secrets or key material in non-ignored workspace paths:");
   findings.forEach((finding) => {
     console.error(`- ${finding.filePath}: ${finding.rule}`);
   });

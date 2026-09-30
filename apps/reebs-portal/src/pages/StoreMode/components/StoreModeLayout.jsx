@@ -18,7 +18,7 @@ import {
 import { getCatalogItemImage } from "../../../utils/itemMediaBackgrounds";
 import {
   DISCOUNT_OPTIONS,
-  LOW_STOCK_THRESHOLD,
+  getReorderLevel,
   PAYMENT_OPTIONS,
   buildVariantOptionLabel,
   findVariantById,
@@ -288,7 +288,7 @@ function StoreModeInventoryPanel({
                 const currentQty = orderQtyByProductId.get(productId) || 0;
                 const stock = getAvailableQuantity(item, orderQtyByLineKey);
                 const isOut = stock <= 0;
-                const isLow = !isOut && stock <= LOW_STOCK_THRESHOLD;
+                const isLow = !isOut && stock <= getReorderLevel(item);
                 const isSelected = selectedProductId === productId || currentQty > 0;
                 const productName = item.name || "Untitled";
                 const productImage = getCatalogItemImage(item);

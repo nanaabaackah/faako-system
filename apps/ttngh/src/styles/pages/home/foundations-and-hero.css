@@ -1,0 +1,213 @@
+@font-face {
+  font-family: "Kaushan Script";
+  src: url("/fonts/kaushan-script-latin.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.home-main {
+  width: 100%;
+  max-width: none;
+  overflow-x: clip;
+  background: transparent;
+}
+
+.home-main > section {
+  border: 0;
+}
+
+.home-shell {
+  width: min(1248px, calc(100% - (2 * var(--page-gutter))));
+  margin-inline: auto;
+}
+
+.section-label {
+  margin: 0 0 0.65rem;
+  color: var(--brand-pink);
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.home-main h2,
+.home-main h3 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+}
+
+.home-main h2 {
+  font-size: clamp(2.75rem, 4.2vw, 4.2rem);
+  letter-spacing: -0.045em;
+  line-height: 0.92;
+}
+
+.home-main h3 {
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
+.home-main p {
+  line-height: 1.55;
+}
+
+.home-main figure {
+  margin: 0;
+  overflow: hidden;
+}
+
+.home-main figure img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Hero */
+.home-hero {
+  position: relative;
+  padding-block: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-hero);
+  background: var(--brand-black);
+  color: var(--white);
+}
+
+.home-hero .site-header {
+  top: calc(1rem + var(--header-offset));
+  width: min(1248px, calc(100% - (2 * var(--page-gutter))));
+}
+
+.hero-background,
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.hero-background {
+  z-index: 0;
+  object-fit: cover;
+  object-position: center 48%;
+}
+
+.hero-overlay {
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(5 4 7 / 76%) 0%, rgb(5 4 7 / 64%) 48%, rgb(5 4 7 / 82%) 100%),
+    linear-gradient(90deg, rgb(5 4 7 / 22%), transparent 48%, rgb(5 4 7 / 18%));
+  pointer-events: none;
+}
+
+.hero-shell {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: clamp(9rem, 16vh, 12rem) 0 clamp(4rem, 10vh, 7rem);
+  text-align: center;
+}
+
+.hero-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  white-space: nowrap;
+  text-wrap: balance;
+  filter: drop-shadow(0 0.15rem 1.35rem rgb(5 4 7 / 48%));
+}
+
+.hero-title-peace {
+  margin-right: 0.2em;
+  color: var(--brand-pink);
+  font-family: "Kaushan Script", cursive;
+  font-size: clamp(6.4rem, 12vw, 10.5rem);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  line-height: 0.8;
+}
+
+.hero-title-rest {
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: clamp(3.85rem, 7.2vw, 6rem);
+  font-weight: 700;
+  letter-spacing: -0.065em;
+  line-height: 0.88;
+  margin-top: 3rem;
+}
+
+.hero-subtitle {
+  max-width: 49rem;
+  margin: 2.1rem auto 0;
+  color: rgb(255 255 255 / 92%);
+  font-size: clamp(1rem, 1.5vw, 1.22rem);
+  font-weight: 500;
+  line-height: 1.65 !important;
+  text-shadow: 0 2px 20px rgb(5 4 7 / 65%);
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+  gap: 0.7rem;
+}
+
+.impact-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 4;
+  height: clamp(16rem, 22vw, 20rem);
+  margin: 2rem ;
+  padding-block: 0;
+  padding-inline: var(--page-gutter);
+}
+
+.impact-rail-inner {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: min(1180px, 100%);
+  min-height: 9rem;
+  margin-inline: auto;
+  border-radius: var(--radius-xl);
+  background: var(--white);
+  box-shadow: var(--shadow-panel);
+  color: var(--brand-black);
+}
+
+.impact-rail article {
+  display: grid;
+  align-content: center;
+  padding: 1.5rem 2rem;
+  gap: 0.45rem;
+}
+
+.impact-rail article + article {
+  border-left: 1px solid var(--line-pink);
+}
+
+.impact-rail strong {
+  color: var(--brand-pink);
+  font-size: clamp(1.65rem, 2.7vw, 2.4rem);
+  line-height: 1;
+}
+
+.impact-rail span {
+  color: var(--brand-black);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}

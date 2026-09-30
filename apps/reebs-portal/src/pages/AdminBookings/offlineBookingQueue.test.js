@@ -19,6 +19,7 @@ test("buildQueuedBookingAction stores minimal booking create payload", () => {
       customerId: 12,
       customerName: "Should not be persisted",
       eventDate: "2026-05-20",
+      eventEndDate: "2026-05-21",
       startTime: "10:00",
       endTime: "12:00",
       venueAddress: "Accra",
@@ -32,7 +33,7 @@ test("buildQueuedBookingAction stores minimal booking create payload", () => {
           productName: "Castle",
           variantLabel: "Castle / Blue",
           quantity: 2,
-          price: 100,
+          unitPriceCents: 10000,
         },
       ],
       userId: "user-1",
@@ -61,9 +62,10 @@ test("buildQueuedBookingAction stores minimal booking create payload", () => {
       productId: 40,
       variantId: 5,
       quantity: 2,
-      price: 100,
+      unitPriceCents: 10000,
     },
   ]);
+  assert.equal(queued.payload.booking.eventEndDate, "2026-05-21");
   assert.equal(queued.payload.customer.customerId, 12);
   assert.equal(queued.payload.metadata.itemCount, 1);
 });

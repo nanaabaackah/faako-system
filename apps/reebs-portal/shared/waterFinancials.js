@@ -1,13 +1,11 @@
-export const DEFAULT_WATER_UNIT_COST = 2200;
-
 const toFiniteNumber = (value, fallback = 0) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const resolveUnitCost = (value, fallbackUnitCost) => {
+export const normalizeWaterUnitCost = (value) => {
   const parsed = Math.round(toFiniteNumber(value, 0));
-  return parsed > 0 ? parsed : fallbackUnitCost;
+  return parsed > 0 ? parsed : null;
 };
 
 const getTimestamp = (record) => {
@@ -19,80 +17,67 @@ const getTimestamp = (record) => {
 
 const compareDatedRecords = (left, right) => {
   const timestampDifference = getTimestamp(left) - getTimestamp(right);
-  if (timestampDifference !== 0) return timestampDifference;
+  if (Number.isFinite(timestampDifference) && timestampDifference !== 0) return timestampDifference;
+  if (getTimestamp(left) !== getTimestamp(right)) return getTimestamp(left) < getTimestamp(right) ? -1 : 1;
   const createdDifference = new Date(left?.createdAt || "").getTime()
     - new Date(right?.createdAt || "").getTime();
   if (Number.isFinite(createdDifference) && createdDifference !== 0) return createdDifference;
   return toFiniteNumber(left?.id, 0) - toFiniteNumber(right?.id, 0);
 };
 
-/**
- * Calculates the Water-only inventory cost basis in integer pesewas.
- *
- * New sales use their immutable unitCostAtSaleCents snapshot. Legacy sales use
- * the recorded cost from their Water restock period (the latest restock at or
- * before the sale). Inventory uses the latest recorded restock cost. This keeps
- * historical profit stable when a later restock has a different price and never
- * mixes Water costs into REEBS core inventory.
+// Shared by the API and Portal. Reading a dashboard must never invent or
+// restate historical costs; only the explicit restock correction writes them.
+export const calculateWaterCostSummary = (sales = []) => {
+  let knownCostOfGoodsSold = 0;
+  let missingCostSaleCount = 0;
+  for (const sale of Array.isArray(sales) ? sales : []) {
+    const quantity = Math.max(0, toFiniteNumber(sale?.quantity));
+    const unitCost = normalizeWaterUnitCost(sale?.unitCostAtSaleCents ?? sale?.unitCostAtTransaction);
+    if (unitCost === null) {
+      missingCostSaleCount += 1;
+      continue;
+    }
+    knownCostOfGoodsSold += quantity * unitCost;
+  }
+  return {
+    costOfGoodsSold: missingCostSaleCount > 0 ? null : Math.round(knownCostOfGoodsSold),
+    knownCostOfGoodsSold: Math.round(knownCostOfGoodsSold),
+    missingCostSaleCount,
+    profitabilityAvailable: missingCostSaleCount === 0,
+  };
+};
+
+/** Water-only costs, in integer pesewas. Unknown costs stay null, never zero or
+ * a compatibility price. Inventory uses the latest recorded restock cost;
+ * filtered Portal summaries can supply the dashboard's current recorded cost.
  */
 export const calculateWaterCostBasis = ({
   restocks = [],
   sales = [],
-  unitsSold = 0,
   stockOnHand = 0,
-  fallbackUnitCost = DEFAULT_WATER_UNIT_COST,
+  currentUnitCost,
 } = {}) => {
-  const safeFallbackUnitCost = Math.max(
-    1,
-    Math.round(toFiniteNumber(fallbackUnitCost, DEFAULT_WATER_UNIT_COST))
-  );
-
   const orderedRestocks = [...(Array.isArray(restocks) ? restocks : [])]
     .filter((restock) => toFiniteNumber(restock?.quantity, 0) > 0)
     .sort(compareDatedRecords);
-  const totals = orderedRestocks.reduce(
-    (result, restock) => {
-      const quantity = Math.max(0, toFiniteNumber(restock?.quantity, 0));
-      if (quantity <= 0) return result;
-      const unitCost = resolveUnitCost(restock?.unitCost, safeFallbackUnitCost);
-      result.units += quantity;
-      result.spend += quantity * unitCost;
-      return result;
-    },
-    { units: 0, spend: 0 }
+  let restockSpend = 0;
+  let missingCostRestockCount = 0;
+  for (const restock of orderedRestocks) {
+    const cost = normalizeWaterUnitCost(restock?.unitCost);
+    if (cost === null) missingCostRestockCount += 1;
+    else restockSpend += toFiniteNumber(restock.quantity) * cost;
+  }
+  const latestUnitCost = normalizeWaterUnitCost(
+    currentUnitCost === undefined ? orderedRestocks.at(-1)?.unitCost : currentUnitCost
   );
-
-  const latestUnitCost = orderedRestocks.length > 0
-    ? resolveUnitCost(orderedRestocks.at(-1)?.unitCost, safeFallbackUnitCost)
-    : safeFallbackUnitCost;
-  const safeSales = Array.isArray(sales) ? sales : [];
-  const datedCostOfGoodsSold = safeSales.reduce((total, sale) => {
-    const snapshottedUnitCost = Math.round(
-      toFiniteNumber(sale?.unitCostAtSaleCents, 0)
-    );
-    if (snapshottedUnitCost > 0) {
-      return total + (
-        Math.max(0, toFiniteNumber(sale?.quantity, 0)) * snapshottedUnitCost
-      );
-    }
-
-    const saleTimestamp = getTimestamp(sale);
-    let saleUnitCost = safeFallbackUnitCost;
-    for (const restock of orderedRestocks) {
-      if (getTimestamp(restock) > saleTimestamp) break;
-      saleUnitCost = resolveUnitCost(restock?.unitCost, safeFallbackUnitCost);
-    }
-    return total + (Math.max(0, toFiniteNumber(sale?.quantity, 0)) * saleUnitCost);
-  }, 0);
-  const safeUnitsSold = Math.max(0, toFiniteNumber(unitsSold, 0));
   const safeStockOnHand = Math.max(0, toFiniteNumber(stockOnHand, 0));
 
   return {
-    restockSpend: Math.round(totals.spend),
+    ...calculateWaterCostSummary(sales),
+    restockSpend: missingCostRestockCount > 0 ? null : Math.round(restockSpend),
+    missingCostRestockCount,
     currentUnitCost: latestUnitCost,
-    costOfGoodsSold: Math.round(
-      safeSales.length > 0 ? datedCostOfGoodsSold : safeUnitsSold * latestUnitCost
-    ),
-    inventoryValue: Math.round(safeStockOnHand * latestUnitCost),
+    inventoryValue: safeStockOnHand === 0 ? 0
+      : latestUnitCost === null ? null : Math.round(safeStockOnHand * latestUnitCost),
   };
 };

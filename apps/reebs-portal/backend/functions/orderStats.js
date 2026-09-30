@@ -337,17 +337,22 @@ export async function handler(event = {}) {
            bi."productId" AS product_id,
            p.name AS product_name,
            p.stock AS product_stock,
-           b."eventDate"::date AS event_date,
+           reserved_date::date AS event_date,
            SUM(bi.quantity)::int AS total_quantity,
            ARRAY_AGG(b.id) AS booking_ids
          FROM "bookingItem" bi
          JOIN "booking" b ON b.id = bi."bookingId"
          JOIN "product" p ON p.id = bi."productId" ${bookingProductJoin}
-         WHERE LOWER(COALESCE(b.status, '')) NOT IN ('cancelled', 'canceled')
+         CROSS JOIN LATERAL generate_series(
+           b."eventDate"::date,
+           b."eventEndDate"::date,
+           INTERVAL '1 day'
+         ) AS reservation_window(reserved_date)
+         WHERE LOWER(COALESCE(b.status, '')) IN ('pending', 'confirmed')
            ${conflictOrgFilter}
-         GROUP BY bi."productId", p.name, p.stock, b."eventDate"::date
+         GROUP BY bi."productId", p.name, p.stock, reserved_date::date
          HAVING SUM(bi.quantity) > COALESCE(p.stock, 0)
-         ORDER BY b."eventDate"::date ASC`,
+         ORDER BY reserved_date::date ASC`,
         conflictParams
       ),
       () => client.query(

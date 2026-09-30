@@ -17,9 +17,9 @@ import {
   getVariantUnitPrice,
   isVariantParentItem,
 } from "../../utils/productVariants";
+import { getReorderLevel } from "../../domains/inventory/inventoryViewModel";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const LOW_STOCK_THRESHOLD = 3;
 
 const PAYMENT_OPTIONS = [
   { value: "cash", label: "Cash" },
@@ -186,7 +186,7 @@ const clearStoreModeDraft = (key) => {
 
 export {
   EMAIL_PATTERN,
-  LOW_STOCK_THRESHOLD,
+  getReorderLevel,
   PAYMENT_OPTIONS,
   DISCOUNT_OPTIONS,
   clearStoreModeDraft,

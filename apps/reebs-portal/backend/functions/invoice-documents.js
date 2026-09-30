@@ -1,8 +1,18 @@
-/* eslint-disable no-undef */
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
+import { hasPermission } from "./_shared/accessControl.js";
 import { ensureAuditColumns } from "./auditHelpers.js";
+import { getEventHeader, getEventIpAddress, writeAuditLog } from "./_shared/auditLog.js";
+import {
+  calculateInvoiceFinancialSnapshot,
+  validateInvoiceForIssue,
+} from "../modules/invoicing/invoiceDomain.js";
+import {
+  loadInvoiceCustomerSnapshot,
+  loadInvoicePaymentState,
+  loadTrustedInvoiceSource,
+  reserveInvoiceNumber,
+} from "../modules/invoicing/invoiceRepository.js";
 import {
   COMMERCIAL_BUSINESS_UNITS,
   COMMERCIAL_CONFIG_KEYS,
@@ -11,14 +21,13 @@ import {
 import {
   calculateServiceDepositAmount,
   calculateServiceDepositDueDate,
-  preservePersistedInvoiceTerms,
   shouldRefreshDraftDeposit,
 } from "./_shared/invoiceCommercialTerms.js";
 
 const INVOICE_DOCUMENT_METHODS = "GET,POST,PUT,DELETE,OPTIONS";
 const SOURCE_TYPES = new Set(["manual", "orders", "bookings"]);
 const DOCUMENT_TYPES = new Set(["invoice", "receipt"]);
-const PAYMENT_STATUSES = new Set(["draft", "unpaid", "paid"]);
+const PAYMENT_STATUSES = new Set(["draft", "unpaid", "partially_paid", "overdue", "paid", "void"]);
 const INVENTORY_MANAGED_SOURCE_TYPES = new Set(["manual", "bookings"]);
 
 const tableStatements = [
@@ -93,9 +102,34 @@ const tableStatements = [
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "archivedByUserId" INTEGER`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
   `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "businessUnit" TEXT NOT NULL DEFAULT 'REEBS_CORE'`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "currency" TEXT NOT NULL DEFAULT 'GHS'`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "customerSnapshot" JSONB`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "sourceSnapshot" JSONB`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "financialSnapshot" JSONB`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "paymentStateVersion" INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "issuedAt" TIMESTAMPTZ`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "issuedByUserId" INTEGER`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "voidedAt" TIMESTAMPTZ`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "voidedByUserId" INTEGER`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS "voidReason" TEXT`,
+  `ALTER TABLE "invoiceDocument" ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 1`,
+  `CREATE TABLE IF NOT EXISTS "invoiceNumberSequence" (
+    id SERIAL PRIMARY KEY,
+    "organizationId" INTEGER NOT NULL,
+    "documentType" TEXT NOT NULL,
+    year INTEGER NOT NULL,
+    "lastValue" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE ("organizationId", "documentType", year)
+  )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "invoiceDocument_linked_unique_idx"
     ON "invoiceDocument" ("organizationId", "sourceType", "sourceId")
     WHERE "sourceType" <> 'manual' AND "sourceId" IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "invoiceDocument_number_key"
+    ON "invoiceDocument" ("organizationId", "invoiceNumber")
+    WHERE "invoiceNumber" IS NOT NULL AND "invoiceNumber" <> ''`,
 ];
 
 let hasEnsuredInvoiceDocumentTable = false;
@@ -239,6 +273,29 @@ const getDocumentAuditLabel = (record) => {
   return `${getDocumentKindLabel(record?.documentType)} #${invoiceNumber}`;
 };
 
+const writeInvoiceAudit = async (client, event, { authUser, organizationId, action, document, summary }) =>
+  writeAuditLog(client, {
+    userId: authUser.id,
+    organizationId,
+    action,
+    targetType: "invoice",
+    targetId: String(document?.invoiceNumber || document?.id || ""),
+    source: "api",
+    category: "document",
+    severity: "info",
+    status: "ok",
+    summary,
+    actorLabel: authUser.fullName || authUser.email || "User",
+    requestId: getEventHeader(event, "x-request-id"),
+    ipAddress: getEventIpAddress(event),
+    metadata: {
+      documentId: Number(document?.id) || null,
+      sourceType: document?.sourceType || null,
+      sourceId: normalizeId(document?.sourceId),
+      businessUnit: document?.businessUnit || "REEBS_CORE",
+    },
+  });
+
 const applyDocumentLifecycleDefaults = (record) => {
   const normalized = { ...record };
   const paymentStatus = normalizePaymentStatus(normalized.paymentStatus);
@@ -312,13 +369,13 @@ const selectProductsForInventory = async (client, organizationId, productIds = [
        name,
        stock,
        "sourceCategoryCode",
-       COALESCE("isActive", true) AS "isActive",
        EXISTS (
          SELECT 1
          FROM "waterProductPrice" AS water_price
          WHERE water_price."organizationId" = product."organizationId"
            AND water_price."productId" = product.id
-       ) AS "isWaterProduct"
+       ) AS "isWaterProduct",
+       COALESCE("isActive", true) AS "isActive"
      FROM "product" AS product
      WHERE product.id = ANY($1::int[])
        AND product."organizationId" = $2
@@ -538,6 +595,14 @@ const buildCompactDocumentRecord = (record) => ({
   issueDate: normalizeDateValue(record?.issueDate),
   dueDate: normalizeDateValue(record?.dueDate),
   paymentStatus: normalizePaymentStatus(record?.paymentStatus),
+  businessUnit: record?.businessUnit || "REEBS_CORE",
+  currency: record?.currency || "GHS",
+  paymentStateVersion: Number(record?.paymentStateVersion || 0),
+  financialSnapshot: record?.financialSnapshot || null,
+  sourceSnapshot: record?.sourceSnapshot || null,
+  issuedAt: normalizeTimestampValue(record?.issuedAt),
+  voidedAt: normalizeTimestampValue(record?.voidedAt),
+  voidReason: cleanNullableText(record?.voidReason, 500),
   sentAt: normalizeTimestampValue(record?.sentAt),
   sentToEmail: cleanNullableText(record?.sentToEmail, 200),
   stockCommittedAt: normalizeTimestampValue(record?.stockCommittedAt),
@@ -554,7 +619,9 @@ const buildCompactDocumentRecord = (record) => ({
   archivedAt: normalizeTimestampValue(record?.archivedAt),
   createdAt: normalizeTimestampValue(record?.createdAt),
   updatedAt: normalizeTimestampValue(record?.updatedAt),
-  grandTotal: computeGrandTotalFromRecord(record),
+  grandTotal: Number(record?.financialSnapshot?.totalCents) >= 0
+    ? Number(record.financialSnapshot.totalCents) / 100
+    : computeGrandTotalFromRecord(record),
 });
 
 const normalizePayload = (payload = {}) => {
@@ -565,12 +632,12 @@ const normalizePayload = (payload = {}) => {
     customerId: normalizeId(payload.customerId),
     documentType: normalizeDocumentType(payload.documentType),
     title: cleanNullableText(payload.title, 200),
-    invoiceNumber: cleanText(payload.invoiceNumber, 120),
+    invoiceNumber: "",
     issueDate: normalizeDateValue(payload.issueDate),
     dueDate: normalizeDateValue(payload.dueDate),
-    paymentStatus: normalizePaymentStatus(payload.paymentStatus),
-    sentAt: normalizeTimestampValue(payload.sentAt),
-    sentToEmail: cleanNullableText(payload.sentToEmail, 200),
+    paymentStatus: "draft",
+    sentAt: null,
+    sentToEmail: null,
     depositAmount: Math.max(0, normalizeMoney(payload.depositAmount, 0)),
     customerName: cleanNullableText(payload.customerName, 200),
     customerEmail: cleanNullableText(payload.customerEmail, 200),
@@ -624,6 +691,18 @@ const selectDocuments = async (client, organizationId, { compact = false } = {})
        "additionalItems",
        "taxRate",
        "discountAmount",
+       "businessUnit",
+       currency,
+       "customerSnapshot",
+       "sourceSnapshot",
+       "financialSnapshot",
+       "paymentStateVersion",
+       "issuedAt",
+       "issuedByUserId",
+       "voidedAt",
+       "voidedByUserId",
+       "voidReason",
+       revision,
        "archivedAt",
        "createdAt",
        "updatedAt"
@@ -669,6 +748,18 @@ const selectDocuments = async (client, organizationId, { compact = false } = {})
        terms,
        "taxRate",
        "discountAmount",
+       "businessUnit",
+       currency,
+       "customerSnapshot",
+       "sourceSnapshot",
+       "financialSnapshot",
+       "paymentStateVersion",
+       "issuedAt",
+       "issuedByUserId",
+       "voidedAt",
+       "voidedByUserId",
+       "voidReason",
+       revision,
        "archivedAt",
        "createdAt",
        "updatedAt"
@@ -712,6 +803,18 @@ const selectDocumentById = async (client, organizationId, id) => {
        terms,
        "taxRate",
        "discountAmount",
+       "businessUnit",
+       currency,
+       "customerSnapshot",
+       "sourceSnapshot",
+       "financialSnapshot",
+       "paymentStateVersion",
+       "issuedAt",
+       "issuedByUserId",
+       "voidedAt",
+       "voidedByUserId",
+       "voidReason",
+       revision,
        "archivedAt",
        "createdAt",
        "updatedAt"
@@ -728,10 +831,7 @@ export async function handler(event = {}) {
     return respond(event, 204, {}, { methods: INVOICE_DOCUMENT_METHODS });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "invoice-documents-database" });
   let transactionOpen = false;
 
   try {
@@ -762,10 +862,20 @@ export async function handler(event = {}) {
         if (!document) {
           return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
         }
-        return respond(event, 200, document, { methods: INVOICE_DOCUMENT_METHODS });
+        const [documentWithPayments] = await loadInvoicePaymentState(client, {
+          organizationId,
+          documents: [document],
+          includePayments: true,
+        });
+        return respond(event, 200, documentWithPayments, { methods: INVOICE_DOCUMENT_METHODS });
       }
       const documents = await selectDocuments(client, organizationId, { compact });
-      return respond(event, 200, documents, { methods: INVOICE_DOCUMENT_METHODS });
+      const documentsWithPayments = await loadInvoicePaymentState(client, {
+        organizationId,
+        documents,
+        includePayments: false,
+      });
+      return respond(event, 200, documentsWithPayments, { methods: INVOICE_DOCUMENT_METHODS });
     }
 
     let payload = {};
@@ -773,6 +883,236 @@ export async function handler(event = {}) {
       payload = JSON.parse(event.body || "{}");
     } catch {
       return respond(event, 400, { error: "Invalid JSON body." }, { methods: INVOICE_DOCUMENT_METHODS });
+    }
+
+    const action = cleanText(payload.action, 30).toLowerCase();
+    if (action === "issue") {
+      if (!hasPermission(authUser, "invoices:issue")) {
+        return respond(event, 403, { error: "You do not have permission to issue invoices." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      const id = normalizeId(payload.id);
+      if (!id) {
+        return respond(event, 400, { error: "Save the draft before issuing it." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      await client.query("BEGIN");
+      transactionOpen = true;
+      const locked = await client.query(
+        `SELECT id FROM "invoiceDocument" WHERE id = $1 AND "organizationId" = $2 FOR UPDATE`,
+        [id, organizationId]
+      );
+      if (!locked.rowCount) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      const existingDocument = await selectDocumentById(client, organizationId, id);
+      if (existingDocument.archivedAt || existingDocument.voidedAt) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 409, { error: "Archived or void documents cannot be issued." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      if (existingDocument.issuedAt) {
+        const [existingWithPayments] = await loadInvoicePaymentState(client, {
+          organizationId,
+          documents: [existingDocument],
+          includePayments: true,
+        });
+        await client.query("COMMIT");
+        transactionOpen = false;
+        return respond(event, 200, existingWithPayments, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+
+      const trustedSource = await loadTrustedInvoiceSource(client, {
+        organizationId,
+        sourceType: existingDocument.sourceType,
+        sourceId: existingDocument.sourceId,
+        draftDocument: existingDocument,
+      });
+      if (trustedSource.businessUnit !== "REEBS_CORE") {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 409, { error: "Water invoices must be issued from the Water business area." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      const customerId = trustedSource.customerId || normalizeId(existingDocument.customerId);
+      const customerSnapshot = await loadInvoiceCustomerSnapshot(client, { organizationId, customerId });
+      const financialSnapshot = trustedSource.financialSnapshot || calculateInvoiceFinancialSnapshot(existingDocument);
+      if (
+        existingDocument.documentType === "receipt"
+        && (
+          existingDocument.sourceType !== "orders"
+          || Number(trustedSource.sourceSnapshot?.amountPaidCents || 0) < Number(financialSnapshot.totalCents || 0)
+        )
+      ) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 409, {
+          error: "A receipt can only be issued from a fully paid Order. Use an invoice until payment is verified.",
+        }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      const issueCandidate = {
+        ...existingDocument,
+        customerId,
+        financialSnapshot,
+        issueDate: existingDocument.issueDate || new Date().toISOString().slice(0, 10),
+      };
+      const issueError = validateInvoiceForIssue(issueCandidate);
+      if (issueError) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 422, { error: issueError.message, code: issueError.code }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+
+      const requestedQuantities = shouldManageInventory(existingDocument.sourceType)
+        ? buildLineItemProductQuantityMap(existingDocument.lineItems)
+        : new Map();
+      const productIds = collectProductIdsFromMaps(requestedQuantities);
+      const productMap = await selectProductsForInventory(client, organizationId, productIds);
+      const inventoryError = validateCoreInvoiceProducts({
+        documentQuantities: requestedQuantities,
+        productMap,
+      }) || validateCommittedInventory({
+        requestedQuantities,
+        previouslyCommittedQuantities: new Map(),
+        productMap,
+      });
+      if (inventoryError) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 409, { error: inventoryError }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      await applyInventoryDelta(client, {
+        organizationId,
+        deltaMap: buildInventoryDeltaMap(new Map(), requestedQuantities),
+        productMap,
+        authUser,
+        documentLabel: getDocumentAuditLabel(existingDocument),
+        reference: `invoice-document-${id}`,
+      });
+      const invoiceNumber = await reserveInvoiceNumber(client, {
+        organizationId,
+        documentType: existingDocument.documentType,
+        issueDate: issueCandidate.issueDate,
+      });
+      await client.query(
+        `UPDATE "invoiceDocument"
+         SET "customerId" = $1,
+             "businessUnit" = 'REEBS_CORE',
+             currency = $2,
+             "customerSnapshot" = $3::jsonb,
+             "sourceSnapshot" = $4::jsonb,
+             "financialSnapshot" = $5::jsonb,
+             "invoiceNumber" = $6,
+             "issueDate" = $7,
+             "paymentStatus" = 'unpaid',
+             "paymentStateVersion" = 1,
+             "issuedAt" = NOW(),
+             "issuedByUserId" = $8,
+             "stockCommittedAt" = CASE WHEN $9 THEN NOW() ELSE "stockCommittedAt" END,
+             "customerName" = $10,
+             "customerEmail" = $11,
+             "customerPhone" = $12,
+             revision = revision + 1,
+             "updatedByUserId" = $8,
+             "updatedAt" = NOW()
+         WHERE id = $13 AND "organizationId" = $14`,
+        [
+          customerId,
+          trustedSource.currency || "GHS",
+          JSON.stringify(customerSnapshot),
+          JSON.stringify(trustedSource.sourceSnapshot),
+          JSON.stringify(financialSnapshot),
+          invoiceNumber,
+          issueCandidate.issueDate,
+          authUser.id,
+          shouldManageInventory(existingDocument.sourceType),
+          customerSnapshot.name,
+          customerSnapshot.email,
+          customerSnapshot.phone,
+          id,
+          organizationId,
+        ]
+      );
+      const issuedDocument = await selectDocumentById(client, organizationId, id);
+      await writeInvoiceAudit(client, event, {
+        authUser,
+        organizationId,
+        action: "INVOICE_ISSUED",
+        document: issuedDocument,
+        summary: `Issued ${getDocumentAuditLabel(issuedDocument)}.`,
+      });
+      await client.query("COMMIT");
+      transactionOpen = false;
+      const [issuedWithPayments] = await loadInvoicePaymentState(client, {
+        organizationId,
+        documents: [issuedDocument],
+        includePayments: true,
+      });
+      return respond(event, 200, issuedWithPayments, { methods: INVOICE_DOCUMENT_METHODS });
+    }
+
+    if (action === "void") {
+      if (!hasPermission(authUser, "invoices:void")) {
+        return respond(event, 403, { error: "You do not have permission to void invoices." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      const id = normalizeId(payload.id);
+      const voidReason = cleanText(payload.reason, 500);
+      if (!id || !voidReason) {
+        return respond(event, 400, { error: "Document id and a void reason are required." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      await client.query("BEGIN");
+      transactionOpen = true;
+      await client.query(
+        `SELECT id FROM "invoiceDocument" WHERE id = $1 AND "organizationId" = $2 FOR UPDATE`,
+        [id, organizationId]
+      );
+      const existingDocument = await selectDocumentById(client, organizationId, id);
+      if (!existingDocument) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      if (!existingDocument.issuedAt) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 409, { error: "Only issued documents can be voided; archive an unissued draft instead." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      const [paymentState] = await loadInvoicePaymentState(client, { organizationId, documents: [existingDocument] });
+      if (Number(paymentState?.paymentSummary?.amountPaidCents || 0) > 0) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 409, { error: "Reverse or refund applied payments before voiding this document." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+      if (isInventoryCommittedDocument(existingDocument)) {
+        const committed = buildLineItemProductQuantityMap(existingDocument.lineItems);
+        const products = await selectProductsForInventory(client, organizationId, collectProductIdsFromMaps(committed));
+        await applyInventoryDelta(client, {
+          organizationId,
+          deltaMap: buildInventoryDeltaMap(committed, new Map()),
+          productMap: products,
+          authUser,
+          documentLabel: getDocumentAuditLabel(existingDocument),
+          reference: existingDocument.invoiceNumber,
+        });
+      }
+      await client.query(
+        `UPDATE "invoiceDocument"
+         SET "voidedAt" = NOW(), "voidedByUserId" = $1, "voidReason" = $2,
+             "paymentStatus" = 'void', "stockCommittedAt" = NULL,
+             revision = revision + 1, "updatedByUserId" = $1, "updatedAt" = NOW()
+         WHERE id = $3 AND "organizationId" = $4`,
+        [authUser.id, voidReason, id, organizationId]
+      );
+      const voidedDocument = await selectDocumentById(client, organizationId, id);
+      await writeInvoiceAudit(client, event, {
+        authUser,
+        organizationId,
+        action: "INVOICE_VOIDED",
+        document: voidedDocument,
+        summary: `Voided ${getDocumentAuditLabel(voidedDocument)}: ${voidReason}`,
+      });
+      await client.query("COMMIT");
+      transactionOpen = false;
+      return respond(event, 200, voidedDocument, { methods: INVOICE_DOCUMENT_METHODS });
     }
 
     if (event.httpMethod === "DELETE") {
@@ -899,6 +1239,12 @@ export async function handler(event = {}) {
         return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
       }
 
+      if (existingDocument.issuedAt || existingDocument.sentAt) {
+        await client.query("ROLLBACK");
+        transactionOpen = false;
+        return respond(event, 409, { error: "Issued documents cannot be archived. Void the document instead." }, { methods: INVOICE_DOCUMENT_METHODS });
+      }
+
       if (isInventoryCommittedDocument(existingDocument)) {
         const committedQuantities = buildLineItemProductQuantityMap(existingDocument.lineItems);
         const productIds = collectProductIdsFromMaps(committedQuantities);
@@ -957,32 +1303,25 @@ export async function handler(event = {}) {
       if (payload.id) {
         event.httpMethod = "PUT";
       } else {
+        await client.query("BEGIN");
+        transactionOpen = true;
         normalized = await applyAuthoritativeInvoiceDeposit(
           client,
           organizationId,
           normalized,
           { at: new Date() }
         );
-        await client.query("BEGIN");
-        transactionOpen = true;
-        const documentQuantities = buildLineItemProductQuantityMap(normalized.lineItems);
         const requestedQuantities = shouldManageInventory(normalized.sourceType)
-          ? documentQuantities
+          ? buildLineItemProductQuantityMap(normalized.lineItems)
           : new Map();
         const nextCommittedQuantities =
           shouldManageInventory(normalized.sourceType) && normalized.sentAt ? requestedQuantities : new Map();
-        const productIds = collectProductIdsFromMaps(documentQuantities, nextCommittedQuantities);
+        const productIds = collectProductIdsFromMaps(requestedQuantities, nextCommittedQuantities);
         const productMap = await selectProductsForInventory(client, organizationId, productIds);
-        const coreDomainValidationError = validateCoreInvoiceProducts({
-          documentQuantities,
+        const inventoryValidationError = validateCoreInvoiceProducts({
+          documentQuantities: requestedQuantities,
           productMap,
-        });
-        if (coreDomainValidationError) {
-          await client.query("ROLLBACK");
-          transactionOpen = false;
-          return respond(event, 400, { error: coreDomainValidationError }, { methods: INVOICE_DOCUMENT_METHODS });
-        }
-        const inventoryValidationError = validateCommittedInventory({
+        }) || validateCommittedInventory({
           requestedQuantities,
           previouslyCommittedQuantities: new Map(),
           productMap,
@@ -1100,6 +1439,11 @@ export async function handler(event = {}) {
       transactionOpen = false;
       return respond(event, 404, { error: "Document not found." }, { methods: INVOICE_DOCUMENT_METHODS });
     }
+    if (existingDocument.issuedAt || existingDocument.sentAt || existingDocument.voidedAt) {
+      await client.query("ROLLBACK");
+      transactionOpen = false;
+      return respond(event, 409, { error: "Issued or void documents are immutable. Create a new draft for corrections." }, { methods: INVOICE_DOCUMENT_METHODS });
+    }
 
     if (shouldRefreshDraftDeposit(existingDocument)) {
       try {
@@ -1111,8 +1455,6 @@ export async function handler(event = {}) {
         );
       } catch (error) {
         if (error?.code !== "MISSING_COMMERCIAL_CONFIGURATION") throw error;
-        // Pre-Phase-6 drafts can predate the seeded effective window. They are
-        // still drafts, so apply today's authoritative rule rather than a code fallback.
         normalized = await applyAuthoritativeInvoiceDeposit(
           client,
           organizationId,
@@ -1120,40 +1462,22 @@ export async function handler(event = {}) {
           { at: new Date() }
         );
       }
-    } else {
-      const persistedTerms = preservePersistedInvoiceTerms(existingDocument, normalized);
-      normalized = {
-        ...persistedTerms,
-        depositAmount: Math.max(0, normalizeMoney(persistedTerms.depositAmount, 0)),
-        dueDate: normalizeDateValue(persistedTerms.dueDate),
-      };
     }
 
     const previouslyCommittedQuantities = isInventoryCommittedDocument(existingDocument)
       ? buildLineItemProductQuantityMap(existingDocument.lineItems)
       : new Map();
-    const documentQuantities = buildLineItemProductQuantityMap(normalized.lineItems);
     const requestedQuantities = shouldManageInventory(normalized.sourceType)
-      ? documentQuantities
+      ? buildLineItemProductQuantityMap(normalized.lineItems)
       : new Map();
     const nextCommittedQuantities =
       shouldManageInventory(normalized.sourceType) && normalized.sentAt ? requestedQuantities : new Map();
-    const productIds = collectProductIdsFromMaps(
-      previouslyCommittedQuantities,
-      documentQuantities,
-      nextCommittedQuantities
-    );
+    const productIds = collectProductIdsFromMaps(previouslyCommittedQuantities, requestedQuantities, nextCommittedQuantities);
     const productMap = await selectProductsForInventory(client, organizationId, productIds);
-    const coreDomainValidationError = validateCoreInvoiceProducts({
-      documentQuantities,
+    const inventoryValidationError = validateCoreInvoiceProducts({
+      documentQuantities: requestedQuantities,
       productMap,
-    });
-    if (coreDomainValidationError) {
-      await client.query("ROLLBACK");
-      transactionOpen = false;
-      return respond(event, 400, { error: coreDomainValidationError }, { methods: INVOICE_DOCUMENT_METHODS });
-    }
-    const inventoryValidationError = validateCommittedInventory({
+    }) || validateCommittedInventory({
       requestedQuantities,
       previouslyCommittedQuantities,
       productMap,
@@ -1253,16 +1577,10 @@ export async function handler(event = {}) {
       await client.query("ROLLBACK").catch(() => {});
     }
     console.error("invoice-documents error:", err);
-    const isCommercialConfigurationFailure =
-      err?.name === "CommercialConfigurationError"
-      && Number(err?.statusCode) === 503;
-    const statusCode = isCommercialConfigurationFailure ? 503 : 500;
-    const error = isCommercialConfigurationFailure
-      ? "Required commercial configuration is unavailable."
-      : "Failed to process invoice documents.";
+    const statusCode = Number(err?.statusCode) || (err?.code === "23505" ? 409 : 500);
     return respond(event, statusCode, {
-      error,
-      ...(isCommercialConfigurationFailure && err?.code ? { code: err.code } : {}),
+      error: statusCode >= 500 ? "Failed to process invoice documents." : err.message,
+      ...(err?.code && statusCode < 500 ? { code: err.code } : {}),
     }, {
       methods: INVOICE_DOCUMENT_METHODS,
     });

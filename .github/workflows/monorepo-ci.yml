@@ -111,6 +111,7 @@ jobs:
 
       - name: Run repository security and registry gates
         run: |
+          node --test scripts/hosting-policy.test.mjs
           pnpm security:all
           pnpm monitoring:check
           pnpm project-registry:check

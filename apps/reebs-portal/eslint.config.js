@@ -37,12 +37,13 @@ export default [
   {
     files: [
       'backend/**/*.js',
+      'runtimeEnv.js',
       'imports/**/*.js',
       'prisma/**/*.js',
       'scripts/**/*.js',
+      'scripts/**/*.mjs',
       'utils/passwords.js',
       'prismaClient.js',
-      'runtimeEnv.js',
       'vite.config.js',
     ],
     languageOptions: {

@@ -515,8 +515,8 @@
 }
 
 .cart-shell .qty-input button {
-  width: 34px;
-  height: 34px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 999px;
   background: rgba(var(--white-rgb), 0.96);

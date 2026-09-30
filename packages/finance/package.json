@@ -12,6 +12,7 @@
     "./constants": "./src/constants/index.js",
     "./helpers": "./src/helpers/index.js",
     "./receipts": "./src/receipts/index.js",
+    "./gateways": "./src/gateways/index.js",
     "./types": "./src/types/index.js"
   }
 }

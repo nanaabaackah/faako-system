@@ -10,14 +10,16 @@ import {
   resolveRequestId,
   safeMessageForErrorCode,
 } from "@faako/api-contracts";
+import { APP_ENV } from "../../../runtimeEnv.js";
 
-const DEFAULT_ALLOWED_ORIGINS = [
+const PRODUCTION_ALLOWED_ORIGINS = [
   "https://www.reebspartythemes.com",
   "https://reebspartythemes.com",
   "https://portal.reebspartythemes.com",
 ];
 
-const LOCAL_ALLOWED_ORIGINS = [
+const DEVELOPMENT_ALLOWED_ORIGINS = [
+  ...PRODUCTION_ALLOWED_ORIGINS,
   "http://localhost:8888",
   "http://localhost:5173",
   "http://localhost:5174",
@@ -25,6 +27,12 @@ const LOCAL_ALLOWED_ORIGINS = [
   "http://127.0.0.1:5173",
   "http://127.0.0.1:5174",
 ];
+
+const getDefaultAllowedOrigins = (appEnvironment) => {
+  if (appEnvironment === "production") return PRODUCTION_ALLOWED_ORIGINS;
+  if (appEnvironment === "development") return DEVELOPMENT_ALLOWED_ORIGINS;
+  return [];
+};
 
 const getHeaderValue = (event, key) => {
   const headers = event?.headers;
@@ -43,27 +51,26 @@ const splitConfiguredOrigins = (value) =>
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-const getAllowedOrigins = () => {
+export const resolveAllowedOrigins = ({ appEnvironment = APP_ENV, env = process.env } = {}) => {
+  const environmentSuffix = String(appEnvironment).toUpperCase();
   const configured = [
-    process.env.URL,
-    process.env.DEPLOY_PRIME_URL,
-    process.env.CF_PAGES_URL,
-    process.env.SITE_URL,
-    process.env.APP_URL,
-    process.env.APP_BASE_URL,
-    process.env.REEBS_PORTAL_URL,
-    process.env.REEBS_WEBSITE_URL,
-    ...splitConfiguredOrigins(process.env.CORS_ORIGINS),
-    ...splitConfiguredOrigins(process.env.ALLOWED_ORIGINS),
+    env.URL,
+    env.DEPLOY_PRIME_URL,
+    env.CF_PAGES_URL,
+    env.SITE_URL,
+    env.APP_URL,
+    env.APP_BASE_URL,
+    env.REEBS_PORTAL_URL,
+    env.REEBS_WEBSITE_URL,
+    ...splitConfiguredOrigins(env.CORS_ORIGINS),
+    ...splitConfiguredOrigins(env.ALLOWED_ORIGINS),
+    ...splitConfiguredOrigins(env[`CORS_ORIGINS_${environmentSuffix}`]),
+    ...splitConfiguredOrigins(env[`ALLOWED_ORIGINS_${environmentSuffix}`]),
   ];
-  const runtime = String(process.env.APP_ENV || process.env.NODE_ENV || "")
-    .trim()
-    .toLowerCase();
-  const defaults = runtime === "production" || runtime === "prod"
-    ? DEFAULT_ALLOWED_ORIGINS
-    : [...DEFAULT_ALLOWED_ORIGINS, ...LOCAL_ALLOWED_ORIGINS];
-  return mergeAllowedOrigins(defaults, configured);
+  return mergeAllowedOrigins(getDefaultAllowedOrigins(appEnvironment), configured);
 };
+
+const getAllowedOrigins = () => resolveAllowedOrigins();
 
 const DEFAULT_ALLOW_HEADERS = [
   "Content-Type",
@@ -98,9 +105,6 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 export const isUnsafeRequestMethod = (event) =>
   !SAFE_METHODS.has(String(event?.httpMethod || "GET").trim().toUpperCase());
 
-// Cookie-authenticated mutations must be attributable to an allowed browser
-// origin. Sec-Fetch-Site is useful defense-in-depth, but it is not accepted as
-// the only signal when both Origin and Fetch Metadata are absent.
 export const isTrustedBrowserMutation = (event) => {
   if (!isUnsafeRequestMethod(event)) return true;
   if (isCrossSiteBrowserRequest(event)) return false;
@@ -171,20 +175,16 @@ export const json = (event, statusCode, payload = {}, options = {}) => {
               statusCode >= 500 && options.exposeServerMessage !== true
                 ? safeMessageForErrorCode(errorCodeForStatus(statusCode))
                 : String(
-                    payload?.apiError?.message ||
-                      payload?.error ||
-                      payload?.message ||
-                      safeMessageForErrorCode(errorCodeForStatus(statusCode))
+                    payload?.apiError?.message
+                      || payload?.error
+                      || payload?.message
+                      || safeMessageForErrorCode(errorCodeForStatus(statusCode))
                   ),
-            issues:
-              payload?.apiError?.issues ||
-              payload?.issues ||
-              payload?.errors,
+            issues: payload?.apiError?.issues || payload?.issues || payload?.errors,
           },
           {
             requestId,
-            retryAfterSeconds:
-              payload?.retryAfterSeconds || options.retryAfterSeconds,
+            retryAfterSeconds: payload?.retryAfterSeconds || options.retryAfterSeconds,
             legacy:
               payload && typeof payload === "object" && !Array.isArray(payload)
                 ? payload

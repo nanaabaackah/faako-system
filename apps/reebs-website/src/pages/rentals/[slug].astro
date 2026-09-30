@@ -1,4 +1,5 @@
 ---
+import { REEBS_PUBLIC_COMMERCE } from "@faako/config";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import RentalItemIsland from "../../components/islands/RentalItemIsland.jsx";
 import { publicRentals } from "../../content/publicCatalogue.js";
@@ -26,11 +27,12 @@ const productSchema = {
   image: item.image || undefined,
   url: `${SITE_URL}${item.path}`,
   offers:
-    item.price && item.price > 0
+    REEBS_PUBLIC_COMMERCE.bookingEnabled && item.price && item.price > 0
       ? {
           "@type": "Offer",
           price: item.price,
           priceCurrency: item.currency || "GHS",
+          businessFunction: "http://purl.org/goodrelations/v1#LeaseOut",
           url: `${SITE_URL}${item.path}`,
         }
       : undefined,

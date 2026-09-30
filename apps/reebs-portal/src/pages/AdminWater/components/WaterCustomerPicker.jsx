@@ -16,7 +16,8 @@ export default function WaterCustomerPicker({
   typedCustomerName,
   matchedTypedCustomer,
   onCreateCustomer,
-  selectedCustomer,
+  creatingCustomer = false,
+  createError = "",
   directoryError = "",
   showDirectoryError = false,
   required = false,
@@ -34,6 +35,7 @@ export default function WaterCustomerPicker({
         aria-label={ariaLabel}
         inputClassName="water-order-customer-search"
         required={required}
+        disabled={creatingCustomer}
       />
       {menuOpen ? (
         options.length || typedCustomerName ? (
@@ -44,6 +46,7 @@ export default function WaterCustomerPicker({
                 <button
                   key={customer.id}
                   type="button"
+                  disabled={creatingCustomer}
                   className={`water-module-customer-option ${isActive ? "is-active" : ""}`}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => onSelectCustomer(String(customer.id))}
@@ -59,6 +62,7 @@ export default function WaterCustomerPicker({
                 className="water-module-customer-option water-order-customer-option--create"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={onCreateCustomer}
+                disabled={creatingCustomer}
               >
                 <span>Create "{typedCustomerName}"</span>
                 <small>Press Enter</small>
@@ -67,17 +71,9 @@ export default function WaterCustomerPicker({
           </div>
         ) : null
       ) : null}
-      {selectedCustomer ? (
-        <p className="water-module-inline-note">
-          REEBS #{selectedCustomer.id}
-          {selectedCustomer.phone ? ` · ${selectedCustomer.phone}` : ""}
-        </p>
-      ) : typedCustomerName && !matchedTypedCustomer ? (
-        <p className="water-module-inline-note">New customer on save.</p>
-      ) : null}
-      {directoryError && showDirectoryError ? (
-        <p className="water-module-inline-note">{directoryError}</p>
-      ) : null}
+      {creatingCustomer ? <small role="status">Saving customer…</small> : null}
+      {createError ? <small role="alert">{createError}</small> : null}
+      {showDirectoryError && directoryError ? <small role="alert">{directoryError}</small> : null}
     </div>
   );
 }

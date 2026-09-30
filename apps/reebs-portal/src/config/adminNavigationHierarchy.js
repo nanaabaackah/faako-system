@@ -23,6 +23,7 @@ export const REEBS_NAVIGATION_GROUP_BY_KEY = Object.freeze({
   delivery: "Operations",
   documents: "Operations",
   finance: "Finance",
+  payments: "Finance",
   accounting: "Finance",
   invoicing: "Finance",
   expenses: "Finance",
@@ -39,8 +40,6 @@ export const REEBS_NAVIGATION_GROUP_BY_KEY = Object.freeze({
   website: "Administration",
 });
 
-// Keeps each section task-oriented instead of relying on alphabetical order.
-// Keys that are not listed remain visible after the known items in their group.
 export const REEBS_NAVIGATION_ORDER_BY_KEY = Object.freeze({
   home: 10,
   reports: 20,
@@ -54,10 +53,11 @@ export const REEBS_NAVIGATION_ORDER_BY_KEY = Object.freeze({
   delivery: 20,
   maintenance: 30,
   documents: 40,
-  invoicing: 10,
-  expenses: 20,
-  accounting: 30,
-  vendors: 40,
+  payments: 10,
+  invoicing: 20,
+  expenses: 30,
+  accounting: 40,
+  vendors: 50,
   hr: 10,
   marketing: 20,
   directory: 30,

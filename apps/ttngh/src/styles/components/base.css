@@ -1,0 +1,83 @@
+@font-face {
+  font-family: "Montserrat";
+  src: url("/fonts/montserrat-latin.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100 900;
+}
+
+@font-face {
+  font-family: "Kaftan Calligraphy";
+  src: url("/fonts/kaftan-calligraphy.otf") format("opentype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+[id] {
+  scroll-margin-top: 7rem;
+}
+
+body {
+  margin: 0;
+  padding-top: 6.5rem;
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+body.has-overlay-header {
+  padding-top: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  border: 0;
+  font: inherit;
+}
+
+a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 110;
+  top: -5rem;
+  left: var(--page-gutter);
+  padding: 0.75rem 1rem;
+  background: var(--ink);
+  color: var(--white);
+}
+
+.skip-link:focus {
+  top: var(--page-gutter);
+}
+
+@media (max-width: 780px) {
+  body {
+    padding-top: 5.75rem;
+  }
+
+  body.has-overlay-header {
+    padding-top: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

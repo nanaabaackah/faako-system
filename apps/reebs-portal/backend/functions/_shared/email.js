@@ -9,6 +9,7 @@ const DEFAULT_FROM_NAME = "REEBS Party Themes";
 const LOCAL_EMAIL_FALLBACK = "dev@nanaabaackah.com";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+const EMAIL_TIMEOUT_MS = Math.max(1_000, Number(process.env.REEBS_EMAIL_TIMEOUT_MS) || 10_000);
 
 const readEnv = (key) => {
   const value = process.env[key];
@@ -70,18 +71,34 @@ const normalizeForcedEmailRecipient = (value) => {
 };
 
 const isProductionRuntime = () => APP_ENV === "production";
+const isStagingRuntime = () => APP_ENV === "staging";
 
 const getReplyToEmail = () => readEnv("EMAIL_REPLY_TO") || getNotificationCatchallEmail();
 export const getForcedEmailRecipient = () =>
   isProductionRuntime()
     ? ""
-    : normalizeForcedEmailRecipient(readEnv("EMAIL_FORCE_TO")) || LOCAL_EMAIL_FALLBACK;
+    : normalizeForcedEmailRecipient(readEnv("EMAIL_FORCE_TO"))
+      || (APP_ENV === "development" ? LOCAL_EMAIL_FALLBACK : "");
 
 export const getNotificationCatchallEmail = () =>
   readEnv("EMAIL_CATCHALL_TO") || DEFAULT_CATCHALL_EMAIL;
 
 export const isEmailNotificationsEnabled = () =>
   parseBoolean(readEnv("EMAIL_NOTIFICATIONS_ENABLED"), true);
+
+export const getEmailDeliveryStatus = () => {
+  if (!isEmailNotificationsEnabled()) {
+    return { available: false, reason: "disabled" };
+  }
+  if (isStagingRuntime() && !getForcedEmailRecipient()) {
+    return { available: false, reason: "staging_recipient_policy_not_configured" };
+  }
+  if (!readEnv("BREVO_API_KEY")) {
+    return { available: false, reason: "missing_api_key" };
+  }
+
+  return { available: true, reason: "configured" };
+};
 
 export const sendNotificationEmail = async ({
   to,
@@ -100,20 +117,20 @@ export const sendNotificationEmail = async ({
   const finalRecipients = shouldForceRecipient ? [forcedRecipient] : recipients;
   const redirectHeader = shouldForceRecipient
     ? [
-        `[Local email redirect active]`,
+        `[${APP_ENV === "staging" ? "Staging" : "Local"} email redirect active]`,
         `Original recipient(s): ${recipients.join(", ") || "none"}`,
         `Delivered to: ${forcedRecipient}`,
         "",
       ].join("\n")
     : "";
   const finalSubject = shouldForceRecipient
-    ? `[Local test] ${normalizedSubject}`
+    ? `[${APP_ENV === "staging" ? "Staging test" : "Local test"}] ${normalizedSubject}`
     : normalizedSubject;
   const finalText = `${redirectHeader}${normalizedText}`.trim();
   const redirectHtml = shouldForceRecipient && html
-    ? renderNotice({
+      ? renderNotice({
         theme: EMAIL_THEMES.reebs,
-        title: "Local email redirect active",
+        title: `${APP_ENV === "staging" ? "Staging" : "Local"} email redirect active`,
         tone: "warning",
         lines: [
           `Original recipient(s): ${recipients.join(", ") || "none"}`,
@@ -125,11 +142,10 @@ export const sendNotificationEmail = async ({
     ? `${redirectHtml}${html}`.trim()
     : "";
 
-  if (!isEmailNotificationsEnabled()) {
-    return { skipped: true, reason: "disabled" };
-  }
-  if (!apiKey) {
-    return { skipped: true, reason: "missing_api_key" };
+  const deliveryStatus = getEmailDeliveryStatus();
+
+  if (!deliveryStatus.available) {
+    return { skipped: true, reason: deliveryStatus.reason };
   }
   if (!recipients.length || !normalizedSubject || !normalizedText) {
     return { skipped: true, reason: "missing_payload" };
@@ -144,28 +160,37 @@ export const sendNotificationEmail = async ({
     .map((recipient) => toBrevoRecipient(recipient))
     .filter(Boolean);
 
-  const response = await fetch(BREVO_API_URL, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "api-key": apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      sender: sender.name
-        ? { name: sender.name, email: sender.email }
-        : { email: sender.email },
-      to: toRecipients,
-      subject: finalSubject,
-      textContent: finalText,
-      htmlContent: finalHtml || undefined,
-      replyTo: replyToRecipient || undefined,
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EMAIL_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(BREVO_API_URL, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        accept: "application/json",
+        "api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sender: sender.name
+          ? { name: sender.name, email: sender.email }
+          : { email: sender.email },
+        to: toRecipients,
+        subject: finalSubject,
+        textContent: finalText,
+        htmlContent: finalHtml || undefined,
+        replyTo: replyToRecipient || undefined,
+      }),
+    });
+  } catch (error) {
+    throw new Error(error?.name === "AbortError" ? "Email send timed out." : "Email provider request failed.");
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "");
-    throw new Error(`Email send failed (${response.status}): ${errorText || response.statusText}`);
+    throw new Error(`Email send failed (${response.status}).`);
   }
 
   const providerResponse = await response.json().catch(() => ({ ok: true }));

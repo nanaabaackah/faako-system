@@ -33,6 +33,61 @@ Frontend access checks are not authoritative. Water handlers must continue to va
 
 Water credentials, payment keys, webhook secrets, and private customer data remain server-side and redacted from logs. Audit events retain the existing request ID.
 
+## Dashboard capabilities and restock cost
+
+Every successful `/api/water` response, including mutation responses that replace the
+browser's dashboard state, includes `permissions.canViewFinance`, `canViewCost`,
+`canManagePricing`, and `canOverridePrice` derived from the authenticated user. The
+frontend defaults missing capabilities to false. Omitting them hides the revenue
+and net-profit cards, financial breakdown, and cost inputs even from administrators.
+
+The owner confirmed on 2026-09-24 that Water-only staff handle sales, while only
+owners/admins manage stock and purchase costs. The API allows Water staff only the
+`sale`, `update_sale`, and `delete_sale` mutations. Stock/restock, expense, adjustment
+and pricing writes return `WATER_ACTION_FORBIDDEN` before any Water-table mutation.
+Operational dashboard responses allowlist stock and sale fields, omit purchase
+costs/sale cost snapshots/finance aggregates, and return no expense records. The
+full private ledger is retained only for server-side validation and calculations.
+
+Authorized users enter **Cost price per pack (GHS)** under **Pricing & Restock**.
+The `restock` action accepts `unitCost` in GHS and persists integer pesewas; the same
+cost can be corrected through the existing restock editor. Selling prices continue
+to use effective-dated Commercial Settings independently of this purchase cost.
+
+The page reads the API's `unitCostAtSaleCents` sale snapshot when calculating Water
+profit and accepts the legacy `unitCostAtTransaction` field for compatibility.
+Missing snapshots remain unavailable rather than being treated as zero cost.
+
+API and Portal now share `shared/waterFinancials.js` for cost completeness and
+calculation. No fallback purchase price is used for an empty ledger or missing
+sale cost. The explicit correction workflow, not a dashboard read, is responsible
+for any persisted cost restatement. See the repository
+[release readiness checklist](../../../docs/apps/reebs/water-release-readiness.md)
+for local evidence and outstanding staging checks.
+
+The legacy MoMo callback also uses the connection-error-aware database client.
+It no longer backfills references across the sale table, ignores archived sales,
+checks the exact amount/currency and prevents duplicate settlement on exact event
+replays. These are handler-fixture checks, not a real-provider certification.
+
+Regression checks cover actual handler responses with an in-memory database stub,
+new-stock entry, historical cost correction, capability retention after saves, and
+the existing responsive layout from 320px through 1440px. These checks do not apply
+migrations or write to a deployed database.
+
+The Water handler uses the shared database client with an error listener; a lost
+connection is not retried automatically for mutations. Dashboard responses are
+awaited before the request client is closed. Shared Payments settlement updates
+`waterSale.updatedAt` along with paid fields so an in-flight Water edit can detect
+the changed row. That application remains `WATER_ORDER`/`WATER` and creates no Core
+order, journal or receipt. Database race/reload verification remains outstanding.
+
+Loading Water no longer runs the legacy blanket payment-status/reference/date
+updates. Pending MoMo remains pending, collected credit remains paid, and missing
+historical references/dates are not invented. New-sale mutations still record
+their own payment facts. Any earlier historical misclassification needs a separate
+reviewed data audit; this change neither reconstructs nor repairs past collections.
+
 ## Target module shape
 
 ```text

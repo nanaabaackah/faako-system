@@ -1,10 +1,12 @@
 /* eslint-disable no-undef */
-import { Client } from "pg";
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
+import { createLogger } from "./_shared/logger.js";
+import { getEventHeader } from "./_shared/auditLog.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const METHODS = "GET,OPTIONS";
 const json = (event, statusCode, body) => respond(event, statusCode, body, { methods: METHODS });
+const logger = createLogger("order-events");
 
 const normalizeOrderId = (value) => {
   const parsed = Number(value);
@@ -19,10 +21,8 @@ export async function handler(event = {}) {
   const orderId = normalizeOrderId(event.queryStringParameters?.orderId);
   if (!orderId) return json(event, 400, { error: "orderId is required." });
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "order-events-database" });
+  const requestLogger = logger.child({ requestId: getEventHeader(event, "x-request-id") || undefined });
 
   try {
     await client.connect();
@@ -43,7 +43,7 @@ export async function handler(event = {}) {
   } catch (error) {
     const statusCode = Number(error?.statusCode) || 500;
     if (statusCode >= 500) {
-      console.error("orderEvents error", { message: error?.message, code: error?.code });
+      requestLogger.error({ err: error, code: error?.code }, "Order event request failed");
     }
     return json(event, statusCode, {
       error: statusCode >= 500 ? "Failed to fetch order events." : error.message,

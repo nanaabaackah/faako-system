@@ -1,3 +1,5 @@
+import { isDatabaseConnectionError } from "./databaseClient.js";
+
 export const DEFAULT_SOURCE_CATEGORIES = [
   { name: "Toys", slug: "toys" },
   { name: "Rentals", slug: "rentals" },
@@ -33,6 +35,7 @@ const runStatements = async (client, statements, label) => {
     try {
       await client.query(statement);
     } catch (err) {
+      if (isDatabaseConnectionError(err)) throw err;
       console.warn(`${label} failed:`, err?.message || err);
     }
   }
@@ -96,6 +99,7 @@ const normalizeDefaultSourceCategories = async (client, organizationId) => {
       [legacyId, parsedOrgId]
     );
   } catch (err) {
+    if (isDatabaseConnectionError(err)) throw err;
     console.warn("Product normalization failed:", err?.message || err);
   }
 };
@@ -135,7 +139,9 @@ export const ensureSourceCategorySchema = async (client) => {
        VALUES ($1, $2, $3, true, NOW(), NOW())
        ON CONFLICT DO NOTHING`,
       [1, category.name, category.slug]
-    ).catch(() => {});
+    ).catch((error) => {
+      if (isDatabaseConnectionError(error)) throw error;
+    });
   }
 };
 

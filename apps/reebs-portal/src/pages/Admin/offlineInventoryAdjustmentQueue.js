@@ -3,6 +3,9 @@ import {
   OFFLINE_QUEUE_ACTION_TYPES,
   SYNC_STATES,
 } from "@faako/offline-sync";
+import { createInventoryAdjustmentIdempotencyKey } from "../../domains/inventory/inventoryAdjustment.js";
+
+export { createInventoryAdjustmentIdempotencyKey } from "../../domains/inventory/inventoryAdjustment.js";
 
 export const REEBS_INVENTORY_QUEUE_SOURCE_APP = "reebs-portal";
 export const REEBS_INVENTORY_QUEUE_TARGET_TYPE = "inventory-item";
@@ -21,11 +24,6 @@ export const INVENTORY_ADJUSTMENT_QUEUE_ACTIONABLE_STATUSES = new Set([
   SYNC_STATES.NEEDS_REVIEW,
   SYNC_STATES.FAILED,
 ]);
-
-export const createInventoryAdjustmentIdempotencyKey = () =>
-  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `inventory-adjustment-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 export const isInventoryAdjustmentReviewError = (errorMessage = "") => {
   const normalized = String(errorMessage || "").toLowerCase();
@@ -81,7 +79,7 @@ export const buildQueuedInventoryAdjustment = ({
   source = "inventory-adjustment-form",
   queuedAt = new Date().toISOString(),
 }) => {
-  const idempotencyKey = createInventoryAdjustmentIdempotencyKey();
+  const idempotencyKey = adjustment?.idempotencyKey || createInventoryAdjustmentIdempotencyKey();
   const productId = Number(adjustment?.productId || item?.id);
   const variantId = adjustment?.variantId ? Number(adjustment.variantId) : undefined;
   const quantity = Number(adjustment?.quantity || 0);
@@ -104,9 +102,11 @@ export const buildQueuedInventoryAdjustment = ({
         method: "POST",
       },
       adjustment: {
+        idempotencyKey,
         productId,
         ...(variantId ? { variantId } : {}),
         type,
+        reasonCode: adjustment?.reasonCode || (type === "StockIn" ? "RECEIVE" : "REMOVE"),
         quantity,
         soldMonth: type === "StockOut" ? adjustment?.soldMonth || null : null,
         notes: adjustment?.notes || undefined,

@@ -575,6 +575,8 @@ Response:
 
 ## Environment Variables (Backend)
 Core:
+- `APP_ENV`
+- `NODE_ENV`
 - `DATABASE_URL`
 - `USER_APP_SECRET`
 - `MANAGER_APP_SECRET`
@@ -596,8 +598,9 @@ Cloudflare Pages + API service:
 
 Railway (PostgreSQL):
 - Primary database host for `DATABASE_URL`.
-- SSL required (`rejectUnauthorized: false` is used in functions).
-- Prisma migrations live in `prisma/migrations/*` and can be applied via `npx prisma migrate`.
+- Hosted SSL is enabled by default and certificate verification remains enabled unless explicitly configured otherwise.
+- Prisma migrations live in `prisma/migrations/*`; staging and production use `prisma migrate deploy` only.
+- The authoritative development/staging/production contract is documented in [STAGING.md](./STAGING.md).
 
 Data imports:
 - Operational utilities are classified under `scripts/imports`, `scripts/backfills`, `scripts/seeds`, and `scripts/maintenance`. Run them from the portal package directory so existing package-relative data paths remain valid.

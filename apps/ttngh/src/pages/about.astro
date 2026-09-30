@@ -1,0 +1,95 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import FaqList from "../components/FaqList.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
+import { FaArrowRight } from "react-icons/fa6";
+import { organization, roadmap, values } from "../content/home.js";
+import aboutStyles from "../styles/pages/about.css?url";
+
+const faqItems = [
+  { question: "What is The Thriving Network GH?", answer: "The Thriving Network GH is a registered non-governmental organisation based in Tema, Ghana, working in mental health education, support, advocacy, research, and policy engagement." },
+  { question: "When was The Thriving Network GH founded?", answer: "The organisation began in July 2023 after an open, judgement-free conversation about mental health grew into a community." },
+  { question: "What is TTNGH's mission?", answer: "TTNGH works to eradicate mental health stigma through education, advocacy, and support, empowering people and communities to seek help without fear." },
+];
+---
+
+<BaseLayout path="/about" pageStyles={[aboutStyles]} title={`About us | ${organization.name}`} description="Learn how The Thriving Network GH began, what guides the organisation, and the future it is working to build." image="/images/home/founder-anthonia.jpg" imageAlt="Anthonia Nonye Tony-Dibie, founder of The Thriving Network GH" breadcrumbs={[{ name: "Home", path: "/" }, { name: "About", path: "/about" }]} faqItems={faqItems}>
+  <main id="main-content" class="editorial-main about-page">
+    <PageHero title="Mental wellness is not a privilege. It is a right." intro="We are a community-centred NGO working to eradicate mental health stigma through education, advocacy, direct support, research, and policy engagement." images={[
+      { src: "/images/home/initiative-community.jpg", alt: "Community members gathered during a TTNGH programme in Tema" },
+      { src: "/images/home/vision-speaker.jpg", alt: "A facilitator speaking during TTNGH's Vision with Clarity programme" },
+      { src: "/images/home/hero-community-3.jpg", alt: "A speaker addressing students during a TTNGH mental health education programme" },
+    ]} />
+
+    <section id="story" class="story-section" aria-labelledby="story-title">
+      <header class="story-intro">
+        <div>
+          <h2 id="story-title">One conversation became a growing community.</h2>
+        </div>
+        <div class="story-intro-note">
+          <a class="button button-primary" href="/downloads/ttngh-company-profile-2026.pdf" download><span class="button-label">Download Company profile</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+        </div>
+      </header>
+
+      <div class="story-layout">
+        <figure class="story-visual">
+          <img src="/images/home/vision-conversation.jpg" alt="A participant listening during a TTNGH community programme" width="1600" height="1067" loading="lazy" decoding="async" />
+          <figcaption><span>Founded</span><strong>2023</strong><p>Tema, Ghana</p></figcaption>
+        </figure>
+
+        <div class="story-journey">
+          <p class="story-journey-label">From conversation to community</p>
+          <ol class="story-progress" aria-label="How the organisation grew">
+            <li><span>01</span><div><h3>An open invitation</h3><p>A simple status post invited an honest, judgement-free conversation about mental health.</p></div></li>
+            <li><span>02</span><div><h3>People spoke</h3><p>The response showed how many people were carrying difficult experiences in silence.</p></div></li>
+            <li><span>03</span><div><h3>A community formed</h3><p>The conversation grew into regular virtual and in-person support.</p></div></li>
+            <li><span>04</span><div><h3>The work expanded</h3><p>Today TTNGH is a registered NGO in Tema delivering counselling, education, and outreach.</p></div></li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="story-beliefs">
+        <article><span>Vision</span><p>A stigma-free society where mental health is embraced as an essential part of overall well-being.</p></article>
+        <article><span>Mission</span><p>Eradicate stigma through education, advocacy, and support so people can seek help without fear.</p></article>
+      </div>
+    </section>
+
+    <section id="founder" class="founder-feature section-pink" aria-labelledby="founder-title">
+      <figure class="founder-portrait">
+        <img src="/images/home/founder-anthonia.jpg" alt="Anthonia Nonye Tony-Dibie, Founder and Executive Director of The Thriving Network GH" width="1066" height="1600" loading="lazy" decoding="async" />
+        <figcaption><strong>Anthonia Nonye Tony-Dibie</strong><span>Founder & Executive Director</span></figcaption>
+      </figure>
+      <div class="founder-copy">
+        <p class="eyebrow">From the Founder</p>
+        <h2 id="founder-title">A community where people can simply be heard.</h2>
+        <blockquote><p>“I wanted to create a judgement-free community space where people could simply come, release, breathe, and be heard.”</p></blockquote>
+      </div>
+    </section>
+
+    <section id="team" class="about-team" aria-labelledby="team-title">
+      <div>
+        <h2 id="team-title">Meet the people behind the work.</h2>
+        <p>Our leadership core team brings together programme delivery, operations, legal affairs, fundraising, communications, projects, administration, and outreach.</p>
+        <a class="button button-primary" href="/team"><span class="button-label">Meet the team</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+      </div>
+      <div class="about-team-portraits" aria-hidden="true">
+        <img src="/images/team/emefa-adonu.jpg" alt="" loading="lazy" />
+        <img src="/images/team/ruby-adeley.jpg" alt="" loading="lazy" />
+        <img src="/images/team/dzifa-tay-ansah.jpg" alt="" loading="lazy" />
+      </div>
+    </section>
+
+    <section id="values" class="section-dark" aria-labelledby="values-title">
+      <div class="section-heading"><h2 id="values-title">Our values</h2></div>
+      <div class="grid grid-four">{values.map((value) => <article class="bubble-card motion-card"><h3>{value.title}</h3><p>{value.description}</p></article>)}</div>
+    </section>
+
+    <section id="roadmap" class="direction-section" aria-labelledby="roadmap-title">
+      <div class="direction-heading"><h2 id="roadmap-title">Building from community reach to national presence.</h2><p>Each stage strengthens the foundation for the next.</p></div>
+      <ol class="direction-roadmap">{roadmap.map((item, index) => <li><span class="direction-index">{String(index + 1).padStart(2, "0")}</span><h3>{item.period}</h3><p>{item.description}</p></li>)}</ol>
+    </section>
+    <FaqList items={faqItems} />
+    <ScrollExpandSection image="/images/home/initiative-community.jpg" alt="The Thriving Network GH community gathered in Tema" eyebrow="Work with us" title="Help build a stigma-free society." text="Bring your time, professional expertise, platform, or organisational support to the mission." href="/get-involved" linkLabel="Get involved" frameTitle="The work grows together." id="about-cta-title" />
+  </main>
+</BaseLayout>

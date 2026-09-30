@@ -1,0 +1,32 @@
+---
+import "../styles/components/page-hero.css";
+
+const {
+  eyebrow,
+  title,
+  intro,
+  variant = "default",
+  images = [
+    { src: "/images/home/vision-speaker.jpg", alt: "A TTNGH facilitator speaking during Vision with Clarity" },
+    { src: "/images/home/programme-audience.jpg", alt: "Students at a TTNGH mental health education programme in Tema" },
+    { src: "/images/home/vision-reflection.jpg", alt: "Participants at TTNGH's Vision with Clarity programme" },
+  ],
+} = Astro.props;
+---
+
+<section class:list={["page-hero", `page-hero--${variant}`]} aria-labelledby="page-title">
+  <div class="page-hero-copy">
+    <p class="eyebrow">{eyebrow}</p>
+    <h1 id="page-title">{title}</h1>
+    {intro && <p class="lead">{intro}</p>}
+  </div>
+  {variant !== "formal" && (
+    <div class="page-hero-gallery" aria-label="The Thriving Network GH in the community">
+      {images.slice(0, 3).map((image, index) => (
+        <figure>
+          <img src={image.src} alt={image.alt} width="1066" height="1600" loading={index === 0 ? "eager" : "lazy"} fetchpriority={index === 0 ? "high" : "auto"} decoding="async" />
+        </figure>
+      ))}
+    </div>
+  )}
+</section>

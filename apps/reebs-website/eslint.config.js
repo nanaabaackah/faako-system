@@ -32,7 +32,7 @@ export default [
     },
   },
   {
-    files: ['astro.config.mjs', 'scripts/*.mjs', 'tests/*.mjs'],
+    files: ['astro.config.mjs', 'scripts/*.mjs', 'tests/*.mjs', 'utils/**/*.js'],
     languageOptions: {
       globals: globals.node,
     },

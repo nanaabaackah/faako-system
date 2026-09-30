@@ -1,9 +1,7 @@
-/* eslint-disable no-undef */
 // Filename: inventory.js (Now serving ALL Products from the unified 'product' table)
 
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
 import { ensureAuditColumns } from "./auditHelpers.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { buildResponseHeaders, isCrossSiteBrowserRequest } from "./_shared/http.js";
 import { notifyManager } from "./_shared/managerPush.js";
 import {
@@ -37,6 +35,85 @@ const getCorsHeaders = (event) => ({
 });
 
 const DEFAULT_SOURCE_CATEGORY_CODE = "INVENTORY";
+const CORE_INVENTORY_SCOPE_SQL = `NOT EXISTS (
+  SELECT 1
+  FROM "waterProductConfig" inventory_water_scope
+  WHERE inventory_water_scope."organizationId" = p."organizationId"
+    AND inventory_water_scope."inventoryProductId" = p.id
+    AND inventory_water_scope."isActive" = TRUE
+)`;
+const INVENTORY_OPERATIONAL_STATE_SQL = `
+  CASE
+    WHEN UPPER(COALESCE(p."sourceCategoryCode", '')) = 'RENTAL' THEN NULL
+    WHEN UPPER(COALESCE(p."itemType", 'STANDARD')) = 'VARIANT_PARENT' THEN COALESCE((
+      SELECT SUM(GREATEST(v."stockQty" - v."reservedQty", 0))::int
+      FROM "inventoryVariant" v
+      WHERE v."organizationId" = p."organizationId"
+        AND v."inventoryItemId" = p.id
+        AND LOWER(COALESCE(v.status, 'active')) <> 'inactive'
+    ), 0)
+    WHEN COALESCE(p."isActive", true) = false THEN 0
+    ELSE GREATEST(COALESCE(p.stock, 0), 0)
+  END AS "availableQuantity",
+  CASE
+    WHEN UPPER(COALESCE(p."itemType", 'STANDARD')) = 'VARIANT_PARENT' THEN COALESCE((
+      SELECT SUM(v."reservedQty")::int
+      FROM "inventoryVariant" v
+      WHERE v."organizationId" = p."organizationId"
+        AND v."inventoryItemId" = p.id
+        AND LOWER(COALESCE(v.status, 'active')) <> 'inactive'
+    ), 0)
+    WHEN UPPER(COALESCE(p."sourceCategoryCode", '')) = 'RENTAL' THEN COALESCE((
+      SELECT SUM(bi.quantity)::int
+      FROM "bookingItem" bi
+      JOIN "booking" b
+        ON b.id = bi."bookingId"
+       AND b."organizationId" = bi."organizationId"
+      WHERE bi."organizationId" = p."organizationId"
+        AND bi."productId" = p.id
+        AND LOWER(COALESCE(b.status, '')) IN ('pending', 'confirmed')
+    ), 0)
+    ELSE 0
+  END AS "reservedQuantity",
+  CASE
+    WHEN UPPER(COALESCE(p."sourceCategoryCode", '')) = 'RENTAL' THEN COALESCE((
+      SELECT SUM(bi.quantity)::int
+      FROM "bookingItem" bi
+      JOIN "booking" b
+        ON b.id = bi."bookingId"
+       AND b."organizationId" = bi."organizationId"
+      WHERE bi."organizationId" = p."organizationId"
+        AND bi."productId" = p.id
+        AND CURRENT_DATE BETWEEN b."eventDate"::date AND b."eventEndDate"::date
+        AND LOWER(COALESCE(b.status, '')) IN ('confirmed', 'active', 'in_use', 'in progress')
+    ), 0)
+    ELSE 0
+  END AS "inUseQuantity",
+  COALESCE((
+    SELECT COUNT(*)::int
+    FROM "maintenanceLog" m
+    WHERE m."organizationId" = p."organizationId"
+      AND m."productId" = p.id
+      AND m."resolvedAt" IS NULL
+      AND LOWER(COALESCE(m.status, 'open')) = 'open'
+  ), 0) AS "maintenanceCount",
+  CASE
+    WHEN COALESCE(p."isActive", true) = false AND EXISTS (
+      SELECT 1 FROM "maintenanceLog" m
+      WHERE m."organizationId" = p."organizationId"
+        AND m."productId" = p.id
+        AND m."resolvedAt" IS NULL
+        AND LOWER(COALESCE(m.status, 'open')) = 'open'
+    ) THEN 'maintenance'
+    WHEN COALESCE(p."isActive", true) = false THEN 'inactive'
+    WHEN COALESCE(p.stock, 0) <= 0 THEN 'out_of_stock'
+    WHEN COALESCE(p.stock, 0) <= GREATEST(COALESCE(p."reorderLevel", 2), 0) THEN 'low_stock'
+    ELSE 'available'
+  END AS "stockStatus",
+  CASE
+    WHEN UPPER(COALESCE(p."sourceCategoryCode", '')) = 'RENTAL' THEN 'DATE_BASED'
+    ELSE 'ON_HAND'
+  END AS "availabilityMode"`;
 const statusColumnStatements = [
   `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "isArchived" BOOLEAN DEFAULT false`,
   `ALTER TABLE "product" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ`,
@@ -92,7 +169,7 @@ const inventoryEditRequestStatements = [
   `CREATE INDEX IF NOT EXISTS "inventoryEditRequest_org_status_idx"
     ON "inventoryEditRequest" ("organizationId", "status", "createdAt")`,
 ];
-const EDITABLE_FIELDS_BY_MANAGER = new Set(["name", "description", "priceCents", "stock"]);
+const EDITABLE_FIELDS_BY_MANAGER = new Set(["name", "description", "priceCents"]);
 
 let hasEnsuredInventoryReadSchema = false;
 let inventoryReadSchemaPromise = null;
@@ -416,6 +493,8 @@ const recordInventoryStockAdjustment = async (
     nextStock,
     actor,
     reference = "Inventory edit",
+    sourceType = "INVENTORY_EDIT",
+    idempotencyKey = null,
   }
 ) => {
   const before = Number(previousStock);
@@ -438,9 +517,13 @@ const recordInventoryStockAdjustment = async (
        "performedByUserId",
        "performedByName",
        "performedByEmail",
+       "idempotencyKey",
+       "sourceType",
+       "previousStock",
+       "resultingStock",
        "createdAt"
      )
-     VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, NOW())`,
+     VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11, $12, $13, NOW())`,
     [
       organizationId,
       productId,
@@ -451,9 +534,49 @@ const recordInventoryStockAdjustment = async (
       actor?.userId || null,
       actor?.userName || "Admin",
       actor?.userEmail || null,
+      idempotencyKey,
+      sourceType,
+      before,
+      after,
     ]
   );
 };
+
+const isWaterScopedInventoryProduct = async (client, organizationId, productId) => {
+  const result = await client.query(
+    `SELECT 1
+     FROM "waterProductConfig"
+     WHERE "organizationId" = $1
+       AND "inventoryProductId" = $2
+       AND "isActive" = TRUE
+     LIMIT 1`,
+    [organizationId, productId]
+  );
+  return result.rowCount > 0;
+};
+
+const hasWaterScopedInventoryProducts = async (client, organizationId, productIds) => {
+  if (!Array.isArray(productIds) || productIds.length === 0) return false;
+  const result = await client.query(
+    `SELECT 1
+     FROM "waterProductConfig"
+     WHERE "organizationId" = $1
+       AND "inventoryProductId" = ANY($2::int[])
+       AND "isActive" = TRUE
+     LIMIT 1`,
+    [organizationId, productIds]
+  );
+  return result.rowCount > 0;
+};
+
+const waterScopeConflictResponse = (event) => ({
+  statusCode: 409,
+  headers: getCorsHeaders(event),
+  body: JSON.stringify({
+    error: "Water products and stock must be managed from the Water Business module.",
+    code: "INVENTORY_SCOPE_CONFLICT",
+  }),
+});
 
 export async function handler(event = {}) {
   const method = (event.httpMethod || "GET").toUpperCase();
@@ -469,10 +592,7 @@ export async function handler(event = {}) {
     };
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL, // Railway Postgres URL
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "inventory-database" });
 
   try {
     await client.connect();
@@ -562,6 +682,7 @@ export async function handler(event = {}) {
            ON sc.id = p."sourceCategoryId"
           AND sc."organizationId" = p."organizationId"
          WHERE p."organizationId" = $1
+           AND ${CORE_INVENTORY_SCOPE_SQL}
            AND COALESCE(p."isDeleted", false) = false
            AND COALESCE(p."isArchived", false) = false
          ORDER BY p.id ASC`,
@@ -586,8 +707,8 @@ export async function handler(event = {}) {
     const access = await requireInternalUser(client, event, {
       methods: "GET,POST,PATCH,DELETE,OPTIONS",
       body: payload,
-      permission: method === "GET" ? "inventory:read" : "inventory:write",
-      permissionError: "Inventory permission is required.",
+      permission: method === "GET" ? "inventory:read" : "",
+      permissionError: "You do not have permission to view Inventory.",
     });
     if (access.errorResponse) {
       return access.errorResponse;
@@ -648,6 +769,7 @@ export async function handler(event = {}) {
             (p."stockValue"::numeric / 100) AS "stockValue",
             (p."saleValue"::numeric / 100) AS "saleValue",
             p.stock AS quantity,
+            ${INVENTORY_OPERATIONAL_STATE_SQL},
             ${INVENTORY_IMAGE_FALLBACK_SQL} AS image,
             ${INVENTORY_IMAGE_FALLBACK_SQL} AS "imageUrl",
             p."isActive" AS status,
@@ -700,6 +822,7 @@ export async function handler(event = {}) {
            AND sc."organizationId" = p."organizationId"
           WHERE p.id = $1
             AND p."organizationId" = $2
+            AND ${CORE_INVENTORY_SCOPE_SQL}
             AND COALESCE(p."isDeleted", false) = false
         `, [singleId, organizationId]);
 
@@ -770,14 +893,17 @@ export async function handler(event = {}) {
       }
 
       let whereClause = `WHERE p."organizationId" = $1
+        AND ${CORE_INVENTORY_SCOPE_SQL}
         AND COALESCE(p."isDeleted", false) = false
         AND COALESCE(p."isArchived", false) = false`;
       if (view === "archived") {
         whereClause = `WHERE p."organizationId" = $1
+          AND ${CORE_INVENTORY_SCOPE_SQL}
           AND COALESCE(p."isArchived", false) = true
           AND COALESCE(p."isDeleted", false) = false`;
       } else if (view === "deleted") {
         whereClause = `WHERE p."organizationId" = $1
+          AND ${CORE_INVENTORY_SCOPE_SQL}
           AND COALESCE(p."isDeleted", false) = true`;
       }
       const result = await client.query(`
@@ -804,6 +930,7 @@ export async function handler(event = {}) {
           (p."stockValue"::numeric / 100) AS "stockValue",
           (p."saleValue"::numeric / 100) AS "saleValue",
           p.stock AS quantity,
+          ${INVENTORY_OPERATIONAL_STATE_SQL},
           ${INVENTORY_IMAGE_FALLBACK_SQL} AS image,
           ${INVENTORY_IMAGE_FALLBACK_SQL} AS "imageUrl",
           p."isActive" AS status,
@@ -1002,15 +1129,15 @@ export async function handler(event = {}) {
           const nextStock = Object.prototype.hasOwnProperty.call(requestedFields, "stock")
             ? Math.max(0, Math.round(parseNumber(requestedFields.stock)))
             : Number(currentProduct.stock || 0);
-          if (
-            normalizeInventoryItemType(currentProduct.itemType) === "VARIANT_PARENT"
-            && nextStock !== Number(currentProduct.stock || 0)
-          ) {
+          if (nextStock !== Number(currentProduct.stock || 0)) {
             await client.query("ROLLBACK");
             return {
-              statusCode: 400,
+              statusCode: 409,
               headers: getCorsHeaders(event),
-              body: JSON.stringify({ error: "Adjust variant stock from the variant table." }),
+              body: JSON.stringify({
+                error: "Stock changes must use the audited Adjust stock action.",
+                code: "INVALID_STOCK_ADJUSTMENT",
+              }),
             };
           }
           const nextStockValue = nextPriceCents * nextStock;
@@ -1098,6 +1225,10 @@ export async function handler(event = {}) {
         };
       }
 
+      if (await isWaterScopedInventoryProduct(client, organizationId, parsedId)) {
+        return waterScopeConflictResponse(event);
+      }
+
       const actor = buildActorFromUser(authenticatedUser);
       if (action === "archive") {
         if (!isAdminRole(authenticatedUser.role)) {
@@ -1170,6 +1301,11 @@ export async function handler(event = {}) {
           headers: getCorsHeaders(event),
           body: JSON.stringify({ error: "Product id is required." }),
         };
+      }
+
+
+      if (await isWaterScopedInventoryProduct(client, organizationId, parsedId)) {
+        return waterScopeConflictResponse(event);
       }
 
       const canDelete = await isSystemAdmin(client, authenticatedUser.id, organizationId);
@@ -1275,6 +1411,9 @@ export async function handler(event = {}) {
           headers: getCorsHeaders(event),
           body: JSON.stringify({ error: "Select at least one inventory item." }),
         };
+      }
+      if (await hasWaterScopedInventoryProducts(client, organizationId, productIds)) {
+        return waterScopeConflictResponse(event);
       }
 
       const hasSourceCategoryInput = Boolean(
@@ -1463,6 +1602,9 @@ export async function handler(event = {}) {
           body: JSON.stringify({ error: "Select at least one inventory item." }),
         };
       }
+      if (await hasWaterScopedInventoryProducts(client, organizationId, productIds)) {
+        return waterScopeConflictResponse(event);
+      }
 
       const specificCategory = normalizeCategoryName(sanitizeString(getPayloadCategoryName(payload) || "", 120));
       if (!specificCategory) {
@@ -1593,6 +1735,9 @@ export async function handler(event = {}) {
           headers: getCorsHeaders(event),
           body: JSON.stringify({ error: "Select at least one inventory item." }),
         };
+      }
+      if (await hasWaterScopedInventoryProducts(client, organizationId, productIds)) {
+        return waterScopeConflictResponse(event);
       }
 
       const requestedProductName = getPayloadProductName(payload);
@@ -1743,6 +1888,16 @@ export async function handler(event = {}) {
     const safeSource = sourceCategoryCode
       || (selectedSourceCategory ? resolveSourceCategoryCodeForCategory(selectedSourceCategory) : "")
       || DEFAULT_SOURCE_CATEGORY_CODE;
+    if (safeSource === "WATER") {
+      return {
+        statusCode: 409,
+        headers: getCorsHeaders(event),
+        body: JSON.stringify({
+          error: "Water products and stock must be managed from the Water Business module.",
+          code: "INVENTORY_SCOPE_CONFLICT",
+        }),
+      };
+    }
 
     const priceInput = payload.price ?? payload.priceCents ?? payload.price_cents;
     const priceValue = parseNumber(priceInput);
@@ -1751,6 +1906,8 @@ export async function handler(event = {}) {
       Math.round(Number.isInteger(priceValue) ? priceValue : priceValue * 100)
     );
 
+    const hasStockInput = Object.prototype.hasOwnProperty.call(payload, "stock")
+      || Object.prototype.hasOwnProperty.call(payload, "quantity");
     const stockInput = payload.stock ?? payload.quantity ?? 0;
     const stock = Math.max(0, Math.round(parseNumber(stockInput)));
     const purchasePriceGbpInput =
@@ -1897,6 +2054,13 @@ export async function handler(event = {}) {
            "reorderQuantity"
          FROM "product"
          WHERE id = $1 AND "organizationId" = $2
+           AND NOT EXISTS (
+             SELECT 1
+             FROM "waterProductConfig" inventory_water_scope
+             WHERE inventory_water_scope."organizationId" = "product"."organizationId"
+               AND inventory_water_scope."inventoryProductId" = "product".id
+               AND inventory_water_scope."isActive" = TRUE
+           )
          LIMIT 1`,
         [parsedId, organizationId]
       );
@@ -1910,6 +2074,17 @@ export async function handler(event = {}) {
 
       const currentProduct = existing.rows[0];
       previousStock = Number(currentProduct.stock || 0);
+      if (!hasStockInput) nextStock = previousStock;
+      if (nextStock !== previousStock) {
+        return {
+          statusCode: 409,
+          headers: getCorsHeaders(event),
+          body: JSON.stringify({
+            error: "Stock changes must use the audited Adjust stock action.",
+            code: "INVALID_STOCK_ADJUSTMENT",
+          }),
+        };
+      }
       const currentVendorLinkMap = await getProductVendorIdsMap(client, {
         organizationId,
         productIds: [parsedId],
@@ -1928,48 +2103,6 @@ export async function handler(event = {}) {
         : currentProduct.sourceCategoryId || null;
       nextSpecificCategory = nextSpecificCategory || currentProduct.specificCategory || null;
 
-      if (
-        normalizeInventoryItemType(nextItemType) === "VARIANT_PARENT"
-        && nextStock !== previousStock
-      ) {
-        return {
-          statusCode: 409,
-          headers: getCorsHeaders(event),
-          body: JSON.stringify({
-            error: "Cannot adjust stock directly on variant parent items.",
-            detail: "Variant parent stock is calculated from individual variant stock. Edit variant stock from the variant table instead.",
-          }),
-        };
-      }
-
-      const isRentalItem = String(currentProduct.sourceCategoryCode || "").trim().toUpperCase() === "RENTAL";
-      if (isRentalItem && nextStock !== previousStock) {
-        const maxBookedRes = await client.query(
-          `SELECT COALESCE(MAX(daily_qty), 0)::int AS max_booked
-           FROM (
-             SELECT SUM(bi.quantity) AS daily_qty
-             FROM "bookingItem" bi
-             JOIN "booking" b ON b.id = bi."bookingId"
-             WHERE bi."productId" = $1
-               AND bi."variantId" IS NULL
-               AND bi."organizationId" = $2
-               AND LOWER(b.status) IN ('pending', 'confirmed')
-             GROUP BY b."eventDate"::date
-           ) daily`,
-          [parsedId, organizationId]
-        );
-        const maxBooked = Number(maxBookedRes.rows[0]?.max_booked || 0);
-        if (nextStock < maxBooked) {
-          return {
-            statusCode: 409,
-            headers: getCorsHeaders(event),
-            body: JSON.stringify({
-              error: `Cannot reduce rental capacity below ${maxBooked} — that many units are already booked on at least one date.`,
-            }),
-          };
-        }
-      }
-
       if (!canEditInventoryDirectly(actorRole) && !canRequestInventoryEdit(actorRole)) {
         return {
           statusCode: 403,
@@ -1987,10 +2120,6 @@ export async function handler(event = {}) {
         if (nextPriceCents !== Number(currentProduct.price || 0)) {
           requestedFields.priceCents = nextPriceCents;
         }
-        if (nextStock !== Number(currentProduct.stock || 0)) {
-          requestedFields.stock = nextStock;
-        }
-
         const changedFieldKeys = Object.keys(requestedFields).filter((field) =>
           EDITABLE_FIELDS_BY_MANAGER.has(field)
         );
@@ -2243,6 +2372,17 @@ export async function handler(event = {}) {
           previousStock,
           nextStock,
           actor,
+        });
+      } else if (nextStock > 0) {
+        await recordInventoryStockAdjustment(client, {
+          organizationId,
+          productId: created?.id,
+          previousStock: 0,
+          nextStock,
+          actor,
+          reference: "Opening stock",
+          sourceType: "OPENING_STOCK",
+          idempotencyKey: `opening-stock-${created?.id}`,
         });
       }
 

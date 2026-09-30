@@ -1,4 +1,5 @@
 import React from "react";
+import "./TablePagination.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faChevronLeft, faChevronRight } from "/src/icons/iconSet";
 

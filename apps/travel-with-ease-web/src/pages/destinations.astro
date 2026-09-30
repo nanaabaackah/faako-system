@@ -1,0 +1,5 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+const destinations = ["Istanbul", "Dubai", "Cape Town", "London", "Toronto", "Paris"];
+---
+<BaseLayout title="Destinations | Travel With Ease" description="Explore international destination ideas designed for travellers departing from Ghana."><section class="page-hero"><span class="eyebrow">Destination notes</span><h1>Places worth going, plans worth keeping.</h1><p>Our first destination guides are being prepared. Tell us what is calling you and we will shape a route around it.</p></section><section class="destination-grid">{destinations.map((name, index) => <article><span>0{index + 1}</span><h2>{name}</h2><a href="/#plan">Plan this journey →</a></article>)}</section></BaseLayout>

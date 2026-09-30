@@ -517,7 +517,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
       setSearchError("");
       const requests = [
         canAccessCustomers
-          ? { key: "customers", label: "customers", path: "/api/customers" }
+          ? { key: "customers", label: "customers", path: "/api/customers?compact=1&limit=200" }
           : null,
         canAccessInventoryRecords
           ? { key: "inventory", label: "inventory", path: "/api/inventory" }
@@ -602,20 +602,7 @@ function PortalSidebar({ apps = DEFAULT_APPS }) {
     }
   }, [authReady, isAuthenticated, readStorageKey]);
 
-  const resolvedApps = useMemo(
-    () =>
-      apps.map((app) => {
-        if (userRole !== "driver" || app.path !== "/admin/crm") return app;
-        return {
-          ...app,
-          label: "Customers",
-          path: "/admin/directory?tab=customers",
-          matchPaths: ["/admin/directory", "/admin/customers"],
-          description: "Delivery customer records and contact details",
-        };
-      }),
-    [apps, userRole]
-  );
+  const resolvedApps = apps;
 
   const canSeeApp = (app) => {
     if (!isAuthenticated) return false;

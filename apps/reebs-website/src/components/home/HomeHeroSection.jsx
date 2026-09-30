@@ -11,7 +11,6 @@ function HomeHeroSection({
   onHeroEmailChange,
   onHeroLeadSubmit,
   heroStats,
-  yearsServingBadge,
 }) {
   return (
     <section id="hero-section" className="home-hero">
@@ -70,9 +69,7 @@ function HomeHeroSection({
             {HERO_STATS.map((stat) => (
               <p className="why-stat" role="listitem" key={stat.key}>
                 <span className="why-stat-value">
-                  {stat.key === "years"
-                    ? `${yearsServingBadge}+ years`
-                    : formatHeroStatValue(heroStats[stat.key])}
+                  {formatHeroStatValue(heroStats[stat.key])}
                 </span>
                 <span className="why-stat-label">{stat.label}</span>
               </p>

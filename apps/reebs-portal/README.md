@@ -49,7 +49,7 @@ pnpm --filter @faako/reebs-portal run build
 pnpm --filter @faako/reebs-portal run dev
 pnpm --filter @faako/reebs-portal run dev:with-backend
 pnpm --filter @faako/reebs-portal run dev:backend
-pnpm --filter @faako/reebs-portal run server:prod
+pnpm --filter @faako/reebs-portal run server
 pnpm --filter @faako/reebs-portal run db:generate
 pnpm --filter @faako/reebs-portal run db:migrate:dev
 pnpm --filter @faako/reebs-portal run db:deploy:dev
@@ -181,8 +181,14 @@ The API service should run the Express adapter from the monorepo root with `RAIL
 - Root start command: `node ./scripts/railway-service.mjs start`
 - Workspace build script: `pnpm --filter @faako/reebs-portal run db:generate`
 - Workspace start script: `pnpm --filter @faako/reebs-portal run server:with-migrate`
+- Railway supplies `APP_ENV` and `NODE_ENV`; generic build/start scripts do not override them.
+- Staging uses `APP_ENV=staging` with `NODE_ENV=production`; production uses `APP_ENV=production` with `NODE_ENV=production`.
 - Public API base: `https://api.reebspartythemes.com`
 - If Railway/Postgres returns `SELF_SIGNED_CERT_IN_CHAIN`, set `DATABASE_SSL_REJECT_UNAUTHORIZED=false` on the API service or provide `DATABASE_SSL_CA`.
+
+See [docs/STAGING.md](./docs/STAGING.md) for the full environment contract,
+variable names, provider policy, database safeguards, and first-deployment
+checklist.
 
 ### Railway Audit Log Webhook
 

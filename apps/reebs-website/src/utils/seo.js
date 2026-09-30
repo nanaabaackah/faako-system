@@ -1,10 +1,10 @@
-import { readMobileBrowserChromeColor } from "@faako/utils";
+import { readMobileBrowserChromeColor } from "../../../../packages/utils/src/mobileBrowserChrome";
 import { flattenFaqItems } from "/src/content/faqContent";
 
 export const SITE_NAME = "REEBS Party Themes";
 export const SITE_URL = "https://www.reebspartythemes.com";
 export const DEFAULT_IMAGE = `${SITE_URL}/imgs/promos/banner.jpg`;
-export const DEFAULT_DESCRIPTION =
+const DEFAULT_DESCRIPTION =
   "REEBS Party Themes provides party rentals, decor setup, and party supplies across Ghana with fast delivery and friendly support.";
 const DEFAULT_KEYWORDS =
   "kids party rentals Ghana, bouncy castle rental Accra, party decor Tema, party supplies Ghana, event setup services, kids birthday planning";
@@ -65,7 +65,6 @@ const LOCAL_BUSINESS_SCHEMA = {
   hasMap: "https://maps.app.goo.gl/ykfi2iVEBfEneTx16",
   currenciesAccepted: "GHS",
   paymentAccepted: ["Cash", "Mobile Money", "Bank Transfer"],
-  priceRange: "GHS 15-GHS 1500+",
   areaServed: [
     {
       "@type": "City",
@@ -99,7 +98,7 @@ const WEBSITE_SCHEMA = {
   inLanguage: DEFAULT_LANGUAGE,
   potentialAction: {
     "@type": "SearchAction",
-    target: `${SITE_URL}/shop?search={search_term_string}`,
+    target: `${SITE_URL}/shop?q={search_term_string}`,
     "query-input": "required name=search_term_string",
   },
 };
@@ -241,8 +240,8 @@ const PAGE_META = [
   },
   {
     match: (path) => path.startsWith("/customer-login"),
-    title: "Customer Access | REEBS Party Themes",
-    description: "Customer access route for booking support.",
+    title: "Continue Booking | REEBS Party Themes",
+    description: "Prefill your contact details and continue a REEBS booking request.",
     noIndex: true,
   },
   {
@@ -339,7 +338,7 @@ const ensureAlternateLink = (hreflang) => {
   return element;
 };
 
-export const getSeoForPath = (pathname) => {
+const getRouteMeta = (pathname) => {
   const normalizedPath = normalizePath(pathname);
   const match = PAGE_META.find((item) => item.match(normalizedPath));
   return {
@@ -351,11 +350,15 @@ export const getSeoForPath = (pathname) => {
   };
 };
 
+export const getSeoForPath = (pathname = "/") => getRouteMeta(pathname);
+
 const getWebPageType = (pathname) => {
   if (pathname === "/") return "WebPage";
   if (pathname.startsWith("/about")) return "AboutPage";
   if (pathname.startsWith("/contact")) return "ContactPage";
-  if (pathname.startsWith("/faq")) return "FAQPage";
+  if (pathname.startsWith("/faq")) return "WebPage";
+  if (/^\/(?:shop|rentals)\/category\//.test(pathname)) return "CollectionPage";
+  if (/^\/(?:shop|rentals)\/[^/]+/.test(pathname)) return "ItemPage";
   if (pathname.startsWith("/shop")) return "CollectionPage";
   if (pathname.startsWith("/rentals")) return "CollectionPage";
   return "WebPage";
@@ -431,6 +434,33 @@ const normalizeSchemaPayload = (schema) => {
   });
 };
 
+export const buildStructuredData = (pathname = "/", seo = {}, structuredData = null) => {
+  const normalizedPath = normalizePath(pathname);
+  const canonical = normalizedPath === "/" ? SITE_URL : `${SITE_URL}${normalizedPath}`;
+  const routeMeta = getRouteMeta(normalizedPath);
+  const finalSeo = {
+    ...routeMeta,
+    ...seo,
+  };
+
+  if (finalSeo.noIndex) return [];
+
+  return normalizeSchemaPayload([
+    ORGANIZATION_SCHEMA,
+    LOCAL_BUSINESS_SCHEMA,
+    WEBSITE_SCHEMA,
+    finalSeo.schema,
+    structuredData,
+    buildWebPageSchema({
+      pathname: normalizedPath,
+      canonical,
+      title: finalSeo.title,
+      description: finalSeo.description,
+    }),
+    buildBreadcrumbSchema(normalizedPath, canonical),
+  ]);
+};
+
 const updateSchema = (schema) => {
   const existing = document.head.querySelector("script[data-seo-schema='true']");
   if (!schema) {
@@ -462,7 +492,7 @@ export const applySeo = ({
   if (typeof document === "undefined") return;
 
   const normalizedPath = normalizePath(pathname);
-  const routeMeta = getSeoForPath(normalizedPath);
+  const routeMeta = getRouteMeta(normalizedPath);
   const finalTitle = title || routeMeta.title;
   const finalDescription = description || routeMeta.description;
   const finalKeywords = keywords || routeMeta.keywords || DEFAULT_KEYWORDS;
@@ -529,31 +559,4 @@ export const applySeo = ({
   ensureAlternateLink("en-GH").setAttribute("href", canonical);
   ensureAlternateLink("x-default").setAttribute("href", canonical);
   updateSchema(finalSchema);
-};
-
-export const buildStructuredData = (
-  pathname = "/",
-  seo = getSeoForPath(pathname),
-  additionalSchema = null,
-) => {
-  const normalizedPath = normalizePath(pathname);
-  if (seo?.noIndex) return [];
-
-  const canonical =
-    normalizedPath === "/" ? SITE_URL : `${SITE_URL}${normalizedPath}`;
-
-  return normalizeSchemaPayload([
-    ORGANIZATION_SCHEMA,
-    LOCAL_BUSINESS_SCHEMA,
-    WEBSITE_SCHEMA,
-    seo?.schema,
-    additionalSchema,
-    buildWebPageSchema({
-      pathname: normalizedPath,
-      canonical,
-      title: seo?.title || SITE_NAME,
-      description: seo?.description || DEFAULT_DESCRIPTION,
-    }),
-    buildBreadcrumbSchema(normalizedPath, canonical),
-  ]);
 };

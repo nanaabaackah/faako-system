@@ -29,6 +29,7 @@ import {
   fetchOrderInvoiceDetails,
 } from "../../utils/invoiceDocumentCache";
 import {
+  DEFAULT_SERVICE_DEPOSIT_DUE_DAYS,
   DEFAULT_SERVICE_PAYMENT_NOTE,
   DEFAULT_SERVICE_PAYMENT_TERMS,
 } from "../../../shared/paymentCopy.js";
@@ -42,8 +43,6 @@ import {
   getVariantUnitPrice,
   isVariantParentItem,
 } from "../../utils/productVariants";
-import { isCoreCommercialProduct } from "../../utils/coreCommercialInventory.js";
-import { cacheDocumentIdentity, loadPortalSettings } from "../../utils/portalSettings.js";
 
 const COMPANY = {
   name: "REEBS Party Themes",
@@ -72,17 +71,15 @@ const PAYMENT_STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All statuses" },
   { value: "draft", label: "Draft" },
   { value: "unpaid", label: "Unpaid" },
+  { value: "partially_paid", label: "Partially paid" },
+  { value: "overdue", label: "Overdue" },
   { value: "paid", label: "Paid" },
+  { value: "void", label: "Void" },
 ];
 
-const PAYMENT_STATUS_OPTIONS = [
-  { value: "draft", label: "Draft" },
-  { value: "unpaid", label: "Unpaid" },
-  { value: "paid", label: "Paid" },
-];
+const INVOICE_DEPOSIT_RATE = 0.7;
 
 const INVOICE_DUE_DATE_OPTIONS = [
-  { value: "service_deposit", label: "Configured service terms" },
   { value: "immediately", label: "Immediately" },
   { value: "twenty_four_hours", label: "24hrs" },
   { value: "forty_eight_hours", label: "48hrs" },
@@ -97,8 +94,8 @@ const RECEIPT_DUE_DATE_OPTIONS = [
 ];
 
 const MANUAL_SOURCE_LABEL = "Invoicing";
-const MANUAL_LINKED_LABEL = "Built here";
-const MANUAL_LINKED_NOTE = "Built from template";
+const MANUAL_LINKED_LABEL = "Manual";
+const MANUAL_LINKED_NOTE = "Manual";
 const DOCUMENT_QUERY_PARAM = "document";
 const DEFAULT_LINE_ITEM_UNIT = "Per item";
 const INVOICE_DRAFT_STORAGE_PREFIX = "reebs_invoice_draft_";
@@ -194,7 +191,7 @@ const formatDateStamp = (value) => {
 const todayValue = () => new Date().toISOString().slice(0, 10);
 
 const defaultDueDateOptionForType = (documentType) =>
-  documentType === "invoice" ? "service_deposit" : "none";
+  documentType === "invoice" ? "forty_eight_hours" : "none";
 
 const getDueDateOptionsForType = (documentType) =>
   documentType === "invoice" ? INVOICE_DUE_DATE_OPTIONS : RECEIPT_DUE_DATE_OPTIONS;
@@ -215,6 +212,70 @@ const normalizeSearchText = (value) =>
 const toNumber = (value, fallback = 0) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
+};
+
+const hasMoneyValue = (value) => value !== null && value !== undefined && value !== "";
+
+const amountFromCents = (value) => Math.max(0, toNumber(value, 0)) / 100;
+
+const resolveSourcePaymentAmounts = (source, total) => {
+  const normalizedTotal = Math.max(0, toNumber(total, 0));
+  const amountPaid = hasMoneyValue(source?.amountPaidCents)
+    ? amountFromCents(source.amountPaidCents)
+    : String(source?.paymentStatus || "").toLowerCase() === "paid"
+      ? normalizedTotal
+      : 0;
+  const balanceDue = hasMoneyValue(source?.balanceDueCents)
+    ? amountFromCents(source.balanceDueCents)
+    : Math.max(0, Number((normalizedTotal - amountPaid).toFixed(2)));
+
+  return { amountPaid, balanceDue };
+};
+
+const buildSourcePaymentSummary = (source, total) => {
+  const hasPaymentData = hasMoneyValue(source?.amountPaidCents)
+    || hasMoneyValue(source?.balanceDueCents)
+    || String(source?.paymentStatus || "").toLowerCase() === "paid";
+  if (!hasPaymentData) return null;
+  const normalizedTotal = Math.max(0, toNumber(total, 0));
+  const { amountPaid, balanceDue } = resolveSourcePaymentAmounts(source, normalizedTotal);
+  return {
+    amountPaidCents: Math.round(amountPaid * 100),
+    balanceDueCents: Math.round(balanceDue * 100),
+    totalCents: Math.round(normalizedTotal * 100),
+    paymentStatus: balanceDue <= 0 && normalizedTotal > 0
+      ? "paid"
+      : amountPaid > 0
+        ? "partially_paid"
+        : "unpaid",
+  };
+};
+
+const mergePaymentSummaries = (baseSummary, savedSummary, total, { combine = false } = {}) => {
+  if (!baseSummary && !savedSummary) return null;
+  const totalCents = Math.max(
+    0,
+    Math.round(toNumber(baseSummary?.totalCents, 0)),
+    Math.round(toNumber(savedSummary?.totalCents, 0)),
+    Math.round(toNumber(total, 0) * 100)
+  );
+  const basePaidCents = Math.max(0, Math.round(toNumber(baseSummary?.amountPaidCents, 0)));
+  const savedPaidCents = Math.max(0, Math.round(toNumber(savedSummary?.amountPaidCents, 0)));
+  const amountPaidCents = Math.min(
+    totalCents,
+    combine ? basePaidCents + savedPaidCents : Math.max(basePaidCents, savedPaidCents)
+  );
+  const balanceDueCents = Math.max(0, totalCents - amountPaidCents);
+  return {
+    amountPaidCents,
+    balanceDueCents,
+    totalCents,
+    paymentStatus: balanceDueCents <= 0 && totalCents > 0
+      ? "paid"
+      : amountPaidCents > 0
+        ? "partially_paid"
+        : "unpaid",
+  };
 };
 
 const normalizeLineQuantity = (value, fallback = 1) => {
@@ -257,17 +318,10 @@ const computeDueDate = (document, dueDateOption) => {
   if (option === "twenty_four_hours") {
     return mode === "before_event" ? subtractDaysFromDate(referenceDate, 1) : addDaysToDate(referenceDate, 1);
   }
-  if (option === "service_deposit") {
-    const configuredDays = Number(document?.serviceDepositDueDays);
-    if (!Number.isInteger(configuredDays) || configuredDays < 0) return "";
+  if (option === "forty_eight_hours" || option === "service_deposit") {
     return mode === "before_event"
-      ? subtractDaysFromDate(referenceDate, configuredDays)
-      : addDaysToDate(referenceDate, configuredDays);
-  }
-  if (option === "forty_eight_hours") {
-    return mode === "before_event"
-      ? subtractDaysFromDate(referenceDate, 2)
-      : addDaysToDate(referenceDate, 2);
+      ? subtractDaysFromDate(referenceDate, DEFAULT_SERVICE_DEPOSIT_DUE_DAYS)
+      : addDaysToDate(referenceDate, DEFAULT_SERVICE_DEPOSIT_DUE_DAYS);
   }
   if (option === "seventy_two_hours") {
     return mode === "before_event" ? subtractDaysFromDate(referenceDate, 3) : addDaysToDate(referenceDate, 3);
@@ -287,7 +341,7 @@ const inferDueDateOption = (document, dueDate) => {
   if (normalizedDueDate === computeDueDate(document, "immediately")) return "immediately";
   if (normalizedDueDate === computeDueDate(document, "twenty_four_hours")) return "twenty_four_hours";
   if (normalizedDueDate === computeDueDate(document, "forty_eight_hours")) return "forty_eight_hours";
-  if (normalizedDueDate === computeDueDate(document, "service_deposit")) return "service_deposit";
+  if (normalizedDueDate === computeDueDate(document, "service_deposit")) return "forty_eight_hours";
   if (normalizedDueDate === computeDueDate(document, "seventy_two_hours")) return "seventy_two_hours";
   if (normalizedDueDate === computeDueDate(document, "two_weeks")) return "custom";
   if (normalizedDueDate === computeDueDate(document, "thirty_days")) return "custom";
@@ -295,12 +349,22 @@ const inferDueDateOption = (document, dueDate) => {
 };
 
 const getInvoiceDueDateLabel = (document) =>
-  document?.documentType === "invoice" ? "Deposit due" : "Due date";
+  document?.documentType === "invoice" ? (document?.issuedAt ? "Payment due" : "Deposit due") : "Due date";
+
+const isInvoiceFullPaymentDue = (document) => {
+  if (document?.documentType !== "invoice") return false;
+  if (String(document?.paymentStatus || "").toLowerCase() === "paid") return false;
+  const dueDate = normalizeDateInput(document?.dueDate);
+  return Boolean(dueDate) && dueDate < todayValue();
+};
 
 const getInvoiceDueDateSummaryLabel = (document) =>
-  document?.documentType === "invoice" ? "Deposit due" : "Due date";
+  document?.documentType === "invoice" && (document?.issuedAt || isInvoiceFullPaymentDue(document)) ? "Payment due" : "Deposit due";
 
-const getInvoiceDepositLabel = () => "Recorded deposit due";
+const getInvoiceDepositLabel = (document) =>
+  document?.paymentSummary
+    ? "Amount paid"
+    : isInvoiceFullPaymentDue(document) ? "Amount due (100%)" : "Deposit due (70%)";
 
 const getInvoiceBalanceLabel = () => "Remaining balance";
 
@@ -822,6 +886,20 @@ const createAdditionalItemsFromExpenses = (expenses = []) =>
     });
   });
 
+const createBookingSnapshotAdditionalItems = (payload) => {
+  const feeAmount = Math.max(0, toNumber(payload?.feeCents, 0)) / 100;
+  if (feeAmount <= 0) return [];
+  return [
+    createAdditionalItem({
+      id: "booking-service-fees",
+      description: "Booking service fees",
+      quantity: 1,
+      unitLabel: "Fee",
+      unitPrice: feeAmount,
+    }),
+  ];
+};
+
 const mergeLinkedAdditionalItems = (savedItems = [], baseItems = []) => {
   const normalizedSaved = normalizeAdditionalItems(savedItems);
   const normalizedBase = normalizeAdditionalItems(baseItems);
@@ -951,14 +1029,24 @@ const normalizeStoredDocument = (record) => {
     dueDate,
     dueDateOption: inferDueDateOption(dueDateReference, dueDate),
     paymentStatus: String(record?.paymentStatus || "draft").toLowerCase(),
+    businessUnit: String(record?.businessUnit || "REEBS_CORE"),
+    currency: String(record?.currency || "GHS"),
+    paymentStateVersion: Number(record?.paymentStateVersion || 0),
+    paymentSummary: record?.paymentSummary || null,
+    payments: Array.isArray(record?.payments) ? record.payments : [],
+    financialSnapshot: record?.financialSnapshot || null,
+    customerSnapshot: record?.customerSnapshot || null,
+    sourceSnapshot: record?.sourceSnapshot || null,
+    issuedAt: record?.issuedAt || null,
+    voidedAt: record?.voidedAt || null,
+    voidReason: String(record?.voidReason || ""),
     depositAmount: Math.max(0, toNumber(record?.depositAmount, 0)),
-    depositAmountIsPersisted: true,
     discountAmount: Math.max(0, toNumber(record?.discountAmount, 0)),
 
     customer: {
-      name: String(record?.customerName || ""),
-      email: String(record?.customerEmail || ""),
-      phone: String(record?.customerPhone || ""),
+      name: String(record?.customerSnapshot?.name || record?.customerName || ""),
+      email: String(record?.customerSnapshot?.email || record?.customerEmail || ""),
+      phone: String(record?.customerSnapshot?.phone || record?.customerPhone || ""),
     },
     event,
     lineItems: clearLegacyDraftLineItemPlaceholders(
@@ -993,6 +1081,7 @@ const normalizeOrderDocument = (payload, fallbackItems = [], defaultTaxRate = 0)
     usingFallback = true;
   }
   const expenseInfo = normalizeExpenseList(payload);
+  const sourceTotal = Math.max(0, toNumber(payload?.summary?.grandTotal ?? payload?.total, 0));
   return {
     id: null,
     sourceType: "orders",
@@ -1005,6 +1094,7 @@ const normalizeOrderDocument = (payload, fallbackItems = [], defaultTaxRate = 0)
     dueDate: "",
     dueDateOption: defaultDueDateOptionForType("receipt"),
     paymentStatus: "draft",
+    paymentSummary: buildSourcePaymentSummary(payload, sourceTotal),
     depositAmount: 0,
     discountAmount: 0,
 
@@ -1060,7 +1150,11 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
   if (!items.length && Array.isArray(fallbackItems) && fallbackItems.length) {
     items = fallbackItems;
   }
+  const depositRequired = payload?.depositRequiredCents == null
+    ? null
+    : Math.max(0, toNumber(payload.depositRequiredCents, 0)) / 100;
   const expenseInfo = normalizeExpenseList(payload);
+  const snapshotAdditionalItems = createBookingSnapshotAdditionalItems(payload);
   const issueDate = normalizeDateInput(payload?.eventDate) || todayValue();
   const event = {
     eventDate: normalizeDateInput(payload?.eventDate),
@@ -1068,13 +1162,18 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
     endTime: payload?.endTime || "",
     venueAddress: payload?.venueAddress || "",
   };
+  const sourceTotal = Math.max(0, toNumber(payload?.totalAmount, 0) / 100);
   return {
     id: null,
     sourceType: "bookings",
     sourceId: payload?.id || null,
     customerId: Number(payload?.customerId || payload?.customer?.id) || null,
     documentType: "invoice",
-    title: payload?.id ? `Invoice Booking #${payload.id}` : "",
+    title: payload?.reference
+      ? `Invoice ${payload.reference}`
+      : payload?.id
+        ? `Invoice Booking #${payload.id}`
+        : "",
     invoiceNumber: getDocumentNumberValue(payload?.invoiceNumber),
     issueDate,
     dueDate: computeDueDate(
@@ -1086,8 +1185,9 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
     ),
     dueDateOption: defaultDueDateOptionForType("invoice"),
     paymentStatus: "draft",
-    depositAmount: 0,
-    discountAmount: 0,
+    paymentSummary: buildSourcePaymentSummary(payload, sourceTotal),
+    depositAmount: depositRequired,
+    discountAmount: Math.max(0, toNumber(payload?.discountCents, 0)) / 100,
 
     customer: {
       name: payload?.customerName || "Customer",
@@ -1107,13 +1207,16 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
         total: (toNumber(item.price ?? item.unitPrice, 0) / 100) * normalizeLineQuantity(item.quantity, 1),
       }))),
     expenses: expenseInfo.expenses,
-    additionalItems: createAdditionalItemsFromExpenses(expenseInfo.expenses),
+    additionalItems: [
+      ...snapshotAdditionalItems,
+      ...createAdditionalItemsFromExpenses(expenseInfo.expenses),
+    ],
     notes: defaultNotesForType("invoice"),
     terms: defaultTermsForType("invoice"),
-    taxRate: defaultTaxRate,
+    taxRate: Number(payload?.taxCents || 0) > 0 ? defaultTaxRate : 0,
     docLabel: "Invoice",
     sourceLabel: "Booking",
-    linkedLabel: payload?.id ? `Booking #${payload.id}` : "Booking",
+    linkedLabel: payload?.reference || (payload?.id ? `Booking #${payload.id}` : "Booking"),
     stockCommittedAt: null,
     createdAt: payload?.createdAt || payload?.eventDate || null,
     updatedAt: payload?.lastModifiedAt || payload?.updatedAt || null,
@@ -1122,6 +1225,9 @@ const normalizeBookingDocument = (payload, fallbackItems = [], defaultTaxRate = 
 
 const mergeDocument = (baseDocument, savedDocument) => {
   if (!savedDocument) return baseDocument;
+  const mergedTotal = Number(savedDocument?.financialSnapshot?.version) >= 1
+    ? Math.max(0, Number(savedDocument.financialSnapshot.totalCents || 0) / 100)
+    : toNumber(baseDocument?.summary?.grandTotal, 0);
   return {
     ...baseDocument,
     ...savedDocument,
@@ -1134,6 +1240,12 @@ const mergeDocument = (baseDocument, savedDocument) => {
     dueDate: savedDocument.dueDate ?? baseDocument.dueDate,
     dueDateOption: savedDocument.dueDateOption || baseDocument.dueDateOption,
     paymentStatus: savedDocument.paymentStatus || baseDocument.paymentStatus,
+    paymentSummary: mergePaymentSummaries(
+      baseDocument.paymentSummary,
+      savedDocument.paymentSummary,
+      mergedTotal,
+      { combine: baseDocument.sourceType === "bookings" }
+    ),
     depositAmount: toNumber(savedDocument.depositAmount, baseDocument.depositAmount),
     discountAmount: toNumber(savedDocument.discountAmount, baseDocument.discountAmount),
     customer: {
@@ -1199,16 +1311,31 @@ const computeDocumentSummary = (document) => {
   const taxTotal = Number(((subtotal + additionalTotal) * taxRate).toFixed(2));
   const discountTotal = Math.min(rawDiscount, subtotal + additionalTotal + taxTotal);
   const grandTotal = Math.max(0, Number((subtotal + additionalTotal + taxTotal - discountTotal).toFixed(2)));
-  const fullPaymentDue = false;
+  const fullPaymentDue = isInvoiceFullPaymentDue(document);
   const depositAmount =
-    document?.documentType === "invoice"
-      ? Math.min(grandTotal, Math.max(0, toNumber(document?.depositAmount, 0)))
+    document?.paymentSummary
+      ? Math.max(0, Number(document.paymentSummary.amountPaidCents || 0) / 100)
+      : document?.documentType === "invoice"
+      ? fullPaymentDue
+        ? grandTotal
+        : document?.sourceType === "bookings"
+          ? document?.depositAmount == null
+            ? 0
+            : Math.min(grandTotal, Math.max(0, toNumber(document.depositAmount, 0)))
+          : Number((grandTotal * INVOICE_DEPOSIT_RATE).toFixed(2))
       : 0;
-  const amountPaid = document?.paymentStatus === "paid" ? grandTotal : depositAmount;
-  const balanceDue =
-    document?.documentType === "invoice" && fullPaymentDue
-      ? 0
-      : Math.max(0, Number((grandTotal - amountPaid).toFixed(2)));
+  const financialSnapshot = document?.financialSnapshot;
+  const authoritativeGrandTotal = Number(financialSnapshot?.version) >= 1
+    ? Math.max(0, Number(financialSnapshot.totalCents || 0) / 100)
+    : grandTotal;
+  const amountPaid = document?.paymentSummary
+    ? Math.max(0, Number(document.paymentSummary.amountPaidCents || 0) / 100)
+    : document?.paymentStatus === "paid"
+      ? authoritativeGrandTotal
+      : 0;
+  const balanceDue = document?.paymentSummary
+    ? Math.max(0, Number(document.paymentSummary.balanceDueCents || 0) / 100)
+    : Math.max(0, Number((authoritativeGrandTotal - amountPaid).toFixed(2)));
   const expensesTotal = expenses.reduce((sum, item) => sum + item.amount, 0);
 
   return {
@@ -1223,7 +1350,7 @@ const computeDocumentSummary = (document) => {
       additionalTotal,
       taxRate,
       taxTotal,
-      grandTotal,
+      grandTotal: authoritativeGrandTotal,
       depositAmount,
       discountTotal,
       amountPaid,
@@ -1247,6 +1374,18 @@ const normalizeSavedDocumentListRecord = (record) => {
     endTime: String(record?.endTime || ""),
     venueAddress: String(record?.venueAddress || ""),
   };
+  const grandTotal = Number(record?.financialSnapshot?.version) >= 1
+    ? Math.max(0, Number(record.financialSnapshot.totalCents || 0) / 100)
+    : Math.max(0, toNumber(record?.grandTotal, 0));
+  const hasPaymentSummary = record?.paymentSummary && typeof record.paymentSummary === "object";
+  const amountPaid = hasPaymentSummary
+    ? Math.max(0, Number(record.paymentSummary.amountPaidCents || 0) / 100)
+    : String(record?.paymentStatus || "").toLowerCase() === "paid"
+      ? grandTotal
+      : 0;
+  const balanceDue = hasPaymentSummary && hasMoneyValue(record.paymentSummary.balanceDueCents)
+    ? Math.max(0, Number(record.paymentSummary.balanceDueCents) / 100)
+    : Math.max(0, Number((grandTotal - amountPaid).toFixed(2)));
 
   return {
     id: Number(record?.id) || null,
@@ -1260,6 +1399,14 @@ const normalizeSavedDocumentListRecord = (record) => {
     dueDate,
     dueDateOption: inferDueDateOption({ documentType, issueDate, event }, dueDate),
     paymentStatus: String(record?.paymentStatus || "draft").toLowerCase(),
+    businessUnit: String(record?.businessUnit || "REEBS_CORE"),
+    currency: String(record?.currency || "GHS"),
+    paymentStateVersion: Number(record?.paymentStateVersion || 0),
+    paymentSummary: record?.paymentSummary || null,
+    financialSnapshot: record?.financialSnapshot || null,
+    issuedAt: record?.issuedAt || null,
+    voidedAt: record?.voidedAt || null,
+    voidReason: String(record?.voidReason || ""),
     depositAmount: Math.max(0, toNumber(record?.depositAmount, 0)),
     discountAmount: Math.max(0, toNumber(record?.discountAmount, 0)),
     customer: {
@@ -1287,7 +1434,9 @@ const normalizeSavedDocumentListRecord = (record) => {
     createdAt: record?.createdAt || null,
     updatedAt: record?.updatedAt || null,
     summary: {
-      grandTotal: Math.max(0, toNumber(record?.grandTotal, 0)),
+      grandTotal,
+      amountPaid,
+      balanceDue,
     },
   };
 };
@@ -1324,8 +1473,10 @@ const buildStoredPayload = (document) => ({
 
 function DocumentPill({ value }) {
   const normalized = String(value || "draft").toLowerCase();
-  const statusClass = normalized === "paid" ? "paid" : normalized === "draft" ? "draft" : "unpaid";
-  return <span className={`invoice-pill ${statusClass}`}>{normalized}</span>;
+  const statusClass = ["paid", "draft", "partially_paid", "overdue", "void"].includes(normalized)
+    ? normalized
+    : "unpaid";
+  return <span className={`invoice-pill ${statusClass}`}>{normalized.replaceAll("_", " ")}</span>;
 }
 
 function DocumentSentBanner({ sentAt }) {
@@ -1405,7 +1556,7 @@ function InvoiceProductPicker({
   const availableOptions = useMemo(() => {
     if (!Array.isArray(products)) return [];
 
-    return products.filter(isCoreCommercialProduct).flatMap((product) => {
+    return products.flatMap((product) => {
       const productId = Number(product?.id);
       if (!Number.isFinite(productId) || productId <= 0) return [];
 
@@ -1660,19 +1811,12 @@ function EditableDocumentTemplate({
                 onChange={(event) => onDocumentChange({ issueDate: event.target.value })}
               />
             </label>
-            <label className="invoice-editable-meta-field">
+            <div className="invoice-editable-meta-field invoice-editable-field-full invoice-editable-status-field">
               <span className="invoicing-label">Status</span>
-              <SelectField
-                value={document.paymentStatus}
-                onChange={(event) => onDocumentChange({ paymentStatus: event.target.value })}
-              >
-                {PAYMENT_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </SelectField>
-            </label>
+              <div className="invoice-status-readonly" aria-label={`Payment status: ${document.paymentStatus}`}>
+                <DocumentPill value={document.paymentStatus} />
+              </div>
+            </div>
 
             <label className="invoice-editable-meta-field invoice-editable-field-full">
               <span className="invoicing-label">{getInvoiceDueDateLabel(document)}</span>
@@ -2290,6 +2434,7 @@ function AdminInvoicing() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [savingPdfDocument, setSavingPdfDocument] = useState(false);
   const [emailingDocument, setEmailingDocument] = useState(false);
+  const [payingInvoice, setPayingInvoice] = useState(false);
   const [archivingDocument, setArchivingDocument] = useState(false);
   const [restoredEditorFromUrl, setRestoredEditorFromUrl] = useState(false);
   const autosaveTimerRef = useRef(null);
@@ -2310,30 +2455,13 @@ function AdminInvoicing() {
 
   useEffect(() => {
     setConfig(loadConfig());
-    const controller = new AbortController();
-    let ignore = false;
-    loadPortalSettings({ signal: controller.signal })
-      .then((data) => {
-        if (ignore || !data?.documentIdentity) return;
-        cacheDocumentIdentity(data.documentIdentity);
-        setConfig(loadConfig());
-      })
-      .catch((error) => {
-        if (error?.name !== "AbortError") {
-          // The last cached identity remains available while the settings service is offline.
-        }
-      });
     const handleStorage = (event) => {
       if (event.key === "reebs_erp_config") {
         setConfig(loadConfig());
       }
     };
     window.addEventListener("storage", handleStorage);
-    return () => {
-      ignore = true;
-      controller.abort();
-      window.removeEventListener("storage", handleStorage);
-    };
+    return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
   const defaultTaxRate = useMemo(() => parseTaxRate(config?.taxRate), [config]);
@@ -2581,6 +2709,11 @@ function AdminInvoicing() {
       if (archivedLinkedKeys.has(key)) return;
       const override = savedLinkedMap.get(key);
       const amount = override ? override.summary?.grandTotal ?? 0 : toNumber(order.total, 0);
+      const sourcePayment = resolveSourcePaymentAmounts(order, amount);
+      const amountPaid = Math.min(
+        amount,
+        Math.max(sourcePayment.amountPaid, toNumber(override?.summary?.amountPaid, 0))
+      );
       entries.push({
         key,
         id: override?.id || null,
@@ -2592,6 +2725,10 @@ function AdminInvoicing() {
         issueDate: override?.issueDate || normalizeDateInput(order.date || order.orderDate || order.createdAt) || todayValue(),
         paymentStatus: override?.paymentStatus || "draft",
         total: amount,
+        amountPaid,
+        balanceDue: Math.max(0, Number((amount - amountPaid).toFixed(2))),
+        businessUnit: override?.businessUnit || "REEBS_CORE",
+        issuedAt: override?.issuedAt || null,
         linkedLabel: order.orderNumber ? `Order ${order.orderNumber}` : `Order #${order.id}`,
         sourceLabel: "Order",
         isManual: false,
@@ -2604,6 +2741,11 @@ function AdminInvoicing() {
       if (archivedLinkedKeys.has(key)) return;
       const override = savedLinkedMap.get(key);
       const amount = override ? override.summary?.grandTotal ?? 0 : toNumber(booking.totalAmount, 0) / 100;
+      const sourcePayment = resolveSourcePaymentAmounts(booking, amount);
+      const amountPaid = Math.min(
+        amount,
+        sourcePayment.amountPaid + toNumber(override?.summary?.amountPaid, 0)
+      );
       entries.push({
         key,
         id: override?.id || null,
@@ -2615,6 +2757,10 @@ function AdminInvoicing() {
         issueDate: override?.issueDate || normalizeDateInput(booking.eventDate) || todayValue(),
         paymentStatus: override?.paymentStatus || "draft",
         total: amount,
+        amountPaid,
+        balanceDue: Math.max(0, Number((amount - amountPaid).toFixed(2))),
+        businessUnit: override?.businessUnit || "REEBS_CORE",
+        issuedAt: override?.issuedAt || null,
         linkedLabel: `Booking #${booking.id}`,
         sourceLabel: "Booking",
         isManual: false,
@@ -2634,6 +2780,10 @@ function AdminInvoicing() {
         issueDate: document.issueDate,
         paymentStatus: document.paymentStatus,
         total: document.summary?.grandTotal ?? 0,
+        amountPaid: document.summary?.amountPaid || 0,
+        balanceDue: document.summary?.balanceDue ?? document.summary?.grandTotal ?? 0,
+        businessUnit: document.businessUnit || "REEBS_CORE",
+        issuedAt: document.issuedAt || null,
         linkedLabel: document.linkedLabel || MANUAL_LINKED_LABEL,
         sourceLabel: document.sourceLabel || MANUAL_SOURCE_LABEL,
         isManual: true,
@@ -2748,9 +2898,6 @@ function AdminInvoicing() {
                 invoiceNumber: saved.invoiceNumber || current.invoiceNumber,
                 updatedAt: saved.updatedAt || current.updatedAt,
                 createdAt: saved.createdAt || current.createdAt,
-                depositAmount: saved.depositAmount,
-                depositAmountIsPersisted: true,
-                dueDate: current.dueDate || saved.dueDate || "",
                 stockCommittedAt: saved.stockCommittedAt || current.stockCommittedAt || null,
                 sentAt: saved.sentAt || current.sentAt || null,
                 sentToEmail: saved.sentToEmail || current.sentToEmail || "",
@@ -2929,7 +3076,7 @@ function AdminInvoicing() {
         const override = savedOverride || savedLinkedMap.get(selectedEntry.key) || null;
         const merged = finalizeWorkingDocument(mergeDocument(baseDocument, override), baseDocument);
         if (!cancelled) {
-          const restoredDraft = readInvoiceDraft(selectedEntry.key);
+          const restoredDraft = merged.issuedAt ? null : readInvoiceDraft(selectedEntry.key);
           const draftDocument = restoredDraft
             ? finalizeWorkingDocument(mergeDocument(merged, restoredDraft), merged)
             : null;
@@ -2980,14 +3127,14 @@ function AdminInvoicing() {
   }, [editorOpen, finalizeWorkingDocument, productsLoading]);
 
   useEffect(() => {
-    if (!editorOpen || !selectedKey || !activeDocument) return;
+    if (!editorOpen || !selectedKey || !activeDocument || activeDocument.issuedAt) return;
     const payloadString = JSON.stringify(buildStoredPayload(activeDocument));
     latestDraftPayloadRef.current = payloadString;
     writeInvoiceDraft(selectedKey, activeDocument);
   }, [activeDocument, editorOpen, selectedKey]);
 
   useEffect(() => {
-    if (!editorOpen || !selectedKey || !activeDocument || selectedLoading || selectedError) return;
+    if (!editorOpen || !selectedKey || !activeDocument || activeDocument.issuedAt || selectedLoading || selectedError) return;
     if (savingDocument || archivingDocument) return;
     const payloadString = JSON.stringify(buildStoredPayload(activeDocument));
     latestDraftPayloadRef.current = payloadString;
@@ -3946,63 +4093,109 @@ function AdminInvoicing() {
     setEmailingDocument(true);
     setSaveError("");
     setSaveStatus("");
+    let issuedDocument = null;
     try {
-      const sentAt = new Date().toISOString();
-      const sentToEmail = activeDocument.customer?.email || "";
-      const invoiceNumber = getDocumentNumberValue(activeDocument.invoiceNumber) || buildDocumentNumber(activeDocument.documentType);
-      const paymentStatus = activeDocument.paymentStatus === "draft" ? "unpaid" : activeDocument.paymentStatus;
-      const documentToPersist = finalizeWorkingDocument({
-        ...activeDocument,
-        invoiceNumber,
-        paymentStatus,
-      }, activeDocument);
-      const savedBeforeSend = await persistDocument(documentToPersist, {
-        documentKey: selectedKey,
-      });
-      if (!savedBeforeSend?.id) {
-        throw new Error("Save the document before sending it.");
+      const savedDraft = activeDocument.issuedAt
+        ? activeDocument
+        : await persistDocument(activeDocument, { documentKey: selectedKey });
+      if (!savedDraft?.id) throw new Error("Save the draft before sending it.");
+      if (savedDraft.issuedAt) {
+        issuedDocument = savedDraft;
+      } else {
+        const issueResponse = await fetch("/api/invoice-documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "issue", id: savedDraft.id }),
+        });
+        if (!issueResponse.ok) {
+          throw new Error(await readResponseError(issueResponse, "Failed to issue document."));
+        }
+        issuedDocument = normalizeSavedDocumentRecord(await issueResponse.json());
+        upsertSavedDocument(issuedDocument);
+        setSelectedDocument((current) => finalizeWorkingDocument(
+          mergeDocument(current || savedDraft, issuedDocument),
+          current || savedDraft
+        ));
       }
-      const persistedDocument = finalizeWorkingDocument(
-        mergeDocument(documentToPersist, savedBeforeSend),
-        documentToPersist
-      );
-      const persistedDocumentKey = buildEntryKey(
-        savedBeforeSend.sourceType,
-        savedBeforeSend.sourceId,
-        savedBeforeSend.id
-      );
       const response = await fetch("/api/invoice-document-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          documentId: savedBeforeSend.id,
-          currency: config.currency,
-        }),
+        body: JSON.stringify({ documentId: issuedDocument.id }),
       });
       if (!response.ok) {
         throw new Error(await readResponseError(response, "Failed to send document email."));
       }
-      const documentToSend = finalizeWorkingDocument(
-        {
-          ...persistedDocument,
-          sentAt,
-          sentToEmail,
-        },
-        persistedDocument
-      );
-      setSelectedDocument(documentToSend);
-      const saved = await persistDocument(documentToSend, {
-        documentKey: persistedDocumentKey,
-      });
-      if (!saved) {
-        setSaveError("Email sent, but the sent banner could not be saved yet.");
-      }
-      setSaveStatus(`Sent to ${documentToSend.customer.email}.`);
+      const sentAt = new Date().toISOString();
+      setSelectedDocument((current) => current ? { ...current, sentAt, sentToEmail: issuedDocument.customer.email } : current);
+      setSaveStatus(`Issued and sent to ${issuedDocument.customer.email}.`);
     } catch (err) {
       console.error("Send document email failed", err);
-      setSaveError(err.message || "Failed to send document email.");
+      setSaveError(
+        issuedDocument?.issuedAt
+          ? `Document issued, but email could not be sent. ${err.message || "Try sending it again."}`
+          : err.message || "Failed to send document email."
+      );
     } finally {
       setEmailingDocument(false);
+    }
+  };
+
+  const issueSelectedDocument = async () => {
+    if (!activeDocument || activeDocument.issuedAt) return;
+    setSavingDocument(true);
+    setSaveError("");
+    setSaveStatus("");
+    try {
+      const savedDraft = await persistDocument(activeDocument, { documentKey: selectedKey });
+      if (!savedDraft?.id) throw new Error("Save the draft before issuing it.");
+      const response = await fetch("/api/invoice-documents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "issue", id: savedDraft.id }),
+      });
+      if (!response.ok) throw new Error(await readResponseError(response, "Failed to issue document."));
+      const issued = normalizeSavedDocumentRecord(await response.json());
+      upsertSavedDocument(issued);
+      setSelectedDocument((current) => finalizeWorkingDocument(
+        mergeDocument(current || savedDraft, issued),
+        current || savedDraft
+      ));
+      setSaveStatus(`${issued.docLabel} ${issued.invoiceNumber} issued.`);
+    } catch (err) {
+      setSaveError(err.message || "Failed to issue document.");
+    } finally {
+      setSavingDocument(false);
+    }
+  };
+
+  const payInvoiceBalance = async () => {
+    if (!activeDocument?.id || !activeDocument.issuedAt || activeDocument.paymentStatus === "paid") return;
+    const paymentWindow = window.open("about:blank", "_blank");
+    setPayingInvoice(true);
+    setSaveError("");
+    try {
+      const idempotencyKey = `invoice-${activeDocument.id}-${globalThis.crypto?.randomUUID?.() || Date.now()}`;
+      const response = await fetch("/api/paymentInitialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ payableType: "INVOICE", payableId: activeDocument.id, purpose: "BALANCE" }),
+      });
+      if (!response.ok) throw new Error(await readResponseError(response, "Failed to start payment."));
+      const result = await response.json();
+      const authorizationUrl = result?.attempt?.authorizationUrl;
+      if (!authorizationUrl) throw new Error("The payment provider did not return a checkout link.");
+      if (paymentWindow) {
+        paymentWindow.opener = null;
+        paymentWindow.location = authorizationUrl;
+      } else {
+        window.location.assign(authorizationUrl);
+      }
+      setSaveStatus("Payment checkout opened. Refresh after payment verification completes.");
+    } catch (err) {
+      paymentWindow?.close();
+      setSaveError(err.message || "Failed to start payment.");
+    } finally {
+      setPayingInvoice(false);
     }
   };
 
@@ -4137,7 +4330,6 @@ function AdminInvoicing() {
             copyClassName="invoice-hub-copy"
             eyebrow={activeDocument?.sourceType === "manual" ? MANUAL_LINKED_NOTE : activeDocument?.linkedLabel || "Document"}
             title={documentTitle}
-            subtitle="REEBS Core shop and rental/event document. Water Business transactions stay separate."
           >
             <div className="invoice-hub-header-actions">
               <button
@@ -4154,12 +4346,23 @@ function AdminInvoicing() {
                 type="button"
                 className="admin-secondary invoice-hub-action"
                 onClick={saveSelectedDocument}
-                disabled={savingDocument || autosavingDocument || !activeDocument}
+                disabled={savingDocument || autosavingDocument || !activeDocument || Boolean(activeDocument.issuedAt)}
                 aria-label={savingDocument || autosavingDocument ? "Saving document" : "Save document"}
                 title={savingDocument || autosavingDocument ? "Saving document" : "Save document"}
               >
                 <AppIcon icon={faFloppyDisk} />
                 <span>{savingDocument || autosavingDocument ? "Saving document" : "Save document"}</span>
+              </button>
+              <button
+                type="button"
+                className="admin-secondary invoice-hub-action"
+                onClick={issueSelectedDocument}
+                disabled={savingDocument || !activeDocument || Boolean(activeDocument.issuedAt)}
+                aria-label={activeDocument?.issuedAt ? "Document issued" : "Issue document"}
+                title={activeDocument?.issuedAt ? "Document issued" : "Issue document"}
+              >
+                <AppIcon icon={faFileInvoice} />
+                <span>{activeDocument?.issuedAt ? "Issued" : "Issue"}</span>
               </button>
               <button
                 type="button"
@@ -4189,6 +4392,19 @@ function AdminInvoicing() {
                 <AppIcon icon={faEnvelope} />
                 <span>{emailingDocument ? "Sending to email" : "Send to email"}</span>
               </button>
+              {activeDocument?.documentType === "invoice" && activeDocument?.issuedAt && activeDocument?.summary?.balanceDue > 0 ? (
+                <button
+                  type="button"
+                  className="admin-secondary invoice-hub-action"
+                  onClick={payInvoiceBalance}
+                  disabled={payingInvoice}
+                  aria-label={payingInvoice ? "Starting payment" : "Pay balance"}
+                  title={payingInvoice ? "Starting payment" : "Pay balance"}
+                >
+                  <AppIcon icon={faReceipt} />
+                  <span>{payingInvoice ? "Starting payment" : "Pay balance"}</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="admin-secondary invoice-hub-action"
@@ -4204,7 +4420,7 @@ function AdminInvoicing() {
                 type="button"
                 className="admin-secondary invoice-hub-action invoice-hub-action-danger"
                 onClick={archiveSelectedDocument}
-                disabled={archivingDocument || !activeDocument}
+                disabled={archivingDocument || !activeDocument || Boolean(activeDocument.issuedAt)}
                 aria-label={archivingDocument ? "Archiving document" : "Archive"}
                 title={archivingDocument ? "Archiving document" : "Archive"}
               >
@@ -4291,30 +4507,45 @@ function AdminInvoicing() {
                   </div>
                   <strong className="invoice-document-pagination-label">{documentPagerLabel}</strong>
                 </div>
-                <EditableDocumentTemplate
-                  document={activeDocument}
-                  companyConfig={config}
-                  onDocumentChange={handleDocumentChange}
-                  onCustomerChange={handleCustomerChange}
-                  customerPickerProps={invoiceCustomerPickerProps}
-                  productOptions={products}
-                  productById={productById}
-                  productLoading={productsLoading}
-                  productError={productError}
-                  onProductErrorClear={() => setProductError("")}
-                  onEventChange={handleEventChange}
-                  onLineItemChange={handleLineItemChange}
-                  onLineItemDescriptionChange={handleLineItemDescriptionChange}
-                  onLineItemSelectProduct={handleLineItemSelectProduct}
-                  onAddLineItem={handleAddLineItem}
-                  onAddHeadingLine={handleAddHeadingLine}
-                  onAddNoteLine={handleAddNoteLine}
-                  onMoveLineItem={handleMoveLineItem}
-                  onRemoveLineItem={handleRemoveLineItem}
-                  onAdditionalItemChange={handleAdditionalItemChange}
-                  onAddAdditionalItem={handleAddAdditionalItem}
-                  onRemoveAdditionalItem={handleRemoveAdditionalItem}
-                />
+                {activeDocument.issuedAt ? (
+                  <div className="invoice-issued-notice" role="status">
+                    <strong>Issued document</strong>
+                    <span>Financial and customer details are locked. Payment status is updated from Payments.</span>
+                  </div>
+                ) : null}
+                <fieldset className="invoice-issued-fieldset" disabled={Boolean(activeDocument.issuedAt)}>
+                  <EditableDocumentTemplate
+                    document={activeDocument}
+                    companyConfig={config}
+                    onDocumentChange={handleDocumentChange}
+                    onCustomerChange={handleCustomerChange}
+                    customerPickerProps={invoiceCustomerPickerProps}
+                    productOptions={products}
+                    productById={productById}
+                    productLoading={productsLoading}
+                    productError={productError}
+                    onProductErrorClear={() => setProductError("")}
+                    onEventChange={handleEventChange}
+                    onLineItemChange={handleLineItemChange}
+                    onLineItemDescriptionChange={handleLineItemDescriptionChange}
+                    onLineItemSelectProduct={handleLineItemSelectProduct}
+                    onAddLineItem={handleAddLineItem}
+                    onAddHeadingLine={handleAddHeadingLine}
+                    onAddNoteLine={handleAddNoteLine}
+                    onMoveLineItem={handleMoveLineItem}
+                    onRemoveLineItem={handleRemoveLineItem}
+                    onAdditionalItemChange={handleAdditionalItemChange}
+                    onAddAdditionalItem={handleAddAdditionalItem}
+                    onRemoveAdditionalItem={handleRemoveAdditionalItem}
+                  />
+                </fieldset>
+                {activeDocument.issuedAt ? (
+                  <section className="invoice-payment-summary" aria-label="Payment summary">
+                    <div><span>Total</span><strong>{formatCurrency(activeDocument.summary.grandTotal, activeDocument.currency || config.currency)}</strong></div>
+                    <div><span>Paid</span><strong>{formatCurrency(activeDocument.summary.amountPaid, activeDocument.currency || config.currency)}</strong></div>
+                    <div><span>Balance</span><strong>{formatCurrency(activeDocument.summary.balanceDue, activeDocument.currency || config.currency)}</strong></div>
+                  </section>
+                ) : null}
               </section>
             </div>
           )}
@@ -4330,9 +4561,7 @@ function AdminInvoicing() {
 
         <AdminPageHeader
           copyClassName="invoice-hub-copy"
-          eyebrow="REEBS Core Finance"
           title="Invoicing"
-          subtitle="Create shop and rental/event documents here. Water Business transactions stay separate."
         >
           <div className="invoice-hub-header-actions">
             <button

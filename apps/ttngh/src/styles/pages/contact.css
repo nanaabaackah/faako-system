@@ -1,0 +1,68 @@
+.contact-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 0.3fr);
+  gap: 1rem;
+}
+
+.contact-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 1rem;
+}
+
+.contact-sidebar > * {
+  padding: 1.4rem;
+}
+
+.contact-sidebar address {
+  display: grid;
+  gap: 0.4rem;
+  font-style: normal;
+}
+
+.contact-sidebar h3 {
+  margin: 0.6rem 0 0.3rem;
+}
+
+.contact-card-icon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--brand-pink);
+  color: var(--white);
+}
+
+.contact-socials {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 0.6rem;
+  list-style: none;
+}
+
+.contact-socials a,
+.contact-socials li > span {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  align-items: center;
+  gap: 0.7rem;
+  text-decoration: none;
+}
+
+.contact-socials strong,
+.contact-socials span span {
+  display: block;
+}
+
+.contact-socials span span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+@media (max-width: 780px) {
+  .contact-workspace-grid {
+    grid-template-columns: 1fr;
+  }
+}
