@@ -1,7 +1,7 @@
 import express from "express";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createErrorResponse, createRequestId, createSuccessResponse } from "@faako/api-contracts";
-import { createExpressSecurityHeadersMiddleware } from "@faako/security";
+import { createSecurityHeaders } from "./security/securityHeaders.js";
 import { estimateSchema, inquirySchema } from "./validation.js";
 
 const safeEqual = (left, right) => {
@@ -38,7 +38,7 @@ export const createApp = ({ repository, estimatorService, allowedOrigins = [], a
     res.setHeader("X-Request-Id", req.requestId);
     next();
   });
-  app.use(createExpressSecurityHeadersMiddleware({ allowedOrigins }));
+  app.use(createSecurityHeaders({ allowedOrigins }));
   app.options("*splat", (_req, res) => res.sendStatus(204));
   app.use(express.json({ limit: "32kb" }));
 

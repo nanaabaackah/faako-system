@@ -1,5 +1,19 @@
 # Travel With Ease security architecture and threat model
 
+## App registration and release checks
+
+All three applications declare `appSystem.js` security metadata. The API uses
+`api-service`, the portal uses `authenticated-workspace` with its existing
+development bearer gate, and the website uses `public-interactive` without auth.
+Registered API/portal origins are the existing localhost development origins;
+this does not authorize any production host. Runtime deployment origins remain
+controlled by `ALLOWED_ORIGINS`. Production launch remains blocked by the existing
+API startup guard pending approved persistence and authentication adapters.
+
+The API's conventional `src/security/securityHeaders.js` adapter delegates to
+`@faako/security`. Its baseline and denied-origin behavior are tested. No header,
+authentication or CORS check is bypassed to satisfy the repository security gate.
+
 ## Data classification matrix
 
 | Classification | Examples | Controls |
