@@ -199,7 +199,7 @@
 
 .contact-info-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: clamp(1rem, 2.4vw, 1.6rem);
   padding: clamp(0.3rem, 1vw, 0.6rem) 0 0;
 }
@@ -232,11 +232,13 @@
 .contact-shell .contact-links a,
 .contact-shell .contact-socials a {
   color: rgba(var(--ink-rgb), 0.86);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .contact-shell .contact-socials {
-  grid-auto-flow: column;
-  grid-auto-columns: max-content;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.8rem;
 }
 

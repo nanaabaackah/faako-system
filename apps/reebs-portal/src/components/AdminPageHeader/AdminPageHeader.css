@@ -1,0 +1,22 @@
+/* Opt in only for familiar secondary actions; primary actions keep their copy. */
+@media (max-width: 720px) {
+  body.admin-theme .admin-header .admin-action--compact {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+
+  body.admin-theme .admin-header .admin-action--compact > .admin-action-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

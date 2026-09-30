@@ -8,7 +8,7 @@ import SearchField from "../../components/SearchField/SearchField";
 
 import { GoogleMap, InfoWindowF, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 import { AppIcon } from "/src/components/Icon/Icon";
-import { faArrowLeft, faArrowRight } from "/src/icons/iconSet";
+import { faArrowLeft, faArrowRight, faCalendarDays } from "/src/icons/iconSet";
 import {
   buildProductSearchText,
   buildVariantOptionLabel,
@@ -850,6 +850,7 @@ function AdminScheduler() {
                   <button
                     type="button"
                     className="calendar-nav"
+                    aria-label="Previous month"
                     onClick={() =>
                       setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
                     }
@@ -888,6 +889,7 @@ function AdminScheduler() {
                   <button
                     type="button"
                     className="calendar-nav"
+                    aria-label="Next month"
                     onClick={() =>
                       setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
                     }
@@ -935,6 +937,8 @@ function AdminScheduler() {
                         (holidayNames.length ? " is-holiday" : "")
                       }
                       title={holidayTitle || undefined}
+                      aria-label={`${formatDate(date)}${holidayTitle ? `, ${holidayTitle}` : ""}${count ? `, ${count} bookings` : ""}`}
+                      aria-pressed={isSelected}
                       onClick={() => {
                         setActiveDay(date);
                         setUserSelectedDay(true);
@@ -942,7 +946,10 @@ function AdminScheduler() {
                     >
                       <span className="calendar-number">{date.getDate()}</span>
                       {holidayNames.length > 0 && (
-                        <span className="calendar-holiday">{holidayLabel}</span>
+                        <span className="calendar-holiday">
+                          <span className="calendar-holiday-name">{holidayLabel}</span>
+                          <span className="calendar-holiday-icon" aria-hidden="true"><AppIcon icon={faCalendarDays} size={16} /></span>
+                        </span>
                       )}
                       {count > 0 && <span className="calendar-badge">{count}</span>}
                     </button>

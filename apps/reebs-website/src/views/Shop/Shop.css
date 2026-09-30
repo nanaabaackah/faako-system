@@ -458,7 +458,8 @@
 }
 
 .shop-empty-copy {
-  min-width: 65ch;
+  min-width: 0;
+  max-width: 65ch;
   display: grid;
   align-content: start;
   gap: 0.62rem;
@@ -1181,7 +1182,7 @@
 
   .shop-empty-hero,
   .shop-empty-next {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .shop-empty-visual {

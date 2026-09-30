@@ -145,12 +145,13 @@ export default function AdminPayments() {
           actions={(
             <button
               type="button"
-              className="admin-secondary payments-refresh"
+              className="admin-secondary payments-refresh admin-action--compact"
+              title="Refresh payments"
               onClick={() => loadPayments({ page: pagination.page })}
               disabled={loading}
             >
               <AppIcon icon={faRotateRight} />
-              Refresh
+              <span className="admin-action-label">Refresh</span>
             </button>
           )}
         />
@@ -221,8 +222,8 @@ export default function AdminPayments() {
 
         {!loading && !error && payments.length > 0 ? (
           <section className="admin-table payments-results" aria-label="Payment register">
+            {renderPaymentsPagination(true)}
             <div className="admin-table-scroll payments-table-scroll">
-              {renderPaymentsPagination(true)}
               <table className="payments-data-table">
                 <thead>
                   <tr>
@@ -253,8 +254,8 @@ export default function AdminPayments() {
                   ))}
                 </tbody>
               </table>
-              {renderPaymentsPagination()}
             </div>
+            {renderPaymentsPagination()}
           </section>
         ) : null}
 

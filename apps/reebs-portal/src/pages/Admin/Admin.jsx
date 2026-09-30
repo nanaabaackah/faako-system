@@ -3807,7 +3807,7 @@ function Admin() {
               )}
               <button
                 type="button"
-                className="admin-chip inventory-header-action"
+                className="admin-chip inventory-header-action admin-action--compact"
                 aria-label="Open archived items"
                 title="Archived items"
                 onClick={() => {
@@ -3817,11 +3817,11 @@ function Admin() {
                 }}
               >
                 <AppIcon icon={faFolderOpen} size={16} />
-                <span>Archived</span>
+                <span className="admin-action-label">Archived</span>
               </button>
               <button
                 type="button"
-                className="admin-chip inventory-header-action"
+                className="admin-chip inventory-header-action admin-action--compact"
                 aria-label="Open recently deleted items"
                 title="Recently deleted"
                 onClick={() => {
@@ -3830,17 +3830,17 @@ function Admin() {
                 }}
               >
                 <AppIcon icon={faTrash} size={16} />
-                <span>Recently deleted</span>
+                <span className="admin-action-label">Recently deleted</span>
               </button>
               <button
                 type="button"
-                className="admin-refresh inventory-header-action"
+                className="admin-refresh inventory-header-action admin-action--compact"
                 aria-label="Refresh inventory"
                 title="Refresh inventory"
                 onClick={refreshInventorySurface}
               >
                 <AppIcon icon={faRotateRight} size={16} />
-                <span>Refresh</span>
+                <span className="admin-action-label">Refresh</span>
               </button>
               {isOwnerOrAdmin && (
                 <ModuleTopbarMenu

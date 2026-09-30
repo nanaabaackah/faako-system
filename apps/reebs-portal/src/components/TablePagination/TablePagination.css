@@ -3,6 +3,8 @@ body.admin-theme .table-pagination.inventory-register-pagination {
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 @media (max-width: 640px) {
@@ -27,5 +29,17 @@ body.admin-theme .table-pagination.inventory-register-pagination {
   body.admin-theme .table-pagination .inventory-register-pagination-controls button {
     width: 100%;
     min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  body.admin-theme .table-pagination-controls button > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }

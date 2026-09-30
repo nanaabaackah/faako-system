@@ -1,4 +1,5 @@
 import { PageHeader } from "@faako/ui";
+import "./AdminPageHeader.css";
 
 export default function AdminPageHeader({
   className = "",

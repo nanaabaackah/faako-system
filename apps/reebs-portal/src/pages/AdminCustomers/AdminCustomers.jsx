@@ -691,12 +691,13 @@ export default function AdminCustomers() {
             <>
               <button
                 type="button"
-                className="admin-secondary crm-button"
+                className="admin-secondary crm-button admin-action--compact"
+                title="Refresh customers"
                 onClick={() => loadCustomers({ page: customerPage, query: searchTerm })}
                 disabled={loading}
               >
                 <AppIcon icon={faRotateRight} />
-                Refresh
+                <span className="admin-action-label">Refresh</span>
               </button>
               {canMutateCustomers ? (
                 <button type="button" className="admin-primary crm-button" onClick={openCreate}>
