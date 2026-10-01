@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { SelectField } from "@faako/ui";
 import "./AdminWater.css";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faRotateRight } from "/src/icons/iconSet";
@@ -15,6 +16,7 @@ import WaterOrderFormCard from "./components/WaterOrderFormCard";
 import WaterRestockCard from "./components/WaterRestockCard";
 import { reebsApiResponse } from "../../api/client";
 import { calculateWaterCostBasis } from "../../../shared/waterFinancials.js";
+import { DEFAULT_WATER_PRODUCT_KEY, WATER_PRODUCTS, getWaterProduct } from "../../../shared/waterProducts.js";
 
 const WATER_SUPPLIER_NAME = "Ghana Water";
 const RESTOCK_QUICK_QUANTITIES = [5, 10, 20, 50];
@@ -44,10 +46,9 @@ const ADJUSTMENT_REASON_OPTIONS = {
   remove: ["Broken Package", "Free issue"],
 };
 
-const buildDefaultDashboard = () => ({
+const buildDefaultDashboard = (product = getWaterProduct()) => ({
   product: {
-    key: "gwater-15pk",
-    name: "15pk Gwater",
+    ...product,
     inventoryProductId: null,
     linkedVendorIds: [],
     purchaseCost: null,
@@ -456,8 +457,8 @@ const buildOrderSearchIndex = (sale, linkedCustomer = null) => {
   };
 };
 
-function AdminWater() {
-  const [dashboard, setDashboard] = useState(buildDefaultDashboard);
+function WaterProductWorkspace({ product, onProductChange }) {
+  const [dashboard, setDashboard] = useState(() => buildDefaultDashboard(product));
   const [vendors, setVendors] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -529,12 +530,17 @@ function AdminWater() {
   }, []);
 
   const loadWater = async () => {
-    const response = await reebsApiResponse("/api/water");
+    const productQuery = product.key === DEFAULT_WATER_PRODUCT_KEY ? "" : `?productKey=${encodeURIComponent(product.key)}`;
+    const response = await reebsApiResponse(`/api/water${productQuery}`);
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       throw new Error(data?.error || "Failed to load the water module.");
     }
-    setDashboard(data && typeof data === "object" ? data : buildDefaultDashboard());
+    if (data?.product?.key !== product.key) {
+      setDashboard(buildDefaultDashboard(product));
+      throw new Error("The API did not return the selected Water product. Refresh after the API deployment completes.");
+    }
+    setDashboard(data);
   };
 
   const loadVendors = async () => {
@@ -594,13 +600,17 @@ function AdminWater() {
       const response = await reebsApiResponse("/api/water", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ...payload }),
+        body: JSON.stringify({ action, ...payload, productKey: product.key }),
       });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(data?.error || "Failed to save water module activity.");
       }
-      setDashboard(data && typeof data === "object" ? data : buildDefaultDashboard());
+      if (data?.product?.key !== product.key) {
+        setDashboard(buildDefaultDashboard(product));
+        throw new Error("The API returned a different Water product. Refresh and verify the saved record before trying again.");
+      }
+      setDashboard(data);
       setStatus(successMessage);
       return true;
     } catch (err) {
@@ -767,7 +777,7 @@ function AdminWater() {
       ),
     [expenses]
   );
-  const productName = dashboard?.product?.name || buildDefaultDashboard().product.name;
+  const productName = dashboard?.product?.name || product.name;
   const hardLinkedVendorIds = useMemo(() => {
     const source = Array.isArray(dashboard?.product?.linkedVendorIds)
       ? dashboard.product.linkedVendorIds
@@ -917,6 +927,7 @@ function AdminWater() {
   }, [trackedAdjustments, trackedRestocks]);
 
   const fixedWaterVendor = useMemo(() => {
+    if (product.key !== DEFAULT_WATER_PRODUCT_KEY) return null;
     const normalizedSupplierName = normalizeVendorMatchText(WATER_SUPPLIER_NAME);
     const vendorPool = hardLinkedVendors.length ? hardLinkedVendors : vendors;
     return (
@@ -930,7 +941,7 @@ function AdminWater() {
         );
       }) || null
     );
-  }, [hardLinkedVendors, vendors]);
+  }, [hardLinkedVendors, vendors, product.key]);
 
   const selectedSaleCustomer = useMemo(() => {
     const customerId = Number(saleForm.customerId);
@@ -1021,7 +1032,9 @@ function AdminWater() {
   const restockQuantity = Math.max(0, Math.round(toNumber(restockForm.quantity, 0)));
   const restockUnitCost = Math.max(0, Math.round((Number(restockForm.unitCost) || 0) * 100));
   const restockCost = restockQuantity * restockUnitCost;
-  const restockSupplierLabel = fixedWaterVendor?.name || WATER_SUPPLIER_NAME;
+  const restockVendorName = fixedWaterVendor?.name
+    || (product.key === DEFAULT_WATER_PRODUCT_KEY ? WATER_SUPPLIER_NAME : "");
+  const restockSupplierLabel = restockVendorName || product.name;
   const saleCustomerLabel = saleForm.saleChannel === "company" ? "Company name" : "Customer name";
   const saleRateLabel =
     salePreview.usesCustomUnitPrice
@@ -1737,7 +1750,7 @@ function AdminWater() {
         quantity: restockForm.quantity,
         unitCost: restockForm.unitCost,
         vendorId: Number.isFinite(Number(fixedWaterVendor?.id)) ? Number(fixedWaterVendor.id) : null,
-        vendorName: restockSupplierLabel,
+        vendorName: restockVendorName || null,
         date: restockForm.date,
         notes: restockForm.notes,
       },
@@ -1857,6 +1870,16 @@ function AdminWater() {
   };
 
   const notices = [
+    !loading && dashboard?.product?.pricing?.configurationErrorCode
+      ? {
+          key: "water-pricing-unavailable",
+          tone: "info",
+          title: `Set up selling prices for ${product.name}`,
+          message: permissions.canManagePricing
+            ? "Add this product's retail, bulk retail and company price schedules in Settings → Commercial. Stock can be recorded before prices are configured."
+            : "Ask an owner or admin to configure this product's selling prices before recording sales.",
+        }
+      : null,
     error
       ? {
           key: "water-error",
@@ -1963,11 +1986,34 @@ function AdminWater() {
           title="GWater"
           actionsClassName="admin-header-actions water-module-header-actions"
           actions={
+            <>
+            <SelectField
+              label="Water product"
+              ariaLabel="Select Water product"
+              fieldClassName="water-module-product-select"
+              value={product.key}
+              disabled={loading || saving || creatingCustomer || Boolean(activeOrderId) || Boolean(activeLedgerItem)}
+              onChange={(event) => {
+                const hasDraft = [restockForm.quantity, restockForm.notes, saleForm.quantity,
+                  saleForm.customerName, saleForm.notes, expenseForm.amount,
+                  expenseForm.description, adjustmentForm.quantityDelta, adjustmentForm.notes,
+                  saleForm.unitPrice, saleForm.discountValue]
+                  .some((value) => String(value || "").trim())
+                  || restockForm.unitCost !== toMoneyInputValue(dashboard?.product?.purchaseCost);
+                if (hasDraft && !window.confirm("Switch Water product and discard the unsaved form entries?")) return;
+                onProductChange(event.target.value);
+              }}
+            >
+              {WATER_PRODUCTS.map((item) => <option key={item.key} value={item.key}>{item.name}</option>)}
+            </SelectField>
             <button type="button" className="admin-secondary" onClick={loadModule} disabled={loading || saving} aria-label="Refresh Water dashboard">
               <AppIcon icon={faRotateRight} />
             </button>
+            </>
           }
         />
+
+        <p className="water-module-product-note">{product.name}: quantities and prices are per pack of {product.packSize}.</p>
 
         <InlineNoticeStack notices={notices} />
 
@@ -2151,4 +2197,9 @@ function AdminWater() {
   );
 }
 
-export default AdminWater;
+export default function AdminWater() {
+  const [productKey, setProductKey] = useState(DEFAULT_WATER_PRODUCT_KEY);
+  // Remount drafts and request state so another product can never inherit costs,
+  // edited records or an in-flight response from the previous selection.
+  return <WaterProductWorkspace key={productKey} product={getWaterProduct(productKey)} onProductChange={setProductKey} />;
+}

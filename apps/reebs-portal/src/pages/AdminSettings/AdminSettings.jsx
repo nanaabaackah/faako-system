@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
+import { WATER_PRODUCTS, getWaterProduct } from "../../../shared/waterProducts.js";
 import "./AdminSettings.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
@@ -1474,6 +1475,27 @@ function AdminSettings({ profileOnly = false }) {
                 <details className="settings-commercial-new-water">
                   <summary>Add a Water price schedule</summary>
                   <form className="settings-form" onSubmit={addWaterPrice}>
+                    <SelectField
+                      label="Water product preset"
+                      fieldClassName="settings-select"
+                      value={getWaterProduct(newWaterPriceDraft.productKey)?.key || ""}
+                      disabled={Boolean(commercialSavingKey)}
+                      onChange={(event) => {
+                        const product = getWaterProduct(event.target.value);
+                        setNewWaterPriceDraft((previous) => ({
+                          ...previous,
+                          productKey: product?.key || "",
+                          productName: product?.name || "",
+                          price: "",
+                          minimumQuantity: "1",
+                        }));
+                      }}
+                    >
+                      <option value="">Custom product</option>
+                      {WATER_PRODUCTS.map((product) => (
+                        <option key={product.key} value={product.key}>{product.name}</option>
+                      ))}
+                    </SelectField>
                     <div className="settings-grid">
                       <label>
                         Product name

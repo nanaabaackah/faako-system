@@ -17,6 +17,32 @@ globalThis[fixtureKey] = {
       assert.equal(fixture.closed, false, "dashboard reads must finish before closing the client");
       const statement = sql.replace(/\s+/g, " ").trim();
       fixture.queries.push({ statement, values });
+      if (/^SELECT id, name, phone FROM "customer"/.test(statement)) {
+        return { rows: [{ id: 1, name: "Water customer", phone: null }], rowCount: 1 };
+      }
+      if (/^SELECT .* FROM "water(?:Restock|Sale|Expense|Adjustment)" WHERE id =/.test(statement)) {
+        assert.match(statement, /AND "productKey" = \$3/);
+        const rows = statement.includes('FROM "waterRestock"') ? fixture.restocks : fixture.sales || [];
+        const matches = rows.filter((row) => row.id === values[0]
+          && (row.productKey || "gwater-15pk") === values[2]);
+        return { rows: structuredClone(matches), rowCount: matches.length };
+      }
+      if (/^SELECT "unitCost" FROM "waterRestock"/.test(statement)) {
+        const rows = fixture.restocks.filter((row) => row.productKey === values[1]
+          && new Date(row.date) <= new Date(values[2]));
+        return { rows: rows.slice(0, 1) };
+      }
+      if (/^INSERT INTO "waterSale"/.test(statement)) {
+        const columns = [...statement.split("VALUES")[0].matchAll(/"([A-Za-z]+)"/g)].slice(1).map((match) => match[1]);
+        const sale = { id: 12, ...Object.fromEntries(columns.map((column, index) => [column, values[index]])) };
+        (fixture.sales ||= []).unshift(sale);
+        return { rows: [{ id: sale.id }], rowCount: 1 };
+      }
+      if (/^INSERT INTO "waterExpense"/.test(statement)) {
+        (fixture.expenses ||= []).push({ id: 30, organizationId: values[0], productKey: values[1],
+          category: values[2], amount: values[3], description: values[4], date: values[6] });
+        return { rows: [], rowCount: 1 };
+      }
       if (/^INSERT INTO "waterRestock"/.test(statement)) {
         fixture.restocks.unshift({
           id: 2,
@@ -34,27 +60,46 @@ globalThis[fixtureKey] = {
         });
         return { rows: [], rowCount: 1 };
       }
+      if (/^UPDATE "waterRestock" SET/.test(statement)) {
+        assert.match(statement, /AND "productKey" = \$9/);
+        const row = fixture.restocks.find((row) => row.id === values[0] && row.productKey === values[8]);
+        assert.ok(row);
+        Object.assign(row, { quantity: values[2], unitCost: values[3], vendorId: values[4],
+          vendorName: values[5], notes: values[6], date: values[7] });
+        return { rows: [], rowCount: 1 };
+      }
       if (/^SELECT COUNT\(\*\)::int AS count/.test(statement)) {
         return { rows: [{ count: 0 }] };
       }
       if (/^SELECT to_regclass/.test(statement)) return { rows: [{ table_ref: null }] };
       if (/^SELECT .* FROM "waterRestock" WHERE/.test(statement)) {
-        assert.deepEqual(values, [7]);
-        return { rows: [...fixture.restocks] };
+        assert.equal(values[0], 7);
+        assert.match(statement, /AND "productKey" = \$2/);
+        return { rows: fixture.restocks.filter((row) => (row.productKey || "gwater-15pk") === values[1]) };
       }
       if (/^SELECT .* FROM "waterSale" WHERE/.test(statement)) {
-        assert.deepEqual(values, [7]);
-        return { rows: fixture.sales || [] };
+        assert.equal(values[0], 7);
+        assert.match(statement, /AND "productKey" = \$2/);
+        return { rows: (fixture.sales || []).filter((row) => (row.productKey || "gwater-15pk") === values[1]) };
       }
       if (/^SELECT .* FROM "water(?:Expense|Adjustment)" WHERE/.test(statement)) {
-        assert.deepEqual(values, [7]);
-        return { rows: [] };
+        assert.equal(values[0], 7);
+        assert.match(statement, /AND "productKey" = \$2/);
+        const rows = statement.includes('FROM "waterExpense"') ? fixture.expenses || [] : [];
+        return { rows: rows.filter((row) => (row.productKey || "gwater-15pk") === values[1]) };
       }
       if (/^(?:CREATE TABLE|ALTER TABLE|UPDATE "waterSale"|WITH resolved_cost|BEGIN|COMMIT|ROLLBACK|SELECT pg_advisory_xact_lock)/.test(statement)) {
         return { rows: [], rowCount: 0 };
       }
       throw new Error(`Unexpected fixture query: ${statement}`);
     }
+  },
+  resolvePrice: async (_client, options) => {
+    fixture.priceRequests.push(options);
+    if (fixture.missingPricing) {
+      throw Object.assign(new Error("Water prices are not configured."), { statusCode: 503 });
+    }
+    return { id: 1, currency: "GHS", priceCents: options.productKey === "sachet-water-30pk" ? 1200 : 3000, minimumQuantity: 10 };
   },
   requireInternalUser: async (_client, _event, options) => {
     fixture.authorization = options;
@@ -80,11 +125,15 @@ const mockedModules = new Map([
       allowed: true, remaining: 100, retryAfterSeconds: 0, resetAt: "2026-09-24T12:00:00.000Z"
     });
   `],
+  ["./_shared/auditLog.js", `
+    export const getEventHeader = () => "";
+    export const getEventIpAddress = () => null;
+    export const writeAuditLog = async () => {};
+  `],
   ["./_shared/commercialConfig.js", `
     export * from ${JSON.stringify(commercialUrl)};
-    export const resolveWaterProductPrice = async () => ({
-      currency: "GHS", priceCents: 3000, minimumQuantity: 10
-    });
+    export const resolveWaterProductPrice = globalThis.${fixtureKey}.resolvePrice;
+    export const resolveWaterSalePrice = globalThis.${fixtureKey}.resolvePrice;
     export const resolveCommercialValue = async () => 1000;
   `],
 ]);
@@ -109,9 +158,17 @@ try {
 }
 after(() => { delete globalThis[fixtureKey]; });
 
+const sachetProductKey = "sachet-water-30pk";
+const sachetRestock = {
+  id: 20, organizationId: 7, productKey: sachetProductKey,
+  productName: "30pcs sachet water", quantity: 5, unitCost: 800,
+  date: "2026-09-01T00:00:00.000Z",
+};
+
 const createFixture = (role) => ({
   role,
   queries: [],
+  priceRequests: [],
   closed: false,
   restocks: [{
     id: 1,
@@ -246,4 +303,154 @@ test("reading Water never rewrites historical payment status, references or paid
   assert.equal(dashboard.summary.cashCollected, 3000);
   assert.equal(dashboard.summary.pendingMomo, 3000);
   assert.equal(dashboard.summary.outstandingCredit, 0);
+});
+
+test("30-piece pack dashboard isolates stock, prices and costs from the existing 15-pack", async () => {
+  fixture = createFixture("admin");
+  fixture.restocks.push(sachetRestock);
+  fixture.sales = [{ id: 4, productKey: "gwater-15pk", quantity: 8, totalAmount: 24000,
+    unitCostAtSaleCents: 2000, date: "2026-09-02" }];
+  const dashboard = assertDashboard(await handler({ httpMethod: "GET",
+    queryStringParameters: { productKey: sachetProductKey } }), "admin");
+  assert.equal(dashboard.product.key, sachetProductKey);
+  assert.equal(dashboard.product.packSize, 30);
+  assert.equal(dashboard.product.purchaseCost, 800);
+  assert.equal(dashboard.product.pricing.retailSingle, 1200);
+  assert.equal(dashboard.summary.stockOnHand, 5);
+  assert.equal(dashboard.summary.restockSpend, 4000);
+  assert.deepEqual(dashboard.sales, []);
+  assert.deepEqual(dashboard.restocks, [sachetRestock]);
+  assert.ok(fixture.priceRequests.every((request) => request.productKey === sachetProductKey));
+});
+
+test("new 30-piece pack restock preserves legacy stock and records cost per whole pack", async () => {
+  fixture = createFixture("admin");
+  const legacy = structuredClone(fixture.restocks[0]);
+  const dashboard = assertDashboard(await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "restock", productKey: sachetProductKey, quantity: 3, unitCost: "8.50", date: "2026-09-24",
+  }) }), "admin");
+  assert.equal(dashboard.summary.stockOnHand, 3);
+  assert.equal(dashboard.summary.restockSpend, 2550);
+  assert.equal(dashboard.restocks[0].productKey, sachetProductKey);
+  assert.equal(dashboard.restocks[0].unitCost, 850);
+  assert.deepEqual(fixture.restocks.find((row) => row.productKey === legacy.productKey), legacy);
+  assert.ok(fixture.queries.some(({ values }) => values.includes(`water-inventory:7:${sachetProductKey}`)));
+});
+
+test("30-piece sale cannot consume available 15-pack stock", async () => {
+  fixture = createFixture("water");
+  const response = await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "sale", productKey: sachetProductKey, customerId: 1, quantity: 1,
+    saleChannel: "retail", paymentMethod: "cash", date: "2026-09-24",
+  }) });
+  assert.equal(response.statusCode, 400);
+  assert.match(JSON.parse(response.body).error, /Not enough 30pcs sachet water/);
+  assert.equal(fixture.queries.some(({ statement }) => statement.startsWith('INSERT INTO "waterSale"')), false);
+});
+
+test("Water staff sell whole sachet packs at their own price and cost snapshot", async () => {
+  fixture = createFixture("water");
+  fixture.restocks.push(sachetRestock);
+  const dashboard = assertDashboard(await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "sale", productKey: sachetProductKey, customerId: 1, quantity: 2,
+    saleChannel: "retail", paymentMethod: "cash", date: "2026-09-24",
+  }) }), "water");
+  assert.equal(dashboard.summary.stockOnHand, 3);
+  assert.equal(dashboard.sales[0].totalAmount, 2400);
+  assert.equal(dashboard.sales[0].productKey, sachetProductKey);
+  assert.equal(fixture.sales[0].unitCostAtSaleCents, 800);
+  assert.equal(Object.hasOwn(dashboard.sales[0], "unitCostAtSaleCents"), false);
+  assert.equal(fixture.restocks[0].quantity, 10);
+  assert.equal(dashboard.products.length, 2);
+});
+
+for (const action of ["update_restock", "delete_restock", "update_sale", "delete_sale"]) {
+  test(`${action} cannot access a record belonging to the other Water product`, async () => {
+    fixture = createFixture("admin");
+    fixture.sales = [{ id: 1, productKey: "gwater-15pk", quantity: 1 }];
+    const response = await handler({ httpMethod: "POST", body: JSON.stringify({
+      action, productKey: sachetProductKey, restockId: 1, saleId: 1, quantity: 1,
+    }) });
+    assert.equal(response.statusCode, 404);
+    assert.equal(fixture.restocks[0].quantity, 10);
+    assert.equal(fixture.sales[0].quantity, 1);
+  });
+}
+
+test("unconfigured sachet selling prices do not prevent stock recording or borrow legacy prices", async () => {
+  fixture = { ...createFixture("admin"), missingPricing: true };
+  const dashboard = assertDashboard(await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "restock", productKey: sachetProductKey, quantity: 3, unitCost: "8.50", date: "2026-09-24",
+  }) }), "admin");
+  assert.equal(dashboard.summary.stockOnHand, 3);
+  assert.equal(dashboard.product.pricing.retailSingle, null);
+  assert.match(dashboard.product.pricing.configurationError, /not configured/);
+});
+
+test("unknown product keys are rejected without touching the ledger", async () => {
+  fixture = createFixture("admin");
+  const response = await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "restock", productKey: "unknown-pack", quantity: 3, unitCost: "8.50",
+  }) });
+  assert.equal(response.statusCode, 400);
+  assert.equal(JSON.parse(response.body).code, "INVALID_WATER_PRODUCT");
+  assert.deepEqual(fixture.queries, []);
+});
+
+test("sachet expense is assigned only to the selected product's profit calculation", async () => {
+  fixture = createFixture("admin");
+  fixture.expenses = [{ id: 1, productKey: "gwater-15pk", amount: 3000, category: "Other", date: "2026-09-01" }];
+  const dashboard = assertDashboard(await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "expense", productKey: sachetProductKey, category: "Transport", description: "Sachet delivery",
+    amount: "5.00", date: "2026-09-24",
+  }) }), "admin");
+  assert.equal(dashboard.expenses.length, 1);
+  assert.equal(dashboard.summary.extraExpenses, 500);
+  assert.equal(dashboard.expenses[0].productKey, sachetProductKey);
+  assert.equal(fixture.expenses[0].amount, 3000);
+});
+
+test("sachet sales fail closed without a configured price", async () => {
+  fixture = { ...createFixture("water"), missingPricing: true };
+  fixture.restocks.push(sachetRestock);
+  const response = await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "sale", productKey: sachetProductKey, customerId: 1, quantity: 1,
+    saleChannel: "retail", paymentMethod: "cash", date: "2026-09-24",
+  }) });
+  assert.equal(response.statusCode, 503);
+  assert.equal(fixture.queries.some(({ statement }) => statement.startsWith('INSERT INTO "waterSale"')), false);
+  assert.ok(fixture.queries.some(({ statement }) => statement === "ROLLBACK"));
+});
+
+test("Water staff cannot record sachet purchase costs", async () => {
+  fixture = createFixture("water");
+  const response = await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "restock", productKey: sachetProductKey, quantity: 3, unitCost: "8.50", date: "2026-09-24",
+  }) });
+  assert.equal(response.statusCode, 403);
+  assert.deepEqual(fixture.queries, []);
+});
+
+test("fractional packs are rejected rather than silently rounded", async () => {
+  fixture = createFixture("admin");
+  const response = await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "restock", productKey: sachetProductKey, quantity: 1.5, unitCost: "8.50", date: "2026-09-24",
+  }) });
+  assert.equal(response.statusCode, 400);
+  assert.equal(fixture.queries.some(({ statement }) => statement.startsWith('INSERT INTO "waterRestock"')), false);
+});
+
+test("correcting an existing sachet restock cost leaves the 15-pack unchanged", async () => {
+  fixture = createFixture("admin");
+  fixture.restocks.push(structuredClone(sachetRestock));
+  const legacy = structuredClone(fixture.restocks[0]);
+  const dashboard = assertDashboard(await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "update_restock", productKey: sachetProductKey, restockId: 20,
+    unitCost: "9.00",
+  }) }), "admin");
+  assert.equal(dashboard.product.purchaseCost, 900);
+  assert.equal(dashboard.summary.stockOnHand, 5);
+  assert.deepEqual(fixture.restocks[0], legacy);
+  const restatement = fixture.queries.find(({ statement }) => statement.startsWith("SELECT COUNT(*)::int AS count"));
+  assert.deepEqual(restatement.values, [7, sachetProductKey]);
 });

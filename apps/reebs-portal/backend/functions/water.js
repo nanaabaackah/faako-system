@@ -28,11 +28,12 @@ import { calculateWaterCostBasis } from "../../shared/waterFinancials.js";
 import { buildWaterPricingPermissions } from "./_shared/waterPricing.js";
 import { canWriteWaterAction, presentWaterDashboard } from "../modules/water/dashboardAccess.js";
 import { createWaterCustomer } from "../modules/water/customerCreation.js";
+import { DEFAULT_WATER_PRODUCT_KEY, getWaterProduct, WATER_PRODUCTS } from "../../shared/waterProducts.js";
 
 const WATER_METHODS = "GET,POST,OPTIONS";
 const WATER_ALLOWED_ROLES = ["owner", "admin", "water"];
 const PRODUCT_NAME = "15pk Gwater";
-const PRODUCT_KEY = "gwater-15pk";
+const PRODUCT_KEY = DEFAULT_WATER_PRODUCT_KEY;
 const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "15 pk Gwater"];
 const MAX_WATER_BODY_BYTES = 16 * 1024;
 const MAX_WATER_QUANTITY = 100000;
@@ -140,6 +141,7 @@ const tableStatements = [
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
   `ALTER TABLE "waterExpense" ADD COLUMN IF NOT EXISTS "archivedAt" TIMESTAMPTZ`,
+  `ALTER TABLE "waterExpense" ADD COLUMN IF NOT EXISTS "productKey" TEXT NOT NULL DEFAULT 'gwater-15pk'`,
   `ALTER TABLE "waterExpense" ADD COLUMN IF NOT EXISTS "archivedByUserId" INTEGER`,
   `ALTER TABLE "waterExpense" ADD COLUMN IF NOT EXISTS "archivedByName" TEXT`,
   `CREATE TABLE IF NOT EXISTS "waterAdjustment" (
@@ -228,16 +230,12 @@ const normalizeComparableText = (value) =>
 
 const parsePositiveInteger = (value, max = MAX_WATER_QUANTITY) => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
-  const rounded = Math.round(parsed);
-  return rounded > 0 && rounded <= max ? rounded : null;
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= max ? parsed : null;
 };
 
 const parseSignedInteger = (value, max = MAX_WATER_QUANTITY) => {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
-  const rounded = Math.round(parsed);
-  return rounded !== 0 && Math.abs(rounded) <= max ? rounded : null;
+  return Number.isInteger(parsed) && parsed !== 0 && Math.abs(parsed) <= max ? parsed : null;
 };
 
 const parseMoney = (value, maxCents = MAX_WATER_AMOUNT_CENTS) => {
@@ -550,24 +548,25 @@ const isSaleCollected = (row) =>
 const loadWaterCommercialPricing = async (
   client,
   organizationId,
-  at = new Date()
+  at = new Date(),
+  productKey = PRODUCT_KEY
 ) => {
   const [retail, bulkRetail, company, discountLimitBps] = await Promise.all([
     resolveWaterProductPrice(client, {
       organizationId,
-      productKey: PRODUCT_KEY,
+      productKey,
       priceType: WATER_PRICE_TYPES.RETAIL,
       at,
     }),
     resolveWaterProductPrice(client, {
       organizationId,
-      productKey: PRODUCT_KEY,
+      productKey,
       priceType: WATER_PRICE_TYPES.BULK_RETAIL,
       at,
     }),
     resolveWaterProductPrice(client, {
       organizationId,
-      productKey: PRODUCT_KEY,
+      productKey,
       priceType: WATER_PRICE_TYPES.COMPANY,
       at,
     }),
@@ -594,9 +593,9 @@ const loadWaterCommercialPricing = async (
   };
 };
 
-const loadWaterDashboardPricing = async (client, organizationId, at = new Date()) => {
+const loadWaterDashboardPricing = async (client, organizationId, at = new Date(), productKey = PRODUCT_KEY) => {
   try {
-    return await loadWaterCommercialPricing(client, organizationId, at);
+    return await loadWaterCommercialPricing(client, organizationId, at, productKey);
   } catch (error) {
     if (Number(error?.statusCode) !== 503) throw error;
     return {
@@ -718,14 +717,14 @@ const runWaterTransaction = async (client, operation) => {
   }
 };
 
-const lockWaterInventory = (client, organizationId) => client.query(
+const lockWaterInventory = (client, organizationId, productKey = PRODUCT_KEY) => client.query(
   `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
-  [`water-inventory:${organizationId}:${PRODUCT_KEY}`]
+  [`water-inventory:${organizationId}:${productKey}`]
 );
 
 const lockWaterSaleCommercialTerms = (
   client,
-  { organizationId, saleChannel, includePricing = true, includeDiscount = true }
+  { organizationId, productKey = PRODUCT_KEY, saleChannel, includePricing = true, includeDiscount = true }
 ) => {
   const priceTypes = includePricing
     ? normalizeChannel(saleChannel) === "company"
@@ -733,7 +732,7 @@ const lockWaterSaleCommercialTerms = (
       : [WATER_PRICE_TYPES.RETAIL, WATER_PRICE_TYPES.BULK_RETAIL]
     : [];
   const lockKeys = priceTypes.map((priceType) =>
-    buildWaterPriceLockKey(organizationId, PRODUCT_KEY, priceType)
+    buildWaterPriceLockKey(organizationId, productKey, priceType)
   );
   if (includeDiscount) {
     lockKeys.push(buildCommercialRuleLockKey(
@@ -819,14 +818,15 @@ const findOrCreateCustomerByName = async (client, organizationId, name, phone = 
   }
 };
 
-const selectRows = async (client, queryRef, columns, organizationId, extraWhere = "") => {
+const selectRows = async (client, queryRef, columns, organizationId, extraWhere = "", productKey = PRODUCT_KEY) => {
   const result = await client.query(
     `SELECT ${columns.join(", ")}
      FROM ${queryRef}
      WHERE "organizationId" = $1
+       AND "productKey" = $2
      ${extraWhere ? `AND ${extraWhere}` : ""}
      ORDER BY date DESC, id DESC`,
-    [organizationId]
+    [organizationId, productKey]
   );
   return result.rows || [];
 };
@@ -839,6 +839,8 @@ const hasTable = async (client, tableName) => {
 const scoreWaterProductCandidate = (candidateName) => {
   const normalizedCandidate = normalizeComparableText(candidateName);
   if (!normalizedCandidate) return 0;
+  // Legacy bottle vendor matching must never link the sachet pack by "water" alone.
+  if (/sachet|\b30\b|30pk|30pcs/.test(normalizedCandidate)) return 0;
 
   let bestScore = normalizedCandidate.includes("gwater") ? 300 : normalizedCandidate.includes("water") ? 100 : 0;
 
@@ -874,7 +876,9 @@ const scoreWaterProductCandidate = (candidateName) => {
   return bestScore;
 };
 
-const resolveLinkedWaterVendors = async (client, organizationId) => {
+const resolveLinkedWaterVendors = async (client, organizationId, productKey = PRODUCT_KEY) => {
+  // Do not fuzzy-link the sachet pack to the legacy bottled-water inventory.
+  if (productKey !== PRODUCT_KEY) return { inventoryProductId: null, linkedVendorIds: [] };
   const productTableExists = await hasTable(client, "product");
   if (!productTableExists) {
     return {
@@ -1010,6 +1014,7 @@ export const buildWaterSummary = ({ restocks, sales, expenses, adjustments }) =>
 };
 
 const buildDashboard = async (client, organizationId, options = {}) => {
+  const product = getWaterProduct(options.productKey);
   const includeLinkedProduct = options.includeLinkedProduct !== false;
   const includePricing = options.includePricing !== false;
   const pricingAt = options.at || new Date();
@@ -1031,7 +1036,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"createdByName\"",
         "\"createdAt\"",
       ],
-      organizationId
+      organizationId, "", product.key
     ),
     selectRows(
       client,
@@ -1070,7 +1075,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"updatedByName\"",
       ],
       organizationId,
-      `"archivedAt" IS NULL`
+      `"archivedAt" IS NULL`, product.key
     ),
     selectRows(
       client,
@@ -1087,7 +1092,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"createdAt\"",
       ],
       organizationId,
-      `"archivedAt" IS NULL`
+      `"archivedAt" IS NULL`, product.key
     ),
     selectRows(
       client,
@@ -1104,16 +1109,16 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"createdByName\"",
         "\"createdAt\"",
       ],
-      organizationId
+      organizationId, "", product.key
     ),
     includeLinkedProduct
-      ? resolveLinkedWaterVendors(client, organizationId)
+      ? resolveLinkedWaterVendors(client, organizationId, product.key)
       : Promise.resolve({
           inventoryProductId: null,
           linkedVendorIds: [],
         }),
     includePricing
-      ? loadWaterDashboardPricing(client, organizationId, pricingAt)
+      ? loadWaterDashboardPricing(client, organizationId, pricingAt, product.key)
       : Promise.resolve(null),
   ]);
 
@@ -1121,9 +1126,9 @@ const buildDashboard = async (client, organizationId, options = {}) => {
 
   return withWaterBusinessContext({
     permissions: buildWaterPricingPermissions(options.role),
+    products: WATER_PRODUCTS,
     product: {
-      key: PRODUCT_KEY,
-      name: PRODUCT_NAME,
+      ...product,
       inventoryProductId: linkedProduct.inventoryProductId,
       linkedVendorIds: linkedProduct.linkedVendorIds,
       purchaseCost:
@@ -1193,9 +1198,12 @@ export async function handler(event = {}) {
       return authResult.errorResponse;
     }
     const { authUser, organizationId } = authResult;
+    let product = getWaterProduct(event.queryStringParameters?.productKey);
+    if (!product) return json(400, { error: "Unknown Water product.", code: "INVALID_WATER_PRODUCT" });
     const buildAuthorizedDashboard = (options = {}) =>
       buildDashboard(client, organizationId, {
         ...options,
+        productKey: product.key,
         role: authUser.role,
       });
     const respondWithDashboard = async () =>
@@ -1225,6 +1233,12 @@ export async function handler(event = {}) {
     } catch {
       return json(400, { error: "Invalid JSON body." });
     }
+
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return json(400, { error: "A Water request object is required." });
+    }
+    product = getWaterProduct(payload.productKey ?? product.key);
+    if (!product) return json(400, { error: "Unknown Water product.", code: "INVALID_WATER_PRODUCT" });
 
     const rawAction = cleanText(payload.action, MAX_ACTION_LENGTH).toLowerCase();
     const action = normalizeWaterAction(rawAction);
@@ -1294,7 +1308,7 @@ export async function handler(event = {}) {
       if (!date) return json(400, { error: "A valid restock date is required." });
 
       await runWaterTransaction(client, async () => {
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         await client.query(
           `INSERT INTO "waterRestock" (
           "organizationId",
@@ -1311,8 +1325,8 @@ export async function handler(event = {}) {
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
           [
             organizationId,
-            PRODUCT_KEY,
-            PRODUCT_NAME,
+            product.key,
+            product.name,
             quantity,
             unitCost,
             vendorId,
@@ -1325,7 +1339,7 @@ export async function handler(event = {}) {
         );
         await restateWaterSaleCostSnapshots(client, {
           organizationId,
-          productKey: PRODUCT_KEY,
+          productKey: product.key,
           userId: createdByUserId,
           userName: createdByName,
         });
@@ -1351,9 +1365,9 @@ export async function handler(event = {}) {
            notes,
            date
          FROM "waterRestock"
-         WHERE id = $1 AND "organizationId" = $2
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
          LIMIT 1`,
-        [restockId, organizationId]
+        [restockId, organizationId, product.key]
       );
 
       if (existingRes.rowCount === 0) {
@@ -1393,13 +1407,13 @@ export async function handler(event = {}) {
       }
 
       await runWaterTransaction(client, async () => {
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         const lockedRestockRes = await client.query(
           `SELECT "productKey", quantity, "unitCost", "vendorId", "vendorName", notes, date
            FROM "waterRestock"
-           WHERE id = $1 AND "organizationId" = $2
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
            FOR UPDATE`,
-          [restockId, organizationId]
+          [restockId, organizationId, product.key]
         );
         if (lockedRestockRes.rowCount === 0) {
           const missingError = new Error("Water restock not found.");
@@ -1441,8 +1455,8 @@ export async function handler(event = {}) {
                "vendorName" = $6,
                "notes" = $7,
                "date" = $8
-           WHERE id = $1 AND "organizationId" = $2`,
-          [restockId, organizationId, quantity, unitCost, vendorId, vendorName, notes, date]
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $9`,
+          [restockId, organizationId, quantity, unitCost, vendorId, vendorName, notes, date, product.key]
         );
 
         const costBasisChanged = unitCost !== Number(existingRestock.unitCost)
@@ -1499,13 +1513,13 @@ export async function handler(event = {}) {
       }
 
       await runWaterTransaction(client, async () => {
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         const existingRes = await client.query(
           `SELECT id, "productKey", quantity
            FROM "waterRestock"
-           WHERE id = $1 AND "organizationId" = $2
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
            FOR UPDATE`,
-          [restockId, organizationId]
+          [restockId, organizationId, product.key]
         );
         if (existingRes.rowCount === 0) {
           const missingError = new Error("Water restock not found.");
@@ -1526,8 +1540,8 @@ export async function handler(event = {}) {
         }
         await client.query(
           `DELETE FROM "waterRestock"
-           WHERE id = $1 AND "organizationId" = $2`,
-          [restockId, organizationId]
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3`,
+          [restockId, organizationId, product.key]
         );
         await restateWaterSaleCostSnapshots(client, {
           organizationId,
@@ -1602,21 +1616,22 @@ export async function handler(event = {}) {
         includePricing: false,
       });
       if (quantity > dashboard.summary.stockOnHand) {
-        return json(400, { error: "Not enough 15pk Gwater in stock for this sale." });
+        return json(400, { error: `Not enough ${product.name} in stock for this sale.` });
       }
 
       const saleId = await runWaterTransaction(client, async () => {
         await lockWaterSaleCommercialTerms(client, {
           organizationId,
+          productKey: product.key,
           saleChannel,
           includeDiscount: true,
         });
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         const [standardPriceRecord, maximumDiscountBps, lockedUnitCostAtSaleCents] =
           await Promise.all([
             resolveWaterSalePrice(client, {
               organizationId,
-              productKey: PRODUCT_KEY,
+              productKey: product.key,
               saleChannel,
               quantity,
               at: commercialAt,
@@ -1627,7 +1642,7 @@ export async function handler(event = {}) {
               key: COMMERCIAL_CONFIG_KEYS.WATER_DISCOUNT_LIMIT_BPS,
               at: commercialAt,
             }),
-            resolveWaterUnitCostAtSale(client, organizationId, date, PRODUCT_KEY),
+            resolveWaterUnitCostAtSale(client, organizationId, date, product.key),
           ]);
         const priceDecision = resolveWaterPriceDecision({
           standardPriceCents: standardPriceRecord.priceCents,
@@ -1662,7 +1677,7 @@ export async function handler(event = {}) {
           includePricing: false,
         });
         if (quantity > lockedDashboard.summary.stockOnHand) {
-          const stockError = new Error("Not enough 15pk Gwater in stock for this sale.");
+          const stockError = new Error(`Not enough ${product.name} in stock for this sale.`);
           stockError.statusCode = 400;
           stockError.code = "INSUFFICIENT_WATER_STOCK";
           throw stockError;
@@ -1703,8 +1718,8 @@ export async function handler(event = {}) {
           RETURNING id`,
           [
           organizationId,
-          PRODUCT_KEY,
-          PRODUCT_NAME,
+          product.key,
+          product.name,
           quantity,
           saleChannel,
           paymentMethod,
@@ -1736,11 +1751,11 @@ export async function handler(event = {}) {
           await client.query(
             `UPDATE "waterSale"
              SET "paymentReference" = $2
-             WHERE id = $1 AND "organizationId" = $3`,
+             WHERE id = $1 AND "organizationId" = $3 AND "productKey" = $4`,
             [
               insertedSaleId,
               buildPaymentReference(organizationId, insertedSaleId),
-              organizationId,
+              organizationId, product.key,
             ]
           );
         }
@@ -1785,9 +1800,9 @@ export async function handler(event = {}) {
            "paidAt",
            "updatedAt"
          FROM "waterSale"
-         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
          LIMIT 1`,
-        [saleId, organizationId]
+        [saleId, organizationId, product.key]
       );
 
       if (existingRes.rowCount === 0) {
@@ -1892,7 +1907,7 @@ export async function handler(event = {}) {
       });
       const availableStock = dashboard.summary.stockOnHand + toAmount(existingSale.quantity);
       if (quantity > availableStock) {
-        return json(400, { error: "Not enough 15pk Gwater in stock for this order." });
+        return json(400, { error: `Not enough ${product.name} in stock for this order.` });
       }
 
       const pricingBasisChanged = didWaterSalePricingBasisChange(existingSale, {
@@ -1912,17 +1927,18 @@ export async function handler(event = {}) {
       await runWaterTransaction(client, async () => {
         await lockWaterSaleCommercialTerms(client, {
           organizationId,
+          productKey: product.key,
           saleChannel,
           includePricing: pricingResolutionRequired,
           includeDiscount: commercialTermsChanged,
         });
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         const lockedSaleRes = await client.query(
           `SELECT quantity, "unitPrice", "saleChannel", date, "updatedAt"
            FROM "waterSale"
-           WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
            FOR UPDATE`,
-          [saleId, organizationId]
+          [saleId, organizationId, product.key]
         );
         if (lockedSaleRes.rowCount === 0) {
           const missingError = new Error("Water order not found.");
@@ -1947,12 +1963,12 @@ export async function handler(event = {}) {
           const [standardPriceRecord, resolvedUnitCostAtSaleCents] = await Promise.all([
             resolveWaterSalePrice(client, {
               organizationId,
-              productKey: PRODUCT_KEY,
+              productKey: product.key,
               saleChannel,
               quantity,
               at: commercialAt,
             }),
-            resolveWaterUnitCostAtSale(client, organizationId, date, PRODUCT_KEY),
+            resolveWaterUnitCostAtSale(client, organizationId, date, product.key),
           ]);
           const priceDecision = resolveWaterPriceDecision({
             standardPriceCents: standardPriceRecord.priceCents,
@@ -2004,7 +2020,7 @@ export async function handler(event = {}) {
         const lockedAvailableStock =
           lockedDashboard.summary.stockOnHand + toAmount(existingSale.quantity);
         if (quantity > lockedAvailableStock) {
-          const stockError = new Error("Not enough 15pk Gwater in stock for this order.");
+          const stockError = new Error(`Not enough ${product.name} in stock for this order.`);
           stockError.statusCode = 400;
           stockError.code = "INSUFFICIENT_WATER_STOCK";
           throw stockError;
@@ -2035,7 +2051,7 @@ export async function handler(event = {}) {
              "updatedAt" = NOW(),
              "updatedByUserId" = $24,
              "updatedByName" = $25
-           WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL`,
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $26 AND "archivedAt" IS NULL`,
           [
           saleId,
           organizationId,
@@ -2061,7 +2077,7 @@ export async function handler(event = {}) {
           date,
           paidAt,
           createdByUserId,
-            createdByName,
+            createdByName, product.key,
           ]
         );
 
@@ -2107,8 +2123,8 @@ export async function handler(event = {}) {
           await client.query(
             `UPDATE "waterSale"
              SET "paymentReference" = $2
-             WHERE id = $1 AND "organizationId" = $3`,
-            [saleId, buildPaymentReference(organizationId, saleId), organizationId]
+             WHERE id = $1 AND "organizationId" = $3 AND "productKey" = $4`,
+            [saleId, buildPaymentReference(organizationId, saleId), organizationId, product.key]
           );
         }
       });
@@ -2123,13 +2139,13 @@ export async function handler(event = {}) {
       }
 
       await runWaterTransaction(client, async () => {
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         const existingRes = await client.query(
           `SELECT id
            FROM "waterSale"
-           WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
            FOR UPDATE`,
-          [saleId, organizationId]
+          [saleId, organizationId, product.key]
         );
         if (existingRes.rowCount === 0) {
           const missingError = new Error("Water order not found.");
@@ -2144,8 +2160,8 @@ export async function handler(event = {}) {
                "updatedAt" = NOW(),
                "updatedByUserId" = $3,
                "updatedByName" = $4
-           WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL`,
-          [saleId, organizationId, createdByUserId, createdByName]
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $5 AND "archivedAt" IS NULL`,
+          [saleId, organizationId, createdByUserId, createdByName, product.key]
         );
       });
 
@@ -2167,6 +2183,7 @@ export async function handler(event = {}) {
       await client.query(
         `INSERT INTO "waterExpense" (
           "organizationId",
+          "productKey",
           "category",
           "amount",
           "description",
@@ -2174,8 +2191,8 @@ export async function handler(event = {}) {
           "date",
           "createdByUserId",
           "createdByName"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [organizationId, category, amount, description, notes, date, createdByUserId, createdByName]
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [organizationId, product.key, category, amount, description, notes, date, createdByUserId, createdByName]
       );
 
       return await respondWithDashboard();
@@ -2196,9 +2213,9 @@ export async function handler(event = {}) {
            notes,
            date
          FROM "waterExpense"
-         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
          LIMIT 1`,
-        [expenseId, organizationId]
+        [expenseId, organizationId, product.key]
       );
 
       if (existingRes.rowCount === 0) {
@@ -2238,8 +2255,8 @@ export async function handler(event = {}) {
              "description" = $5,
              "notes" = $6,
              "date" = $7
-         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL`,
-        [expenseId, organizationId, category, amount, description, notes, date]
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $8 AND "archivedAt" IS NULL`,
+        [expenseId, organizationId, category, amount, description, notes, date, product.key]
       );
 
       return await respondWithDashboard();
@@ -2254,9 +2271,9 @@ export async function handler(event = {}) {
       const existingRes = await client.query(
         `SELECT id
          FROM "waterExpense"
-         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
          LIMIT 1`,
-        [expenseId, organizationId]
+        [expenseId, organizationId, product.key]
       );
 
       if (existingRes.rowCount === 0) {
@@ -2268,8 +2285,8 @@ export async function handler(event = {}) {
          SET "archivedAt" = NOW(),
              "archivedByUserId" = $3,
              "archivedByName" = $4
-         WHERE id = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL`,
-        [expenseId, organizationId, createdByUserId, createdByName]
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $5 AND "archivedAt" IS NULL`,
+        [expenseId, organizationId, createdByUserId, createdByName, product.key]
       );
 
       return await respondWithDashboard();
@@ -2286,7 +2303,7 @@ export async function handler(event = {}) {
       if (!date) return json(400, { error: "A valid correction date is required." });
 
       await runWaterTransaction(client, async () => {
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
@@ -2311,8 +2328,8 @@ export async function handler(event = {}) {
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
             organizationId,
-            PRODUCT_KEY,
-            PRODUCT_NAME,
+            product.key,
+            product.name,
             quantityDelta,
             reason,
             notes,
@@ -2340,9 +2357,9 @@ export async function handler(event = {}) {
            notes,
            date
          FROM "waterAdjustment"
-         WHERE id = $1 AND "organizationId" = $2
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
          LIMIT 1`,
-        [adjustmentId, organizationId]
+        [adjustmentId, organizationId, product.key]
       );
 
       if (existingRes.rowCount === 0) {
@@ -2369,13 +2386,13 @@ export async function handler(event = {}) {
       if (!date) return json(400, { error: "A valid correction date is required." });
 
       await runWaterTransaction(client, async () => {
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         const lockedAdjustmentRes = await client.query(
           `SELECT "quantityDelta", reason, notes, date
            FROM "waterAdjustment"
-           WHERE id = $1 AND "organizationId" = $2
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
            FOR UPDATE`,
-          [adjustmentId, organizationId]
+          [adjustmentId, organizationId, product.key]
         );
         if (lockedAdjustmentRes.rowCount === 0) {
           const missingError = new Error("Water correction not found.");
@@ -2412,8 +2429,8 @@ export async function handler(event = {}) {
                "reason" = $4,
                "notes" = $5,
                "date" = $6
-           WHERE id = $1 AND "organizationId" = $2`,
-          [adjustmentId, organizationId, quantityDelta, reason, notes, date]
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $7`,
+          [adjustmentId, organizationId, quantityDelta, reason, notes, date, product.key]
         );
       });
 
@@ -2427,13 +2444,13 @@ export async function handler(event = {}) {
       }
 
       await runWaterTransaction(client, async () => {
-        await lockWaterInventory(client, organizationId);
+        await lockWaterInventory(client, organizationId, product.key);
         const existingRes = await client.query(
           `SELECT id, "quantityDelta"
            FROM "waterAdjustment"
-           WHERE id = $1 AND "organizationId" = $2
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
            FOR UPDATE`,
-          [adjustmentId, organizationId]
+          [adjustmentId, organizationId, product.key]
         );
         if (existingRes.rowCount === 0) {
           const missingError = new Error("Water correction not found.");
@@ -2455,8 +2472,8 @@ export async function handler(event = {}) {
         }
         await client.query(
           `DELETE FROM "waterAdjustment"
-           WHERE id = $1 AND "organizationId" = $2`,
-          [adjustmentId, organizationId]
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3`,
+          [adjustmentId, organizationId, product.key]
         );
       });
 

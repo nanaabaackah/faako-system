@@ -31,6 +31,9 @@ REEBS core owns rental/event/shop operations and their ordinary dashboards, repo
 - The Water page states that its figures are Water-only and excluded from REEBS rental/event metrics.
 - Labels use `Water revenue`, `Water orders` and `Water net profit` where ambiguity is possible.
 - Primary Water indicators are separated from detailed cash, credit and cost breakdowns.
+- Product selection scopes these indicators and ledgers to the existing 15-pack
+  or the 30-piece sachet pack. Quantities and prices are per whole pack; neither
+  product may borrow the other's stock, selling prices or purchase costs.
 - Water-role access remains available in the mobile navigation.
 
 ## Backend and analytics rules
@@ -44,10 +47,10 @@ REEBS core owns rental/event/shop operations and their ordinary dashboards, repo
 - Water data must not be copied into a generic analytics total to simplify frontend presentation.
 - New Water sales retain `unitCostAtSaleCents`. Ordinary commercial
   configuration and Water selling-price changes preserve that cost snapshot and
-  all historical selling-price snapshots. A sale without a resolvable stored
-  cost uses the latest Water restock at or before the sale for reporting; legacy
-  sales that predate every recorded restock retain the GHS 22 compatibility
-  cost until reconciled.
+  all historical selling-price snapshots. A sale without a stored cost snapshot
+  leaves profitability unavailable; dashboard reads do not infer costs or use a
+  compatibility price. New sales resolve a cost from an eligible restock for the
+  same organisation and product, and fail closed if none exists.
 - When a new or explicitly repriced Water sale uses today's date-only UI value,
   its effective Water price and discount resolve at the current server
   transaction timestamp. This honours a same-day rule saved after midnight
@@ -58,7 +61,8 @@ REEBS core owns rental/event/shop operations and their ordinary dashboards, repo
 - Creating a restock (including a backdated insertion), changing an existing
   restock's cost/date, or deleting a restock can change historical cost basis.
   Each action invokes the same restatement inside its transaction: it
-  re-resolves every non-archived Water sale against its latest positive restock
+  re-resolves non-archived Water sales for the same organisation and product
+  against their latest positive restock
   at the sale date and updates each resolvable `unitCostAtSaleCents` that
   differs, including null legacy snapshots.
 - A cost/date update is the explicit audited historical correction. Its

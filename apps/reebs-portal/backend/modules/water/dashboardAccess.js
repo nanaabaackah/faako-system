@@ -20,10 +20,10 @@ export const presentWaterDashboard = (dashboard, role) => {
     return { ...dashboard, permissions };
   }
   return {
-    ...pick(dashboard, ["scope", "businessUnit", "includedInCoreMetrics"]),
+    ...pick(dashboard, ["scope", "businessUnit", "includedInCoreMetrics", "products"]),
     permissions,
     product: {
-      ...pick(dashboard.product, ["key", "name", "pricingConfigured"]),
+      ...pick(dashboard.product, ["key", "name", "packSize", "unit", "pricingConfigured"]),
       pricing: pick(dashboard.product?.pricing, [
         "currency", "retailSingle", "retailBulk", "company", "bulkThreshold", "discountLimitBps",
         "configurationErrorCode",
