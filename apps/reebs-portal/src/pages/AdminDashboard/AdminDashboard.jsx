@@ -1,6 +1,11 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { AnimatedLoadingState } from "@faako/ui";
 import { Link } from "react-router-dom";
+import { SelectField } from "@faako/ui";
+import PortalAction from "../../components/PortalAction/PortalAction";
+import { useAuth } from "../../components/AuthContext/AuthContext";
+import DashboardCollections from "./DashboardCollections";
+import DashboardActivity from "./DashboardActivity";
+import DashboardSkeleton from "./DashboardSkeleton";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
 import AppIcon from "../../components/Icon/Icon";
 import {
@@ -14,8 +19,9 @@ import {
   faReceipt,
   faRotateRight,
   faStore,
-  faTruck,
-  faUserPlus,
+  faArrowRight,
+  faChevronDown,
+  faExternalLinkAlt,
 } from "../../icons/iconSet";
 import useDashboardOverview from "./useDashboardOverview";
 import {
@@ -28,8 +34,6 @@ import {
   normalizeHealthStatus,
 } from "./dashboardViewModel";
 import "./AdminDashboard.css";
-
-const HEALTH_REFRESH_MS = 120_000;
 
 const statusLabel = (status) => ({
   operational: "Operational",
@@ -50,7 +54,7 @@ function SummaryCard({ icon, label, value, detail, href, tone = "default" }) {
         <strong>{value}</strong>
         <small>{detail}</small>
       </span>
-      <span className="reebs-dashboard-card-action" aria-hidden="true">View</span>
+      <span className="reebs-dashboard-card-action" aria-hidden="true"><AppIcon icon={faArrowRight} size={20} /></span>
     </Link>
   );
 }
@@ -76,7 +80,7 @@ function HealthRow({ service, status, samples, description }) {
       </div>
       <span className="reebs-health-uptime">
         <strong>{uptime === null ? "Current" : `${uptime}%`}</strong>
-        <small>{uptime === null ? "check" : "session uptime"}</small>
+        <small>{uptime === null ? "check" : "checks healthy"}</small>
       </span>
     </div>
   );
@@ -101,7 +105,7 @@ function SystemHealth({ detailed }) {
       const rows = [
         { id: "portal", service: "REEBS Portal", status: browserStatus, description: "This browser connection" },
         { id: "api", service: "REEBS API", status: apiStatus, description: "Operational API requests" },
-        { id: "database", service: "Database", status: databaseStatus, description: "Core data readiness" },
+        { id: "database", service: "Database", status: databaseStatus, description: "Data readiness" },
       ];
       setHealth((current) => ({
         loading: false,
@@ -133,8 +137,6 @@ function SystemHealth({ detailed }) {
 
   useEffect(() => {
     loadHealth();
-    const timer = window.setInterval(loadHealth, HEALTH_REFRESH_MS);
-    return () => window.clearInterval(timer);
   }, [loadHealth]);
 
   const aggregateStatus = health.rows.some((row) => row.status === "down")
@@ -144,7 +146,7 @@ function SystemHealth({ detailed }) {
       : "operational";
 
   return (
-    <section className="glass-card reebs-dashboard-section reebs-dashboard-health" aria-labelledby="dashboard-health-heading">
+    <section className="reebs-dashboard-section reebs-dashboard-health" aria-labelledby="dashboard-health-heading">
       <div className="reebs-dashboard-section-head">
         <div>
           <h2 id="dashboard-health-heading">System Health</h2>
@@ -152,10 +154,7 @@ function SystemHealth({ detailed }) {
         </div>
         <div className="reebs-dashboard-section-actions">
           {!health.loading && <StatusPill status={aggregateStatus} />}
-          <button type="button" className="reebs-dashboard-icon-button" onClick={loadHealth} disabled={health.loading}>
-            <AppIcon icon={faRotateRight} size={18} />
-            <span>{health.loading ? "Checking" : "Check now"}</span>
-          </button>
+          <PortalAction icon={faRotateRight} label={health.loading ? "Checking" : "Check now"} onClick={loadHealth} disabled={health.loading} />
         </div>
       </div>
       {health.error && <p className="reebs-dashboard-inline-error" role="status">{health.error}</p>}
@@ -184,8 +183,10 @@ function SystemHealth({ detailed }) {
 }
 
 function AdminDashboard() {
-  const [windowKey, setWindowKey] = useState("today");
+  const [windowKey, setWindowKey] = useState("30d");
+  const [healthVisible, setHealthVisible] = useState(false);
   const { data, loading, refreshing, error, reload } = useDashboardOverview(windowKey);
+  const { user } = useAuth();
 
   useEffect(() => {
     document.body.classList.add("admin-theme", "reebs-dashboard-theme");
@@ -194,15 +195,13 @@ function AdminDashboard() {
 
   const permissions = data?.permissions || {};
   const summary = data?.summary || {};
-  const quickActions = [
-    permissions.canWriteBookings && { label: "New Booking", href: "/admin/bookings?action=create", icon: faCalendarDays },
-    permissions.canWriteOrders && { label: "New Order", href: "/admin/orders/new", icon: faReceipt },
-    permissions.canWriteCustomers && { label: "Add Customer", href: "/admin/directory?tab=customers&action=create", icon: faUserPlus },
-    permissions.canWriteOrders && permissions.canReadFinancials && { label: "Record Payment", href: "/admin/orders?paymentStatus=unpaid", icon: faMoneyCheckDollar },
-    permissions.canReadInventory && !permissions.canWriteOrders && { label: "Review Stock", href: "/admin/inventory?stock=low", icon: faBoxesStacked },
-  ].filter(Boolean).slice(0, 4);
-
+  const unavailable = data?.unavailable || [];
   const hasAttention = Boolean(data?.attention?.length);
+  const creation = permissions.canWriteBookings
+    ? { href: "/admin/bookings?action=create", label: "New Booking" }
+    : permissions.canWriteOrders ? { href: "/admin/orders/new", label: "New Order" } : null;
+  const name = user?.firstName || user?.fullName?.split(" ")[0];
+  const currentPeriod = data?.period;
 
   return (
     <main className="reebs-dashboard-page">
@@ -210,154 +209,73 @@ function AdminDashboard() {
         className="reebs-dashboard-header"
         copyClassName="reebs-dashboard-header-copy"
         actionsClassName="admin-header-actions reebs-dashboard-header-actions"
-        title="Dashboard"
-        subtitle="See what needs attention across rentals, orders, stock, payments and delivery."
-        actions={(
-          <>
-          <label className="reebs-dashboard-window">
-            <span>Summary period</span>
-            <select value={windowKey} onChange={(event) => setWindowKey(event.target.value)}>
-              {WINDOW_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
-          <button type="button" className="reebs-dashboard-refresh" onClick={reload} disabled={loading || refreshing}>
-            <AppIcon icon={faRotateRight} size={18} />
-            <span>{refreshing ? "Refreshing" : "Refresh"}</span>
-          </button>
-          </>
-        )}
+        title={name ? `Welcome back, ${name}` : "Dashboard"}
+        subtitle="Dashboard"
+        actions={<>
+          <SelectField fieldClassName="reebs-dashboard-window" ariaLabel="Summary period" value={windowKey} onChangeValue={setWindowKey} options={WINDOW_OPTIONS} />
+          <PortalAction icon={faRotateRight} label={refreshing ? "Refreshing dashboard" : "Refresh dashboard"} onClick={reload} disabled={loading || refreshing} />
+          {creation && <PortalAction className="admin-primary reebs-dashboard-create" to={creation.href} action="add" icon={faPlus} label={creation.label} />}
+        </>}
       />
 
-      {error && (
-        <div className={`reebs-dashboard-error ${data ? "is-stale" : ""}`} role="alert">
-          <div>
-            <strong>{data ? "Showing the last successful dashboard" : "Dashboard unavailable"}</strong>
-            <span>{error}</span>
+      {error && <div className={`reebs-dashboard-error ${data ? "is-stale" : ""}`} role="alert">
+        <div><strong>{data ? "Showing the last successful dashboard" : "Dashboard unavailable"}</strong><span>{error}</span>
+          {currentPeriod && <span>Displayed period: {currentPeriod.label}</span>}
+        </div><PortalAction icon={faRotateRight} label="Try again" onClick={reload} />
+      </div>}
+      {(loading || refreshing) && data && <p role="status" className="reebs-dashboard-freshness">Updating dashboard. Displayed period: {currentPeriod.label}.</p>}
+      {loading && !data ? <DashboardSkeleton /> : data ? <>
+        {unavailable.length > 0 && <div className="reebs-dashboard-error" role="status">
+          <div><strong>Some sections could not be loaded</strong><span>Unavailable: {unavailable.join(", ")}. Missing figures are not treated as zero.</span></div>
+          <PortalAction icon={faRotateRight} label="Retry sections" onClick={reload} />
+        </div>}
+        <div className={`reebs-dashboard-main-grid ${permissions.canReadFinancials ? "" : "is-operational"}`}>
+          <div className="reebs-dashboard-supporting">
+            {summary.bookings && <SummaryCard icon={faCalendarDays} label="Bookings in period" value={summary.bookings.inWindow} detail={`Events in ${currentPeriod.label.toLowerCase()}; cancelled excluded`} href="/admin/bookings" />}
+            {summary.orders && <SummaryCard icon={faReceipt} label="Open orders" value={summary.orders.open} detail="Awaiting fulfilment · current workload" href="/admin/orders?status=open" />}
+            {!permissions.canReadBookings && summary.inventory && <SummaryCard icon={faBoxesStacked} label="Core stock alerts" value={summary.inventory.lowStock + summary.inventory.unavailable} detail="Current low or unavailable stock" href="/admin/inventory?stock=low&reorder=1" />}
           </div>
-          <button type="button" onClick={reload}>Try again</button>
+          {permissions.canReadFinancials && <DashboardCollections payments={summary.payments} period={currentPeriod} unavailable={unavailable.includes("payments")} onRetry={reload} />}
+          <div className="reebs-dashboard-financial">
+            {summary.payments && <SummaryCard icon={faMoneyCheckDollar} label="Payments received" value={formatGhs(summary.payments.receivedInWindowCents)} detail={currentPeriod.label + " · Core cash receipts"} href="/admin/payments" tone="finance" />}
+            {permissions.canReadFinancials && summary.orders && <SummaryCard icon={faMoneyCheckDollar} label="Outstanding balance" value={formatGhs(summary.orders.outstandingCents)} detail="Current unpaid Core orders only" href="/admin/orders?paymentStatus=unpaid" />}
+          </div>
         </div>
-      )}
 
-      {loading && !data ? (
-        <AnimatedLoadingState
-          page
-          embedded
-          variant="dashboard"
-          title="Loading Core operations"
-        />
-      ) : data ? (
-        <>
-        <section className="glass-card reebs-dashboard-section" aria-labelledby="dashboard-summary-heading">
-            <div className="reebs-dashboard-section-head">
-              <div>
-                <h2 id="dashboard-summary-heading">Operational Summary</h2>
-                <p>{data.period.label} · REEBS Core only</p>
-              </div>
-            </div>
-            <div className="reebs-dashboard-summary-grid">
-              {summary.bookings && <SummaryCard icon={faCalendarDays} label="Bookings today" value={summary.bookings.today} detail={`${summary.bookings.awaitingConfirmation} awaiting confirmation`} href="/admin/bookings?timing=today" />}
-              {summary.bookings && <SummaryCard icon={faCalendarDays} label="Upcoming bookings" value={summary.bookings.upcoming} detail="Starting in the next 7 days" href="/admin/bookings?timing=next7" />}
-              {summary.orders && <SummaryCard icon={faReceipt} label="Open orders" value={summary.orders.open} detail={`${summary.orders.inWindow} in ${data.period.label.toLowerCase()}`} href="/admin/orders?status=open" />}
-              {summary.payments && <SummaryCard icon={faMoneyCheckDollar} label="Payments received" value={formatGhs(summary.payments.receivedInWindowCents)} detail={`${summary.payments.mobileMoneyPayments} Mobile Money payment${summary.payments.mobileMoneyPayments === 1 ? "" : "s"}`} href="/admin/accounting" tone="finance" />}
-              {summary.payments && summary.orders && <SummaryCard icon={faMoneyCheckDollar} label="Outstanding payments" value={formatGhs(summary.orders.outstandingCents)} detail={`${summary.orders.awaitingPayment} orders need payment`} href="/admin/orders?paymentStatus=unpaid" />}
-              {summary.inventory && <SummaryCard icon={faBoxesStacked} label="Low stock" value={summary.inventory.lowStock} detail="Core products at reorder level" href="/admin/inventory?stock=low&reorder=1" />}
-              {summary.inventory && <SummaryCard icon={faBoxesStacked} label="Unavailable stock" value={summary.inventory.unavailable} detail="Core products currently unavailable" href="/admin/inventory?stock=out" />}
-              {summary.delivery && <SummaryCard icon={faTruck} label="Deliveries today" value={summary.delivery.today} detail={`${summary.delivery.pending} pending`} href="/admin/delivery" />}
-            </div>
-          </section>
-
+        <div className="reebs-dashboard-lower-grid">
+          <div className="reebs-dashboard-activity-stack">
+            <DashboardActivity key={currentPeriod.key} activity={data.activity || []} incomplete={unavailable.some((name) => name.endsWith("activity"))} />
+            {(summary.bookings || summary.delivery || summary.inventory) && <section className="glass-card reebs-dashboard-section" aria-labelledby="dashboard-operations-heading">
+              <div className="reebs-dashboard-section-head"><div><h2 id="dashboard-operations-heading">Operational snapshot</h2><p>Today’s schedule and current Core stock. Water excluded.</p></div></div>
+              <dl className="reebs-dashboard-operations">
+                {summary.bookings && <div><dt>Events today</dt><dd>{summary.bookings.today}</dd><dd><PortalAction to="/admin/bookings" action="view" icon={faArrowRight} label="View bookings" /></dd></div>}
+                {summary.delivery && <div><dt>Deliveries today</dt><dd>{summary.delivery.today}</dd><dd><PortalAction to="/admin/delivery" action="view" icon={faArrowRight} label="View deliveries" /></dd></div>}
+                {summary.inventory && <div><dt>Low-stock products</dt><dd>{summary.inventory.lowStock}</dd><dd><PortalAction to="/admin/inventory?stock=low&reorder=1" action="view" icon={faArrowRight} label="View low-stock products" /></dd></div>}
+              </dl>
+            </section>}
+          </div>
           <section className="glass-card reebs-dashboard-section reebs-dashboard-attention" aria-labelledby="dashboard-attention-heading">
-            <div className="reebs-dashboard-section-head">
-              <div>
-                <h2 id="dashboard-attention-heading">Immediate Attention</h2>
-                <p>Prioritised from live Core records. Counts are never hardcoded.</p>
-              </div>
-              <span className={`reebs-dashboard-attention-total ${hasAttention ? "has-items" : ""}`}>
-                {hasAttention ? `${data.attention.length} action group${data.attention.length === 1 ? "" : "s"}` : "All clear"}
-              </span>
-            </div>
-            {hasAttention ? (
-              <div className="reebs-dashboard-alert-list">
-                {data.attention.map((item) => (
-                  <article className={`reebs-dashboard-alert is-${item.severity}`} key={item.id}>
-                    <span className="reebs-dashboard-alert-icon"><AppIcon icon={faBell} size={20} /></span>
-                    <div className="reebs-dashboard-alert-copy">
-                      <div><strong>{item.label}</strong><span>{item.count}</span></div>
-                      <p>{item.detail}</p>
-                    </div>
-                    {item.action && <Link to={item.action.href}>{item.action.label}</Link>}
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="reebs-dashboard-clear-state">
-                <AppIcon icon={faCircleCheck} size={26} />
-                <div><strong>No urgent Core actions</strong><span>New operational issues will appear here.</span></div>
-              </div>
-            )}
+            <div className="reebs-dashboard-section-head"><div><h2 id="dashboard-attention-heading">Needs attention</h2><p>Current Operations</p></div></div>
+            {hasAttention ? <div className="reebs-dashboard-alert-list">{data.attention.map((item) => (
+              <article className={`reebs-dashboard-alert is-${item.severity}`} key={item.id}>
+                <span className="reebs-dashboard-alert-icon"><AppIcon icon={faBell} size={20} /></span>
+                <div className="reebs-dashboard-alert-copy"><div><strong>{item.label}</strong><span>{item.count}</span></div><p>{item.detail}</p></div>
+                {item.action && <PortalAction to={item.action.href} action="open" icon={faExternalLinkAlt} label={item.action.label} />}
+              </article>
+            ))}</div> : <p className="reebs-dashboard-empty">{unavailable.length ? "Attention checks are incomplete. Retry the unavailable sections." : "No urgent actions."}</p>}
           </section>
+        </div>
 
-          <section className="glass-card reebs-dashboard-section reebs-dashboard-quick" aria-labelledby="dashboard-actions-heading">
-            <div className="reebs-dashboard-section-head">
-              <div>
-                <h2 id="dashboard-actions-heading">Quick Actions</h2>
-                <p>Only actions available to your role are shown.</p>
-              </div>
-            </div>
-            <div className="reebs-dashboard-action-grid">
-              {quickActions.map((action) => (
-                <Link className="bubble-card" key={action.label} to={action.href}>
-                  <span><AppIcon icon={action.icon} size={20} /></span>
-                  <strong>{action.label}</strong>
-                  <AppIcon icon={faPlus} size={17} />
-                </Link>
-              ))}
-            </div>
-          </section>
-
-          <section className="glass-card reebs-dashboard-section reebs-dashboard-activity" aria-labelledby="dashboard-activity-heading">
-            <div className="reebs-dashboard-section-head">
-              <div>
-                <h2 id="dashboard-activity-heading">Recent Activity</h2>
-                <p>Permission-filtered updates without private customer or cost details.</p>
-              </div>
-            </div>
-            {data.activity.length ? (
-              <ol className="reebs-dashboard-activity-list">
-                {data.activity.map((item) => (
-                  <li key={item.id}>
-                    <span className={`reebs-dashboard-activity-mark is-${item.kind}`} aria-hidden="true" />
-                    <div>
-                      <strong>{item.summary}</strong>
-                      <span>{item.reference || item.kind} · {formatRelativeTime(item.createdAt)}</span>
-                    </div>
-                    <Link to={item.href}>Open<span className="sr-only"> {item.reference}</span></Link>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="reebs-dashboard-empty">No recent Core activity is available for your role.</p>
-            )}
-          </section>
-
-          <SystemHealth detailed={permissions.canViewSystemHealthDetail} />
-
-          <aside className="glass-card reebs-dashboard-water-boundary" aria-label="Water business boundary">
-            <div>
-              <AppIcon icon={faStore} size={22} />
-              <div>
-                <strong>Water remains separate</strong>
-                <span>No Water sales, revenue, costs, customers or profit are included above.</span>
-              </div>
-            </div>
-            {permissions.canReadWater && <Link to="/admin/water">Open Water Business</Link>}
-          </aside>
-
-          <p className="reebs-dashboard-freshness reebs-dashboard-page-freshness">
-            Core data generated {formatDashboardDateTime(data.generatedAt)} · Manual refresh · Stale after 5 minutes
-          </p>
-        </>
-      ) : null}
+        <aside className="reebs-dashboard-water-boundary" aria-label="Water business boundary">
+          <div><AppIcon icon={faStore} size={22} /><div><strong>Water remains separate</strong><span>No Water sales, revenue, costs, customers or profit are included above.</span></div></div>
+          {permissions.canReadWater && <PortalAction to="/admin/water" action="open" icon={faExternalLinkAlt} label="Open Water Business" />}
+        </aside>
+        <details className="glass-card reebs-dashboard-service-details" onToggle={(event) => setHealthVisible(event.currentTarget.open)}>
+          <summary><span className="reebs-dashboard-health-toggle-copy"><AppIcon icon={faCloudArrowUp} size={20} aria-hidden="true" /><span>System health</span></span><AppIcon className="reebs-dashboard-health-chevron" icon={faChevronDown} size={20} aria-hidden="true" /></summary>
+          {healthVisible && <SystemHealth detailed={permissions.canViewSystemHealthDetail} />}
+        </details>
+        <p className="reebs-dashboard-freshness reebs-dashboard-page-freshness">Data generated {formatDashboardDateTime(data.generatedAt)} · Manual refresh · Stale after 5 minutes</p>
+      </> : null}
     </main>
   );
 }

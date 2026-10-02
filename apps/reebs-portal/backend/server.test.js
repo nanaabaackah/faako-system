@@ -72,6 +72,22 @@ const close = (server) => new Promise((resolve, reject) => {
   server.close((error) => error ? reject(error) : resolve());
 });
 
+test("health preflight allows approved origins without querying the database", async (context) => {
+  const { server, port } = await listen(createReebsApiServer());
+  context.after(() => close(server));
+  for (const route of ["/api/health?organizationId=1", "/health", "/api/health/water", "/ready", "/live"]) {
+    const response = await fetch(`http://127.0.0.1:${port}${route}`, { method: "OPTIONS", headers: {
+      Origin: "https://portal.reebspartythemes.com",
+      "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "X-Organization-Id,X-Request-Id",
+    } });
+    assert.equal(response.status, 204);
+    assert.equal(response.headers.get("access-control-allow-origin"), "https://portal.reebspartythemes.com");
+    assert.equal(response.headers.get("access-control-allow-methods"), "GET,OPTIONS");
+  }
+  const blocked = await fetch(`http://127.0.0.1:${port}/api/health`, { method: "OPTIONS", headers: { Origin: "https://untrusted.example" } });
+  assert.equal(blocked.headers.get("access-control-allow-origin"), null);
+});
+
 test("versioned auth preflight reaches the compatibility handler", async (context) => {
   const { server, port } = await listen(createReebsApiServer());
   context.after(() => close(server));

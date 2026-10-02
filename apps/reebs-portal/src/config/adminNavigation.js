@@ -34,7 +34,6 @@ import { WEBSITE_URL } from "../utils/website.js";
 import { REEBS_ADMIN_MODULES } from "./adminModules.js";
 import {
   REEBS_NAVIGATION_GROUP_BY_KEY,
-  REEBS_NAVIGATION_GROUPS,
   getReebsNavigationOrder,
 } from "./adminNavigationHierarchy.js";
 
@@ -83,6 +82,7 @@ const BOTTOM_ICONS_BY_KEY = {
   home: faHome,
   inventory: faBoxesStacked,
   pos: faStore,
+  payments: faMoneyCheckDollar,
   purchases: faReceipt,
   water: faBoxesStacked,
 };
@@ -182,8 +182,8 @@ const buildBottomItem = (moduleKey, overrides = {}) => {
 const BASE_BOTTOM_NAV_ITEMS = [
   buildBottomItem("home", { label: "Home" }),
   buildBottomItem("inventory", { label: "Stock" }),
-  buildBottomItem("purchases", { label: "Buy" }),
   buildBottomItem("pos", { label: "POS" }),
+  buildBottomItem("payments", { label: "Payments" }),
 ].filter(Boolean);
 
 const DRIVER_BOTTOM_NAV_ITEMS = [

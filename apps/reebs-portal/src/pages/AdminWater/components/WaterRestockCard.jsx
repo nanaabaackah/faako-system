@@ -1,5 +1,6 @@
 import { AppIcon } from "/src/components/Icon/Icon";
-import { faMinus, faPlus } from "/src/icons/iconSet";
+import { faMinus, faPlus, faCalendarDays } from "/src/icons/iconSet";
+import PortalAction from "../../../components/PortalAction/PortalAction";
 
 export default function WaterRestockCard({
   onSubmit,
@@ -40,9 +41,7 @@ export default function WaterRestockCard({
             </p>
           </div>
           {canManageWaterPricing ? (
-            <a className="admin-secondary water-module-sale-submit" href="/admin/settings?tab=config">
-              Manage scheduled prices
-            </a>
+            <PortalAction to="/admin/settings?tab=config" icon={faCalendarDays} label="Manage scheduled prices" />
           ) : null}
         </div>
         {canManageWaterPricing ? <form className="water-module-form" onSubmit={onSubmit}>
@@ -120,14 +119,13 @@ export default function WaterRestockCard({
               Water cost of goods and profit use the cost recorded for each restock period.
             </p>
           ) : null}
-          <button type="submit" className="admin-primary water-module-sale-submit" disabled={saving || loading}>
-            <AppIcon icon={faPlus} />{" "}
-            {saving
+          <PortalAction type="submit" className="admin-primary" action="add" icon={faPlus} disabled={saving || loading}
+            label={saving
               ? "Saving..."
               : restockQuantity > 0
                 ? `Add ${restockQuantity} pack${restockQuantity === 1 ? "" : "s"}`
                 : "Add stock"}
-          </button>
+          />
         </form> : (
           <p className="water-module-inline-note">An owner or admin manages Water stock and purchase costs.</p>
         )}

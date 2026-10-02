@@ -122,3 +122,23 @@ test("order-backed rows show source paid and balance amounts", async ({ page }) 
   await expect(row.getByText("GH₵42.00")).toBeVisible();
   await expect(row.getByText("GH₵58.00")).toBeVisible();
 });
+
+test("a booking invoice opens with its recorded fee and applied payment", async ({ page }, testInfo) => {
+  await installFixtures(page);
+  await page.route(url => url.pathname.endsWith("/bookings"), route => route.fulfill({ json: [{
+    id: 42, reference: "BKG-OPEN-CHECK", customerName: "Booking Customer", eventDate: "2026-10-02", totalAmount: 15000, status: "confirmed", items: [],
+  }] }));
+  await page.route(url => url.pathname.endsWith("/getInvoiceDetails"), route => route.fulfill({ json: {
+    id: 42, reference: "BKG-OPEN-CHECK", customerName: "Booking Customer", eventDate: "2026-10-02", totalAmount: 15000,
+    subtotalCents: 10000, feeCents: 5000, discountCents: 0, taxCents: 0,
+    amountPaidCents: 2500, balanceDueCents: 12500, expenses: [],
+    items: [{ id: 1, productId: 1, quantity: 1, price: 10000, productName: "Rental item" }],
+  } }));
+  await page.goto("/admin/invoicing");
+  await page.getByPlaceholder("Search invoice, receipt, customer or source").fill("Booking #42");
+  await page.getByText("Booking #42", { exact: true }).first().click();
+  await expect(page.getByRole("button", { name: "Build PDF", exact: true })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "Unable to open document" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save document", exact: true })).toBeEnabled();
+  await page.screenshot({ path: testInfo.outputPath("booking-invoice-open.png"), fullPage: true });
+});

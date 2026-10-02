@@ -28,9 +28,12 @@ import { calculateWaterCostBasis } from "../../shared/waterFinancials.js";
 import { buildWaterPricingPermissions } from "./_shared/waterPricing.js";
 import { canWriteWaterAction, presentWaterDashboard } from "../modules/water/dashboardAccess.js";
 import { createWaterCustomer } from "../modules/water/customerCreation.js";
+import { getWaterActionError } from "../modules/water/actionErrors.js";
+import { createLogger } from "./_shared/logger.js";
 import { DEFAULT_WATER_PRODUCT_KEY, getWaterProduct, WATER_PRODUCTS } from "../../shared/waterProducts.js";
 
 const WATER_METHODS = "GET,POST,OPTIONS";
+const logger = createLogger("water");
 const WATER_ALLOWED_ROLES = ["owner", "admin", "water"];
 const PRODUCT_NAME = "15pk Gwater";
 const PRODUCT_KEY = DEFAULT_WATER_PRODUCT_KEY;
@@ -325,6 +328,15 @@ const parseDate = (value) => {
   return parsed.toISOString();
 };
 
+export const resolveRecordedWaterSaleDate = (requestedDate, recordedDate) => {
+  const recorded = parseDate(recordedDate);
+  // The editor exposes a calendar date, not a time. An unchanged day must not
+  // erase the recorded timestamp and accidentally trigger historical repricing.
+  if (typeof requestedDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate)
+    && recorded?.slice(0, 10) === requestedDate) return recorded;
+  return parseDate(requestedDate || recordedDate);
+};
+
 export const resolveWaterCommercialTimestamp = (saleDate, now = new Date()) => {
   const parsedSaleDate = new Date(saleDate);
   const parsedNow = new Date(now);
@@ -545,31 +557,41 @@ const enforceWaterRateLimit = async (
 const isSaleCollected = (row) =>
   normalizePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
 
-const loadWaterCommercialPricing = async (
+export const loadWaterCommercialPricing = async (
   client,
   organizationId,
   at = new Date(),
   productKey = PRODUCT_KEY
 ) => {
+  const missing = [];
+  const optionalPrice = (promise) => promise.catch((error) => {
+    // An absent channel must not hide a valid price for another channel.
+    // Ambiguity, database failures and other integrity errors still fail closed.
+    // resolveWaterProductPrice uses the shared effective-record resolver,
+    // whose missing-record code is MISSING_COMMERCIAL_CONFIGURATION.
+    if (!["MISSING_WATER_PRICE", "MISSING_COMMERCIAL_CONFIGURATION"].includes(error.code)) throw error;
+    missing.push(error.code);
+    return null;
+  });
   const [retail, bulkRetail, company, discountLimitBps] = await Promise.all([
-    resolveWaterProductPrice(client, {
+    optionalPrice(resolveWaterProductPrice(client, {
       organizationId,
       productKey,
       priceType: WATER_PRICE_TYPES.RETAIL,
       at,
-    }),
-    resolveWaterProductPrice(client, {
+    })),
+    optionalPrice(resolveWaterProductPrice(client, {
       organizationId,
       productKey,
       priceType: WATER_PRICE_TYPES.BULK_RETAIL,
       at,
-    }),
-    resolveWaterProductPrice(client, {
+    })),
+    optionalPrice(resolveWaterProductPrice(client, {
       organizationId,
       productKey,
       priceType: WATER_PRICE_TYPES.COMPANY,
       at,
-    }),
+    })),
     resolveCommercialValue(client, {
       organizationId,
       businessUnit: COMMERCIAL_BUSINESS_UNITS.WATER,
@@ -579,11 +601,14 @@ const loadWaterCommercialPricing = async (
   ]);
 
   return {
-    currency: retail.currency,
-    retailSingle: retail.priceCents,
-    retailBulk: bulkRetail.priceCents,
-    company: company.priceCents,
-    bulkThreshold: bulkRetail.minimumQuantity,
+    currency: retail?.currency || bulkRetail?.currency || company?.currency || null,
+    retailSingle: retail?.priceCents ?? null,
+    retailMinimumQuantity: retail?.minimumQuantity ?? null,
+    retailBulk: bulkRetail?.priceCents ?? null,
+    company: company?.priceCents ?? null,
+    bulkThreshold: bulkRetail?.minimumQuantity ?? null,
+    configurationErrorCode: missing.length ? "MISSING_WATER_PRICE" : null,
+    configurationError: missing.length ? "Some Water price types are not configured for this product and date." : null,
     discountLimitBps,
     records: {
       retail,
@@ -1138,6 +1163,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
       pricing: {
         currency: commercialPricing?.currency || null,
         retailSingle: commercialPricing?.retailSingle ?? null,
+        retailMinimumQuantity: commercialPricing?.retailMinimumQuantity ?? null,
         retailBulk: commercialPricing?.retailBulk ?? null,
         company: commercialPricing?.company ?? null,
         bulkThreshold: commercialPricing?.bulkThreshold ?? null,
@@ -1830,6 +1856,12 @@ export async function handler(event = {}) {
       }
       const existingUnitPrice = Math.max(0, Math.round(Number(existingSale.unitPrice) || 0));
       const submittedPriceChanged = hasSubmittedUnitPrice && submittedUnitPrice !== existingUnitPrice;
+      if (submittedPriceChanged && !hasPermission(authUser, "water-pricing:manage")) {
+        return json(403, {
+          error: "Only an owner or admin can correct a recorded Water sale price.",
+          code: "WATER_PRICE_OVERRIDE_FORBIDDEN",
+        });
+      }
       let standardUnitPrice = Math.max(
         0,
         Math.round(Number(existingSale.standardUnitPrice) || existingUnitPrice)
@@ -1861,7 +1893,7 @@ export async function handler(event = {}) {
       const notes = Object.prototype.hasOwnProperty.call(payload, "notes")
         ? cleanText(payload.notes, MAX_NOTES_LENGTH) || null
         : cleanText(existingSale.notes, MAX_NOTES_LENGTH) || null;
-      const date = parseDate(payload.date || existingSale.date);
+      const date = resolveRecordedWaterSaleDate(payload.date, existingSale.date);
       const paidAt =
         paymentStatus === "paid"
           ? parseDate(payload.paidAt || existingSale.paidAt || payload.date || existingSale.date)
@@ -1915,10 +1947,10 @@ export async function handler(event = {}) {
         saleChannel,
         date,
       });
-      const pricingResolutionRequired = pricingBasisChanged || submittedPriceChanged;
+      const pricingResolutionRequired = pricingBasisChanged;
       if (!unitPrice) return json(400, { error: "Sale price must be greater than zero." });
 
-      const commercialTermsChanged = pricingResolutionRequired
+      const commercialTermsChanged = pricingResolutionRequired || submittedPriceChanged
         || Object.prototype.hasOwnProperty.call(payload, "discountType")
         || Object.prototype.hasOwnProperty.call(payload, "discountValue");
       let discountDetails = null;
@@ -1991,8 +2023,14 @@ export async function handler(event = {}) {
           priceOverrideReason = priceDecision.overrideReason;
           priceOverriddenByUserId = priceDecision.isOverride ? createdByUserId : null;
           priceOverriddenAt = priceDecision.isOverride ? new Date().toISOString() : null;
+        } else if (submittedPriceChanged) {
+          // Correct this record only. Retain the historical standard, schedule
+          // reference and cost snapshot; today's schedule cannot price an old sale.
+          unitPrice = submittedUnitPrice;
+          priceOverriddenByUserId = unitPrice !== standardUnitPrice ? createdByUserId : null;
+          priceOverriddenAt = unitPrice !== standardUnitPrice ? new Date().toISOString() : null;
         }
-        const maximumDiscountBps = commercialTermsChanged
+        const maximumDiscountBps = commercialTermsChanged && discountType !== "none"
           ? await resolveCommercialValue(client, {
             organizationId,
             businessUnit: COMMERCIAL_BUSINESS_UNITS.WATER,
@@ -2082,7 +2120,7 @@ export async function handler(event = {}) {
         );
 
         if (
-          pricingResolutionRequired
+          (pricingResolutionRequired || submittedPriceChanged)
           && (
             unitPrice !== existingUnitPrice
             || standardUnitPrice !== Number(existingSale.standardUnitPrice)
@@ -2098,7 +2136,9 @@ export async function handler(event = {}) {
             category: "finance",
             severity: "info",
             status: "ok",
-            summary: "Water sale pricing was recalculated after its pricing basis changed.",
+            summary: pricingBasisChanged
+              ? "Water sale pricing was recalculated after its pricing basis changed."
+              : "Recorded Water sale price was corrected by an owner or admin.",
             actorLabel: createdByName,
             requestId: getEventHeader(event, "x-request-id"),
             ipAddress: getEventIpAddress(event),
@@ -2481,17 +2521,14 @@ export async function handler(event = {}) {
     }
 
   } catch (err) {
-    console.error("Water module error", err);
-    const statusCode = Number(err?.statusCode);
-    const safeStatusCode = Number.isInteger(statusCode) && statusCode >= 400 && statusCode <= 599
-      ? statusCode
-      : 500;
-    return json(safeStatusCode, {
-      error: safeStatusCode === 500
-        ? "Failed to process water module request."
-        : err.message,
-      ...(err?.code ? { code: err.code } : {}),
-    });
+    const failure = getWaterActionError(err);
+    logger.error({
+      requestId: getEventHeader(event, "x-request-id") || event.requestId,
+      code: err?.code,
+      statusCode: failure.statusCode,
+      eventName: "water.action.failed",
+    }, "Water request failed");
+    return json(failure.statusCode, failure.payload, failure.options);
   } finally {
     await client.end().catch(() => {});
   }

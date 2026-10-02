@@ -62,6 +62,9 @@ export async function handler(event = {}) {
       organizationId: Number(authResult.organizationId),
       window,
       permissions,
+      onWidgetError: (widget, error) => requestLogger.warn({
+        widget, code: error?.code, eventName: "dashboard.widget.unavailable",
+      }, "Dashboard widget unavailable"),
     });
     const generatedAt = new Date().toISOString();
 

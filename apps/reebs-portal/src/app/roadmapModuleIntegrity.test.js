@@ -94,14 +94,14 @@ test("invoicing retains manual-source copy and authoritative paid and balance fi
 });
 
 test("dashboard and Water retain the standalone business boundary", () => {
-  assert.match(modules.dashboard.page, /Operational Summary/);
-  assert.match(modules.dashboard.page, /Immediate Attention/);
-  assert.match(modules.dashboard.page, /Recent Activity/);
+  assert.match(modules.dashboard.page, /DashboardCollections/);
+  assert.match(modules.dashboard.page, /Needs attention/);
+  assert.match(modules.dashboard.page, /DashboardActivity/);
   assert.match(
     modules.dashboard.page,
     /No Water sales, revenue, costs, customers or profit are included above\./
   );
-  assert.match(modules.dashboard.page, /className="bubble-card/);
+  assert.match(modules.dashboard.page, /bubble-card reebs-dashboard-summary-card/);
   assert.match(modules.dashboard.page, /className="glass-card/);
 
   assert.match(modules.water.page, /update_restock/);
