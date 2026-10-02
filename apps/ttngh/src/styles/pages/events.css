@@ -305,8 +305,8 @@
   border-radius: var(--radius-md);
   background: rgb(5 4 7 / 70%);
   color: var(--white);
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(var(--blur-chip));
+  backdrop-filter: blur(var(--blur-chip));
   font-size: 0.76rem;
   font-weight: 750;
 }

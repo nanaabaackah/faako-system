@@ -59,6 +59,14 @@ for (const method of ["pickup", "delivery"]) {
     assert.equal(body.summary.grandTotal, 125);
     assert.equal(body.summary.taxTotal, 5);
     assert.equal(body.items.reduce((sum, item) => sum + item.totalCents, 0), 12000);
+    const delivery = body.items.find((item) => item.id === "delivery-fee");
+    if (method === "delivery") {
+      assert.equal(delivery.quantity, 1, "show the saved fee, not a current distance/rate calculation");
+      assert.equal(delivery.unitPriceCents, 2000);
+      assert.equal(delivery.quantity * delivery.unitPriceCents, delivery.totalCents);
+    } else {
+      assert.equal(delivery, undefined);
+    }
     assert.equal(body.balanceDueCents, 10000);
     assert.deepEqual(fixture.queries[0].values, [5, 7]);
     assert.ok(fixture.queries.every(({ sql }) => !/INSERT|UPDATE|DELETE/.test(sql)));
