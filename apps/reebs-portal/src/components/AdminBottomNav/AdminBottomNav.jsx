@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import "./AdminBottomNav.css";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ErpStatusBadge } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { useAuth } from "../AuthContext/AuthContext";
@@ -12,6 +12,7 @@ import {
 import {
   canAccessStandardPortalArea,
   canAccessWaterPortalArea,
+  canAccessPortalRoute,
   isDriverPortalRole,
   isWaterPortalRole,
 } from "../../utils/adminAccess";
@@ -35,26 +36,32 @@ const getNavItems = (role) => {
   if (canAccessWaterPortalArea(role)) {
     items.push(WATER_BOTTOM_NAV_ITEMS[0]);
   }
-  return items.filter(Boolean);
+  return items.filter((item) => item && canAccessPortalRoute(role, item.path)
+    // The Water API permits owners, admins and dedicated Water operators only.
+    && (item.id !== "water" || ["owner", "admin", "water"].includes(String(role).toLowerCase())));
 };
 
 function AdminBottomNav() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const normalizedPath = useMemo(() => normalizePath(location.pathname), [location.pathname]);
   const navItems = useMemo(() => getNavItems(user?.role), [user?.role]);
 
   if (!navItems.length) return null;
+  const name = user?.name || user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.email || "Your account";
+  const avatar = user?.imageUrl || user?.profilePhoto;
+  const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 
   return (
+    <div className="reebs-quick-access-shell">
     <nav
-      className="aw-nav"
-      aria-label="Admin navigation"
+      className="reebs-quick-access"
+      aria-label="Quick access"
       style={{
-        gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))`,
-        "--aw-nav-count": navItems.length,
+        // Preserve the central POS slot even when a role cannot see Finance or
+        // Water. Empty space must never be filled with unauthorized links.
+        gridTemplateColumns: `repeat(${navItems.some((item) => item.id === "pos") ? 5 : navItems.length}, minmax(0, 1fr))`,
       }}
     >
       {navItems.map((item) => {
@@ -64,11 +71,14 @@ function AdminBottomNav() {
           (itemPath !== "/admin" && normalizedPath.startsWith(`${itemPath}/`));
 
         return (
-          <button
+          <Link
             key={item.id}
-            type="button"
+            to={item.path}
+            aria-current={isActive ? "page" : undefined}
+            title={item.label}
             className={[
-              "aw-nav-btn",
+              "reebs-quick-access__item",
+              item.id === "pos" ? "is-primary" : "",
               isActive ? "is-active" : "",
               item.enabled === false ? "is-disabled" : "",
             ].filter(Boolean).join(" ")}
@@ -78,23 +88,27 @@ function AdminBottomNav() {
             data-module-state={item.state}
             data-module-visibility={item.visibility}
             data-module-status-label={item.statusLabel}
-            onClick={() => navigate(item.path)}
           >
             <AppIcon icon={item.icon} />
-            <span className="aw-nav-btn-label">
+            <span className="reebs-quick-access__label">
               <span>{item.label}</span>
               {Array.isArray(item.badges) && item.badges.length > 0 ? (
-                <span className="aw-nav-btn-badges" aria-label="Module state">
+                <span className="reebs-quick-access__badges" aria-label="Module state">
                   {item.badges.map((badge) => (
-                    <ErpStatusBadge key={badge.key} badge={badge} className="aw-nav-btn-badge" />
+                    <ErpStatusBadge key={badge.key} badge={badge} />
                   ))}
                 </span>
               ) : null}
             </span>
-          </button>
+          </Link>
         );
       })}
     </nav>
+    <Link className="reebs-quick-access-account" to="/admin/profile" aria-label={`Profile settings for ${name}`}>
+      <span className="reebs-quick-access-account__avatar">{avatar ? <img src={avatar} alt="" /> : initials}</span>
+      <span><strong>{name}</strong><small>Your account</small></span>
+    </Link>
+    </div>
   );
 }
 

@@ -44,7 +44,7 @@ export default function WaterPricingCard({
             tone="warning"
             compact
             title="Selling price required"
-            message="New Water orders are blocked until all selling prices are configured."
+            message="A matching selling price is required for the selected product, quantity and sale date."
           />
         ) : null}
         {permissions?.canViewCost && !Number(product?.purchaseCost) ? (
@@ -52,7 +52,7 @@ export default function WaterPricingCard({
             tone="warning"
             compact
             title="Cost price missing"
-            message="Sales can continue, but profitability will remain unavailable until a cost price is saved."
+            message="Record stock with its purchase cost before recording new sales. Historical profit stays unavailable where a sale has no cost snapshot."
           />
         ) : null}
       </div>

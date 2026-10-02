@@ -68,6 +68,14 @@ globalThis[fixtureKey] = {
           vendorName: values[5], notes: values[6], date: values[7] });
         return { rows: [], rowCount: 1 };
       }
+      if (/^UPDATE "waterSale" SET "quantity"/.test(statement)) {
+        assert.match(statement, /AND "productKey" = \$26/);
+        const row = fixture.sales.find((sale) => sale.id === values[0] && sale.productKey === values[25]);
+        assert.ok(row);
+        Object.assign(row, { quantity: values[2], unitPrice: values[9], standardUnitPrice: values[10],
+          waterProductPriceId: values[11], unitCostAtSaleCents: values[12], totalAmount: values[16] });
+        return { rows: [], rowCount: 1 };
+      }
       if (/^SELECT COUNT\(\*\)::int AS count/.test(statement)) {
         return { rows: [{ count: 0 }] };
       }
@@ -96,8 +104,9 @@ globalThis[fixtureKey] = {
   },
   resolvePrice: async (_client, options) => {
     fixture.priceRequests.push(options);
-    if (fixture.missingPricing) {
-      throw Object.assign(new Error("Water prices are not configured."), { statusCode: 503 });
+    if (fixture.missingPricing || fixture.missingPriceTypes?.includes(options.priceType)) {
+      throw Object.assign(new Error("Water prices are not configured."), { statusCode: 503,
+        code: options.priceType ? "MISSING_COMMERCIAL_CONFIGURATION" : "MISSING_WATER_PRICE" });
     }
     return { id: 1, currency: "GHS", priceCents: options.productKey === "sachet-water-30pk" ? 1200 : 3000, minimumQuantity: 10 };
   },
@@ -117,7 +126,7 @@ const mockedModules = new Map([
   `],
   ["./_shared/internalApi.js", `
     export const requireInternalUser = globalThis.${fixtureKey}.requireInternalUser;
-    export const hasPermission = () => false;
+    export const hasPermission = (user) => ["owner", "admin"].includes(user.role);
     export const respond = (_event, statusCode, body) => ({ statusCode, body: JSON.stringify(body) });
   `],
   ["./_shared/requestRateLimit.js", `
@@ -180,6 +189,44 @@ const createFixture = (role) => ({
     date: "2026-09-01T00:00:00.000Z",
   }],
 });
+
+test("missing company and bulk schedules do not hide the configured retail price", async () => {
+  fixture = createFixture("admin");
+  fixture.missingPriceTypes = ["COMPANY", "BULK_RETAIL"];
+  const response = await handler({ httpMethod: "GET", headers: {} });
+  assert.equal(response.statusCode, 200);
+  const pricing = JSON.parse(response.body).product.pricing;
+  assert.equal(pricing.retailSingle, 3000);
+  assert.equal(pricing.retailMinimumQuantity, 10);
+  assert.equal(pricing.retailBulk, null);
+  assert.equal(pricing.company, null);
+  assert.equal(pricing.configurationErrorCode, "MISSING_WATER_PRICE");
+});
+
+for (const role of ["owner", "admin", "water"]) {
+  test(`${role} recorded-price correction with no historical schedule preserves cost and stock permissions`, async () => {
+    fixture = createFixture(role);
+    fixture.missingPricing = true;
+    fixture.sales = [{ id: 9, productKey: "gwater-15pk", quantity: 2, saleChannel: "retail",
+      date: "2026-09-02T14:30:00.000Z", updatedAt: "2026-09-02T14:30:00.000Z",
+      unitPrice: 3000, standardUnitPrice: 3000, waterProductPriceId: 3,
+      unitCostAtSaleCents: 2000, totalAmount: 6000, customerId: 1,
+      paymentMethod: "cash", paymentStatus: "paid", discountType: "none", discountValue: 0 }];
+    const response = await handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({
+      action: "update_sale", saleId: 9, unitPrice: "32.00", date: "2026-09-02",
+    }) });
+    assert.equal(response.statusCode, role === "water" ? 403 : 200, response.body);
+    const sale = fixture.sales[0];
+    assert.equal(sale.unitPrice, role === "water" ? 3000 : 3200);
+    assert.equal(sale.totalAmount, role === "water" ? 6000 : 6400);
+    assert.equal(sale.unitCostAtSaleCents, 2000);
+    assert.equal(sale.standardUnitPrice, 3000);
+    assert.equal(sale.waterProductPriceId, 3);
+    assert.equal(sale.quantity, 2);
+    if (role !== "water") assert.equal(fixture.queries.find(({ statement }) => /^UPDATE "waterSale" SET "quantity"/.test(statement)).values[21], "2026-09-02T14:30:00.000Z");
+    assert.ok(fixture.priceRequests.every((request) => request.quantity === undefined), "no historical sale-price lookup for a price-only correction");
+  });
+}
 
 const assertDashboard = (response, role) => {
   assert.equal(response.statusCode, 200);
@@ -418,6 +465,8 @@ test("sachet sales fail closed without a configured price", async () => {
     saleChannel: "retail", paymentMethod: "cash", date: "2026-09-24",
   }) });
   assert.equal(response.statusCode, 503);
+  assert.equal(JSON.parse(response.body).code, "MISSING_WATER_PRICE");
+  assert.match(JSON.parse(response.body).error, /Settings → Commercial/);
   assert.equal(fixture.queries.some(({ statement }) => statement.startsWith('INSERT INTO "waterSale"')), false);
   assert.ok(fixture.queries.some(({ statement }) => statement === "ROLLBACK"));
 });

@@ -3,6 +3,17 @@
 Audit started: 2026-09-24. **In progress — not a release certification.**
 Continued: 2026-09-25.
 
+Current requested priority, 2026-10-01: the user supplied a new **Module 3 —
+Dashboard + Quick Access revamp** brief. Discovery and a visual approval proposal
+are recorded in [the Module 3 checkpoint](dashboard-quick-access-revamp.md).
+That request takes priority over the previously suggested next audit tasks below;
+their unresolved findings remain tracked. Sidecar must be preserved, Water must
+remain separate. The user approved the proposal; local implementation and its
+validation limits are now recorded in that report. No deployment or database
+write occurred. Production Water returned `MISSING_WATER_PRICE`; local reporting
+is corrected, but effective production price schedules still need owner/admin
+verification. Do not confuse passing health probes with healthy sale mutations.
+
 ## Resume checkpoint — 2026-10-01
 
 The latest requested addition is the 30-piece sachet Water pack. It uses the

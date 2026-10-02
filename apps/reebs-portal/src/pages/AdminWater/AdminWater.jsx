@@ -295,9 +295,9 @@ const getRecommendedWaterVendors = (vendors, productName) => {
 const getPreviewUnitPrice = (quantity, pricing, saleChannel) => {
   const configuredPrice = saleChannel === "company"
     ? pricing?.company
-    : quantity >= Math.max(1, Number(pricing?.bulkThreshold) || 1)
+    : Number(pricing?.retailBulk) > 0 && quantity >= Math.max(1, Number(pricing?.bulkThreshold) || 1)
       ? pricing?.retailBulk
-      : pricing?.retailSingle;
+      : quantity >= Math.max(1, Number(pricing?.retailMinimumQuantity) || 1) ? pricing?.retailSingle : null;
   const numericPrice = Number(configuredPrice);
   return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : null;
 };
@@ -1876,8 +1876,8 @@ function WaterProductWorkspace({ product, onProductChange }) {
           tone: "info",
           title: `Set up selling prices for ${product.name}`,
           message: permissions.canManagePricing
-            ? "Add this product's retail, bulk retail and company price schedules in Settings → Commercial. Stock can be recorded before prices are configured."
-            : "Ask an owner or admin to configure this product's selling prices before recording sales.",
+            ? "Some price types are not configured. Review this product's schedules, effective dates and minimum quantities in Settings → Commercial. Configured price types remain available; stock can be recorded without selling prices."
+            : "Some price types are not configured. Use an available price type, or ask an owner or admin to review the schedule for this product and sale date.",
         }
       : null,
     error
@@ -2012,8 +2012,6 @@ function WaterProductWorkspace({ product, onProductChange }) {
             </>
           }
         />
-
-        <p className="water-module-product-note">{product.name}: quantities and prices are per pack of {product.packSize}.</p>
 
         <InlineNoticeStack notices={notices} />
 

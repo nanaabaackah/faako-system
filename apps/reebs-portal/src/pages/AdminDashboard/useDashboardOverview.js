@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { reebsApiResponse } from "../../api/client";
 
 const readJson = async (response) => {
   const contentType = response.headers.get("content-type") || "";
@@ -22,7 +23,7 @@ export default function useDashboardOverview(windowKey) {
 
     try {
       const query = new URLSearchParams({ scope: "core", window: windowKey });
-      const response = await fetch(`/api/dashboardOverview?${query.toString()}`, {
+      const response = await reebsApiResponse(`/api/dashboardOverview?${query.toString()}`, {
         signal: controller.signal,
         cache: "no-store",
       });
@@ -32,7 +33,7 @@ export default function useDashboardOverview(windowKey) {
       setData(payload);
       setError("");
     } catch (requestError) {
-      if (requestError?.name === "AbortError") return;
+      if (controller.signal.aborted || requestError?.name === "AbortError") return;
       setError(requestError?.message || "Dashboard data is temporarily unavailable.");
     } finally {
       if (requestRef.current === controller) requestRef.current = null;

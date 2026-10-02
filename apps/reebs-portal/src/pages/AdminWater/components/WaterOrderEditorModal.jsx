@@ -1,7 +1,8 @@
 import { DateField, InlineNotice, SelectField, useERPDialog } from "@faako/ui";
 import WaterCustomerPicker from "./WaterCustomerPicker";
 import { AppIcon } from "/src/components/Icon/Icon";
-import { faTrash, faXmark } from "/src/icons/iconSet";
+import { faBoxArchive, faXmark, faFloppyDisk } from "/src/icons/iconSet";
+import PortalAction from "../../../components/PortalAction/PortalAction";
 
 export default function WaterOrderEditorModal({
   activeOrderId,
@@ -213,20 +214,14 @@ export default function WaterOrderEditorModal({
           {orderError ? <InlineNotice tone="error" compact title="Order not saved" message={orderError} /> : null}
 
           <div className="water-order-modal-actions">
-            <button
-              type="button"
+            <PortalAction
+              action="archive" icon={faBoxArchive} label="Archive order"
               className="admin-secondary water-order-delete-btn"
               onClick={(event) => handleOrderDelete(activeOrder, event)}
               disabled={saving || loading}
-            >
-              <AppIcon icon={faTrash} /> Archive
-            </button>
-            <button type="button" className="admin-secondary" onClick={closeOrderEditor}>
-              Cancel
-            </button>
-            <button type="submit" className="admin-primary" disabled={saving || loading}>
-              {saving ? "Saving..." : "Save order"}
-            </button>
+            />
+            <PortalAction icon={faXmark} label="Cancel" onClick={closeOrderEditor} />
+            <PortalAction type="submit" className="admin-primary" icon={faFloppyDisk} label={saving ? "Saving..." : "Save order"} disabled={saving || loading} />
           </div>
         </form>
       </div>

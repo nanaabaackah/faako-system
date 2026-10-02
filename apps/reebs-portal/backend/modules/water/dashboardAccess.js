@@ -25,7 +25,7 @@ export const presentWaterDashboard = (dashboard, role) => {
     product: {
       ...pick(dashboard.product, ["key", "name", "packSize", "unit", "pricingConfigured"]),
       pricing: pick(dashboard.product?.pricing, [
-        "currency", "retailSingle", "retailBulk", "company", "bulkThreshold", "discountLimitBps",
+        "currency", "retailSingle", "retailMinimumQuantity", "retailBulk", "company", "bulkThreshold", "discountLimitBps",
         "configurationErrorCode",
       ]),
     },

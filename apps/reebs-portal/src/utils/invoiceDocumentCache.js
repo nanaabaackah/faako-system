@@ -1,3 +1,5 @@
+import { reebsApiResponse } from "../api/client";
+
 const invoiceRequestCache = new Map();
 
 const readJsonResponse = async (response, fallbackMessage) => {
@@ -28,7 +30,7 @@ const fetchJsonOnce = (cacheKey, url, fallbackMessage) => {
   const cachedRequest = invoiceRequestCache.get(key);
   if (cachedRequest) return cachedRequest;
 
-  const request = fetch(url)
+  const request = reebsApiResponse(url)
     .then((response) => readJsonResponse(response, fallbackMessage))
     .finally(() => {
       invoiceRequestCache.delete(key);

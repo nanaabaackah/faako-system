@@ -1,38 +1,104 @@
-@import "../../pages/AdminWorkspace/AdminWorkspace.css";
+@import "../../styles/admin.css";
 
-.aw-nav-btn-label,
-.aw-nav-btn-badges {
+.reebs-quick-access-shell {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: min(100%, 75rem);
+  margin: 0 auto 1rem;
   min-width: 0;
-  display: inline-flex;
+  flex-shrink: 0;
+}
+.reebs-quick-access {
+  display: grid;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  gap: 0.4rem;
+  padding: 0.4rem;
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-md);
+  background: var(--sys-surface-strong);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+.reebs-quick-access__item {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.22rem;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.4rem;
+  color: var(--sys-text);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 650;
+  border: 1px solid transparent;
+  border-radius: var(--sys-radius-sm);
 }
-
-.aw-nav-btn-label {
-  max-width: 100%;
-  flex-direction: column;
+.reebs-quick-access__item.is-active { background: var(--sys-accent-soft); }
+.reebs-quick-access__item.is-primary {
+  min-height: 3.25rem;
+  background: var(--sys-accent);
+  color: var(--sys-accent-contrast);
+  font-size: 0.9rem;
 }
-
-.aw-nav-btn-badge {
-  max-width: 4.5rem;
-  padding: 0.08rem 0.28rem;
-  border-radius: 999px;
-  border: 1px solid color-mix(in oklab, currentColor, transparent 70%);
-  font-size: 0.48rem;
-  font-weight: 800;
-  line-height: 1.2;
-  text-transform: uppercase;
-  white-space: nowrap;
+.reebs-quick-access__item svg { width: 1.3rem; height: 1.3rem; flex: 0 0 auto; }
+.reebs-quick-access__item.is-primary svg { width: 1.5rem; height: 1.5rem; }
+.reebs-quick-access__item:hover { border-color: var(--sys-accent); }
+.reebs-quick-access-shell a:focus-visible { outline: 2px solid var(--sys-accent); outline-offset: 3px; }
+.reebs-quick-access__label { display: grid; text-align: center; }
+.reebs-quick-access__badges { display: flex; justify-content: center; font-size: 0.55rem; }
+.reebs-quick-access-account {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  max-width: 15rem;
+  min-height: 3.5rem;
+  padding: 0.4rem 0.7rem;
+  color: var(--sys-text);
+  border: 1px solid var(--sys-border);
+  border-radius: var(--sys-radius-md);
+  background: var(--sys-surface-strong);
+  text-decoration: none;
+}
+.reebs-quick-access-account > span:last-child { display: grid; min-width: 0; gap: 0.15rem; }
+.reebs-quick-access-account strong { font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reebs-quick-access-account small { color: var(--sys-muted); font-size: 0.72rem; }
+.reebs-quick-access-account__avatar {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--sys-accent-soft);
+  font-size: 0.8rem;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
-
-.aw-nav-btn.is-disabled {
-  opacity: 0.72;
-}
-
-.aw-nav-btn[data-module-key="water"].is-active {
-  background: #dcefeb;
-  color: #075f52;
+.reebs-quick-access-account__avatar img { width: 100%; height: 100%; object-fit: cover; }
+@media (max-width: 1024px) {
+  .reebs-quick-access-shell {
+    position: fixed;
+    z-index: 12;
+    bottom: 0;
+    left: calc((100% + var(--portal-modal-inline-offset, 0px)) / 2);
+    transform: translateX(-50%);
+    width: min(calc(100% - var(--portal-modal-inline-offset, 0px)), 34rem);
+    margin: 0;
+  }
+  .reebs-quick-access {
+    gap: 0.15rem;
+    padding: 0.4rem max(0.4rem, env(safe-area-inset-right)) max(0.4rem, env(safe-area-inset-bottom)) max(0.4rem, env(safe-area-inset-left));
+    box-shadow: var(--sys-shadow-lg);
+  }
+  .reebs-quick-access__item { flex-direction: column; gap: 0.2rem; padding: 0.3rem 0.1rem; min-height: 3.1rem; font-size: 0.65rem; }
+  .reebs-quick-access__item.is-primary { min-height: 3.65rem; font-size: 0.72rem; }
+  .reebs-quick-access-account { display: none; }
+  .portal-app-shell:not(.portal-app-shell--store-mode) .portal-app-content {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+    scroll-padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
 }

@@ -22,6 +22,12 @@ const runTask = ({ label, script }) => {
   execFileSync("node", [scriptPath], { stdio: "inherit" });
 };
 
+if (process.env.APP_ENV !== "staging") {
+  throw new Error(
+    `Import blocked: expected APP_ENV=staging, got ${process.env.APP_ENV || "undefined"}`
+  );
+}
+
 try {
   for (const task of tasks) {
     runTask(task);

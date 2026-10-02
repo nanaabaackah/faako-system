@@ -2,6 +2,7 @@ import {
   createAttentionItem,
   sortAttentionItems,
 } from "./dashboardPolicy.js";
+import { fetchCoreCollectionSummary } from "../payments/collectionSummary.js";
 
 const numberValue = (value) => Number(value || 0);
 const textValue = (value, fallback = "") => String(value || fallback).trim();
@@ -171,7 +172,7 @@ const fetchBookingSummary = async ({ client, organizationId, window }) => {
        ) AS completion_due,
        COUNT(*) FILTER (
          WHERE b."eventDate" >= $2 AND b."eventDate" < $3
-           AND LOWER(COALESCE(b.status, 'pending')) <> 'cancelled'
+           AND LOWER(COALESCE(b.status, 'pending')) NOT IN ('cancelled', 'canceled')
        ) AS bookings_in_window
      FROM "booking" b
      WHERE b."organizationId" = $1
@@ -242,35 +243,7 @@ const fetchDeliverySummary = async ({ client, organizationId }) => {
   };
 };
 
-const fetchPaymentSummary = async ({ client, columns, organizationId, window }) => {
-  const coreFilter = buildCoreOrderFilter(columns);
-  const result = await client.query(
-    `SELECT
-       COALESCE(SUM(op."amountCents") FILTER (
-         WHERE LOWER(COALESCE(op.status, 'successful')) IN ('successful', 'confirmed', 'paid')
-           AND op."paidAt" >= $2 AND op."paidAt" < $3
-       ), 0) AS received_in_window,
-       COUNT(*) FILTER (
-         WHERE LOWER(COALESCE(op.method, '')) IN ('momo', 'mobile_money', 'mobile money', 'paystack')
-           AND LOWER(COALESCE(op.status, 'successful')) IN ('successful', 'confirmed', 'paid')
-           AND op."paidAt" >= $2 AND op."paidAt" < $3
-       ) AS mobile_money_payments
-     FROM "orderPayment" op
-     JOIN "order" o
-       ON o.id = op."orderId"
-      AND o."organizationId" = op."organizationId"
-     WHERE op."organizationId" = $1
-       AND ${coreFilter}`,
-    [organizationId, window.start.toISOString(), window.end.toISOString()]
-  );
-  const row = result.rows[0] || {};
-  return {
-    receivedInWindowCents: numberValue(row.received_in_window),
-    mobileMoneyPayments: numberValue(row.mobile_money_payments),
-  };
-};
-
-const fetchOrderActivity = async ({ client, columns, organizationId }) => {
+const fetchOrderActivity = async ({ client, columns, organizationId, window }) => {
   const result = await client.query(
     `SELECT
        CONCAT('order-', oe.id) AS id,
@@ -284,10 +257,11 @@ const fetchOrderActivity = async ({ client, columns, organizationId }) => {
        ON o.id = oe."orderId"
       AND o."organizationId" = oe."organizationId"
      WHERE oe."organizationId" = $1
+       AND oe."createdAt" >= $2 AND oe."createdAt" < $3
        AND ${buildCoreOrderFilter(columns)}
      ORDER BY oe."createdAt" DESC
-     LIMIT 6`,
-    [organizationId]
+     LIMIT 8`,
+    [organizationId, window.start.toISOString(), window.end.toISOString()]
   );
   return result.rows.map((row) => ({
     id: row.id,
@@ -300,7 +274,7 @@ const fetchOrderActivity = async ({ client, columns, organizationId }) => {
   }));
 };
 
-const fetchBookingActivity = async ({ client, organizationId }) => {
+const fetchBookingActivity = async ({ client, organizationId, window }) => {
   const result = await client.query(
     `SELECT
        CONCAT('booking-', b.id) AS id,
@@ -311,10 +285,11 @@ const fetchBookingActivity = async ({ client, organizationId }) => {
        b."updatedAt" AS "createdAt"
      FROM "booking" b
      WHERE b."organizationId" = $1
+       AND b."updatedAt" >= $2 AND b."updatedAt" < $3
        AND ${buildCoreBookingFilter("b")}
      ORDER BY b."updatedAt" DESC
-     LIMIT 6`,
-    [organizationId]
+     LIMIT 8`,
+    [organizationId, window.start.toISOString(), window.end.toISOString()]
   );
   return result.rows.map((row) => ({
     id: row.id,
@@ -327,7 +302,7 @@ const fetchBookingActivity = async ({ client, organizationId }) => {
   }));
 };
 
-const fetchInventoryActivity = async ({ client, organizationId }) => {
+const fetchInventoryActivity = async ({ client, organizationId, window }) => {
   const result = await client.query(
     `SELECT
        CONCAT('stock-', sm.id) AS id,
@@ -340,10 +315,11 @@ const fetchInventoryActivity = async ({ client, organizationId }) => {
        ON p.id = sm."productId"
       AND p."organizationId" = sm."organizationId"
      WHERE sm."organizationId" = $1
+       AND COALESCE(sm.date, sm."createdAt") >= $2 AND COALESCE(sm.date, sm."createdAt") < $3
        AND ${CORE_PRODUCT_FILTER}
      ORDER BY COALESCE(sm.date, sm."createdAt") DESC
-     LIMIT 6`,
-    [organizationId]
+     LIMIT 8`,
+    [organizationId, window.start.toISOString(), window.end.toISOString()]
   );
   return result.rows.map((row) => ({
     id: row.id,
@@ -431,43 +407,61 @@ const buildAttention = ({ orders, bookings, inventory, delivery, permissions }) 
   }),
 ].filter(Boolean));
 
-const fetchDashboardOverview = async ({ client, organizationId, window, permissions }) => {
+const fetchDashboardOverview = async ({ client, organizationId, window, permissions, onWidgetError = () => {} }) => {
   const columns = await getTableColumns(client, ["order"]);
+  const unavailable = [];
+  const readWidget = async (name, read) => {
+    try { return await read(); }
+    catch (error) {
+      unavailable.push(name);
+      onWidgetError(name, error);
+      return null;
+    }
+  };
   // A pg Client supports one active query. Keep the tenant-scoped connection safe and
   // explicit instead of starting concurrent promises that the driver merely queues.
   const orders = permissions.canReadOrders
-    ? await fetchOrderSummary({ client, columns, organizationId, window })
+    ? await readWidget("orders", () => fetchOrderSummary({ client, columns, organizationId, window }))
     : null;
   const bookings = permissions.canReadBookings
-    ? await fetchBookingSummary({ client, organizationId, window })
+    ? await readWidget("bookings", () => fetchBookingSummary({ client, organizationId, window }))
     : null;
   const inventory = permissions.canReadInventory
-    ? await fetchInventorySummary({ client, organizationId })
+    ? await readWidget("inventory", () => fetchInventorySummary({ client, organizationId }))
     : null;
   const delivery = permissions.canReadDelivery
-    ? await fetchDeliverySummary({ client, organizationId })
+    ? await readWidget("delivery", () => fetchDeliverySummary({ client, organizationId }))
     : null;
   const payments = permissions.canReadFinancials && permissions.canReadOrders
-    ? await fetchPaymentSummary({ client, columns, organizationId, window })
+    ? await readWidget("payments", () => fetchCoreCollectionSummary({ client, organizationId, window, coreOrderFilter: buildCoreOrderFilter(columns) }))
     : null;
   const activityGroups = [];
   if (permissions.canReadOrders) {
-    activityGroups.push(await fetchOrderActivity({ client, columns, organizationId }));
+    activityGroups.push(await readWidget("order activity", () => fetchOrderActivity({ client, columns, organizationId, window })) || []);
   }
   if (permissions.canReadBookings) {
-    activityGroups.push(await fetchBookingActivity({ client, organizationId }));
+    activityGroups.push(await readWidget("booking activity", () => fetchBookingActivity({ client, organizationId, window })) || []);
   }
   if (permissions.canReadInventory) {
-    activityGroups.push(await fetchInventoryActivity({ client, organizationId }));
+    activityGroups.push(await readWidget("inventory activity", () => fetchInventoryActivity({ client, organizationId, window })) || []);
   }
   const activity = activityGroups
     .flat()
     .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
     .slice(0, 8);
 
+  // A hidden finance card is not authorization. Operational roles may receive
+  // order counts, but must not receive balances or reconciliation data in JSON.
+  let visibleOrders = orders;
+  if (orders && !permissions.canReadFinancials) {
+    const { outstandingCents: _balance, reconciliationCount: _reconciliation, ...operationalOrders } = orders;
+    visibleOrders = operationalOrders;
+  }
+
   return {
+    unavailable,
     attention: buildAttention({ orders, bookings, inventory, delivery, permissions }),
-    summary: { orders, bookings, inventory, delivery, payments },
+    summary: { orders: visibleOrders, bookings, inventory, delivery, payments },
     activity,
   };
 };

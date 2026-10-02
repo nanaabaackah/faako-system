@@ -2,6 +2,7 @@ import { DateField } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faMinus, faPlus, faReceipt } from "/src/icons/iconSet";
 import WaterCustomerPicker from "./WaterCustomerPicker";
+import PortalAction from "../../../components/PortalAction/PortalAction";
 
 export default function WaterOrderFormCard({
   onSubmit,
@@ -246,13 +247,12 @@ export default function WaterOrderFormCard({
               ) : null}
             </div>
 
-            <button
+            <PortalAction
               type="submit"
-              className="admin-primary water-module-sale-submit"
+              className="admin-primary"
               disabled={saving || loading || !pricingAvailable}
-            >
-              <AppIcon icon={faReceipt} /> {saving ? "Saving..." : `Record ${formatCurrency(salePreview.total)}`}
-            </button>
+              icon={faReceipt} label={saving ? "Saving..." : `Record ${formatCurrency(salePreview.total)}`}
+            />
           </div>
         </form>
       </article>

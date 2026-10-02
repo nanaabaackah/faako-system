@@ -136,6 +136,35 @@ Changed-file ESLint, Prisma schema validation, the Portal production build
 outdated Browserslist dataset warning. No actual environment files or databases
 were used; no migration, seed, deployment or Git push was performed for this change.
 
+## Missing-price failures and safe diagnostics — 2026-10-01
+
+The observed production response `MISSING_WATER_PRICE` identifies a missing
+effective retail selling-price candidate, not necessarily a database outage.
+The resolver matches authenticated organisation, selected product, sale quantity
+and effective timestamp. A future/expired schedule, wrong product key or minimum
+quantity above the sale quantity can all prevent a match. Restock purchase cost
+does not substitute for a selling-price schedule.
+
+Owners/admins should review Settings → Commercial for the selected product's
+Retail, Bulk retail and Company schedules and the Water discount limit. Do not
+invent fallback amounts or copy a price from another product. Current-day sales
+use the current commercial timestamp for date-only input; historical dates remain
+historical. The Settings scheduler deliberately does not backdate prices: a
+historical correction needs separate review and must preserve existing snapshots.
+
+`backend/modules/water/actionErrors.js` permits only curated configuration/cost
+guidance to cross the HTTP adapter's 5xx-message boundary. Unknown failures remain
+generic. The Water handler logs `water.action.failed` with the existing request ID,
+error code and status, not request bodies, raw exceptions or financial amounts.
+Seven tests exercise the actual HTTP adapter, including unknown-error masking.
+Public `/live`, `/ready` and `/health/water` success does not establish that an
+authenticated organisation/product/date has usable prices. Check the response
+body's code rather than diagnosing CORS from a generic 503.
+
+No production configuration was inspected or repaired in this pass. The safe
+message change is local and does not by itself resolve the deployed incident.
+Confirm ledger state before manually repeating a failed creation request.
+
 ## Target module shape
 
 ```text
@@ -157,6 +186,16 @@ backend/modules/water/
 Create these layers only as Water behavior is migrated; do not copy unrelated core rental/event code to fill the structure. Compatibility exports in `backend/functions` remain until an approved API routing migration retires them.
 
 ## Review checklist
+
+### Recorded price corrections (2026-10-02)
+
+Owner/admin price-only corrections retain the sale's historical standard-price
+reference and cost snapshot; they no longer require re-resolving a missing old
+schedule. The unchanged calendar day also retains the original timestamp.
+Quantity, channel or actual date changes still require effective pricing. Water
+staff cannot correct prices. Dashboard pricing is now available per configured
+price type instead of hiding all rates when one is missing. See the
+[implementation and validation notes](../../../docs/apps/reebs/portal-actions-water-invoice-followup.md).
 
 Any change touching Water and another domain must answer:
 
