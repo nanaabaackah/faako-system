@@ -297,17 +297,39 @@ test("task board moves tasks, stays consistent with the list, and rolls back fai
   const reviewColumn = page.locator(".project-task-column").filter({ has: page.getByRole("heading", { name: "Review", exact: true }) });
   await chooseDropdown(page, "Move Initial task", "Move to Review");
   await expect(reviewColumn.getByRole("heading", { name: "Initial task" })).toBeVisible();
+  // The board moves optimistically; wait for the successful save to finish
+  // before attempting the next transition.
+  await expect(reviewColumn.getByRole("button", { name: "Move Initial task", exact: true })).toBeEnabled();
   expect(writes.some((write) => write.operation === "status" && write.body.status === "REVIEW")).toBe(true);
 
   await page.getByRole("button", { name: "List" }).click();
   await expect(page.getByLabel("Status for Initial task")).toContainText("Review");
   await page.getByRole("button", { name: "Board" }).click();
 
-  await page.getByLabel("Move Initial task").click();
-  await page.getByRole("option", { name: "Move to Blocked", exact: true }).click({ force: true });
-  await expect(page.getByRole("alert")).toContainText("returned to Review");
+  await page.getByRole("button", { name: "Move Initial task", exact: true }).click();
+  const blockedOption = page.getByRole("option", { name: "Move to Blocked", exact: true });
+  await expect(blockedOption).toBeVisible();
+  // A forced click can miss a portalled option while it is being positioned.
+  // Keep normal actionability checks and prove the rejected PATCH happened.
+  const [failedResponse] = await Promise.all([
+    page.waitForResponse((response) => {
+      const request = response.request();
+      return new URL(response.url()).pathname === "/api/projects/42/tasks/9/status"
+        && request.method() === "PATCH"
+        && request.postDataJSON()?.status === "BLOCKED";
+    }),
+    blockedOption.click(),
+  ]);
+  expect(failedResponse.status()).toBe(500);
+  await expect(page.locator(".project-tasks-section").getByRole("alert")).toContainText("returned to Review");
   await expect(reviewColumn.getByRole("heading", { name: "Initial task" })).toBeVisible();
+  await expect(reviewColumn.getByRole("button", { name: "Move Initial task", exact: true })).toBeEnabled();
   expect(writes.some((write) => write.operation === "status" && write.body.status === "BLOCKED")).toBe(false);
+
+  await page.getByRole("button", { name: "List" }).click();
+  await expect(page.getByLabel("Status for Initial task")).toContainText("Review");
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByLabel("Status for Initial task")).toContainText("Review");
 });
 
 test("project detail shows recent activity and refreshes after a task change", async ({ page }) => {
