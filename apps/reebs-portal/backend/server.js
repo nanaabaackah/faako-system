@@ -274,6 +274,12 @@ export const createReebsApiServer = () => {
   });
   app.use(express.text({ type: "*/*", limit: process.env.REEBS_API_BODY_LIMIT || "10mb" }));
 
+  // These routes bypass the function adapter, so they also need their own
+  // preflight response. Use the existing origin allowlist; never reflect freely.
+  app.options(["/live", "/api/live", "/ready", "/api/ready", "/health", "/api/health", "/health/water", "/api/health/water"], (req, res) =>
+    sendJson(req, res, 204, {}, { methods: "GET,OPTIONS" })
+  );
+
   app.get(["/live", "/api/live"], (req, res) =>
     sendJson(req, res, 200, {
       ok: true,

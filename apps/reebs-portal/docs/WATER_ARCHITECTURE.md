@@ -88,6 +88,83 @@ historical references/dates are not invented. New-sale mutations still record
 their own payment facts. Any earlier historical misclassification needs a separate
 reviewed data audit; this change neither reconstructs nor repairs past collections.
 
+## Water product selection (2026-10-01)
+
+`shared/waterProducts.js` defines the existing `gwater-15pk` and the new
+`sachet-water-30pk` (30pcs sachet water). One quantity unit is one whole pack,
+not an individual bottle or sachet. No purchase or selling price is invented.
+
+The Water header selects a product within the existing Faako layout. The page's
+stock, prices, orders, restocks, expenses, adjustments and finance cards refer to
+that selected product. Switching products remounts the workspace and discards no
+entered cost/quantity without confirmation; open editors prevent switching.
+Water customers remain shared within the authenticated organisation.
+
+`GET /api/water?productKey=sachet-water-30pk` selects the new ledger. Mutations
+include `productKey` in their JSON body. Omitting it preserves the existing
+15-pack API behavior; unknown keys return 400. Reads, record-id mutations,
+inventory locks, price locks and cost snapshots are organisation/product scoped.
+The legacy inventory-name vendor matcher is not reused for the sachet product.
+
+Owners/admins can record sachet stock and its actual cost per pack immediately.
+Before sales, use Settings → Commercial → Add a Water price schedule, choose the
+30pcs sachet preset and configure effective retail, bulk-retail and company
+prices. Existing Water discount policy still applies. Missing prices block sales,
+not stock recording; prices from the 15-pack are never borrowed. Water-only staff
+retain sales access but cannot change stock, purchase costs or expenses.
+
+Deploy migration `20260930190000_water_product_expense_scope` before the new API.
+It adds `waterExpense.productKey`, associating pre-existing single-product expenses
+with `gwater-15pk`. It does not delete records or alter quantities, amounts or
+payment facts. Existing sale/restock/adjustment tables already store product keys.
+No new price schedules or stock are seeded by this migration. All Water figures
+remain excluded from Core REEBS rental/event metrics.
+
+Verify in isolated staging: restock each product at different costs, sell the
+sachet pack, reload, correct a sachet restock, and confirm the 15-pack ledger and
+Core totals are unchanged. In-memory/browser tests do not certify PostgreSQL
+locking or deployed migration state.
+
+Local verification on 2026-10-01: 95 focused Water/commercial/financial tests,
+five existing Water browser regressions, and two new whole-pack flows passed.
+The new flows cover 320px/dark and 1440px/light, separate restock/sale payloads,
+profit, draft-switch confirmation, unchanged legacy stock and non-overlapping
+product/refresh controls. Selected-product screenshots were reviewed. Initial
+new-test runs used incorrect theme/search selectors; corrected reruns passed.
+Changed-file ESLint, Prisma schema validation, the Portal production build
+(1,634 modules), security scan and security gate passed. The build reports an
+outdated Browserslist dataset warning. No actual environment files or databases
+were used; no migration, seed, deployment or Git push was performed for this change.
+
+## Missing-price failures and safe diagnostics — 2026-10-01
+
+The observed production response `MISSING_WATER_PRICE` identifies a missing
+effective retail selling-price candidate, not necessarily a database outage.
+The resolver matches authenticated organisation, selected product, sale quantity
+and effective timestamp. A future/expired schedule, wrong product key or minimum
+quantity above the sale quantity can all prevent a match. Restock purchase cost
+does not substitute for a selling-price schedule.
+
+Owners/admins should review Settings → Commercial for the selected product's
+Retail, Bulk retail and Company schedules and the Water discount limit. Do not
+invent fallback amounts or copy a price from another product. Current-day sales
+use the current commercial timestamp for date-only input; historical dates remain
+historical. The Settings scheduler deliberately does not backdate prices: a
+historical correction needs separate review and must preserve existing snapshots.
+
+`backend/modules/water/actionErrors.js` permits only curated configuration/cost
+guidance to cross the HTTP adapter's 5xx-message boundary. Unknown failures remain
+generic. The Water handler logs `water.action.failed` with the existing request ID,
+error code and status, not request bodies, raw exceptions or financial amounts.
+Seven tests exercise the actual HTTP adapter, including unknown-error masking.
+Public `/live`, `/ready` and `/health/water` success does not establish that an
+authenticated organisation/product/date has usable prices. Check the response
+body's code rather than diagnosing CORS from a generic 503.
+
+No production configuration was inspected or repaired in this pass. The safe
+message change is local and does not by itself resolve the deployed incident.
+Confirm ledger state before manually repeating a failed creation request.
+
 ## Target module shape
 
 ```text
@@ -109,6 +186,16 @@ backend/modules/water/
 Create these layers only as Water behavior is migrated; do not copy unrelated core rental/event code to fill the structure. Compatibility exports in `backend/functions` remain until an approved API routing migration retires them.
 
 ## Review checklist
+
+### Recorded price corrections (2026-10-02)
+
+Owner/admin price-only corrections retain the sale's historical standard-price
+reference and cost snapshot; they no longer require re-resolving a missing old
+schedule. The unchanged calendar day also retains the original timestamp.
+Quantity, channel or actual date changes still require effective pricing. Water
+staff cannot correct prices. Dashboard pricing is now available per configured
+price type instead of hiding all rates when one is missing. See the
+[implementation and validation notes](../../../docs/apps/reebs/portal-actions-water-invoice-followup.md).
 
 Any change touching Water and another domain must answer:
 

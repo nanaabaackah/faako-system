@@ -961,6 +961,7 @@ model WaterSale {
 model WaterExpense {
   id              Int          @id @default(autoincrement())
   organizationId  Int          @default(1)
+  productKey      String       @default("gwater-15pk")
   organization    Organization @relation(fields: [organizationId], references: [id])
   category        String
   amount          Int

@@ -3,6 +3,43 @@
 Audit started: 2026-09-24. **In progress — not a release certification.**
 Continued: 2026-09-25.
 
+Current requested priority, 2026-10-01: the user supplied a new **Module 3 —
+Dashboard + Quick Access revamp** brief. Discovery and a visual approval proposal
+are recorded in [the Module 3 checkpoint](dashboard-quick-access-revamp.md).
+That request takes priority over the previously suggested next audit tasks below;
+their unresolved findings remain tracked. Sidecar must be preserved, Water must
+remain separate. The user approved the proposal; local implementation and its
+validation limits are now recorded in that report. No deployment or database
+write occurred. Production Water returned `MISSING_WATER_PRICE`; local reporting
+is corrected, but effective production price schedules still need owner/admin
+verification. Do not confuse passing health probes with healthy sale mutations.
+
+## Resume checkpoint — 2026-10-01
+
+The latest requested addition is the 30-piece sachet Water pack. It uses the
+existing Water flow, with product-scoped stock, selling prices, cost snapshots,
+expenses and ledgers; details and deployment order are in
+[Water architecture](../../../apps/reebs-portal/docs/WATER_ARCHITECTURE.md#water-product-selection-2026-10-01).
+This is a local implementation, not proof of deployed staging/production behavior.
+No real database migration, stock import or provider transaction was run for it.
+
+After the user's manual push to `develop`, resume this end-to-end integrity audit;
+do not restart completed module deep dives or redesign Faako presentation. The
+seven implementation passes remain Bookings/Rentals, Orders, Dashboard, Inventory,
+Customers, Payments and Invoicing, plus Water/settings integrations. The
+[responsive correction report](../../../apps/reebs-portal/docs/RESPONSIVE_LAYOUT_AUDIT.md)
+records the later smaller-screen pass and its evidence limits.
+
+Next priorities remain RI-012 (canonical Order/Booking settlement for linked
+invoices) and RI-018 (authoritative distance for combined Shop/Rental delivery),
+followed by isolated-staging persistence, concurrency, provider and real-device
+verification. Recheck current source before treating older findings as unresolved.
+Public purchases/bookings remain paused; protected financial/history records
+must not gain bulk archive merely to match operational tables. Water remains
+separate from Core metrics, with purchase costs/stock managed by owners/admins
+and Water-only staff handling sales. Do not enable public commerce, promote a
+release or claim production readiness merely because mocked tests pass.
+
 ## Executive summary and evidence standard
 
 The seven documented module deep dives cover Bookings/Rentals, Orders, Dashboard,

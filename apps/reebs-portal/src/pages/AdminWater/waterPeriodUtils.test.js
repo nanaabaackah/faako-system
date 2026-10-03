@@ -31,6 +31,8 @@ test("water API requests include the cross-origin session cookie", () => {
   const sharedRequests = source.match(/reebsApiResponse\(/g) || [];
 
   assert.equal(source.includes('credentials: "same-origin"'), false);
-  assert.equal(sharedRequests.length, 4);
+  // Dashboard, vendors, customers, ledger mutations and inline customer creation.
+  assert.equal(sharedRequests.length, 5);
+  assert.doesNotMatch(source, /\bfetch\(/);
   assert.match(apiClientSource, /credentials:\s*["']include["']/);
 });

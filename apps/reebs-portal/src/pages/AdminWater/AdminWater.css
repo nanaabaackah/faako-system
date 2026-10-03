@@ -17,6 +17,18 @@
   min-width: 0;
 }
 
+.water-module-product-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.water-module-product-select {
+  width: 15rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .water-module-kpi,
 .water-module-card,
 .water-module-table-card,
@@ -1870,4 +1882,20 @@ body.admin-theme .water-module-shell > .admin-header.water-module-header > .wate
 
 [data-admin-theme="dark"] .water-order-editor-form .ui-dropdown-field__trigger:focus-visible {
   background: var(--card);
+}
+
+@media (max-width: 600px) {
+  body.admin-theme .water-module-shell > .admin-header.water-module-header {
+    flex-wrap: wrap !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions {
+    flex: 1 1 100%;
+    width: 100% !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions > .water-module-product-select {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
 }

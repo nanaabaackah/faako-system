@@ -374,8 +374,8 @@ body.admin-theme :is(.portal-app-content, .accounting-page) .bubble-card {
   border-bottom-left-radius: var(--admin-portal-bottom-radius) !important;
   border-bottom-right-radius: var(--admin-portal-top-radius) !important;
   box-shadow: var(--admin-portal-shadow) !important;
-  backdrop-filter: blur(var(--admin-portal-blur)) !important;
-  -webkit-backdrop-filter: blur(var(--admin-portal-blur)) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
   --admin-portal-head-offset: var(--bubble-card-head-offset, 16px);
 }
 
@@ -13943,8 +13943,8 @@ body.admin-theme .portal-app-content :is(.admin-card, .glass-card) {
   border-bottom-left-radius: var(--admin-portal-bottom-radius) !important;
   border-bottom-right-radius: var(--admin-portal-bottom-radius) !important;
   box-shadow: var(--admin-portal-shadow) !important;
-  backdrop-filter: blur(var(--admin-portal-blur)) !important;
-  -webkit-backdrop-filter: blur(var(--admin-portal-blur)) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
   --admin-portal-head-offset: var(--glass-card-head-offset, 24px);
 }
 
@@ -13984,8 +13984,8 @@ body.admin-theme .accounting-page .bubble-card {
   border-bottom-left-radius: var(--admin-portal-bottom-radius) !important;
   border-bottom-right-radius: var(--admin-portal-top-radius) !important;
   box-shadow: var(--admin-portal-shadow) !important;
-  backdrop-filter: blur(var(--admin-portal-blur)) !important;
-  -webkit-backdrop-filter: blur(var(--admin-portal-blur)) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
 }
 
 body.admin-theme .accounting-page .glass-card.accounting-list-table,
@@ -13993,8 +13993,8 @@ body.admin-theme .accounting-page .glass-card.accounting-table-shell .admin-tabl
   background: var(--admin-portal-surface) !important;
   border: 1px solid var(--admin-portal-border) !important;
   box-shadow: var(--admin-portal-shadow) !important;
-  backdrop-filter: blur(var(--admin-portal-blur)) !important;
-  -webkit-backdrop-filter: blur(var(--admin-portal-blur)) !important;
+  backdrop-filter: blur(15px) !important;
+  -webkit-backdrop-filter: blur(15px) !important;
 }
 
 body.admin-theme .accounting-page .glass-card.accounting-list-table .admin-table-scroll {

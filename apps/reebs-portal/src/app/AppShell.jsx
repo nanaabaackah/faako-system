@@ -169,7 +169,7 @@ export default function AppShell() {
           contentClassName="portal-app-content portal-app-content--with-bottom-bar"
           layout="overlay"
           sidebar={<Suspense fallback={null}><PortalSidebar /></Suspense>}
-          bottomNav={<Suspense fallback={null}><AdminBottomNav /></Suspense>}
+          topbar={<Suspense fallback={null}><AdminBottomNav /></Suspense>}
         >
           <ErpPageContent as="div" className="portal-app-content__body">{routes}</ErpPageContent>
           <div className="ui-bottom-bar-shell portal-app-bottom-bar-shell"><AppBottomBar /></div>

@@ -1,6 +1,6 @@
 # REEBS Water architecture
 
-Status: local implementation reviewed 2026-09-27; deployed data/provider verification pending.
+Status: local implementation extended 2026-10-01; deployed data/provider verification pending.
 
 Release evidence and manual go-live checks: [Water release readiness](water-release-readiness.md).
 
@@ -26,6 +26,15 @@ The Water API allows owners, admins and Water operators, with Water permission a
 - `customer` and `vendor` identities may be shared, but Water activity is derived only through Water records.
 
 The generic inventory product can remain linked for identity/vendor context. It is not the authoritative Water stock ledger.
+
+The Water flow supports `gwater-15pk` and `sachet-water-30pk` (30pcs sachet water).
+Quantities and prices are per whole pack. Header selection scopes every ledger,
+KPI, price lookup, inventory lock and record-id mutation to one product within
+the authenticated organisation. Omitted product keys retain the 15-pack API
+default. The new pack starts with no stock or prices, never copied legacy values.
+Choose its preset in Commercial Settings to configure selling prices; stock
+entry records its own actual purchase cost. See the
+[product setup and rollout notes](../../../apps/reebs-portal/docs/WATER_ARCHITECTURE.md#water-product-selection-2026-10-01).
 
 Core Inventory APIs, stock activity, public inventory counts and Core inventory analytics exclude products whose source is `WATER` or which have an active `waterProductConfig` link. The Inventory screen may link staff to Water Business, but it must not fetch or present Water stock, revenue, cost or profit as Core Inventory data. Water movements remain in the Water ledgers and are not written to the Core `stockMovement` ledger.
 
@@ -67,6 +76,12 @@ No consolidated Dashboard exists. A future consolidated view remains an explicit
 Public inventory/storefront DTOs expose customer selling prices only. They must never add `purchasePriceGhs`, Water cost, supplier cost or margin.
 
 ## Migration and deployment
+
+For the two-product flow, deploy additive migration
+`20260930190000_water_product_expense_scope` before the new API. Existing expenses
+remain assigned to the former sole product, `gwater-15pk`; no quantities, amounts,
+sales or payment facts are changed. New expenses use the selected product key.
+This migration has been authored and schema-validated locally, not applied here.
 
 Migration `20260828143000_water_pricing_integrity` creates the Water pricing configuration and transaction snapshot fields. It initializes existing organisations from an eligible linked Water product when available and otherwise preserves the previously established Water rates. It intentionally does not backfill historical cost snapshots.
 

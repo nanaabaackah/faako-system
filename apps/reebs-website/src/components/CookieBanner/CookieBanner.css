@@ -39,9 +39,9 @@
 }
 
 .cookie-link {
-  color: var(--back2);
+  color: var(--ink);
   font-weight: 700;
-  text-decoration: none;
+  text-decoration: underline;
 }
 
 .cookie-link:hover,
@@ -86,7 +86,7 @@
 .cookie-accept {
   border-color: rgba(var(--back2-rgb), 0.56);
   background: var(--back2);
-  color: var(--white);
+  color: var(--ink);
 }
 
 .cookie-preferences {

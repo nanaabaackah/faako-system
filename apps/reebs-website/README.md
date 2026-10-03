@@ -50,11 +50,32 @@ pnpm --filter @faako/reebs-website run catalogue:refresh
 The Astro build generates the sitemap from actual static routes. It excludes
 cart, checkout, customer login, reset-password, and status pages.
 
+Rental detail hydration retains the published catalogue item when a partial or
+cached inventory response contains only other rentals. A matching live rental
+takes precedence; the fallback never substitutes an item for a different URL.
+This is a browsing fallback, not permission to book or purchase. Public commerce
+remains governed by the shared policy and authoritative API guards.
+
 ```bash
 pnpm --filter @faako/reebs-website run build
 pnpm --filter @faako/reebs-website run sitemap:check
 pnpm --filter @faako/reebs-website run test:routes
 ```
+
+## Browser regression checks
+
+`test:e2e` runs the responsive storefront suite. When `REEBS_PREVIEW_URL` is
+provided, it targets that already-running static preview without starting a
+development server. Without it, Playwright uses the local development server.
+CI supplies the preview URL so the checks exercise the artifact it just built.
+The paused-commerce regression covers both fresh and cached inventory responses
+and asserts the published rental heading, disabled booking action and offer-free
+structured data.
+Accessibility checks wait for page and cookie-control hydration and use reduced
+motion so scroll-reveal transitions do not distort contrast readings or hide
+footer content from the scan. Viewport and keyboard checks retain normal motion.
+The consent banner uses the existing dark text token on its green Accept button
+and an underlined dark privacy link, retaining the approved palette and layout.
 
 ## Configuration
 

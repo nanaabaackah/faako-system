@@ -38,12 +38,20 @@
   justify-content: center;
   gap: 8px;
   width: auto;
-  min-width: 0;
+  min-width: 44px;
   min-height: 2.85rem;
   padding: 0.7rem 1rem;
   border-radius: 999px;
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+/* Portal action standard: archive is icon-only at every viewport. */
+.invoice-hub-action-danger { width: 44px; padding: 0.625rem; }
+.invoice-hub-action-danger span { display: none; }
+@media (max-width: 767px) {
+  .invoice-hub-header-actions .invoice-hub-action { width: 44px; padding: 0.625rem; }
+  .invoice-hub-header-actions .invoice-hub-action span { display: none; }
 }
 
 .invoice-hub-action-danger {

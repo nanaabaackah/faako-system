@@ -1,6 +1,4 @@
-import { resolvePgSslConfig } from "../../runtimeEnv.js";
-import { Client } from "pg";
-import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { requirePermission, respond } from "./_shared/internalApi.js";
 
 const json = (event, statusCode, body) =>
@@ -17,14 +15,11 @@ export async function handler(event = {}) {
   }
 
   const orderId = Number(event.queryStringParameters?.orderId);
-  if (!Number.isFinite(orderId)) {
+  if (!Number.isInteger(orderId) || orderId <= 0) {
     return json(event, 400, { error: "orderId is required" });
   }
 
-  const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: resolvePgSslConfig(),
-  });
+  const client = createDatabaseClient({ component: "order-invoice-database" });
 
   try {
     await client.connect();
@@ -42,6 +37,9 @@ export async function handler(event = {}) {
          o."orderNumber",
          o."orderDate",
          o."total_amount",
+         o."grandTotalCents",
+         o."deliveryFeeCents",
+         o."taxCents",
          o."amountPaidCents",
          o."balanceDueCents",
          o."paymentStatus",
@@ -168,9 +166,13 @@ export async function handler(event = {}) {
       (acc, row) => acc + Number(row.total_amount || 0),
       0
     );
-    const orderSubtotalCentsRaw = order.total_amount == null ? null : Number(order.total_amount);
-    const orderSubtotalCents = Number.isFinite(orderSubtotalCentsRaw) ? orderSubtotalCentsRaw : null;
-    const adjustmentCents = orderSubtotalCents == null ? 0 : orderSubtotalCents - itemsSubtotalCents;
+    // Viewing a document is read-only: use saved commercial amounts, never
+    // today's distance/rate rules, and do not add delivery to the total twice.
+    const grandTotalCents = Number(order.grandTotalCents ?? order.total_amount ?? itemsSubtotalCents);
+    const deliveryFeeCents = Number(order.deliveryFeeCents || 0);
+    const taxTotalCents = Number(order.taxCents || 0);
+    const subtotalCents = grandTotalCents - taxTotalCents;
+    const adjustmentCents = subtotalCents - deliveryFeeCents - itemsSubtotalCents;
     if (adjustmentCents !== 0) {
       items.push({
         id: "order-adjustment",
@@ -185,20 +187,16 @@ export async function handler(event = {}) {
       });
     }
 
-    const { distanceKm, feeCents: deliveryFeeCents, rateCents: deliveryRateCents } =
-      getDeliveryFeeDetails(order.deliveryMethod, order.deliveryDetails);
-    const deliveryRate = deliveryRateCents / 100;
-
     if (deliveryFeeCents > 0) {
       items.push({
         id: "delivery-fee",
-        name: `Delivery fee (${distanceKm} km @ GHS ${deliveryRate.toFixed(2)}/km)`,
+        name: "Delivery fee (recorded)",
         sku: null,
         rate: "",
-        quantity: distanceKm,
-        unitPriceCents: deliveryRateCents,
+        quantity: 1,
+        unitPriceCents: deliveryFeeCents,
         totalCents: deliveryFeeCents,
-        unitPrice: deliveryRate,
+        unitPrice: deliveryFeeCents / 100,
         total: deliveryFeeCents / 100,
       });
     }
@@ -216,13 +214,12 @@ export async function handler(event = {}) {
       0
     );
 
-    const baseSubtotalCents = orderSubtotalCents ?? itemsSubtotalCents;
-    const subtotalCents = baseSubtotalCents + deliveryFeeCents;
-    const taxRate = 0;
-    const taxTotalCents = 0;
-    const grandTotalCents = subtotalCents;
+    const taxRate = subtotalCents > 0 ? taxTotalCents / subtotalCents * 100 : 0;
 
     return json(event, 200, {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      orderDate: order.orderDate,
       invoiceNumber: `REC-${order.orderNumber}`,
       orderId: order.id,
       date: new Date(order.orderDate || Date.now()).toLocaleDateString("en-GB"),

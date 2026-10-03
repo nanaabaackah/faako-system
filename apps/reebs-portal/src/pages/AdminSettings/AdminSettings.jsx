@@ -1,10 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatedLoadingState, ERPFormNotice, SelectField } from "@faako/ui";
+import { AnimatedLoadingState, ERPFormNotice, SelectField, DateField } from "@faako/ui";
+import { WATER_PRODUCTS, getWaterProduct } from "../../../shared/waterProducts.js";
 import "./AdminSettings.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
+import PortalAction from "../../components/PortalAction/PortalAction";
+import { faCalendarDays } from "../../icons/iconSet";
 import { useAuth } from "../../components/AuthContext/AuthContext";
 import { getAdminQuickActions } from "../../utils/adminQuickActions";
 import {
@@ -655,7 +658,7 @@ function AdminSettings({ profileOnly = false }) {
       setCommercialStatus(`${model.metadata.label} scheduled successfully.`);
       await loadCommercialSchedule();
     } catch (error) {
-      setCommercialSaveError(error.message || "The REEBS Core rule was not scheduled.");
+      setCommercialSaveError(error.message || "The REEBS rule was not scheduled.");
     } finally {
       setCommercialSavingKey("");
     }
@@ -1210,7 +1213,7 @@ function AdminSettings({ profileOnly = false }) {
             <section className="glass-card settings-panel settings-commercial-panel">
               <div className="settings-panel-head settings-panel-head--split">
                 <div>
-                  <p className="settings-commercial-eyebrow">REEBS Core</p>
+                  <p className="settings-commercial-eyebrow">REEBS</p>
                   <h3>Booking, delivery and deposit rules</h3>
                   <p className="settings-muted">
                     Shared, effective-dated rules for the REEBS rental and event business. Water is excluded.
@@ -1225,7 +1228,7 @@ function AdminSettings({ profileOnly = false }) {
                 <AnimatedLoadingState
                   compact
                   className="glass-card admin-module-loading"
-                  title="Loading REEBS Core rules"
+                  title="Loading REEBS Rules"
                   message="Fetching the current and scheduled commercial values."
                   variant="detail"
                 />
@@ -1233,11 +1236,11 @@ function AdminSettings({ profileOnly = false }) {
 
               {!canViewCoreCommercialSchedule ? (
                 <p className="settings-commercial-empty">
-                  REEBS Core commercial rules are available to managers, admins and owners.
+                  REEBS commercial rules are available to managers, admins and owners.
                 </p>
               ) : !commercialLoading && !commercialLoadError && coreRuleModels.length === 0 ? (
                 <p className="settings-commercial-empty">
-                  No supported REEBS Core rule definitions are available.
+                  No supported REEBS rule definitions are available.
                 </p>
               ) : (
                 <div className="settings-commercial-list">
@@ -1296,8 +1299,8 @@ function AdminSettings({ profileOnly = false }) {
                         <label className="settings-commercial-field">
                           <span className="settings-commercial-step">Effective date</span>
                           <span>Starts on</span>
-                          <input
-                            type="date"
+                          <DateField
+                            ariaLabel={`Effective date for ${model.definition.key}`}
                             min={toDateInputValue()}
                             value={draft.effectiveDate}
                             onChange={(event) => setCommercialRuleDrafts((previous) => ({
@@ -1308,13 +1311,12 @@ function AdminSettings({ profileOnly = false }) {
                             required={canManageCommercialSchedule}
                           />
                         </label>
-                        <button
+                        <PortalAction
                           type="submit"
                           className="settings-primary settings-commercial-save"
                           disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                        >
-                          {isSaving ? "Saving..." : canManageCommercialSchedule ? "Schedule" : "Read only"}
-                        </button>
+                          icon={faCalendarDays} label={isSaving ? "Saving..." : canManageCommercialSchedule ? "Schedule" : "Read only"}
+                        />
                       </form>
                     );
                   })}
@@ -1445,8 +1447,8 @@ function AdminSettings({ profileOnly = false }) {
                         <label className="settings-commercial-field">
                           <span className="settings-commercial-step">Effective date</span>
                           <span>Starts on</span>
-                          <input
-                            type="date"
+                          <DateField
+                            ariaLabel={`Effective date for ${group.key}`}
                             min={toDateInputValue()}
                             value={draft.effectiveDate}
                             onChange={(event) => setWaterPriceDrafts((previous) => ({
@@ -1457,13 +1459,12 @@ function AdminSettings({ profileOnly = false }) {
                             required={canManageCommercialSchedule}
                           />
                         </label>
-                        <button
+                        <PortalAction
                           type="submit"
                           className="settings-primary settings-commercial-save settings-commercial-save--water"
                           disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                        >
-                          {isSaving ? "Saving..." : canManageCommercialSchedule ? "Schedule" : "Read only"}
-                        </button>
+                          icon={faCalendarDays} label={isSaving ? "Saving..." : canManageCommercialSchedule ? "Schedule" : "Read only"}
+                        />
                       </form>
                     );
                   })}
@@ -1474,6 +1475,27 @@ function AdminSettings({ profileOnly = false }) {
                 <details className="settings-commercial-new-water">
                   <summary>Add a Water price schedule</summary>
                   <form className="settings-form" onSubmit={addWaterPrice}>
+                    <SelectField
+                      label="Water product preset"
+                      fieldClassName="settings-select"
+                      value={getWaterProduct(newWaterPriceDraft.productKey)?.key || ""}
+                      disabled={Boolean(commercialSavingKey)}
+                      onChange={(event) => {
+                        const product = getWaterProduct(event.target.value);
+                        setNewWaterPriceDraft((previous) => ({
+                          ...previous,
+                          productKey: product?.key || "",
+                          productName: product?.name || "",
+                          price: "",
+                          minimumQuantity: "1",
+                        }));
+                      }}
+                    >
+                      <option value="">Custom product</option>
+                      {WATER_PRODUCTS.map((product) => (
+                        <option key={product.key} value={product.key}>{product.name}</option>
+                      ))}
+                    </SelectField>
                     <div className="settings-grid">
                       <label>
                         Product name
@@ -1504,7 +1526,6 @@ function AdminSettings({ profileOnly = false }) {
                           disabled={Boolean(commercialSavingKey)}
                           required
                         />
-                        <span className="settings-muted">Lowercase letters, numbers and hyphens.</span>
                       </label>
                       <SelectField
                         label="Price type"
@@ -1581,8 +1602,8 @@ function AdminSettings({ profileOnly = false }) {
                       <label className="settings-commercial-field">
                         <span className="settings-commercial-step">Effective date</span>
                         <span>Starts on</span>
-                        <input
-                          type="date"
+                        <DateField
+                          ariaLabel="New Water price effective date"
                           min={toDateInputValue()}
                           value={newWaterPriceDraft.effectiveDate}
                           onChange={(event) => setNewWaterPriceDraft((previous) => ({
@@ -1593,13 +1614,12 @@ function AdminSettings({ profileOnly = false }) {
                           required
                         />
                       </label>
-                      <button
+                      <PortalAction
                         type="submit"
                         className="settings-primary settings-commercial-save settings-commercial-save--water"
                         disabled={Boolean(commercialSavingKey)}
-                      >
-                        {commercialSavingKey === "water:new" ? "Saving..." : "Schedule price"}
-                      </button>
+                        icon={faCalendarDays} label={commercialSavingKey === "water:new" ? "Saving..." : "Schedule price"}
+                      />
                     </div>
                   </form>
                 </details>
@@ -1611,7 +1631,7 @@ function AdminSettings({ profileOnly = false }) {
                 <div>
                   <h3>Organization document identity</h3>
                   <p className="settings-muted">
-                    Shared business contact details used when preparing REEBS Core documents.
+                    Shared business contact details used when preparing REEBS documents.
                   </p>
                 </div>
                 {!canManageDocumentIdentity && (

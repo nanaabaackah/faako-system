@@ -4,7 +4,6 @@ import {
   resolveExpenseColumns,
   resolveExpenseTable,
 } from "./_shared/expenseAccounting.js";
-import { buildAttendantChargeExpenseRow } from "./_shared/bookingCharges.js";
 import { getAppliedAmount, PAYABLE_TYPES } from "../modules/payments/payableRepository.js";
 
 const json = (event, statusCode, body) =>
@@ -199,16 +198,9 @@ export async function handler(event = {}) {
       }
     }
 
-    const hasAttendantExpense = expenseRows.some((row) => {
-      const haystack = `${row.category || ""} ${row.description || ""}`.toLowerCase();
-      return haystack.includes("attendant");
-    });
-    const attendantExpense = buildAttendantChargeExpenseRow(bookingItems, {
-      date: bookingRow.eventDate || new Date().toISOString(),
-    });
-    const chargebackRows = attendantExpense && !hasAttendantExpense
-      ? [...expenseRows, attendantExpense]
-      : expenseRows;
+    // feeCents is the booking's recorded service charge and is rendered by the
+    // invoice builder. Do not invent a second expense using a current rate.
+    const chargebackRows = expenseRows;
 
     const expenses = chargebackRows.map((row) => ({
       id: row.id,
