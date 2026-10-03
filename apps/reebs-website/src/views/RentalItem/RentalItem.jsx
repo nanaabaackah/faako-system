@@ -17,6 +17,7 @@ import SiteLoader from "/src/components/SiteLoader/SiteLoader";
 import { applySeo, toAbsoluteUrl } from "/src/utils/seo";
 import { fetchInventoryWithCache } from "/src/utils/inventoryCache";
 import { getRentalCartItem } from "/src/utils/cartItems";
+import { findRentalDetail, normalizePublishedRental } from "/src/utils/rentalDetailData";
 import {
   createCatalogCssImageStyle,
   getCatalogItemBackground,
@@ -29,7 +30,6 @@ import {
   getFrontendRentalDetailPath,
   isFrontendRentalBookable,
   isFrontendRentalItem,
-  matchesFrontendRentalDetailSlug,
   shouldExcludeFrontendRental,
   slugifyRentalValue,
 } from "/src/utils/rentalCatalog";
@@ -159,15 +159,8 @@ function RentalItem({ initialRental = null }) {
   const { slug } = useParams();
   const navigate = useNavigate();
   const { convertPrice, formatCurrency } = useCart();
-  const [rentals, setRentals] = useState(() => initialRental ? [{
-    ...initialRental,
-    productId: initialRental.productId || initialRental.id,
-    sourceCategoryCode: "RENTAL",
-    specificCategory: initialRental.specificCategory || initialRental.category,
-    imageUrl: initialRental.imageUrl || initialRental.image,
-    quantity: initialRental.availability === "out-of-stock" ? 0 : 1,
-    status: initialRental.availability !== "out-of-stock",
-  }] : []);
+  const publishedRental = useMemo(() => normalizePublishedRental(initialRental), [initialRental]);
+  const [rentals, setRentals] = useState(() => publishedRental ? [publishedRental] : []);
   const [loading, setLoading] = useState(!initialRental);
   const [selectedBouncyType, setSelectedBouncyType] = useState(null);
   const [bouncyTypes, setBouncyTypes] = useState([]);
@@ -220,17 +213,14 @@ function RentalItem({ initialRental = null }) {
 const rental = useMemo(() => {
   if (!slug) return null;
   const normalized = slug.toLowerCase();
-  const directMatch =
-    rentals.find((item) => {
-      return matchesFrontendRentalDetailSlug(item, normalized);
-    }) || null;
+  const directMatch = findRentalDetail(rentals, normalized, publishedRental);
   if (directMatch) return directMatch;
   const bouncyMatch = bouncyTypes.find((type) => slugifyRentalValue(type.name) === normalized);
   if (bouncyMatch) {
     return rentals.find((item) => isBouncyCastleRental(item)) || null;
   }
   return null;
-}, [rentals, slug, bouncyTypes]);
+}, [rentals, slug, bouncyTypes, publishedRental]);
 
 useEffect(() => {
   if (!slug || !bouncyTypes.length) return;

@@ -109,7 +109,8 @@ test("mobile navigation and search remain keyboard-operable", async ({ page }) =
   await page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
   const menuButton = page.getByRole("button", { name: "Open menu" });
   await menuButton.focus();
-  await page.keyboard.press("Enter");
+  await expect(menuButton).toBeFocused();
+  await menuButton.press("Enter");
   await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toHaveClass(/is-open/);
   await page.getByRole("button", { name: "Open site search" }).first().click();
   const searchDialog = page.getByRole("dialog", { name: "Find pages, rentals, and shop" });
@@ -152,12 +153,23 @@ test("catalogues stay browsable while shop and rental actions are disabled", asy
   await page.goto("/shop", { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
   await expect(page.getByRole("button", { name: "Online ordering unavailable" }).first()).toBeDisabled();
+  await page.evaluate(() => sessionStorage.removeItem("reebs_inventory_cache_v2"));
+  const inventoryResponse = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/inventory"));
   await page.goto(rentalDetailPath, { waitUntil: "domcontentloaded" });
+  await inventoryResponse;
   await page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  // The live fixture deliberately contains other rentals, not this published
+  // detail. Hydration must not turn a valid static URL into a not-found page.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(catalogue.rentals[0].name);
   await expect(page.getByRole("button", { name: "Online booking unavailable" }).first()).toBeDisabled();
   for (const route of [rentalDetailPath, shopDetailPath]) {
     await page.goto(route, { waitUntil: "domcontentloaded" });
+    if (route === rentalDetailPath) {
+      // Revisit with the inventory cache populated as well as the fresh request above.
+      await page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(catalogue.rentals[0].name);
+      await expect(page.getByRole("button", { name: "Online booking unavailable" }).first()).toBeDisabled();
+    }
     const products = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => scripts.flatMap((script) => {
       const value = JSON.parse(script.textContent || "{}");
       return Array.isArray(value) ? value : value["@graph"] || [value];
@@ -167,16 +179,26 @@ test("catalogues stay browsable while shop and rental actions are disabled", asy
   }
 });
 
-test("critical storefront pages have no serious or critical axe violations", async ({ page }) => {
+test("critical storefront pages have no serious or critical axe violations", async ({ page }, testInfo) => {
   // Six navigations plus axe scans share this budget. Keep the same routes and
   // severity assertions while allowing a complete cold development-server pass.
   test.setTimeout(300_000);
   await page.setViewportSize({ width: 390, height: 844 });
+  // Scan the full, readable page rather than catching scroll-reveal text at
+  // partial opacity. The viewport and keyboard tests retain normal motion.
+  await page.emulateMedia({ reducedMotion: "reduce" });
 
   for (const route of ["/", "/shop", rentalDetailPath, "/book", "/checkout", "/missing-page"]) {
     await test.step(route, async () => {
       await page.goto(route, { waitUntil: "domcontentloaded" });
       await expect(page.locator("main")).toBeVisible({ timeout: 25_000 });
+      await page.waitForFunction(() => !document.querySelector("astro-island[ssr]"));
+      // Audit the hydrated consent controls too, not only the initial Astro HTML.
+      await expect(page.getByRole("region", { name: "Cookie settings", exact: true })).toBeVisible();
+      if (route === "/") {
+        await page.getByRole("region", { name: "Cookie settings", exact: true })
+          .screenshot({ path: testInfo.outputPath("cookie-banner.png") });
+      }
       await injectAxe(page);
       const violations = await getViolations(page);
       const blocking = violations.filter((violation) =>
@@ -187,6 +209,7 @@ test("critical storefront pages have no serious or critical axe violations", asy
           id: violation.id,
           impact: violation.impact,
           nodes: violation.nodes.length,
+          details: violation.nodes.map((node) => ({ target: node.target, failureSummary: node.failureSummary })),
         })),
         `${route} serious/critical accessibility violations`,
       ).toEqual([]);
