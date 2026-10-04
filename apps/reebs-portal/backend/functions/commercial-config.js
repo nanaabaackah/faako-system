@@ -8,12 +8,14 @@ import {
   buildCommercialRuleLockKey,
   buildEffectiveDatedOverlapPlan,
   buildWaterPriceLockKey,
+  classifyWaterPriceSchedule,
   getCommercialConfigDefinition,
   normalizeCommercialBusinessUnit,
   normalizeCommercialConfigValue,
   normalizeEffectiveWindow,
   normalizeProductKey,
   normalizeWaterProductPriceInput,
+  normalizeWaterPriceWindow,
   normalizeWaterPriceType,
   lockCommercialConfigurationKeys,
   selectSingleEffectiveRecord,
@@ -434,7 +436,6 @@ const createWaterPrice = async (
     productId: candidateProductId,
     productName: linkedProduct?.name || payload.productName,
   });
-  const window = normalizeEffectiveWindow(payload, { now });
   const lockKey = buildWaterPriceLockKey(
     organizationId,
     normalized.productKey,
@@ -457,6 +458,7 @@ const createWaterPrice = async (
   );
   const existingRows = existingResult.rows || [];
   existingRows.forEach(serializeWaterProductPrice);
+  const window = normalizeWaterPriceWindow(payload, { now, rows: existingRows });
   const plan = buildEffectiveDatedOverlapPlan(existingRows, window);
   await applyWaterPricePlan(client, plan, actorId);
   const inserted = await client.query(
@@ -494,7 +496,7 @@ const createWaterPrice = async (
 const auditCreatedRecord = async (
   client,
   event,
-  { organizationId, authUser, resourceType, result }
+  { organizationId, authUser, resourceType, result, now = new Date() }
 ) => {
   const isWaterPrice = resourceType === RESOURCE_TYPES.WATER_PRICE;
   const record = result.record;
@@ -516,6 +518,16 @@ const auditCreatedRecord = async (
     requestId: getEventHeader(event, "x-request-id"),
     ipAddress: getEventIpAddress(event),
     metadata: {
+      ...(isWaterPrice ? {
+        productId: record.productId,
+        productKey: record.productKey,
+        productName: record.productName,
+        priceType: record.priceType,
+        minimumQuantity: record.minimumQuantity,
+        priceCents: record.priceCents,
+        currency: record.currency,
+        scheduleType: classifyWaterPriceSchedule(record.effectiveFrom, now),
+      } : {}),
       businessUnit: isWaterPrice ? COMMERCIAL_BUSINESS_UNITS.WATER : record.businessUnit,
       setting: isWaterPrice ? `${record.productKey}:${record.priceType}` : record.key,
       oldValues: result.previousRecords.map((previous) => ({
@@ -608,6 +620,7 @@ const handlePost = async (client, event, { organizationId, authUser, payload }) 
       authUser,
       resourceType,
       result,
+      now,
     });
     await client.query("COMMIT");
     return json(event, 201, { resourceType, record: result.record });

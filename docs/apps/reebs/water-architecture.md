@@ -4,6 +4,10 @@ Status: local implementation extended 2026-10-01; deployed data/provider verific
 
 Release evidence and manual go-live checks: [Water release readiness](water-release-readiness.md).
 
+Historical product-price scheduling, effective-window safety and snapshot rules:
+[Water historical pricing](water-historical-pricing.md). This is a Water-only
+exception to the generic current/future commercial-rule scheduling restriction.
+
 ## Boundary
 
 Water is a standalone business domain inside the shared REEBS platform. It may reuse authentication, organisation scoping, customers, vendors, audit logging and the portal shell, but its stock, sales, payments, expenses, revenue and profitability remain Water-scoped.
