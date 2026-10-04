@@ -1,7 +1,7 @@
 import { DateField, InlineNotice, SelectField, useERPDialog } from "@faako/ui";
 import WaterCustomerPicker from "./WaterCustomerPicker";
 import { AppIcon } from "/src/components/Icon/Icon";
-import { faBoxArchive, faXmark, faFloppyDisk } from "/src/icons/iconSet";
+import { faBoxArchive, faXmark, faFloppyDisk, faMoneyCheckDollar } from "/src/icons/iconSet";
 import PortalAction from "../../../components/PortalAction/PortalAction";
 
 export default function WaterOrderEditorModal({
@@ -16,12 +16,10 @@ export default function WaterOrderEditorModal({
   closeOrderEditor,
   handleOrderSubmit,
   handleOrderDelete,
-  handleOrderPaymentMethodChange,
+  openCollection,
   normalizeChannel,
   normalizeSalePaymentStatus,
   getSalePaymentStatusLabel,
-  salePaymentOptions,
-  orderStatusOptions,
   formatDateTime,
   formatCurrency,
   saving,
@@ -128,45 +126,6 @@ export default function WaterOrderEditorModal({
               />
             </label>
             <label>
-              Payment
-              <SelectField
-                value={orderForm.paymentMethod}
-                onChangeValue={(nextValue) => handleOrderPaymentMethodChange(String(nextValue))}
-                ariaLabel="Payment method"
-              >
-                {salePaymentOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </SelectField>
-            </label>
-            <label>
-              Status
-              <SelectField
-                value={orderForm.paymentStatus}
-                onChangeValue={(nextValue) =>
-                  setOrderForm((prev) =>
-                    prev
-                      ? {
-                          ...prev,
-                          paymentStatus: normalizeSalePaymentStatus(String(nextValue), prev.paymentMethod),
-                        }
-                      : prev
-                  )
-                }
-                ariaLabel="Payment status"
-              >
-                {orderStatusOptions
-                  .filter((option) => option.value !== "all")
-                  .map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-              </SelectField>
-            </label>
-            <label>
               Date
               <DateField
                 value={orderForm.date}
@@ -211,14 +170,20 @@ export default function WaterOrderEditorModal({
             </div>
           </div>
 
+          <div className="water-order-modal-summary">
+            <div><span>{activeOrder?.legacyPaymentCompatibility ? "Legacy paid (unverified)" : "Collected"}</span><strong>{formatCurrency(activeOrder?.amountPaidCents)}</strong></div>
+            <div><span>Balance</span><strong>{formatCurrency(activeOrder?.balanceDueCents)}</strong></div>
+          </div>
+          <p className="admin-modal-meta">Payment history is separate. Use Record collection for money received; this form changes sale details only.</p>
           {orderError ? <InlineNotice tone="error" compact title="Order not saved" message={orderError} /> : null}
 
           <div className="water-order-modal-actions">
+            <PortalAction icon={faMoneyCheckDollar} label="Record collection" onClick={() => openCollection(activeOrder)} disabled={saving || loading || activeOrder?.legacyPaymentCompatibility || activeOrder?.balanceDueCents <= 0} />
             <PortalAction
               action="archive" icon={faBoxArchive} label="Archive order"
               className="admin-secondary water-order-delete-btn"
               onClick={(event) => handleOrderDelete(activeOrder, event)}
-              disabled={saving || loading}
+              disabled={saving || loading || activeOrder?.amountPaidCents > 0}
             />
             <PortalAction icon={faXmark} label="Cancel" onClick={closeOrderEditor} />
             <PortalAction type="submit" className="admin-primary" icon={faFloppyDisk} label={saving ? "Saving..." : "Save order"} disabled={saving || loading} />

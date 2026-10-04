@@ -1,5 +1,7 @@
 /* eslint-disable no-undef */
 import crypto from "crypto";
+import { loadWaterAppliedCollections, recordWaterCollection } from "../modules/water/settlement.js";
+import { deriveWaterSettlement } from "../../shared/waterSettlement.js";
 import { createDatabaseClient } from "./_shared/databaseClient.js";
 import { buildResponseHeaders } from "./_shared/http.js";
 import { createLogger } from "./_shared/logger.js";
@@ -365,6 +367,9 @@ export async function handler(event = {}) {
     return json(event, 400, { error: "The Water payment reference does not match the supplied sale context." });
   }
 
+  if (!Number.isSafeInteger(organizationId) || organizationId <= 0) {
+    return json(event, 400, { error: "An organization-scoped Water reference is required." });
+  }
   if (!saleId && !incomingReference) {
     return json(event, 400, { error: "A sale id or payment reference is required." });
   }
@@ -377,6 +382,7 @@ export async function handler(event = {}) {
     await ensureSaleTable(client);
     await client.query("BEGIN");
     transactionOpen = true;
+    await client.query("SELECT set_config('app.current_organization_id', $1, true)", [String(organizationId)]);
 
     let saleRes;
     if (saleId) {
@@ -390,6 +396,8 @@ export async function handler(event = {}) {
         `SELECT
            id,
            "organizationId",
+           "productKey",
+           "customerId",
            "paymentMethod",
            "paymentStatus",
            "paymentReference",
@@ -407,6 +415,8 @@ export async function handler(event = {}) {
         `SELECT
            id,
            "organizationId",
+           "productKey",
+           "customerId",
            "paymentMethod",
            "paymentStatus",
            "paymentReference",
@@ -414,10 +424,10 @@ export async function handler(event = {}) {
            "totalAmount",
            "paidAt"
          FROM "waterSale"
-         WHERE "paymentReference" = $1 AND "archivedAt" IS NULL
+         WHERE "paymentReference" = $1 AND "organizationId" = $2 AND "archivedAt" IS NULL
          LIMIT 1
          FOR UPDATE`,
-        [incomingReference]
+        [incomingReference, organizationId]
       );
     }
 
@@ -460,7 +470,6 @@ export async function handler(event = {}) {
       cleanText(payload.notificationId) ||
       cleanText(event.headers?.["x-reference-id"]) ||
       cleanText(event.headers?.["X-Reference-Id"]) ||
-      cleanText(sale.providerReference) ||
       null;
     const nextPaymentReference =
       cleanText(sale.paymentReference) ||
@@ -469,8 +478,12 @@ export async function handler(event = {}) {
       `WATER-${sale.organizationId}-${sale.id}`;
     const nextPaidAt =
       nextPaymentStatus === "paid"
-        ? parseDate(payload.paidAt || payload.date || sale.paidAt || new Date().toISOString())
+        ? parseDate(payload.paidAt || payload.date)
         : sale.paidAt || null;
+
+    if (nextPaymentStatus === "paid" && (!nextProviderReference || notifiedCurrency !== "GHS" || !payload.paidAt && !payload.date)) {
+      return json(event, 409, { error: "A successful Water payment must include currency GHS, transaction reference and collection date." });
+    }
 
     if (nextPaymentStatus === "paid" && (!notifiedAmount || notifiedAmount !== expectedAmount)) {
       return json(event, 409, {
@@ -534,39 +547,32 @@ export async function handler(event = {}) {
       });
     }
 
-    const currentStatus = cleanText(sale.paymentStatus).toLowerCase();
-    const appliedPaymentStatus = currentStatus === "paid" ? "paid" : nextPaymentStatus;
-    const appliedPaidAt = currentStatus === "paid" ? sale.paidAt : nextPaidAt;
-
-    const updateRes = await client.query(
-      `UPDATE "waterSale"
-       SET "paymentMethod" = $2,
-           "paymentStatus" = $3,
-           "paymentReference" = $4,
-           "providerReference" = $5,
-           "paidAt" = $6,
-           "updatedAt" = NOW()
-       WHERE id = $1
-         AND "organizationId" = $7
-         AND "archivedAt" IS NULL
-       RETURNING
-         id,
-         "organizationId",
-         "paymentMethod",
-         "paymentStatus",
-         "paymentReference",
-         "providerReference",
-         "paidAt"`,
-      [
-        sale.id,
-        nextPaymentMethod,
-        appliedPaymentStatus,
-        nextPaymentReference,
-        nextProviderReference,
-        appliedPaidAt,
-        sale.organizationId,
-      ]
-    );
+    let appliedPaymentStatus;
+    let settledSale;
+    if (nextPaymentStatus === "paid") {
+      const collection = await recordWaterCollection(client, {
+        organizationId: sale.organizationId, saleId: sale.id, productKey: sale.productKey,
+        amountCents: notifiedAmount, currency: notifiedCurrency, method: "momo",
+        provider: "WATER_MOMO", providerReference: nextProviderReference, source: "ONLINE_PROVIDER",
+        paidAt: nextPaidAt, requestId: getHeaderValue(event, "x-request-id"),
+        idempotencyKey: "water-momo:" + buildWaterWebhookFingerprint(nextProviderReference.toLowerCase(), String(sale.organizationId)),
+      });
+      const projection = collection.projection || deriveWaterSettlement(sale, await loadWaterAppliedCollections(client, sale.organizationId, sale.id));
+      appliedPaymentStatus = projection.paymentStatus;
+      settledSale = { id: sale.id, organizationId: sale.organizationId, ...projection };
+    } else {
+      const projection = deriveWaterSettlement(sale, await loadWaterAppliedCollections(client, sale.organizationId, sale.id));
+      appliedPaymentStatus = projection.amountPaidCents > 0 ? projection.paymentStatus : nextPaymentStatus;
+      // Pending/failed notifications are not collection facts. Do not replace
+      // sale intent, references or immutable collection dates with their data.
+      await client.query(
+        `UPDATE "waterSale" SET "paymentStatus" = $3,
+          "updatedAt" = GREATEST(clock_timestamp(), "updatedAt" + INTERVAL '1 millisecond')
+         WHERE "organizationId" = $1 AND id = $2 AND "productKey" = $4 AND "archivedAt" IS NULL`,
+        [sale.organizationId, sale.id, appliedPaymentStatus, sale.productKey]
+      );
+      settledSale = { id: sale.id, organizationId: sale.organizationId, paymentStatus: appliedPaymentStatus };
+    }
 
     await client.query(
       `UPDATE "waterMomoWebhookEvent"
@@ -581,15 +587,16 @@ export async function handler(event = {}) {
     return json(event, 200, {
       ok: true,
       idempotentReplay: false,
-      sale: updateRes.rows?.[0] || null,
+      sale: settledSale,
     });
   } catch (err) {
     if (transactionOpen) {
       await client.query("ROLLBACK").catch(() => {});
       transactionOpen = false;
     }
-    logger.error({ err, eventName: "water_momo_webhook.failed" }, "Water MoMo webhook failed");
-    return json(event, 500, { error: "Failed to process the MoMo notification." });
+    const statusCode = Number(err.statusCode) >= 400 && Number(err.statusCode) < 500 ? Number(err.statusCode) : 500;
+    logger.error({ code: err.code, requestId: getHeaderValue(event, "x-request-id"), eventName: "water_momo_webhook.failed" }, "Water MoMo webhook failed");
+    return json(event, statusCode, { error: statusCode < 500 ? err.message : "Failed to process the MoMo notification.", code: statusCode < 500 ? err.code : "WATER_WEBHOOK_FAILED" });
   } finally {
     if (transactionOpen) await client.query("ROLLBACK").catch(() => {});
     await client.end().catch(() => {});

@@ -220,6 +220,7 @@ function AdminSettings({ profileOnly = false }) {
     price: "",
     currency: "GHS",
     effectiveDate: toDateInputValue(),
+    effectiveEndDate: "",
   });
   const [advancedHealth, setAdvancedHealth] = useState({
     queuePending: 0,
@@ -307,16 +308,17 @@ function AdminSettings({ profileOnly = false }) {
       ]),
     ));
     setWaterPriceDrafts(Object.fromEntries(
-      groupWaterPriceSchedule(schedule).map(({ key, reference }) => [
-        key,
-        {
-          price: "",
-          minimumQuantity: String(reference?.minimumQuantity || 1),
-          currency: String(reference?.currency || "GHS").toUpperCase(),
-          effectiveDate,
-        },
-      ]),
-    ));
+    groupWaterPriceSchedule(schedule).map(({ key, reference }) => [
+      key,
+      {
+        price: "",
+        minimumQuantity: String(reference?.minimumQuantity || 1),
+        currency: String(reference?.currency || "GHS").toUpperCase(),
+        effectiveDate,
+        effectiveEndDate: "",
+      },
+    ]),
+  ));
   }, []);
 
   const loadCommercialSchedule = useCallback(async () => {
@@ -711,6 +713,7 @@ function AdminSettings({ profileOnly = false }) {
         price: "",
         currency: "GHS",
         effectiveDate: toDateInputValue(),
+        effectiveEndDate: "",
       });
       await loadCommercialSchedule();
     } catch (error) {
@@ -1304,21 +1307,20 @@ function AdminSettings({ profileOnly = false }) {
                             <span>{model.metadata.displayUnit}</span>
                           </div>
                         </label>
-                        <label className="settings-commercial-field">
-                          <span className="settings-commercial-step">Effective date</span>
-                          <span>Starts on</span>
-                          <DateField
-                            ariaLabel={`Effective date for ${model.definition.key}`}
-                            min={toDateInputValue()}
-                            value={draft.effectiveDate}
-                            onChange={(event) => setCommercialRuleDrafts((previous) => ({
+                        <WaterPricePeriodFields
+                          draft={newWaterPriceDraft}
+                          label="New Water price period"
+                          onChange={(changes) =>
+                            setNewWaterPriceDraft((previous) => ({
                               ...previous,
-                              [model.definition.key]: { ...draft, effectiveDate: event.target.value },
-                            }))}
-                            disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                            required={canManageCommercialSchedule}
-                          />
-                        </label>
+                              ...changes,
+                            }))
+                          }
+                          disabled={Boolean(commercialSavingKey)}
+                          required
+                        />
+
+                        <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
                         <PortalAction
                           type="submit"
                           className="settings-primary settings-commercial-save"
@@ -1379,8 +1381,9 @@ function AdminSettings({ profileOnly = false }) {
                     const draft = waterPriceDrafts[group.key] || {
                       price: "",
                       minimumQuantity: String(group.reference?.minimumQuantity || 1),
-                      currency: String(group.reference?.currency || "GHS"),
+                      currency: String(group.reference?.currency || "GHS").toUpperCase(),
                       effectiveDate: toDateInputValue(),
+                      effectiveEndDate: "",
                     };
                     const savingKey = `water:${group.key}`;
                     const isSaving = commercialSavingKey === savingKey;
