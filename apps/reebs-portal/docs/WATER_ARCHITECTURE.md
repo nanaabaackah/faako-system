@@ -149,8 +149,10 @@ Owners/admins should review Settings → Commercial for the selected product's
 Retail, Bulk retail and Company schedules and the Water discount limit. Do not
 invent fallback amounts or copy a price from another product. Current-day sales
 use the current commercial timestamp for date-only input; historical dates remain
-historical. The Settings scheduler deliberately does not backdate prices: a
-historical correction needs separate review and must preserve existing snapshots.
+historical. Owners/admins with `water-pricing:manage` can add historical Water
+product prices in Settings → Commercial. Generic commercial rules retain their
+current/future-only restriction. See [historical pricing](../../../docs/apps/reebs/water-historical-pricing.md)
+for interval rules, snapshot guarantees and staging verification.
 
 `backend/modules/water/actionErrors.js` permits only curated configuration/cost
 guidance to cross the HTTP adapter's 5xx-message boundary. Unknown failures remain

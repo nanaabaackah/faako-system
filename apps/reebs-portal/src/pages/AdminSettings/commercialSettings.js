@@ -73,7 +73,7 @@ const asDate = (value, fallback = new Date()) => {
 export const toDateInputValue = (value = new Date()) =>
   asDate(value).toISOString().slice(0, 10);
 
-export const toEffectiveFrom = (dateValue, now = new Date()) => {
+const parseEffectiveDate = (dateValue) => {
   const normalized = String(dateValue || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
     throw new Error("Choose a valid effective date.");
@@ -84,6 +84,12 @@ export const toEffectiveFrom = (dateValue, now = new Date()) => {
     throw new Error("Choose a valid effective date.");
   }
 
+  return parsed;
+};
+
+export const toEffectiveFrom = (dateValue, now = new Date()) => {
+  const parsed = parseEffectiveDate(dateValue);
+  const normalized = parsed.toISOString().slice(0, 10);
   const reference = asDate(now);
   const today = toDateInputValue(reference);
   if (normalized < today) {
@@ -270,7 +276,7 @@ const normalizeProductKey = (value) => {
   return normalized;
 };
 
-export const buildWaterPricePayload = (draft = {}, reference = {}, now = new Date()) => {
+export const buildWaterPricePayload = (draft = {}, reference = {}) => {
   const productName = String(draft.productName || reference.productName || "").trim();
   if (!productName || productName.length > 160) {
     throw new Error("Enter a Water product name of 160 characters or fewer.");
@@ -296,8 +302,15 @@ export const buildWaterPricePayload = (draft = {}, reference = {}, now = new Dat
     priceCents: Math.round(parseDecimal(draft.price, "New price", { positive: true }) * 100),
     currency,
   };
-  const effectiveFrom = toEffectiveFrom(draft.effectiveDate, now);
-  if (effectiveFrom) payload.effectiveFrom = effectiveFrom;
+  // Water prices cover Ghana calendar days, including historical dates and all of today.
+  // Generic commercial rules still use toEffectiveFrom's current/future-only guard.
+  payload.effectiveFrom = parseEffectiveDate(draft.effectiveDate).toISOString();
+  if (draft.effectiveEndDate) {
+    payload.effectiveTo = parseEffectiveDate(draft.effectiveEndDate).toISOString();
+    if (payload.effectiveTo <= payload.effectiveFrom) {
+      throw new Error("End date must be later than the effective date.");
+    }
+  }
   const productId = Number(reference.productId);
   if (Number.isInteger(productId) && productId > 0) payload.productId = productId;
   return payload;
