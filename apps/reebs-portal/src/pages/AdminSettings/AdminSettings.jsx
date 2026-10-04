@@ -1471,23 +1471,27 @@ function AdminSettings({ profileOnly = false }) {
                             </label>
                           </div>
                         </div>
-                        <WaterPricePeriodFields
-                          draft={draft}
-                          label={`Effective date for ${group.key}`}
-                          onChange={(changes) => setWaterPriceDrafts((previous) => ({
-                            ...previous,
-                            [group.key]: { ...draft, ...changes },
-                          }))}
-                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                          required={canManageCommercialSchedule}
-                        />
+                        <label className="settings-commercial-field">
+                          <span className="settings-commercial-step">Effective date</span>
+                          <span>Starts on</span>
+                          <DateField
+                            ariaLabel={`Effective date for ${group.key}`}
+                            min={toDateInputValue()}
+                            value={draft.effectiveDate}
+                            onChange={(event) => setWaterPriceDrafts((previous) => ({
+                              ...previous,
+                              [group.key]: { ...draft, effectiveDate: event.target.value },
+                            }))}
+                            disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                            required={canManageCommercialSchedule}
+                          />
+                        </label>
                         <PortalAction
                           type="submit"
                           className="settings-primary settings-commercial-save settings-commercial-save--water"
                           disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
                           icon={faCalendarDays} label={isSaving ? "Saving..." : canManageCommercialSchedule ? "Schedule" : "Read only"}
                         />
-                        <WaterPriceHistoricalNotice draft={draft} />
                       </form>
                     );
                   })}
@@ -1622,20 +1626,27 @@ function AdminSettings({ profileOnly = false }) {
                           </label>
                         </div>
                       </div>
-                      <WaterPricePeriodFields
-                        draft={newWaterPriceDraft}
-                        label="New Water price effective date"
-                        onChange={(changes) => setNewWaterPriceDraft((previous) => ({ ...previous, ...changes }))}
-                        disabled={Boolean(commercialSavingKey)}
-                        required
-                      />
+                      <label className="settings-commercial-field">
+                        <span className="settings-commercial-step">Effective date</span>
+                        <span>Starts on</span>
+                        <DateField
+                          ariaLabel="New Water price effective date"
+                          min={toDateInputValue()}
+                          value={newWaterPriceDraft.effectiveDate}
+                          onChange={(event) => setNewWaterPriceDraft((previous) => ({
+                            ...previous,
+                            effectiveDate: event.target.value,
+                          }))}
+                          disabled={Boolean(commercialSavingKey)}
+                          required
+                        />
+                      </label>
                       <PortalAction
                         type="submit"
                         className="settings-primary settings-commercial-save settings-commercial-save--water"
                         disabled={Boolean(commercialSavingKey)}
                         icon={faCalendarDays} label={commercialSavingKey === "water:new" ? "Saving..." : "Schedule price"}
                       />
-                      <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
                     </div>
                   </form>
                 </details>

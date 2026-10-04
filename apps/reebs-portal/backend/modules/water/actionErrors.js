@@ -1,7 +1,7 @@
 // Only curated business-configuration messages may cross the 5xx boundary.
 // Never expose arbitrary exception text (SQL, connection details, credentials).
 const CONFIGURATION_MESSAGES = Object.freeze({
-  MISSING_WATER_PRICE: "There is no Water price configured for this product, quantity and sale date. Ask an owner or admin to add a price for that period in Settings → Commercial. For a backdated sale, add the historical price; today's price is not used instead.",
+  MISSING_WATER_PRICE: "No effective selling price matches this Water product, quantity and sale date. Ask an owner or admin to review its price and minimum quantity in Settings → Commercial.",
   MISSING_COMMERCIAL_CONFIGURATION: "A required Water price or discount rule is missing for the selected date. Ask an owner or admin to review Settings → Commercial.",
   AMBIGUOUS_WATER_PRICE: "More than one Water selling price applies to this date. An owner or admin must reconcile the overlapping prices in Settings → Commercial.",
   AMBIGUOUS_COMMERCIAL_CONFIGURATION: "Overlapping Water commercial rules apply to this date. An owner or admin must reconcile them in Settings → Commercial.",
