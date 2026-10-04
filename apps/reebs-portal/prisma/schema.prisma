@@ -41,6 +41,8 @@ model Organization {
   waterExpenses   WaterExpense[]
   waterAdjustments WaterAdjustment[]
   waterProductConfigs WaterProductConfig[]
+  waterProductPrices WaterProductPrice[]
+  waterMutations WaterMutation[]
   accountingConfig AccountingConfig?
   websiteContents WebsiteContent[]
   accountingManualSales AccountingManualSales[]
@@ -223,6 +225,7 @@ model OrderEvent {
 }
 
 model Product {
+  waterPrices WaterProductPrice[]
   id                   Int      @id @default(autoincrement())
   organizationId       Int @default(1)
   organization         Organization @relation(fields: [organizationId], references: [id])
@@ -897,6 +900,12 @@ model WaterRestock {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?    @db.Timestamptz
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterRestock")
 }
@@ -941,6 +950,12 @@ model WaterSale {
   discountAmount  Int          @default(0)
   baseUnitPrice   Int?
   unitPrice       Int
+  standardUnitPrice Int?
+  waterProductPriceId Int?
+  waterProductPrice WaterProductPrice? @relation(fields: [waterProductPriceId], references: [id], onDelete: SetNull)
+  unitCostAtSaleCents Int?
+  priceOverriddenByUserId Int?
+  priceOverriddenAt DateTime?
   unitCostAtTransaction Int?
   priceOverrideReason String?
   priceOverrideActorId Int?
@@ -954,6 +969,14 @@ model WaterSale {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?
+  archivedByUserId Int?
+  archivedByName  String?
+
+  @@index([organizationId, waterProductPriceId], map: "waterSale_organizationId_waterProductPriceId_idx")
 
   @@map("waterSale")
 }
@@ -971,6 +994,12 @@ model WaterExpense {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterExpense")
 }
@@ -988,8 +1017,55 @@ model WaterAdjustment {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?    @db.Timestamptz
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterAdjustment")
+}
+
+model WaterProductPrice {
+  id Int @id @default(autoincrement())
+  organizationId Int @default(1)
+  organization Organization @relation(fields: [organizationId], references: [id])
+  productId Int?
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productKey String
+  productName String
+  priceType String
+  minimumQuantity Int @default(1)
+  priceCents Int
+  currency String @default("GHS")
+  effectiveFrom DateTime
+  effectiveTo DateTime?
+  active Boolean @default(true)
+  description String?
+  createdByUserId Int?
+  updatedByUserId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  sales WaterSale[]
+  // Active-only unique index and check constraints are maintained by SQL migrations.
+  @@index([organizationId, productKey, priceType, active, effectiveFrom, effectiveTo], map: "waterProductPrice_current_lookup_idx")
+  @@index([organizationId, productId], map: "waterProductPrice_organizationId_productId_idx")
+  @@map("waterProductPrice")
+}
+
+model WaterMutation {
+  id BigInt @id @default(autoincrement())
+  organizationId Int
+  organization Organization @relation(fields: [organizationId], references: [id])
+  productKey String
+  actorId Int
+  idempotencyKey String
+  requestFingerprint String
+  action String
+  createdAt DateTime @default(now()) @db.Timestamptz
+  @@unique([organizationId, idempotencyKey])
+  @@map("waterMutation")
 }
 
 model Booking {
