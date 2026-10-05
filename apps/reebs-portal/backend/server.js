@@ -330,6 +330,16 @@ export const createReebsApiServer = () => {
     dispatchFunctionRequest(req, res, "railwayEvents")
   );
 
+  app.options(Object.keys(REEBS_V1_HANDLER_ALIASES), (req, res, next) => {
+    const requestPath = new URL(
+      req.originalUrl || req.url || "/",
+      getRequestBaseUrl(req)
+    ).pathname;
+    const functionName = resolveReebsV1Handler(requestPath);
+    if (!functionName) return next();
+    return dispatchFunctionRequest(req, res, functionName);
+  });
+
   app.all(Object.keys(REEBS_V1_HANDLER_ALIASES), (req, res, next) => {
     const requestPath = new URL(
       req.originalUrl || req.url || "/",
@@ -339,6 +349,10 @@ export const createReebsApiServer = () => {
     if (!functionName) return next();
     return dispatchFunctionRequest(req, res, functionName);
   });
+
+  app.options("/api/:functionName", (req, res) =>
+    dispatchFunctionRequest(req, res, req.params.functionName)
+  );
 
   app.all("/api/:functionName", (req, res) =>
     dispatchFunctionRequest(req, res, req.params.functionName)

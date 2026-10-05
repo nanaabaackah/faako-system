@@ -1485,7 +1485,7 @@ function AdminSettings({ profileOnly = false }) {
                           }))}
                         />
                         <WaterPriceHistoricalNotice draft={draft} />
-                        <PortalAction
+                        <button
                           type="submit"
                           className="settings-primary settings-commercial-save settings-commercial-save--water"
                           disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
@@ -1637,7 +1637,7 @@ function AdminSettings({ profileOnly = false }) {
                         }))}
                       />
                       <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
-                      <PortalAction
+                      <button
                         type="submit"
                         className="settings-primary settings-commercial-save settings-commercial-save--water"
                         disabled={Boolean(commercialSavingKey)}
