@@ -14,6 +14,18 @@ import {
 
 const NOW = new Date("2026-08-15T12:30:00.000Z");
 
+test("Water alone accepts historical periods, whole current days and an exclusive end", () => {
+  const draft = { productKey: "gwater-15pk", productName: "15pk Gwater", priceType: "RETAIL", minimumQuantity: "1", price: "28", effectiveDate: "2026-03-01", effectiveEndDate: "2026-06-01" };
+  assert.equal(buildWaterPricePayload(draft, {}, NOW).effectiveFrom, "2026-03-01T00:00:00.000Z");
+  assert.equal(buildWaterPricePayload(draft, {}, NOW).effectiveTo, "2026-06-01T00:00:00.000Z");
+  assert.equal(buildWaterPricePayload({ ...draft, effectiveDate: "2026-08-15", effectiveEndDate: "" }, {}, NOW).effectiveFrom, "2026-08-15T00:00:00.000Z");
+  for (const effectiveDate of ["invalid", "2026-02-30"]) {
+    assert.throws(() => buildWaterPricePayload({ ...draft, effectiveDate }, {}, NOW), /valid effective date/);
+  }
+  assert.throws(() => buildWaterPricePayload({ ...draft, effectiveEndDate: "2026-03-01" }, {}, NOW), /later/);
+  assert.throws(() => toEffectiveFrom(draft.effectiveDate, NOW), /today or later/);
+});
+
 const coreDefinition = {
   businessUnit: "REEBS_CORE",
   key: "service_deposit_bps",
@@ -181,6 +193,16 @@ test("owners and admins can edit while managers and Water staff remain read only
     canViewCore: false,
     canViewWater: true,
   });
+});
+
+test("AdminSettings keeps Water historical dates separate from Core restrictions", () => {
+  const source = readFileSync(new URL("./AdminSettings.jsx", import.meta.url), "utf8");
+  assert.match(source, /<WaterPricePeriodFields[\s\S]*label=\{`Water price \$\{group\.key\}`\}/);
+  assert.match(source, /<WaterPricePeriodFields[\s\S]*label="New Water price"/);
+  assert.match(source, /WaterPriceHistoricalNotice draft=\{draft\} \/>/);
+  assert.match(source, /WaterPriceHistoricalNotice draft=\{newWaterPriceDraft\} \/>/);
+  assert.doesNotMatch(source, /ariaLabel=\{`Effective date for \$\{group\.key\}`\}[\s\S]*?min=\{toDateInputValue\(\)\}/);
+  assert.doesNotMatch(source, /ariaLabel="New Water price effective date"[\s\S]*?min=\{toDateInputValue\(\)\}/);
 });
 
 test("AdminSettings retires browser-only commercial controls and persists shared document identity", () => {

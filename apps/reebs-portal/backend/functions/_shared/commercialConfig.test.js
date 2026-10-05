@@ -11,6 +11,8 @@ import {
   lockCommercialConfigurationKeys,
   normalizeCommercialConfigValue,
   normalizeEffectiveWindow,
+  normalizeWaterPriceWindow,
+  classifyWaterPriceSchedule,
   normalizeWaterProductPriceInput,
   resolveCommercialValue,
   resolveWaterSalePrice,
@@ -75,6 +77,52 @@ const currentWaterPriceRow = (overrides = {}) => ({
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
   ...overrides,
+});
+
+test("Water historical windows validate dates without relaxing Core date restrictions", () => {
+  const now = new Date("2026-10-04T12:00:00Z");
+  const payload = { effectiveFrom: "2026-03-01", effectiveTo: "2026-06-01" };
+  assert.equal(normalizeWaterPriceWindow(payload, { now }).effectiveFrom.toISOString(), "2026-03-01T00:00:00.000Z");
+  assert.throws(() => normalizeEffectiveWindow(payload, { now }), { code: "PAST_EFFECTIVE_DATE" });
+  for (const effectiveFrom of ["invalid", "2026-02-30", "2026-13-01", "2026-03-01T99:00:00Z"]) {
+    assert.throws(() => normalizeWaterPriceWindow({ effectiveFrom }), { code: "INVALID_EFFECTIVE_DATE" });
+  }
+  for (const effectiveTo of ["2026-03-01", "2026-02-01"]) {
+    assert.throws(() => normalizeWaterPriceWindow({ ...payload, effectiveTo }), { code: "INVALID_EFFECTIVE_WINDOW" });
+  }
+  assert.equal(classifyWaterPriceSchedule("2026-03-01", now), "historical");
+  assert.equal(classifyWaterPriceSchedule("2026-10-04", now), "current");
+  assert.equal(classifyWaterPriceSchedule("2026-12-01", now), "future");
+});
+
+test("Water historical resolution uses quantity tiers and the transaction period, never today's price", async () => {
+  let rows = [
+    currentWaterPriceRow({ id: 1, priceCents: 3000, effectiveTo: "2026-09-01T00:00:00.000Z" }),
+    currentWaterPriceRow({ id: 2, priceCents: 2800, priceType: "BULK_RETAIL", minimumQuantity: 20, effectiveTo: "2026-09-01T00:00:00.000Z" }),
+    currentWaterPriceRow({ id: 3, priceCents: 3500, effectiveFrom: "2026-09-01T00:00:00.000Z" }),
+    currentWaterPriceRow({ id: 4, priceCents: 3300, priceType: "BULK_RETAIL", minimumQuantity: 20, effectiveFrom: "2026-09-01T00:00:00.000Z" }),
+  ];
+  const client = { async query(sql, values) {
+    assert.match(sql, /"organizationId" = \$1/);
+    assert.match(sql, /"productKey" = \$2/);
+    assert.match(sql, /"minimumQuantity" <= \$3/);
+    assert.match(sql, /"effectiveFrom" <= \$4/);
+    assert.match(sql, /"effectiveTo" > \$4/);
+    return { rows: rows.filter((row) => row.organizationId === values[0] && row.productKey === values[1]
+      && row.minimumQuantity <= values[2] && row.effectiveFrom <= values[3]
+      && (!row.effectiveTo || row.effectiveTo > values[3])) };
+  } };
+  const resolve = (quantity, at) => resolveWaterSalePrice(client, { organizationId: 7, productKey: "gwater-15pk", quantity, saleChannel: "retail", at });
+  for (const quantity of [1, 10, 19, 20, 21, 100, 10]) {
+    assert.equal((await resolve(quantity, "2026-07-20")).priceCents, quantity < 20 ? 3000 : 2800);
+    assert.equal((await resolve(quantity, "2026-10-10")).priceCents, quantity < 20 ? 3500 : 3300);
+  }
+  rows = rows.filter((row) => row.priceType === "RETAIL");
+  assert.equal((await resolve(100, "2026-07-20")).priceCents, 3000);
+  rows.push({ ...rows[0], id: 99 });
+  await assert.rejects(() => resolve(10, "2026-07-20"), { code: "AMBIGUOUS_WATER_PRICE" });
+  rows = rows.filter((row) => row.id === 3);
+  await assert.rejects(() => resolve(10, "2026-07-20"), { code: "MISSING_WATER_PRICE" });
 });
 
 test("commercial rules use typed calculation units instead of decimal money", () => {

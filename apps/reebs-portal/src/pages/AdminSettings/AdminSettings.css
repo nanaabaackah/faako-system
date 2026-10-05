@@ -330,6 +330,12 @@
   background: color-mix(in srgb, var(--card) 94%, rgba(14, 116, 144, 0.08));
 }
 
+.settings-water-historical-notice {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-weight: 400;
+}
+
 .settings-commercial-current,
 .settings-commercial-field {
   display: grid;
@@ -417,7 +423,7 @@
 
 .settings-commercial-price-fields {
   display: grid;
-  grid-template-columns: minmax(90px, 1fr) minmax(68px, 0.45fr) minmax(105px, 0.75fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 1fr);
   gap: 0.55rem;
 }
 
@@ -442,6 +448,7 @@
 }
 
 .settings-commercial-panel--water {
+  container-type: inline-size;
   border-color: rgba(14, 116, 144, 0.26);
   background:
     linear-gradient(145deg, rgba(236, 254, 255, 0.34), rgba(255, 255, 255, 0.04)),
@@ -576,11 +583,31 @@
 @media (max-width: 980px) {
   .settings-commercial-row,
   .settings-commercial-new-water-flow {
-    grid-template-columns: minmax(180px, 1fr) minmax(200px, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .settings-commercial-save {
     width: 100%;
+  }
+}
+
+/* Use available panel width: the portal navigation can reduce the content area
+   independently of the viewport width. */
+@container (max-width: 900px) {
+  .settings-commercial-row--water,
+  .settings-commercial-new-water-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-commercial-price-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 560px) {
+  .settings-commercial-row--water,
+  .settings-commercial-new-water-flow {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

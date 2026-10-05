@@ -36,6 +36,7 @@ import {
   groupWaterPriceSchedule,
   toDateInputValue,
 } from "./commercialSettings";
+import WaterPricePeriodFields, { WaterPriceHistoricalNotice } from "./WaterPricePeriodFields";
 import {
   DEFAULT_DOCUMENT_IDENTITY,
   cacheDocumentIdentity,
@@ -203,6 +204,7 @@ function AdminSettings({ profileOnly = false }) {
   const [portalSettingsError, setPortalSettingsError] = useState("");
   const [canManageDocumentIdentity, setCanManageDocumentIdentity] = useState(false);
   const [commercialSchedule, setCommercialSchedule] = useState(null);
+  const [waterScheduleView, setWaterScheduleView] = useState("schedule");
   const [commercialLoading, setCommercialLoading] = useState(false);
   const [commercialLoadError, setCommercialLoadError] = useState("");
   const [commercialSaveError, setCommercialSaveError] = useState("");
@@ -218,6 +220,7 @@ function AdminSettings({ profileOnly = false }) {
     price: "",
     currency: "GHS",
     effectiveDate: toDateInputValue(),
+    effectiveEndDate: "",
   });
   const [advancedHealth, setAdvancedHealth] = useState({
     queuePending: 0,
@@ -331,6 +334,12 @@ function AdminSettings({ profileOnly = false }) {
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load the shared commercial schedule.");
       }
+      if (canViewWaterPriceSchedule && waterScheduleView !== "schedule") {
+        const waterResponse = await fetch(`${COMMERCIAL_CONFIG_ENDPOINT}?businessUnit=WATER&view=${waterScheduleView}`);
+        const waterData = await waterResponse.json().catch(() => ({}));
+        if (!waterResponse.ok) throw new Error(waterData?.error || "Failed to load Water price history.");
+        data.waterPrices = waterData.waterPrices;
+      }
       setCommercialSchedule(data);
       hydrateCommercialDrafts(data);
     } catch (error) {
@@ -338,7 +347,7 @@ function AdminSettings({ profileOnly = false }) {
     } finally {
       setCommercialLoading(false);
     }
-  }, [canViewCommercialSchedule, hydrateCommercialDrafts]);
+  }, [canViewCommercialSchedule, canViewWaterPriceSchedule, hydrateCommercialDrafts, waterScheduleView]);
 
   useEffect(() => {
     if (activeTab !== "config") return;
@@ -703,6 +712,7 @@ function AdminSettings({ profileOnly = false }) {
         price: "",
         currency: "GHS",
         effectiveDate: toDateInputValue(),
+        effectiveEndDate: "",
       });
       await loadCommercialSchedule();
     } catch (error) {
@@ -1338,6 +1348,15 @@ function AdminSettings({ profileOnly = false }) {
                 )}
               </div>
 
+              {canViewWaterPriceSchedule && (
+                <SelectField label="Price period view" value={waterScheduleView}
+                  disabled={Boolean(commercialSavingKey)}
+                  onChange={(event) => setWaterScheduleView(event.target.value)}>
+                  <option value="current">Current</option>
+                  <option value="schedule">Schedule</option>
+                  <option value="history">History (all periods)</option>
+                </SelectField>
+              )}
               {commercialLoading && canViewWaterPriceSchedule && !canViewCoreCommercialSchedule && (
                 <AnimatedLoadingState
                   compact
@@ -1354,7 +1373,7 @@ function AdminSettings({ profileOnly = false }) {
                 </p>
               ) : !commercialLoading && !commercialLoadError && waterPriceGroups.length === 0 ? (
                 <p className="settings-commercial-empty settings-commercial-empty--water">
-                  No Water prices have been scheduled yet.
+                  No Water prices match this view. Choose History to see all recorded periods.
                 </p>
               ) : (
                 <div className="settings-commercial-list">
@@ -1364,6 +1383,7 @@ function AdminSettings({ profileOnly = false }) {
                       minimumQuantity: String(group.reference?.minimumQuantity || 1),
                       currency: String(group.reference?.currency || "GHS"),
                       effectiveDate: toDateInputValue(),
+                      effectiveEndDate: "",
                     };
                     const savingKey = `water:${group.key}`;
                     const isSaving = commercialSavingKey === savingKey;
@@ -1389,6 +1409,16 @@ function AdminSettings({ profileOnly = false }) {
                               {formatScheduleDate(group.upcoming.effectiveFrom)}
                             </small>
                           )}
+                          <details>
+                            <summary>Price periods</summary>
+                            {group.records.map((record) => (
+                              <p className="settings-muted" key={record.id}>
+                                {formatWaterPrice(record)} · Minimum {record.minimumQuantity} units<br />
+                                {formatScheduleDate(record.effectiveFrom)} → {record.effectiveTo ? `${formatScheduleDate(record.effectiveTo)} (exclusive)` : "Open"}
+                                {record.active === false ? " · Superseded" : ""}
+                              </p>
+                            ))}
+                          </details>
                         </div>
                         <div className="settings-commercial-field settings-commercial-field--price">
                           <span className="settings-commercial-step">New</span>
@@ -1447,8 +1477,8 @@ function AdminSettings({ profileOnly = false }) {
                         <label className="settings-commercial-field">
                           <span className="settings-commercial-step">Effective date</span>
                           <span>Starts on</span>
-                          <DateField
-                            ariaLabel={`Effective date for ${group.key}`}
+                          <input
+                            type="date"
                             min={toDateInputValue()}
                             value={draft.effectiveDate}
                             onChange={(event) => setWaterPriceDrafts((previous) => ({
@@ -1459,7 +1489,7 @@ function AdminSettings({ profileOnly = false }) {
                             required={canManageCommercialSchedule}
                           />
                         </label>
-                        <PortalAction
+                        <button
                           type="submit"
                           className="settings-primary settings-commercial-save settings-commercial-save--water"
                           disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
@@ -1602,8 +1632,8 @@ function AdminSettings({ profileOnly = false }) {
                       <label className="settings-commercial-field">
                         <span className="settings-commercial-step">Effective date</span>
                         <span>Starts on</span>
-                        <DateField
-                          ariaLabel="New Water price effective date"
+                        <input
+                          type="date"
                           min={toDateInputValue()}
                           value={newWaterPriceDraft.effectiveDate}
                           onChange={(event) => setNewWaterPriceDraft((previous) => ({
@@ -1614,7 +1644,7 @@ function AdminSettings({ profileOnly = false }) {
                           required
                         />
                       </label>
-                      <PortalAction
+                      <button
                         type="submit"
                         className="settings-primary settings-commercial-save settings-commercial-save--water"
                         disabled={Boolean(commercialSavingKey)}

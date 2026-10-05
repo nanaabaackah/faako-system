@@ -322,6 +322,43 @@ export const normalizeEffectiveWindow = (
   return { effectiveFrom: from, effectiveTo: to };
 };
 
+// Water price history is editable policy, not a rewrite of sale snapshots.
+// Keep the generic commercial-rule date restriction unchanged.
+export const normalizeWaterPriceWindow = (payload = {}, { now = new Date(), rows = [] } = {}) => {
+  for (const field of ["effectiveFrom", "effectiveTo"]) {
+    const value = payload[field];
+    if (value === undefined || value === null || value === "" || value instanceof Date) continue;
+    const calendarDate = String(value).match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/)?.[1];
+    const parsed = calendarDate && new Date(`${calendarDate}T00:00:00.000Z`);
+    if (!parsed || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== calendarDate) {
+      throw configurationError(`${field} must be a valid ISO date.`, "INVALID_EFFECTIVE_DATE");
+    }
+  }
+  const window = normalizeEffectiveWindow(payload, { now, allowPast: true });
+  const nextStart = rows
+    .filter((row) => row.active !== false)
+    .map((row) => parseDate(row.effectiveFrom, "effectiveFrom"))
+    .filter((date) => date > window.effectiveFrom)
+    .sort((a, b) => a - b)[0];
+  if (nextStart && window.effectiveTo && window.effectiveTo > nextStart) {
+    throw configurationError(
+      `This period crosses an existing Water price schedule. End it on or before ${nextStart.toISOString()}.`,
+      "WATER_PRICE_SCHEDULE_CONFLICT",
+      409
+    );
+  }
+  // An omitted end means until the next schedule, not replacement of all later prices.
+  if (nextStart && !window.effectiveTo) window.effectiveTo = nextStart;
+  return window;
+};
+
+export const classifyWaterPriceSchedule = (effectiveFrom, now = new Date()) => {
+  const from = parseDate(effectiveFrom, "effectiveFrom");
+  const reference = parseDate(now, "now");
+  if (from.toISOString().slice(0, 10) < reference.toISOString().slice(0, 10)) return "historical";
+  return from > reference ? "future" : "current";
+};
+
 const parseStoredEffectiveWindow = (row) => {
   try {
     if (!row?.effectiveFrom) throw new TypeError("effectiveFrom is required");
