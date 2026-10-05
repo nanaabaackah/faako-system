@@ -1474,21 +1474,17 @@ function AdminSettings({ profileOnly = false }) {
                             </label>
                           </div>
                         </div>
-                        <label className="settings-commercial-field">
-                          <span className="settings-commercial-step">Effective date</span>
-                          <span>Starts on</span>
-                          <input
-                            type="date"
-                            min={toDateInputValue()}
-                            value={draft.effectiveDate}
-                            onChange={(event) => setWaterPriceDrafts((previous) => ({
-                              ...previous,
-                              [group.key]: { ...draft, effectiveDate: event.target.value },
-                            }))}
-                            disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                            required={canManageCommercialSchedule}
-                          />
-                        </label>
+                        <WaterPricePeriodFields
+                          label={`Water price ${group.key}`}
+                          draft={draft}
+                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                          required={canManageCommercialSchedule}
+                          onChange={(changes) => setWaterPriceDrafts((previous) => ({
+                            ...previous,
+                            [group.key]: { ...draft, ...changes },
+                          }))}
+                        />
+                        <WaterPriceHistoricalNotice draft={draft} />
                         <button
                           type="submit"
                           className="settings-primary settings-commercial-save settings-commercial-save--water"
@@ -1629,21 +1625,17 @@ function AdminSettings({ profileOnly = false }) {
                           </label>
                         </div>
                       </div>
-                      <label className="settings-commercial-field">
-                        <span className="settings-commercial-step">Effective date</span>
-                        <span>Starts on</span>
-                        <input
-                          type="date"
-                          min={toDateInputValue()}
-                          value={newWaterPriceDraft.effectiveDate}
-                          onChange={(event) => setNewWaterPriceDraft((previous) => ({
-                            ...previous,
-                            effectiveDate: event.target.value,
-                          }))}
-                          disabled={Boolean(commercialSavingKey)}
-                          required
-                        />
-                      </label>
+                      <WaterPricePeriodFields
+                        label="New Water price"
+                        draft={newWaterPriceDraft}
+                        disabled={Boolean(commercialSavingKey)}
+                        required
+                        onChange={(changes) => setNewWaterPriceDraft((previous) => ({
+                          ...previous,
+                          ...changes,
+                        }))}
+                      />
+                      <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
                       <button
                         type="submit"
                         className="settings-primary settings-commercial-save settings-commercial-save--water"
