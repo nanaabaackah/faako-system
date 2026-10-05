@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const appRoot = new URL("..", import.meta.url).pathname;
+const appRoot = fileURLToPath(new URL("..", import.meta.url));
 const distRoot = join(appRoot, "dist");
 const headersPath = join(distRoot, "_headers");
 const marker = "__ASTRO_SCRIPT_HASHES__";
