@@ -31,7 +31,7 @@ pnpm run dev:faako
 ## Current System Notes
 
 - Astro pre-renders the public routes; authenticated ERP and API workspaces remain separate
-- the signup flow calls `VITE_API_BASE_URL` when configured, while local development can use the `/api` proxy
+- the signup flow calls `VITE_API_BASE_URL` when configured; production builds default an unset or `/api` value to `https://api.faako.nanaabaackah.com`, while local development uses the `/api` proxy
 - local development proxies `/api/*` to the Faako API through Astro
 - the signup page is a client onboarding intake wizard, and `/client-setup` is a lighter client setup wizard with product-specific follow-up questions
 - public intake forms should not collect API keys, passwords, tokens, private email credentials, or bank login details

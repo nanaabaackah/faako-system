@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-const appRoot = new URL("..", import.meta.url).pathname;
+const appRoot = fileURLToPath(new URL("..", import.meta.url));
 const distRoot = join(appRoot, "dist");
 
 const routes = [
@@ -102,8 +103,12 @@ test("404, error, redirects, and forms use the Astro deployment contract", () =>
   assert.ok(!redirects.includes("index.html 200"), "SPA fallback must not remain");
   const signupAction = signup.match(/<form[^>]+action="([^"]+)"/)?.[1];
   const setupAction = clientSetup.match(/<form[^>]+action="([^"]+)"/)?.[1];
-  assert.ok(new URL(signupAction, "https://faako.invalid").pathname.endsWith("/signup"));
-  assert.ok(new URL(setupAction, "https://faako.invalid").pathname.endsWith("/signup"));
+  const signupActionUrl = new URL(signupAction, "https://faako.invalid");
+  const setupActionUrl = new URL(setupAction, "https://faako.invalid");
+  assert.equal(signupActionUrl.origin, "https://api.faako.nanaabaackah.com");
+  assert.equal(setupActionUrl.origin, "https://api.faako.nanaabaackah.com");
+  assert.ok(signupActionUrl.pathname.endsWith("/signup"));
+  assert.ok(setupActionUrl.pathname.endsWith("/signup"));
   assert.match(contact, /action="mailto:hello@faako\.nanaabaackah\.com"/);
 });
 

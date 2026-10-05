@@ -1475,15 +1475,16 @@ function AdminSettings({ profileOnly = false }) {
                           </div>
                         </div>
                         <WaterPricePeriodFields
+                          label={`Water price ${group.key}`}
                           draft={draft}
-                          label={`Effective date for ${group.key}`}
+                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                          required={canManageCommercialSchedule}
                           onChange={(changes) => setWaterPriceDrafts((previous) => ({
                             ...previous,
                             [group.key]: { ...draft, ...changes },
                           }))}
-                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                          required={canManageCommercialSchedule}
                         />
+                        <WaterPriceHistoricalNotice draft={draft} />
                         <PortalAction
                           type="submit"
                           className="settings-primary settings-commercial-save settings-commercial-save--water"
@@ -1626,12 +1627,16 @@ function AdminSettings({ profileOnly = false }) {
                         </div>
                       </div>
                       <WaterPricePeriodFields
+                        label="New Water price"
                         draft={newWaterPriceDraft}
-                        label="New Water price effective date"
-                        onChange={(changes) => setNewWaterPriceDraft((previous) => ({ ...previous, ...changes }))}
                         disabled={Boolean(commercialSavingKey)}
                         required
+                        onChange={(changes) => setNewWaterPriceDraft((previous) => ({
+                          ...previous,
+                          ...changes,
+                        }))}
                       />
+                      <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
                       <PortalAction
                         type="submit"
                         className="settings-primary settings-commercial-save settings-commercial-save--water"

@@ -195,6 +195,16 @@ test("owners and admins can edit while managers and Water staff remain read only
   });
 });
 
+test("AdminSettings keeps Water historical dates separate from Core restrictions", () => {
+  const source = readFileSync(new URL("./AdminSettings.jsx", import.meta.url), "utf8");
+  assert.match(source, /<WaterPricePeriodFields[\s\S]*label=\{`Water price \$\{group\.key\}`\}/);
+  assert.match(source, /<WaterPricePeriodFields[\s\S]*label="New Water price"/);
+  assert.match(source, /WaterPriceHistoricalNotice draft=\{draft\} \/>/);
+  assert.match(source, /WaterPriceHistoricalNotice draft=\{newWaterPriceDraft\} \/>/);
+  assert.doesNotMatch(source, /ariaLabel=\{`Effective date for \$\{group\.key\}`\}[\s\S]*?min=\{toDateInputValue\(\)\}/);
+  assert.doesNotMatch(source, /ariaLabel="New Water price effective date"[\s\S]*?min=\{toDateInputValue\(\)\}/);
+});
+
 test("AdminSettings retires browser-only commercial controls and persists shared document identity", () => {
   const source = readFileSync(new URL("./AdminSettings.jsx", import.meta.url), "utf8");
   assert.match(source, /Legacy browser-only currency, tax and transport controls remain retired/);
