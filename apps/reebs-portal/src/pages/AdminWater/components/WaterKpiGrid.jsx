@@ -92,10 +92,13 @@ export default function WaterKpiGrid({
             <div><dt>Water stock costs</dt><dd>{formatOptionalCurrency(trackingSummary.costOfGoodsSold)}</dd></div>
             <div><dt>Extra expenses</dt><dd>{formatCurrency(trackingSummary.extraExpenses)}</dd></div>
             <div><dt>Cash position</dt><dd>{formatOptionalCurrency(trackingSummary.cashPosition)}</dd></div>
-            <div><dt>Outstanding credit</dt><dd>{formatCurrency(trackingSummary.outstandingCredit)} · {totalCreditCount} orders</dd></div>
+            <div><dt>Current outstanding balance</dt><dd>{formatCurrency(liveSummary.outstandingBalance)}</dd></div>
+            <div><dt>Current credit balance</dt><dd>{formatCurrency(liveSummary.outstandingCredit)} · {totalCreditCount} sales</dd></div>
             <div><dt>Cash sales</dt><dd>{formatCurrency(trackingSummary.cashSalesTotal)} · {formatCurrency(trackingSummary.pendingCash)} pending</dd></div>
             <div><dt>MoMo sales</dt><dd>{formatCurrency(trackingSummary.momoSalesTotal)} · {formatCurrency(trackingSummary.pendingMomo)} pending</dd></div>
-            <div><dt>Collected</dt><dd>{formatCurrency(trackingSummary.cashCollected)}</dd></div>
+            <div><dt>Collected by payment date</dt><dd>{formatCurrency(trackingSummary.cashCollected)}</dd></div>
+            <div><dt>Mobile Money collected</dt><dd>{formatCurrency(trackingSummary.momoCollections)}</dd></div>
+            <div><dt>Legacy paid, not verified collections</dt><dd>{formatCurrency(trackingSummary.legacyPaidTotal)} · {trackingSummary.legacyPaidSaleCount} sales</dd></div>
           </dl>
         </section>
       ) : null}

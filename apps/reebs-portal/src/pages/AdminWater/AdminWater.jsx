@@ -11,11 +11,13 @@ import WaterKpiGrid from "./components/WaterKpiGrid";
 import WaterLedgersSection from "./components/WaterLedgersSection";
 import WaterLedgerEditorModal from "./components/WaterLedgerEditorModal";
 import WaterOperationsGrid from "./components/WaterOperationsGrid";
+import WaterCollectionModal from "../../modules/water/components/WaterCollectionModal";
 import WaterOrderEditorModal from "./components/WaterOrderEditorModal";
 import WaterOrderFormCard from "./components/WaterOrderFormCard";
 import WaterRestockCard from "./components/WaterRestockCard";
 import { reebsApiResponse } from "../../api/client";
-import { calculateWaterCostBasis } from "../../../shared/waterFinancials.js";
+import { buildWaterSummary } from "../../../shared/waterReporting.js";
+import { postWaterCommand } from "../../modules/water/api/commands.js";
 import { DEFAULT_WATER_PRODUCT_KEY, WATER_PRODUCTS, getWaterProduct } from "../../../shared/waterProducts.js";
 
 const WATER_SUPPLIER_NAME = "Ghana Water";
@@ -37,6 +39,7 @@ const SALE_DISCOUNT_OPTIONS = [
 const ORDER_STATUS_FILTER_OPTIONS = [
   { value: "all", label: "All" },
   { value: "paid", label: "Paid" },
+  { value: "partially_paid", label: "Partially paid" },
   { value: "pending", label: "Pending" },
   { value: "unpaid", label: "Unpaid" },
 ];
@@ -330,96 +333,19 @@ const normalizeSaleDiscountType = (value) => {
 
 const normalizeSalePaymentStatus = (value, paymentMethod = "cash") => {
   const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "partially_paid") return "partially_paid";
   if (normalized === "paid") return "paid";
   if (normalized === "pending") return "pending";
   if (normalized === "unpaid") return "unpaid";
   const method = normalizeSalePaymentMethod(paymentMethod);
   if (method === "credit") return "unpaid";
+  if (method === "momo") return "pending";
   return "paid";
-};
-
-const buildWaterSummary = ({
-  restocks = [],
-  sales = [],
-  expenses = [],
-  adjustments = [],
-  currentCostPrice = null,
-}) => {
-  const resolvedCurrentCost = Number(currentCostPrice) > 0 ? Number(currentCostPrice) : null;
-  const unitsRestocked = restocks.reduce((sum, row) => sum + toNumber(row?.quantity), 0);
-  const unitsSold = sales.reduce((sum, row) => sum + toNumber(row?.quantity), 0);
-  const adjustmentUnits = adjustments.reduce((sum, row) => sum + toNumber(row?.quantityDelta), 0);
-  const stockOnHand = Math.max(0, unitsRestocked - unitsSold + adjustmentUnits);
-  const revenue = sales.reduce((sum, row) => sum + toNumber(row?.totalAmount), 0);
-  const cashCollected = sales.reduce((sum, row) => {
-    return normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid"
-      ? sum + toNumber(row?.totalAmount)
-      : sum;
-  }, 0);
-  const outstandingCredit = sales.reduce((sum, row) => {
-    const isCollected = normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
-    return normalizeSalePaymentMethod(row?.paymentMethod) === "credit" && !isCollected
-      ? sum + toNumber(row?.totalAmount)
-      : sum;
-  }, 0);
-  const cashSalesTotal = sales.reduce((sum, row) => {
-    return normalizeSalePaymentMethod(row?.paymentMethod) === "cash"
-      ? sum + toNumber(row?.totalAmount)
-      : sum;
-  }, 0);
-  const momoSalesTotal = sales.reduce((sum, row) => {
-    return normalizeSalePaymentMethod(row?.paymentMethod) === "momo"
-      ? sum + toNumber(row?.totalAmount)
-      : sum;
-  }, 0);
-  const pendingCash = sales.reduce((sum, row) => {
-    const isCollected = normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
-    return normalizeSalePaymentMethod(row?.paymentMethod) === "cash" && !isCollected
-      ? sum + toNumber(row?.totalAmount)
-      : sum;
-  }, 0);
-  const pendingMomo = sales.reduce((sum, row) => {
-    const isCollected = normalizeSalePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
-    return normalizeSalePaymentMethod(row?.paymentMethod) === "momo" && !isCollected
-      ? sum + toNumber(row?.totalAmount)
-      : sum;
-  }, 0);
-  const extraExpenses = expenses.reduce((sum, row) => sum + toNumber(row?.amount), 0);
-  const { restockSpend, costOfGoodsSold, inventoryValue, profitabilityAvailable,
-    missingCostSaleCount, missingCostRestockCount } = calculateWaterCostBasis({
-    restocks, sales, stockOnHand, currentUnitCost: resolvedCurrentCost,
-  });
-  const grossProfit = profitabilityAvailable ? revenue - costOfGoodsSold : null;
-  const netProfit = profitabilityAvailable ? grossProfit - extraExpenses : null;
-  const cashPosition = restockSpend === null ? null : cashCollected - restockSpend - extraExpenses;
-
-  return {
-    stockOnHand,
-    unitsRestocked,
-    unitsSold,
-    adjustmentUnits,
-    revenue,
-    restockSpend,
-    extraExpenses,
-    costOfGoodsSold,
-    grossProfit,
-    netProfit,
-    cashCollected,
-    outstandingCredit,
-    cashSalesTotal,
-    momoSalesTotal,
-    pendingCash,
-    pendingMomo,
-    cashPosition,
-    inventoryValue,
-    profitabilityAvailable,
-    missingCostSaleCount,
-    missingCostRestockCount,
-  };
 };
 
 const getSalePaymentStatusLabel = (value, paymentMethod = "cash") => {
   const normalized = normalizeSalePaymentStatus(value, paymentMethod);
+  if (normalized === "partially_paid") return "Partially paid";
   if (normalized === "paid") return "Paid";
   if (normalized === "unpaid") return "Unpaid";
   return "Pending";
@@ -475,6 +401,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
   const [orderStatusFilter, setOrderStatusFilter] = useState("all");
   const [stockPeriodFilter, setStockPeriodFilter] = useState("current");
   const [activeOrderId, setActiveOrderId] = useState(null);
+  const [collectionSaleId, setCollectionSaleId] = useState(null);
   const [orderForm, setOrderForm] = useState(null);
   const [orderError, setOrderError] = useState("");
   const [orderCustomerMenuOpen, setOrderCustomerMenuOpen] = useState(false);
@@ -597,15 +524,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
     setError("");
     setStatus("");
     try {
-      const response = await reebsApiResponse("/api/water", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, ...payload, productKey: product.key }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) {
-        throw new Error(data?.error || "Failed to save water module activity.");
-      }
+      const data = await postWaterCommand({ action, ...payload, productKey: product.key });
       if (data?.product?.key !== product.key) {
         setDashboard(buildDefaultDashboard(product));
         throw new Error("The API returned a different Water product. Refresh and verify the saved record before trying again.");
@@ -635,6 +554,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
   const retailPriceCents = Math.max(0, toNumber(pricing?.retailSingle, 0));
   const permissions = dashboard?.permissions || buildDefaultDashboard().permissions;
   const dashboardRestocks = Array.isArray(dashboard?.restocks) ? dashboard.restocks : [];
+  const collections = useMemo(() => Array.isArray(dashboard?.collections) ? dashboard.collections : [], [dashboard]);
   const dashboardSales = Array.isArray(dashboard?.sales) ? dashboard.sales : [];
   const dashboardExpenses = Array.isArray(dashboard?.expenses) ? dashboard.expenses : [];
   const dashboardAdjustments = Array.isArray(dashboard?.adjustments) ? dashboard.adjustments : [];
@@ -654,6 +574,14 @@ function WaterProductWorkspace({ product, onProductChange }) {
     () => dashboardAdjustments.filter((entry) => !removedRecordIds.adjustment.includes(Number(entry.id))),
     [dashboardAdjustments, removedRecordIds.adjustment]
   );
+  const collectionSale = sales.find((sale) => Number(sale.id) === Number(collectionSaleId));
+  const openCollection = (sale, event) => {
+    event?.stopPropagation();
+    closeOrderEditor();
+    closeLedgerEditor();
+    setError("");
+    setCollectionSaleId(sale.id);
+  };
   const productPurchaseCost = Number(dashboard?.product?.purchaseCost) > 0
     ? Number(dashboard.product.purchaseCost)
     : null;
@@ -673,9 +601,10 @@ function WaterProductWorkspace({ product, onProductChange }) {
         sales,
         expenses,
         adjustments,
+        collections,
         currentCostPrice: productPurchaseCost,
       }),
-    [adjustments, expenses, productPurchaseCost, restocks, sales]
+    [adjustments, collections, expenses, productPurchaseCost, restocks, sales]
   );
   const restockPeriods = useMemo(() => buildRestockPeriods(restocks, formatDate), [restocks]);
   const currentStockPeriod = useMemo(
@@ -709,6 +638,9 @@ function WaterProductWorkspace({ product, onProductChange }) {
     () => filterEntriesByRestockPeriod(adjustments, activeStockPeriod),
     [activeStockPeriod, adjustments]
   );
+  const trackedCollections = useMemo(() => filterEntriesByRestockPeriod(
+    collections.map((row) => ({ ...row, date: row.paidAt })), activeStockPeriod
+  ), [collections, activeStockPeriod]);
   const trackedSummary = useMemo(
     () =>
       buildWaterSummary({
@@ -716,9 +648,11 @@ function WaterProductWorkspace({ product, onProductChange }) {
         sales: trackedSales,
         expenses: trackedExpenses,
         adjustments: trackedAdjustments,
+        collections: trackedCollections,
+        liveSummary: summary,
         currentCostPrice: productPurchaseCost,
       }),
-    [productPurchaseCost, trackedAdjustments, trackedExpenses, trackedRestocks, trackedSales]
+    [productPurchaseCost, summary, trackedCollections, trackedAdjustments, trackedExpenses, trackedRestocks, trackedSales]
   );
   const stockPeriodOptions = useMemo(
     () => [
@@ -1227,7 +1161,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
       providerReference: sale?.providerReference || "",
       date: sale?.date ? String(sale.date).slice(0, 10) : todayValue(),
       notes: sale?.notes || "",
-      updatedAt: sale?.updatedAt || "",
+      updatedAt: sale?.updatedAt || sale?.createdAt || "",
       updatedByName: sale?.updatedByName || "",
     });
   };
@@ -1290,8 +1224,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
         saleId: orderForm.id,
         quantity: orderForm.quantity,
         saleChannel: orderForm.saleChannel,
-        paymentMethod: orderForm.paymentMethod,
-        paymentStatus: orderForm.paymentStatus,
+        expectedUpdatedAt: orderForm.updatedAt,
         ...(orderPriceChanged
           ? {
               unitPrice: orderForm.unitPrice,
@@ -1324,7 +1257,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
         : window.confirm(`Archive order #${saleId} for ${customerLabel}?`);
     if (!shouldDelete) return;
     setOrderError("");
-    const deleted = await handleAction("delete_sale", { saleId }, "Water order archived.");
+    const deleted = await handleAction("delete_sale", { saleId, expectedUpdatedAt: sale.updatedAt || sale.createdAt }, "Water order archived.");
     if (!deleted) {
       if (Number(activeOrderId) === saleId) {
         setOrderError("Archive failed. Check the message above.");
@@ -1518,23 +1451,6 @@ function WaterProductWorkspace({ product, onProductChange }) {
     }
   };
 
-  const handleOrderPaymentMethodChange = (nextValue) => {
-    const paymentMethod = normalizeSalePaymentMethod(nextValue);
-    setOrderForm((prev) => {
-      if (!prev) return prev;
-      const nextStatus =
-        paymentMethod === "credit"
-          ? "unpaid"
-          : prev.paymentMethod === "credit" && prev.paymentStatus === "unpaid"
-            ? "paid"
-            : prev.paymentStatus;
-      return {
-        ...prev,
-        paymentMethod,
-        paymentStatus: normalizeSalePaymentStatus(nextStatus, paymentMethod),
-      };
-    });
-  };
 
   const closeLedgerEditor = () => {
     setActiveLedgerItem(null);
@@ -1556,6 +1472,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
     setLedgerForm({
       type: "restock",
       id: Number(restock?.id) || null,
+      expectedUpdatedAt: restock.updatedAt || restock.createdAt,
       quantity: String(Math.max(1, toNumber(restock?.quantity, 1))),
       unitCost: toMoneyInputValue(restock?.unitCost),
       vendorId:
@@ -1581,6 +1498,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
     setLedgerForm({
       type: "adjustment",
       id: Number(adjustment?.id) || null,
+      expectedUpdatedAt: adjustment.updatedAt || adjustment.createdAt,
       mode,
       quantityDelta: String(quantity),
       reason: useKnownReason ? reason : CUSTOM_ADJUSTMENT_REASON,
@@ -1601,6 +1519,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
     setLedgerForm({
       type: "expense",
       id: Number(expense?.id) || null,
+      expectedUpdatedAt: expense.updatedAt || expense.createdAt,
       category: useKnownCategory ? category : CUSTOM_EXPENSE_CATEGORY,
       customCategory: useKnownCategory ? "" : category,
       amount: toMoneyInputValue(expense?.amount),
@@ -1633,6 +1552,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
         "update_restock",
         {
           restockId: ledgerForm.id,
+          expectedUpdatedAt: ledgerForm.expectedUpdatedAt,
           quantity: ledgerForm.quantity,
           unitCost: ledgerForm.unitCost,
           vendorId: ledgerForm.vendorId ? Number(ledgerForm.vendorId) : null,
@@ -1651,6 +1571,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
         "update_adjustment",
         {
           adjustmentId: ledgerForm.id,
+          expectedUpdatedAt: ledgerForm.expectedUpdatedAt,
           quantityDelta:
             ledgerForm.mode === "add" ? ledgerAdjustmentQuantity : ledgerAdjustmentQuantity * -1,
           reason: resolvedLedgerAdjustmentReason,
@@ -1668,6 +1589,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
         "update_expense",
         {
           expenseId: ledgerForm.id,
+          expectedUpdatedAt: ledgerForm.expectedUpdatedAt,
           category: resolvedLedgerExpenseCategory,
           amount: ledgerForm.amount,
           description: ledgerForm.description.trim() || `${resolvedLedgerExpenseCategory} expense`,
@@ -1697,7 +1619,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
         : window.confirm(`Archive expense #${expenseId} for ${expenseLabel}?`);
     if (!shouldDelete) return;
     setLedgerError("");
-    const deleted = await handleAction("delete_expense", { expenseId }, "Water expense archived.");
+    const deleted = await handleAction("delete_expense", { expenseId, expectedUpdatedAt: expense.updatedAt || expense.createdAt }, "Water expense archived.");
     if (!deleted) {
       if (activeLedgerItem?.type === "expense" && Number(activeLedgerItem?.id) === expenseId) {
         setLedgerError("Archive failed. Check the message above.");
@@ -1727,7 +1649,10 @@ function WaterProductWorkspace({ product, onProductChange }) {
     setLedgerError("");
     const deleted = await handleAction(
       isRestock ? "delete_restock" : "delete_adjustment",
-      isRestock ? { restockId: sourceId } : { adjustmentId: sourceId },
+      (() => {
+        const record = (isRestock ? restockById : adjustmentById).get(sourceId) || entry;
+        return { ...(isRestock ? { restockId: sourceId } : { adjustmentId: sourceId }), expectedUpdatedAt: record.updatedAt || record.createdAt };
+      })(),
       isRestock ? "Restock undone." : "Stock correction undone."
     );
     if (!deleted) {
@@ -1992,7 +1917,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
               ariaLabel="Select Water product"
               fieldClassName="water-module-product-select"
               value={product.key}
-              disabled={loading || saving || creatingCustomer || Boolean(activeOrderId) || Boolean(activeLedgerItem)}
+              disabled={loading || saving || creatingCustomer || Boolean(activeOrderId) || Boolean(activeLedgerItem) || Boolean(collectionSaleId)}
               onChange={(event) => {
                 const hasDraft = [restockForm.quantity, restockForm.notes, saleForm.quantity,
                   saleForm.customerName, saleForm.notes, expenseForm.amount,
@@ -2116,6 +2041,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
           activeOrderId={activeOrderId}
           openOrderEditor={openOrderEditor}
           handleOrderDelete={handleOrderDelete}
+          openCollection={openCollection}
           formatDate={formatDate}
           formatCurrency={formatCurrency}
           normalizeSalePaymentStatus={normalizeSalePaymentStatus}
@@ -2166,6 +2092,13 @@ function WaterProductWorkspace({ product, onProductChange }) {
           loading={loading}
         />
 
+        {collectionSale ? <WaterCollectionModal key={collectionSale.id} sale={collectionSale}
+          collections={collections.filter((row) => Number(row.saleId) === Number(collectionSale.id))}
+          onClose={() => setCollectionSaleId(null)} saving={saving} error={error} formatCurrency={formatCurrency}
+          onSubmit={async (payload) => {
+            if (await handleAction("record_collection", payload, "Water collection recorded.")) setCollectionSaleId(null);
+          }} /> : null}
+
         <WaterOrderEditorModal
           activeOrderId={activeOrderId}
           activeOrder={activeOrder}
@@ -2179,7 +2112,7 @@ function WaterProductWorkspace({ product, onProductChange }) {
           closeOrderEditor={closeOrderEditor}
           handleOrderSubmit={handleOrderSubmit}
           handleOrderDelete={handleOrderDelete}
-          handleOrderPaymentMethodChange={handleOrderPaymentMethodChange}
+          openCollection={openCollection}
           normalizeChannel={normalizeChannel}
           normalizeSalePaymentStatus={normalizeSalePaymentStatus}
           getSalePaymentStatusLabel={getSalePaymentStatusLabel}
