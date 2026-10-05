@@ -2,18 +2,27 @@ import { createBrowserApiClient } from "@faako/api-client/browser";
 import { getApiErrorPresentation } from "@faako/api-client/errors";
 
 const LEGACY_NETLIFY_FUNCTIONS_PATH = "/.netlify/functions";
+const PRODUCTION_API_BASE_URL = "https://api.faako.nanaabaackah.com";
 
 const normalizeConfiguredApiBaseUrl = (value) => {
   const configuredBaseUrl = String(value || "").trim().replace(/\/+$/, "");
-  if (!configuredBaseUrl) return "/api";
+  if (!configuredBaseUrl) {
+    return import.meta.env.PROD ? PRODUCTION_API_BASE_URL : "/api";
+  }
 
-  return configuredBaseUrl.replace(
+  const normalizedBaseUrl = configuredBaseUrl.replace(
     new RegExp(
       `${LEGACY_NETLIFY_FUNCTIONS_PATH.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
       "i",
     ),
     "/api",
   );
+
+  if (import.meta.env.PROD && normalizedBaseUrl === "/api") {
+    return PRODUCTION_API_BASE_URL;
+  }
+
+  return normalizedBaseUrl;
 };
 
 const publicApiBaseUrl = normalizeConfiguredApiBaseUrl(
