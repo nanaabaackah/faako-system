@@ -639,12 +639,19 @@ export const resolveWaterSalePrice = async (
   }
   const normalizedChannel = normalizeString(saleChannel).toLowerCase();
   if (normalizedChannel === "company") {
-    return resolveWaterProductPrice(client, {
+    const price = await resolveWaterProductPrice(client, {
       organizationId: scopedOrganizationId,
       productKey: normalizedProductKey,
       priceType: WATER_PRICE_TYPES.COMPANY,
       at,
     });
+    if (Number(price.minimumQuantity) > normalizedQuantity) {
+      throw integrityError("No company Water price applies to this quantity.", "MISSING_WATER_PRICE");
+    }
+    if (price.currency !== "GHS") {
+      throw configurationError("Water selling prices must use GHS.", "INVALID_WATER_CURRENCY");
+    }
+    return price;
   }
   if (normalizedChannel !== "retail") {
     throw configurationError("Water saleChannel must be retail or company.", "INVALID_WATER_CHANNEL");
@@ -693,5 +700,9 @@ export const resolveWaterSalePrice = async (
       "MISSING_WATER_PRICE"
     );
   }
-  return serializeWaterProductPrice(candidates[0]);
+  const price = serializeWaterProductPrice(candidates[0]);
+  if (price.currency !== "GHS") {
+    throw configurationError("Water selling prices must use GHS.", "INVALID_WATER_CURRENCY");
+  }
+  return price;
 };
