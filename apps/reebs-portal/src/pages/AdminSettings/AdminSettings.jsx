@@ -220,6 +220,7 @@ function AdminSettings({ profileOnly = false }) {
     price: "",
     currency: "GHS",
     effectiveDate: toDateInputValue(),
+    effectiveEndDate: "",
   });
   const [advancedHealth, setAdvancedHealth] = useState({
     queuePending: 0,
@@ -711,6 +712,7 @@ function AdminSettings({ profileOnly = false }) {
         price: "",
         currency: "GHS",
         effectiveDate: toDateInputValue(),
+        effectiveEndDate: "",
       });
       await loadCommercialSchedule();
     } catch (error) {
@@ -1381,6 +1383,7 @@ function AdminSettings({ profileOnly = false }) {
                       minimumQuantity: String(group.reference?.minimumQuantity || 1),
                       currency: String(group.reference?.currency || "GHS"),
                       effectiveDate: toDateInputValue(),
+                      effectiveEndDate: "",
                     };
                     const savingKey = `water:${group.key}`;
                     const isSaving = commercialSavingKey === savingKey;
@@ -1471,21 +1474,17 @@ function AdminSettings({ profileOnly = false }) {
                             </label>
                           </div>
                         </div>
-                        <label className="settings-commercial-field">
-                          <span className="settings-commercial-step">Effective date</span>
-                          <span>Starts on</span>
-                          <DateField
-                            ariaLabel={`Effective date for ${group.key}`}
-                            min={toDateInputValue()}
-                            value={draft.effectiveDate}
-                            onChange={(event) => setWaterPriceDrafts((previous) => ({
-                              ...previous,
-                              [group.key]: { ...draft, effectiveDate: event.target.value },
-                            }))}
-                            disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                            required={canManageCommercialSchedule}
-                          />
-                        </label>
+                        <WaterPricePeriodFields
+                          label={`Water price ${group.key}`}
+                          draft={draft}
+                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                          required={canManageCommercialSchedule}
+                          onChange={(changes) => setWaterPriceDrafts((previous) => ({
+                            ...previous,
+                            [group.key]: { ...draft, ...changes },
+                          }))}
+                        />
+                        <WaterPriceHistoricalNotice draft={draft} />
                         <PortalAction
                           type="submit"
                           className="settings-primary settings-commercial-save settings-commercial-save--water"
@@ -1626,21 +1625,17 @@ function AdminSettings({ profileOnly = false }) {
                           </label>
                         </div>
                       </div>
-                      <label className="settings-commercial-field">
-                        <span className="settings-commercial-step">Effective date</span>
-                        <span>Starts on</span>
-                        <DateField
-                          ariaLabel="New Water price effective date"
-                          min={toDateInputValue()}
-                          value={newWaterPriceDraft.effectiveDate}
-                          onChange={(event) => setNewWaterPriceDraft((previous) => ({
-                            ...previous,
-                            effectiveDate: event.target.value,
-                          }))}
-                          disabled={Boolean(commercialSavingKey)}
-                          required
-                        />
-                      </label>
+                      <WaterPricePeriodFields
+                        label="New Water price"
+                        draft={newWaterPriceDraft}
+                        disabled={Boolean(commercialSavingKey)}
+                        required
+                        onChange={(changes) => setNewWaterPriceDraft((previous) => ({
+                          ...previous,
+                          ...changes,
+                        }))}
+                      />
+                      <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
                       <PortalAction
                         type="submit"
                         className="settings-primary settings-commercial-save settings-commercial-save--water"
