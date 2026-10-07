@@ -371,9 +371,9 @@ const selectProductsForInventory = async (client, organizationId, productIds = [
        "sourceCategoryCode",
        EXISTS (
          SELECT 1
-         FROM "waterProductPrice" AS water_price
-         WHERE water_price."organizationId" = product."organizationId"
-           AND water_price."productId" = product.id
+         FROM "waterProductConfig" AS water_config
+         WHERE water_config."organizationId" = product."organizationId"
+           AND water_config."inventoryProductId" = product.id
        ) AS "isWaterProduct",
        COALESCE("isActive", true) AS "isActive"
      FROM "product" AS product

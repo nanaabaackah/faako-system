@@ -51,8 +51,13 @@ full private ledger is retained only for server-side validation and calculations
 
 Authorized users enter **Cost price per pack (GHS)** under **Pricing & Restock**.
 The `restock` action accepts `unitCost` in GHS and persists integer pesewas; the same
-cost can be corrected through the existing restock editor. Selling prices continue
-to use effective-dated Commercial Settings independently of this purchase cost.
+cost can be corrected through the existing restock editor. The product's current
+Retail, Company and Bulk selling prices are stored independently of purchase cost
+in `waterProductConfig`. Owners/admins edit them in the Water Pricing section or
+during a restock; restocks audit only changed selling prices with their source.
+Price history is informational and never selects the price for a sale. New sales
+use the current product prices, preserving the existing company-channel and
+bulk-threshold rules. Sale rows retain their own price snapshots.
 
 The page reads the API's `unitCostAtSaleCents` sale snapshot when calculating Water
 profit and accepts the legacy `unitCostAtTransaction` field for compatibility.
@@ -107,17 +112,17 @@ inventory locks, price locks and cost snapshots are organisation/product scoped.
 The legacy inventory-name vendor matcher is not reused for the sachet product.
 
 Owners/admins can record sachet stock and its actual cost per pack immediately.
-Before sales, use Settings → Commercial → Add a Water price schedule, choose the
-30pcs sachet preset and configure effective retail, bulk-retail and company
-prices. Existing Water discount policy still applies. Missing prices block sales,
-not stock recording; prices from the 15-pack are never borrowed. Water-only staff
-retain sales access but cannot change stock, purchase costs or expenses.
+Set its current Retail, Company and Bulk prices in the Water Pricing section or
+alongside a restock. Existing Water discount policy still applies. Missing prices
+block sales, not stock recording; prices from the 15-pack are never borrowed.
+Water-only staff retain sales access but cannot change stock, purchase costs or
+expenses.
 
 Deploy migration `20260930190000_water_product_expense_scope` before the new API.
 It adds `waterExpense.productKey`, associating pre-existing single-product expenses
 with `gwater-15pk`. It does not delete records or alter quantities, amounts or
 payment facts. Existing sale/restock/adjustment tables already store product keys.
-No new price schedules or stock are seeded by this migration. All Water figures
+No new prices or stock are seeded by this migration. All Water figures
 remain excluded from Core REEBS rental/event metrics.
 
 Verify in isolated staging: restock each product at different costs, sell the
@@ -138,21 +143,17 @@ were used; no migration, seed, deployment or Git push was performed for this cha
 
 ## Missing-price failures and safe diagnostics — 2026-10-01
 
-The observed production response `MISSING_WATER_PRICE` identifies a missing
-effective retail selling-price candidate, not necessarily a database outage.
-The resolver matches authenticated organisation, selected product, sale quantity
-and effective timestamp. A future/expired schedule, wrong product key or minimum
-quantity above the sale quantity can all prevent a match. Restock purchase cost
-does not substitute for a selling-price schedule.
+The `MISSING_WATER_PRICE` response identifies one or more unconfigured current
+prices, not necessarily a database outage. The resolver reads the authenticated
+organisation's selected `waterProductConfig` row and applies the existing
+company-channel and bulk-threshold rules. Restock purchase cost does not
+substitute for a selling price.
 
-Owners/admins should review Settings → Commercial for the selected product's
-Retail, Bulk retail and Company schedules and the Water discount limit. Do not
-invent fallback amounts or copy a price from another product. Current-day sales
-use the current commercial timestamp for date-only input; historical dates remain
-historical. Owners/admins with `water-pricing:manage` can add historical Water
-product prices in Settings → Commercial. Generic commercial rules retain their
-current/future-only restriction. See [historical pricing](../../../docs/apps/reebs/water-historical-pricing.md)
-for interval rules, snapshot guarantees and staging verification.
+Owners/admins should review the selected product's current Retail, Company and
+Bulk prices in the Water Pricing section. Do not invent fallback amounts or
+copy a price from another product. Changing a current price does not rewrite
+existing sale snapshots. Historical changes are preserved as informational
+audit rows and never participate in price resolution.
 
 `backend/modules/water/actionErrors.js` permits only curated configuration/cost
 guidance to cross the HTTP adapter's 5xx-message boundary. Unknown failures remain
@@ -189,14 +190,13 @@ Create these layers only as Water behavior is migrated; do not copy unrelated co
 
 ## Review checklist
 
-### Recorded price corrections (2026-10-02)
+### Current prices and audit history
 
-Owner/admin price-only corrections retain the sale's historical standard-price
-reference and cost snapshot; they no longer require re-resolving a missing old
-schedule. The unchanged calendar day also retains the original timestamp.
-Quantity, channel or actual date changes still require effective pricing. Water
-staff cannot correct prices. Dashboard pricing is now available per configured
-price type instead of hiding all rates when one is missing. See the
+Owner/admin price-only corrections retain the sale's recorded standard price
+and cost snapshot. Quantity or channel changes resolve against the product's
+current prices; the sale date does not select a selling price. Water staff cannot
+override prices. Dashboard pricing is available per configured price type
+instead of hiding all rates when one is missing. See the
 [implementation and validation notes](../../../docs/apps/reebs/portal-actions-water-invoice-followup.md).
 
 Any change touching Water and another domain must answer:

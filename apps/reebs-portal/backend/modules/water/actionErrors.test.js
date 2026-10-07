@@ -9,7 +9,7 @@ const responseFor = (error) => {
   return { ...response, payload: JSON.parse(response.body) };
 };
 
-for (const code of ["MISSING_WATER_PRICE", "MISSING_COMMERCIAL_CONFIGURATION", "AMBIGUOUS_WATER_PRICE", "AMBIGUOUS_COMMERCIAL_CONFIGURATION", "MISSING_WATER_COST_BASIS"]) {
+for (const code of ["MISSING_WATER_PRICE", "MISSING_COMMERCIAL_CONFIGURATION", "AMBIGUOUS_COMMERCIAL_CONFIGURATION", "MISSING_WATER_COST_BASIS"]) {
   test(`${code} survives the real API error adapter with safe corrective guidance`, () => {
     const response = responseFor({ statusCode: 503, code, message: "private diagnostic fixture" });
     assert.equal(response.statusCode, 503);

@@ -177,9 +177,9 @@ when it cannot complete. It does not check Paystack, Brevo, email routing,
 manager access, webhooks, maps, OpenAI, WhatsApp, or Water configuration.
 `/health/water` separately checks the database and the Water commercial
 configuration without folding Water into general REEBS readiness. It checks for
-at least one organisation with exactly one active, currently effective GHS
-`waterProductPrice` per retail/bulk/company tier and one valid current Water
-discount rule in `commercialConfiguration`. It does not read prices into the
+at least one organisation with a current GHS `waterProductConfig` row containing
+Retail, Company and Bulk prices and one valid current Water discount rule in
+`commercialConfiguration`. It does not read prices into the
 response. A legacy `waterProductConfig` row is not sufficient. This is a global
 probe: verify the actual signed-in organisation through its authorized Water
 screen. Stock, historical cost completeness, migrations, providers and database

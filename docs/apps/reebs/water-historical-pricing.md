@@ -1,5 +1,10 @@
 # Water historical price schedules
 
+> Superseded on 2026-10-07. This document records the retired scheduled-pricing
+> implementation only. Water now uses current Retail, Company and Bulk prices
+> stored in `waterProductConfig`; historical audit entries do not control sales.
+> See [Water architecture](water-architecture.md) for the current model.
+
 ## Root cause and scope
 
 Water sale creation and quantity/channel/date corrections correctly resolve prices

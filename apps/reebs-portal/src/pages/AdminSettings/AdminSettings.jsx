@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedLoadingState, ERPFormNotice, SelectField, DateField } from "@faako/ui";
-import { WATER_PRODUCTS, getWaterProduct } from "../../../shared/waterProducts.js";
 import "./AdminSettings.css";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb/AdminBreadcrumb";
@@ -25,15 +24,11 @@ import {
 } from "../../utils/offlineQueue";
 import {
   COMMERCIAL_CONFIG_ENDPOINT,
-  WATER_PRICE_TYPES,
   buildCommercialRulePayload,
-  buildWaterPricePayload,
   formatCommercialRuleValue,
-  formatWaterPrice,
   getCommercialScheduleAccess,
   getCoreRuleModels,
   getRuleInputBounds,
-  groupWaterPriceSchedule,
   toDateInputValue,
 } from "./commercialSettings";
 import WaterPricePeriodFields, { WaterPriceHistoricalNotice } from "./WaterPricePeriodFields";
@@ -71,9 +66,6 @@ const formatScheduleDate = (value) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "Unknown date" : scheduleDateFormatter.format(date);
 };
-
-const formatWaterPriceType = (value) =>
-  WATER_PRICE_TYPES.find((option) => option.value === value)?.label || String(value || "Price");
 
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
@@ -211,17 +203,6 @@ function AdminSettings({ profileOnly = false }) {
   const [commercialStatus, setCommercialStatus] = useState("");
   const [commercialSavingKey, setCommercialSavingKey] = useState("");
   const [commercialRuleDrafts, setCommercialRuleDrafts] = useState({});
-  const [waterPriceDrafts, setWaterPriceDrafts] = useState({});
-  const [newWaterPriceDraft, setNewWaterPriceDraft] = useState({
-    productKey: "",
-    productName: "",
-    priceType: "RETAIL",
-    minimumQuantity: "1",
-    price: "",
-    currency: "GHS",
-    effectiveDate: toDateInputValue(),
-    effectiveEndDate: "",
-  });
   const [advancedHealth, setAdvancedHealth] = useState({
     queuePending: 0,
     queueFailed: 0,
@@ -238,8 +219,7 @@ function AdminSettings({ profileOnly = false }) {
   const commercialScheduleAccess = getCommercialScheduleAccess(roleKey);
   const canManageCommercialSchedule = commercialScheduleAccess.canManage;
   const canViewCoreCommercialSchedule = commercialScheduleAccess.canViewCore;
-  const canViewWaterPriceSchedule = commercialScheduleAccess.canViewWater;
-  const canViewCommercialSchedule = canViewCoreCommercialSchedule || canViewWaterPriceSchedule;
+  const canViewCommercialSchedule = canViewCoreCommercialSchedule;
   const showTabs = !profileOnly;
   const pageTitle = profileOnly ? "My Profile" : "Settings";
   const pageSubtitle = profileOnly
@@ -307,18 +287,6 @@ function AdminSettings({ profileOnly = false }) {
         { value: "", effectiveDate },
       ]),
     ));
-    setWaterPriceDrafts(Object.fromEntries(
-    groupWaterPriceSchedule(schedule).map(({ key, reference }) => [
-      key,
-      {
-        price: "",
-        minimumQuantity: String(reference?.minimumQuantity || 1),
-        currency: String(reference?.currency || "GHS").toUpperCase(),
-        effectiveDate,
-        effectiveEndDate: "",
-      },
-    ]),
-  ));
   }, []);
 
   const loadCommercialSchedule = useCallback(async () => {
@@ -357,10 +325,6 @@ function AdminSettings({ profileOnly = false }) {
 
   const coreRuleModels = useMemo(
     () => getCoreRuleModels(commercialSchedule || {}),
-    [commercialSchedule],
-  );
-  const waterPriceGroups = useMemo(
-    () => groupWaterPriceSchedule(commercialSchedule || {}),
     [commercialSchedule],
   );
 
@@ -669,55 +633,6 @@ function AdminSettings({ profileOnly = false }) {
       await loadCommercialSchedule();
     } catch (error) {
       setCommercialSaveError(error.message || "The REEBS rule was not scheduled.");
-    } finally {
-      setCommercialSavingKey("");
-    }
-  };
-
-  const saveWaterPrice = async (event, group) => {
-    event.preventDefault();
-    if (!canManageCommercialSchedule) return;
-    const savingKey = `water:${group.key}`;
-    setCommercialSavingKey(savingKey);
-    setCommercialSaveError("");
-    setCommercialStatus("");
-    try {
-      const payload = buildWaterPricePayload(waterPriceDrafts[group.key], group.reference);
-      await postCommercialResource(payload);
-      setCommercialStatus(
-        `${group.reference.productName} ${formatWaterPriceType(group.reference.priceType).toLowerCase()} price scheduled successfully.`,
-      );
-      await loadCommercialSchedule();
-    } catch (error) {
-      setCommercialSaveError(error.message || "The Water price was not scheduled.");
-    } finally {
-      setCommercialSavingKey("");
-    }
-  };
-
-  const addWaterPrice = async (event) => {
-    event.preventDefault();
-    if (!canManageCommercialSchedule) return;
-    setCommercialSavingKey("water:new");
-    setCommercialSaveError("");
-    setCommercialStatus("");
-    try {
-      const payload = buildWaterPricePayload(newWaterPriceDraft);
-      await postCommercialResource(payload);
-      setCommercialStatus(`${payload.productName} Water price scheduled successfully.`);
-      setNewWaterPriceDraft({
-        productKey: "",
-        productName: "",
-        priceType: "RETAIL",
-        minimumQuantity: "1",
-        price: "",
-        currency: "GHS",
-        effectiveDate: toDateInputValue(),
-        effectiveEndDate: "",
-      });
-      await loadCommercialSchedule();
-    } catch (error) {
-      setCommercialSaveError(error.message || "The Water price was not scheduled.");
     } finally {
       setCommercialSavingKey("");
     }
@@ -1331,322 +1246,6 @@ function AdminSettings({ profileOnly = false }) {
                     );
                   })}
                 </div>
-              )}
-            </section>
-
-            <section className="glass-card settings-panel settings-commercial-panel settings-commercial-panel--water">
-              <div className="settings-panel-head settings-panel-head--split">
-                <div>
-                  <p className="settings-commercial-eyebrow settings-commercial-eyebrow--water">Water Business</p>
-                  <h3>Water pricing schedule</h3>
-                  <p className="settings-muted">
-                    Standalone Water product prices. These values do not become REEBS rental or event revenue.
-                  </p>
-                </div>
-                {!canManageCommercialSchedule && canViewWaterPriceSchedule && (
-                  <span className="settings-commercial-access settings-commercial-access--water">Read only</span>
-                )}
-              </div>
-
-              {canViewWaterPriceSchedule && (
-                <SelectField label="Price period view" value={waterScheduleView}
-                  disabled={Boolean(commercialSavingKey)}
-                  onChange={(event) => setWaterScheduleView(event.target.value)}>
-                  <option value="current">Current</option>
-                  <option value="schedule">Schedule</option>
-                  <option value="history">History (all periods)</option>
-                </SelectField>
-              )}
-              {commercialLoading && canViewWaterPriceSchedule && !canViewCoreCommercialSchedule && (
-                <AnimatedLoadingState
-                  compact
-                  className="glass-card admin-module-loading"
-                  title="Loading Water prices"
-                  message="Fetching the current and scheduled Water price list."
-                  variant="detail"
-                />
-              )}
-
-              {!canViewWaterPriceSchedule ? (
-                <p className="settings-commercial-empty settings-commercial-empty--water">
-                  Water pricing is visible to authorized Water staff, admins and owners.
-                </p>
-              ) : !commercialLoading && !commercialLoadError && waterPriceGroups.length === 0 ? (
-                <p className="settings-commercial-empty settings-commercial-empty--water">
-                  No Water prices match this view. Choose History to see all recorded periods.
-                </p>
-              ) : (
-                <div className="settings-commercial-list">
-                  {waterPriceGroups.map((group) => {
-                    const draft = waterPriceDrafts[group.key] || {
-                      price: "",
-                      minimumQuantity: String(group.reference?.minimumQuantity || 1),
-                      currency: String(group.reference?.currency || "GHS").toUpperCase(),
-                      effectiveDate: toDateInputValue(),
-                      effectiveEndDate: "",
-                    };
-                    const savingKey = `water:${group.key}`;
-                    const isSaving = commercialSavingKey === savingKey;
-                    return (
-                      <form
-                        key={group.key}
-                        className="settings-commercial-row settings-commercial-row--water"
-                        onSubmit={(event) => saveWaterPrice(event, group)}
-                      >
-                        <div className="settings-commercial-current">
-                          <span className="settings-commercial-step">Current</span>
-                          <strong>{group.reference?.productName || group.reference?.productKey}</strong>
-                          <span className="settings-commercial-price-type">
-                            {formatWaterPriceType(group.reference?.priceType)}
-                          </span>
-                          <span className="settings-commercial-value">{formatWaterPrice(group.current)}</span>
-                          <small>
-                            Minimum {group.current?.minimumQuantity || group.reference?.minimumQuantity || 1} units
-                          </small>
-                          {group.upcoming && (
-                            <small className="settings-commercial-upcoming">
-                              Scheduled: {formatWaterPrice(group.upcoming)} from{" "}
-                              {formatScheduleDate(group.upcoming.effectiveFrom)}
-                            </small>
-                          )}
-                          <details>
-                            <summary>Price periods</summary>
-                            {group.records.map((record) => (
-                              <p className="settings-muted" key={record.id}>
-                                {formatWaterPrice(record)} · Minimum {record.minimumQuantity} units<br />
-                                {formatScheduleDate(record.effectiveFrom)} → {record.effectiveTo ? `${formatScheduleDate(record.effectiveTo)} (exclusive)` : "Open"}
-                                {record.active === false ? " · Superseded" : ""}
-                              </p>
-                            ))}
-                          </details>
-                        </div>
-                        <div className="settings-commercial-field settings-commercial-field--price">
-                          <span className="settings-commercial-step">New</span>
-                          <div className="settings-commercial-price-fields">
-                            <label>
-                              Price
-                              <input
-                                type="number"
-                                min="0.01"
-                                step="0.01"
-                                value={draft.price}
-                                onChange={(event) => {
-                                  setCommercialSaveError("");
-                                  setWaterPriceDrafts((previous) => ({
-                                    ...previous,
-                                    [group.key]: { ...draft, price: event.target.value },
-                                  }));
-                                }}
-                                placeholder="0.00"
-                                disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                                required={canManageCommercialSchedule}
-                              />
-                            </label>
-                            <label>
-                              Currency
-                              <input
-                                type="text"
-                                value={draft.currency}
-                                maxLength={3}
-                                onChange={(event) => setWaterPriceDrafts((previous) => ({
-                                  ...previous,
-                                  [group.key]: { ...draft, currency: event.target.value.toUpperCase() },
-                                }))}
-                                disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                                required={canManageCommercialSchedule}
-                              />
-                            </label>
-                            <label>
-                              Minimum quantity
-                              <input
-                                type="number"
-                                min="1"
-                                max="100000"
-                                step="1"
-                                value={draft.minimumQuantity}
-                                onChange={(event) => setWaterPriceDrafts((previous) => ({
-                                  ...previous,
-                                  [group.key]: { ...draft, minimumQuantity: event.target.value },
-                                }))}
-                                disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                                required={canManageCommercialSchedule}
-                              />
-                            </label>
-                          </div>
-                        </div>
-                        <WaterPricePeriodFields
-                          label={`Water price ${group.key}`}
-                          draft={draft}
-                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                          required={canManageCommercialSchedule}
-                          onChange={(changes) => setWaterPriceDrafts((previous) => ({
-                            ...previous,
-                            [group.key]: { ...draft, ...changes },
-                          }))}
-                        />
-                        <WaterPriceHistoricalNotice draft={draft} />
-                        <button
-                          type="submit"
-                          className="settings-primary settings-commercial-save settings-commercial-save--water"
-                          disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
-                          icon={faCalendarDays} label={isSaving ? "Saving..." : canManageCommercialSchedule ? "Schedule" : "Read only"}
-                        />
-                        <WaterPriceHistoricalNotice draft={draft} />
-                      </form>
-                    );
-                  })}
-                </div>
-              )}
-
-              {canManageCommercialSchedule && canViewWaterPriceSchedule && (
-                <details className="settings-commercial-new-water">
-                  <summary>Add a Water price schedule</summary>
-                  <form className="settings-form" onSubmit={addWaterPrice}>
-                    <SelectField
-                      label="Water product preset"
-                      fieldClassName="settings-select"
-                      value={getWaterProduct(newWaterPriceDraft.productKey)?.key || ""}
-                      disabled={Boolean(commercialSavingKey)}
-                      onChange={(event) => {
-                        const product = getWaterProduct(event.target.value);
-                        setNewWaterPriceDraft((previous) => ({
-                          ...previous,
-                          productKey: product?.key || "",
-                          productName: product?.name || "",
-                          price: "",
-                          minimumQuantity: "1",
-                        }));
-                      }}
-                    >
-                      <option value="">Custom product</option>
-                      {WATER_PRODUCTS.map((product) => (
-                        <option key={product.key} value={product.key}>{product.name}</option>
-                      ))}
-                    </SelectField>
-                    <div className="settings-grid">
-                      <label>
-                        Product name
-                        <input
-                          type="text"
-                          maxLength={160}
-                          value={newWaterPriceDraft.productName}
-                          onChange={(event) => setNewWaterPriceDraft((previous) => ({
-                            ...previous,
-                            productName: event.target.value,
-                          }))}
-                          placeholder="500 ml bottle"
-                          disabled={Boolean(commercialSavingKey)}
-                          required
-                        />
-                      </label>
-                      <label>
-                        Product key
-                        <input
-                          type="text"
-                          value={newWaterPriceDraft.productKey}
-                          onChange={(event) => setNewWaterPriceDraft((previous) => ({
-                            ...previous,
-                            productKey: event.target.value.toLowerCase(),
-                          }))}
-                          placeholder="500ml-bottle"
-                          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                          disabled={Boolean(commercialSavingKey)}
-                          required
-                        />
-                      </label>
-                      <SelectField
-                        label="Price type"
-                        fieldClassName="settings-select"
-                        value={newWaterPriceDraft.priceType}
-                        onChange={(event) => setNewWaterPriceDraft((previous) => ({
-                          ...previous,
-                          priceType: event.target.value,
-                        }))}
-                        disabled={Boolean(commercialSavingKey)}
-                      >
-                        {WATER_PRICE_TYPES.map((option) => (
-                          <option key={option.value} value={option.value}>{option.label}</option>
-                        ))}
-                      </SelectField>
-                    </div>
-                    <div className="settings-commercial-new-water-flow">
-                      <div className="settings-commercial-current">
-                        <span className="settings-commercial-step">Current</span>
-                        <strong>New schedule</strong>
-                        <small>No current price exists for this product and price type.</small>
-                      </div>
-                      <div className="settings-commercial-field settings-commercial-field--price">
-                        <span className="settings-commercial-step">New</span>
-                        <div className="settings-commercial-price-fields">
-                          <label>
-                            Price
-                            <input
-                              type="number"
-                              min="0.01"
-                              step="0.01"
-                              value={newWaterPriceDraft.price}
-                              onChange={(event) => setNewWaterPriceDraft((previous) => ({
-                                ...previous,
-                                price: event.target.value,
-                              }))}
-                              placeholder="0.00"
-                              disabled={Boolean(commercialSavingKey)}
-                              required
-                            />
-                          </label>
-                          <label>
-                            Currency
-                            <input
-                              type="text"
-                              value={newWaterPriceDraft.currency}
-                              maxLength={3}
-                              onChange={(event) => setNewWaterPriceDraft((previous) => ({
-                                ...previous,
-                                currency: event.target.value.toUpperCase(),
-                              }))}
-                              disabled={Boolean(commercialSavingKey)}
-                              required
-                            />
-                          </label>
-                          <label>
-                            Minimum quantity
-                            <input
-                              type="number"
-                              min="1"
-                              max="100000"
-                              step="1"
-                              value={newWaterPriceDraft.minimumQuantity}
-                              onChange={(event) => setNewWaterPriceDraft((previous) => ({
-                                ...previous,
-                                minimumQuantity: event.target.value,
-                              }))}
-                              disabled={Boolean(commercialSavingKey)}
-                              required
-                            />
-                          </label>
-                        </div>
-                      </div>
-                      <WaterPricePeriodFields
-                        label="New Water price"
-                        draft={newWaterPriceDraft}
-                        disabled={Boolean(commercialSavingKey)}
-                        required
-                        onChange={(changes) => setNewWaterPriceDraft((previous) => ({
-                          ...previous,
-                          ...changes,
-                        }))}
-                      />
-                      <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
-                      <button
-                        type="submit"
-                        className="settings-primary settings-commercial-save settings-commercial-save--water"
-                        disabled={Boolean(commercialSavingKey)}
-                        icon={faCalendarDays} label={commercialSavingKey === "water:new" ? "Saving..." : "Schedule price"}
-                      />
-                      <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
-                    </div>
-                  </form>
-                </details>
               )}
             </section>
 

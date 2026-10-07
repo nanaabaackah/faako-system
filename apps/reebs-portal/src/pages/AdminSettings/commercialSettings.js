@@ -47,21 +47,12 @@ export const CORE_COMMERCIAL_RULES = Object.freeze([
   },
 ]);
 
-export const WATER_PRICE_TYPES = Object.freeze([
-  { value: "RETAIL", label: "Retail" },
-  { value: "BULK_RETAIL", label: "Bulk retail" },
-  { value: "COMPANY", label: "Company" },
-]);
-
-const WATER_PRICE_TYPE_VALUES = new Set(WATER_PRICE_TYPES.map(({ value }) => value));
-
 export const getCommercialScheduleAccess = (role) => {
   const normalizedRole = String(role || "staff").trim().toLowerCase();
   const canManage = normalizedRole === "owner" || normalizedRole === "admin";
   return {
     canManage,
     canViewCore: canManage || normalizedRole === "manager",
-    canViewWater: canManage || normalizedRole === "water",
   };
 };
 
@@ -235,83 +226,4 @@ export const formatCommercialRuleValue = (record, metadata = {}) => {
     return `${trimNumber(record.value)}${metadata.displayUnit ? ` ${metadata.displayUnit}` : ""}`;
   }
   return String(record.value ?? "Not set");
-};
-
-export const groupWaterPriceSchedule = (schedule = {}) => {
-  const prices = Array.isArray(schedule?.waterPrices) ? schedule.waterPrices : [];
-  const grouped = new Map();
-  prices.forEach((price) => {
-    const key = `${price.productKey}:${price.priceType}`;
-    const records = grouped.get(key) || [];
-    records.push(price);
-    grouped.set(key, records);
-  });
-
-  return [...grouped.entries()].map(([key, records]) => {
-    const state = getEffectiveScheduleState(records, schedule.asOf);
-    const reference = state.current || state.upcoming || records[0];
-    return { key, records, reference, ...state };
-  }).sort((left, right) => {
-    const nameOrder = String(left.reference?.productName || "")
-      .localeCompare(String(right.reference?.productName || ""));
-    return nameOrder || String(left.reference?.priceType || "")
-      .localeCompare(String(right.reference?.priceType || ""));
-  });
-};
-
-export const formatWaterPrice = (record) => {
-  if (!record) return "Not set";
-  const currency = String(record.currency || "GHS").toUpperCase();
-  return `${currency} ${Number(record.priceCents / 100).toLocaleString("en-GH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-};
-
-const normalizeProductKey = (value) => {
-  const normalized = String(value || "").trim().toLowerCase();
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) {
-    throw new Error("Product key must use lowercase letters, numbers, and single hyphens.");
-  }
-  return normalized;
-};
-
-export const buildWaterPricePayload = (draft = {}, reference = {}) => {
-  const productName = String(draft.productName || reference.productName || "").trim();
-  if (!productName || productName.length > 160) {
-    throw new Error("Enter a Water product name of 160 characters or fewer.");
-  }
-  const priceType = String(draft.priceType || reference.priceType || "").trim().toUpperCase();
-  if (!WATER_PRICE_TYPE_VALUES.has(priceType)) {
-    throw new Error("Choose a supported Water price type.");
-  }
-  const minimumQuantity = Number(String(draft.minimumQuantity ?? reference.minimumQuantity ?? "").trim());
-  if (!Number.isInteger(minimumQuantity) || minimumQuantity < 1 || minimumQuantity > 100000) {
-    throw new Error("Minimum quantity must be a whole number between 1 and 100000.");
-  }
-  const currency = String(draft.currency || reference.currency || "GHS").trim().toUpperCase();
-  if (!/^[A-Z]{3}$/.test(currency)) {
-    throw new Error("Currency must be a three-letter ISO code such as GHS.");
-  }
-  const payload = {
-    resourceType: "water_price",
-    productKey: normalizeProductKey(draft.productKey || reference.productKey),
-    productName,
-    priceType,
-    minimumQuantity,
-    priceCents: Math.round(parseDecimal(draft.price, "New price", { positive: true }) * 100),
-    currency,
-  };
-  // Water prices cover Ghana calendar days, including historical dates and all of today.
-  // Generic commercial rules still use toEffectiveFrom's current/future-only guard.
-  payload.effectiveFrom = parseEffectiveDate(draft.effectiveDate).toISOString();
-  if (draft.effectiveEndDate) {
-    payload.effectiveTo = parseEffectiveDate(draft.effectiveEndDate).toISOString();
-    if (payload.effectiveTo <= payload.effectiveFrom) {
-      throw new Error("End date must be later than the effective date.");
-    }
-  }
-  const productId = Number(reference.productId);
-  if (Number.isInteger(productId) && productId > 0) payload.productId = productId;
-  return payload;
 };

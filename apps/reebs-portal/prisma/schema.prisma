@@ -41,8 +41,7 @@ model Organization {
   waterExpenses   WaterExpense[]
   waterAdjustments WaterAdjustment[]
   waterProductConfigs WaterProductConfig[]
-  waterProductPrices WaterProductPrice[]
-  waterMutations WaterMutation[]
+  waterPriceChanges WaterPriceChange[]
   accountingConfig AccountingConfig?
   websiteContents WebsiteContent[]
   accountingManualSales AccountingManualSales[]
@@ -917,9 +916,9 @@ model WaterProductConfig {
   productKey          String
   productName         String
   inventoryProductId  Int?
-  retailSinglePrice   Int?
-  retailBulkPrice     Int?
+  retailPrice         Int?
   companyPrice        Int?
+  bulkPrice           Int?
   bulkThreshold       Int          @default(10)
   costPrice           Int?
   isActive            Boolean      @default(true)
@@ -931,6 +930,25 @@ model WaterProductConfig {
   @@unique([organizationId, productKey])
   @@index([organizationId, isActive])
   @@map("waterProductConfig")
+}
+
+model WaterPriceChange {
+  id                  Int      @id @default(autoincrement())
+  organizationId      Int
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  productId           Int?
+  productKey          String
+  priceType           String
+  previousPriceCents  Int?
+  newPriceCents       Int
+  changedAt           DateTime @default(now())
+  changedByUserId     Int?
+  changedByName       String?
+  source              String
+
+  @@index([organizationId, productKey, changedAt])
+  @@index([organizationId, productId, changedAt])
+  @@map("waterPriceChange")
 }
 
 model WaterSale {
