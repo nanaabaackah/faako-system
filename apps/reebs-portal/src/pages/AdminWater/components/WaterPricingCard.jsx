@@ -2,6 +2,12 @@ import { InlineNotice } from "@faako/ui";
 import { AppIcon } from "/src/components/Icon/Icon";
 import { faMoneyCheckDollar } from "/src/icons/iconSet";
 
+const priceTypes = [
+  ["retailPrice", "Retail Price"],
+  ["companyPrice", "Company Price"],
+  ["bulkPrice", "Bulk Price"],
+];
+
 export default function WaterPricingCard({
   product,
   permissions,
@@ -11,146 +17,97 @@ export default function WaterPricingCard({
   saving,
   loading,
   formatCurrency,
-  compact = false,
+  priceHistory = [],
 }) {
   const pricing = product?.pricing || {};
-  const pricingConfigured = Boolean(product?.pricingConfigured);
   const updateField = (field) => (event) =>
     setPricingForm((current) => ({ ...current, [field]: event.target.value }));
 
-  const Root = compact ? "div" : "section";
-
   return (
-    <Root
-      className={compact
-        ? "water-module-pricing-panel"
-        : "water-module-hero water-module-pricing-card bubble-card"}
+    <section
+      className="water-module-hero water-module-pricing-card bubble-card"
       aria-labelledby="water-pricing-title"
     >
       <div className="water-module-hero-copy">
-        <p className="water-module-eyebrow">Water product pricing</p>
-        {compact ? (
-          <h4 id="water-pricing-title">{product?.name || "Water product"}</h4>
-        ) : (
-          <h2 id="water-pricing-title">{product?.name || "Water product"}</h2>
-        )}
-        {!compact ? (
-          <p>
-            These rates apply to new Water orders. Existing order prices and cost snapshots stay unchanged.
-          </p>
-        ) : null}
-        {!pricingConfigured ? (
+        <p className="water-module-eyebrow">Current Water prices</p>
+        <h2 id="water-pricing-title">{product?.name || "Water product"}</h2>
+        <p>These are the prices used for new orders. Price changes do not alter recorded sales.</p>
+        {pricing.configurationErrorCode ? (
           <InlineNotice
             tone="warning"
             compact
-            title="Selling price required"
-            message="A matching selling price is required for the selected product, quantity and sale date."
-          />
-        ) : null}
-        {permissions?.canViewCost && !Number(product?.purchaseCost) ? (
-          <InlineNotice
-            tone="warning"
-            compact
-            title="Cost price missing"
-            message="Record stock with its purchase cost before recording new sales. Historical profit stays unavailable where a sale has no cost snapshot."
+            title="Some current prices are not configured"
+            message="Set all three prices to make every Water price type available for new sales."
           />
         ) : null}
       </div>
 
       {permissions?.canManagePricing ? (
         <form className="water-module-form water-module-pricing-form" onSubmit={onSubmit}>
-          <label className="water-module-pricing-name">
-            Product name
-            <input
-              type="text"
-              value={pricingForm.productName}
-              onChange={updateField("productName")}
-              required
-            />
-          </label>
           <div className="water-module-price-grid">
-            <label>
-              Retail price (GHS)
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                value={pricingForm.retailSinglePrice}
-                onChange={updateField("retailSinglePrice")}
-                required
-              />
-            </label>
-            <label>
-              Bulk price (GHS)
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                value={pricingForm.retailBulkPrice}
-                onChange={updateField("retailBulkPrice")}
-                required
-              />
-            </label>
-            <label>
-              Company price (GHS)
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                value={pricingForm.companyPrice}
-                onChange={updateField("companyPrice")}
-                required
-              />
-            </label>
-            <label>
-              Bulk starts at
-              <input
-                type="number"
-                min="1"
-                step="1"
-                inputMode="numeric"
-                value={pricingForm.bulkThreshold}
-                onChange={updateField("bulkThreshold")}
-                required
-              />
-            </label>
-            <label className="water-module-cost-price-field">
-              Cost price (GHS)
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                inputMode="decimal"
-                value={pricingForm.costPrice}
-                onChange={updateField("costPrice")}
-                placeholder="Not yet known"
-              />
-              <span>Internal — leave blank if unknown; never exposed to storefront customers.</span>
-            </label>
+            {priceTypes.map(([field, label]) => (
+              <label key={field}>
+                {label} (GHS)
+                <input
+                  aria-label={label}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={pricingForm[field]}
+                  onChange={updateField(field)}
+                  placeholder="0.00"
+                  required
+                />
+              </label>
+            ))}
           </div>
           <button type="submit" className="admin-primary" disabled={saving || loading}>
-            <AppIcon icon={faMoneyCheckDollar} /> {saving ? "Saving..." : "Save Water pricing"}
+            <AppIcon icon={faMoneyCheckDollar} /> {saving ? "Saving..." : "Save current prices"}
           </button>
         </form>
       ) : (
         <div className="water-module-price-grid" aria-label="Current Water selling prices">
-          <article className="water-module-price-card">
-            <span>Retail</span>
-            <strong>{pricing.retailSingle ? formatCurrency(pricing.retailSingle) : "Not configured"}</strong>
-          </article>
-          <article className="water-module-price-card">
-            <span>Bulk ({pricing.bulkThreshold || 1}+)</span>
-            <strong>{pricing.retailBulk ? formatCurrency(pricing.retailBulk) : "Not configured"}</strong>
-          </article>
-          <article className="water-module-price-card">
-            <span>Company</span>
-            <strong>{pricing.company ? formatCurrency(pricing.company) : "Not configured"}</strong>
-          </article>
+          {priceTypes.map(([field, label]) => (
+            <article className="water-module-price-card" key={field}>
+              <span>{label}</span>
+              <strong>
+                {pricing[field] !== null && pricing[field] !== undefined
+                  ? formatCurrency(pricing[field])
+                  : "Not configured"}
+              </strong>
+            </article>
+          ))}
         </div>
       )}
-    </Root>
+
+      {priceHistory.length ? (
+        <details className="water-module-price-history">
+          <summary>Recent price changes</summary>
+          <ul>
+            {priceHistory.map((change) => (
+              <li key={change.id}>
+                <strong>{change.priceType}:</strong>{" "}
+                {change.previousPriceCents === null
+                  ? "Not set"
+                  : formatCurrency(change.previousPriceCents)}
+                {" → "}
+                {formatCurrency(change.newPriceCents)}
+                {" · "}
+                {new Date(change.changedAt).toLocaleString("en-GB")}
+                {" · "}
+                {change.changedByName || "System"}
+                {" · "}
+                {change.source === "restock"
+                  ? "Restock"
+                  : change.source === "pricing-section"
+                    ? "Pricing section"
+                    : "Existing price history"}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </section>
   );
 }

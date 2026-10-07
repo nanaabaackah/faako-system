@@ -27,7 +27,7 @@ for (const width of [390, 1280]) {
           scope: "water", businessUnit: "WATER",
           permissions: { canViewCost: false, canViewFinance: false, canManagePricing: false, canOverridePrice: false },
           product: { key: "gwater-15pk", name: "15pk Gwater", pricing: {
-            currency: "GHS", retailSingle: 2700, retailBulk: 2600, company: 2500, bulkThreshold: 10, discountLimitBps: 9999,
+            currency: "GHS", retailPrice: 2700, bulkPrice: 2600, companyPrice: 2500, bulkThreshold: 10, discountLimitBps: 9999,
           } },
           restocks: [], sales: [{
             id: 9, quantity: 1, totalAmount: 2700, unitPrice: 2700, customerName: "Original Customer",

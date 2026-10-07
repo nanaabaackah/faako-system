@@ -7,20 +7,13 @@ import {
   CommercialConfigurationError,
   buildCommercialRuleLockKey,
   buildEffectiveDatedOverlapPlan,
-  buildWaterPriceLockKey,
-  classifyWaterPriceSchedule,
   getCommercialConfigDefinition,
   normalizeCommercialBusinessUnit,
   normalizeCommercialConfigValue,
   normalizeEffectiveWindow,
-  normalizeProductKey,
-  normalizeWaterProductPriceInput,
-  normalizeWaterPriceWindow,
-  normalizeWaterPriceType,
   lockCommercialConfigurationKeys,
   selectSingleEffectiveRecord,
   serializeCommercialConfiguration,
-  serializeWaterProductPrice,
 } from "./_shared/commercialConfig.js";
 import {
   hasPermission,
@@ -35,10 +28,7 @@ import {
 } from "./_shared/auditLog.js";
 
 const METHODS = "GET,POST,OPTIONS";
-const RESOURCE_TYPES = Object.freeze({
-  COMMERCIAL_RULE: "commercial_rule",
-  WATER_PRICE: "water_price",
-});
+const RESOURCE_TYPES = Object.freeze({ COMMERCIAL_RULE: "commercial_rule" });
 const MAX_LIST_ROWS = 1000;
 
 const json = (event, statusCode, payload = {}) =>
@@ -58,23 +48,20 @@ const normalizeResourceType = (value) => {
   if (normalized === "configuration" || normalized === "commercial_config") {
     return RESOURCE_TYPES.COMMERCIAL_RULE;
   }
-  if (normalized === "water_product_price") return RESOURCE_TYPES.WATER_PRICE;
   if (Object.values(RESOURCE_TYPES).includes(normalized)) return normalized;
-  const error = new Error("resourceType must be commercial_rule or water_price.");
+  const error = new Error("resourceType must be commercial_rule.");
   error.statusCode = 400;
   throw error;
 };
 
-export const canAccessCommercialConfigMethod = (user, method, resourceType = null) => {
+export const canAccessCommercialConfigMethod = (user, method) => {
   const normalizedMethod = String(method || "GET").toUpperCase();
   if (normalizedMethod === "GET") {
     return hasPermission(user, "commercial-config:view")
       || hasPermission(user, "water-pricing:view");
   }
   if (!["owner", "admin"].includes(normalizeRole(user?.role))) return false;
-  return resourceType === RESOURCE_TYPES.WATER_PRICE
-    ? hasPermission(user, "water-pricing:manage")
-    : hasPermission(user, "commercial-config:manage");
+  return hasPermission(user, "commercial-config:manage");
 };
 
 export const readableCommercialBusinessUnits = (user) => {
@@ -176,63 +163,6 @@ export const listCommercialRules = async (
   );
 };
 
-export const listWaterPrices = async (
-  client,
-  organizationId,
-  { includeWater, productKey = null, priceType = null, view, asOf }
-) => {
-  if (!includeWater) return [];
-  const params = [organizationId];
-  const filters = [];
-  let temporalClause = "";
-  if (view !== "history") {
-    params.push(asOf.toISOString());
-    const asOfParameter = `$${params.length}`;
-    temporalClause = view === "schedule"
-      ? `AND active = true AND ("effectiveTo" IS NULL OR "effectiveTo" > ${asOfParameter})`
-      : `AND active = true
-         AND "effectiveFrom" <= ${asOfParameter}
-         AND ("effectiveTo" IS NULL OR "effectiveTo" > ${asOfParameter})`;
-  }
-  if (productKey) {
-    params.push(productKey);
-    filters.push(`AND "productKey" = $${params.length}`);
-  }
-  if (priceType) {
-    params.push(priceType);
-    filters.push(`AND "priceType" = $${params.length}`);
-  }
-  const result = await client.query(
-    `SELECT id, "organizationId", "productId", "productKey", "productName",
-            "priceType", "minimumQuantity", "priceCents", currency,
-            "effectiveFrom", "effectiveTo", active, description,
-            "createdByUserId", "updatedByUserId", "createdAt", "updatedAt"
-     FROM "waterProductPrice"
-     WHERE "organizationId" = $1
-       ${temporalClause}
-       ${filters.join("\n")}
-     ORDER BY "productKey", "priceType", "effectiveFrom" DESC, id DESC
-     LIMIT ${MAX_LIST_ROWS}`,
-    params
-  );
-
-  if (view !== "current") {
-    return (result.rows || []).map(serializeWaterProductPrice);
-  }
-  const grouped = groupRows(
-    result.rows || [],
-    (row) => `${row.productKey}:${row.priceType}`
-  );
-  return [...grouped.values()].map((rows) =>
-    serializeWaterProductPrice(
-      selectSingleEffectiveRecord(rows, {
-        at: asOf,
-        missingMessage: "Required Water price is missing.",
-      })
-    )
-  );
-};
-
 const cloneCommercialRuleTail = async (client, source, effectiveFrom, effectiveTo, actorId) => {
   await client.query(
     `INSERT INTO "commercialConfiguration" (
@@ -273,59 +203,6 @@ const applyCommercialRulePlan = async (client, plan, actorId) => {
     }
     if (action.tailEffectiveFrom) {
       await cloneCommercialRuleTail(
-        client,
-        action.source,
-        action.tailEffectiveFrom,
-        action.tailEffectiveTo,
-        actorId
-      );
-    }
-  }
-};
-
-const cloneWaterPriceTail = async (client, source, effectiveFrom, effectiveTo, actorId) => {
-  await client.query(
-    `INSERT INTO "waterProductPrice" (
-       "organizationId", "productId", "productKey", "productName", "priceType",
-       "minimumQuantity", "priceCents", currency, "effectiveFrom", "effectiveTo",
-       active, description, "createdByUserId", "updatedByUserId", "createdAt", "updatedAt"
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11, $12, $12, NOW(), NOW())`,
-    [
-      source.organizationId,
-      source.productId || null,
-      source.productKey,
-      source.productName,
-      source.priceType,
-      source.minimumQuantity,
-      source.priceCents,
-      source.currency,
-      effectiveFrom,
-      effectiveTo,
-      source.description || null,
-      actorId,
-    ]
-  );
-};
-
-const applyWaterPricePlan = async (client, plan, actorId) => {
-  for (const action of plan) {
-    if (action.operation === "close" || action.operation === "close_and_clone_tail") {
-      await client.query(
-        `UPDATE "waterProductPrice"
-         SET "effectiveTo" = $2, "updatedByUserId" = $3, "updatedAt" = NOW()
-         WHERE id = $1`,
-        [action.id, action.effectiveTo, actorId]
-      );
-    } else {
-      await client.query(
-        `UPDATE "waterProductPrice"
-         SET active = false, "updatedByUserId" = $2, "updatedAt" = NOW()
-         WHERE id = $1`,
-        [action.id, actorId]
-      );
-    }
-    if (action.tailEffectiveFrom) {
-      await cloneWaterPriceTail(
         client,
         action.source,
         action.tailEffectiveFrom,
@@ -393,151 +270,36 @@ const createCommercialRule = async (
   };
 };
 
-export const validateWaterProductLink = async (client, organizationId, productId) => {
-  if (productId === null || productId === undefined) return null;
-  const result = await client.query(
-    `SELECT id, name, "sourceCategoryCode"
-     FROM "product"
-     WHERE id = $1 AND "organizationId" = $2
-     LIMIT 1`,
-    [productId, organizationId]
-  );
-  if (result.rowCount === 0) {
-    const error = new Error("Linked Water inventory product was not found in this organization.");
-    error.statusCode = 400;
-    throw error;
-  }
-  const product = result.rows[0];
-  if (String(product?.sourceCategoryCode || "").trim().toUpperCase() !== "WATER") {
-    const error = new Error(
-      "Linked Water inventory product must have sourceCategoryCode WATER."
-    );
-    error.statusCode = 400;
-    error.code = "WATER_PRODUCT_CLASSIFICATION_REQUIRED";
-    throw error;
-  }
-  return product;
-};
-
-const createWaterPrice = async (
-  client,
-  { organizationId, actorId, payload, now }
-) => {
-  const candidateProductId = payload.productId === null || payload.productId === undefined
-    ? null
-    : Number(payload.productId);
-  const linkedProduct = await validateWaterProductLink(
-    client,
-    organizationId,
-    Number.isInteger(candidateProductId) && candidateProductId > 0 ? candidateProductId : null
-  );
-  const normalized = normalizeWaterProductPriceInput({
-    ...payload,
-    productId: candidateProductId,
-    productName: linkedProduct?.name || payload.productName,
-  });
-  const lockKey = buildWaterPriceLockKey(
-    organizationId,
-    normalized.productKey,
-    normalized.priceType
-  );
-  await lockCommercialConfigurationKeys(client, [lockKey]);
-  const existingResult = await client.query(
-    `SELECT id, "organizationId", "productId", "productKey", "productName",
-            "priceType", "minimumQuantity", "priceCents", currency,
-            "effectiveFrom", "effectiveTo", active, description,
-            "createdByUserId", "updatedByUserId", "createdAt", "updatedAt"
-     FROM "waterProductPrice"
-     WHERE "organizationId" = $1
-       AND "productKey" = $2
-       AND "priceType" = $3
-       AND active = true
-     ORDER BY "effectiveFrom", id
-     FOR UPDATE`,
-    [organizationId, normalized.productKey, normalized.priceType]
-  );
-  const existingRows = existingResult.rows || [];
-  existingRows.forEach(serializeWaterProductPrice);
-  const window = normalizeWaterPriceWindow(payload, { now, rows: existingRows });
-  const plan = buildEffectiveDatedOverlapPlan(existingRows, window);
-  await applyWaterPricePlan(client, plan, actorId);
-  const inserted = await client.query(
-    `INSERT INTO "waterProductPrice" (
-       "organizationId", "productId", "productKey", "productName", "priceType",
-       "minimumQuantity", "priceCents", currency, "effectiveFrom", "effectiveTo",
-       active, description, "createdByUserId", "updatedByUserId", "createdAt", "updatedAt"
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, true, $11, $12, $12, NOW(), NOW())
-     RETURNING id, "organizationId", "productId", "productKey", "productName",
-               "priceType", "minimumQuantity", "priceCents", currency,
-               "effectiveFrom", "effectiveTo", active, description,
-               "createdByUserId", "updatedByUserId", "createdAt", "updatedAt"`,
-    [
-      organizationId,
-      normalized.productId,
-      normalized.productKey,
-      normalized.productName,
-      normalized.priceType,
-      normalized.minimumQuantity,
-      normalized.priceCents,
-      normalized.currency,
-      window.effectiveFrom.toISOString(),
-      window.effectiveTo?.toISOString() || null,
-      normalized.description,
-      actorId,
-    ]
-  );
-  return {
-    record: serializeWaterProductPrice(inserted.rows[0]),
-    plan,
-    previousRecords: existingRows.filter((row) => plan.some((action) => action.id === Number(row.id))),
-  };
-};
-
 const auditCreatedRecord = async (
   client,
   event,
-  { organizationId, authUser, resourceType, result, now = new Date() }
+  { organizationId, authUser, result }
 ) => {
-  const isWaterPrice = resourceType === RESOURCE_TYPES.WATER_PRICE;
   const record = result.record;
   await writeAuditLog(client, {
     organizationId,
     userId: Number(authUser.id),
-    action: isWaterPrice
-      ? "WATER_PRODUCT_PRICE_CREATED"
-      : "COMMERCIAL_CONFIGURATION_CREATED",
-    targetType: isWaterPrice ? "waterProductPrice" : "commercialConfiguration",
+    action: "COMMERCIAL_CONFIGURATION_CREATED",
+    targetType: "commercialConfiguration",
     targetId: String(record.id),
     category: "finance",
     severity: "info",
     status: "ok",
-    summary: isWaterPrice
-      ? `Scheduled ${record.priceType} pricing for ${record.productName}.`
-      : `Scheduled ${record.businessUnit} commercial rule ${record.key}.`,
+    summary: `Scheduled ${record.businessUnit} commercial rule ${record.key}.`,
     actorLabel: authUser.fullName || authUser.email,
     requestId: getEventHeader(event, "x-request-id"),
     ipAddress: getEventIpAddress(event),
     metadata: {
-      ...(isWaterPrice ? {
-        productId: record.productId,
-        productKey: record.productKey,
-        productName: record.productName,
-        priceType: record.priceType,
-        minimumQuantity: record.minimumQuantity,
-        priceCents: record.priceCents,
-        currency: record.currency,
-        scheduleType: classifyWaterPriceSchedule(record.effectiveFrom, now),
-      } : {}),
-      businessUnit: isWaterPrice ? COMMERCIAL_BUSINESS_UNITS.WATER : record.businessUnit,
-      setting: isWaterPrice ? `${record.productKey}:${record.priceType}` : record.key,
+      businessUnit: record.businessUnit,
+      setting: record.key,
       oldValues: result.previousRecords.map((previous) => ({
         id: Number(previous.id),
-        value: isWaterPrice ? Number(previous.priceCents) : previous.value,
+        value: previous.value,
         effectiveFrom: previous.effectiveFrom,
         effectiveTo: previous.effectiveTo || null,
       })),
-      newValue: isWaterPrice ? record.priceCents : record.value,
-      valueType: isWaterPrice ? "MONEY_CENTS" : record.valueType,
+      newValue: record.value,
+      valueType: record.valueType,
       effectiveFrom: record.effectiveFrom,
       effectiveTo: record.effectiveTo,
       overlapActions: result.plan.map(({ id, operation }) => ({ id, operation })),
@@ -565,26 +327,13 @@ const handleGet = async (client, event, { organizationId, authUser }) => {
     getCommercialConfigDefinition(requestedUnit, requestedKey);
   }
 
-  const requestedProductKey = query.productKey ? normalizeProductKey(query.productKey) : null;
-  const requestedPriceType = query.priceType ? normalizeWaterPriceType(query.priceType) : null;
-  const includeWater = readableUnits.includes(COMMERCIAL_BUSINESS_UNITS.WATER)
-    && (!requestedUnit || requestedUnit === COMMERCIAL_BUSINESS_UNITS.WATER);
-  const [rules, waterPrices] = await Promise.all([
-    listCommercialRules(client, organizationId, {
-      businessUnits: readableUnits,
-      businessUnit: requestedUnit,
-      key: requestedKey,
-      view,
-      asOf,
-    }),
-    listWaterPrices(client, organizationId, {
-      includeWater,
-      productKey: requestedProductKey,
-      priceType: requestedPriceType,
-      view,
-      asOf,
-    }),
-  ]);
+  const rules = await listCommercialRules(client, organizationId, {
+    businessUnits: readableUnits,
+    businessUnit: requestedUnit,
+    key: requestedKey,
+    view,
+    asOf,
+  });
   const definitions = Object.values(COMMERCIAL_CONFIG_DEFINITIONS)
     .filter((definition) => readableUnits.includes(definition.businessUnit));
   return json(event, 200, {
@@ -593,7 +342,6 @@ const handleGet = async (client, event, { organizationId, authUser }) => {
     businessUnits: readableUnits,
     definitions,
     rules,
-    waterPrices,
   });
 };
 
@@ -602,25 +350,16 @@ const handlePost = async (client, event, { organizationId, authUser, payload }) 
   const now = new Date();
   await client.query("BEGIN");
   try {
-    const result = resourceType === RESOURCE_TYPES.COMMERCIAL_RULE
-      ? await createCommercialRule(client, {
-        organizationId,
-        actorId: Number(authUser.id),
-        payload,
-        now,
-      })
-      : await createWaterPrice(client, {
-        organizationId,
-        actorId: Number(authUser.id),
-        payload,
-        now,
-      });
+    const result = await createCommercialRule(client, {
+      organizationId,
+      actorId: Number(authUser.id),
+      payload,
+      now,
+    });
     await auditCreatedRecord(client, event, {
       organizationId,
       authUser,
-      resourceType,
       result,
-      now,
     });
     await client.query("COMMIT");
     return json(event, 201, { resourceType, record: result.record });
@@ -655,10 +394,8 @@ export async function handler(event = {}) {
       body: payload,
     });
     if (authResult.errorResponse) return authResult.errorResponse;
-    const requestedResourceType = method === "POST"
-      ? normalizeResourceType(payload.resourceType || payload.type)
-      : null;
-    if (!canAccessCommercialConfigMethod(authResult.authUser, method, requestedResourceType)) {
+    if (method === "POST") normalizeResourceType(payload.resourceType || payload.type);
+    if (!canAccessCommercialConfigMethod(authResult.authUser, method)) {
       return json(event, 403, { error: "You cannot access commercial configuration." });
     }
 

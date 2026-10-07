@@ -13,13 +13,12 @@ test("Settings access exposes isolated Water pricing without opening it to stand
   assert.equal(canAccessPortalRoute("driver", "/admin/settings"), false);
 });
 
-test("Water pricing deep link opens the real commercial-config tab", () => {
-  const source = readFileSync(
-    new URL("../AdminWater/components/WaterRestockCard.jsx", import.meta.url),
-    "utf8",
-  );
-  assert.match(source, /\/admin\/settings\?tab=config/);
-  assert.doesNotMatch(source, /tab=commercial/);
+test("Water current prices are managed in the Water restock flow, not a Settings schedule", () => {
+  const source = readFileSync(new URL("../AdminWater/components/WaterRestockCard.jsx", import.meta.url), "utf8");
+  assert.match(source, /Retail Price/);
+  assert.match(source, /Company Price/);
+  assert.match(source, /Bulk Price/);
+  assert.doesNotMatch(source, /\/admin\/settings\?tab=config|water price schedule/i);
 });
 
 test("Settings contains no dead simple/advanced preference toggle", () => {

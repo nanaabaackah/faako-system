@@ -10,8 +10,8 @@ for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
     const dashboards = Object.fromEntries(WATER_PRODUCTS.map((product, index) => [product.key, {
       scope: "water", businessUnit: "WATER", products: WATER_PRODUCTS, permissions,
       product: { ...product, purchaseCost: index ? null : 2200, linkedVendorIds: [],
-        pricing: { currency: "GHS", retailSingle: index ? 1200 : 2700,
-          retailBulk: index ? 1100 : 2600, company: index ? 1000 : 2500,
+        pricing: { currency: "GHS", retailPrice: index ? 1200 : 2700,
+          bulkPrice: index ? 1100 : 2600, companyPrice: index ? 1000 : 2500,
           bulkThreshold: 10, discountLimitBps: 1000 } },
       summary: {}, expenses: [], adjustments: [], sales: [],
       restocks: index ? [] : [{ id: 7, productKey: product.key, quantity: 10, unitCost: 2200, date: "2026-09-01" }],

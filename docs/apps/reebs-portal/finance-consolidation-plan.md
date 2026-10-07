@@ -230,12 +230,13 @@ API/reporting dependencies include:
    workflow modules. The initial Accounting, Expenses and Invoicing grouping is
    implemented.
 2. Deploy the reviewed additive migration before the backend/runtime consumers,
-   then verify every organisation's effective Core rules and Water price tiers.
+   then verify every organisation's effective Core rules and current Water
+   Retail/Company/Bulk prices.
    Follow `financial-domain-architecture.md`; do not apply production migrations
    from routine development or review sessions.
 3. Validate public Core terms, quote/order revalidation, Booking pricing,
    invoice draft terms and Water pricing against the approved compatibility
-   values before scheduling any price change.
+   values before applying a price change.
 4. Keep `recordOrderPayment`, `OrderPayment`, `OrderReceipt` and order balance
    calculations as separate authoritative facts until their reconciliation and
    refund rules are approved.

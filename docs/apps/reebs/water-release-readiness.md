@@ -14,6 +14,12 @@ Water remains separate from Core rentals/events. The public Shop/Booking pause
 does not pause internal Water sales. Faako cards, navigation and theme were not
 redesigned. Financial/history registers received no new bulk archive.
 
+Pricing note (2026-10-07): the former Water price-schedule flow has been removed.
+Current Retail, Company and Bulk prices now live in `waterProductConfig`;
+`waterPriceChange` is audit-only. The new migration must be reviewed and applied
+before the current-price API is deployed. The prior scheduling verification
+below records historical evidence and does not certify this newer migration.
+
 ## Verified locally
 
 | Check | Evidence |
@@ -55,8 +61,9 @@ review staged filenames before committing. No secret file was opened or changed.
   cover exact replay, tenant mismatch, wrong/missing amount and wrong currency.
 - Removed an unused linked-product price fallback that referenced an undefined
   constant. Vendor linkage remains separate from authoritative Water prices.
-- The Water health probe now checks effective `waterProductPrice` tiers and the
-  Water discount rule, instead of a legacy product-config cost field.
+- At this checkpoint, the Water health probe checked effective `waterProductPrice`
+  tiers and the Water discount rule. The current-price implementation replaces
+  this with checks of the three current prices in `waterProductConfig`.
 - Summary labels use existing Faako text tokens for contrast. The refresh button
   is labeled, and Water's existing modal layout reuses the shared dialog lifecycle
   for initial/return focus, Tab containment, scroll lock and Escape. Select/date
@@ -91,7 +98,8 @@ copy production credentials, or create real payment charges for this checklist.
    in that candidate set and returns status only. It does **not** verify every
    tenant, stock, historical costs, provider connectivity or migration history.
 3. **Correct organisation:** sign in to the intended organisation. Verify current
-   and future-dated Water prices/discount limit in Commercial Settings. Owner/admin
+   and current Retail, Company and Bulk prices on the Water page, plus the Water
+   discount limit. Owner/admin
    must see purchase-cost and finance controls; a Water-only account must not see
    them or write stock/expense/adjustment/pricing changes via forged API requests.
    Another organisation's record IDs must not read/change Water records.

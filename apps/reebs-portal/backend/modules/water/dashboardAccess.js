@@ -25,7 +25,7 @@ export const presentWaterDashboard = (dashboard, role) => {
     product: {
       ...pick(dashboard.product, ["key", "name", "packSize", "unit", "pricingConfigured"]),
       pricing: pick(dashboard.product?.pricing, [
-        "currency", "retailSingle", "retailMinimumQuantity", "retailBulk", "company", "bulkThreshold", "discountLimitBps",
+        "currency", "retailPrice", "bulkPrice", "companyPrice", "bulkThreshold", "discountLimitBps",
         "configurationErrorCode",
       ]),
     },
@@ -42,6 +42,10 @@ export const presentWaterDashboard = (dashboard, role) => {
     expenses: [],
     adjustments: (dashboard.adjustments || []).map((row) => pick(row, [
       "id", "productKey", "productName", "quantityDelta", "reason", "date", "createdAt",
+    ])),
+    priceHistory: (dashboard.priceHistory || []).map((row) => pick(row, [
+      "id", "priceType", "previousPriceCents", "newPriceCents", "changedAt",
+      "changedByName", "source",
     ])),
   };
 };

@@ -24,17 +24,8 @@ export const COMMERCIAL_CONFIG_KEYS = Object.freeze({
   WATER_DISCOUNT_LIMIT_BPS: "water_discount_limit_bps",
 });
 
-export const WATER_PRICE_TYPES = Object.freeze({
-  RETAIL: "RETAIL",
-  BULK_RETAIL: "BULK_RETAIL",
-  COMPANY: "COMPANY",
-});
-
 export const buildCommercialRuleLockKey = (organizationId, businessUnit, key) =>
   [organizationId, "commercial-rule", businessUnit, key].join(":");
-
-export const buildWaterPriceLockKey = (organizationId, productKey, priceType) =>
-  [organizationId, "water-price", productKey, priceType].join(":");
 
 export const lockCommercialConfigurationKeys = async (client, lockKeys = []) => {
   const keys = [...new Set(lockKeys.map((key) => String(key || "").trim()).filter(Boolean))].sort();
@@ -118,12 +109,8 @@ export const COMMERCIAL_CONFIG_DEFINITIONS = Object.freeze(
 );
 
 const BUSINESS_UNIT_VALUES = new Set(Object.values(COMMERCIAL_BUSINESS_UNITS));
-const WATER_PRICE_TYPE_VALUES = new Set(Object.values(WATER_PRICE_TYPES));
 const VALUE_TYPE_VALUES = new Set(Object.values(COMMERCIAL_VALUE_TYPES));
 const MAX_DESCRIPTION_LENGTH = 500;
-const MAX_PRODUCT_NAME_LENGTH = 160;
-const MAX_PRODUCT_KEY_LENGTH = 120;
-const MAX_WATER_PRICE_CENTS = 100000000;
 
 export class CommercialConfigurationError extends Error {
   constructor(message, { code = "COMMERCIAL_CONFIGURATION_ERROR", statusCode = 400 } = {}) {
@@ -161,32 +148,6 @@ export const normalizeCommercialBusinessUnit = (value) => {
     throw configurationError(
       "Business unit must be REEBS_CORE, WATER, or SHARED.",
       "INVALID_COMMERCIAL_BUSINESS_UNIT"
-    );
-  }
-  return normalized;
-};
-
-export const normalizeWaterPriceType = (value) => {
-  const normalized = normalizeString(value).toUpperCase();
-  if (!WATER_PRICE_TYPE_VALUES.has(normalized)) {
-    throw configurationError(
-      "Water price type must be RETAIL, BULK_RETAIL, or COMPANY.",
-      "INVALID_WATER_PRICE_TYPE"
-    );
-  }
-  return normalized;
-};
-
-export const normalizeProductKey = (value) => {
-  const normalized = normalizeString(value).toLowerCase();
-  if (
-    !normalized
-    || normalized.length > MAX_PRODUCT_KEY_LENGTH
-    || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)
-  ) {
-    throw configurationError(
-      "Water productKey must be a lowercase hyphenated identifier.",
-      "INVALID_WATER_PRODUCT_KEY"
     );
   }
   return normalized;
@@ -322,43 +283,6 @@ export const normalizeEffectiveWindow = (
   return { effectiveFrom: from, effectiveTo: to };
 };
 
-// Water price history is editable policy, not a rewrite of sale snapshots.
-// Keep the generic commercial-rule date restriction unchanged.
-export const normalizeWaterPriceWindow = (payload = {}, { now = new Date(), rows = [] } = {}) => {
-  for (const field of ["effectiveFrom", "effectiveTo"]) {
-    const value = payload[field];
-    if (value === undefined || value === null || value === "" || value instanceof Date) continue;
-    const calendarDate = String(value).match(/^(\d{4}-\d{2}-\d{2})(?:T|$)/)?.[1];
-    const parsed = calendarDate && new Date(`${calendarDate}T00:00:00.000Z`);
-    if (!parsed || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== calendarDate) {
-      throw configurationError(`${field} must be a valid ISO date.`, "INVALID_EFFECTIVE_DATE");
-    }
-  }
-  const window = normalizeEffectiveWindow(payload, { now, allowPast: true });
-  const nextStart = rows
-    .filter((row) => row.active !== false)
-    .map((row) => parseDate(row.effectiveFrom, "effectiveFrom"))
-    .filter((date) => date > window.effectiveFrom)
-    .sort((a, b) => a - b)[0];
-  if (nextStart && window.effectiveTo && window.effectiveTo > nextStart) {
-    throw configurationError(
-      `This period crosses an existing Water price schedule. End it on or before ${nextStart.toISOString()}.`,
-      "WATER_PRICE_SCHEDULE_CONFLICT",
-      409
-    );
-  }
-  // An omitted end means until the next schedule, not replacement of all later prices.
-  if (nextStart && !window.effectiveTo) window.effectiveTo = nextStart;
-  return window;
-};
-
-export const classifyWaterPriceSchedule = (effectiveFrom, now = new Date()) => {
-  const from = parseDate(effectiveFrom, "effectiveFrom");
-  const reference = parseDate(now, "now");
-  if (from.toISOString().slice(0, 10) < reference.toISOString().slice(0, 10)) return "historical";
-  return from > reference ? "future" : "current";
-};
-
 const parseStoredEffectiveWindow = (row) => {
   try {
     if (!row?.effectiveFrom) throw new TypeError("effectiveFrom is required");
@@ -389,83 +313,6 @@ export const serializeCommercialConfiguration = (row = {}) => {
     effectiveTo: toIsoOrNull(window.effectiveTo),
     active: row.active !== false,
     description: normalizeDescription(row.description),
-    createdByUserId: row.createdByUserId ? Number(row.createdByUserId) : null,
-    updatedByUserId: row.updatedByUserId ? Number(row.updatedByUserId) : null,
-    createdAt: toIsoOrNull(row.createdAt),
-    updatedAt: toIsoOrNull(row.updatedAt),
-  };
-};
-
-export const normalizeWaterProductPriceInput = (
-  input = {},
-  { persisted = false } = {}
-) => {
-  const fail = (message) => {
-    throw configurationError(
-      message,
-      persisted ? "CORRUPT_WATER_PRICE" : "INVALID_WATER_PRICE",
-      persisted ? 503 : 400
-    );
-  };
-
-  let productKey;
-  let priceType;
-  try {
-    productKey = normalizeProductKey(input.productKey);
-    priceType = normalizeWaterPriceType(input.priceType);
-  } catch (error) {
-    if (!persisted) throw error;
-    fail("Stored Water price has an invalid product key or price type.");
-  }
-
-  const productName = normalizeString(input.productName).replace(/\s+/g, " ");
-  if (!productName || productName.length > MAX_PRODUCT_NAME_LENGTH) {
-    fail("Water productName is required and must not exceed 160 characters.");
-  }
-
-  const hasProductId = input.productId !== null && input.productId !== undefined;
-  const productId = hasProductId ? parseExactInteger(input.productId) : null;
-  if (hasProductId && (productId === null || productId <= 0)) {
-    fail("Water productId must be a positive integer when supplied.");
-  }
-
-  const minimumQuantity = parseExactInteger(input.minimumQuantity ?? 1);
-  if (minimumQuantity === null || minimumQuantity <= 0 || minimumQuantity > 100000) {
-    fail("Water minimumQuantity must be an integer between 1 and 100000.");
-  }
-
-  const priceCents = parseExactInteger(input.priceCents);
-  if (priceCents === null || priceCents <= 0 || priceCents > MAX_WATER_PRICE_CENTS) {
-    fail("Water priceCents must be a positive integer in pesewas.");
-  }
-
-  const currency = normalizeString(input.currency || "GHS").toUpperCase();
-  if (!/^[A-Z]{3}$/.test(currency)) {
-    fail("Water price currency must be a three-letter ISO currency code.");
-  }
-
-  return {
-    productId,
-    productKey,
-    productName,
-    priceType,
-    minimumQuantity,
-    priceCents,
-    currency,
-    description: normalizeDescription(input.description),
-  };
-};
-
-export const serializeWaterProductPrice = (row = {}) => {
-  const normalized = normalizeWaterProductPriceInput(row, { persisted: true });
-  const window = parseStoredEffectiveWindow(row);
-  return {
-    id: Number(row.id),
-    organizationId: Number(row.organizationId),
-    ...normalized,
-    effectiveFrom: window.effectiveFrom.toISOString(),
-    effectiveTo: toIsoOrNull(window.effectiveTo),
-    active: row.active !== false,
     createdByUserId: row.createdByUserId ? Number(row.createdByUserId) : null,
     updatedByUserId: row.updatedByUserId ? Number(row.updatedByUserId) : null,
     createdAt: toIsoOrNull(row.createdAt),
@@ -587,111 +434,3 @@ export const resolveCommercialConfiguration = async (
 
 export const resolveCommercialValue = async (client, options = {}) =>
   (await resolveCommercialConfiguration(client, options)).value;
-
-export const resolveWaterProductPrice = async (
-  client,
-  { organizationId, productKey, priceType, at = new Date() } = {}
-) => {
-  requireClient(client);
-  const scopedOrganizationId = parsePositiveOrganizationId(organizationId);
-  const normalizedProductKey = normalizeProductKey(productKey);
-  const normalizedPriceType = normalizeWaterPriceType(priceType);
-  const asOf = parseAsOf(at);
-  const result = await client.query(
-    `SELECT id, "organizationId", "productId", "productKey", "productName",
-            "priceType", "minimumQuantity", "priceCents", currency,
-            "effectiveFrom", "effectiveTo", active, description,
-            "createdByUserId", "updatedByUserId", "createdAt", "updatedAt"
-     FROM "waterProductPrice"
-     WHERE "organizationId" = $1
-       AND "productKey" = $2
-       AND "priceType" = $3
-       AND active = true
-       AND "effectiveFrom" <= $4
-       AND ("effectiveTo" IS NULL OR "effectiveTo" > $4)
-     ORDER BY "effectiveFrom" DESC, id DESC
-     LIMIT 2`,
-    [scopedOrganizationId, normalizedProductKey, normalizedPriceType, asOf.toISOString()]
-  );
-  const selected = selectSingleEffectiveRecord(result.rows || [], {
-    at: asOf,
-    missingMessage: `Required Water ${normalizedPriceType} price for ${normalizedProductKey} is missing.`,
-  });
-  return serializeWaterProductPrice(selected);
-};
-
-export const resolveWaterSalePrice = async (
-  client,
-  {
-    organizationId,
-    productKey,
-    saleChannel = "retail",
-    quantity = 1,
-    at = new Date(),
-  } = {}
-) => {
-  requireClient(client);
-  const scopedOrganizationId = parsePositiveOrganizationId(organizationId);
-  const normalizedProductKey = normalizeProductKey(productKey);
-  const normalizedQuantity = parseExactInteger(quantity);
-  if (normalizedQuantity === null || normalizedQuantity <= 0) {
-    throw configurationError("Water sale quantity must be a positive integer.", "INVALID_WATER_QUANTITY");
-  }
-  const normalizedChannel = normalizeString(saleChannel).toLowerCase();
-  if (normalizedChannel === "company") {
-    return resolveWaterProductPrice(client, {
-      organizationId: scopedOrganizationId,
-      productKey: normalizedProductKey,
-      priceType: WATER_PRICE_TYPES.COMPANY,
-      at,
-    });
-  }
-  if (normalizedChannel !== "retail") {
-    throw configurationError("Water saleChannel must be retail or company.", "INVALID_WATER_CHANNEL");
-  }
-
-  const asOf = parseAsOf(at);
-  const result = await client.query(
-    `SELECT id, "organizationId", "productId", "productKey", "productName",
-            "priceType", "minimumQuantity", "priceCents", currency,
-            "effectiveFrom", "effectiveTo", active, description,
-            "createdByUserId", "updatedByUserId", "createdAt", "updatedAt"
-     FROM "waterProductPrice"
-     WHERE "organizationId" = $1
-       AND "productKey" = $2
-       AND "priceType" IN ('RETAIL', 'BULK_RETAIL')
-       AND "minimumQuantity" <= $3
-       AND active = true
-       AND "effectiveFrom" <= $4
-       AND ("effectiveTo" IS NULL OR "effectiveTo" > $4)
-     ORDER BY "minimumQuantity" DESC, "effectiveFrom" DESC, id DESC`,
-    [scopedOrganizationId, normalizedProductKey, normalizedQuantity, asOf.toISOString()]
-  );
-
-  const effectiveByType = new Map();
-  for (const row of result.rows || []) {
-    if (!isEffectiveAt(row, asOf)) continue;
-    const rowsForType = effectiveByType.get(row.priceType) || [];
-    rowsForType.push(row);
-    effectiveByType.set(row.priceType, rowsForType);
-  }
-  for (const rowsForType of effectiveByType.values()) {
-    if (rowsForType.length > 1) {
-      throw integrityError(
-        "Overlapping Water price records require administrator reconciliation.",
-        "AMBIGUOUS_WATER_PRICE"
-      );
-    }
-  }
-
-  const candidates = [...effectiveByType.values()]
-    .flat()
-    .sort((left, right) => Number(right.minimumQuantity) - Number(left.minimumQuantity));
-  if (candidates.length === 0) {
-    throw integrityError(
-      `Required retail Water price for ${normalizedProductKey} is missing.`,
-      "MISSING_WATER_PRICE"
-    );
-  }
-  return serializeWaterProductPrice(candidates[0]);
-};

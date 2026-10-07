@@ -9,8 +9,8 @@ import {
 
 test("Water selling price resolves only from configured server values", () => {
   const pricing = normalizeWaterPricing({
-    retailSinglePrice: 2700,
-    retailBulkPrice: 2600,
+    retailPrice: 2700,
+    bulkPrice: 2600,
     companyPrice: 2500,
     bulkThreshold: 10,
   });

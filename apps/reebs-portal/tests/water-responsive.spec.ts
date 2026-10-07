@@ -18,7 +18,7 @@ const waterDashboard = {
     linkedVendorIds: [],
     purchaseCost: 2200,
     pricingConfigured: true,
-    pricing: { retailSingle: 2700, retailBulk: 2600, company: 2500, bulkThreshold: 10 },
+    pricing: { retailPrice: 2700, bulkPrice: 2600, companyPrice: 2500, bulkThreshold: 10 },
   },
   permissions: {
     canManagePricing: true,

@@ -23,9 +23,9 @@ const buildDashboard = (unitCost = 2200, role = "admin") => ({
     purchaseCost: unitCost,
     pricing: {
       currency: "GHS",
-      retailSingle: 2700,
-      retailBulk: 2600,
-      company: 2500,
+      retailPrice: 2700,
+      bulkPrice: 2600,
+      companyPrice: 2500,
       bulkThreshold: 10,
       discountLimitBps: 9999,
     },

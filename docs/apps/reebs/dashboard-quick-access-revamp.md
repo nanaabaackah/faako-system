@@ -104,6 +104,9 @@ navigation, touch sizes, loading/reduced motion, retry, sorting and pagination.
 
 ### Production Water incident (same work session)
 
+This incident guidance records the state on 2026-10-01 and is superseded for
+Water selling prices by the current-price model introduced on 2026-10-07.
+
 Read-only production `/live`, `/ready` and `/health/water` probes passed around
 18:52 UTC on 2026-10-01. These do not certify authenticated writes or the selected
 organization/product/date. The user then supplied response code
@@ -111,13 +114,12 @@ organization/product/date. The user then supplied response code
 absent for the organization/product/quantity/effective date. No database inspection
 was performed, so the absent/expired/future/mismatched schedule is not distinguished.
 
-Owner/admin action: review the correct product's Retail, Bulk retail and Company
-price schedules in Settings → Commercial and the Water discount rule. The
-15pk product key is `gwater-15pk`; the 30pcs sachet key is `sachet-water-30pk`.
-Minimum quantities and effective dates must match actual sales. Use real approved
-prices, never copy a different product's price. Restock purchase cost is separate.
-Settings does not backdate historical prices; historical corrections need a
-separately reviewed process, not a fallback price or bypass.
+Owner/admin action at that time: review the correct product's selling prices and
+Water discount rule. Water now uses current Retail, Company and Bulk prices on
+the Water page; no sale date or effective-price period selects its standard
+price. The 15pk product key is `gwater-15pk`; the 30pcs sachet key is
+`sachet-water-30pk`. Use real approved prices, never copy a different product's
+price. Restock purchase cost is separate.
 
 Local `actionErrors` now exposes curated corrective guidance for known Water
 configuration failures through the real HTTP adapter, while arbitrary server

@@ -173,7 +173,7 @@ test("Water sale pricing uses the server standard unless an authorized override 
   );
 });
 
-test("Water sale pricing is re-resolved when quantity, channel, or sale date changes", () => {
+test("Water sale price resolution depends on quantity and channel, not sale date", () => {
   const existing = {
     quantity: 9,
     saleChannel: "retail",
@@ -184,7 +184,7 @@ test("Water sale pricing is re-resolved when quantity, channel, or sale date cha
   assert.equal(didWaterSalePricingBasisChange(existing, { ...existing, saleChannel: "company" }), true);
   assert.equal(
     didWaterSalePricingBasisChange(existing, { ...existing, date: "2026-08-21T00:00:00.000Z" }),
-    true
+    false
   );
 });
 

@@ -11,8 +11,15 @@ their unresolved findings remain tracked. Sidecar must be preserved, Water must
 remain separate. The user approved the proposal; local implementation and its
 validation limits are now recorded in that report. No deployment or database
 write occurred. Production Water returned `MISSING_WATER_PRICE`; local reporting
-is corrected, but effective production price schedules still need owner/admin
-verification. Do not confuse passing health probes with healthy sale mutations.
+was corrected, but at that checkpoint the live selling-price configuration still
+needed owner/admin verification. Do not confuse passing health probes with
+healthy sale mutations.
+
+Pricing follow-up: on 2026-10-07, Water scheduled pricing was removed and
+replaced with current product prices plus audit-only history. That migration and
+its staging validation are tracked in [Water architecture](water-architecture.md)
+and [Water release readiness](water-release-readiness.md); this 2026-10-01
+checkpoint is historical.
 
 ## Resume checkpoint — 2026-10-01
 

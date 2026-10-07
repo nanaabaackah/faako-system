@@ -156,7 +156,7 @@ export default function WaterOrderFormCard({
                   <span className="water-module-field-label">Price Per Pack</span>
                   <input
                     type="number"
-                    min="0.01"
+                    min="0"
                     step="0.01"
                     inputMode="decimal"
                   value={unitPriceInputValue}
@@ -173,7 +173,7 @@ export default function WaterOrderFormCard({
                 ) : null}
                 {!pricingAvailable ? (
                   <p className="water-module-inline-note" role="alert">
-                    No active Water price is configured. An administrator must schedule one before sale.
+                    A current Water price is not configured. An administrator must update the product prices before sale.
                   </p>
                 ) : null}
               </div>

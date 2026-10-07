@@ -51,7 +51,7 @@ const REQUIRED_TABLES = Object.freeze([
   "product",
   "waterAdjustment",
   "waterExpense",
-  "waterProductPrice",
+  "waterProductConfig",
   "waterRestock",
   "waterSale",
 ]);
@@ -125,17 +125,17 @@ const loadProductRecords = async (client, organizationId, tables) => {
          WHERE bi."organizationId" = p."organizationId" AND bi."productId" = p.id
        )`
     : "false";
-  const waterPriceEvidence = tables.waterProductPrice
+  const waterConfigEvidence = tables.waterProductConfig
     ? `EXISTS (
-         SELECT 1 FROM "waterProductPrice" wpp
-         WHERE wpp."organizationId" = p."organizationId" AND wpp."productId" = p.id
+         SELECT 1 FROM "waterProductConfig" wpc
+         WHERE wpc."organizationId" = p."organizationId" AND wpc."inventoryProductId" = p.id
        )`
     : "false";
   const result = await client.query(
     `SELECT p.id, p.sku,
             ${coreOrderEvidence} AS "hasCoreOrderItem",
             ${coreBookingEvidence} AS "hasCoreBookingItem",
-            ${waterPriceEvidence} AS "hasWaterPriceLink"
+            ${waterConfigEvidence} AS "hasWaterConfigLink"
      FROM "product" p
      WHERE p."organizationId" = $1
      ORDER BY p.id`,
@@ -149,30 +149,29 @@ const loadProductRecords = async (client, organizationId, tables) => {
       ...(row.hasCoreOrderItem ? ["relationship:orderItem.productId"] : []),
       ...(row.hasCoreBookingItem ? ["relationship:bookingItem.productId"] : []),
     ],
-    waterEvidence: row.hasWaterPriceLink
-      ? ["relationship:waterProductPrice.productId"]
+    waterEvidence: row.hasWaterConfigLink
+      ? ["relationship:waterProductConfig.inventoryProductId"]
       : [],
     metadata: { sku: row.sku || null },
   }));
 };
 
-const loadWaterPriceRecords = async (client, organizationId, tables) => {
-  if (!tables.waterProductPrice) return [];
+const loadWaterProductConfigRecords = async (client, organizationId, tables) => {
+  if (!tables.waterProductConfig) return [];
   const result = await client.query(
-    `SELECT id, "productId", "productKey", "priceType"
-     FROM "waterProductPrice"
+    `SELECT id, "inventoryProductId", "productKey"
+     FROM "waterProductConfig"
      WHERE "organizationId" = $1
      ORDER BY id`,
     [organizationId]
   );
   return (result.rows || []).map((row) => ({
-    entityType: "WATER_PRODUCT_PRICE",
+    entityType: "WATER_PRODUCT_CONFIG",
     id: row.id,
-    waterEvidence: ["table:waterProductPrice"],
+    waterEvidence: ["table:waterProductConfig"],
     metadata: {
-      productId: row.productId ? Number(row.productId) : null,
+      productId: row.inventoryProductId ? Number(row.inventoryProductId) : null,
       productKey: row.productKey,
-      priceType: row.priceType,
     },
   }));
 };
@@ -295,7 +294,7 @@ const loadReport = async (client, organizationId) => {
   const [
     customers,
     products,
-    waterPrices,
+    waterProductConfigs,
     commercialConfiguration,
     invoiceDocuments,
     journals,
@@ -303,7 +302,7 @@ const loadReport = async (client, organizationId) => {
   ] = await Promise.all([
     loadCustomerRecords(client, organizationId, tables),
     loadProductRecords(client, organizationId, tables),
-    loadWaterPriceRecords(client, organizationId, tables),
+    loadWaterProductConfigRecords(client, organizationId, tables),
     loadCommercialConfigurationRecords(client, organizationId, tables),
     loadInvoiceDocumentRecords(client, organizationId, tables),
     loadJournalRecords(client, organizationId, tables),
@@ -312,20 +311,20 @@ const loadReport = async (client, organizationId) => {
   const records = [
     ...customers,
     ...products,
-    ...waterPrices,
+    ...waterProductConfigs,
     ...commercialConfiguration,
     ...invoiceDocuments,
     ...journals,
   ];
-  const unlinkedWaterPrices = waterPrices.filter((record) => !record.metadata.productId).length;
+  const unlinkedWaterProducts = waterProductConfigs.filter((record) => !record.metadata.productId).length;
   const warnings = [];
-  if (!tables.waterProductPrice) {
+  if (!tables.waterProductConfig) {
     warnings.push(
-      "waterProductPrice is unavailable; Product records cannot receive structural Water evidence."
+      "waterProductConfig is unavailable; Product records cannot receive structural Water evidence."
     );
-  } else if (unlinkedWaterPrices > 0) {
+  } else if (unlinkedWaterProducts > 0) {
     warnings.push(
-      `${unlinkedWaterPrices} Water price record(s) have no productId; review them without name-based relinking.`
+      `${unlinkedWaterProducts} Water product configuration record(s) have no inventoryProductId; review them without name-based relinking.`
     );
   }
   if (!tables.invoiceDocument) {

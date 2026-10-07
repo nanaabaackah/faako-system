@@ -1,5 +1,5 @@
 import { AppIcon } from "/src/components/Icon/Icon";
-import { faMinus, faPlus, faCalendarDays } from "/src/icons/iconSet";
+import { faMinus, faPlus } from "/src/icons/iconSet";
 import PortalAction from "../../../components/PortalAction/PortalAction";
 
 export default function WaterRestockCard({
@@ -9,6 +9,8 @@ export default function WaterRestockCard({
   quantityValue,
   unitCostValue,
   onUnitCostChange,
+  priceValues,
+  onPriceChange,
   canViewCost,
   onSelectQuickQuantity,
   onAdjustQuantity,
@@ -18,8 +20,6 @@ export default function WaterRestockCard({
   saving,
   loading,
   formatCurrency,
-  retailPriceLabel,
-  retailPriceAvailable,
   canManageWaterPricing,
 }) {
   return (
@@ -27,22 +27,8 @@ export default function WaterRestockCard({
       <article className="admin-card water-module-card water-module-card--full bubble-card">
         <div className="water-module-card-head">
           <div>
-            <h3>Pricing & Restock</h3>
+            <h3>Restock water</h3>
           </div>
-        </div>
-        <div className="water-module-form">
-          <div className="water-module-sale-block">
-            <div className="water-module-inline-summary">
-              <span>Current scheduled retail price</span>
-              <strong>{retailPriceAvailable ? retailPriceLabel : "Not configured"}</strong>
-            </div>
-            <p className="water-module-inline-note">
-              New Water orders use the active effective-dated price from Commercial Settings.
-            </p>
-          </div>
-          {canManageWaterPricing ? (
-            <PortalAction to="/admin/settings?tab=config" icon={faCalendarDays} label="Manage scheduled prices" />
-          ) : null}
         </div>
         {canManageWaterPricing ? <form className="water-module-form" onSubmit={onSubmit}>
           <div className="water-module-sale-block">
@@ -91,9 +77,9 @@ export default function WaterRestockCard({
             </div>
             {canViewCost ? (
               <label>
-                <span className="water-module-field-label">Cost price per pack (GHS)</span>
+                <span className="water-module-field-label">Purchase cost per pack (GHS)</span>
                 <input
-                  aria-label="Restock cost price per pack"
+                  aria-label="Purchase cost per pack"
                   type="number"
                   min="0.01"
                   step="0.01"
@@ -105,6 +91,27 @@ export default function WaterRestockCard({
                 />
               </label>
             ) : null}
+            <div className="water-module-price-grid">
+              {[
+                ["retailPrice", "Retail Price"],
+                ["companyPrice", "Company Price"],
+                ["bulkPrice", "Bulk Price"],
+              ].map(([field, label]) => (
+                <label key={field}>
+                  <span className="water-module-field-label">{label} (GHS)</span>
+                  <input
+                    aria-label={label}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={priceValues[field]}
+                    onChange={(event) => onPriceChange(field, event.target.value)}
+                    placeholder="0.00"
+                  />
+                </label>
+              ))}
+            </div>
           </div>
           <div className="water-module-inline-summary">
             <span>{supplierLabel}</span>
@@ -116,7 +123,7 @@ export default function WaterRestockCard({
           </div>
           {canViewCost ? (
             <p className="water-module-inline-note">
-              Water cost of goods and profit use the cost recorded for each restock period.
+            Purchase cost is tracked separately from the current selling prices.
             </p>
           ) : null}
           <PortalAction type="submit" className="admin-primary" action="add" icon={faPlus} disabled={saving || loading}

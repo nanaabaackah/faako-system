@@ -32,6 +32,38 @@ globalThis[fixtureKey] = {
           && new Date(row.date) <= new Date(values[2]));
         return { rows: rows.slice(0, 1) };
       }
+      if (/^SELECT id, "inventoryProductId", "retailPrice"/.test(statement)) {
+        const config = fixture.productConfigs.get(`${values[0]}:${values[1]}`);
+        return { rows: config ? [structuredClone(config)] : [], rowCount: config ? 1 : 0 };
+      }
+      if (/^INSERT INTO "waterProductConfig"/.test(statement)) {
+        const key = `${values[0]}:${values[1]}`;
+        if (!fixture.productConfigs.has(key)) {
+          fixture.productConfigs.set(key, {
+            id: 1, inventoryProductId: null, retailPrice: null, companyPrice: null,
+            bulkPrice: null, bulkThreshold: 10,
+          });
+        }
+        return { rows: [], rowCount: 1 };
+      }
+      if (/^UPDATE "waterProductConfig" SET/.test(statement)) {
+        const config = fixture.productConfigs.get(`${values[0]}:${values[1]}`);
+        assert.ok(config);
+        const setClause = statement.slice(0, statement.indexOf("WHERE"));
+        for (const match of setClause.matchAll(/"(\w+)" = \$(\d+)/g)) {
+          config[match[1]] = values[Number(match[2]) - 1];
+        }
+        return { rows: [], rowCount: 1 };
+      }
+      if (/^INSERT INTO "waterPriceChange"/.test(statement)) {
+        const columns = [...statement.slice(statement.indexOf("(") + 1, statement.indexOf(") VALUES")).matchAll(/"(\w+)"|source/g)]
+          .map((match) => match[1] || "source");
+        fixture.priceHistory.unshift(Object.fromEntries(columns.map((column, index) => [column, values[index]])));
+        return { rows: [], rowCount: 1 };
+      }
+      if (/^SELECT .* FROM "waterPriceChange"/.test(statement)) {
+        return { rows: structuredClone(fixture.priceHistory) };
+      }
       if (/^INSERT INTO "waterSale"/.test(statement)) {
         const columns = [...statement.split("VALUES")[0].matchAll(/"([A-Za-z]+)"/g)].slice(1).map((match) => match[1]);
         const sale = { id: 12, ...Object.fromEntries(columns.map((column, index) => [column, values[index]])) };
@@ -69,11 +101,13 @@ globalThis[fixtureKey] = {
         return { rows: [], rowCount: 1 };
       }
       if (/^UPDATE "waterSale" SET "quantity"/.test(statement)) {
-        assert.match(statement, /AND "productKey" = \$26/);
-        const row = fixture.sales.find((sale) => sale.id === values[0] && sale.productKey === values[25]);
+        assert.match(statement, /AND "productKey" = \$25/);
+        const row = fixture.sales.find((sale) => sale.id === values[0] && sale.productKey === values[24]);
         assert.ok(row);
         Object.assign(row, { quantity: values[2], unitPrice: values[9], standardUnitPrice: values[10],
-          waterProductPriceId: values[11], unitCostAtSaleCents: values[12], totalAmount: values[16] });
+          unitCostAtSaleCents: values[11], priceOverrideReason: values[12],
+          priceOverriddenByUserId: values[13], priceOverriddenAt: values[14],
+          totalAmount: values[15], date: values[20] });
         return { rows: [], rowCount: 1 };
       }
       if (/^SELECT COUNT\(\*\)::int AS count/.test(statement)) {
@@ -101,14 +135,6 @@ globalThis[fixtureKey] = {
       }
       throw new Error(`Unexpected fixture query: ${statement}`);
     }
-  },
-  resolvePrice: async (_client, options) => {
-    fixture.priceRequests.push(options);
-    if (fixture.missingPricing || fixture.missingPriceTypes?.includes(options.priceType)) {
-      throw Object.assign(new Error("Water prices are not configured."), { statusCode: 503,
-        code: options.priceType ? "MISSING_COMMERCIAL_CONFIGURATION" : "MISSING_WATER_PRICE" });
-    }
-    return { id: 1, currency: "GHS", priceCents: options.productKey === "sachet-water-30pk" ? 1200 : 3000, minimumQuantity: 10 };
   },
   requireInternalUser: async (_client, _event, options) => {
     fixture.authorization = options;
@@ -141,8 +167,6 @@ const mockedModules = new Map([
   `],
   ["./_shared/commercialConfig.js", `
     export * from ${JSON.stringify(commercialUrl)};
-    export const resolveWaterProductPrice = globalThis.${fixtureKey}.resolvePrice;
-    export const resolveWaterSalePrice = globalThis.${fixtureKey}.resolvePrice;
     export const resolveCommercialValue = async () => 1000;
   `],
 ]);
@@ -177,7 +201,17 @@ const sachetRestock = {
 const createFixture = (role) => ({
   role,
   queries: [],
-  priceRequests: [],
+  productConfigs: new Map([
+    ["7:gwater-15pk", {
+      id: 1, inventoryProductId: null, retailPrice: 3000, companyPrice: 2500,
+      bulkPrice: 2800, bulkThreshold: 10,
+    }],
+    ["7:sachet-water-30pk", {
+      id: 2, inventoryProductId: null, retailPrice: 1200, companyPrice: 1000,
+      bulkPrice: 1100, bulkThreshold: 10,
+    }],
+  ]),
+  priceHistory: [],
   closed: false,
   restocks: [{
     id: 1,
@@ -190,26 +224,28 @@ const createFixture = (role) => ({
   }],
 });
 
-test("missing company and bulk schedules do not hide the configured retail price", async () => {
+test("Water dashboard reports missing current prices without hiding configured prices", async () => {
   fixture = createFixture("admin");
-  fixture.missingPriceTypes = ["COMPANY", "BULK_RETAIL"];
+  fixture.productConfigs.get("7:gwater-15pk").companyPrice = null;
+  fixture.productConfigs.get("7:gwater-15pk").bulkPrice = null;
   const response = await handler({ httpMethod: "GET", headers: {} });
   assert.equal(response.statusCode, 200);
   const pricing = JSON.parse(response.body).product.pricing;
-  assert.equal(pricing.retailSingle, 3000);
-  assert.equal(pricing.retailMinimumQuantity, 10);
-  assert.equal(pricing.retailBulk, null);
-  assert.equal(pricing.company, null);
+  assert.equal(pricing.retailPrice, 3000);
+  assert.equal(pricing.bulkPrice, null);
+  assert.equal(pricing.companyPrice, null);
   assert.equal(pricing.configurationErrorCode, "MISSING_WATER_PRICE");
 });
 
 for (const role of ["owner", "admin", "water"]) {
-  test(`${role} recorded-price correction with no historical schedule preserves cost and stock permissions`, async () => {
+  test(`${role} recorded-price correction with no current price preserves cost and stock permissions`, async () => {
     fixture = createFixture(role);
-    fixture.missingPricing = true;
+    fixture.productConfigs.get("7:gwater-15pk").retailPrice = null;
+    fixture.productConfigs.get("7:gwater-15pk").companyPrice = null;
+    fixture.productConfigs.get("7:gwater-15pk").bulkPrice = null;
     fixture.sales = [{ id: 9, productKey: "gwater-15pk", quantity: 2, saleChannel: "retail",
       date: "2026-09-02T14:30:00.000Z", updatedAt: "2026-09-02T14:30:00.000Z",
-      unitPrice: 3000, standardUnitPrice: 3000, waterProductPriceId: 3,
+      unitPrice: 3000, standardUnitPrice: 3000,
       unitCostAtSaleCents: 2000, totalAmount: 6000, customerId: 1,
       paymentMethod: "cash", paymentStatus: "paid", discountType: "none", discountValue: 0 }];
     const response = await handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({
@@ -221,10 +257,9 @@ for (const role of ["owner", "admin", "water"]) {
     assert.equal(sale.totalAmount, role === "water" ? 6000 : 6400);
     assert.equal(sale.unitCostAtSaleCents, 2000);
     assert.equal(sale.standardUnitPrice, 3000);
-    assert.equal(sale.waterProductPriceId, 3);
     assert.equal(sale.quantity, 2);
-    if (role !== "water") assert.equal(fixture.queries.find(({ statement }) => /^UPDATE "waterSale" SET "quantity"/.test(statement)).values[21], "2026-09-02T14:30:00.000Z");
-    assert.ok(fixture.priceRequests.every((request) => request.quantity === undefined), "no historical sale-price lookup for a price-only correction");
+    if (role !== "water") assert.equal(fixture.queries.find(({ statement }) => /^UPDATE "waterSale" SET "quantity"/.test(statement)).values[20], "2026-09-02T14:30:00.000Z");
+    assert.ok(fixture.queries.every(({ statement }) => !statement.includes('"waterProductPrice"')));
   });
 }
 
@@ -362,12 +397,11 @@ test("30-piece pack dashboard isolates stock, prices and costs from the existing
   assert.equal(dashboard.product.key, sachetProductKey);
   assert.equal(dashboard.product.packSize, 30);
   assert.equal(dashboard.product.purchaseCost, 800);
-  assert.equal(dashboard.product.pricing.retailSingle, 1200);
+  assert.equal(dashboard.product.pricing.retailPrice, 1200);
   assert.equal(dashboard.summary.stockOnHand, 5);
   assert.equal(dashboard.summary.restockSpend, 4000);
   assert.deepEqual(dashboard.sales, []);
   assert.deepEqual(dashboard.restocks, [sachetRestock]);
-  assert.ok(fixture.priceRequests.every((request) => request.productKey === sachetProductKey));
 });
 
 test("new 30-piece pack restock preserves legacy stock and records cost per whole pack", async () => {
@@ -382,6 +416,26 @@ test("new 30-piece pack restock preserves legacy stock and records cost per whol
   assert.equal(dashboard.restocks[0].unitCost, 850);
   assert.deepEqual(fixture.restocks.find((row) => row.productKey === legacy.productKey), legacy);
   assert.ok(fixture.queries.some(({ values }) => values.includes(`water-inventory:7:${sachetProductKey}`)));
+});
+
+test("restock updates only changed current prices and writes price-change audit entries", async () => {
+  fixture = createFixture("admin");
+  const dashboard = assertDashboard(await handler({ httpMethod: "POST", body: JSON.stringify({
+    action: "restock", quantity: 4, unitCost: "24.50", retailPrice: "31.00",
+    companyPrice: "25.00", bulkPrice: "28.00", date: "2026-09-24",
+  }) }), "admin");
+
+  assert.equal(dashboard.product.pricing.retailPrice, 3100);
+  assert.equal(dashboard.product.pricing.companyPrice, 2500);
+  assert.equal(dashboard.product.pricing.bulkPrice, 2800);
+  assert.deepEqual(fixture.priceHistory.map(({ priceType, previousPriceCents, newPriceCents, source }) => ({
+    priceType, previousPriceCents, newPriceCents, source,
+  })), [{
+    priceType: "retail",
+    previousPriceCents: 3000,
+    newPriceCents: 3100,
+    source: "restock",
+  }]);
 });
 
 test("30-piece sale cannot consume available 15-pack stock", async () => {
@@ -425,12 +479,16 @@ for (const action of ["update_restock", "delete_restock", "update_sale", "delete
 }
 
 test("unconfigured sachet selling prices do not prevent stock recording or borrow legacy prices", async () => {
-  fixture = { ...createFixture("admin"), missingPricing: true };
+  fixture = createFixture("admin");
+  fixture.productConfigs.set("7:sachet-water-30pk", {
+    id: 2, inventoryProductId: null, retailPrice: null, companyPrice: null,
+    bulkPrice: null, bulkThreshold: 10,
+  });
   const dashboard = assertDashboard(await handler({ httpMethod: "POST", body: JSON.stringify({
     action: "restock", productKey: sachetProductKey, quantity: 3, unitCost: "8.50", date: "2026-09-24",
   }) }), "admin");
   assert.equal(dashboard.summary.stockOnHand, 3);
-  assert.equal(dashboard.product.pricing.retailSingle, null);
+  assert.equal(dashboard.product.pricing.retailPrice, null);
   assert.match(dashboard.product.pricing.configurationError, /not configured/);
 });
 
@@ -458,7 +516,11 @@ test("sachet expense is assigned only to the selected product's profit calculati
 });
 
 test("sachet sales fail closed without a configured price", async () => {
-  fixture = { ...createFixture("water"), missingPricing: true };
+  fixture = createFixture("water");
+  fixture.productConfigs.set("7:sachet-water-30pk", {
+    id: 2, inventoryProductId: null, retailPrice: null, companyPrice: null,
+    bulkPrice: null, bulkThreshold: 10,
+  });
   fixture.restocks.push(sachetRestock);
   const response = await handler({ httpMethod: "POST", body: JSON.stringify({
     action: "sale", productKey: sachetProductKey, customerId: 1, quantity: 1,
@@ -466,7 +528,7 @@ test("sachet sales fail closed without a configured price", async () => {
   }) });
   assert.equal(response.statusCode, 503);
   assert.equal(JSON.parse(response.body).code, "MISSING_WATER_PRICE");
-  assert.match(JSON.parse(response.body).error, /Settings → Commercial/);
+  assert.match(JSON.parse(response.body).error, /current selling price/i);
   assert.equal(fixture.queries.some(({ statement }) => statement.startsWith('INSERT INTO "waterSale"')), false);
   assert.ok(fixture.queries.some(({ statement }) => statement === "ROLLBACK"));
 });

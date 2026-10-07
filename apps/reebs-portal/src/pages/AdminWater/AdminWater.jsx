@@ -13,6 +13,7 @@ import WaterLedgerEditorModal from "./components/WaterLedgerEditorModal";
 import WaterOperationsGrid from "./components/WaterOperationsGrid";
 import WaterOrderEditorModal from "./components/WaterOrderEditorModal";
 import WaterOrderFormCard from "./components/WaterOrderFormCard";
+import WaterPricingCard from "./components/WaterPricingCard";
 import WaterRestockCard from "./components/WaterRestockCard";
 import { reebsApiResponse } from "../../api/client";
 import { calculateWaterCostBasis } from "../../../shared/waterFinancials.js";
@@ -54,9 +55,9 @@ const buildDefaultDashboard = (product = getWaterProduct()) => ({
     purchaseCost: null,
     pricingConfigured: false,
     pricing: {
-      retailSingle: null,
-      retailBulk: null,
-      company: null,
+      retailPrice: null,
+      bulkPrice: null,
+      companyPrice: null,
       bulkThreshold: 10,
     },
   },
@@ -202,7 +203,7 @@ const filterEntriesByRestockPeriod = (entries = [], period = null) => {
 
 const toMoneyInputValue = (value) => {
   const amount = Number(value);
-  if (!Number.isFinite(amount) || amount <= 0) return "";
+  if (!Number.isFinite(amount) || amount < 0) return "";
   return (amount / 100).toFixed(2);
 };
 
@@ -294,12 +295,14 @@ const getRecommendedWaterVendors = (vendors, productName) => {
 
 const getPreviewUnitPrice = (quantity, pricing, saleChannel) => {
   const configuredPrice = saleChannel === "company"
-    ? pricing?.company
-    : Number(pricing?.retailBulk) > 0 && quantity >= Math.max(1, Number(pricing?.bulkThreshold) || 1)
-      ? pricing?.retailBulk
-      : quantity >= Math.max(1, Number(pricing?.retailMinimumQuantity) || 1) ? pricing?.retailSingle : null;
+    ? pricing?.companyPrice
+    : pricing?.bulkPrice !== null && pricing?.bulkPrice !== undefined
+      && quantity >= Math.max(1, Number(pricing?.bulkThreshold) || 1)
+      ? pricing?.bulkPrice
+      : pricing?.retailPrice;
   const numericPrice = Number(configuredPrice);
-  return Number.isFinite(numericPrice) && numericPrice > 0 ? numericPrice : null;
+  return configuredPrice !== null && configuredPrice !== undefined
+    && Number.isFinite(numericPrice) && numericPrice >= 0 ? numericPrice : null;
 };
 
 const normalizeChannel = (value) => {
@@ -491,8 +494,16 @@ function WaterProductWorkspace({ product, onProductChange }) {
   const [restockForm, setRestockForm] = useState({
     quantity: "",
     unitCost: "",
+    retailPrice: "",
+    companyPrice: "",
+    bulkPrice: "",
     date: todayValue(),
     notes: "",
+  });
+  const [pricingForm, setPricingForm] = useState({
+    retailPrice: "",
+    companyPrice: "",
+    bulkPrice: "",
   });
   const [saleForm, setSaleForm] = useState({
     quantity: "",
@@ -632,7 +643,6 @@ function WaterProductWorkspace({ product, onProductChange }) {
   };
 
   const pricing = dashboard?.product?.pricing || buildDefaultDashboard().product.pricing;
-  const retailPriceCents = Math.max(0, toNumber(pricing?.retailSingle, 0));
   const permissions = dashboard?.permissions || buildDefaultDashboard().permissions;
   const dashboardRestocks = Array.isArray(dashboard?.restocks) ? dashboard.restocks : [];
   const dashboardSales = Array.isArray(dashboard?.sales) ? dashboard.sales : [];
@@ -659,13 +669,27 @@ function WaterProductWorkspace({ product, onProductChange }) {
     : null;
   useEffect(() => {
     const product = dashboard?.product || {};
+    const currentPrices = product.pricing || {};
+    const priceValues = {
+      retailPrice: toMoneyInputValue(currentPrices.retailPrice),
+      companyPrice: toMoneyInputValue(currentPrices.companyPrice),
+      bulkPrice: toMoneyInputValue(currentPrices.bulkPrice),
+    };
+    setPricingForm(priceValues);
+    setRestockForm((current) => ({ ...current, ...priceValues }));
     if (Number(product.purchaseCost) > 0) {
       setRestockForm((current) => ({
         ...current,
         unitCost: current.unitCost || toMoneyInputValue(product.purchaseCost),
       }));
     }
-  }, [dashboard?.product]);
+  }, [
+    dashboard?.product?.key,
+    dashboard?.product?.purchaseCost,
+    dashboard?.product?.pricing?.retailPrice,
+    dashboard?.product?.pricing?.companyPrice,
+    dashboard?.product?.pricing?.bulkPrice,
+  ]);
   const summary = useMemo(
     () =>
       buildWaterSummary({
@@ -857,8 +881,11 @@ function WaterProductWorkspace({ product, onProductChange }) {
   const salePreview = useMemo(() => {
     const quantity = Math.max(0, Math.round(toNumber(saleForm.quantity, 0)));
     const suggestedUnitPrice = getPreviewUnitPrice(quantity, pricing, saleForm.saleChannel);
-    const enteredUnitPrice = Math.max(0, Math.round((Number(saleForm.unitPrice) || 0) * 100));
-    const unitPrice = enteredUnitPrice || suggestedUnitPrice || 0;
+    const hasEnteredUnitPrice = String(saleForm.unitPrice || "").trim() !== "";
+    const enteredUnitPrice = hasEnteredUnitPrice
+      ? Math.max(0, Math.round((Number(saleForm.unitPrice) || 0) * 100))
+      : null;
+    const unitPrice = hasEnteredUnitPrice ? enteredUnitPrice : suggestedUnitPrice ?? 0;
     const subtotal = quantity * unitPrice;
     const discountType = normalizeSaleDiscountType(saleForm.discountType);
     const parsedDiscountInput = Number(String(saleForm.discountValue || "").replace(/,/g, "").trim());
@@ -880,8 +907,8 @@ function WaterProductWorkspace({ product, onProductChange }) {
       quantity,
       unitPrice,
       suggestedUnitPrice,
-      pricingConfigured: Number(suggestedUnitPrice) > 0,
-      usesCustomUnitPrice: enteredUnitPrice > 0 && enteredUnitPrice !== suggestedUnitPrice,
+      pricingConfigured: suggestedUnitPrice !== null,
+      usesCustomUnitPrice: hasEnteredUnitPrice && enteredUnitPrice !== suggestedUnitPrice,
       subtotal,
       discountAmount,
       total: Math.max(0, subtotal - discountAmount),
@@ -1749,6 +1776,9 @@ function WaterProductWorkspace({ product, onProductChange }) {
       {
         quantity: restockForm.quantity,
         unitCost: restockForm.unitCost,
+        retailPrice: restockForm.retailPrice,
+        companyPrice: restockForm.companyPrice,
+        bulkPrice: restockForm.bulkPrice,
         vendorId: Number.isFinite(Number(fixedWaterVendor?.id)) ? Number(fixedWaterVendor.id) : null,
         vendorName: restockVendorName || null,
         date: restockForm.date,
@@ -1760,10 +1790,22 @@ function WaterProductWorkspace({ product, onProductChange }) {
       setRestockForm({
         quantity: "",
         unitCost: restockForm.unitCost,
+        retailPrice: restockForm.retailPrice,
+        companyPrice: restockForm.companyPrice,
+        bulkPrice: restockForm.bulkPrice,
         date: todayValue(),
         notes: "",
       });
     }
+  };
+
+  const handlePricingSubmit = async (event) => {
+    event.preventDefault();
+    await handleAction(
+      "update_product_pricing",
+      pricingForm,
+      "Current Water prices updated."
+    );
   };
 
   const handleSaleSubmit = async (event) => {
@@ -1876,8 +1918,8 @@ function WaterProductWorkspace({ product, onProductChange }) {
           tone: "info",
           title: `Set up selling prices for ${product.name}`,
           message: permissions.canManagePricing
-            ? "Some price types are not configured. Review this product's schedules, effective dates and minimum quantities in Settings → Commercial. Configured price types remain available; stock can be recorded without selling prices."
-            : "Some price types are not configured. Use an available price type, or ask an owner or admin to review the schedule for this product and sale date.",
+            ? "Set all three current prices in the Pricing section. Stock can be recorded even if a selling price is not configured."
+            : "Some current price types are not configured. Ask an owner or admin to review this product's prices.",
         }
       : null,
     error
@@ -1994,7 +2036,8 @@ function WaterProductWorkspace({ product, onProductChange }) {
               value={product.key}
               disabled={loading || saving || creatingCustomer || Boolean(activeOrderId) || Boolean(activeLedgerItem)}
               onChange={(event) => {
-                const hasDraft = [restockForm.quantity, restockForm.notes, saleForm.quantity,
+                const hasDraft = [restockForm.quantity, restockForm.notes, restockForm.retailPrice,
+                  restockForm.companyPrice, restockForm.bulkPrice, saleForm.quantity,
                   saleForm.customerName, saleForm.notes, expenseForm.amount,
                   expenseForm.description, adjustmentForm.quantityDelta, adjustmentForm.notes,
                   saleForm.unitPrice, saleForm.discountValue]
@@ -2030,6 +2073,18 @@ function WaterProductWorkspace({ product, onProductChange }) {
           canViewFinance={permissions.canViewFinance}
         />
 
+        <WaterPricingCard
+          product={dashboard?.product || buildDefaultDashboard(product).product}
+          permissions={permissions}
+          pricingForm={pricingForm}
+          setPricingForm={setPricingForm}
+          onSubmit={handlePricingSubmit}
+          saving={saving}
+          loading={loading}
+          formatCurrency={formatCurrency}
+          priceHistory={dashboard?.priceHistory || []}
+        />
+
         <WaterRestockCard
           onSubmit={handleRestockSubmit}
           quickQuantities={RESTOCK_QUICK_QUANTITIES}
@@ -2037,6 +2092,12 @@ function WaterProductWorkspace({ product, onProductChange }) {
           quantityValue={restockForm.quantity}
           unitCostValue={restockForm.unitCost}
           onUnitCostChange={(nextValue) => setRestockForm((prev) => ({ ...prev, unitCost: nextValue }))}
+          priceValues={{
+            retailPrice: restockForm.retailPrice,
+            companyPrice: restockForm.companyPrice,
+            bulkPrice: restockForm.bulkPrice,
+          }}
+          onPriceChange={(field, value) => setRestockForm((prev) => ({ ...prev, [field]: value }))}
           canViewCost={permissions.canViewCost}
           onSelectQuickQuantity={setRestockQuantityValue}
           onAdjustQuantity={adjustRestockQuantity}
@@ -2046,8 +2107,6 @@ function WaterProductWorkspace({ product, onProductChange }) {
           saving={saving}
           loading={loading}
           formatCurrency={formatCurrency}
-          retailPriceLabel={formatCurrency(retailPriceCents)}
-          retailPriceAvailable={retailPriceCents > 0}
           canManageWaterPricing={permissions.canManagePricing}
         />
 

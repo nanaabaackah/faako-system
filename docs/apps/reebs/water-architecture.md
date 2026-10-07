@@ -1,12 +1,12 @@
 # REEBS Water architecture
 
-Status: local implementation extended 2026-10-01; deployed data/provider verification pending.
+Status: current-price implementation updated 2026-10-07; migration and deployed data/provider verification pending.
 
 Release evidence and manual go-live checks: [Water release readiness](water-release-readiness.md).
 
-Historical product-price scheduling, effective-window safety and snapshot rules:
-[Water historical pricing](water-historical-pricing.md). This is a Water-only
-exception to the generic current/future commercial-rule scheduling restriction.
+The former Water scheduled-pricing design is retired. The historical scheduling
+documents are retained only as implementation history and are superseded by the
+current-price model below.
 
 ## Boundary
 
@@ -22,7 +22,7 @@ The Water API allows owners, admins and Water operators, with Water permission a
 
 ## Data ownership
 
-- `waterProductPrice` owns effective-dated retail, bulk and company selling prices. `commercialConfiguration` owns the Water discount limit. Legacy `waterProductConfig` remains for compatibility/linkage; it is not the authoritative new-sale price resolver.
+- `waterProductConfig` owns each product's current `retailPrice`, `companyPrice` and `bulkPrice`. `waterPriceChange` is an informational audit log; it never determines an active selling price. `commercialConfiguration` continues to own the Water discount limit.
 - `waterRestock` owns Water stock-in records and their editable unit-cost snapshots.
 - `waterSale` owns Water orders, payment state, selling-price and cost snapshots. Authorised price overrides do not require a recorded reason.
 - `waterAdjustment` owns Water-only stock corrections.
@@ -35,9 +35,9 @@ The Water flow supports `gwater-15pk` and `sachet-water-30pk` (30pcs sachet wate
 Quantities and prices are per whole pack. Header selection scopes every ledger,
 KPI, price lookup, inventory lock and record-id mutation to one product within
 the authenticated organisation. Omitted product keys retain the 15-pack API
-default. The new pack starts with no stock or prices, never copied legacy values.
-Choose its preset in Commercial Settings to configure selling prices; stock
-entry records its own actual purchase cost. See the
+default. A new pack starts with no stock or prices, never copied legacy values.
+Configure its current prices in Water's Pricing section or alongside a restock;
+stock entry records its separate actual purchase cost. See the
 [product setup and rollout notes](../../../apps/reebs-portal/docs/WATER_ARCHITECTURE.md#water-product-selection-2026-10-01).
 
 Core Inventory APIs, stock activity, public inventory counts and Core inventory analytics exclude products whose source is `WATER` or which have an active `waterProductConfig` link. The Inventory screen may link staff to Water Business, but it must not fetch or present Water stock, revenue, cost or profit as Core Inventory data. Water movements remain in the Water ledgers and are not written to the Core `stockMovement` ledger.
@@ -46,9 +46,20 @@ Core Inventory APIs, stock activity, public inventory counts and Core inventory 
 
 New sale pricing follows:
 
-`Water product key + organisation + transaction date` → server resolves effective `waterProductPrice` and Water commercial rules → optional owner/admin override → server calculates the total → `waterSale` stores the transaction snapshot.
+`Water product key + organisation + sale channel + quantity` → server reads the product's current selling price (using the existing bulk threshold for retail) → optional owner/admin override → server calculates the total → `waterSale` stores the transaction snapshot.
 
-The browser preview is informational. Missing required selling price blocks the sale with a controlled configuration error. No production fallback literal is used.
+The sale date does not select a selling price. The browser preview is informational.
+Missing current selling prices block the sale with a controlled configuration
+error. Current-price validation uses non-negative integer pesewas; zero is a
+valid configured price. No production fallback literal is used.
+
+Owners/admins can edit all three prices in the Water Pricing section or review
+and change them during a restock. Restock purchase cost remains separate. Each
+changed price writes a `waterPriceChange` audit row with the prior/new cents,
+price type, actor when available, timestamp and source. A migration preserves
+historical price records as audit-only rows, copies each product's currently
+effective values into `waterProductConfig`, and removes the active schedule table
+and sale-to-schedule reference. Existing sale price snapshots are retained.
 
 New sale cost follows the recorded purchase history:
 
