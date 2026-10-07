@@ -1,6 +1,6 @@
 import { buildWaterPricingPermissions } from "../../functions/_shared/waterPricing.js";
 
-const SALES_ACTIONS = new Set(["sale", "update_sale", "delete_sale", "create_customer"]);
+const SALES_ACTIONS = new Set(["sale", "update_sale", "delete_sale", "create_customer", "record_collection"]);
 const pick = (record, fields) => Object.fromEntries(
   fields.filter((field) => Object.hasOwn(record || {}, field)).map((field) => [field, record[field]])
 );
@@ -38,6 +38,12 @@ export const presentWaterDashboard = (dashboard, role) => {
       "paymentStatus", "paymentReference", "providerReference", "discountType", "discountValue",
       "discountAmount", "unitPrice", "standardUnitPrice", "totalAmount", "customerId",
       "customerName", "notes", "date", "paidAt", "createdAt", "updatedAt",
+      "amountPaidCents", "collectedCents", "balanceDueCents", "applicationCount",
+      "legacyPaidCents", "legacyPaymentCompatibility",
+    ])),
+    collections: (dashboard.collections || []).map((row) => pick(row, [
+      "id", "applicationId", "saleId", "productKey", "customerId", "customerName", "reference",
+      "providerReference", "method", "amountCents", "currency", "paidAt", "status", "applicationStatus",
     ])),
     expenses: [],
     adjustments: (dashboard.adjustments || []).map((row) => pick(row, [

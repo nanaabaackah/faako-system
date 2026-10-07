@@ -1,6 +1,8 @@
 import { calculateInvoiceTotalCents } from "./invoiceAmounts.js";
 import { cleanPaymentText, PAYMENT_BUSINESS_UNITS } from "./paymentDomain.js";
 import { normalizeFinancialSnapshot } from "../invoicing/invoiceDomain.js";
+import { loadWaterAppliedCollections } from "../water/settlement.js";
+import { deriveWaterSettlement } from "../../../shared/waterSettlement.js";
 
 export const PAYABLE_TYPES = Object.freeze({
   BOOKING: "BOOKING",
@@ -110,7 +112,7 @@ const loadWaterOrder = async (client, organizationId, payableId, lockClause) => 
   const result = await client.query(
     `SELECT w.id, ('WATER-' || LPAD(w.id::text, 6, '0')) AS reference, w."customerId",
             COALESCE(c.name, w."customerName") AS "customerName", c.email AS "customerEmail",
-            w."totalAmount", w."paymentStatus", w.date, w."archivedAt"
+            w."totalAmount", w."paymentStatus", w."productKey", w.date, w."archivedAt"
      FROM "waterSale" w
      LEFT JOIN "customer" c ON c.id = w."customerId" AND c."organizationId" = w."organizationId"
      WHERE w."organizationId" = $1 AND w.id = $2 AND w."archivedAt" IS NULL
@@ -119,21 +121,20 @@ const loadWaterOrder = async (client, organizationId, payableId, lockClause) => 
   );
   const row = result.rows?.[0];
   if (!row || row.archivedAt) throw notFound();
-  const applied = await getAppliedAmount(client, organizationId, PAYABLE_TYPES.WATER_ORDER, payableId);
-  const legacyPaid = String(row.paymentStatus || "").toLowerCase() === "paid"
-    ? Number(row.totalAmount || 0)
-    : 0;
+  const settlement = deriveWaterSettlement(row, await loadWaterAppliedCollections(client, organizationId, payableId));
   return {
     id: Number(row.id),
     type: PAYABLE_TYPES.WATER_ORDER,
     reference: row.reference,
     businessUnit: PAYMENT_BUSINESS_UNITS.WATER,
+    productKey: row.productKey,
     customerId: Number(row.customerId) || null,
     customerName: row.customerName || null,
     customerEmail: row.customerEmail || null,
     currency: "GHS",
     totalCents: Number(row.totalAmount || 0),
-    amountPaidCents: Math.max(applied, legacyPaid),
+    amountPaidCents: settlement.amountPaidCents,
+    legacyPaymentCompatibility: settlement.legacyPaymentCompatibility,
     depositRequiredCents: null,
     sourceStatus: row.paymentStatus,
   };

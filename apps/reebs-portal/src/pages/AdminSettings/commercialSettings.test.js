@@ -12,6 +12,18 @@ import {
 
 const NOW = new Date("2026-08-15T12:30:00.000Z");
 
+test("Water alone accepts historical periods, whole current days and an exclusive end", () => {
+  const draft = { productKey: "gwater-15pk", productName: "15pk Gwater", priceType: "RETAIL", minimumQuantity: "1", price: "28", effectiveDate: "2026-03-01", effectiveEndDate: "2026-06-01" };
+  assert.equal(buildWaterPricePayload(draft, {}, NOW).effectiveFrom, "2026-03-01T00:00:00.000Z");
+  assert.equal(buildWaterPricePayload(draft, {}, NOW).effectiveTo, "2026-06-01T00:00:00.000Z");
+  assert.equal(buildWaterPricePayload({ ...draft, effectiveDate: "2026-08-15", effectiveEndDate: "" }, {}, NOW).effectiveFrom, "2026-08-15T00:00:00.000Z");
+  for (const effectiveDate of ["invalid", "2026-02-30"]) {
+    assert.throws(() => buildWaterPricePayload({ ...draft, effectiveDate }, {}, NOW), /valid effective date/);
+  }
+  assert.throws(() => buildWaterPricePayload({ ...draft, effectiveEndDate: "2026-03-01" }, {}, NOW), /later/);
+  assert.throws(() => toEffectiveFrom(draft.effectiveDate, NOW), /today or later/);
+});
+
 const coreDefinition = {
   businessUnit: "REEBS_CORE",
   key: "service_deposit_bps",
