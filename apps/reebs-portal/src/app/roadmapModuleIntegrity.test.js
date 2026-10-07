@@ -109,7 +109,7 @@ test("dashboard and Water retain the standalone business boundary", () => {
   assert.match(modules.water.page, /Water revenue/);
   assert.match(modules.water.page, /Water net profit/);
   assert.match(modules.water.page, /Purchase cost per pack \(GHS\)/);
-  assert.match(modules.water.page, /aria-label="Restock cost price per pack"/);
+  assert.match(modules.water.page, /aria-label="Purchase cost per pack"/);
   assert.doesNotMatch(modules.water.page, /overrideReason/i);
 });
 

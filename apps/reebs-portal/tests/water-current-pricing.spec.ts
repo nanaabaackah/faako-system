@@ -78,6 +78,7 @@ test("Water shows current prices and restock can update selected prices", async 
     companyPrice: "25.00",
     bulkPrice: "26.00",
   });
+  await page.getByText("Recent price changes").click();
   await expect(page.getByText("Recent price changes")).toBeVisible();
   await expect(page.getByText(/27\.00 → .*31\.00/)).toBeVisible();
 });
