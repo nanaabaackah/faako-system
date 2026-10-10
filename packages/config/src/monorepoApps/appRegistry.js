@@ -27,6 +27,19 @@ const normalizeBaseUrl = (value) => {
 
 export const MONOREPO_APP_REGISTRY = [
   {
+    key: "reebs-water",
+    packageName: "@faako/reebs-water",
+    path: "apps/reebs-water",
+    title: "REEBS Water",
+    purpose: "Standalone Water operations using the shared REEBS API and session.",
+    category: "portal",
+    productionSensitive: true,
+    monitoringEnabled: true,
+    monitoringOptional: true,
+    envBaseUrlKeys: ["REEBS_WATER_BASE_URL"],
+    monitoringPages: [{ label: "Login", path: "/login" }],
+  },
+  {
     key: "travel-with-ease-web",
     packageName: "@faako/travel-with-ease-web",
     path: "apps/travel-with-ease-web",

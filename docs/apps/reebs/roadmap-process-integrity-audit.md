@@ -166,7 +166,7 @@ Every row needs persistence and downstream verification before module-level PASS
 | W01 Water | Dashboard load and mutation refresh | Standalone metrics and authenticated capability DTO | `water` → four existing KPI cards | PostgreSQL | H/B added in restoration | FAIL → fix under verification |
 | W02 Water | Add stock with cost | Restock quantity + integer-pesewa cost; stock/cash/profit update | `water` restock → Water summary | PostgreSQL | U/H/B | PARTIAL |
 | W03 Water | Edit/delete historic restock | Guard stock; explicit correction restates affected cost snapshots | `water` update/delete_restock → Water profit | PostgreSQL | U/R/B | PARTIAL |
-| W04 Water | Sale/price override/discount | Server scheduled price or authorized override; no required reason | `water` sale → stock/COGS/revenue | PostgreSQL | U/B | PARTIAL |
+| W04 Water | Sale/price override/discount | Current product price or authorized override; no required reason | `water` sale → stock/COGS/revenue | PostgreSQL | U/B | PARTIAL |
 | W05 Water | Edit/archive sale, stale/conflicting edit | Stock and cost constraints; no lost update; recomputed Water summary | `water` update/delete_sale | PostgreSQL | Limited | PARTIAL |
 | W06 Water | Record/update/archive expense | Water-only expense and net profit/cash effect | `water` expense actions | PostgreSQL | Limited | PARTIAL |
 | W07 Water | Add/edit/delete adjustment | Whole signed quantity; no negative resulting stock | `water` adjustment actions | PostgreSQL | Limited | PARTIAL |
@@ -176,7 +176,7 @@ Every row needs persistence and downstream verification before module-level PASS
 | S01 Settings | Save theme/style/preferences, reload | Validated per-user tenant settings; active Faako theme applied | `portal-settings` → AppShell | PostgreSQL | U/R/B theme checks | PARTIAL |
 | S02 Settings | Document identity update | Authorized organization identity used by issued documents | portal settings → Invoicing | PostgreSQL | U/R | PARTIAL |
 | S03 Commercial | Effective-dated Core terms | Authoritative quote/booking/deposit/delivery rules, historical snapshots retained | `commercial-config` → Core checkout/Bookings/Invoicing | PostgreSQL | U/R | PARTIAL |
-| S04 Commercial | Water price schedule/link | Authorized Water configuration; no Core product link | `commercial-config` → Water pricing | PostgreSQL | U/R | PARTIAL |
+| S04 Commercial | Water current price/link | Authorized current-price configuration; no Core product link | `commercial-config` → Water pricing | PostgreSQL | U/R | PARTIAL |
 | X01 Boundaries | Expense/Delivery/Document actions from completed modules | Correct parent identifiers, permissions, and refreshed downstream views | existing linked handlers | PostgreSQL/provider | B booking expense, limited others | PARTIAL |
 | X02 Boundaries | Audit/reconciliation/report read | Redacted actor/request events; Core/Water separated; no repair | audit + financialPolicy + maintenance scripts | PostgreSQL/analytics optional | U/R | PARTIAL |
 

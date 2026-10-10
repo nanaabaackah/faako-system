@@ -5,16 +5,20 @@ interface BreadcrumbItem {
   to?: string;
 }
 
-export function ErpBreadcrumb({ items = [] }: { items?: BreadcrumbItem[] }) {
+export function ErpBreadcrumb({ items = [], rootLabel = "Admin", rootTo = "/admin" }: {
+  items?: BreadcrumbItem[];
+  rootLabel?: string;
+  rootTo?: string;
+}) {
   const segments = Array.isArray(items) ? items.filter(Boolean) : [];
 
   return (
     <nav className="erp-breadcrumb admin-breadcrumb" aria-label="Breadcrumb">
       <ol className="erp-breadcrumb__list">
         <li className="erp-breadcrumb__item erp-breadcrumb__item--root">
-          <Link to="/admin" className="erp-breadcrumb__link erp-breadcrumb__link--root">
+          <Link to={rootTo} className="erp-breadcrumb__link erp-breadcrumb__link--root">
             <span className="erp-breadcrumb__home-marker" aria-hidden="true" />
-            <span className="erp-breadcrumb__label">Admin</span>
+            <span className="erp-breadcrumb__label">{rootLabel}</span>
           </Link>
         </li>
         {segments.map((segment, index) => {

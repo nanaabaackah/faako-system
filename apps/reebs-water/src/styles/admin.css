@@ -1,0 +1,127 @@
+@import "@faako/ui/compat.css";
+
+body.admin-theme {
+  --admin-card: var(--card);
+  --admin-surface: var(--sys-surface, #f8fafc);
+  --admin-muted: var(--muted);
+  --admin-ink: var(--text-main);
+  --other: #f59e0b;
+  --white: #ffffff;
+  background-attachment: fixed;
+}
+
+.admin-card {
+  border: 1px solid var(--admin-border);
+  border-radius: 1.15rem;
+  background: var(--card);
+}
+
+.admin-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.admin-header-actions { display: flex; align-items: center; gap: 0.5rem; }
+.admin-primary,
+.admin-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  min-height: 44px;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.admin-primary { border-color: var(--sys-accent); background: var(--sys-accent); color: var(--sys-accent-contrast); }
+.admin-secondary { background: var(--card); color: var(--text-main); }
+.admin-primary:disabled,
+.admin-secondary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.app-icon-spin { animation: water-icon-spin 1s linear infinite; }
+@keyframes water-icon-spin { to { transform: rotate(360deg); } }
+
+.portal-action { white-space: nowrap; min-width: 44px; min-height: 44px; border-radius: 999px; }
+.portal-action__label { display: inline; }
+.portal-action--icon { width: 44px; padding: 0.625rem; }
+.portal-action--icon .portal-action__label { display: none; }
+.portal-action svg { flex-shrink: 0; }
+.search-field { min-width: 0; }
+.water-module-form :is(.ui-date-field__native, .ui-dropdown-field__native) {
+  /* Shared fields keep a native control only for form semantics, never a second visible box. */
+  opacity: 0 !important;
+  border: 0;
+  padding: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+.water-module-page .water-module-table-wrap {
+  /* The outer ledger card owns the frame; keep one table surface, not nested cards. */
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  overflow-x: auto !important;
+}
+.water-module-page .table-sort-control {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  min-height: 44px; padding: 0.25rem;
+  border: 0; background: transparent; color: inherit;
+  font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer;
+}
+.water-module-customers { display: grid; gap: 1rem; min-width: 0; }
+.water-module-customers .water-module-table--customers { min-width: 0; table-layout: fixed; }
+.water-module-customers td { overflow-wrap: anywhere; }
+.water-module-form .ui-search-field__input { border: 1px solid var(--admin-border); box-shadow: none; }
+.sort-header { display: inline-flex; align-items: center; gap: 0.35rem; }
+.table-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.table-pagination-controls { display: inline-flex; align-items: center; gap: 0.65rem; }
+.table-pagination-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  min-width: 44px;
+  min-height: 44px;
+  background: var(--card);
+  color: inherit;
+}
+body.admin-theme .table-pagination-controls button { border-radius: 999px !important; }
+.table-pagination-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.water-app-state .inline-notice { margin-block: 0.5rem; }
+
+body.admin-theme .water-order-modal.ui-erp-modal {
+  background: var(--sys-bg-elevated) !important;
+  min-width: 0;
+  /* These dialogs have a header and a scrollable form, not a third footer row. */
+  grid-template-rows: auto minmax(0, 1fr);
+  /* Standalone Water has no Portal bottom bar to reserve space for. */
+  padding-bottom: 0;
+}
+.water-order-modal .ui-erp-dialog__header > div { min-width: 0; overflow-wrap: anywhere; }
+.admin-close {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid var(--admin-border);
+  border-radius: 999px;
+  background: var(--sys-accent-soft);
+  color: var(--text-main);
+  cursor: pointer;
+}
+.admin-close svg { width: 20px; height: 20px; }
+.water-order-modal .ui-erp-dialog__body { padding: max(16px, 1.1rem); }
+
+@media (max-width: 767px) {
+  .portal-action { width: 44px; padding: 0.625rem; }
+  .portal-action__label,
+  .table-pagination-controls button > span { display: none; }
+  .table-pagination-controls button { justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-icon-spin { animation: none; }
+}

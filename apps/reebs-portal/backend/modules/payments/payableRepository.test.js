@@ -108,3 +108,15 @@ test("Water scope is derived from the Water sale rather than request data", asyn
   assert.equal(payable.businessUnit, "WATER");
   assert.equal(payable.currency, "GHS");
 });
+
+for (const collected of [0, 3000, 6000]) {
+  test(`Water payable uses the ${collected}-pesewa application balance instead of a stale paid flag`, async () => {
+    const client = { async query(sql) {
+      if (sql.includes('FROM "waterSale"')) return { rows: [{ id: 5, totalAmount: 9000, paymentStatus: "paid" }] };
+      return { rows: [{ amountPaidCents: collected, applicationCount: 1 }] };
+    } };
+    const payable = await loadPayable(client, { organizationId: 1, payableType: "WATER_ORDER", payableId: 5 });
+    assert.equal(payable.amountPaidCents, collected);
+    assert.equal(calculatePayableCharge(payable, "BALANCE").amountCents, 9000 - collected);
+  });
+}

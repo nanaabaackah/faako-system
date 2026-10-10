@@ -13,7 +13,8 @@ import {
   faUsers,
   faUser,
 } from "/src/icons/iconSet";
-import { canAccessPortalRoute } from "./adminAccess";
+import { canAccessPortalRoute, canAccessWaterPortalArea } from "./adminAccess";
+import { WATER_APP_URL } from "../config/appUrls.js";
 
 export const normalizeAdminRole = (role) => String(role || "").trim().toLowerCase();
 
@@ -36,7 +37,7 @@ export const DASHBOARD_PATHS = {
   expenses: "/admin/expenses",
   userDirectory: "/admin/directory?tab=users",
   vendors: "/admin/vendors",
-  water: "/admin/water",
+  water: WATER_APP_URL,
 };
 
 const ADMIN_MANAGER_ACTION_SET = {
@@ -262,6 +263,9 @@ const DRIVER_ACTION_SET = {
 
 export const getDashboardActionSet = (role) => {
   const normalizedRole = normalizeAdminRole(role);
+  const isAllowed = (item) => item.path === WATER_APP_URL
+    ? canAccessWaterPortalArea(normalizedRole)
+    : canAccessPortalRoute(normalizedRole, item.path);
   const selectedSet =
     normalizedRole === "admin" || normalizedRole === "manager"
       ? ADMIN_MANAGER_ACTION_SET
@@ -273,7 +277,7 @@ export const getDashboardActionSet = (role) => {
 
   return {
     ...selectedSet,
-    steps: selectedSet.steps.filter((item) => canAccessPortalRoute(normalizedRole, item.path)),
-    shortcuts: selectedSet.shortcuts.filter((item) => canAccessPortalRoute(normalizedRole, item.path)),
+    steps: selectedSet.steps.filter(isAllowed),
+    shortcuts: selectedSet.shortcuts.filter(isAllowed),
   };
 };

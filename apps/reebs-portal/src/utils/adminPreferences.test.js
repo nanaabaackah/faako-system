@@ -5,7 +5,7 @@ import {
   clearAppliedAdminPreferences,
   resolveAdminTheme,
   sanitizeAdminPreferences,
-} from "./adminPreferences.js";
+} from "@faako/theme/adminPreferences";
 
 test("admin preferences normalize unknown values", () => {
   assert.deepEqual(sanitizeAdminPreferences({ theme: "sepia", fontSize: "huge" }), {

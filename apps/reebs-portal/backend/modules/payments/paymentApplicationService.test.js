@@ -23,8 +23,8 @@ test("Water provider settlement stays in Water and invalidates stale sale edits"
     }
     if (sql.includes('UPDATE "waterSale"')) {
       assert.match(sql, /"updatedAt" = NOW\(\)/);
-      assert.match(sql, /"paymentStatus" = 'paid'/);
-      assert.deepEqual(params, [7, 4, "Mobile Money", "WATER-PAY-TEST", "provider-test", "2026-09-24T12:00:00.000Z"]);
+      assert.match(sql, /"paymentStatus" = \$7/);
+      assert.deepEqual(params, [7, 4, "momo", "WATER-PAY-TEST", "provider-test", "2026-09-24T12:00:00.000Z", "paid"]);
       return { rows: [], rowCount: 1 };
     }
     assert.fail(`Water settlement must not write a Core order, journal or receipt: ${sql}`);
@@ -38,4 +38,27 @@ test("Water provider settlement stays in Water and invalidates stale sale edits"
   assert.equal(result.application.payableId, 4);
   assert.equal(result.receipt, null);
   assert.equal(calls.length, 5);
+});
+
+test("a partial Water provider collection leaves the remaining balance payable", async () => {
+  const client = { async query(sql, params = []) {
+    if (sql.includes('FROM "waterSale"')) return { rows: [{
+      id: 4, customerId: 2, totalAmount: 9000, paymentStatus: "pending",
+    }] };
+    if (sql.includes('FROM "paymentApplication"')) return { rows: [{ amountPaidCents: 2000 }] };
+    if (sql.includes('INSERT INTO "paymentRecord"')) return { rows: [{ id: 30 }] };
+    if (sql.includes('INSERT INTO "paymentApplication"')) return { rows: [{ id: 31 }] };
+    if (sql.includes('UPDATE "waterSale"')) {
+      assert.equal(params[2], "momo");
+      assert.equal(params[5], null, "a partially collected sale has no fully paid date");
+      assert.equal(params[6], "pending");
+      return { rows: [], rowCount: 1 };
+    }
+    assert.fail(`Unexpected Water settlement query: ${sql}`);
+  } };
+  await applyPaymentToPayable(client, {
+    id: 3, organizationId: 7, customerId: 2, reference: "WATER-PARTIAL-TEST",
+    businessUnit: "WATER", payableType: "WATER_ORDER", payableId: 4,
+    currency: "GHS", amountCents: 3000, provider: "PAYSTACK",
+  }, { channel: "mobile_money", providerReference: "partial-test", paidAt: "2026-09-24T12:00:00Z" });
 });

@@ -52,6 +52,7 @@ import {
   canAccessPortalInventory,
   canAccessPortalOrders,
   canAccessPortalRoute,
+  canAccessWaterPortalArea,
   canAccessPrivilegedPortalArea,
   isDriverPortalRole,
   isWaterPortalRole,
@@ -455,6 +456,13 @@ const SECTION_CONFIG = {
 
 function AdminWorkspace({ section = "home" }) {
   const navigate = useNavigate();
+  const navigateToPortalDestination = useCallback((path, options) => {
+    if (/^https?:\/\//i.test(String(path || ""))) {
+      window.location.assign(path);
+      return;
+    }
+    navigate(path, options);
+  }, [navigate]);
   const { user, logout } = useAuth();
   const roleKey = normalizeAdminRole(user?.role);
   const isDriverUser = isDriverPortalRole(roleKey);
@@ -2771,9 +2779,11 @@ function AdminWorkspace({ section = "home" }) {
             { key: "customer", label: "Add Customer", icon: faClipboardList, path: DASHBOARD_PATHS.addCustomer },
           ];
 
-    const filtered = candidates.filter(
-      (item) => item.path === "/admin/profile" || canAccessPortalRoute(roleKey, item.path)
-    );
+    const filtered = candidates.filter((item) => {
+      if (item.path === "/admin/profile") return true;
+      if (item.path === DASHBOARD_PATHS.water) return canAccessWaterPortalArea(roleKey);
+      return canAccessPortalRoute(roleKey, item.path);
+    });
 
     return filtered.length
       ? filtered
@@ -3068,7 +3078,7 @@ function AdminWorkspace({ section = "home" }) {
       assignedWorkFilter={assignedWorkFilter}
       expandedAssignedWorkKey={expandedAssignedWorkKey}
       onToggleAssignedWorkItem={toggleAssignedWorkItem}
-      onNavigate={navigate}
+      onNavigate={navigateToPortalDestination}
       formatDate={formatDate}
       homeSummaryCards={homeSummaryCards}
       homeQuickActions={homeQuickActions}

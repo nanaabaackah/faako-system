@@ -16,7 +16,7 @@ import {
   DEFAULT_ADMIN_PREFERENCES,
   readAdminPreferences,
   writeAdminPreferences,
-} from "../../utils/adminPreferences";
+} from "@faako/theme/adminPreferences";
 import {
   loadCustomerSnapshot,
   loadInventorySnapshot,
@@ -1350,7 +1350,13 @@ function AdminSettings({ profileOnly = false }) {
                     key={item.path}
                     type="button"
                     className="settings-advanced-link"
-                    onClick={() => navigate(item.path)}
+                    onClick={() => {
+                      if (item.external) {
+                        window.location.assign(item.path);
+                        return;
+                      }
+                      navigate(item.path);
+                    }}
                   >
                     {item.label}
                   </button>

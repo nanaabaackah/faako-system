@@ -31,6 +31,7 @@ test("operational projection allowlists data without mutating the private calcul
   const before = structuredClone(dashboard);
   const operational = presentWaterDashboard(dashboard, "water");
   assert.equal(operational.permissions.canViewCost, false);
+  assert.equal(operational.permissions.canRecordSales, true);
   assert.deepEqual(operational.product, { key: "water", pricing: { retailPrice: 3000 } });
   assert.deepEqual(operational.summary, { stockOnHand: 8 });
   assert.deepEqual(operational.restocks, [{ id: 1, quantity: 10 }]);
@@ -39,12 +40,14 @@ test("operational projection allowlists data without mutating the private calcul
   assert.equal(Object.hasOwn(operational, "privateFutureField"), false);
   assert.deepEqual(dashboard, before);
   for (const role of ["admin", "owner"]) {
+    assert.equal(presentWaterDashboard(dashboard, role).permissions.canRecordSales, true);
     assert.deepEqual(presentWaterDashboard(dashboard, role).summary, dashboard.summary);
   }
   for (const role of ["manager", "staff", undefined]) {
     const result = presentWaterDashboard(dashboard, role);
     assert.equal(result.permissions.canViewCost, false);
     assert.equal(result.permissions.canManagePricing, false);
+    assert.equal(result.permissions.canRecordSales, false);
     assert.equal(Object.hasOwn(result.product, "purchaseCost"), false);
   }
 });

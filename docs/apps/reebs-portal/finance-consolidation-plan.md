@@ -30,8 +30,10 @@ Phase 6 also implements additive finance foundations outside navigation:
   Water-contaminated Orders;
 - `scope=consolidated` is an opt-in, permission-gated, segmented operational
   P&L response with visible Core, Water and unallocated Shared components;
-- Core/Water commercial configuration and Water price history are
-  effective-dated and organisation-scoped;
+- Core commercial configuration remains effective-dated and
+  organisation-scoped. Water's current Retail, Company and Bulk prices are
+  organisation-scoped in `waterProductConfig`; `waterPriceChange` is
+  audit-only and does not control active prices;
 - the website reads narrow public Core booking/payment terms and requests an
   authoritative shop quote before creating a shop Order; public Order creation
   requires that current quote fingerprint;
@@ -98,7 +100,7 @@ Current API handlers and helpers:
   no service deposit.
 - Invoice create/update resolves linked Products on the server and rejects a
   Core invoice line classified as Water by `sourceCategoryCode` or an explicit
-  `WaterProductPrice.productId` link. It does not fuzzy-classify free text.
+  `waterProductConfig.inventoryProductId` link. It does not fuzzy-classify free text.
 - Expenses originate in `AdminExpenses` and can link to orders or bookings when supported by the current schema/function behavior.
 - Accounting reads and writes accounting configuration, chart of accounts, journals, imports, trial balance, historical import batches, and revenue recognition data through the accounting functions.
 - The website reads Core booking/payment terms from
@@ -122,11 +124,10 @@ Current API handlers and helpers:
   delete that would orphan an existing positive sale-cost snapshot returns
   `409 WATER_COST_BASIS_REQUIRED` and rolls back. The snapshot restatement
   changes Water COGS/profit, not Water revenue, sale quantities or Core totals.
-- For a new or explicitly repriced Water sale, today's date-only UI value uses
-  the current server transaction timestamp for effective Water price/discount
-  lookup, so a same-day saved rule applies. The persisted Water sale business
-  date and restock-cost date remain unchanged. Explicit non-midnight timestamps
-  and earlier, backdated or other dates retain their supplied effective time.
+- Water sales use the product's current Retail, Company or Bulk price under the
+  existing channel/threshold rule; transaction dates do not select or activate
+  prices. Changing a current price records an audit entry and leaves prior sale
+  price and cost snapshots unchanged.
 
 ## 3. Target Finance Structure
 
@@ -192,7 +193,7 @@ Current shared tables/models and runtime tables include:
 - `Booking`, `BookingItem`, `DeferredRevenue`, `RevenueRecognitionLine`
 - `ChartOfAccount`, `TaxRate`, `HistoricalImportBatch`, `JournalEntry`, `JournalLine`, `OpeningBalance`
 - `AccountingManualSales`, `AccountingConfig`
-- `CommercialConfiguration`, `WaterProductPrice`
+- `CommercialConfiguration`, `waterProductConfig`, `waterPriceChange`
 - `StockMovement`, `Product`, `InventoryVariant`
 - Runtime `invoiceDocument` table used by `invoice-documents.js`
 - Water-specific finance-adjacent records such as `WaterSale`, `WaterExpense`, and `WaterRestock`
@@ -305,7 +306,7 @@ API/reporting dependencies include:
   configuration, receipts retain zero deposit, and an issued/sent invoice keeps
   its stored terms after a configuration change.
 - Verify Core invoice create/update rejects a linked Water Product by source
-  category and by explicit Water product-price identity.
+  category and by explicit `waterProductConfig.inventoryProductId` identity.
 - Verify an ordinary Water price/configuration change leaves existing
   `unitCostAtSaleCents` values unchanged. On an isolated correction fixture,
   verify a backdated restock create and a deletion re-resolve non-archived sale

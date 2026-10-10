@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import { createDatabaseClient } from "./_shared/databaseClient.js";
 import {
   backfillProductVendorLinksFromProducts,
@@ -20,7 +19,9 @@ import {
   writeAuditLog,
 } from "./_shared/auditLog.js";
 import { withWaterBusinessContext } from "@faako/api-contracts/reebs";
-import { calculateWaterCostBasis } from "../../shared/waterFinancials.js";
+import { calculateWaterCostBasis } from "@faako/water-domain/waterFinancials";
+import { normalizeWaterPaymentMethod as normalizePaymentMethod, defaultNewWaterPaymentStatus, getWaterCollectedCents, getWaterBalanceDueCents } from "@faako/water-domain";
+import { loadWaterCollections, projectWaterSales } from "../modules/water/collections.js";
 import {
   buildWaterPricingPermissions,
   normalizeWaterPricing,
@@ -30,11 +31,15 @@ import { canWriteWaterAction, presentWaterDashboard } from "../modules/water/das
 import { createWaterCustomer } from "../modules/water/customerCreation.js";
 import { getWaterActionError } from "../modules/water/actionErrors.js";
 import { createLogger } from "./_shared/logger.js";
-import { DEFAULT_WATER_PRODUCT_KEY, getWaterProduct, WATER_PRODUCTS } from "../../shared/waterProducts.js";
+import {
+  DEFAULT_WATER_PRODUCT_KEY,
+  getWaterProduct,
+  WATER_PRODUCTS,
+} from "@faako/water-domain/waterProducts";
 
 const WATER_METHODS = "GET,POST,OPTIONS";
 const logger = createLogger("water");
-const WATER_ALLOWED_ROLES = ["owner", "admin", "water"];
+const WATER_ALLOWED_ROLES = ["owner", "admin", "manager", "water"];
 const PRODUCT_NAME = "15pk Gwater";
 const PRODUCT_KEY = DEFAULT_WATER_PRODUCT_KEY;
 const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "15 pk Gwater"];
@@ -368,15 +373,6 @@ const toAmount = (value) => {
 const normalizeChannel = (value) => {
   const normalized = cleanText(value).toLowerCase();
   return normalized === "company" ? "company" : "retail";
-};
-
-const normalizePaymentMethod = (value) => {
-  const normalized = cleanText(value).toLowerCase();
-  if (normalized === "momo") return "momo";
-  if (normalized === "credit" || normalized === "pay later" || normalized === "paylater") {
-    return "credit";
-  }
-  return "cash";
 };
 
 const normalizePaymentStatus = (value, paymentMethod = "cash") => {
@@ -1071,11 +1067,11 @@ export const buildWaterSummary = ({ restocks, sales, expenses, adjustments }) =>
   const stockOnHand = Math.max(0, unitsRestocked - unitsSold + adjustmentUnits);
   const revenue = sales.reduce((sum, row) => sum + toAmount(row.totalAmount), 0);
   const cashCollected = sales.reduce((sum, row) => {
-    return isSaleCollected(row) ? sum + toAmount(row.totalAmount) : sum;
+    return sum + getWaterCollectedCents(row);
   }, 0);
   const outstandingCredit = sales.reduce((sum, row) => {
     return normalizePaymentMethod(row.paymentMethod) === "credit" && !isSaleCollected(row)
-      ? sum + toAmount(row.totalAmount)
+      ? sum + getWaterBalanceDueCents(row)
       : sum;
   }, 0);
   const cashSalesTotal = sales.reduce((sum, row) => {
@@ -1090,12 +1086,12 @@ export const buildWaterSummary = ({ restocks, sales, expenses, adjustments }) =>
   }, 0);
   const pendingCash = sales.reduce((sum, row) => {
     return normalizePaymentMethod(row.paymentMethod) === "cash" && !isSaleCollected(row)
-      ? sum + toAmount(row.totalAmount)
+      ? sum + getWaterBalanceDueCents(row)
       : sum;
   }, 0);
   const pendingMomo = sales.reduce((sum, row) => {
     return normalizePaymentMethod(row.paymentMethod) === "momo" && !isSaleCollected(row)
-      ? sum + toAmount(row.totalAmount)
+      ? sum + getWaterBalanceDueCents(row)
       : sum;
   }, 0);
   const extraExpenses = expenses.reduce((sum, row) => sum + toAmount(row.amount), 0);
@@ -1146,7 +1142,16 @@ const buildDashboard = async (client, organizationId, options = {}) => {
   const product = getWaterProduct(options.productKey);
   const includeLinkedProduct = options.includeLinkedProduct !== false;
   const includePricing = options.includePricing !== false;
-  const [restocks, sales, expenses, adjustments, linkedProduct, commercialPricing, priceHistory] = await Promise.all([
+  const [
+    restocks,
+    saleRows,
+    expenses,
+    adjustments,
+    linkedProduct,
+    commercialPricing,
+    collections,
+    priceHistory,
+  ] = await Promise.all([
     selectRows(
       client,
       `"waterRestock"`,
@@ -1247,19 +1252,24 @@ const buildDashboard = async (client, organizationId, options = {}) => {
     includePricing
       ? loadWaterDashboardPricing(client, organizationId, product.key)
       : Promise.resolve(null),
+
+    loadWaterCollections(client, organizationId, product.key),
+
     includePricing
       ? client.query(
         `SELECT id, "productId", "productKey", "priceType",
                 "previousPriceCents", "newPriceCents", "changedAt",
                 "changedByUserId", "changedByName", source
-         FROM "waterPriceChange"
-         WHERE "organizationId" = $1 AND "productKey" = $2
-         ORDER BY "changedAt" DESC, id DESC
-         LIMIT 50`,
+        FROM "waterPriceChange"
+        WHERE "organizationId" = $1 AND "productKey" = $2
+        ORDER BY "changedAt" DESC, id DESC
+        LIMIT 50`,
         [organizationId, product.key]
       ).then((result) => result.rows || [])
       : Promise.resolve([]),
   ]);
+
+  const sales = projectWaterSales(saleRows, collections);
 
   const latestRecordedUnitCost = Number(restocks[0]?.unitCost);
 
@@ -1727,7 +1737,9 @@ export async function handler(event = {}) {
       const quantity = parsePositiveInteger(payload.quantity);
       const saleChannel = normalizeChannel(payload.saleChannel);
       const paymentMethod = normalizePaymentMethod(payload.paymentMethod);
-      const paymentStatus = normalizePaymentStatus(payload.paymentStatus, paymentMethod);
+      const paymentStatus = normalizePaymentStatus(
+        payload.paymentStatus || defaultNewWaterPaymentStatus(paymentMethod), paymentMethod
+      );
       const discountType = normalizeDiscountType(payload.discountType);
       const hasSubmittedUnitPrice = Object.prototype.hasOwnProperty.call(payload, "unitPrice");
       const submittedUnitPrice = hasSubmittedUnitPrice

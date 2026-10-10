@@ -2,6 +2,7 @@ import { recordOrderPayment } from "../../functions/_shared/shopOrders.js";
 import { normalizePaymentMethod } from "./paymentDomain.js";
 import { calculatePayableCharge, loadPayable, PAYABLE_TYPES } from "./payableRepository.js";
 import { createPaymentRecordAndApplication } from "./paymentPersistence.js";
+import { normalizeWaterPaymentMethod } from "@faako/water-domain";
 
 const applicationError = (message, code, statusCode) => {
   const error = new Error(message);
@@ -105,16 +106,17 @@ export const applyPaymentToPayable = async (client, attempt, transaction, actor)
   if (attempt.payableType === PAYABLE_TYPES.WATER_ORDER) {
     await client.query(
       `UPDATE "waterSale"
-       SET "paymentStatus" = 'paid', "paymentMethod" = $3, "paymentReference" = $4,
+       SET "paymentStatus" = $7, "paymentMethod" = $3, "paymentReference" = $4,
            "providerReference" = $5, "paidAt" = $6, "updatedAt" = NOW()
        WHERE "organizationId" = $1 AND id = $2`,
       [
         attempt.organizationId,
         attempt.payableId,
-        normalizePaymentMethod(transaction.channel || attempt.method),
+        normalizeWaterPaymentMethod(transaction.channel || attempt.method),
         attempt.reference,
         transaction.providerReference,
-        paidAt,
+        payable.amountPaidCents + Number(attempt.amountCents) >= payable.totalCents ? paidAt : null,
+        payable.amountPaidCents + Number(attempt.amountCents) >= payable.totalCents ? "paid" : "pending",
       ]
     );
   }

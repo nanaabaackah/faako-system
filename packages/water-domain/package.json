@@ -1,0 +1,14 @@
+{
+  "name": "@faako/water-domain",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./waterFinancials": "./src/waterFinancials.js",
+    "./waterProducts": "./src/waterProducts.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

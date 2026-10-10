@@ -66,6 +66,7 @@ const ROLE_PERMISSIONS = {
     "vendors:write",
     "users:read",
     "website-content:write",
+    "water:read",
   ],
   warehouse: [
     "inventory:read",

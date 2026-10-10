@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import test, { after } from "node:test";
+import { hasAnyRole, hasPermission } from "./_shared/accessControl.js";
 
 // This handler test uses in-memory dependencies only. Never load local dotenv
 // files or connect to the database configured for a developer's workspace.
@@ -9,6 +10,9 @@ process.env.REEBS_SKIP_ENV_FILES = "true";
 let fixture;
 const fixtureKey = "__reebsWaterDashboardTest";
 globalThis[fixtureKey] = {
+  captureError: (error) => { fixture.lastError = error; },
+  hasAnyRole,
+  hasPermission,
   Client: class {
     async connect() {}
     async end() { fixture.closed = true; }
@@ -17,6 +21,11 @@ globalThis[fixtureKey] = {
       assert.equal(fixture.closed, false, "dashboard reads must finish before closing the client");
       const statement = sql.replace(/\s+/g, " ").trim();
       fixture.queries.push({ statement, values });
+      if (statement.includes('FROM "paymentApplication" a')) {
+        assert.equal(values[0], 7);
+        assert.ok(["gwater-15pk", "sachet-water-30pk"].includes(values[1]));
+        return { rows: fixture.collections || [] };
+      }
       if (/^SELECT id, name, phone FROM "customer"/.test(statement)) {
         return { rows: [{ id: 1, name: "Water customer", phone: null }], rowCount: 1 };
       }
@@ -138,15 +147,36 @@ globalThis[fixtureKey] = {
   },
   requireInternalUser: async (_client, _event, options) => {
     fixture.authorization = options;
+    const authUser = {
+      id: 12,
+      role: fixture.role,
+      fullName: "Water test user",
+    };
+    if (
+      !globalThis[fixtureKey].hasAnyRole(authUser, options.roles)
+      || !globalThis[fixtureKey].hasPermission(authUser, options.permission)
+    ) {
+      return {
+        errorResponse: { statusCode: 403, body: JSON.stringify({ error: "Forbidden" }) },
+      };
+    }
     return {
       organizationId: 7,
-      authUser: { id: 12, role: fixture.role, fullName: "Water test user" },
+      authUser,
     };
   },
 };
 
 const commercialUrl = new URL("./_shared/commercialConfig.js", import.meta.url).href;
+const actionErrorsUrl = new URL("../modules/water/actionErrors.js", import.meta.url).href;
 const mockedModules = new Map([
+  ["../modules/water/actionErrors.js", `
+    import { getWaterActionError as presentError } from ${JSON.stringify(actionErrorsUrl)};
+    export const getWaterActionError = (error) => {
+      globalThis.${fixtureKey}.captureError(error);
+      return presentError(error);
+    };
+  `],
   ["./_shared/databaseClient.js", `
     export const createDatabaseClient = () => new globalThis.${fixtureKey}.Client();
   `],
@@ -229,7 +259,7 @@ test("Water dashboard reports missing current prices without hiding configured p
   fixture.productConfigs.get("7:gwater-15pk").companyPrice = null;
   fixture.productConfigs.get("7:gwater-15pk").bulkPrice = null;
   const response = await handler({ httpMethod: "GET", headers: {} });
-  assert.equal(response.statusCode, 200);
+  assert.equal(response.statusCode, 200, fixture.lastError?.stack || response.body);
   const pricing = JSON.parse(response.body).product.pricing;
   assert.equal(pricing.retailPrice, 3000);
   assert.equal(pricing.bulkPrice, null);
@@ -268,6 +298,7 @@ const assertDashboard = (response, role) => {
   const dashboard = JSON.parse(response.body);
   const allowed = role === "owner" || role === "admin";
   assert.deepEqual(dashboard.permissions, {
+    canRecordSales: allowed || role === "water",
     canManagePricing: allowed,
     canOverridePrice: allowed,
     canViewCost: allowed,
@@ -276,17 +307,46 @@ const assertDashboard = (response, role) => {
   assert.equal(dashboard.scope, "water");
   assert.equal(dashboard.businessUnit, "WATER");
   assert.equal(fixture.closed, true);
-  assert.deepEqual(fixture.authorization.roles, ["owner", "admin", "water"]);
+  assert.deepEqual(fixture.authorization.roles, ["owner", "admin", "manager", "water"]);
+  assert.equal(fixture.authorization.allowCrossOrgForRoles, undefined);
   return dashboard;
 };
 
-for (const role of ["owner", "admin", "water"]) {
+for (const [paymentMethod, expectedStatus] of [["cash", "paid"], ["momo", "pending"], ["credit", "unpaid"]]) {
+  test(`a new ${paymentMethod} sale records the correct collection state without changing Core`, async () => {
+    fixture = createFixture("water");
+    const response = await handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({
+      action: "sale", quantity: 1, customerId: 1, paymentMethod, date: "2026-09-02",
+    }) });
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(fixture.sales[0].paymentStatus, expectedStatus);
+    assert.equal(Boolean(fixture.sales[0].paidAt), expectedStatus === "paid");
+    assert.equal(fixture.sales[0].unitPrice, 3000);
+    assert.equal(fixture.queries.some(({ statement }) => /(?:INSERT INTO|UPDATE) "(?:order|orderPayment|journalEntry)"/.test(statement)), false);
+  });
+}
+
+test("Water dashboard includes partial collections once, separate from sales revenue and stock", async () => {
+  fixture = createFixture("admin");
+  fixture.sales = [{ id: 12, productKey: "gwater-15pk", quantity: 2, totalAmount: 6000,
+    paymentMethod: "momo", paymentStatus: "pending", unitCostAtSaleCents: 2000, date: "2026-09-02" }];
+  fixture.collections = [{ saleId: 12, amountPaidCents: "2500", applicationCount: 1 }];
+  const dashboard = assertDashboard(await handler({ httpMethod: "GET" }), "admin");
+  assert.equal(dashboard.summary.cashCollected, 2500);
+  assert.equal(dashboard.summary.pendingMomo, 3500);
+  assert.equal(dashboard.summary.revenue, 6000);
+  assert.equal(dashboard.summary.stockOnHand, 8);
+  assert.equal(dashboard.sales[0].balanceDueCents, 3500);
+  assert.equal(fixture.queries.some(({ statement }) => /^UPDATE "waterSale"/.test(statement)), false);
+});
+
+for (const role of ["owner", "admin", "manager", "water"]) {
   test(`Water GET returns ${role} capabilities with its standalone dashboard`, async () => {
     fixture = createFixture(role);
     const dashboard = assertDashboard(await handler({ httpMethod: "GET", headers: {} }), role);
     assert.equal(fixture.authorization.permission, "water:read");
     assert.equal(dashboard.summary.stockOnHand, 10);
-    if (role !== "water") {
+    if (role === "owner" || role === "admin") {
       assert.equal(dashboard.summary.restockSpend, 20000);
       assert.equal(dashboard.product.purchaseCost, 2000);
     } else {
@@ -297,7 +357,7 @@ for (const role of ["owner", "admin", "water"]) {
     }
   });
 
-  if (role === "water") continue;
+  if (role === "water" || role === "manager") continue;
 
   test(`Water restock response retains ${role} capabilities and entered cost`, async () => {
     fixture = createFixture(role);
@@ -321,6 +381,26 @@ for (const role of ["owner", "admin", "water"]) {
     assert.ok(!fixture.queries.some(({ statement }) => statement === "ROLLBACK"));
   });
 }
+
+test("Water backend denies users without Water access", async () => {
+  fixture = createFixture("staff");
+  const response = await handler({ httpMethod: "GET", headers: {} });
+  assert.equal(response.statusCode, 403);
+  assert.deepEqual(fixture.authorization.roles, ["owner", "admin", "manager", "water"]);
+  assert.deepEqual(fixture.queries, []);
+});
+
+test("Water Managers can read but cannot write Water data", async () => {
+  fixture = createFixture("manager");
+  const response = await handler({
+    httpMethod: "POST",
+    headers: {},
+    body: JSON.stringify({ action: "restock", quantity: 3, unitCost: "24.00" }),
+  });
+  assert.equal(response.statusCode, 403);
+  assert.equal(fixture.authorization.permission, "water:write");
+  assert.deepEqual(fixture.queries, []);
+});
 
 test("Water GET never supplies an invented purchase cost on an empty ledger", async () => {
   fixture = { ...createFixture("admin"), restocks: [] };

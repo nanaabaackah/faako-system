@@ -11,6 +11,7 @@ import {
   getOptionalModules,
   isCoreModule,
 } from "@faako/config";
+import { WATER_APP_URL } from "./appUrls.js";
 
 const DEFAULT_MODULE_STATE = {
   visibility: ERP_MODULE_VISIBILITY.VISIBLE,
@@ -256,7 +257,8 @@ export const REEBS_ADMIN_MODULES = [
     key: "water",
     label: "Water",
     ...DEFAULT_MODULE_STATE,
-    path: "/admin/water",
+    path: WATER_APP_URL,
+    external: true,
     group: ERP_MODULE_GROUPS.OPERATIONS,
     status: ERP_MODULE_STATUSES.STABLE,
     requiredPermission: "water",

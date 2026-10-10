@@ -26,18 +26,22 @@ const notFound = () => {
   return error;
 };
 
-export const getAppliedAmount = async (client, organizationId, payableType, payableId) => {
+const getApplicationBalance = async (client, organizationId, payableType, payableId) => {
   const result = await client.query(
-    `SELECT COALESCE(SUM("amountCents"), 0)::bigint AS "amountPaidCents"
+    `SELECT COALESCE(SUM("amountCents") FILTER (WHERE status = 'APPLIED'), 0)::bigint AS "amountPaidCents",
+            COUNT(*)::int AS "applicationCount"
      FROM "paymentApplication"
      WHERE "organizationId" = $1
        AND "payableType" = $2
-       AND "payableId" = $3
-       AND status = 'APPLIED'`,
+       AND "payableId" = $3`,
     [organizationId, payableType, payableId]
   );
-  return Number(result.rows?.[0]?.amountPaidCents || 0);
+  const amountPaidCents = Number(result.rows?.[0]?.amountPaidCents || 0);
+  return { amountPaidCents, applicationCount: Number(result.rows?.[0]?.applicationCount ?? (amountPaidCents > 0 ? 1 : 0)) };
 };
+
+export const getAppliedAmount = async (client, organizationId, payableType, payableId) =>
+  (await getApplicationBalance(client, organizationId, payableType, payableId)).amountPaidCents;
 
 const loadOrder = async (client, organizationId, payableId, lockClause) => {
   const result = await client.query(
@@ -119,7 +123,7 @@ const loadWaterOrder = async (client, organizationId, payableId, lockClause) => 
   );
   const row = result.rows?.[0];
   if (!row || row.archivedAt) throw notFound();
-  const applied = await getAppliedAmount(client, organizationId, PAYABLE_TYPES.WATER_ORDER, payableId);
+  const applied = await getApplicationBalance(client, organizationId, PAYABLE_TYPES.WATER_ORDER, payableId);
   const legacyPaid = String(row.paymentStatus || "").toLowerCase() === "paid"
     ? Number(row.totalAmount || 0)
     : 0;
@@ -133,7 +137,7 @@ const loadWaterOrder = async (client, organizationId, payableId, lockClause) => 
     customerEmail: row.customerEmail || null,
     currency: "GHS",
     totalCents: Number(row.totalAmount || 0),
-    amountPaidCents: Math.max(applied, legacyPaid),
+    amountPaidCents: applied.applicationCount > 0 ? applied.amountPaidCents : legacyPaid,
     depositRequiredCents: null,
     sourceStatus: row.paymentStatus,
   };

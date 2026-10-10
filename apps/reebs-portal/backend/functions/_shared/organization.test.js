@@ -63,6 +63,34 @@ test("resolveAuthorizedOrganizationId does not infer cross-organization access f
   );
 });
 
+test("resolveAuthorizedOrganizationId does not infer cross-organization access from owner role", async () => {
+  await assert.rejects(
+    () =>
+      resolveAuthorizedOrganizationId(
+        {
+          async query() {
+            throw new Error("should not query organization table");
+          },
+        },
+        {
+          authUser: {
+            organizationId: 7,
+            role: "owner",
+            email: "owner@example.com",
+          },
+          event: {
+            queryStringParameters: {
+              organizationId: "12",
+            },
+          },
+        }
+      ),
+    {
+      message: "Cross-organization access is not allowed.",
+    }
+  );
+});
+
 test("resolveAuthorizedOrganizationId allows an explicitly assigned organization for compatible roles", async () => {
   const organizationId = await resolveAuthorizedOrganizationId(
     {

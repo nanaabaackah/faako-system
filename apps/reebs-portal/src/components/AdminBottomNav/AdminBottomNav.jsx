@@ -11,8 +11,8 @@ import {
 } from "../../config/adminNavigation";
 import {
   canAccessStandardPortalArea,
+  canAccessPortalNavigationItem,
   canAccessWaterPortalArea,
-  canAccessPortalRoute,
   isDriverPortalRole,
   isWaterPortalRole,
 } from "../../utils/adminAccess";
@@ -36,9 +36,7 @@ const getNavItems = (role) => {
   if (canAccessWaterPortalArea(role)) {
     items.push(WATER_BOTTOM_NAV_ITEMS[0]);
   }
-  return items.filter((item) => item && canAccessPortalRoute(role, item.path)
-    // The Water API permits owners, admins and dedicated Water operators only.
-    && (item.id !== "water" || ["owner", "admin", "water"].includes(String(role).toLowerCase())));
+  return items.filter((item) => item && canAccessPortalNavigationItem(role, item));
 };
 
 function AdminBottomNav() {
@@ -70,10 +68,15 @@ function AdminBottomNav() {
           normalizedPath === itemPath ||
           (itemPath !== "/admin" && normalizedPath.startsWith(`${itemPath}/`));
 
+        const ItemLink = item.external ? "a" : Link;
+        const linkProps = item.external ? { href: item.path } : { to: item.path };
+
         return (
-          <Link
+          <ItemLink
             key={item.id}
-            to={item.path}
+            {...linkProps}
+            target={item.external ? "_blank" : undefined}
+            rel={item.external ? "noreferrer" : undefined}
             aria-current={isActive ? "page" : undefined}
             title={item.label}
             className={[
@@ -100,7 +103,7 @@ function AdminBottomNav() {
                 </span>
               ) : null}
             </span>
-          </Link>
+          </ItemLink>
         );
       })}
     </nav>
