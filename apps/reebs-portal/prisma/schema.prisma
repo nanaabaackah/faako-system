@@ -42,6 +42,7 @@ model Organization {
   waterAdjustments WaterAdjustment[]
   waterProductConfigs WaterProductConfig[]
   waterPriceChanges WaterPriceChange[]
+  waterMutations WaterMutation[]
   accountingConfig AccountingConfig?
   websiteContents WebsiteContent[]
   accountingManualSales AccountingManualSales[]
@@ -898,6 +899,12 @@ model WaterRestock {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?    @db.Timestamptz
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterRestock")
 }
@@ -961,6 +968,10 @@ model WaterSale {
   discountAmount  Int          @default(0)
   baseUnitPrice   Int?
   unitPrice       Int
+  standardUnitPrice Int?
+  unitCostAtSaleCents Int?
+  priceOverriddenByUserId Int?
+  priceOverriddenAt DateTime?
   unitCostAtTransaction Int?
   priceOverrideReason String?
   priceOverrideActorId Int?
@@ -974,6 +985,12 @@ model WaterSale {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterSale")
 }
@@ -991,6 +1008,12 @@ model WaterExpense {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterExpense")
 }
@@ -1008,8 +1031,28 @@ model WaterAdjustment {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?    @db.Timestamptz
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterAdjustment")
+}
+
+model WaterMutation {
+  id BigInt @id @default(autoincrement())
+  organizationId Int
+  organization Organization @relation(fields: [organizationId], references: [id])
+  productKey String
+  actorId Int
+  idempotencyKey String
+  requestFingerprint String
+  action String
+  createdAt DateTime @default(now()) @db.Timestamptz
+  @@unique([organizationId, idempotencyKey])
+  @@map("waterMutation")
 }
 
 model Booking {

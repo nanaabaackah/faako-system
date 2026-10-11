@@ -15,6 +15,7 @@ test("an authenticated user without backend Water permission sees the 403 state"
   });
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "403 · Access denied" })).toBeVisible();
+  // First navigation compiles the lazy Water workspace on a cold local server.
+  await expect(page.getByRole("heading", { name: "403 · Access denied" })).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Your account is authenticated, but it does not have permission to access this business.")).toBeVisible();
 });

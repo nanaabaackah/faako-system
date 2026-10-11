@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/index.js",
     "./waterFinancials": "./src/waterFinancials.js",
-    "./waterProducts": "./src/waterProducts.js"
+    "./waterProducts": "./src/waterProducts.js",
+    "./waterReporting": "./src/waterReporting.js",
+    "./waterSettlement": "./src/waterSettlement.js"
   },
   "scripts": {
     "test": "node --test"

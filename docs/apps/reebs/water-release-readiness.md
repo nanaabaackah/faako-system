@@ -2,6 +2,12 @@
 
 ## Decision
 
+**Latest checkpoint:** the standalone modules and develop's collection/transaction
+safeguards have been reconciled locally. Use the
+[2026-10-10 handoff](water-modules-staging-handoff-2026-10-10.md) for current checks,
+hosting setup and the migration-order warning. The results below are historical,
+not verification of today's deployed environment.
+
 The completed automated checkpoints below pass, including the final theme/dialog
 rerun. **Production use is not yet cleared.** Complete the
 isolated staging checks below before promotion. The repository security gate now

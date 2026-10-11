@@ -72,6 +72,11 @@ button, input, select, textarea { font: inherit; }
   width: calc(100% - var(--portal-sidebar-expanded));
 }
 .water-sidebar { --app-vh: 100dvh; }
+.water-workspace .water-sidebar {
+  /* Shared dialogs are 1200 and field popovers 1300. Portal's 1400 sidebar
+     otherwise paints over standalone dialogs and their full-screen backdrop. */
+  z-index: 1000;
+}
 .water-sidebar-modules { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 1rem; }
 .water-sidebar .portal-sidebar__link { min-height: 44px; }
 .water-sidebar .portal-sidebar__footer { margin-top: auto; }

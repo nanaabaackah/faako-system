@@ -2,7 +2,7 @@ import SearchField from "../../../components/SearchField.jsx";
 import { TableSortHeader, tableDate, useTableView } from "../../../components/TableControls.jsx";
 import TablePagination from "../../../components/TablePagination.jsx";
 import PortalAction from "../../../components/PortalAction.jsx";
-import { faRotateRight, faTrash } from "../../../icons/iconSet.js";
+import { faRotateRight, faTrash, faMoneyCheckDollar } from "../../../icons/iconSet.js";
 
 function WaterLedgerLoading({ label }) {
   return (
@@ -27,6 +27,7 @@ export default function WaterLedgersSection({
   activeOrderId,
   openOrderEditor,
   handleOrderDelete,
+  openCollection,
   formatDate,
   formatCurrency,
   normalizeSalePaymentStatus,
@@ -51,6 +52,8 @@ export default function WaterLedgersSection({
     quantity: (sale) => Number(sale.quantity),
     price: (sale) => Number(sale.unitPrice),
     total: (sale) => Number(sale.totalAmount),
+    paid: (sale) => Number(sale.amountPaidCents),
+    balance: (sale) => Number(sale.balanceDueCents),
   }, { resetKey: `${orderQuery}|${orderStatusFilter}|${stockScopeLabel}` });
   const stockTable = useTableView(stockTimeline, {
     position: (_, index) => index,
@@ -150,6 +153,8 @@ export default function WaterLedgersSection({
                       <TableSortHeader {...ordersTable} column="quantity">Qty</TableSortHeader>
                       <TableSortHeader {...ordersTable} column="price">Price</TableSortHeader>
                       <TableSortHeader {...ordersTable} column="total">Total</TableSortHeader>
+                      <TableSortHeader {...ordersTable} column="paid">Paid</TableSortHeader>
+                      <TableSortHeader {...ordersTable} column="balance">Balance</TableSortHeader>
                       <th aria-label="Actions" />
                     </tr>
                   </thead>
@@ -200,14 +205,17 @@ export default function WaterLedgersSection({
                               <strong>{formatCurrency(sale.totalAmount)}</strong>
                             </div>
                           </td>
+                          <td data-label="Paid"><span className="water-module-table-value">{formatCurrency(sale.amountPaidCents)}{sale.legacyPaymentCompatibility ? " · Legacy" : ""}</span></td>
+                          <td data-label="Balance"><span className="water-module-table-value">{formatCurrency(sale.balanceDueCents)}</span></td>
                           <td className="water-module-order-actions" data-label="Action">
+                            {canRecordSales && <PortalAction icon={faMoneyCheckDollar} label={`Record collection for sale ${sale.id}`} onClick={(event) => openCollection(sale, event)} onKeyDown={(event) => event.stopPropagation()} disabled={saving || loading || sale.legacyPaymentCompatibility || sale.balanceDueCents <= 0} />}
                             {canRecordSales ? <PortalAction
                               type="button"
                               className="water-module-row-delete"
                               onClick={(event) => handleOrderDelete(sale, event)}
                               onKeyDown={(event) => event.stopPropagation()}
                               label={`Archive water order ${sale.id}`} action="archive" icon={faTrash}
-                              disabled={saving || loading}
+                              disabled={saving || loading || sale.amountPaidCents > 0}
                             /> : null}
                           </td>
                         </tr>
@@ -233,6 +241,8 @@ export default function WaterLedgersSection({
                       <td className="admin-table-summary-cell" data-label="Total">
                         <span className="admin-table-summary-value">{formatCurrency(orderSummary.total)}</span>
                       </td>
+                      <td className="admin-table-summary-cell" data-label="Paid">{formatCurrency(filteredSales.reduce((sum, sale) => sum + (Number(sale.amountPaidCents) || 0), 0))}</td>
+                      <td className="admin-table-summary-cell" data-label="Balance">{formatCurrency(filteredSales.reduce((sum, sale) => sum + (Number(sale.balanceDueCents) || 0), 0))}</td>
                       <td className="admin-table-summary-cell is-empty" />
                     </tr>
                   </tfoot>

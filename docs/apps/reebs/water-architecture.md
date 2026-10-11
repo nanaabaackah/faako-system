@@ -59,6 +59,8 @@ routes. Mobile navigation is an expandable inline sidebar.
 - `waterSale` owns Water orders, payment state, selling-price and cost snapshots. Authorised price overrides do not require a recorded reason.
 - `waterAdjustment` owns Water-only stock corrections.
 - `waterExpense` owns Water-only expenses.
+- Shared `paymentRecord` / `paymentApplication` rows scoped to `WATER` and `WATER_ORDER` own verified collections. Sale payment status is a projection, not editable payment history.
+- `waterMutation` owns durable command retry markers; commands include tenant, product, actor and payload fingerprint validation.
 - `customer` and `vendor` identities may be shared, but Water activity is derived only through Water records.
 
 The generic inventory product can remain linked for identity/vendor context. It is not the authoritative Water stock ledger.
@@ -106,6 +108,14 @@ COGS/profit unavailable, rather than substituting zero, a hardcoded cost, or a
 later restock price. The legacy `unitCostAtTransaction` field is accepted when
 present. Unknown restock spend/cash position and stock valuation also stay null.
 An empty ledger does not pre-fill a guessed purchase cost.
+
+Collections and settlement calculations also live in `@faako/water-domain`.
+Period collection totals use `paidAt`; revenue uses the sale date. Live balances
+remain separate from the selected historical period. Reversed application
+history remains authoritative even when its net collected amount is zero.
+Legacy paid flags are separately labelled and never invented as verified cash.
+Recorded-price corrections cannot lower a sale below its collected amount or
+rewrite payment facts; legacy paid totals require reconciliation first.
 
 ## Cost and finance access
 

@@ -32,6 +32,7 @@ test("the Water UI no longer imports Portal-owned frontend code", () => {
   const page = readWaterSource("../src/pages/Water/AdminWater.jsx");
   const components = [
     "WaterCustomerPicker.jsx",
+    "WaterCollectionModal.jsx",
     "WaterKpiGrid.jsx",
     "WaterLedgerEditorModal.jsx",
     "WaterLedgersSection.jsx",

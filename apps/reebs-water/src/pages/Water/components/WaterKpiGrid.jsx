@@ -81,12 +81,12 @@ export default function WaterKpiGrid({
           <article className="water-module-kpi bubble-card">
             <p className="water-module-kpi-label">Payments collected</p>
             <div className="water-module-kpi-value"><AppIcon icon={faMoneyCheckDollar} /><strong>{formatCurrency(trackingSummary.cashCollected)}</strong></div>
-            <span>Collections against orders in this period</span>
+            <span>Verified collections received in this period</span>
           </article>
           <article className="water-module-kpi bubble-card">
             <p className="water-module-kpi-label">Balance outstanding</p>
-            <div className="water-module-kpi-value"><AppIcon icon={faReceipt} /><strong>{formatCurrency(trackingSummary.outstandingCredit + trackingSummary.pendingCash + trackingSummary.pendingMomo)}</strong></div>
-            <span>Uncollected cash, MoMo and credit</span>
+            <div className="water-module-kpi-value"><AppIcon icon={faReceipt} /><strong>{formatCurrency(liveSummary.outstandingBalance)}</strong></div>
+            <span>Live uncollected cash, MoMo and credit</span>
           </article>
         </>}
       </section>
@@ -105,10 +105,13 @@ export default function WaterKpiGrid({
             <div><dt>Water stock costs</dt><dd>{formatOptionalCurrency(trackingSummary.costOfGoodsSold)}</dd></div>
             <div><dt>Extra expenses</dt><dd>{formatCurrency(trackingSummary.extraExpenses)}</dd></div>
             <div><dt>Cash position</dt><dd>{formatOptionalCurrency(trackingSummary.cashPosition)}</dd></div>
-            <div><dt>Outstanding credit</dt><dd>{formatCurrency(trackingSummary.outstandingCredit)} · {totalCreditCount} orders</dd></div>
+            <div><dt>Current outstanding balance</dt><dd>{formatCurrency(liveSummary.outstandingBalance)}</dd></div>
+            <div><dt>Current credit balance</dt><dd>{formatCurrency(liveSummary.outstandingCredit)} · {totalCreditCount} sales</dd></div>
             <div><dt>Cash sales</dt><dd>{formatCurrency(trackingSummary.cashSalesTotal)} · {formatCurrency(trackingSummary.pendingCash)} pending</dd></div>
             <div><dt>MoMo sales</dt><dd>{formatCurrency(trackingSummary.momoSalesTotal)} · {formatCurrency(trackingSummary.pendingMomo)} pending</dd></div>
-            <div><dt>Collected</dt><dd>{formatCurrency(trackingSummary.cashCollected)}</dd></div>
+            <div><dt>Collected by payment date</dt><dd>{formatCurrency(trackingSummary.cashCollected)}</dd></div>
+            <div><dt>Mobile Money collected</dt><dd>{formatCurrency(trackingSummary.momoCollections)}</dd></div>
+            <div><dt>Legacy paid, not verified collections</dt><dd>{formatCurrency(trackingSummary.legacyPaidTotal)} · {trackingSummary.legacyPaidSaleCount} sales</dd></div>
           </dl>
         </section>
       ) : null}

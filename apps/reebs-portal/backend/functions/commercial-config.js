@@ -360,6 +360,7 @@ const handlePost = async (client, event, { organizationId, authUser, payload }) 
       organizationId,
       authUser,
       result,
+      now,
     });
     await client.query("COMMIT");
     return json(event, 201, { resourceType, record: result.record });

@@ -31,8 +31,14 @@ test("water API requests include the cross-origin session cookie", () => {
   const sharedRequests = source.match(/reebsApiResponse\(/g) || [];
 
   assert.equal(source.includes('credentials: "same-origin"'), false);
-  // Dashboard, vendors, customers, ledger mutations and inline customer creation.
-  assert.equal(sharedRequests.length, 5);
+  // Dashboard, vendors, customers and inline customer creation use the client
+  // directly; ledger mutations now use the durable-key command adapter.
+  assert.equal(sharedRequests.length, 4);
+  const commands = readFileSync(new URL("../../api/waterCommands.js", import.meta.url), "utf8");
+  assert.match(source, /postWaterCommand\(/);
+  assert.match(commands, /import \{ reebsApiResponse \} from "\.\/client.js"/);
+  assert.match(commands, /reebsApiResponse\("\/api\/water"/);
+  assert.doesNotMatch(commands, /\bfetch\(|credentials:/);
   assert.doesNotMatch(source, /\bfetch\(/);
   assert.match(apiClientSource, /credentials:\s*["']include["']/);
 });

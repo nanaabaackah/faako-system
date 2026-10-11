@@ -2,7 +2,7 @@ import { recordOrderPayment } from "../../functions/_shared/shopOrders.js";
 import { normalizePaymentMethod } from "./paymentDomain.js";
 import { calculatePayableCharge, loadPayable, PAYABLE_TYPES } from "./payableRepository.js";
 import { createPaymentRecordAndApplication } from "./paymentPersistence.js";
-import { normalizeWaterPaymentMethod } from "@faako/water-domain";
+import { recordWaterCollection } from "../water/settlement.js";
 
 const applicationError = (message, code, statusCode) => {
   const error = new Error(message);
@@ -47,6 +47,18 @@ export const applyPaymentToPayable = async (client, attempt, transaction, actor)
 
   let orderPaymentId = null;
   let receipt = null;
+  if (attempt.payableType === PAYABLE_TYPES.WATER_ORDER) {
+    const recorded = await recordWaterCollection(client, {
+      organizationId: attempt.organizationId, saleId: attempt.payableId, productKey: payable.productKey,
+      amountCents: attempt.amountCents, currency: attempt.currency,
+      method: transaction.channel || attempt.method, provider: attempt.provider,
+      providerReference: transaction.providerReference, source: "ONLINE_PROVIDER",
+      paidAt: transaction.paidAt, actor,
+      reference: attempt.reference, attemptId: attempt.id,
+      idempotencyKey: `provider:${attempt.provider}:attempt:${attempt.id}`,
+    });
+    return { ...recorded, receipt: null, payable };
+  }
   if (attempt.payableType === PAYABLE_TYPES.ORDER) {
     const orderResult = await recordOrderPayment(client, {
       organizationId: attempt.organizationId,
@@ -100,23 +112,6 @@ export const applyPaymentToPayable = async (client, attempt, transaction, actor)
         attempt.organizationId,
         attempt.payableId,
         projectedPaid >= payable.totalCents ? "paid" : projectedPaid > 0 ? "partially_paid" : "unpaid",
-      ]
-    );
-  }
-  if (attempt.payableType === PAYABLE_TYPES.WATER_ORDER) {
-    await client.query(
-      `UPDATE "waterSale"
-       SET "paymentStatus" = $7, "paymentMethod" = $3, "paymentReference" = $4,
-           "providerReference" = $5, "paidAt" = $6, "updatedAt" = NOW()
-       WHERE "organizationId" = $1 AND id = $2`,
-      [
-        attempt.organizationId,
-        attempt.payableId,
-        normalizeWaterPaymentMethod(transaction.channel || attempt.method),
-        attempt.reference,
-        transaction.providerReference,
-        payable.amountPaidCents + Number(attempt.amountCents) >= payable.totalCents ? paidAt : null,
-        payable.amountPaidCents + Number(attempt.amountCents) >= payable.totalCents ? "paid" : "pending",
       ]
     );
   }

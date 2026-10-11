@@ -12,6 +12,10 @@ import {
 
 const NOW = new Date("2026-08-15T12:30:00.000Z");
 
+test("Core dates retain historical immutability after Water scheduling is retired", () => {
+  assert.throws(() => toEffectiveFrom("2026-03-01", NOW), /today or later/);
+});
+
 const coreDefinition = {
   businessUnit: "REEBS_CORE",
   key: "service_deposit_bps",

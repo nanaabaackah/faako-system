@@ -95,7 +95,7 @@ test("dashboard and Water retain the standalone business boundary", () => {
   assert.match(modules.dashboard.page, /bubble-card reebs-dashboard-summary-card/);
   assert.match(modules.dashboard.page, /className="glass-card/);
 
-  assert.doesNotMatch(routeSource, /loadWaterPage|pages\/AdminWater/);
+  assert.doesNotMatch(readPortalSource("./routeConfig.js"), /loadWaterPage|pages\/AdminWater/);
 });
 
 test("roadmap operational links remain represented in the completed modules", () => {

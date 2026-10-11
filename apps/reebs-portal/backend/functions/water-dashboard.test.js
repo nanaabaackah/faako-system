@@ -21,7 +21,39 @@ globalThis[fixtureKey] = {
       assert.equal(fixture.closed, false, "dashboard reads must finish before closing the client");
       const statement = sql.replace(/\s+/g, " ").trim();
       fixture.queries.push({ statement, values });
-      if (statement.includes('FROM "paymentApplication" a')) {
+      if (statement.includes('FROM "waterMutation"')) return { rows: [] };
+      if (statement.startsWith('INSERT INTO "waterMutation"')) return { rows: [], rowCount: 1 };
+      if (/^SELECT \* FROM "water(?:Sale|Restock|Expense|Adjustment)"/.test(statement)) {
+        const list = statement.includes('"waterSale"') ? fixture.sales || []
+          : statement.includes('"waterRestock"') ? fixture.restocks : fixture.expenses || [];
+        const id = typeof values[1] === "string" ? values[2] : values[1];
+        return { rows: structuredClone(list.filter((row) => row.id === id)) };
+      }
+      if (/^UPDATE "water(?:Sale|Restock|Expense|Adjustment)" SET "updatedAt"/.test(statement)) {
+        const list = statement.includes('"waterSale"') ? fixture.sales || []
+          : statement.includes('"waterRestock"') ? fixture.restocks : fixture.expenses || [];
+        return { rows: structuredClone(list.filter((row) => row.id === values[2])), rowCount: 1 };
+      }
+      if (statement.includes('FROM "paymentApplication" pa') && statement.includes('SUM(')) {
+        const applied = (fixture.collections || []).filter((row) => row.saleId === values[1]);
+        return { rows: [{ amountPaidCents: applied.reduce((sum, row) => sum + row.amountCents, 0), applicationCount: applied.length, lastPaidAt: applied.at(-1)?.paidAt }] };
+      }
+      if (/^SELECT pr\.\*|^SELECT id FROM "paymentRecord"/.test(statement)) return { rows: [] };
+      if (statement.startsWith('INSERT INTO "paymentRecord"')) {
+        fixture.payment = { id: 40, amountCents: values[5], method: values[7], paidAt: values[12], status: "PAID" };
+        return { rows: [fixture.payment], rowCount: 1 };
+      }
+      if (statement.startsWith('INSERT INTO "paymentApplication"')) {
+        const sale = fixture.sales.find((row) => row.id === values[6]);
+        const collection = { ...fixture.payment, applicationId: 41, saleId: sale.id, productKey: sale.productKey, applicationStatus: "APPLIED" };
+        (fixture.collections ||= []).push(collection);
+        return { rows: [collection], rowCount: 1 };
+      }
+      if (statement.startsWith('UPDATE "waterSale" SET "paymentStatus"')) {
+        Object.assign(fixture.sales.find((row) => row.id === values[1]), { paymentStatus: values[2], paidAt: values[3] });
+        return { rows: [], rowCount: 1 };
+      }
+      if (statement.includes('FROM "paymentApplication" pa')) {
         assert.equal(values[0], 7);
         assert.ok(["gwater-15pk", "sachet-water-30pk"].includes(values[1]));
         return { rows: fixture.collections || [] };
@@ -82,7 +114,7 @@ globalThis[fixtureKey] = {
       if (/^INSERT INTO "waterExpense"/.test(statement)) {
         (fixture.expenses ||= []).push({ id: 30, organizationId: values[0], productKey: values[1],
           category: values[2], amount: values[3], description: values[4], date: values[6] });
-        return { rows: [], rowCount: 1 };
+        return { rows: [{ id: 30 }], rowCount: 1 };
       }
       if (/^INSERT INTO "waterRestock"/.test(statement)) {
         fixture.restocks.unshift({
@@ -99,7 +131,7 @@ globalThis[fixtureKey] = {
           createdByUserId: values[9],
           createdByName: values[10],
         });
-        return { rows: [], rowCount: 1 };
+        return { rows: [{ id: 2 }], rowCount: 1 };
       }
       if (/^UPDATE "waterRestock" SET/.test(statement)) {
         assert.match(statement, /AND "productKey" = \$9/);
@@ -191,7 +223,7 @@ const mockedModules = new Map([
     });
   `],
   ["./_shared/auditLog.js", `
-    export const getEventHeader = () => "";
+    export const getEventHeader = (_event, name) => name === "idempotency-key" ? "water-dashboard-fixture-key" : "";
     export const getEventIpAddress = () => null;
     export const writeAuditLog = async () => {};
   `],
@@ -204,6 +236,9 @@ const mockedModules = new Map([
 const handlerUrl = new URL("./water.js", import.meta.url).href;
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (specifier.endsWith("/auditLog.js")) {
+      return { url: `data:text/javascript,${encodeURIComponent(mockedModules.get("./_shared/auditLog.js"))}`, shortCircuit: true };
+    }
     if (context.parentURL === handlerUrl && mockedModules.has(specifier)) {
       return {
         url: `data:text/javascript,${encodeURIComponent(mockedModules.get(specifier))}`,
@@ -225,7 +260,7 @@ const sachetProductKey = "sachet-water-30pk";
 const sachetRestock = {
   id: 20, organizationId: 7, productKey: sachetProductKey,
   productName: "30pcs sachet water", quantity: 5, unitCost: 800,
-  date: "2026-09-01T00:00:00.000Z",
+  date: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 };
 
 const createFixture = (role) => ({
@@ -277,11 +312,11 @@ for (const role of ["owner", "admin", "water"]) {
       date: "2026-09-02T14:30:00.000Z", updatedAt: "2026-09-02T14:30:00.000Z",
       unitPrice: 3000, standardUnitPrice: 3000,
       unitCostAtSaleCents: 2000, totalAmount: 6000, customerId: 1,
-      paymentMethod: "cash", paymentStatus: "paid", discountType: "none", discountValue: 0 }];
+      paymentMethod: "cash", paymentStatus: "unpaid", discountType: "none", discountValue: 0 }];
     const response = await handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({
-      action: "update_sale", saleId: 9, unitPrice: "32.00", date: "2026-09-02",
+      action: "update_sale", saleId: 9, unitPrice: "32.00", date: "2026-09-02", expectedUpdatedAt: fixture.sales[0].updatedAt,
     }) });
-    assert.equal(response.statusCode, role === "water" ? 403 : 200, response.body);
+    assert.equal(response.statusCode, role === "water" ? 403 : 200, fixture.lastError?.stack || response.body);
     const sale = fixture.sales[0];
     assert.equal(sale.unitPrice, role === "water" ? 3000 : 3200);
     assert.equal(sale.totalAmount, role === "water" ? 6000 : 6400);
@@ -294,7 +329,7 @@ for (const role of ["owner", "admin", "water"]) {
 }
 
 const assertDashboard = (response, role) => {
-  assert.equal(response.statusCode, 200);
+  assert.equal(response.statusCode, 200, fixture.lastError?.stack || response.body);
   const dashboard = JSON.parse(response.body);
   const allowed = role === "owner" || role === "admin";
   assert.deepEqual(dashboard.permissions, {
@@ -326,11 +361,45 @@ for (const [paymentMethod, expectedStatus] of [["cash", "paid"], ["momo", "pendi
   });
 }
 
+for (const [saleChannel, quantity, unitPrice] of [["retail", 1, 3000], ["retail", 10, 2800], ["company", 1, 2500]]) {
+  test(`backdated ${saleChannel} sale of ${quantity} packs uses current prices, dated cost and no retired schedule`, async () => {
+    fixture = createFixture("admin");
+    fixture.restocks[0].date = "2026-01-01T00:00:00.000Z";
+    const response = await handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({
+      action: "sale", quantity, customerId: 1, paymentMethod: "credit", saleChannel, date: "2026-07-20",
+    }) });
+    assert.equal(response.statusCode, 200, fixture.lastError?.stack || response.body);
+    const dashboard = JSON.parse(response.body);
+    assert.equal(fixture.sales[0].unitPrice, unitPrice);
+    assert.equal(fixture.sales[0].unitCostAtSaleCents, 2000);
+    assert.equal(dashboard.summary.revenue, quantity * unitPrice);
+    assert.equal(dashboard.summary.cashCollected, 0);
+    assert.equal(dashboard.summary.stockOnHand, 10 - quantity);
+    assert.equal(fixture.queries.some(({ statement }) => statement.includes('"waterProductPrice"')), false);
+  });
+}
+
+test("a stale sale correction fails before changing prices or stock", async () => {
+  fixture = createFixture("admin");
+  fixture.sales = [{ id: 9, productKey: "gwater-15pk", quantity: 2, totalAmount: 6000,
+    date: "2026-09-02T12:00:00.000Z", saleChannel: "retail", unitPrice: 3000,
+    standardUnitPrice: 3000, unitCostAtSaleCents: 2000, customerId: 1, paymentMethod: "credit",
+    updatedAt: "2026-09-03T12:00:00.000Z", paymentStatus: "unpaid" }];
+  const before = structuredClone(fixture.sales);
+  const response = await handler({ httpMethod: "POST", headers: {}, body: JSON.stringify({
+    action: "update_sale", saleId: 9, unitPrice: "32.00", expectedUpdatedAt: "2026-09-02T12:00:00.000Z",
+  }) });
+  assert.equal(response.statusCode, 409);
+  assert.equal(JSON.parse(response.body).code, "WATER_RECORD_CHANGED");
+  assert.deepEqual(fixture.sales, before);
+  assert.ok(fixture.queries.some(({ statement }) => statement === "ROLLBACK"));
+});
+
 test("Water dashboard includes partial collections once, separate from sales revenue and stock", async () => {
   fixture = createFixture("admin");
   fixture.sales = [{ id: 12, productKey: "gwater-15pk", quantity: 2, totalAmount: 6000,
     paymentMethod: "momo", paymentStatus: "pending", unitCostAtSaleCents: 2000, date: "2026-09-02" }];
-  fixture.collections = [{ saleId: 12, amountPaidCents: "2500", applicationCount: 1 }];
+  fixture.collections = [{ saleId: 12, productKey: "gwater-15pk", amountCents: 2500, status: "PAID", applicationStatus: "APPLIED" }];
   const dashboard = assertDashboard(await handler({ httpMethod: "GET" }), "admin");
   assert.equal(dashboard.summary.cashCollected, 2500);
   assert.equal(dashboard.summary.pendingMomo, 3500);
@@ -462,7 +531,8 @@ test("reading Water never rewrites historical payment status, references or paid
   })));
   assert.equal(fixture.queries.some(({ statement }) => /^UPDATE "waterSale"/.test(statement)), false,
     "GET must not normalize or invent historical payment facts");
-  assert.equal(dashboard.summary.cashCollected, 3000);
+  assert.equal(dashboard.summary.cashCollected, 0, "Legacy flags are not verified collection records");
+  assert.equal(dashboard.summary.legacyPaidTotal, 3000);
   assert.equal(dashboard.summary.pendingMomo, 3000);
   assert.equal(dashboard.summary.outstandingCredit, 0);
 });
@@ -637,7 +707,7 @@ test("correcting an existing sachet restock cost leaves the 15-pack unchanged", 
   const legacy = structuredClone(fixture.restocks[0]);
   const dashboard = assertDashboard(await handler({ httpMethod: "POST", body: JSON.stringify({
     action: "update_restock", productKey: sachetProductKey, restockId: 20,
-    unitCost: "9.00",
+    unitCost: "9.00", expectedUpdatedAt: sachetRestock.updatedAt,
   }) }), "admin");
   assert.equal(dashboard.product.purchaseCost, 900);
   assert.equal(dashboard.summary.stockOnHand, 5);

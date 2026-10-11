@@ -21,7 +21,7 @@ database connections, migrations, deployments and production checks remain out o
 
 - Completed missing `loadWaterCollections` / `projectWaterSales` integration called by the Water dashboard. This is a read-only projection of existing Water payment records/applications, not a new payment ledger or a Core posting.
 - Existing applied GHS Water collections override legacy sale payment flags. Partial collections show the actual collected amount and remaining balance without adding payment amounts to sales revenue. Reversed applications retain zero-collection authority instead of falling back to a stale paid flag.
-- Shared payment settlement uses Water's canonical `momo` key and marks partially settled Water orders pending, not fully paid. The payable balance respects existing application history after repricing.
+- Shared settlement retains Water's canonical sale-method keys and marks partially settled orders `partially_paid`, not fully paid. Collections use the shared payment ledger's normalized method labels. The payable balance respects application history after repricing.
 - New MoMo sales default pending; choosing MoMo does not initiate or confirm a provider charge. Legacy reads do not rewrite recorded payment facts.
 - Added explicit `canRecordSales` to the API permission DTO and Water UI. Managers no longer see sale submission/edit/archive controls. Missing permission data fails closed in the UI: deploy compatible API code before the frontend.
 - Removed the blanket undefined-name lint suppression from `water.js` so missing helper integration is detected by lint.
@@ -79,18 +79,56 @@ predeploy command for these checks: it can connect to a configured database.
 - Four final ledger/dialog checks also passed after removing the double search border. Screenshots were inspected in light and dark modes; the dark undo action uses the existing accent token for readable contrast.
 - Local Vite production-mode build passed with environment-file loading disabled and a deliberately unreachable loopback API. The temporary build is verification-only, **not a deployment artifact**. The lazy split keeps Water workspace code separate from login; no reliable before-turn bundle baseline is available.
 
-No full repository security scan was run: scanners that traverse secret files
-would conflict with the strict no-secret-read rule. No live-provider or database
-test result is implied by the mocked tests.
+The later 2026-10-10 checkpoint used the repository's path-filtered security
+scanner after confirming sensitive paths are rejected before content reads.
+No live-provider or database test result is implied by mocked tests.
+
+## Develop reconciliation — 2026-10-10
+
+The user authorized a new review branch containing REEBS Water/shared changes
+only, reconciled with develop before pushing. The integration retains develop's
+collection ledger, durable mutation keys, transactions, stale-record checks,
+archive protections and Prisma relation correction, together with the five
+standalone modules and shared REEBS sidebar. Unrelated Travel With Ease work is
+excluded. This is not permission to merge main or deploy.
+
+- `Record collection` is available to authorized sales users on Orders. Manual
+  collection records money already received; it does not initiate a provider charge.
+- Shared `@faako/water-domain/waterSettlement` and `waterReporting` define payment
+  projections and summaries for API/UI. Portal shared-path compatibility exports
+  protect existing consumers; the standalone app does not import Portal business UI.
+- Payment-date collections are separate from sale-date revenue. Live outstanding
+  balances and stock are not constrained to a historical stock period. Reversed
+  payment applications retain their authoritative zero rather than restoring
+  a legacy paid flag.
+- Legacy paid records are disclosed separately from verified collections. They
+  require reconciliation before another collection or total-changing correction.
+  Corrected totals below collected money require a reviewed refund first.
+- Water commands roll back rejected operations and their retry markers. Browser
+  retries retain the same key after an ambiguous server/network failure. No
+  automatic unsafe mutation retry was added.
+- Resolved an automatic-merge regression that reintroduced the retired Water
+  date-period controls inside Core settings. Current-price browser coverage lives
+  in the standalone Water app; obsolete Portal schedule tests/components were
+  removed. Backdated sales remain covered by actual-handler current-price tests.
+- Added isolated Water browser CI; it requires no Cloudflare deployment.
+
+Final check results and manual setup are recorded in the
+[2026-10-10 staging handoff](water-modules-staging-handoff-2026-10-10.md).
+The 2026-10-11 continuation completed 528 Portal tests, 22 Water app/domain
+tests, offline schema/type checks, both production-mode builds and security/
+hosting/registry checks. All 44 browser scenarios passed across the main run
+and targeted cold-navigation rechecks; the handoff records initial timeouts
+separately. No live deployment readiness is implied.
 
 ## Remaining release gates and follow-up work
 
 1. **Environment wiring:** independently verify Water static hosting, API origin, exact staging CORS origin and session-cookie behavior in an approved isolated environment. Portal currently defaults to the production Water host when not local; configure `VITE_WATER_APP_URL` explicitly for staging/preview. No deployed URL or environment value was inspected here.
-2. **Database prerequisites:** review/apply the existing payment foundation and current-price migrations through the approved environment-scoped release process before dependent code. No migration state or real PostgreSQL locking/concurrency behavior was verified here. `/ready` is only database `SELECT 1`, not a Water business-readiness certificate.
-3. **Legacy/manual collections:** records without payment applications still derive collections from their legacy paid status. Repricing such a paid sale cannot reconstruct the original cash received. A reviewed legacy-capture and manual partial-collection workflow is still required; this pass does not claim immutable historical cash accounting.
-4. **Archiving and reversals:** Water sale archival and legacy stock/expense undo require further financial-history review, including settled-sale reversal/refund rules. Do not treat archive as a refund. No automatic refund or new bulk financial archive was introduced.
-5. **Save safety:** durable Water sale/restock idempotency, stale-tab version checks, real transaction rollback/race tests and provider replay rehearsals remain outstanding. After an ambiguous save error, inspect the ledger before retrying.
-6. **Reporting:** current collection summaries follow the selected sale/stock period, not collection-date cashflow. Dedicated Water exports and formally labelled consolidated reporting remain separate work.
+2. **Database prerequisites:** review existing payment, operational-integrity and current-price migrations before dependent code. If current-price is already applied but operational-integrity is pending, STOP: the earlier migration references the now-retired price table. Review the actual migration state in an approved isolated environment and plan targeted recovery; do not reset, recreate historical data or mark unexecuted work applied. No database state or real PostgreSQL locking/concurrency behavior was verified here. `/ready` is only database `SELECT 1`, not a Water business-readiness certificate.
+3. **Legacy reconciliation:** manual partial/final collections now exist, but a reviewed capture/reconciliation workflow for legacy paid records is still required. Existing flags do not prove immutable historical cash receipts.
+4. **Archiving and reversals:** settled sales are protected. Do not treat archive as a refund; no automated refund or new bulk financial archive was introduced. Reversal/provider settlement rehearsal remains a staging gate.
+5. **Save safety:** idempotency, transactions and stale-tab checks have mocked regression coverage. Real PostgreSQL rollback, RLS and concurrent-request tests remain required before live use.
+6. **Reporting:** collection-date cashflow now uses shared definitions. Dedicated Water exports and explicitly labelled consolidated reporting remain separate work.
 7. **Incremental cleanup:** runtime defensive schema work and the large Water page remain. Do not remove either without migration adoption evidence and focused contract tests.
 
 The local fixes do not authorize production access or deployment. Keep user

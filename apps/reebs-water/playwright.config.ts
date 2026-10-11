@@ -10,6 +10,9 @@ export default defineConfig({
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
   workers: 1,
+  // Vite compiles the standalone workspace lazily; avoid the default 5-second
+  // assertion race on cold navigation without retrying failed mutations/tests.
+  expect: { timeout: 15_000 },
   use: {
     baseURL: `http://127.0.0.1:${port}`,
     serviceWorkers: "block",

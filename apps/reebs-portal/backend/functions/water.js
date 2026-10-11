@@ -19,9 +19,10 @@ import {
   writeAuditLog,
 } from "./_shared/auditLog.js";
 import { withWaterBusinessContext } from "@faako/api-contracts/reebs";
-import { calculateWaterCostBasis } from "@faako/water-domain/waterFinancials";
-import { normalizeWaterPaymentMethod as normalizePaymentMethod, defaultNewWaterPaymentStatus, getWaterCollectedCents, getWaterBalanceDueCents } from "@faako/water-domain";
-import { loadWaterCollections, projectWaterSales } from "../modules/water/collections.js";
+import { buildWaterSummary } from "@faako/water-domain/waterReporting";
+export { buildWaterSummary } from "@faako/water-domain/waterReporting";
+import { normalizeWaterPaymentMethod as normalizePaymentMethod } from "@faako/water-domain";
+import { loadWaterCollections, projectWaterSales } from "../modules/water/reporting.js";
 import {
   buildWaterPricingPermissions,
   normalizeWaterPricing,
@@ -30,6 +31,11 @@ import {
 import { canWriteWaterAction, presentWaterDashboard } from "../modules/water/dashboardAccess.js";
 import { createWaterCustomer } from "../modules/water/customerCreation.js";
 import { getWaterActionError } from "../modules/water/actionErrors.js";
+import { assertWaterRevision } from "../modules/water/revisions.js";
+import { runWaterCommand, runWaterTransaction } from "../modules/water/commands.js";
+import { recordManualWaterPayment } from "../modules/payments/manualPaymentService.js";
+import { assertWaterCommercialEdit, loadWaterAppliedCollections, projectWaterSettlement, waterSettlementError } from "../modules/water/settlement.js";
+import { deriveWaterSettlement } from "../../shared/waterSettlement.js";
 import { createLogger } from "./_shared/logger.js";
 import {
   DEFAULT_WATER_PRODUCT_KEY,
@@ -64,6 +70,7 @@ const WATER_WRITE_RATE_LIMIT = {
   windowMs: 60_000,
 };
 const WATER_ACTIONS = new Set([
+  "record_collection",
   "create_customer",
   "restock",
   "update_restock",
@@ -386,6 +393,7 @@ const normalizePaymentStatus = (value, paymentMethod = "cash") => {
   ) {
     return "paid";
   }
+  if (normalized === "partially_paid") return "partially_paid";
   if (normalized === "pending" || normalized === "processing" || normalized === "awaiting") {
     return "pending";
   }
@@ -402,6 +410,7 @@ const normalizePaymentStatus = (value, paymentMethod = "cash") => {
 
   const method = normalizePaymentMethod(paymentMethod);
   if (method === "credit") return "unpaid";
+  if (method === "momo") return "pending";
   return "paid";
 };
 
@@ -559,8 +568,8 @@ const enforceWaterRateLimit = async (
   };
 };
 
-const isSaleCollected = (row) =>
-  normalizePaymentStatus(row?.paymentStatus, row?.paymentMethod) === "paid";
+
+
 
 const loadCurrentWaterProductConfig = async (
   client,
@@ -756,6 +765,7 @@ const resolveWaterUnitCostAtSale = async (
      FROM "waterRestock"
      WHERE "organizationId" = $1
        AND "productKey" = $2
+       AND "archivedAt" IS NULL
        AND date <= $3
        AND "unitCost" > 0
      ORDER BY date DESC, "createdAt" DESC, id DESC
@@ -790,6 +800,7 @@ export const restateWaterSaleCostSnapshots = async (
          FROM "waterRestock" AS restock
          WHERE restock."organizationId" = sale."organizationId"
            AND restock."productKey" = sale."productKey"
+           AND restock."archivedAt" IS NULL
            AND restock.date <= sale.date
            AND restock."unitCost" > 0
        )`,
@@ -813,7 +824,8 @@ export const restateWaterSaleCostSnapshots = async (
            FROM "waterRestock" AS restock
            WHERE restock."organizationId" = sale."organizationId"
              AND restock."productKey" = sale."productKey"
-             AND restock.date <= sale.date
+             AND restock."archivedAt" IS NULL
+           AND restock.date <= sale.date
              AND restock."unitCost" > 0
            ORDER BY restock.date DESC, restock."createdAt" DESC, restock.id DESC
            LIMIT 1
@@ -836,18 +848,6 @@ export const restateWaterSaleCostSnapshots = async (
     [organizationId, productKey, userId, userName]
   );
   return restatedSales.rowCount || 0;
-};
-
-const runWaterTransaction = async (client, operation) => {
-  await client.query("BEGIN");
-  try {
-    const result = await operation();
-    await client.query("COMMIT");
-    return result;
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => {});
-    throw error;
-  }
 };
 
 const lockWaterInventory = (client, organizationId, productKey = PRODUCT_KEY) => client.query(
@@ -1060,84 +1060,6 @@ const resolveLinkedWaterVendors = async (client, organizationId, productKey = PR
   };
 };
 
-export const buildWaterSummary = ({ restocks, sales, expenses, adjustments }) => {
-  const unitsRestocked = restocks.reduce((sum, row) => sum + toAmount(row.quantity), 0);
-  const unitsSold = sales.reduce((sum, row) => sum + toAmount(row.quantity), 0);
-  const adjustmentUnits = adjustments.reduce((sum, row) => sum + toAmount(row.quantityDelta), 0);
-  const stockOnHand = Math.max(0, unitsRestocked - unitsSold + adjustmentUnits);
-  const revenue = sales.reduce((sum, row) => sum + toAmount(row.totalAmount), 0);
-  const cashCollected = sales.reduce((sum, row) => {
-    return sum + getWaterCollectedCents(row);
-  }, 0);
-  const outstandingCredit = sales.reduce((sum, row) => {
-    return normalizePaymentMethod(row.paymentMethod) === "credit" && !isSaleCollected(row)
-      ? sum + getWaterBalanceDueCents(row)
-      : sum;
-  }, 0);
-  const cashSalesTotal = sales.reduce((sum, row) => {
-    return normalizePaymentMethod(row.paymentMethod) === "cash"
-      ? sum + toAmount(row.totalAmount)
-      : sum;
-  }, 0);
-  const momoSalesTotal = sales.reduce((sum, row) => {
-    return normalizePaymentMethod(row.paymentMethod) === "momo"
-      ? sum + toAmount(row.totalAmount)
-      : sum;
-  }, 0);
-  const pendingCash = sales.reduce((sum, row) => {
-    return normalizePaymentMethod(row.paymentMethod) === "cash" && !isSaleCollected(row)
-      ? sum + getWaterBalanceDueCents(row)
-      : sum;
-  }, 0);
-  const pendingMomo = sales.reduce((sum, row) => {
-    return normalizePaymentMethod(row.paymentMethod) === "momo" && !isSaleCollected(row)
-      ? sum + getWaterBalanceDueCents(row)
-      : sum;
-  }, 0);
-  const extraExpenses = expenses.reduce((sum, row) => sum + toAmount(row.amount), 0);
-  const {
-    restockSpend,
-    costOfGoodsSold,
-    inventoryValue,
-    currentUnitCost,
-    profitabilityAvailable,
-    missingCostSaleCount,
-    missingCostRestockCount,
-  } = calculateWaterCostBasis({
-    restocks,
-    sales,
-    stockOnHand,
-  });
-  const grossProfit = profitabilityAvailable ? revenue - costOfGoodsSold : null;
-  const netProfit = profitabilityAvailable ? grossProfit - extraExpenses : null;
-  const cashPosition = restockSpend === null ? null : cashCollected - restockSpend - extraExpenses;
-
-  return {
-    stockOnHand,
-    unitsRestocked,
-    unitsSold,
-    adjustmentUnits,
-    revenue,
-    restockSpend,
-    extraExpenses,
-    costOfGoodsSold,
-    grossProfit,
-    netProfit,
-    cashCollected,
-    outstandingCredit,
-    cashSalesTotal,
-    momoSalesTotal,
-    pendingCash,
-    pendingMomo,
-    cashPosition,
-    inventoryValue,
-    currentUnitCost,
-    profitabilityAvailable,
-    missingCostSaleCount,
-    missingCostRestockCount,
-  };
-};
-
 const buildDashboard = async (client, organizationId, options = {}) => {
   const product = getWaterProduct(options.productKey);
   const includeLinkedProduct = options.includeLinkedProduct !== false;
@@ -1168,8 +1090,9 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"createdByUserId\"",
         "\"createdByName\"",
         "\"createdAt\"",
+        "\"updatedAt\"",
       ],
-      organizationId, "", product.key
+      organizationId, `"archivedAt" IS NULL`, product.key
     ),
     selectRows(
       client,
@@ -1222,6 +1145,7 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"createdByUserId\"",
         "\"createdByName\"",
         "\"createdAt\"",
+        "\"updatedAt\"",
       ],
       organizationId,
       `"archivedAt" IS NULL`, product.key
@@ -1240,8 +1164,9 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         "\"createdByUserId\"",
         "\"createdByName\"",
         "\"createdAt\"",
+        "\"updatedAt\"",
       ],
-      organizationId, "", product.key
+      organizationId, `"archivedAt" IS NULL`, product.key
     ),
     includeLinkedProduct
       ? resolveLinkedWaterVendors(client, organizationId, product.key)
@@ -1254,7 +1179,6 @@ const buildDashboard = async (client, organizationId, options = {}) => {
       : Promise.resolve(null),
 
     loadWaterCollections(client, organizationId, product.key),
-
     includePricing
       ? client.query(
         `SELECT id, "productId", "productKey", "priceType",
@@ -1268,7 +1192,6 @@ const buildDashboard = async (client, organizationId, options = {}) => {
       ).then((result) => result.rows || [])
       : Promise.resolve([]),
   ]);
-
   const sales = projectWaterSales(saleRows, collections);
 
   const latestRecordedUnitCost = Number(restocks[0]?.unitCost);
@@ -1300,7 +1223,8 @@ const buildDashboard = async (client, organizationId, options = {}) => {
         configurationErrorCode: commercialPricing?.configurationErrorCode || null,
       },
     },
-    summary: buildWaterSummary({ restocks, sales, expenses, adjustments }),
+    summary: buildWaterSummary({ restocks, sales, expenses, adjustments, collections }),
+    collections,
     restocks,
     sales,
     expenses,
@@ -1447,6 +1371,24 @@ export async function handler(event = {}) {
       || cleanText(authUser.email, MAX_NAME_LENGTH)
       || "Water user";
 
+    const idempotencyKey = getEventHeader(event, "idempotency-key");
+    return await runWaterCommand(client, {
+      organizationId, productKey: product.key, actorId: createdByUserId,
+      action, payload, idempotencyKey, actorName: createdByName, requestId: getEventHeader(event, "x-request-id"),
+    }, async (command) => {
+    if (action === "record_collection") {
+      const saleId = parsePositiveInteger(payload.saleId);
+      if (!saleId) return json(400, { error: "A valid Water sale is required." });
+      await recordManualWaterPayment(client, {
+        organizationId, saleId, productKey: product.key,
+        amountCents: parseMoney(payload.amount), method: payload.method,
+        providerReference: payload.transactionReference, paidAt: payload.paidAt,
+        idempotencyKey, notes: payload.notes,
+        actor: { userId: createdByUserId }, requestId: getEventHeader(event, "x-request-id"),
+      });
+      return { statusCode: 200 };
+    }
+
     if (action === "restock") {
       const quantity = parsePositiveInteger(payload.quantity);
       const unitCost = resolveWaterRestockUnitCost(payload);
@@ -1465,7 +1407,7 @@ export async function handler(event = {}) {
 
       await runWaterTransaction(client, async () => {
         await lockWaterInventory(client, organizationId, product.key);
-        await client.query(
+        const inserted = await client.query(
           `INSERT INTO "waterRestock" (
           "organizationId",
           "productKey",
@@ -1478,7 +1420,7 @@ export async function handler(event = {}) {
           "date",
           "createdByUserId",
           "createdByName"
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
           [
             organizationId,
             product.key,
@@ -1493,6 +1435,7 @@ export async function handler(event = {}) {
             createdByName,
           ]
         );
+        command.recordId = Number(inserted.rows[0].id);
         await updateCurrentWaterPrices(client, {
           organizationId,
           productKey: product.key,
@@ -1510,7 +1453,7 @@ export async function handler(event = {}) {
         });
       });
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "update_restock") {
@@ -1530,7 +1473,7 @@ export async function handler(event = {}) {
            notes,
            date
          FROM "waterRestock"
-         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
          LIMIT 1`,
         [restockId, organizationId, product.key]
       );
@@ -1574,9 +1517,9 @@ export async function handler(event = {}) {
       await runWaterTransaction(client, async () => {
         await lockWaterInventory(client, organizationId, product.key);
         const lockedRestockRes = await client.query(
-          `SELECT "productKey", quantity, "unitCost", "vendorId", "vendorName", notes, date
+          `SELECT "productKey", quantity, "unitCost", "vendorId", "vendorName", notes, date, "updatedAt", "createdAt"
            FROM "waterRestock"
-           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
            FOR UPDATE`,
           [restockId, organizationId, product.key]
         );
@@ -1586,6 +1529,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const lockedRestock = lockedRestockRes.rows[0];
+        assertWaterRevision(lockedRestock, payload);
         if (
           String(lockedRestock.productKey || "") !== String(existingRestock.productKey || "")
           || Number(lockedRestock.quantity) !== Number(existingRestock.quantity)
@@ -1660,7 +1604,7 @@ export async function handler(event = {}) {
         }
       });
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "update_product_pricing") {
@@ -1694,9 +1638,9 @@ export async function handler(event = {}) {
       await runWaterTransaction(client, async () => {
         await lockWaterInventory(client, organizationId, product.key);
         const existingRes = await client.query(
-          `SELECT id, "productKey", quantity
+          `SELECT id, "productKey", quantity, "updatedAt", "createdAt"
            FROM "waterRestock"
-           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
            FOR UPDATE`,
           [restockId, organizationId, product.key]
         );
@@ -1706,6 +1650,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const existingRestock = existingRes.rows[0];
+        assertWaterRevision(existingRestock, payload);
         const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
@@ -1718,9 +1663,9 @@ export async function handler(event = {}) {
           throw stockError;
         }
         await client.query(
-          `DELETE FROM "waterRestock"
-           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3`,
-          [restockId, organizationId, product.key]
+          `UPDATE "waterRestock" SET "archivedAt" = NOW(), "archivedByUserId" = $4, "archivedByName" = $5
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL`,
+          [restockId, organizationId, product.key, createdByUserId, createdByName]
         );
         await restateWaterSaleCostSnapshots(client, {
           organizationId,
@@ -1730,16 +1675,19 @@ export async function handler(event = {}) {
         });
       });
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "sale") {
       const quantity = parsePositiveInteger(payload.quantity);
       const saleChannel = normalizeChannel(payload.saleChannel);
       const paymentMethod = normalizePaymentMethod(payload.paymentMethod);
-      const paymentStatus = normalizePaymentStatus(
-        payload.paymentStatus || defaultNewWaterPaymentStatus(paymentMethod), paymentMethod
-      );
+      const requestedPaymentStatus = normalizePaymentStatus(payload.paymentStatus, paymentMethod);
+      if (paymentMethod !== "cash" && requestedPaymentStatus === "paid") {
+        return json(400, { error: "Record the sale first, then use Record Collection for confirmed electronic payments." });
+      }
+      const collectCash = paymentMethod === "cash" && requestedPaymentStatus === "paid";
+      const paymentStatus = paymentMethod === "momo" ? "pending" : "unpaid";
       const discountType = normalizeDiscountType(payload.discountType);
       const hasSubmittedUnitPrice = Object.prototype.hasOwnProperty.call(payload, "unitPrice");
       const submittedUnitPrice = hasSubmittedUnitPrice
@@ -1753,7 +1701,7 @@ export async function handler(event = {}) {
       const notes = cleanText(payload.notes, MAX_NOTES_LENGTH) || null;
       const providerReference = cleanText(payload.providerReference, MAX_REFERENCE_LENGTH) || null;
       const date = parseDate(payload.date);
-      const paidAt = paymentStatus === "paid" ? parseDate(payload.paidAt || payload.date) : null;
+      const paidAt = null;
 
       if (!quantity) return json(400, { error: "Sale quantity must be greater than zero." });
       if (!date) return json(400, { error: "A valid sale date is required." });
@@ -1937,6 +1885,20 @@ export async function handler(event = {}) {
               organizationId, product.key,
             ]
           );
+          if (collectCash) {
+            await recordManualWaterPayment(client, {
+              organizationId, saleId: insertedSaleId, productKey: product.key,
+              amountCents: totalAmount, method: "cash", paidAt: parseDate(payload.paidAt || payload.date),
+              idempotencyKey: `cash-sale:${idempotencyKey}`, actor: { userId: createdByUserId },
+              requestId: getEventHeader(event, "x-request-id"),
+            });
+          }
+          await writeAuditLog(client, {
+            organizationId, userId: createdByUserId, action: "WATER_SALE_CREATED",
+            targetType: "waterSale", targetId: String(insertedSaleId), category: "finance",
+            summary: "Water sale recorded.", requestId: getEventHeader(event, "x-request-id"),
+            metadata: { businessUnit: "WATER", productKey: product.key, quantity, totalAmount, waterProductPriceId: Number(standardPriceRecord.id) },
+          });
         }
         return insertedSaleId;
       });
@@ -1945,7 +1907,8 @@ export async function handler(event = {}) {
         throw new Error("Water sale could not be recorded.");
       }
 
-      return await respondWithDashboard();
+      command.recordId = Number(saleId);
+      return { statusCode: 200 };
     }
 
     if (action === "update_sale") {
@@ -1964,6 +1927,7 @@ export async function handler(event = {}) {
            "discountType",
            "discountValue",
            "unitPrice",
+           "totalAmount",
            "standardUnitPrice",
            "priceOverrideReason",
            "priceOverriddenByUserId",
@@ -1990,9 +1954,9 @@ export async function handler(event = {}) {
       const existingSale = existingRes.rows?.[0] || null;
       const quantity = parsePositiveInteger(payload.quantity ?? existingSale.quantity);
       const saleChannel = normalizeChannel(payload.saleChannel ?? existingSale.saleChannel);
-      const paymentMethod = normalizePaymentMethod(payload.paymentMethod ?? existingSale.paymentMethod);
+      const paymentMethod = normalizePaymentMethod(existingSale.paymentMethod);
       const paymentStatus = normalizePaymentStatus(
-        payload.paymentStatus ?? existingSale.paymentStatus,
+        existingSale.paymentStatus,
         paymentMethod
       );
       const discountType = normalizeDiscountType(payload.discountType ?? existingSale.discountType);
@@ -2045,10 +2009,7 @@ export async function handler(event = {}) {
         ? cleanText(payload.notes, MAX_NOTES_LENGTH) || null
         : cleanText(existingSale.notes, MAX_NOTES_LENGTH) || null;
       const date = resolveRecordedWaterSaleDate(payload.date, existingSale.date);
-      const paidAt =
-        paymentStatus === "paid"
-          ? parseDate(payload.paidAt || existingSale.paidAt || payload.date || existingSale.date)
-          : null;
+      const paidAt = existingSale.paidAt || null;
 
       if (!quantity) return json(400, { error: "Sale quantity must be greater than zero." });
       if (!date) return json(400, { error: "A valid sale date is required." });
@@ -2119,7 +2080,7 @@ export async function handler(event = {}) {
         });
         await lockWaterInventory(client, organizationId, product.key);
         const lockedSaleRes = await client.query(
-          `SELECT quantity, "unitPrice", "saleChannel", date, "updatedAt"
+          `SELECT quantity, "unitPrice", "saleChannel", date, "updatedAt", "createdAt"
            FROM "waterSale"
            WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
            FOR UPDATE`,
@@ -2131,6 +2092,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const lockedSale = lockedSaleRes.rows[0];
+        assertWaterRevision(lockedSale, payload);
         if (
           Number(lockedSale.quantity) !== Number(existingSale.quantity)
           || Number(lockedSale.unitPrice) !== Number(existingSale.unitPrice)
@@ -2202,6 +2164,9 @@ export async function handler(event = {}) {
           throw discountError;
         }
         totalAmount = subtotalAmount - discountDetails.discountAmount;
+        const applications = await loadWaterAppliedCollections(client, organizationId, saleId);
+        const settlement = deriveWaterSettlement(existingSale, applications);
+        assertWaterCommercialEdit(existingSale, payload, settlement, totalAmount, customerId);
         const lockedDashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
@@ -2314,9 +2279,12 @@ export async function handler(event = {}) {
             [saleId, buildPaymentReference(organizationId, saleId), organizationId, product.key]
           );
         }
+        await projectWaterSettlement(client, {
+          ...existingSale, id: saleId, organizationId, productKey: product.key, totalAmount,
+        }, applications);
       });
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "delete_sale") {
@@ -2328,7 +2296,7 @@ export async function handler(event = {}) {
       await runWaterTransaction(client, async () => {
         await lockWaterInventory(client, organizationId, product.key);
         const existingRes = await client.query(
-          `SELECT id
+          `SELECT id, "totalAmount", "paymentStatus", "updatedAt", "createdAt"
            FROM "waterSale"
            WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
            FOR UPDATE`,
@@ -2339,6 +2307,9 @@ export async function handler(event = {}) {
           missingError.statusCode = 404;
           throw missingError;
         }
+        assertWaterRevision(existingRes.rows[0], payload);
+        const settled = deriveWaterSettlement(existingRes.rows[0], await loadWaterAppliedCollections(client, organizationId, saleId));
+        if (settled.amountPaidCents > 0) throw waterSettlementError("A collected sale requires reviewed reversal/refund before archival.", "WATER_REFUND_REQUIRED");
         await client.query(
           `UPDATE "waterSale"
            SET "archivedAt" = NOW(),
@@ -2352,7 +2323,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "expense") {
@@ -2367,7 +2338,7 @@ export async function handler(event = {}) {
       if (!amount) return json(400, { error: "Expense amount must be greater than zero." });
       if (!date) return json(400, { error: "A valid expense date is required." });
 
-      await client.query(
+      const inserted = await client.query(
         `INSERT INTO "waterExpense" (
           "organizationId",
           "productKey",
@@ -2378,11 +2349,12 @@ export async function handler(event = {}) {
           "date",
           "createdByUserId",
           "createdByName"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
         [organizationId, product.key, category, amount, description, notes, date, createdByUserId, createdByName]
       );
+        command.recordId = Number(inserted.rows[0].id);
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "update_expense") {
@@ -2398,10 +2370,10 @@ export async function handler(event = {}) {
            amount,
            description,
            notes,
-           date
+           date, "updatedAt", "createdAt"
          FROM "waterExpense"
          WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
-         LIMIT 1`,
+         FOR UPDATE`,
         [expenseId, organizationId, product.key]
       );
 
@@ -2410,6 +2382,7 @@ export async function handler(event = {}) {
       }
 
       const existingExpense = existingRes.rows?.[0] || null;
+      assertWaterRevision(existingExpense, payload);
       const category = cleanText(
         Object.prototype.hasOwnProperty.call(payload, "category")
           ? payload.category
@@ -2446,7 +2419,7 @@ export async function handler(event = {}) {
         [expenseId, organizationId, category, amount, description, notes, date, product.key]
       );
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "delete_expense") {
@@ -2456,10 +2429,10 @@ export async function handler(event = {}) {
       }
 
       const existingRes = await client.query(
-        `SELECT id
+        `SELECT id, "updatedAt", "createdAt"
          FROM "waterExpense"
          WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
-         LIMIT 1`,
+         FOR UPDATE`,
         [expenseId, organizationId, product.key]
       );
 
@@ -2467,6 +2440,7 @@ export async function handler(event = {}) {
         return json(404, { error: "Water expense not found." });
       }
 
+      assertWaterRevision(existingRes.rows[0], payload);
       await client.query(
         `UPDATE "waterExpense"
          SET "archivedAt" = NOW(),
@@ -2476,7 +2450,7 @@ export async function handler(event = {}) {
         [expenseId, organizationId, createdByUserId, createdByName, product.key]
       );
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "adjustment") {
@@ -2501,7 +2475,7 @@ export async function handler(event = {}) {
           stockError.code = "INVALID_WATER_STOCK";
           throw stockError;
         }
-        await client.query(
+        const inserted = await client.query(
           `INSERT INTO "waterAdjustment" (
           "organizationId",
           "productKey",
@@ -2512,7 +2486,7 @@ export async function handler(event = {}) {
           "date",
           "createdByUserId",
           "createdByName"
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
           [
             organizationId,
             product.key,
@@ -2525,9 +2499,10 @@ export async function handler(event = {}) {
             createdByName,
           ]
         );
+        command.recordId = Number(inserted.rows[0].id);
       });
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "update_adjustment") {
@@ -2544,7 +2519,7 @@ export async function handler(event = {}) {
            notes,
            date
          FROM "waterAdjustment"
-         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
+         WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
          LIMIT 1`,
         [adjustmentId, organizationId, product.key]
       );
@@ -2575,9 +2550,9 @@ export async function handler(event = {}) {
       await runWaterTransaction(client, async () => {
         await lockWaterInventory(client, organizationId, product.key);
         const lockedAdjustmentRes = await client.query(
-          `SELECT "quantityDelta", reason, notes, date
+          `SELECT "quantityDelta", reason, notes, date, "updatedAt", "createdAt"
            FROM "waterAdjustment"
-           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
            FOR UPDATE`,
           [adjustmentId, organizationId, product.key]
         );
@@ -2587,6 +2562,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const lockedAdjustment = lockedAdjustmentRes.rows[0];
+        assertWaterRevision(lockedAdjustment, payload);
         if (
           Number(lockedAdjustment.quantityDelta) !== Number(existingAdjustment.quantityDelta)
           || String(lockedAdjustment.reason || "") !== String(existingAdjustment.reason || "")
@@ -2621,7 +2597,7 @@ export async function handler(event = {}) {
         );
       });
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
     if (action === "delete_adjustment") {
@@ -2633,9 +2609,9 @@ export async function handler(event = {}) {
       await runWaterTransaction(client, async () => {
         await lockWaterInventory(client, organizationId, product.key);
         const existingRes = await client.query(
-          `SELECT id, "quantityDelta"
+          `SELECT id, "quantityDelta", "updatedAt", "createdAt"
            FROM "waterAdjustment"
-           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL
            FOR UPDATE`,
           [adjustmentId, organizationId, product.key]
         );
@@ -2645,6 +2621,7 @@ export async function handler(event = {}) {
           throw missingError;
         }
         const existingAdjustment = existingRes.rows[0];
+        assertWaterRevision(existingAdjustment, payload);
         const dashboard = await buildAuthorizedDashboard({
           includeLinkedProduct: false,
           includePricing: false,
@@ -2658,15 +2635,17 @@ export async function handler(event = {}) {
           throw stockError;
         }
         await client.query(
-          `DELETE FROM "waterAdjustment"
-           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3`,
-          [adjustmentId, organizationId, product.key]
+          `UPDATE "waterAdjustment" SET "archivedAt" = NOW(), "archivedByUserId" = $4, "archivedByName" = $5
+           WHERE id = $1 AND "organizationId" = $2 AND "productKey" = $3 AND "archivedAt" IS NULL`,
+          [adjustmentId, organizationId, product.key, createdByUserId, createdByName]
         );
       });
 
-      return await respondWithDashboard();
+      return { statusCode: 200 };
     }
 
+    return json(400, { error: "Unsupported Water action." });
+    }, respondWithDashboard);
   } catch (err) {
     const failure = getWaterActionError(err);
     logger.error({

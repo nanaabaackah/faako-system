@@ -17,6 +17,25 @@ globalThis[fixtureKey] = {
       if (/^(?:CREATE TABLE|CREATE INDEX|ALTER TABLE|BEGIN|COMMIT|ROLLBACK)/.test(statement)) {
         return { rows: [], rowCount: 0 };
       }
+      if (/set_config|pg_advisory|^SELECT pr\.\*|^SELECT id FROM "paymentRecord"/.test(statement)) return { rows: [] };
+      if (statement.includes('FROM "paymentApplication"') && statement.includes('SUM(')) {
+        return { rows: [{ amountPaidCents: fixture.collected, applicationCount: fixture.collected ? 1 : 0, lastPaidAt: "2026-09-24T12:00:00.000Z" }] };
+      }
+      if (statement.startsWith('INSERT INTO "paymentRecord"')) {
+        assert.equal(values[4], "WATER");
+        assert.equal(values[5], 5400);
+        return { rows: [{ id: 30, amountCents: values[5], businessUnit: "WATER" }] };
+      }
+      if (statement.startsWith('INSERT INTO "paymentApplication"')) {
+        assert.deepEqual(values.slice(4, 8), ["WATER", "WATER_ORDER", 42, 5400]);
+        fixture.collected += values[7];
+        return { rows: [{ id: 31, payableId: 42 }] };
+      }
+      if (statement.startsWith('SELECT * FROM "waterSale"')) {
+        assert.deepEqual(values, [7, 42, "gwater-15pk"]);
+        assert.match(statement, /FOR UPDATE/);
+        return { rows: [{ ...fixture.sale }] };
+      }
       if (/^SELECT id FROM "waterSale"/.test(statement)) return { rows: [], rowCount: 0 };
       if (/^SELECT .* FROM "waterSale"/.test(statement)) {
         const scoped = values[0] === fixture.sale.id || values[0] === fixture.sale.paymentReference;
@@ -30,11 +49,11 @@ globalThis[fixtureKey] = {
         return { rows: [{ id: 101 }], rowCount: 1 };
       }
       if (/^UPDATE "waterSale"/.test(statement)) {
-        assert.match(statement, /WHERE id = \$1 AND "organizationId" = \$7 AND "archivedAt" IS NULL/,
+        assert.match(statement, /WHERE "organizationId" = \$1 AND id = \$2 AND "productKey" = \$5 AND "archivedAt" IS NULL/,
           "a callback must never backfill unrelated or archived sales");
-        assert.equal(values[0], fixture.sale.id);
-        assert.equal(values[6], fixture.sale.organizationId);
-        fixture.sale = { ...fixture.sale, paymentMethod: values[1], paymentStatus: values[2], paymentReference: values[3], providerReference: values[4], paidAt: values[5] };
+        assert.equal(values[1], fixture.sale.id);
+        assert.equal(values[0], fixture.sale.organizationId);
+        fixture.sale = { ...fixture.sale, paymentStatus: values[2], paidAt: values[3] };
         return { rows: [{ ...fixture.sale }], rowCount: 1 };
       }
       if (/^UPDATE "waterMomoWebhookEvent"/.test(statement)) return { rows: [], rowCount: 1 };
@@ -45,6 +64,7 @@ globalThis[fixtureKey] = {
 const handlerUrl = new URL("./water-momo-webhook.js", import.meta.url).href;
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (specifier.endsWith("/auditLog.js")) return { url: "data:text/javascript,export const writeAuditLog = async () => {};", shortCircuit: true };
     if (context.parentURL === handlerUrl && specifier === "./_shared/databaseClient.js") {
       return { url: `data:text/javascript,export const createDatabaseClient = globalThis.${fixtureKey}.createDatabaseClient;`, shortCircuit: true };
     }
@@ -56,13 +76,13 @@ after(() => { hooks.deregister(); delete globalThis[fixtureKey]; });
 
 const reset = (overrides = {}) => {
   fixture = {
-    queries: [], fingerprints: new Set(), connections: 0, closed: 0,
-    sale: { id: 42, organizationId: 7, paymentMethod: "momo", paymentStatus: "pending", paymentReference: "WATER-7-42", providerReference: null, totalAmount: 5400, paidAt: null, archivedAt: null, ...overrides },
+    queries: [], fingerprints: new Set(), connections: 0, closed: 0, collected: 0,
+    sale: { id: 42, organizationId: 7, productKey: "gwater-15pk", paymentMethod: "momo", paymentStatus: "pending", paymentReference: "WATER-7-42", providerReference: null, totalAmount: 5400, paidAt: null, archivedAt: null, ...overrides },
   };
 };
 const event = (overrides = {}) => ({
   httpMethod: "POST", headers: { "content-type": "application/json", "x-water-webhook-secret": "water-webhook-handler-test-only" },
-  body: JSON.stringify({ reference: "WATER-7-42", status: "success", amountCents: 5400, currency: "GHS", providerReference: "FIXTURE-PROVIDER-42", ...overrides }),
+  body: JSON.stringify({ reference: "WATER-7-42", status: "success", amountCents: 5400, currency: "GHS", providerReference: "FIXTURE-PROVIDER-42", paidAt: "2026-09-24T12:00:00.000Z", ...overrides }),
 });
 const saleUpdates = () => fixture.queries.filter(({ statement }) => /^UPDATE "waterSale"/.test(statement));
 
@@ -91,7 +111,7 @@ test("Water callback exact replay does not update the sale or paid date a second
 for (const reference of ["WATER-7-42", "legacy-water-fixture"]) {
   test(`Water callback cannot settle an archived sale through ${reference.startsWith("WATER") ? "sale id" : "reference"} lookup`, async () => {
     reset({ archivedAt: "2026-09-25T00:00:00Z", paymentReference: reference });
-    const response = await handler(event({ reference }));
+    const response = await handler(event({ reference, organizationId: 7 }));
     assert.equal(response.statusCode, 404);
     assert.equal(saleUpdates().length, 0);
     assert.equal(fixture.queries.at(-1).statement, "ROLLBACK");

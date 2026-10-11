@@ -411,14 +411,70 @@ test("recorded zero-price Water orders can be edited without native form validat
   expect(mutations[0]).toMatchObject({ action: "update_sale", saleId: 95 });
 });
 
+for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
+  test(`Water collection dialog preserves retry safety and Faako controls at ${width}px`, async ({ page }, testInfo) => {
+    const sale = { id: 97, productKey: "gwater-15pk", customerId: 1, customerName: "Collection customer",
+      quantity: 2, unitPrice: 3000, totalAmount: 6000, collectedCents: 0, amountPaidCents: 0,
+      applicationCount: 0, balanceDueCents: 6000, paymentMethod: "credit", paymentStatus: "unpaid",
+      date: "2026-09-26", updatedAt: "2026-09-26T12:00:00.000Z" };
+    let dashboard = { ...waterDashboard, sales: [sale], collections: [] };
+    await installFixtures(page, adminUser, dashboard);
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ colorScheme: theme });
+    const attempts: { key: string | undefined; body: Record<string, unknown> }[] = [];
+    await page.route((url) => url.pathname.endsWith("/water"), async (route) => {
+      const request = route.request();
+      if (request.method() === "POST") {
+        attempts.push({ key: request.headers()["idempotency-key"], body: request.postDataJSON() });
+        if (attempts.length === 1) return route.fulfill({ status: 503, json: { error: "Temporary test failure" } });
+        dashboard = { ...dashboard, sales: [{ ...sale, collectedCents: 2500, amountPaidCents: 2500,
+          applicationCount: 1, balanceDueCents: 3500, paymentStatus: "partially_paid" }] };
+      }
+      return route.fulfill({ json: dashboard });
+    });
+    await page.goto("/orders");
+    await page.getByRole("button", { name: "Record collection for sale 97", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Record collection · Sale #97", exact: true });
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("Amount (GHS)", { exact: true }).fill("25.00");
+    expect(await page.evaluate(() => Boolean(document.elementFromPoint(30, 200)?.closest('[aria-labelledby="water-collection-title"]')))).toBe(true);
+    await dialog.getByRole("button", { name: "Collection method", exact: true }).click();
+    await page.getByRole("option", { name: "Manual Mobile Money", exact: true }).click();
+    await dialog.getByLabel("Transaction reference", { exact: true }).fill("TEST-COLLECTION-97");
+    const date = dialog.getByRole("button", { name: "Collection date", exact: true });
+    await date.click();
+    await expect(page.getByRole("dialog", { name: "Collection date", exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(date).toBeFocused();
+    await injectAxe(page);
+    await checkA11y(page, '[aria-labelledby="water-collection-title"]', { detailedReport: true });
+    await dialog.screenshot({ path: testInfo.outputPath(`water-collection-${theme}-${width}.png`) });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const submit = dialog.getByRole("button", { name: "Record collection", exact: true });
+    await submit.click();
+    await expect(dialog).toContainText("Temporary test failure");
+    await submit.click();
+    await expect(dialog).not.toBeVisible();
+    expect(attempts).toHaveLength(2);
+    expect(attempts[0].key).toMatch(/^[A-Za-z0-9-]{12,}$/);
+    expect(attempts[1].key).toBe(attempts[0].key);
+    expect(attempts[0].body).toMatchObject({ action: "record_collection", productKey: "gwater-15pk",
+      saleId: 97, amount: "25.00", method: "momo", transactionReference: "TEST-COLLECTION-97" });
+  });
+}
+
 test("Water finance shows partial collections without counting them as extra revenue", async ({ page }) => {
   await installFixtures(page, adminUser, { ...waterDashboard,
     sales: [{ id: 96, customerName: "Partial customer", quantity: 2, unitPrice: 3000, totalAmount: 6000,
-      amountPaidCents: 2500, balanceDueCents: 3500, paymentMethod: "Mobile Money", paymentStatus: "pending", date: "2026-09-26" }],
+      amountPaidCents: 2500, collectedCents: 2500, applicationCount: 1, balanceDueCents: 3500,
+      paymentMethod: "momo", paymentStatus: "partially_paid", date: "2026-09-26" }],
+    collections: [{ applicationId: 1, saleId: 96, status: "PAID", applicationStatus: "APPLIED",
+      amountCents: 2500, method: "Mobile Money", paidAt: "2026-09-26" }],
   });
   await page.goto("/");
   const finance = page.locator(".water-module-finance-breakdown");
-  await expect(finance.getByText("Collected", { exact: true }).locator("..")).toContainText("25.00");
+  await expect(finance.getByText("Collected by payment date", { exact: true }).locator("..")).toContainText("25.00");
   await expect(finance.getByText("MoMo sales", { exact: true }).locator("..")).toContainText("35.00 pending");
   await expect(page.locator(".water-module-kpi").filter({ hasText: "Water revenue" })).toContainText("60.00");
+  await expect(page.locator(".water-module-kpi").filter({ hasText: "Balance outstanding" })).toContainText("35.00");
 });
