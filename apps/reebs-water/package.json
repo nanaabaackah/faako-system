@@ -1,0 +1,38 @@
+{
+  "name": "@faako/reebs-water",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm run dev:frontend",
+    "dev:frontend": "VITE_API_PROXY_TARGET=http://localhost:8888 vite --host 0.0.0.0 --port 5179",
+    "dev:with-backend": "pnpm --dir ../reebs-portal run predeploy:local && concurrently -k -n backend,water -c magenta,cyan \"pnpm --dir ../reebs-portal run dev:backend\" \"pnpm run dev:frontend\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "test": "node --test",
+    "test:e2e": "PORT=5179 playwright test",
+    "env:contract": "node ../../scripts/check-env-contract.mjs .env.example"
+  },
+  "dependencies": {
+    "@faako/api-client": "workspace:*",
+    "@faako/auth": "workspace:*",
+    "@faako/core": "workspace:*",
+    "@faako/theme": "workspace:*",
+    "@faako/ui": "workspace:*",
+    "@faako/utils": "workspace:*",
+    "@faako/water-domain": "workspace:*",
+    "iconsax-react": "^0.0.8",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.18.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1",
+    "axe-playwright": "^2.2.2",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.25.0",
+    "vite": "^6.4.3"
+  }
+}

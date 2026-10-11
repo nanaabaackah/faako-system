@@ -8,13 +8,14 @@ export const waterSettlementError = (message, code, statusCode = 409) =>
 
 export const loadWaterAppliedCollections = async (client, organizationId, saleId) => {
   const result = await client.query(
-    `SELECT COALESCE(SUM(pa."amountCents"), 0)::bigint AS "amountPaidCents",
-            COUNT(*)::int AS "applicationCount", MAX(pr."paidAt") AS "lastPaidAt"
+    `SELECT COALESCE(SUM(pa."amountCents") FILTER (WHERE pa.status = 'APPLIED' AND pr.status = 'PAID'), 0)::bigint AS "amountPaidCents",
+            COUNT(*)::int AS "applicationCount",
+            MAX(pr."paidAt") FILTER (WHERE pa.status = 'APPLIED' AND pr.status = 'PAID') AS "lastPaidAt"
      FROM "paymentApplication" pa
      JOIN "paymentRecord" pr ON pr.id = pa."paymentId" AND pr."organizationId" = pa."organizationId"
      WHERE pa."organizationId" = $1 AND pa."payableId" = $2
        AND pa."payableType" = 'WATER_ORDER' AND pa."businessUnit" = 'WATER'
-       AND pa.status = 'APPLIED' AND pr.status = 'PAID' AND pr."businessUnit" = 'WATER'`,
+       AND pr."businessUnit" = 'WATER' AND pa.currency = 'GHS' AND pr.currency = 'GHS'`,
     [organizationId, saleId]
   );
   return result.rows[0] || { amountPaidCents: 0, applicationCount: 0 };

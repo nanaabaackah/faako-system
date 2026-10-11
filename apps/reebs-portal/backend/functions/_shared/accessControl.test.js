@@ -20,8 +20,8 @@ test("hasPermission only grants scoped access to supported roles", () => {
   assert.equal(hasPermission({ role: "staff" }, "bookings:price_override"), false);
 });
 
-test("core management access does not implicitly grant Water Business access", () => {
-  assert.equal(hasPermission({ role: "manager" }, "water:read"), false);
+test("managers retain read-only Water access without Water operational write access", () => {
+  assert.equal(hasPermission({ role: "manager" }, "water:read"), true);
   assert.equal(hasPermission({ role: "manager" }, "water:write"), false);
   assert.equal(hasPermission({ role: "water" }, "water:read"), true);
   assert.equal(hasPermission({ role: "water" }, "financials:read"), false);

@@ -2,6 +2,12 @@
 
 ## Decision
 
+**Latest checkpoint:** the standalone modules and develop's collection/transaction
+safeguards have been reconciled locally. Use the
+[2026-10-10 handoff](water-modules-staging-handoff-2026-10-10.md) for current checks,
+hosting setup and the migration-order warning. The results below are historical,
+not verification of today's deployed environment.
+
 The completed automated checkpoints below pass, including the final theme/dialog
 rerun. **Production use is not yet cleared.** Complete the
 isolated staging checks below before promotion. The repository security gate now
@@ -9,6 +15,13 @@ passes after completing the owner-authorized TTNGH metadata. No live database,
 credentials, provider, deployment or Git operation
 was accessed/performed in this review. Build output uses dummy API addresses and
 is verification output, not a release artifact.
+
+The Water frontend is being extracted from the Portal into the independently
+deployable Vite app at `apps/reebs-water`. Local standalone development uses
+`pnpm dev:reebs-water` and `http://localhost:5179`. The extraction still needs
+workspace installation, focused builds/tests, and staging verification of the
+API origin, CORS allowlist, shared-cookie domain and static-host fallback before
+production promotion.
 
 Water remains separate from Core rentals/events. The public Shop/Booking pause
 does not pause internal Water sales. Faako cards, navigation and theme were not
@@ -61,9 +74,9 @@ review staged filenames before committing. No secret file was opened or changed.
   cover exact replay, tenant mismatch, wrong/missing amount and wrong currency.
 - Removed an unused linked-product price fallback that referenced an undefined
   constant. Vendor linkage remains separate from authoritative Water prices.
-- At this checkpoint, the Water health probe checked effective `waterProductPrice`
-  tiers and the Water discount rule. The current-price implementation replaces
-  this with checks of the three current prices in `waterProductConfig`.
+- The historical schedule-era health probe was replaced by checks of the three
+  current prices in `waterProductConfig` and the Water discount rule. Health
+  output does not select or activate prices.
 - Summary labels use existing Faako text tokens for contrast. The refresh button
   is labeled, and Water's existing modal layout reuses the shared dialog lifecycle
   for initial/return focus, Tab containment, scroll lock and Escape. Select/date
@@ -92,13 +105,12 @@ copy production credentials, or create real payment charges for this checklist.
    Do not reset the database or mark a failed migration applied without checking
    every statement. No new migration was introduced by this readiness pass.
 2. **Health:** `/live` means HTTP process alive. `/ready` performs a bounded
-   database `SELECT 1`. `/health/water` additionally looks for at least one
-   organisation with exactly one current GHS price for each retail/bulk/company
-   tier and one current Water discount rule. It rejects missing/overlapping rows
-   in that candidate set and returns status only. It does **not** verify every
-   tenant, stock, historical costs, provider connectivity or migration history.
+   database `SELECT 1`. `/health/water` additionally checks the current GHS
+   Retail, Company and Bulk prices in `waterProductConfig` and one current Water
+   discount rule. It returns status only. It does **not** verify every tenant,
+   stock, historical costs, provider connectivity or migration history.
 3. **Correct organisation:** sign in to the intended organisation. Verify current
-   and current Retail, Company and Bulk prices on the Water page, plus the Water
+   Retail, Company and Bulk prices on the Water page, plus the Water
    discount limit. Owner/admin
    must see purchase-cost and finance controls; a Water-only account must not see
    them or write stock/expense/adjustment/pricing changes via forged API requests.

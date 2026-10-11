@@ -16,6 +16,7 @@ const PRODUCTION_ALLOWED_ORIGINS = [
   "https://www.reebspartythemes.com",
   "https://reebspartythemes.com",
   "https://portal.reebspartythemes.com",
+  "https://water.reebspartythemes.com",
 ];
 
 const DEVELOPMENT_ALLOWED_ORIGINS = [

@@ -23,6 +23,7 @@
     ".": "./src/index.ts",
     "./useFrontFacingScrollReveal": "./src/useFrontFacingScrollReveal.ts",
     "./ui.css": "./src/ui.css",
-    "./compat.css": "./src/compat.css"
+    "./compat.css": "./src/compat.css",
+    "./reebs-sidebar.css": "./src/reebs-sidebar.css"
   }
 }

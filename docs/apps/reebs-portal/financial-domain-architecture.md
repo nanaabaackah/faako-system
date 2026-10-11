@@ -56,7 +56,7 @@ explicitly documented as a legacy major-unit source.
 | Water COGS | `WaterSale.unitCostAtSaleCents`; `WaterRestock` resolves the initial cost and restatements | Cost snapshot at sale, or restated cost after a restock create/edit/delete cost-basis change | Water | Ordinary configuration/price changes do not mutate the snapshot. Restock creation (including backdated insertion), cost/date correction and deletion re-resolve non-archived sales transactionally; a change that would orphan a previously snapshotted sale fails with `409 WATER_COST_BASIS_REQUIRED` and rolls back |
 | Water operating expense | `WaterExpense` | `WaterExpense.date` | Water | Do not copy into generic `Expense` for Core reporting |
 | Water stock corrections | `WaterAdjustment` | `WaterAdjustment.date` | Water | A correction affects Water quantity, not sales revenue |
-| Water selling policy | Effective `WaterProductPrice` row by product, channel/price type and quantity | Transaction time | Water | The applied standard price and any override must be retained on the sale |
+| Water selling policy | Current `waterProductConfig` Retail, Company or Bulk price selected by the existing channel/threshold rule | Current product value | Water | The applied standard price and any override must be retained on the sale |
 | Core/shared commercial policy | Effective `CommercialConfiguration` row | Transaction time | Explicit `businessUnit` | Missing or overlapping effective rows fail closed; they do not fall back silently to code |
 | Accounting ledger | Posted `JournalEntry` and `JournalLine` | Journal date | Currently unsegmented | Posted GL is accounting truth, but current operational coverage is incomplete and business-unit classification is deferred |
 | Manual sales history | `AccountingManualSales` | Stored year/month | Legacy Core history | Major-unit JSON; reconcile against imported journals before use to avoid duplication |
@@ -69,7 +69,8 @@ Relevant implementation paths are:
 - `apps/reebs-portal/backend/functions/_shared/shopOrders.js`
 - `apps/reebs-portal/backend/functions/bookings.js`
 - `apps/reebs-portal/backend/functions/water.js`
-- `apps/reebs-portal/shared/waterFinancials.js`
+- `packages/water-domain/src/waterFinancials.js`
+- `apps/reebs-water/src/pages/Water/AdminWater.jsx`
 - `apps/reebs-portal/backend/functions/financials.js`
 - `apps/reebs-portal/backend/functions/invoice-documents.js`
 - `apps/reebs-portal/backend/functions/commercial-config.js`
@@ -161,11 +162,9 @@ Water net profit = Water gross profit - eligible WaterExpense amounts
 ```
 
 New Water sales snapshot the latest valid restock cost at the sale date. A sale
-without a resolvable stored snapshot uses the latest restock at or before the
-sale for reporting; a sale before all recorded restocks uses the documented
-compatibility cost until it is reconciled. Creating or scheduling a commercial
-configuration or Water selling-price row does not rewrite
-`WaterSale.unitCostAtSaleCents`.
+without a resolvable stored snapshot leaves profitability unavailable until it
+is explicitly reconciled. Changing a current product selling price or writing
+an audit entry does not rewrite `WaterSale.unitCostAtSaleCents`.
 
 A restock create, update or delete can change which acquisition cost applies at
 a historical sale date. That includes inserting a backdated restock and changing
@@ -234,7 +233,7 @@ Commercial and financial values are classified before choosing their storage:
 | Classification | Examples | Required treatment |
 | --- | --- | --- |
 | Effective commercial policy | Bundle threshold/discount, attendant fee, delivery rate, deposit percentage/due days | Typed `CommercialConfiguration`, explicit business unit, effective dates, audit |
-| Water product selling price | Retail, bulk-retail and company price; bulk minimum quantity | Typed `WaterProductPrice`, Water-only permissions, effective dates, transaction snapshot |
+| Water product selling price | Current Retail, Company and Bulk prices; existing bulk minimum quantity | `waterProductConfig`, Water-only permissions, audit-only `waterPriceChange`, transaction snapshot |
 | Transaction fact/snapshot | Order/Booking item selling price, Water actual and standard price, line cost | Preserved on ordinary configuration changes; mutable only through an explicit audited correction/reprice/restatement workflow |
 | Cost fact | Product purchase cost, Water restock unit cost | Record at acquisition/restock; snapshot COGS where the policy requires; correction affects only its documented cost period |
 | Statutory/accounting rule | Tax rates, VAT scheme, fiscal period | Separate effective-dated finance configuration with finance/legal approval |
@@ -324,7 +323,7 @@ the configured due period supplies the server default.
 Core invoice product validation is also server authoritative. Invoice create
 and update load linked Product records inside the organisation and reject a
 line when its `sourceCategoryCode` is `WATER` or the Product has an explicit
-`WaterProductPrice.productId` relationship. The Core invoice workflow must not
+`waterProductConfig.inventoryProductId` relationship. The Core invoice workflow must not
 be used for Water billing. An unlinked free-text line is not classified by a
 fuzzy name match and remains part of the documented manual-record data debt.
 
@@ -380,11 +379,11 @@ unification.
   unrelated current cost merely to remove nulls. Unresolvable rows remain
   null/unknown.
 
-The compatibility tables are `CommercialConfiguration` and
-`WaterProductPrice`; `OrderItem.unitCostCents` and the Water sale standard-price
-and override fields provide additive snapshot foundations. Future snapshots
-must remain in integer minor units and reference the applied policy row when
-available.
+Core commercial terms remain in `CommercialConfiguration`. Water's current
+Retail, Company and Bulk prices live in `waterProductConfig`, separately from
+restock purchase cost; `waterPriceChange` is an audit log and never selects an
+active price. `OrderItem.unitCostCents` and the Water sale standard-price and
+override fields retain transaction snapshots in integer minor units.
 
 ## Permissions and audit
 
@@ -431,7 +430,7 @@ It:
 - performs only metadata and `SELECT` queries;
 - classifies Customers from real Order/Booking/WaterSale relationships;
 - classifies Products from real OrderItem/BookingItem relationships and an
-  explicit `WaterProductPrice.productId` link;
+  explicit `waterProductConfig.inventoryProductId` link;
 - recognises explicit commercial-configuration business units;
 - classifies only InvoiceDocuments with a valid linked Order/Booking as Core;
 - leaves unsegmented JournalEntries and unlinked/manual records ambiguous;
@@ -520,9 +519,9 @@ shared database as a routine rollback.
 - [ ] The compatibility values seeded for each existing organisation have been
       reviewed as current business decisions rather than accepted merely
       because the migration inserted them.
-- [ ] Every active Water product has reviewed Retail, Bulk Retail and Company
-      prices, correct thresholds, currency and effective windows.
-- [ ] Every `WaterProductPrice.productId` link is reviewed from record identity
+- [ ] Every active Water product has reviewed current Retail, Company and Bulk
+      prices, the existing threshold and currency.
+- [ ] Every `waterProductConfig.inventoryProductId` link is reviewed from record identity
       and operational evidence, not a fuzzy name match.
 - [ ] Classification dry-run output has no unexplained shared or ambiguous
       high-value record.

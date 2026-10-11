@@ -1,90 +1,136 @@
-# Water production integrity — stabilization work log
+# Water stabilization checkpoint — 2026-10-09
 
-Status: **in progress; not cleared for production or staging acceptance**.
-Scope: existing `/admin/water`, shared authentication/database and PaymentRecord /
-PaymentApplication, never Core order/payment/receipt/journal side effects. No new
-app, production access, Git mutation or deployment is authorized by this work.
+This is a local source and mocked-test checkpoint, **not production readiness
+certification**. This requested handoff file was absent when work resumed; the
+findings below are based on the current checkout, not recovered unstaged history.
+At the original checkpoint no Git commands were performed. The subsequent
+2026-10-10 handoff authorizes a feature branch for develop. Secret-file reads,
+database connections, migrations, deployments and production checks remain out of scope.
 
-## Phase A: pre-change process inventory (2026-10-04)
+## Preserved decisions
 
-Evidence: `backend/functions/water.js`, `water-momo-webhook.js`,
-`commercial-config.js`, `customers.js`, `backend/modules/payments/*`,
-`src/pages/AdminWater/*`, Water/Payments migrations and Prisma models.
-PASS below means source plus existing isolated tests for that behavior, **not**
-deployed/PostgreSQL acceptance. Other statuses identify work before acceptance.
+- Preserve the accepted [standalone Water ADR](../../decisions/reebs-water-standalone-app.md): React/Vite Water app, shared REEBS API/session/tenant, no separate database or authentication system.
+- Preserve the latest current-price model: retail, company and bulk prices belong to the selected product. Historical schedules are retired; sale price snapshots remain editable through authorized sale corrections. Zero selling prices are valid, but purchase costs must be positive.
+- Preserve both `gwater-15pk` and `sachet-water-30pk`; stock, prices, expenses, collections and financial projections are organisation/product scoped.
+- Owners/admins manage costs, pricing, stock and finance. Water staff handle sales. Managers are read-only. The API remains authoritative.
+- Water stock, revenue, costs and profitability are excluded from Core metrics by default.
 
-Common Water command path: AdminWater form → `POST /api/water` action → internal
-session/tenant + Water role/action permission → boundary validation → transaction
-and product inventory/commercial locks where present → Water ledger SQL → rebuilt
-product dashboard → UI state replacement → GET on reload. Read-only Water staff
-projections suppress costs/profits. Exceptions and gaps are listed per process.
+## Changes in this stabilization pass
 
-| # | Process / trigger → persistence → output | Baseline | Evidence / gap |
-|---|---|---|---|
-| 1 | Product selector → keyed GET → product ledger → dashboard | PARTIAL | Key propagated; customer history not product scoped |
-| 2 | Dashboard load → scoped ledger reads → summaries → reload | PARTIAL | Stock/cost scoped; cash derived from sale status |
-| 3 | Settings schedule → owner/admin → locked price insert → active prices | PARTIAL | Same-start unique index includes superseded rows |
-| 4 | Historical schedule → Water-only date path → split/close → history | PARTIAL | Prior 99 tests/6 browser checks; real SQL constraints untested |
-| 5 | Restock form → owner/admin → inventory lock → restock → stock/cost | PARTIAL | No durable retry protection; create restates sale costs |
-| 6 | Edit restock → validation + re-lock → update → cost restatement | PARTIAL | In-request race check, no client revision token |
-| 7 | Remove restock → stock check → physical DELETE → restatement | FAIL | Erases restock history |
-| 8 | New sale → customer + historical price/cost → locked insert → stock | PARTIAL | No durable idempotency / creation audit / cash application |
-| 9 | Edit sale → basis resolve + lock → sale update → totals | FAIL | Editable payment facts; stale browser revision not enforced |
-| 10 | Archive sale → inventory lock → archivedAt → active totals | PARTIAL | No settlement guard or archive audit |
-| 11 | Cash sale → embedded paid status → cash summary | FAIL | No atomic payment/application evidence |
-| 12 | MoMo sale → pending state → callback settlement | PARTIAL | No charge initiation (intentional); ledger split |
-| 13 | Credit sale → unpaid sale + stock leaves → credit total | PARTIAL | Initial stock correct; later collection path missing |
-| 14 | Record collection → payment/application → balance | NOT IMPLEMENTED | Manual service handles Core Orders only |
-| 15 | Partial collection → applications → remaining balance | NOT IMPLEMENTED | Shared foundation exists; Water projection sets paid unconditionally |
-| 16 | Provider callback → authentication + fingerprint → locked sale | PARTIAL | Exact amount checked; currency/ref may be omitted; no common settlement |
-| 17 | Customer selector/create → scoped compact API → shared identity | PASS | Existing role/tenant tests; no private Core history |
-| 18 | Water customer detail → waterSale reads → history/totals | FAIL | Includes archived sales; no collections/balance/product filter |
-| 19 | Expense form → owner/admin → insert → net profit | PARTIAL | Product scoped; no transaction/audit/idempotency |
-| 20 | Expense edit/archive → update/archive → net profit | PARTIAL | No row lock/client revision/audit |
-| 21 | Adjustment → owner/admin + inventory lock → signed ledger | PARTIAL | Zero/negative stock checks exist; no audit/idempotency |
-| 22 | Adjustment edit/remove → lock → update/DELETE → stock | FAIL | Physical delete; browser revision not checked |
-| 23 | Explicit cost correction → history resolution → sale cost update | PARTIAL | Product-scoped/transactional; creation currently also restates |
-| 24 | Historical sale → transaction-date resolver → snapshots | PASS | Isolated real-handler tests; cost/discount must exist on date |
-| 25 | Historical correction → changed quantity/channel/date → new snapshot | PARTIAL | Pricing works; settlement/amount protection missing |
-| 26 | Discount → Water rule on sale date → validated total | PASS | Server authoritative; Core rules separate |
-| 27 | Override → pricing permission → actual/standard snapshots | PASS | Price-only correction retains historical standard/cost |
-| 28 | Financial summary → ledger reductions → revenue/cost/profit | FAIL | Cash timing follows sales; outstanding not applied-amount based |
-| 29 | Product/date reporting → frontend filtering → KPIs | PARTIAL | Duplicated calculations; point-in-time vs flow mixed |
-| 30 | Permissions → internal API + action gate → private DTO | PASS | Existing owner/admin vs Water-staff policy retained |
-| 31 | Audit → writeAuditLog → history | PARTIAL | Cost and price correction events; many ordinary writes absent |
-| 32 | Save/reload → rebuilt dashboard / GET → same records | PARTIAL | Network retry can duplicate; schema DDL still on requests |
-| 33 | Concurrent edits → locks/comparison → conflict | PARTIAL | Locks protect stock; old client revision and expenses unprotected |
-| 34 | Retry → request key/fingerprint → single persisted effect | FAIL | Provider fingerprints only; ordinary command keys absent |
-| 35 | Staging → preview/API/DB separation → integration acceptance | AMBIGUOUS | Not accessed; no local PostgreSQL binaries found initially |
+### Collections and permissions
 
-## Confirmed high-risk defects
+- Completed missing `loadWaterCollections` / `projectWaterSales` integration called by the Water dashboard. This is a read-only projection of existing Water payment records/applications, not a new payment ledger or a Core posting.
+- Existing applied GHS Water collections override legacy sale payment flags. Partial collections show the actual collected amount and remaining balance without adding payment amounts to sales revenue. Reversed applications retain zero-collection authority instead of falling back to a stale paid flag.
+- Shared settlement retains Water's canonical sale-method keys and marks partially settled orders `partially_paid`, not fully paid. Collections use the shared payment ledger's normalized method labels. The payable balance respects application history after repricing.
+- New MoMo sales default pending; choosing MoMo does not initiate or confirm a provider charge. Legacy reads do not rewrite recorded payment facts.
+- Added explicit `canRecordSales` to the API permission DTO and Water UI. Managers no longer see sale submission/edit/archive controls. Missing permission data fails closed in the UI: deploy compatible API code before the frontend.
+- Removed the blanket undefined-name lint suppression from `water.js` so missing helper integration is detected by lint.
 
-1. A generic sale edit may fabricate/remove payment state and make collected cash
-   change when a sale total changes; no authoritative collection reconciliation.
-2. Shared provider settlement marks Water paid even for a partial amount; the
-   payable loader takes `max(applied, legacy total)`, masking partial balances.
-3. Legacy callback updates sale status rather than shared immutable collections.
-4. Restock/adjustment removal physically deletes operational history.
-5. New stock currently restates sale costs, not only explicit cost corrections.
-6. Water expense edits have no stale-write protection; customer history counts
-   archived sales. Ordinary writes lack durable idempotency and broad audit coverage.
-7. Prisma omits real migrated snapshot/update/archive columns and WaterProductPrice.
-8. Price uniqueness on all rows blocks same-start replacement after supersession.
+### Faako presentation and navigation
 
-## Execution order
+- Restored Portal-compatible light/dark tokens, shared font use, readable elevated surfaces, and responsive sizing without redesigning the Water layout.
+- Fixed sale and ledger dialogs to use shared Faako modal/header/body classes, opaque theme surfaces, padded scrollable content, and 44px close controls.
+- Standardized local action classes for rounded touch controls and labelled icon-only mobile actions, including sign-out; pagination retains accessible Previous/Next names. Corrected legacy search selectors to style the shared Faako input without nested borders.
+- Preserved product switching and Portal sidebar/quick-access external Water entry points. Water's breadcrumb now reads `REEBS Water` and points to `/`, rather than the nonexistent standalone `/admin` page. The brand uses client-side home navigation. Shared breadcrumb defaults remain `Admin` / `/admin` for other apps.
+- Water route code is lazy-loaded; the login screen still receives shared form styles before the Water chunk loads.
+- Missing selling prices remain empty instead of becoming `0.00`; actual zero prices remain editable. Missing purchase costs stay blank and required.
 
-1. Map and inspect (above), then shared Water settlement and commercial-edit guards.
-2. Idempotent command boundary, archival, revisions, audit and schema alignment.
-3. Collections UI, truthful terminology, scoped customer/report/export models.
-4. Isolated PostgreSQL transaction/constraint/concurrency tests plus existing Core
-   payment regressions, Water unit/handler/browser tests, lint/build and safe checks.
-5. Staging-only fixture/runbook and final evidence/remaining blockers. Retain runtime
-   DDL until staging proves the complete migration path, as explicitly required.
+## Verification approach
 
-## Evidence still required
+### Follow-up: standalone module navigation and field/table fixes
 
-No production access or real secret inspection. Isolated PostgreSQL and deployed
-staging acceptance must establish locks, rollback, schema compatibility and API/DB
-separation. Unit/browser mocks alone cannot clear production readiness. Legacy
-embedded paid rows must be reported separately, never assigned invented payment
-records, dates or references.
+The user clarified that Water needs **modules**, not in-page navigation. The
+standalone app now uses the actual REEBS sidebar layout, with its styles shared
+through `@faako/ui/reebs-sidebar.css` (also consumed by Portal), with these routes:
+
+| Module | Route | Content |
+| --- | --- | --- |
+| Dashboard | `/` | Water KPIs and financial breakdown permitted by the API |
+| Sales | `/sales` | Record a sale; read-only message when sales permission is absent |
+| Orders | `/orders` | Searchable, sortable, paginated Water order ledger and editor |
+| Customers | `/customers` | Water-scoped directory and existing authorized customer creation |
+| Stock | `/stock` | Stock summary, movement ledger, current prices, authorized restock/expense/correction forms |
+
+These are distinct route contents, not anchor links. Customer directory reads
+retain the existing `scope=water` API filter and 200-record limit, disclosed in
+the UI; customer creation uses the existing Water action. Navigation is only a
+UX permission filter; API authorization remains authoritative. Module changes
+retain the mounted product workspace and sales drafts. A full browser reload
+still resets unsaved drafts, as before. The mobile sidebar is an accessible
+disclosure in normal page flow, not an overlay obscuring forms.
+
+Legacy form selectors no longer style the shared select/date native fallback
+controls. They remain invisible even when disabled/loading, preventing a second
+input/select box beneath the Faako trigger. Ledger cards now own a single
+outer frame; nested table wrappers no longer add another card border/shadow.
+Sorting buttons use inherited table typography and theme colors, retaining
+sorting, pagination, totals and the existing mobile row layout.
+
+Use source-only Node tests, mocked API browser tests and explicit clean child
+environments. `REEBS_SKIP_ENV_FILES` disables Vite environment-file loading.
+Browser tests reject live mode and start their own localhost server with an
+unreachable loopback backend fallback. Do not run the normal development
+predeploy command for these checks: it can connect to a configured database.
+
+- 185 focused Node tests passed: Water handlers/domain/pricing, shared payment service/provider behavior, Core dashboard separation, Portal navigation hierarchy and route compatibility.
+- Scoped ESLint passed for Water and the edited shared/backend files. Shared `types` and `ui` TypeScript checks passed.
+- The complete mocked Water browser suite passed 39 tests, covering 320–1440px layouts, both products, customer creation, editable restock costs, current/zero prices, read-only managers, restricted operators, partial collections, standalone navigation and light/dark login/dialog accessibility.
+- Visual review then identified invisible light-mode pagination arrows and inherited mobile modal bottom clearance. Corrected locally using `currentColor` Iconsax arrows and Water-specific modal spacing, with explicit regression assertions. All seven targeted pagination/navigation/dialog rechecks passed, including keyboard focus return, save-action reachability and light/dark accessibility scans.
+- Four final ledger/dialog checks also passed after removing the double search border. Screenshots were inspected in light and dark modes; the dark undo action uses the existing accent token for readable contrast.
+- Local Vite production-mode build passed with environment-file loading disabled and a deliberately unreachable loopback API. The temporary build is verification-only, **not a deployment artifact**. The lazy split keeps Water workspace code separate from login; no reliable before-turn bundle baseline is available.
+
+The later 2026-10-10 checkpoint used the repository's path-filtered security
+scanner after confirming sensitive paths are rejected before content reads.
+No live-provider or database test result is implied by mocked tests.
+
+## Develop reconciliation — 2026-10-10
+
+The user authorized a new review branch containing REEBS Water/shared changes
+only, reconciled with develop before pushing. The integration retains develop's
+collection ledger, durable mutation keys, transactions, stale-record checks,
+archive protections and Prisma relation correction, together with the five
+standalone modules and shared REEBS sidebar. Unrelated Travel With Ease work is
+excluded. This is not permission to merge main or deploy.
+
+- `Record collection` is available to authorized sales users on Orders. Manual
+  collection records money already received; it does not initiate a provider charge.
+- Shared `@faako/water-domain/waterSettlement` and `waterReporting` define payment
+  projections and summaries for API/UI. Portal shared-path compatibility exports
+  protect existing consumers; the standalone app does not import Portal business UI.
+- Payment-date collections are separate from sale-date revenue. Live outstanding
+  balances and stock are not constrained to a historical stock period. Reversed
+  payment applications retain their authoritative zero rather than restoring
+  a legacy paid flag.
+- Legacy paid records are disclosed separately from verified collections. They
+  require reconciliation before another collection or total-changing correction.
+  Corrected totals below collected money require a reviewed refund first.
+- Water commands roll back rejected operations and their retry markers. Browser
+  retries retain the same key after an ambiguous server/network failure. No
+  automatic unsafe mutation retry was added.
+- Resolved an automatic-merge regression that reintroduced the retired Water
+  date-period controls inside Core settings. Current-price browser coverage lives
+  in the standalone Water app; obsolete Portal schedule tests/components were
+  removed. Backdated sales remain covered by actual-handler current-price tests.
+- Added isolated Water browser CI; it requires no Cloudflare deployment.
+
+Final check results and manual setup are recorded in the
+[2026-10-10 staging handoff](water-modules-staging-handoff-2026-10-10.md).
+The 2026-10-11 continuation completed 528 Portal tests, 22 Water app/domain
+tests, offline schema/type checks, both production-mode builds and security/
+hosting/registry checks. All 44 browser scenarios passed across the main run
+and targeted cold-navigation rechecks; the handoff records initial timeouts
+separately. No live deployment readiness is implied.
+
+## Remaining release gates and follow-up work
+
+1. **Environment wiring:** independently verify Water static hosting, API origin, exact staging CORS origin and session-cookie behavior in an approved isolated environment. Portal currently defaults to the production Water host when not local; configure `VITE_WATER_APP_URL` explicitly for staging/preview. No deployed URL or environment value was inspected here.
+2. **Database prerequisites:** review existing payment, operational-integrity and current-price migrations before dependent code. If current-price is already applied but operational-integrity is pending, STOP: the earlier migration references the now-retired price table. Review the actual migration state in an approved isolated environment and plan targeted recovery; do not reset, recreate historical data or mark unexecuted work applied. No database state or real PostgreSQL locking/concurrency behavior was verified here. `/ready` is only database `SELECT 1`, not a Water business-readiness certificate.
+3. **Legacy reconciliation:** manual partial/final collections now exist, but a reviewed capture/reconciliation workflow for legacy paid records is still required. Existing flags do not prove immutable historical cash receipts.
+4. **Archiving and reversals:** settled sales are protected. Do not treat archive as a refund; no automated refund or new bulk financial archive was introduced. Reversal/provider settlement rehearsal remains a staging gate.
+5. **Save safety:** idempotency, transactions and stale-tab checks have mocked regression coverage. Real PostgreSQL rollback, RLS and concurrent-request tests remain required before live use.
+6. **Reporting:** collection-date cashflow now uses shared definitions. Dedicated Water exports and explicitly labelled consolidated reporting remain separate work.
+7. **Incremental cleanup:** runtime defensive schema work and the large Water page remain. Do not remove either without migration adoption evidence and focused contract tests.
+
+The local fixes do not authorize production access or deployment. Keep user
+changes intact and continue with these explicit gaps rather than declaring the
+whole Water business flow complete.

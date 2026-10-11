@@ -10,20 +10,23 @@ export const loadWaterCollections = async (client, organizationId, productKey, c
      JOIN "waterSale" w ON w.id = pa."payableId" AND w."organizationId" = pa."organizationId"
      WHERE pa."organizationId" = $1 AND w."productKey" = $2 AND w."archivedAt" IS NULL
        AND pa."businessUnit" = 'WATER' AND pa."payableType" = 'WATER_ORDER'
-       AND pr."businessUnit" = 'WATER' AND pr.status = 'PAID' AND pa.status = 'APPLIED'
+       AND pr."businessUnit" = 'WATER' AND pr.currency = 'GHS' AND pa.currency = 'GHS'
        AND ($3::int IS NULL OR w."customerId" = $3)
      ORDER BY pr."paidAt" DESC, pr.id DESC`, [organizationId, productKey, customerId]
   );
   return result.rows;
 };
 
-export const projectWaterSales = (sales, collections) => {
+export const projectWaterSales = (sales, collections = []) => {
   const applied = new Map();
   for (const collection of collections) {
-    if (collection.status !== "PAID" || collection.applicationStatus !== "APPLIED") continue;
     const key = `${collection.productKey}:${collection.saleId}`;
     const total = applied.get(key) || { amountPaidCents: 0, applicationCount: 0 };
-    total.amountPaidCents += Number(collection.amountCents);
+    // Retain reversed application history so a stale paid flag cannot become
+    // a fabricated legacy collection after the last payment is reversed.
+    if (collection.status === "PAID" && collection.applicationStatus === "APPLIED") {
+      total.amountPaidCents += Number(collection.amountCents);
+    }
     total.applicationCount += 1;
     applied.set(key, total);
   }

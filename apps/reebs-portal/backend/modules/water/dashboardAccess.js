@@ -15,7 +15,10 @@ export const canWriteWaterAction = (role, action) => {
 // must continue using the full, server-private ledger inside the transaction.
 export const presentWaterDashboard = (dashboard, role) => {
   // Keep this boundary restricted even if reused by another route.
-  const permissions = buildWaterPricingPermissions(canWriteWaterAction(role, "restock") ? role : null);
+  const permissions = {
+    ...buildWaterPricingPermissions(canWriteWaterAction(role, "restock") ? role : null),
+    canRecordSales: canWriteWaterAction(role, "sale"),
+  };
   if (permissions.canViewFinance && permissions.canViewCost) {
     return { ...dashboard, permissions };
   }

@@ -58,3 +58,8 @@ test("all completed roadmap modules remain connected to their portal entry point
     );
   }
 });
+
+test("the legacy Water URL redirects to the separately deployed Water app", () => {
+  assert.match(routeSource, /path:\s*"\/admin\/water",\s*domain:\s*"water",\s*externalRedirect:\s*WATER_APP_URL/);
+  assert.doesNotMatch(routeSource, /loadWaterPage|AdminWater\/AdminWater/);
+});

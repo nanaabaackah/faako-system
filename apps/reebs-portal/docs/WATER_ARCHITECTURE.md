@@ -8,10 +8,11 @@ Water sales, revenue, costs, customers, margin, profitability, inventory movemen
 
 ## Current boundary
 
-- Frontend entry point: `src/modules/water/index.js`
-- Existing UI implementation: `src/pages/AdminWater`
-- Route: `/admin/water`
-- Access class: `water`, evaluated separately by `canAccessWaterPortalArea`
+- Frontend application: `apps/reebs-water`
+- Frontend entry point: `apps/reebs-water/src/pages/Water/AdminWater.jsx`
+- Standalone URL: `https://water.reebspartythemes.com`
+- Portal compatibility route: `/admin/water` redirects to the standalone app
+- Authentication provider: shared `@faako/auth` cookie-session provider
 - Backend module: `backend/modules/water`
 - Compatibility handlers: `/api/water` and `/api/water-momo-webhook`
 - Database schema: existing Water-prefixed models and fields in `prisma/schema.prisma`
@@ -31,6 +32,13 @@ The backend registry marks Water with `standaloneBusinessDomain: true` and `incl
 
 Frontend access checks are not authoritative. Water handlers must continue to validate the authenticated principal, organisation scope, required Water permissions, webhook authenticity, and input at the backend boundary. Client-supplied organisation identifiers must be verified against the authenticated session.
 
+Water app access includes Owners, REEBS Admins, existing Managers, and dedicated
+Water users. Managers are read-only; Water handlers enforce their required
+permission separately from the route role. Owners and REEBS Admins remain scoped
+to their authenticated organisation unless the existing platform-level
+administrator rules explicitly authorize a different organisation. Water access
+does not itself grant cross-organisation access.
+
 Water credentials, payment keys, webhook secrets, and private customer data remain server-side and redacted from logs. Audit events retain the existing request ID.
 
 ## Dashboard capabilities and restock cost
@@ -42,7 +50,8 @@ frontend defaults missing capabilities to false. Omitting them hides the revenue
 and net-profit cards, financial breakdown, and cost inputs even from administrators.
 
 The owner confirmed on 2026-09-24 that Water-only staff handle sales, while only
-owners/admins manage stock and purchase costs. The API allows Water staff only the
+owners/admins manage stock and purchase costs. Managers can read the Water
+dashboard but cannot mutate Water data. The API allows Water staff only the
 `sale`, `update_sale`, and `delete_sale` mutations. Stock/restock, expense, adjustment
 and pricing writes return `WATER_ACTION_FORBIDDEN` before any Water-table mutation.
 Operational dashboard responses allowlist stock and sale fields, omit purchase
@@ -63,8 +72,8 @@ The page reads the API's `unitCostAtSaleCents` sale snapshot when calculating Wa
 profit and accepts the legacy `unitCostAtTransaction` field for compatibility.
 Missing snapshots remain unavailable rather than being treated as zero cost.
 
-API and Portal now share `shared/waterFinancials.js` for cost completeness and
-calculation. No fallback purchase price is used for an empty ledger or missing
+The Water app and API share `@faako/water-domain` for product definitions,
+cost completeness and calculation. No fallback purchase price is used for an empty ledger or missing
 sale cost. The explicit correction workflow, not a dashboard read, is responsible
 for any persisted cost restatement. See the repository
 [release readiness checklist](../../../docs/apps/reebs/water-release-readiness.md)
@@ -95,7 +104,7 @@ reviewed data audit; this change neither reconstructs nor repairs past collectio
 
 ## Water product selection (2026-10-01)
 
-`shared/waterProducts.js` defines the existing `gwater-15pk` and the new
+`@faako/water-domain` defines the existing `gwater-15pk` and the new
 `sachet-water-30pk` (30pcs sachet water). One quantity unit is one whole pack,
 not an individual bottle or sachet. No purchase or selling price is invented.
 
@@ -171,10 +180,10 @@ Confirm ledger state before manually repeating a failed creation request.
 ## Target module shape
 
 ```text
-src/modules/water/
-  index.js
-  pages/
-  components/
+apps/reebs-water/
+  src/pages/Water/
+  src/components/
+  src/auth/
   api/
   model/
 

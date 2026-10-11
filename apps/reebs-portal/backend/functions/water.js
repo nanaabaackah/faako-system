@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import { createDatabaseClient } from "./_shared/databaseClient.js";
 import {
   backfillProductVendorLinksFromProducts,
@@ -20,7 +19,10 @@ import {
   writeAuditLog,
 } from "./_shared/auditLog.js";
 import { withWaterBusinessContext } from "@faako/api-contracts/reebs";
-import { calculateWaterCostBasis } from "../../shared/waterFinancials.js";
+import { buildWaterSummary } from "@faako/water-domain/waterReporting";
+export { buildWaterSummary } from "@faako/water-domain/waterReporting";
+import { normalizeWaterPaymentMethod as normalizePaymentMethod } from "@faako/water-domain";
+import { loadWaterCollections, projectWaterSales } from "../modules/water/reporting.js";
 import {
   buildWaterPricingPermissions,
   normalizeWaterPricing,
@@ -35,11 +37,15 @@ import { recordManualWaterPayment } from "../modules/payments/manualPaymentServi
 import { assertWaterCommercialEdit, loadWaterAppliedCollections, projectWaterSettlement, waterSettlementError } from "../modules/water/settlement.js";
 import { deriveWaterSettlement } from "../../shared/waterSettlement.js";
 import { createLogger } from "./_shared/logger.js";
-import { DEFAULT_WATER_PRODUCT_KEY, getWaterProduct, WATER_PRODUCTS } from "../../shared/waterProducts.js";
+import {
+  DEFAULT_WATER_PRODUCT_KEY,
+  getWaterProduct,
+  WATER_PRODUCTS,
+} from "@faako/water-domain/waterProducts";
 
 const WATER_METHODS = "GET,POST,OPTIONS";
 const logger = createLogger("water");
-const WATER_ALLOWED_ROLES = ["owner", "admin", "water"];
+const WATER_ALLOWED_ROLES = ["owner", "admin", "manager", "water"];
 const PRODUCT_NAME = "15pk Gwater";
 const PRODUCT_KEY = DEFAULT_WATER_PRODUCT_KEY;
 const PRODUCT_NAME_ALIASES = [PRODUCT_NAME, PRODUCT_KEY.replace(/-/g, " "), "15 pk Gwater"];
@@ -376,15 +382,6 @@ const normalizeChannel = (value) => {
   return normalized === "company" ? "company" : "retail";
 };
 
-const normalizePaymentMethod = (value) => {
-  const normalized = cleanText(value).toLowerCase();
-  if (normalized === "momo") return "momo";
-  if (normalized === "credit" || normalized === "pay later" || normalized === "paylater") {
-    return "credit";
-  }
-  return "cash";
-};
-
 const normalizePaymentStatus = (value, paymentMethod = "cash") => {
   const normalized = cleanText(value).toLowerCase();
   if (
@@ -570,6 +567,7 @@ const enforceWaterRateLimit = async (
     ).toISOString(),
   };
 };
+
 
 
 
@@ -1066,7 +1064,16 @@ const buildDashboard = async (client, organizationId, options = {}) => {
   const product = getWaterProduct(options.productKey);
   const includeLinkedProduct = options.includeLinkedProduct !== false;
   const includePricing = options.includePricing !== false;
-  const [restocks, sales, expenses, adjustments, linkedProduct, commercialPricing, priceHistory] = await Promise.all([
+  const [
+    restocks,
+    saleRows,
+    expenses,
+    adjustments,
+    linkedProduct,
+    commercialPricing,
+    collections,
+    priceHistory,
+  ] = await Promise.all([
     selectRows(
       client,
       `"waterRestock"`,
@@ -1170,15 +1177,17 @@ const buildDashboard = async (client, organizationId, options = {}) => {
     includePricing
       ? loadWaterDashboardPricing(client, organizationId, product.key)
       : Promise.resolve(null),
+
+    loadWaterCollections(client, organizationId, product.key),
     includePricing
       ? client.query(
         `SELECT id, "productId", "productKey", "priceType",
                 "previousPriceCents", "newPriceCents", "changedAt",
                 "changedByUserId", "changedByName", source
-         FROM "waterPriceChange"
-         WHERE "organizationId" = $1 AND "productKey" = $2
-         ORDER BY "changedAt" DESC, id DESC
-         LIMIT 50`,
+        FROM "waterPriceChange"
+        WHERE "organizationId" = $1 AND "productKey" = $2
+        ORDER BY "changedAt" DESC, id DESC
+        LIMIT 50`,
         [organizationId, product.key]
       ).then((result) => result.rows || [])
       : Promise.resolve([]),
@@ -1426,6 +1435,7 @@ export async function handler(event = {}) {
             createdByName,
           ]
         );
+        command.recordId = Number(inserted.rows[0].id);
         await updateCurrentWaterPrices(client, {
           organizationId,
           productKey: product.key,

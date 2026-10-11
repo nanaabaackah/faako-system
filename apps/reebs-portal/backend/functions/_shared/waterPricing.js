@@ -1,4 +1,4 @@
-export { calculateWaterCostSummary } from "../../../shared/waterFinancials.js";
+export { calculateWaterCostSummary } from "@faako/water-domain/waterFinancials";
 
 const FINANCIAL_ROLES = new Set(["owner", "admin"]);
 

@@ -1,0 +1,14 @@
+{
+  "name": "@faako/auth",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./sanitize": "./src/sanitizeAuthUser.js"
+  },
+  "dependencies": {
+    "@faako/core": "workspace:*",
+    "react": "^19.1.1"
+  }
+}

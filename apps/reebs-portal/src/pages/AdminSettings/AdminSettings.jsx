@@ -16,7 +16,7 @@ import {
   DEFAULT_ADMIN_PREFERENCES,
   readAdminPreferences,
   writeAdminPreferences,
-} from "../../utils/adminPreferences";
+} from "@faako/theme/adminPreferences";
 import {
   loadCustomerSnapshot,
   loadInventorySnapshot,
@@ -31,7 +31,6 @@ import {
   getRuleInputBounds,
   toDateInputValue,
 } from "./commercialSettings";
-import WaterPricePeriodFields, { WaterPriceHistoricalNotice } from "./WaterPricePeriodFields";
 import {
   DEFAULT_DOCUMENT_IDENTITY,
   cacheDocumentIdentity,
@@ -196,7 +195,6 @@ function AdminSettings({ profileOnly = false }) {
   const [portalSettingsError, setPortalSettingsError] = useState("");
   const [canManageDocumentIdentity, setCanManageDocumentIdentity] = useState(false);
   const [commercialSchedule, setCommercialSchedule] = useState(null);
-  const [waterScheduleView, setWaterScheduleView] = useState("schedule");
   const [commercialLoading, setCommercialLoading] = useState(false);
   const [commercialLoadError, setCommercialLoadError] = useState("");
   const [commercialSaveError, setCommercialSaveError] = useState("");
@@ -303,12 +301,6 @@ function AdminSettings({ profileOnly = false }) {
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load the shared commercial schedule.");
       }
-      if (canViewWaterPriceSchedule && waterScheduleView !== "schedule") {
-        const waterResponse = await fetch(`${COMMERCIAL_CONFIG_ENDPOINT}?businessUnit=WATER&view=${waterScheduleView}`);
-        const waterData = await waterResponse.json().catch(() => ({}));
-        if (!waterResponse.ok) throw new Error(waterData?.error || "Failed to load Water price history.");
-        data.waterPrices = waterData.waterPrices;
-      }
       setCommercialSchedule(data);
       hydrateCommercialDrafts(data);
     } catch (error) {
@@ -316,7 +308,7 @@ function AdminSettings({ profileOnly = false }) {
     } finally {
       setCommercialLoading(false);
     }
-  }, [canViewCommercialSchedule, canViewWaterPriceSchedule, hydrateCommercialDrafts, waterScheduleView]);
+  }, [canViewCommercialSchedule, hydrateCommercialDrafts]);
 
   useEffect(() => {
     if (activeTab !== "config") return;
@@ -1222,20 +1214,21 @@ function AdminSettings({ profileOnly = false }) {
                             <span>{model.metadata.displayUnit}</span>
                           </div>
                         </label>
-                        <WaterPricePeriodFields
-                          draft={newWaterPriceDraft}
-                          label="New Water price period"
-                          onChange={(changes) =>
-                            setNewWaterPriceDraft((previous) => ({
+                        <label className="settings-commercial-field">
+                          <span className="settings-commercial-step">Effective date</span>
+                          <span>Starts on</span>
+                          <DateField
+                            ariaLabel={`Effective date for ${model.definition.key}`}
+                            min={toDateInputValue()}
+                            value={draft.effectiveDate}
+                            onChange={(event) => setCommercialRuleDrafts((previous) => ({
                               ...previous,
-                              ...changes,
-                            }))
-                          }
-                          disabled={Boolean(commercialSavingKey)}
-                          required
-                        />
-
-                        <WaterPriceHistoricalNotice draft={newWaterPriceDraft} />
+                              [model.definition.key]: { ...draft, effectiveDate: event.target.value },
+                            }))}
+                            disabled={!canManageCommercialSchedule || Boolean(commercialSavingKey)}
+                            required={canManageCommercialSchedule}
+                          />
+                        </label>
                         <PortalAction
                           type="submit"
                           className="settings-primary settings-commercial-save"
@@ -1357,7 +1350,13 @@ function AdminSettings({ profileOnly = false }) {
                     key={item.path}
                     type="button"
                     className="settings-advanced-link"
-                    onClick={() => navigate(item.path)}
+                    onClick={() => {
+                      if (item.external) {
+                        window.location.assign(item.path);
+                        return;
+                      }
+                      navigate(item.path);
+                    }}
                   >
                     {item.label}
                   </button>

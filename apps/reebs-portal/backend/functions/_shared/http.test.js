@@ -19,5 +19,6 @@ test("staging CORS is explicit and does not inherit production or local origins"
 test("production CORS retains the published REEBS origins", () => {
   const origins = resolveAllowedOrigins({ appEnvironment: "production", env: {} });
   assert.equal(origins.includes("https://portal.reebspartythemes.com"), true);
+  assert.equal(origins.includes("https://water.reebspartythemes.com"), true);
   assert.equal(origins.some((origin) => origin.includes("localhost")), false);
 });

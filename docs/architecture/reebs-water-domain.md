@@ -2,9 +2,17 @@
 
 Status: mandatory architecture and reporting rule.
 
+Application boundary decision: [REEBS Water standalone application ADR](../decisions/reebs-water-standalone-app.md).
+
 ## Business rule
 
-Water is a standalone REEBS business domain. Water sales, revenue, cost of goods, expenses, customers, credit, cash position and profitability must not be merged into REEBS rental, event, shop or core finance metrics by default.
+Water is a standalone REEBS business domain and is served by the independently
+deployable React/Vite application in `apps/reebs-water`. Water sales, revenue,
+cost of goods, expenses, customers, credit, cash position and profitability
+must not be merged into REEBS rental, event, shop or core finance metrics by
+default. The Portal `/admin/water` URL is a compatibility redirect to the
+standalone Water application; Water shares REEBS authentication and APIs rather
+than mounting Portal UI.
 
 Any combined-company view must be explicitly named, opt-in, and show Water as
 a separate segment. A generic `revenue`, `customer`, `profit` or `sales` total
@@ -18,7 +26,8 @@ The Water domain owns:
 - The recorded cost price per pack for each Water restock, including later
   corrections to an already-recorded restock;
 - Water orders and Water customer transaction context;
-- Water pricing, units sold, payment method and collection state;
+- Current Water product Retail, Company and Bulk prices, price-change audit
+  history, units sold, payment method and collection state;
 - Water credit, cash/MoMo totals and outstanding balances;
 - Water cost of goods, extra expenses, gross profit, net profit and cash position;
 - Water-specific permissions, navigation and webhook behavior.
@@ -28,7 +37,10 @@ REEBS core owns rental/event/shop operations and their ordinary dashboards, repo
 ## Frontend rules
 
 - Navigation labels the area `Water Business` and gives it a visually distinct treatment.
-- The Water page states that its figures are Water-only and excluded from REEBS rental/event metrics.
+- The standalone Water page states that its figures are Water-only and excluded
+  from REEBS rental/event metrics.
+- The displayed Retail, Company and Bulk prices are the product's current
+  prices. No Water price is selected or activated by a date.
 - Labels use `Water revenue`, `Water orders` and `Water net profit` where ambiguity is possible.
 - Primary Water indicators are separated from detailed cash, credit and cost breakdowns.
 - Product selection scopes these indicators and ledgers to the existing 15-pack
@@ -41,9 +53,10 @@ REEBS core owns rental/event/shop operations and their ordinary dashboards, repo
 - The backend module registry marks Water as excluded from core analytics by default.
 - Core dashboard/report queries must exclude Water-owned records unless an explicit segmented report opts in.
 - Water endpoints retain backend-authoritative role, permission, organisation and webhook enforcement.
-- The core `manager` role does not inherit Water access. Water access is limited to
-  the dedicated Water role and deliberate owner/admin wildcard roles; route checks
-  require `water:read` or `water:write` as appropriate.
+- Owners can access Water only within their own organisation; REEBS Admin access
+  follows the platform's existing admin scope. Existing explicitly permitted
+  Water users retain their Water permissions. Both the standalone app and its
+  backend enforce access; tenant scope is not bypassed.
 - Water data must not be copied into a generic analytics total to simplify frontend presentation.
 - New Water sales retain `unitCostAtSaleCents`. Ordinary commercial
   configuration and Water selling-price changes preserve that cost snapshot and
@@ -51,13 +64,14 @@ REEBS core owns rental/event/shop operations and their ordinary dashboards, repo
   leaves profitability unavailable; dashboard reads do not infer costs or use a
   compatibility price. New sales resolve a cost from an eligible restock for the
   same organisation and product, and fail closed if none exists.
-- When a new or explicitly repriced Water sale uses today's date-only UI value,
-  its effective Water price and discount resolve at the current server
-  transaction timestamp. This honours a same-day rule saved after midnight
-  without changing the persisted Water sale business date or its restock-cost
-  date.
-  Explicit non-midnight timestamps and earlier/backdated or other dates retain
-  their supplied effective time.
+- Water products keep current `retailPrice`, `companyPrice` and `bulkPrice`
+  values in `waterProductConfig`; restock purchase cost remains separate.
+  Existing sale-channel and bulk-threshold rules choose among those current
+  values; transaction date does not select a price. A price change records
+  `waterPriceChange` audit entries and never activates a future value.
+- Water sale rows retain the applied standard selling price and cost snapshots.
+  Editing current product prices does not rewrite those historical sale
+  snapshots.
 - Creating a restock (including a backdated insertion), changing an existing
   restock's cost/date, or deleting a restock can change historical cost basis.
   Each action invokes the same restatement inside its transaction: it
@@ -107,17 +121,16 @@ Water scope fields. It is intentionally not exposed through the initial public
 The public `GET /api/v1/commercial-config/public` endpoint returns Core booking
 and payment terms only. The public `POST /api/v1/checkout/quote` endpoint quotes
 ordinary Core shop products and delivery only. Neither endpoint exposes or
-authorises Water prices, discounts, customers, stock, costs or sales. Effective
-Water selling prices remain in `WaterProductPrice`, are read through
-Water-authorised operational/settings surfaces, and are snapshotted on a Water
-sale.
+authorises Water prices, discounts, customers, stock, costs or sales. Current
+Water selling prices are stored in `waterProductConfig`, served only through
+Water-authorized operational surfaces, and snapshotted on a Water sale.
 
 Public `/api/v1/checkout/orders` requires the current valid quote fingerprint;
 it rejects a missing, malformed or stale fingerprint and re-resolves shop
 prices/fees before creating the Order. Both the quote and Order paths reject a
 Product classified as Water. Core invoice create/update likewise rejects linked
 Products whose source category is `WATER` or whose identity is explicitly
-linked from `WaterProductPrice`. Water billing must remain in a Water-specific
+linked from `waterProductConfig`. Water billing must remain in a Water-specific
 workflow; free-text names are not used as a substitute classifier.
 
 ## Implemented combined reporting

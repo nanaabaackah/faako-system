@@ -30,9 +30,9 @@ import { loadMarketingPage } from "../modules/marketing";
 import { loadDocumentsPage } from "../modules/documents";
 import { loadAuditPage } from "../modules/audit";
 import { loadAnalyticsPage } from "../modules/analytics";
-import { loadWaterPage } from "../modules/water";
 import { loadSettingsPage } from "../modules/settings";
 import { loadVendorsPage } from "../modules/vendors";
+import { WATER_APP_URL } from "../config/appUrls.js";
 
 const Login = lazy(loadLoginPage);
 const ResetPassword = lazy(loadResetPasswordPage);
@@ -63,12 +63,10 @@ const Marketing = lazy(loadMarketingPage);
 const Documents = lazy(loadDocumentsPage);
 const Audit = lazy(loadAuditPage);
 const Analytics = lazy(loadAnalyticsPage);
-const Water = lazy(loadWaterPage);
 const Settings = lazy(loadSettingsPage);
 const Vendors = lazy(loadVendorsPage);
 
-// Route metadata is the single source of truth for URL, domain, authentication,
-// and portal access classification. Water intentionally uses its own access class.
+// Route metadata is the single source of truth for URL, domain, and authentication.
 export const routeConfig = [
   { path: "/login", domain: "auth", component: Login, publicOnly: true },
   { path: "/reset-password", domain: "auth", component: ResetPassword },
@@ -104,7 +102,7 @@ export const routeConfig = [
   { path: "/admin/documents", domain: "documents", component: Documents, auth: true, access: "privileged" },
   { path: "/admin/audit-logs", domain: "audit", component: Audit, auth: true, access: "ownerAdmin" },
   { path: "/admin/reports", domain: "analytics", component: Analytics, auth: true, access: "ownerAdmin" },
-  { path: "/admin/water", domain: "water", component: Water, auth: true, access: "water" },
+  { path: "/admin/water", domain: "water", externalRedirect: WATER_APP_URL },
   { path: "/admin/profile", domain: "settings", component: Settings, props: { profileOnly: true }, auth: true },
   { path: "/admin/settings", domain: "settings", component: Settings, auth: true, accessPath: "/admin/settings" },
   { path: "/admin/website-template", domain: "settings", redirect: "/admin/settings?tab=advanced" },

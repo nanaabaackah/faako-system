@@ -11,7 +11,7 @@ import {
   readAdminPreferences,
   resolveAdminTheme,
   writeAdminPreferences,
-} from "../../utils/adminPreferences";
+} from "@faako/theme/adminPreferences";
 import { savePortalSettingsSection } from "../../utils/portalSettings";
 import {
   faBars,

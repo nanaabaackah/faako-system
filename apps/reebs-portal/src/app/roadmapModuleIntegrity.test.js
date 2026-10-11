@@ -45,14 +45,6 @@ const modules = {
     ].join("\n"),
     styles: readPortalSource("../pages/AdminInvoicing/AdminInvoicing.css"),
   },
-  water: {
-    page: [
-      readPortalSource("../pages/AdminWater/AdminWater.jsx"),
-      readPortalSource("../pages/AdminWater/components/WaterKpiGrid.jsx"),
-      readPortalSource("../pages/AdminWater/components/WaterRestockCard.jsx"),
-    ].join("\n"),
-    styles: readPortalSource("../pages/AdminWater/AdminWater.css"),
-  },
 };
 
 test("roadmap registers retain pagination and their compact-screen layouts", () => {
@@ -72,7 +64,6 @@ test("roadmap registers retain pagination and their compact-screen layouts", () 
   assert.match(modules.inventory.page, /MOBILE_VIEW_QUERY\s*=\s*"\(max-width:\s*720px\)"/);
   assert.match(modules.payments.styles, /\.payments-results td::before\s*{[\s\S]*attr\(data-label\)/);
   assert.match(modules.invoicing.styles, /\.invoice-hub-mobile-list\s*{[\s\S]*display:\s*grid/);
-  assert.match(modules.water.styles, /\.water-module-table--orders tbody tr,[\s\S]*display:\s*grid/);
 });
 
 test("payments retains the Faako register structure and requested source column", () => {
@@ -104,13 +95,7 @@ test("dashboard and Water retain the standalone business boundary", () => {
   assert.match(modules.dashboard.page, /bubble-card reebs-dashboard-summary-card/);
   assert.match(modules.dashboard.page, /className="glass-card/);
 
-  assert.match(modules.water.page, /update_restock/);
-  assert.match(modules.water.page, /unitCost/);
-  assert.match(modules.water.page, /Water revenue/);
-  assert.match(modules.water.page, /Water net profit/);
-  assert.match(modules.water.page, /Purchase cost per pack \(GHS\)/);
-  assert.match(modules.water.page, /aria-label="Purchase cost per pack"/);
-  assert.doesNotMatch(modules.water.page, /overrideReason/i);
+  assert.doesNotMatch(readPortalSource("./routeConfig.js"), /loadWaterPage|pages\/AdminWater/);
 });
 
 test("roadmap operational links remain represented in the completed modules", () => {

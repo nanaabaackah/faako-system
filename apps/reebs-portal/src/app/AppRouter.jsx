@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, useEffect } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "../components/AuthContext/AuthContext";
 import SiteLoader from "../components/SiteLoader/SiteLoader";
@@ -9,6 +9,7 @@ import {
   canAccessStandardPortalArea,
   canAccessWaterPortalArea,
   getPortalAccessFallbackPath,
+  getPortalEntryPath,
   normalizeAdminRole,
 } from "../utils/adminAccess";
 import { routeConfig } from "./routeConfig";
@@ -23,10 +24,27 @@ export function RouteFallback() {
   );
 }
 
+function ExternalRedirect({ to }) {
+  useEffect(() => {
+    window.location.replace(to);
+  }, [to]);
+  return <RouteFallback />;
+}
+
+const entryRedirect = (path) => (
+  /^https?:\/\//i.test(path)
+    ? <ExternalRedirect to={path} />
+    : <Navigate to={path} replace />
+);
+
 function PublicOnly({ children }) {
   const { user, authReady } = useAuth();
   if (!authReady) return <RouteFallback />;
-  return user ? <Navigate to="/admin" replace /> : children;
+  const entryPath = getPortalEntryPath(
+    typeof window === "undefined" ? "" : window.location.hostname,
+    user?.role
+  );
+  return user ? entryRedirect(entryPath) : children;
 }
 
 function RequireAuth({ children }) {
@@ -50,20 +68,24 @@ function RequirePortalAccess({ children, access = "standard", path = "" }) {
           ? canAccessWaterPortalArea(role)
           : canAccessStandardPortalArea(role);
 
-  return canAccess
-    ? children
-    : <Navigate to={getPortalAccessFallbackPath(role)} replace />;
+  if (canAccess) return children;
+  return entryRedirect(getPortalAccessFallbackPath(role));
 }
 
 function DefaultRedirect() {
   const { user, authReady } = useAuth();
   if (!authReady) return <RouteFallback />;
-  return <Navigate to={user ? "/admin" : "/login"} replace />;
+  const entryPath = getPortalEntryPath(
+    typeof window === "undefined" ? "" : window.location.hostname,
+    user?.role
+  );
+  return user ? entryRedirect(entryPath) : <Navigate to="/login" replace />;
 }
 
 const renderRouteElement = (route) => {
+  if (route.externalRedirect) return <ExternalRedirect to={route.externalRedirect} />;
   if (route.redirect) {
-    return <Navigate to={route.redirect} replace />;
+    return entryRedirect(route.redirect);
   }
 
   let element = createElement(route.component, route.props || {});
