@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
         "@faako/ui": fileURLToPath(new URL("../../packages/ui/src", import.meta.url)),
         "@faako/utils": fileURLToPath(new URL("../../packages/utils/src", import.meta.url)),
       },
-      dedupe: ["react", "react-dom"],
+      dedupe: ["react", "react-dom", "react-router-dom"],
     },
     server: {
       proxy: {
