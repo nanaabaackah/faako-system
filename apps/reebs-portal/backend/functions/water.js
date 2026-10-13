@@ -1753,7 +1753,7 @@ export async function handler(event = {}) {
           organizationId,
           productKey: product.key,
           saleChannel,
-          includeDiscount: true,
+          includeDiscount: discountType !== "none",
         });
         await lockWaterInventory(client, organizationId, product.key);
         const [standardPriceRecord, maximumDiscountBps, lockedUnitCostAtSaleCents] =
@@ -1765,12 +1765,14 @@ export async function handler(event = {}) {
               quantity,
               forUpdate: true,
             }),
-            resolveCommercialValue(client, {
-              organizationId,
-              businessUnit: COMMERCIAL_BUSINESS_UNITS.WATER,
-              key: COMMERCIAL_CONFIG_KEYS.WATER_DISCOUNT_LIMIT_BPS,
-              at: commercialAt,
-            }),
+            discountType !== "none"
+            ? resolveCommercialValue(client, {
+                organizationId,
+                businessUnit: COMMERCIAL_BUSINESS_UNITS.WATER,
+                key: COMMERCIAL_CONFIG_KEYS.WATER_DISCOUNT_LIMIT_BPS,
+                at: commercialAt,
+              })
+            : Promise.resolve(null),
             resolveWaterUnitCostAtSale(client, organizationId, date, product.key),
           ]);
         const priceDecision = resolveWaterPriceDecision({
