@@ -31,7 +31,6 @@ import {
   getRuleInputBounds,
   toDateInputValue,
 } from "./commercialSettings";
-import WaterPricePeriodFields, { WaterPriceHistoricalNotice } from "./WaterPricePeriodFields";
 import {
   DEFAULT_DOCUMENT_IDENTITY,
   cacheDocumentIdentity,
@@ -196,7 +195,6 @@ function AdminSettings({ profileOnly = false }) {
   const [portalSettingsError, setPortalSettingsError] = useState("");
   const [canManageDocumentIdentity, setCanManageDocumentIdentity] = useState(false);
   const [commercialSchedule, setCommercialSchedule] = useState(null);
-  const [waterScheduleView, setWaterScheduleView] = useState("schedule");
   const [commercialLoading, setCommercialLoading] = useState(false);
   const [commercialLoadError, setCommercialLoadError] = useState("");
   const [commercialSaveError, setCommercialSaveError] = useState("");
@@ -303,12 +301,6 @@ function AdminSettings({ profileOnly = false }) {
       if (!response.ok) {
         throw new Error(data?.error || "Failed to load the shared commercial schedule.");
       }
-      if (canViewWaterPriceSchedule && waterScheduleView !== "schedule") {
-        const waterResponse = await fetch(`${COMMERCIAL_CONFIG_ENDPOINT}?businessUnit=WATER&view=${waterScheduleView}`);
-        const waterData = await waterResponse.json().catch(() => ({}));
-        if (!waterResponse.ok) throw new Error(waterData?.error || "Failed to load Water price history.");
-        data.waterPrices = waterData.waterPrices;
-      }
       setCommercialSchedule(data);
       hydrateCommercialDrafts(data);
     } catch (error) {
@@ -316,7 +308,7 @@ function AdminSettings({ profileOnly = false }) {
     } finally {
       setCommercialLoading(false);
     }
-  }, [canViewCommercialSchedule, canViewWaterPriceSchedule, hydrateCommercialDrafts, waterScheduleView]);
+  }, [canViewCommercialSchedule, hydrateCommercialDrafts]);
 
   useEffect(() => {
     if (activeTab !== "config") return;

@@ -1,6 +1,6 @@
 # Travel With Ease
 ## Solution Architecture, Product Scope & Implementation Roadmap
-**Version:** 1.0 | **Date:** October 2026 | **Prepared by:** Faako  
+**Version:** 1.0 | **Date:** October 2026 | **Prepared by:** Faako\
 **Status:** Proposed implementation baseline; client scope and legal terms subject to approval.
 
 ## 1. Executive summary

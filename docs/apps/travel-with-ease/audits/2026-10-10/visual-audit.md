@@ -1,8 +1,8 @@
 # Travel With Ease visual implementation audit
 
-Date: 2026-10-10  
-Mode: combined UX, visual design and screenshot-supported accessibility audit  
-Baseline: [`Travel_With_Ease_Solution_Roadmap.md`](../../Travel_With_Ease_Solution_Roadmap.md)  
+Date: 2026-10-10\
+Mode: combined UX, visual design and screenshot-supported accessibility audit\
+Baseline: [`Travel_With_Ease_Solution_Roadmap.md`](../../Travel_With_Ease_Solution_Roadmap.md)\
 Scope: current public Astro website and estimator entry flow; portal styling was inspected in code but not included in the public-site screenshot flow.
 
 This is the retained 2026-10-10 evidence snapshot, not a new audit. The

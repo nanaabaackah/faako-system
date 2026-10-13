@@ -1,7 +1,7 @@
 # Travel With Ease design and engineering standard
 
-Status: Governing standards aligned; specific design, scope and release approvals remain open  
-Date: 2026-10-10; aligned 2026-10-11  
+Status: Governing standards aligned; specific design, scope and release approvals remain open\
+Date: 2026-10-10; aligned 2026-10-11\
 Product baseline: [`Travel_With_Ease_Solution_Roadmap.md`](./Travel_With_Ease_Solution_Roadmap.md)
 
 This standard governs the public website, React administration portal and Express API. It complements the system architecture and security controls; it does not change their boundaries or authorize implementation, deployment or deferred product scope. The existing visual audit and evidence remain in [`audits/2026-10-10/visual-audit.md`](./audits/2026-10-10/visual-audit.md). The October product baseline remains subject to client scope/legal approval.
