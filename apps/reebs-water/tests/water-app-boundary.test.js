@@ -5,6 +5,15 @@ import test from "node:test";
 const readWaterSource = (path) =>
   readFileSync(new URL(path, import.meta.url), "utf8");
 
+test("the Water API example is an absolute HTTPS origin, not a relative hostname", () => {
+  const example = readWaterSource("../.env.example");
+  const value = example.match(/^VITE_API_BASE_URL=(.*)$/m)?.[1].trim();
+  assert.ok(value);
+  const origin = new URL(value);
+  assert.equal(origin.protocol, "https:");
+  assert.equal(origin.origin, value);
+});
+
 test("Water shares the REEBS sidebar styling, not Portal business code", () => {
   const navigation = readWaterSource("../src/components/WaterNavigation.jsx");
   assert.match(navigation, /portal-sidebar__panel/);

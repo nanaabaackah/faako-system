@@ -124,3 +124,37 @@ PR creation/merge is a manual follow-up, not part of the branch-only push.
 Real PostgreSQL RLS, locking, concurrent requests, rollback and migration history;
 provider callbacks/reversals; actual DNS, CORS and cookie behavior; legacy financial
 reconciliation. Local mocked checks do not certify production readiness.
+
+## Staging relocation follow-up — 2026-10-13
+
+The operator reported moving Railway staging to a new space with a **new
+database**. Unchanged public hostnames do not transfer accounts, sessions or
+business records into a new database. The current login response has not yet
+been supplied, so a missing account is a hypothesis, not a confirmed diagnosis.
+
+- Verify the staging API custom domain targets the new service and that
+  `/live` and `/ready` succeed before attempting account setup.
+- In Railway, verify `DATABASE_URL` references the intended staging Postgres,
+  never production. Review schema/migration and public-organization setup before
+  account creation. Do not reset, seed or import production as a login workaround.
+  `PUBLIC_ORGANIZATION_ID` (or `REEBS_PUBLIC_ORGANIZATION_ID`) must resolve to an
+  existing organization in this new database; bootstrap does not create it.
+- Verify `APP_ENV`, `NODE_ENV`, `USER_APP_SECRET` and `CORS_ORIGINS_STAGING`
+  are configured for the new staging service. Retain exact Portal/Water origins
+  and the existing cookie isolation; do not copy production secrets.
+- If the configured organization has no users, use the **Portal** login page's
+  “Create first administrator” flow, not the Water login page. It requires
+  `REEBS_ADMIN_BOOTSTRAP_ENABLED` and `REEBS_ADMIN_BOOTSTRAP_SECRET`; follow
+  [the staging setup instructions](../../../apps/reebs-portal/docs/STAGING.md).
+  Use a unique setup secret of at least 32 characters, then remove it and disable
+  bootstrap after creating the administrator. Create subsequent Water accounts
+  through the existing authorized invitation flow.
+- `VITE_API_BASE_URL` must be an absolute HTTPS API origin with no `/api` suffix.
+  The Water example now includes the required scheme. `.env.example` is not
+  loaded by Vite and does not configure Cloudflare; set the build variable in
+  the applicable Pages environment and rebuild if its value changed.
+- `VITE_WATER_APP_URL` belongs to the Portal build and controls only its Water
+  navigation link. It does not fix login or create database accounts.
+
+No live database, deployment configuration or credentials were accessed for this
+follow-up. The dashboard copy removal does not change Water/Core data scoping.

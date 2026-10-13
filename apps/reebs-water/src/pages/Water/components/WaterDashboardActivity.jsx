@@ -21,7 +21,6 @@ export default function WaterDashboardActivity({ sales, summary, product, format
           <div><dt>Packs sold</dt><dd>{summary.unitsSold}</dd></div>
           <div><dt>Stock corrections</dt><dd>{summary.adjustmentUnits}</dd></div>
         </dl>
-        <p className="water-module-inline-note">Water only. Rental and event stock are not included.</p>
       </article>
     </section>
   );
