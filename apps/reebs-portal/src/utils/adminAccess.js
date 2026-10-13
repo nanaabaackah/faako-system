@@ -71,6 +71,13 @@ const normalizeAdminPath = (path) => {
   return trimmed || "/admin";
 };
 
+const getPortalEntryPath = (hostname = "", role = "") => {
+  if (isWaterPortalRole(role)) return WATER_APP_URL;
+  return String(hostname || "").trim().toLowerCase() === "water.reebspartythemes.com"
+    ? WATER_APP_URL
+    : "/admin";
+};
+
 const canAccessPortalRoute = (role, path = "") => {
   const normalizedPath = normalizeAdminPath(path);
 
@@ -85,7 +92,7 @@ const canAccessPortalRoute = (role, path = "") => {
   }
 
   if (normalizedPath === "/admin/settings") {
-    return canAccessWaterPortalArea(role);
+    return canAccessPrivilegedPortalArea(role) || isWaterPortalRole(role);
   }
 
   if (
@@ -171,7 +178,7 @@ const canAccessPortalNavigationItem = (role, item = {}) => {
 };
 
 const getPortalAccessFallbackPath = (role) => {
-  if (isWaterPortalRole(role)) return "/admin/water";
+  if (isWaterPortalRole(role)) return WATER_APP_URL;
   if (isDriverPortalRole(role)) return "/admin/bookings";
   if (canAccessStandardPortalArea(role)) return "/admin";
   return "/admin/profile";
@@ -198,9 +205,11 @@ export {
   canAccessStandardPortalArea,
   canAccessWaterPortalArea,
   getPortalAccessFallbackPath,
+  getPortalEntryPath,
   isDriverPortalRole,
   isWaterPortalRole,
   normalizeAdminRole,
   normalizeAdminPath,
   roleMatchesAllowedRoles,
 };
+import { WATER_APP_URL } from "../config/appUrls.js";

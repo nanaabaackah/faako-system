@@ -14,7 +14,7 @@ test("Travel With Ease apps declare valid security profiles and local-only origi
     }
   }
   assert.equal(api.security.profileId, "api-service");
-  assert.equal(portal.security.authMode, "bearer");
+  assert.equal(portal.security.authMode, "cookie");
   assert.equal(web.security.authMode, "none");
 });
 

@@ -1,5 +1,9 @@
 # Water historical pricing — handoff and manual Git flow
 
+> Historical handoff, superseded on 2026-10-07. Scheduled pricing has since
+> been removed in favor of current product prices and informational audit
+> history. Do not use the implementation steps below as current instructions.
+
 ## Scope and findings
 
 The Settings payload builder and commercial configuration API rejected past dates

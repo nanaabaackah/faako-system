@@ -41,6 +41,8 @@ model Organization {
   waterExpenses   WaterExpense[]
   waterAdjustments WaterAdjustment[]
   waterProductConfigs WaterProductConfig[]
+  waterPriceChanges WaterPriceChange[]
+  waterMutations WaterMutation[]
   accountingConfig AccountingConfig?
   websiteContents WebsiteContent[]
   accountingManualSales AccountingManualSales[]
@@ -897,6 +899,12 @@ model WaterRestock {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?    @db.Timestamptz
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterRestock")
 }
@@ -908,9 +916,9 @@ model WaterProductConfig {
   productKey          String
   productName         String
   inventoryProductId  Int?
-  retailSinglePrice   Int?
-  retailBulkPrice     Int?
+  retailPrice         Int?
   companyPrice        Int?
+  bulkPrice           Int?
   bulkThreshold       Int          @default(10)
   costPrice           Int?
   isActive            Boolean      @default(true)
@@ -922,6 +930,25 @@ model WaterProductConfig {
   @@unique([organizationId, productKey])
   @@index([organizationId, isActive])
   @@map("waterProductConfig")
+}
+
+model WaterPriceChange {
+  id                  Int      @id @default(autoincrement())
+  organizationId      Int
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  productId           Int?
+  productKey          String
+  priceType           String
+  previousPriceCents  Int?
+  newPriceCents       Int
+  changedAt           DateTime @default(now())
+  changedByUserId     Int?
+  changedByName       String?
+  source              String
+
+  @@index([organizationId, productKey, changedAt])
+  @@index([organizationId, productId, changedAt])
+  @@map("waterPriceChange")
 }
 
 model WaterSale {
@@ -941,6 +968,10 @@ model WaterSale {
   discountAmount  Int          @default(0)
   baseUnitPrice   Int?
   unitPrice       Int
+  standardUnitPrice Int?
+  unitCostAtSaleCents Int?
+  priceOverriddenByUserId Int?
+  priceOverriddenAt DateTime?
   unitCostAtTransaction Int?
   priceOverrideReason String?
   priceOverrideActorId Int?
@@ -954,6 +985,12 @@ model WaterSale {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterSale")
 }
@@ -971,6 +1008,12 @@ model WaterExpense {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterExpense")
 }
@@ -988,8 +1031,28 @@ model WaterAdjustment {
   createdByUserId Int?
   createdByName   String?
   createdAt       DateTime     @default(now())
+  updatedAt       DateTime?    @db.Timestamptz
+  updatedByUserId Int?
+  updatedByName   String?
+  archivedAt      DateTime?    @db.Timestamptz
+  archivedByUserId Int?
+  archivedByName  String?
 
   @@map("waterAdjustment")
+}
+
+model WaterMutation {
+  id BigInt @id @default(autoincrement())
+  organizationId Int
+  organization Organization @relation(fields: [organizationId], references: [id])
+  productKey String
+  actorId Int
+  idempotencyKey String
+  requestFingerprint String
+  action String
+  createdAt DateTime @default(now()) @db.Timestamptz
+  @@unique([organizationId, idempotencyKey])
+  @@map("waterMutation")
 }
 
 model Booking {

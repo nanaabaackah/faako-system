@@ -1,0 +1,18 @@
+export {
+  Add as faPlus,
+  ArrowLeft2 as faChevronLeft,
+  ArrowRight2 as faChevronRight,
+  Box as faBoxArchive,
+  Chart1 as faChartLine,
+  Clock as faClock,
+  CloseSquare as faXmark,
+  MoneyTick as faMoneyCheckDollar,
+  Minus as faMinus,
+  Receipt as faReceipt,
+  Refresh as faRotateRight,
+  Save2 as faFloppyDisk,
+  SearchNormal1 as faSearch,
+  TickCircle as faCircleCheck,
+  Trash as faTrash,
+  Box as faBoxesStacked,
+} from "iconsax-react";

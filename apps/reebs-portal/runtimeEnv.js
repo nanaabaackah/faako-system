@@ -32,15 +32,17 @@ const loadEnvironmentConfig = () => {
 
   // Railway staging and production receive configuration from the platform.
   // Local dotenv files are development-only and never supplement a deployed runtime.
+  // In a developer checkout, .env.development must be able to override the default
+  // production values in .env so browser-based local origins remain allowed.
   if (initialEnvironment === "development" && !skipEnvironmentFiles) {
-    const baseEnvironment = dotenv.config();
-    if (baseEnvironment.error && baseEnvironment.error.code !== "ENOENT") {
-      throw baseEnvironment.error;
+    const loadedDevelopmentFile = dotenv.config({ path: ".env.development", override: true });
+    if (loadedDevelopmentFile.error && loadedDevelopmentFile.error.code !== "ENOENT") {
+      throw loadedDevelopmentFile.error;
     }
 
-    const loadedFile = dotenv.config({ path: ".env.development", override: false });
-    if (loadedFile.error && loadedFile.error.code !== "ENOENT") {
-      throw loadedFile.error;
+    const baseEnvironment = dotenv.config({ override: false });
+    if (baseEnvironment.error && baseEnvironment.error.code !== "ENOENT") {
+      throw baseEnvironment.error;
     }
   }
 

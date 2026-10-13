@@ -1,0 +1,87 @@
+import { Router } from "express";
+import { randomBytes, createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { createErrorResponse, createSuccessResponse } from "@faako/api-contracts";
+
+const hash = (value) => createHash("sha256").update(value).digest("hex");
+const csrfFor = (token) => createHmac("sha256", token).update("twe-csrf-v1").digest("base64url");
+const newToken = () => randomBytes(32).toString("base64url");
+const tokenFrom = (req, name) => {
+  const matches = String(req.headers.cookie || "").split(";").map((value) => value.trim()).filter((value) => value.startsWith(`${name}=`));
+  if (matches.length !== 1) return "";
+  const value = matches[0].slice(name.length + 1);
+  return /^[A-Za-z0-9_-]{43}$/.test(value) ? value : "";
+};
+const reject = (req, res, status, code, message) => res.status(status).json(createErrorResponse({ code, message }, { requestId: req.requestId }));
+
+export function createStaffAuth({ store, provider, settings, limiter, logger }) {
+  const router = Router();
+  const secure = settings?.secure ?? false;
+  const sessionName = secure ? "__Host-twe_session" : "twe_session";
+  const flowName = secure ? "__Host-twe_flow" : "twe_flow";
+  const cookie = { httpOnly: true, secure, sameSite: "lax", path: "/" };
+  const configured = Boolean(store && provider && settings);
+
+  async function requireStaff(req, res, next) {
+    const token = tokenFrom(req, sessionName);
+    if (!configured || !token) return reject(req, res, 401, "authentication_error", "Sign in to continue.");
+    const session = await store.getSession(hash(token));
+    if (!session || !["owner", "editor"].includes(session.role) || !(new Date(session.expires_at).getTime() > Date.now())) return reject(req, res, 401, "authentication_error", "Your session has expired. Sign in again.");
+    req.staff = { id: session.id, role: session.role, organisationId: store.organisationId };
+    req.staffSession = { hash: hash(token), csrf: csrfFor(token), csrfHash: session.csrf_hash, expiresAt: session.expires_at };
+    next();
+  }
+
+  function requireMutation(req, res, next) {
+    const supplied = req.get("X-CSRF-Token");
+    if (!req.staffSession || req.get("Origin") !== settings?.portalOrigin || typeof supplied !== "string" || supplied.length > 100 ||
+        !timingSafeEqual(Buffer.from(hash(supplied)), Buffer.from(req.staffSession.csrfHash))) {
+      return reject(req, res, 403, "permission_error", "Refresh your session before making changes.");
+    }
+    next();
+  }
+
+  function requireOwner(req, res, next) {
+    if (req.staff?.role !== "owner") return reject(req, res, 403, "permission_error", "Owner access is required.");
+    next();
+  }
+
+  router.get("/status", (req, res) => res.json(createSuccessResponse({ configured }, { requestId: req.requestId })));
+  router.get("/login", limiter, async (req, res) => {
+    if (!configured) return reject(req, res, 503, "service_unavailable", "Staff sign-in has not been configured.");
+    const flow = await provider.begin();
+    const token = newToken();
+    await store.saveFlow(hash(token), flow);
+    res.cookie(flowName, token, { ...cookie, maxAge: 300_000 });
+    res.redirect(303, flow.url);
+  });
+  router.get("/callback", limiter, async (req, res) => {
+    const token = tokenFrom(req, flowName);
+    res.clearCookie(flowName, cookie);
+    if (!configured || !token) return reject(req, res, 401, "authentication_error", "Sign-in could not be verified. Start again.");
+    try {
+      const flow = await store.consumeFlow(hash(token));
+      if (!flow) throw new Error("Expired or replayed sign-in");
+      const url = new URL(settings.callbackUrl);
+      // Never derive the callback origin from Host or forwarded headers.
+      url.search = new URL(req.originalUrl, settings.callbackUrl).search;
+      const identity = await provider.complete(url, flow);
+      const sessionToken = newToken();
+      const user = await store.createSession(identity, hash(sessionToken), hash(csrfFor(sessionToken)), req.requestId);
+      if (!user) throw new Error("Staff not provisioned");
+      const previous = tokenFrom(req, sessionName);
+      if (previous) await store.revoke(hash(previous), req.requestId);
+      res.cookie(sessionName, sessionToken, { ...cookie, maxAge: 3_600_000 });
+      return res.redirect(303, settings.portalOrigin);
+    } catch {
+      logger?.warn({ eventName: "auth.denied", requestId: req.requestId }, "Staff sign-in denied");
+      return reject(req, res, 401, "authentication_error", "Sign-in could not be verified. Start again.");
+    }
+  });
+  router.get("/session", requireStaff, (req, res) => res.json(createSuccessResponse({ user: req.staff, csrfToken: req.staffSession.csrf, expiresAt: req.staffSession.expiresAt }, { requestId: req.requestId })));
+  router.post("/logout", requireStaff, requireMutation, async (req, res) => {
+    await store.revoke(req.staffSession.hash, req.requestId);
+    res.clearCookie(sessionName, cookie);
+    res.json(createSuccessResponse({ signedOut: true }, { requestId: req.requestId }));
+  });
+  return { router, requireStaff, requireMutation, requireOwner };
+}

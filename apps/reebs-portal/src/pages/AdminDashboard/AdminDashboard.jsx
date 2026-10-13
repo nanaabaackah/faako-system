@@ -7,6 +7,7 @@ import DashboardCollections from "./DashboardCollections";
 import DashboardActivity from "./DashboardActivity";
 import DashboardSkeleton from "./DashboardSkeleton";
 import AdminPageHeader from "../../components/AdminPageHeader/AdminPageHeader";
+import { WATER_APP_URL } from "../../config/appUrls.js";
 import AppIcon from "../../components/Icon/Icon";
 import {
   faBell,
@@ -268,7 +269,7 @@ function AdminDashboard() {
 
         <aside className="reebs-dashboard-water-boundary" aria-label="Water business boundary">
           <div><AppIcon icon={faStore} size={22} /><div><strong>Water remains separate</strong><span>No Water sales, revenue, costs, customers or profit are included above.</span></div></div>
-          {permissions.canReadWater && <PortalAction to="/admin/water" action="open" icon={faExternalLinkAlt} label="Open Water Business" />}
+          {permissions.canReadWater && <PortalAction href={WATER_APP_URL} action="open" icon={faExternalLinkAlt} label="Open Water Business" />}
         </aside>
         <details className="glass-card reebs-dashboard-service-details" onToggle={(event) => setHealthVisible(event.currentTarget.open)}>
           <summary><span className="reebs-dashboard-health-toggle-copy"><AppIcon icon={faCloudArrowUp} size={20} aria-hidden="true" /><span>System health</span></span><AppIcon className="reebs-dashboard-health-chevron" icon={faChevronDown} size={20} aria-hidden="true" /></summary>

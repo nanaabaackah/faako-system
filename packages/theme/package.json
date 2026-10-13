@@ -12,6 +12,7 @@
   },
   "exports": {
     ".": "./src/index.ts",
+    "./adminPreferences": "./src/adminPreferences.js",
     "./erp-shell.css": "./src/erp-shell.css",
     "./system.css": "./src/system.css"
   }

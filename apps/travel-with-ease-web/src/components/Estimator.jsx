@@ -17,7 +17,8 @@ export default function Estimator() {
   const calculate = async () => {
     setStatus({ state: "loading", message: "Calculating with the latest available rate…" });
     try {
-      const data = await api.post("/api/public/estimate", { json: trip, fallbackMessage: "We could not calculate an estimate." });
+      const data = await api.post("/api/public/estimate", { json: trip, responseMode: "data", fallbackMessage: "We could not calculate an estimate." });
+      if (!data || !/^\d+$/.test(String(data.lowMinor)) || !/^\d+$/.test(String(data.highMinor))) throw new Error("The estimate response was incomplete. Please try again.");
       setEstimate(data);
       setStatus({ state: "ready", message: data.stale ? "Using the most recent cached rate." : `Rate updated ${new Date(data.rateTimestamp).toLocaleString("en-GH")}.` });
     } catch (error) { setStatus({ state: "error", message: error.message }); }
@@ -27,8 +28,13 @@ export default function Estimator() {
     event.preventDefault();
     setStatus({ state: "loading", message: "Sending your trip plan…" });
     try {
-      const data = await api.post("/api/public/inquiries", { json: { ...trip, ...contact, estimateLowMinor: estimate?.lowMinor, estimateHighMinor: estimate?.highMinor }, fallbackMessage: "We could not send your inquiry." });
-      setStatus({ state: "success", message: `Your plan is in. Reference ${data.inquiryId.slice(0, 8).toUpperCase()}. We’ll be in touch.` });
+      const data = await api.post("/api/public/inquiries", { json: { ...trip, ...contact, estimateLowMinor: estimate?.lowMinor, estimateHighMinor: estimate?.highMinor }, responseMode: "data", fallbackMessage: "We could not send your inquiry." });
+      if (data?.received === true) {
+        setStatus({ state: "success", message: "Your plan has been received." });
+      } else {
+        if (typeof data?.inquiryId !== "string" || !data.inquiryId) throw new Error("We could not confirm your inquiry. Please try again.");
+        setStatus({ state: "success", message: `Your plan is in. Reference ${data.inquiryId.slice(0, 8).toUpperCase()}. We’ll be in touch.` });
+      }
     } catch (error) { setStatus({ state: "error", message: error.message }); }
   };
 

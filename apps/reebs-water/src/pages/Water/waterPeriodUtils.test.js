@@ -1,0 +1,44 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { buildRestockPeriods, filterEntriesByRestockPeriod } from "./waterPeriodUtils.js";
+
+test("filters sales to the current stock window using the latest restock boundary", () => {
+  const restocks = [
+    { id: 1, quantity: 10, date: "2024-01-01" },
+    { id: 2, quantity: 20, date: "2024-01-05" },
+  ];
+  const sales = [
+    { id: 100, quantity: 2, date: "2024-01-02" },
+    { id: 101, quantity: 3, date: "2024-01-05" },
+    { id: 102, quantity: 4, date: "2024-01-06" },
+  ];
+
+  const periods = buildRestockPeriods(restocks);
+  const currentPeriod = periods.find((period) => period.isCurrent);
+
+  assert.ok(currentPeriod, "expected a current restock period");
+  assert.deepEqual(
+    filterEntriesByRestockPeriod(sales, currentPeriod).map((sale) => sale.id),
+    [101, 102],
+    "the current window should include entries from the latest restock onward"
+  );
+});
+
+test("water API requests include the cross-origin session cookie", () => {
+  const source = readFileSync(new URL("./AdminWater.jsx", import.meta.url), "utf8");
+  const apiClientSource = readFileSync(new URL("../../api/client.js", import.meta.url), "utf8");
+  const sharedRequests = source.match(/reebsApiResponse\(/g) || [];
+
+  assert.equal(source.includes('credentials: "same-origin"'), false);
+  // Dashboard, vendors, customers and inline customer creation use the client
+  // directly; ledger mutations now use the durable-key command adapter.
+  assert.equal(sharedRequests.length, 4);
+  const commands = readFileSync(new URL("../../api/waterCommands.js", import.meta.url), "utf8");
+  assert.match(source, /postWaterCommand\(/);
+  assert.match(commands, /import \{ reebsApiResponse \} from "\.\/client.js"/);
+  assert.match(commands, /reebsApiResponse\("\/api\/water"/);
+  assert.doesNotMatch(commands, /\bfetch\(|credentials:/);
+  assert.doesNotMatch(source, /\bfetch\(/);
+  assert.match(apiClientSource, /credentials:\s*["']include["']/);
+});

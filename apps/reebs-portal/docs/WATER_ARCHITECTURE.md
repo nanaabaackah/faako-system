@@ -8,10 +8,11 @@ Water sales, revenue, costs, customers, margin, profitability, inventory movemen
 
 ## Current boundary
 
-- Frontend entry point: `src/modules/water/index.js`
-- Existing UI implementation: `src/pages/AdminWater`
-- Route: `/admin/water`
-- Access class: `water`, evaluated separately by `canAccessWaterPortalArea`
+- Frontend application: `apps/reebs-water`
+- Frontend entry point: `apps/reebs-water/src/pages/Water/AdminWater.jsx`
+- Standalone URL: `https://water.reebspartythemes.com`
+- Portal compatibility route: `/admin/water` redirects to the standalone app
+- Authentication provider: shared `@faako/auth` cookie-session provider
 - Backend module: `backend/modules/water`
 - Compatibility handlers: `/api/water` and `/api/water-momo-webhook`
 - Database schema: existing Water-prefixed models and fields in `prisma/schema.prisma`
@@ -31,6 +32,13 @@ The backend registry marks Water with `standaloneBusinessDomain: true` and `incl
 
 Frontend access checks are not authoritative. Water handlers must continue to validate the authenticated principal, organisation scope, required Water permissions, webhook authenticity, and input at the backend boundary. Client-supplied organisation identifiers must be verified against the authenticated session.
 
+Water app access includes Owners, REEBS Admins, existing Managers, and dedicated
+Water users. Managers are read-only; Water handlers enforce their required
+permission separately from the route role. Owners and REEBS Admins remain scoped
+to their authenticated organisation unless the existing platform-level
+administrator rules explicitly authorize a different organisation. Water access
+does not itself grant cross-organisation access.
+
 Water credentials, payment keys, webhook secrets, and private customer data remain server-side and redacted from logs. Audit events retain the existing request ID.
 
 ## Dashboard capabilities and restock cost
@@ -42,7 +50,8 @@ frontend defaults missing capabilities to false. Omitting them hides the revenue
 and net-profit cards, financial breakdown, and cost inputs even from administrators.
 
 The owner confirmed on 2026-09-24 that Water-only staff handle sales, while only
-owners/admins manage stock and purchase costs. The API allows Water staff only the
+owners/admins manage stock and purchase costs. Managers can read the Water
+dashboard but cannot mutate Water data. The API allows Water staff only the
 `sale`, `update_sale`, and `delete_sale` mutations. Stock/restock, expense, adjustment
 and pricing writes return `WATER_ACTION_FORBIDDEN` before any Water-table mutation.
 Operational dashboard responses allowlist stock and sale fields, omit purchase
@@ -51,15 +60,20 @@ full private ledger is retained only for server-side validation and calculations
 
 Authorized users enter **Cost price per pack (GHS)** under **Pricing & Restock**.
 The `restock` action accepts `unitCost` in GHS and persists integer pesewas; the same
-cost can be corrected through the existing restock editor. Selling prices continue
-to use effective-dated Commercial Settings independently of this purchase cost.
+cost can be corrected through the existing restock editor. The product's current
+Retail, Company and Bulk selling prices are stored independently of purchase cost
+in `waterProductConfig`. Owners/admins edit them in the Water Pricing section or
+during a restock; restocks audit only changed selling prices with their source.
+Price history is informational and never selects the price for a sale. New sales
+use the current product prices, preserving the existing company-channel and
+bulk-threshold rules. Sale rows retain their own price snapshots.
 
 The page reads the API's `unitCostAtSaleCents` sale snapshot when calculating Water
 profit and accepts the legacy `unitCostAtTransaction` field for compatibility.
 Missing snapshots remain unavailable rather than being treated as zero cost.
 
-API and Portal now share `shared/waterFinancials.js` for cost completeness and
-calculation. No fallback purchase price is used for an empty ledger or missing
+The Water app and API share `@faako/water-domain` for product definitions,
+cost completeness and calculation. No fallback purchase price is used for an empty ledger or missing
 sale cost. The explicit correction workflow, not a dashboard read, is responsible
 for any persisted cost restatement. See the repository
 [release readiness checklist](../../../docs/apps/reebs/water-release-readiness.md)
@@ -90,7 +104,7 @@ reviewed data audit; this change neither reconstructs nor repairs past collectio
 
 ## Water product selection (2026-10-01)
 
-`shared/waterProducts.js` defines the existing `gwater-15pk` and the new
+`@faako/water-domain` defines the existing `gwater-15pk` and the new
 `sachet-water-30pk` (30pcs sachet water). One quantity unit is one whole pack,
 not an individual bottle or sachet. No purchase or selling price is invented.
 
@@ -107,17 +121,17 @@ inventory locks, price locks and cost snapshots are organisation/product scoped.
 The legacy inventory-name vendor matcher is not reused for the sachet product.
 
 Owners/admins can record sachet stock and its actual cost per pack immediately.
-Before sales, use Settings → Commercial → Add a Water price schedule, choose the
-30pcs sachet preset and configure effective retail, bulk-retail and company
-prices. Existing Water discount policy still applies. Missing prices block sales,
-not stock recording; prices from the 15-pack are never borrowed. Water-only staff
-retain sales access but cannot change stock, purchase costs or expenses.
+Set its current Retail, Company and Bulk prices in the Water Pricing section or
+alongside a restock. Existing Water discount policy still applies. Missing prices
+block sales, not stock recording; prices from the 15-pack are never borrowed.
+Water-only staff retain sales access but cannot change stock, purchase costs or
+expenses.
 
 Deploy migration `20260930190000_water_product_expense_scope` before the new API.
 It adds `waterExpense.productKey`, associating pre-existing single-product expenses
 with `gwater-15pk`. It does not delete records or alter quantities, amounts or
 payment facts. Existing sale/restock/adjustment tables already store product keys.
-No new price schedules or stock are seeded by this migration. All Water figures
+No new prices or stock are seeded by this migration. All Water figures
 remain excluded from Core REEBS rental/event metrics.
 
 Verify in isolated staging: restock each product at different costs, sell the
@@ -138,19 +152,17 @@ were used; no migration, seed, deployment or Git push was performed for this cha
 
 ## Missing-price failures and safe diagnostics — 2026-10-01
 
-The observed production response `MISSING_WATER_PRICE` identifies a missing
-effective retail selling-price candidate, not necessarily a database outage.
-The resolver matches authenticated organisation, selected product, sale quantity
-and effective timestamp. A future/expired schedule, wrong product key or minimum
-quantity above the sale quantity can all prevent a match. Restock purchase cost
-does not substitute for a selling-price schedule.
+The `MISSING_WATER_PRICE` response identifies one or more unconfigured current
+prices, not necessarily a database outage. The resolver reads the authenticated
+organisation's selected `waterProductConfig` row and applies the existing
+company-channel and bulk-threshold rules. Restock purchase cost does not
+substitute for a selling price.
 
-Owners/admins should review Settings → Commercial for the selected product's
-Retail, Bulk retail and Company schedules and the Water discount limit. Do not
-invent fallback amounts or copy a price from another product. Current-day sales
-use the current commercial timestamp for date-only input; historical dates remain
-historical. The Settings scheduler deliberately does not backdate prices: a
-historical correction needs separate review and must preserve existing snapshots.
+Owners/admins should review the selected product's current Retail, Company and
+Bulk prices in the Water Pricing section. Do not invent fallback amounts or
+copy a price from another product. Changing a current price does not rewrite
+existing sale snapshots. Historical changes are preserved as informational
+audit rows and never participate in price resolution.
 
 `backend/modules/water/actionErrors.js` permits only curated configuration/cost
 guidance to cross the HTTP adapter's 5xx-message boundary. Unknown failures remain
@@ -168,10 +180,10 @@ Confirm ledger state before manually repeating a failed creation request.
 ## Target module shape
 
 ```text
-src/modules/water/
-  index.js
-  pages/
-  components/
+apps/reebs-water/
+  src/pages/Water/
+  src/components/
+  src/auth/
   api/
   model/
 
@@ -187,14 +199,13 @@ Create these layers only as Water behavior is migrated; do not copy unrelated co
 
 ## Review checklist
 
-### Recorded price corrections (2026-10-02)
+### Current prices and audit history
 
-Owner/admin price-only corrections retain the sale's historical standard-price
-reference and cost snapshot; they no longer require re-resolving a missing old
-schedule. The unchanged calendar day also retains the original timestamp.
-Quantity, channel or actual date changes still require effective pricing. Water
-staff cannot correct prices. Dashboard pricing is now available per configured
-price type instead of hiding all rates when one is missing. See the
+Owner/admin price-only corrections retain the sale's recorded standard price
+and cost snapshot. Quantity or channel changes resolve against the product's
+current prices; the sale date does not select a selling price. Water staff cannot
+override prices. Dashboard pricing is available per configured price type
+instead of hiding all rates when one is missing. See the
 [implementation and validation notes](../../../docs/apps/reebs/portal-actions-water-invoice-followup.md).
 
 Any change touching Water and another domain must answer:

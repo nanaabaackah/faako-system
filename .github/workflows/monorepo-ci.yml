@@ -26,6 +26,7 @@ jobs:
       faako_public: ${{ steps.filter.outputs.faako_public }}
       reebs_public: ${{ steps.filter.outputs.reebs_public }}
       dev_erp: ${{ steps.filter.outputs.dev_erp }}
+      reebs_water: ${{ steps.filter.outputs.reebs_water }}
     steps:
       - uses: actions/checkout@v4
 
@@ -61,6 +62,13 @@ jobs:
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
               - 'turbo.json'
+            reebs_water:
+              - 'apps/reebs-water/**'
+              - 'apps/reebs-portal/**'
+              - 'packages/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/monorepo-ci.yml'
             dev_erp:
               - 'apps/dev-erp/**'
               - 'packages/**'
@@ -185,6 +193,35 @@ jobs:
           trap 'kill "$preview_pid"' EXIT
           for attempt in {1..30}; do curl --fail --silent http://127.0.0.1:4177/ >/dev/null && break; sleep 1; done
           REEBS_PREVIEW_URL=http://127.0.0.1:4177 pnpm --filter @faako/reebs-website run test:e2e
+
+  reebs-water-browser:
+    name: REEBS Water isolated browser regressions
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: needs.detect-changes.outputs.reebs_water == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies and Chromium
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @faako/reebs-water exec playwright install --with-deps chromium
+      - name: Run mocked Water browser suite (no deployed hosting required)
+        run: pnpm --filter @faako/reebs-water run test:e2e
+        env:
+          NODE_ENV: test
+          APP_ENV: development
+          REEBS_SKIP_ENV_FILES: 'true'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: reebs-water-browser-results
+          path: apps/reebs-water/test-results/
+          retention-days: 7
 
   dev-erp-browser:
     name: Dev ERP browser regressions

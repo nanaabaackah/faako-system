@@ -16,5 +16,8 @@ test("Water pending notifications may reach a terminal settlement state", () => 
 
 test("Water payment notifications advance the sale concurrency timestamp", () => {
   const source = readFileSync(new URL("./water-momo-webhook.js", import.meta.url), "utf8");
-  assert.match(source, /"paidAt" = \$6,\s*"updatedAt" = NOW\(\)/);
+  assert.match(source, /recordWaterCollection\(client/);
+  assert.match(source, /"updatedAt" = GREATEST\(clock_timestamp\(\)/);
+  const settlement = readFileSync(new URL("../modules/water/settlement.js", import.meta.url), "utf8");
+  assert.match(settlement, /"updatedAt" = GREATEST\(clock_timestamp\(\)/);
 });

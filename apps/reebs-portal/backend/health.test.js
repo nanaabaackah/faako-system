@@ -49,12 +49,12 @@ test("Water readiness reports configuration status without financial values", as
   assert.equal(payload.dependencies.water, "ready");
   assert.equal(JSON.stringify(payload).includes("costPrice"), false);
   assert.equal(JSON.stringify(payload).includes("retailSinglePrice"), false);
-  assert.match(sql, /FROM "waterProductPrice"/);
+  assert.match(sql, /FROM "waterProductConfig"/);
   assert.match(sql, /JOIN configured_prices prices ON prices\."organizationId" = rule\."organizationId"/);
-  assert.match(sql, /"effectiveFrom" <= NOW\(\)/);
-  assert.match(sql, /HAVING COUNT\(\*\) = 3/);
+  assert.match(sql, /"retailPrice" >= 0/);
+  assert.match(sql, /"bulkPrice" >= 0/);
+  assert.match(sql, /"companyPrice" >= 0/);
   assert.match(sql, /HAVING COUNT\(\*\) = 1/);
-  assert.equal(sql.includes('"waterProductConfig"'), false);
   assert.equal(sql.includes('"costPrice"'), false);
 });
 

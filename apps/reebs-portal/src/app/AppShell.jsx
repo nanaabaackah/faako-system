@@ -22,7 +22,7 @@ import {
   clearAppliedAdminPreferences,
   readAdminPreferences,
   writeAdminPreferences,
-} from "../utils/adminPreferences";
+} from "@faako/theme/adminPreferences";
 import { loadPortalSettings } from "../utils/portalSettings";
 import {
   GOOGLE_ANALYTICS_ENABLED,

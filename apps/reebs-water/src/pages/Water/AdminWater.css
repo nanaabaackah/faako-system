@@ -1,0 +1,2152 @@
+@import "../../styles/admin.css";
+
+
+.water-module-page {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: clamp(1rem, 2vw, 1.6rem);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.water-module-shell {
+  display: grid;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.water-dashboard-activity { order: 2; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1rem; }
+.water-module-kpi-stack .water-module-kpis--dashboard { grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); }
+.water-dashboard-panel { padding: 1.25rem; min-width: 0; }
+.water-dashboard-panel header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.water-dashboard-panel h2 { margin: 0; font-size: 1.15rem; }
+.water-dashboard-open { width: 44px; height: 44px; flex-shrink: 0; border: 1px solid var(--admin-border); border-radius: 999px; background: var(--sys-accent-soft); color: var(--sys-text); display: inline-flex; align-items: center; justify-content: center; }
+.water-dashboard-orders { list-style: none; margin: 1rem 0 0; padding: 0; }
+.water-dashboard-orders li, .water-dashboard-stock > div { display: flex; justify-content: space-between; gap: 1rem; padding: 0.8rem 0; border-bottom: 1px solid var(--admin-border); }
+.water-dashboard-orders li > div { min-width: 0; overflow-wrap: anywhere; }
+.water-dashboard-orders small { display: block; color: var(--admin-muted); margin-top: 0.25rem; }
+.water-dashboard-stock dd { margin: 0; font-weight: 700; }
+@media (max-width: 1100px) { .water-dashboard-activity { grid-template-columns: minmax(0, 1fr); } }
+
+.water-module-product-select {
+  width: 15rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.water-module-kpi,
+.water-module-card,
+.water-module-table-card,
+.water-module-network-card {
+  border: 1px solid var(--admin-border);
+  background: var(--card);
+  border-radius: 1.35rem;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+  min-width: 0;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 2rem 0;
+  flex-wrap: nowrap !important;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header > :last-child:not(:first-child) {
+  margin-left: 0;
+  flex: 0 0 auto;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  width: auto !important;
+  max-width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: 0;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions > * {
+  flex: 0 0 auto;
+}
+
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-refresh,
+body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-secondary {
+  width: auto;
+}
+
+@media (max-width: 900px) {
+  body.admin-theme .water-module-shell > .admin-header.water-module-header {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-copy {
+    justify-self: auto;
+    text-align: left;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > :last-child:not(:first-child) {
+    width: auto !important;
+    justify-self: auto !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions {
+    width: auto !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-refresh,
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-secondary {
+    width: auto !important;
+  }
+}
+
+.water-module-eyebrow,
+.water-module-card-eyebrow,
+.water-module-kpi-label {
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.water-module-shell > .admin-header h1,
+.water-module-hero h2,
+.water-module-card h3,
+.water-module-network-card h3 {
+  margin: 0.2rem 0 0;
+}
+
+.water-module-subtitle,
+.water-module-hero-copy p,
+.water-module-kpi span,
+.water-module-inline-note,
+.water-module-empty {
+  margin: 0.35rem 0 0;
+  color: var(--admin-muted);
+}
+
+.water-module-feedback {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid var(--admin-border);
+}
+
+.water-module-feedback--success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #065f46;
+}
+
+.water-module-feedback--error {
+  background: rgba(248, 113, 113, 0.14);
+  color: #991b1b;
+}
+
+.water-module-loading-copy {
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+  animation: water-module-loading-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes water-module-loading-pulse {
+  0%, 100% { opacity: 0.58; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .water-module-loading-copy {
+    animation: none;
+  }
+}
+
+.water-module-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
+  gap: 1rem;
+  padding: clamp(1.1rem, 2vw, 1.6rem);
+}
+
+.water-module-hero-copy {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.water-module-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.water-module-pill,
+.water-module-card-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(14, 116, 144, 0.2);
+  background: rgba(14, 116, 144, 0.1);
+  color: #0f766e;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.38rem 0.7rem;
+}
+
+.water-module-price-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.water-module-price-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(14, 116, 144, 0.16);
+  background: rgba(14, 116, 144, 0.08);
+  min-width: 0;
+}
+
+.water-module-price-card span {
+  color: var(--admin-muted);
+  font-size: 0.84rem;
+}
+
+.water-module-price-card strong {
+  font-size: clamp(1.1rem, 2vw, 1.35rem);
+}
+
+.water-module-price-history {
+  grid-column: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+
+.water-module-price-history > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 4.25rem;
+  padding: 0.75rem 1rem;
+  color: var(--admin-text);
+  cursor: pointer;
+  list-style: none;
+  transition: background-color 160ms ease;
+}
+
+.water-module-price-history > summary::-webkit-details-marker {
+  display: none;
+}
+
+.water-module-price-history > summary:hover {
+  background: rgba(14, 116, 144, 0.06);
+}
+
+.water-module-price-history > summary:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--sys-accent);
+  outline-offset: -3px;
+  border-radius: 1rem;
+}
+
+.water-module-price-history__icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.75rem;
+  background: rgba(14, 116, 144, 0.1);
+  color: #0f766e;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.water-module-price-history__summary-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.water-module-price-history__summary-copy strong {
+  font-size: 0.94rem;
+}
+
+.water-module-price-history__summary-copy small {
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.water-module-price-history__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.65rem;
+  height: 1.65rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: rgba(14, 116, 144, 0.1);
+  color: #0f766e;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.water-module-price-history__chevron {
+  flex: 0 0 0.55rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin: 0 0.2rem 0 0.1rem;
+  border-right: 2px solid var(--admin-muted);
+  border-bottom: 2px solid var(--admin-muted);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 160ms ease;
+}
+
+.water-module-price-history[open] > summary {
+  border-bottom: 1px solid var(--admin-border);
+  background: rgba(14, 116, 144, 0.035);
+}
+
+.water-module-price-history[open] .water-module-price-history__chevron {
+  transform: rotate(225deg) translate(-2px, -1px);
+}
+
+.water-module-price-history__list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: 18rem;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.75rem;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+
+.water-module-price-history__item {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid rgba(14, 116, 144, 0.12);
+  border-radius: 0.8rem;
+  background: rgba(14, 116, 144, 0.035);
+}
+
+.water-module-price-history__item-heading,
+.water-module-price-history__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  min-width: 0;
+}
+
+.water-module-price-history__type {
+  color: var(--admin-text);
+  font-size: 0.83rem;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.water-module-price-history__source {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid rgba(14, 116, 144, 0.14);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--admin-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+}
+
+.water-module-price-history__change {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.water-module-price-history__arrow {
+  color: var(--admin-muted);
+  font-size: 0.85rem;
+}
+
+.water-module-price-history__change strong {
+  color: var(--admin-text);
+  font-size: 1.05rem;
+}
+
+.water-module-price-history__meta {
+  justify-content: flex-start;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+}
+
+.water-module-price-history__meta time {
+  font-variant-numeric: tabular-nums;
+}
+
+[data-admin-theme="dark"] .water-module-price-history {
+  background: var(--card);
+}
+
+[data-admin-theme="dark"] .water-module-price-history__icon,
+[data-admin-theme="dark"] .water-module-price-history__count {
+  background: rgba(52, 211, 153, 0.13);
+  color: #a7f3d0;
+}
+
+[data-admin-theme="dark"] .water-module-price-history__item {
+  border-color: rgba(52, 211, 153, 0.14);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+[data-admin-theme="dark"] .water-module-price-history__source {
+  border-color: rgba(52, 211, 153, 0.15);
+}
+
+@media (max-width: 520px) {
+  .water-module-price-history > summary {
+    gap: 0.55rem;
+    padding: 0.7rem;
+  }
+
+  .water-module-price-history__summary-copy small {
+    font-size: 0.74rem;
+  }
+
+  .water-module-price-history__list {
+    padding: 0.55rem;
+  }
+
+  .water-module-price-history__item {
+    padding: 0.7rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .water-module-price-history > summary,
+  .water-module-price-history__chevron {
+    transition: none;
+  }
+}
+
+.water-module-kpis {
+  order: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.water-module-finance-breakdown {
+  order: 2;
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  border-radius: 1.35rem;
+  background: rgba(13, 148, 136, 0.06);
+}
+
+.water-module-finance-breakdown__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.water-module-finance-breakdown__heading > .app-icon {
+  margin-top: 0.2rem;
+  color: #0f766e;
+}
+
+.water-module-finance-breakdown h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+}
+
+.water-module-finance-breakdown dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+}
+
+.water-module-finance-breakdown dl > div {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.75rem;
+  border-top: 1px solid rgba(13, 148, 136, 0.16);
+}
+
+.water-module-finance-breakdown dt {
+  color: var(--admin-muted);
+  font-size: 0.78rem;
+}
+
+.water-module-finance-breakdown dd {
+  margin: 0;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .water-module-kpis,
+  .water-module-finance-breakdown dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .water-module-finance-breakdown dl {
+    grid-template-columns: 1fr;
+  }
+}
+
+.water-module-kpi-stack {
+  order: 1;
+  display: grid;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.water-module-kpi-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: 1.25rem;
+  background: var(--card);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+  min-width: 0;
+}
+
+.water-module-kpi-toolbar-copy {
+  min-width: 0;
+}
+
+.water-module-kpi-toolbar-copy span {
+  display: block;
+  margin-top: 0.3rem;
+  color: var(--admin-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.water-module-stock-period-field {
+  width: min(100%, 18rem);
+  min-width: min(100%, 15rem);
+}
+
+.water-module-stock-period-field .ui-dropdown-field__trigger {
+  min-height: 2.9rem;
+}
+
+.water-module-network-grid {
+  order: 3;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  min-width: 0;
+}
+
+.water-module-kpi {
+  padding: 1.1rem 1.15rem;
+  display: grid;
+  gap: 0.65rem;
+  align-content: start;
+  min-height: 9rem;
+  min-width: 0;
+}
+
+.water-module-kpi-value {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.water-module-kpi-value strong {
+  font-size: clamp(1.2rem, 2.2vw, 1.7rem);
+  line-height: 1.1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.water-module-kpi-value .app-icon {
+  flex: 0 0 auto;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.1rem;
+  color: #0f766e;
+}
+
+.water-module-kpi span {
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.water-module-grid {
+  order: 4;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  min-width: 0;
+}
+
+.water-module-order-section {
+  order: 2;
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.water-module-card,
+.water-module-table-card,
+.water-module-network-card {
+  padding: 1rem;
+}
+
+.water-module-shell > .admin-header,
+.water-module-hero,
+.water-module-network-grid > .water-module-card--full,
+.water-module-order-section > .water-module-card,
+.water-module-ledgers > .water-module-table-card {
+  border-bottom-left-radius: var(--admin-portal-bottom-radius) !important;
+  border-bottom-right-radius: var(--admin-portal-bottom-radius) !important;
+}
+
+.water-module-card--full {
+  grid-column: 1 / -1;
+}
+
+.water-module-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  min-width: 0;
+}
+
+.water-module-form {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.water-module-order-form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.water-module-order-form-block--customer,
+.water-module-order-form-block--full {
+  grid-column: 1 / -1;
+}
+
+.water-module-order-form-columns {
+  grid-column: 1 / -1;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.water-module-order-form-columns::before {
+  content: "";
+  position: absolute;
+  top: 0.25rem;
+  bottom: 0.25rem;
+  left: 50%;
+  width: 1px;
+  background: rgba(12, 106, 96, 0.12);
+  transform: translateX(-0.5px);
+}
+
+.water-module-order-form-column {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.water-module-order-form-column--divided {
+  padding-left: 0;
+}
+
+.water-module-order-form-summary {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.85rem 1rem;
+  align-self: stretch;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(12, 106, 96, 0.16);
+  background: rgba(12, 106, 96, 0.08);
+}
+
+.water-module-order-form-summary > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.water-module-order-form-summary span {
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-text);
+}
+
+.water-module-order-form-summary strong {
+  font-size: 0.98rem;
+  overflow-wrap: anywhere;
+}
+
+.water-module-order-form-summary-item--full {
+  grid-column: auto;
+}
+
+.water-module-order-form-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.water-module-order-form .water-module-order-form-actions .water-module-order-form-summary {
+  min-width: 0;
+}
+
+.water-module-order-form .water-module-sale-submit {
+  width: auto;
+  min-width: min(100%, 240px);
+  height: auto;
+  align-self: center;
+  justify-self: end;
+}
+
+.water-module-form label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.water-module-form .ui-field {
+  width: 100%;
+}
+
+.water-module-form input:not(.ui-date-field__native):not(.ui-dropdown-field__native),
+.water-module-form .ui-dropdown-field__trigger,
+.water-module-form .ui-date-field__trigger,
+.water-module-form select:not(.ui-dropdown-field__native),
+.water-module-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border-radius: 0.95rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  padding: 0.8rem 0.95rem;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.4;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.water-module-form input::placeholder,
+.water-module-form textarea::placeholder {
+  color: var(--admin-muted);
+}
+
+.water-module-form textarea {
+  min-height: 6.25rem;
+  resize: vertical;
+}
+
+.water-module-form input:not(.ui-date-field__native):not(.ui-dropdown-field__native):focus,
+.water-module-form .ui-dropdown-field__trigger:focus-visible,
+.water-module-form .ui-date-field__trigger:focus-visible,
+.water-module-form select:not(.ui-dropdown-field__native):focus,
+.water-module-form textarea:focus {
+  outline: 2px solid var(--accent-soft);
+  border-color: var(--accent);
+  background: var(--card);
+}
+
+.water-module-form input:not(.ui-date-field__native):not(.ui-dropdown-field__native):disabled,
+.water-module-form .ui-dropdown-field__trigger:disabled,
+.water-module-form .ui-date-field__trigger:disabled,
+.water-module-form select:not(.ui-dropdown-field__native):disabled,
+.water-module-form textarea:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.water-module-sale-block,
+.water-module-adjustment-block {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.water-module-sale-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.water-module-customer-picker {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.water-module-picker-clear {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0;
+}
+
+.water-module-customer-options {
+  display: grid;
+  gap: 0.45rem;
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: 0.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--admin-border);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.water-module-customer-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.85rem;
+  border-radius: 0.9rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--admin-text);
+  font: inherit;
+  font-weight: 600;
+  padding: 0.7rem 0.85rem;
+  text-align: left;
+}
+
+.water-module-customer-option span,
+.water-module-customer-option small {
+  min-width: 0;
+}
+
+.water-module-customer-option small {
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.water-module-customer-option.is-active {
+  border-color: rgba(12, 106, 96, 0.24);
+  background: rgba(12, 106, 96, 0.14);
+  color: #0c6a60;
+}
+
+.water-module-field-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.water-module-inline-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.water-module-toggle-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.water-module-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+  gap: 0.55rem;
+}
+
+.water-module-toggle-btn,
+.water-module-quick-btn,
+.water-module-stepper-btn {
+  min-height: 2.85rem;
+  border-radius: 0.95rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  font: inherit;
+  font-weight: 700;
+  padding: 0.75rem 0.9rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.water-module-toggle-btn.is-active,
+.water-module-quick-btn.is-active {
+  background: rgba(12, 106, 96, 0.14);
+  border-color: rgba(12, 106, 96, 0.24);
+  color: #0c6a60;
+}
+
+.water-module-toggle-btn.is-active.is-danger {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.2);
+  color: #b91c1c;
+}
+
+.water-module-toggle-btn.is-active.is-success {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.22);
+  color: #047857;
+}
+
+.water-module-stepper {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.water-module-stepper input {
+  min-width: 0;
+  min-height: 2.85rem;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.water-module-stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 0.9rem;
+}
+
+.water-module-stepper-btn .app-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.water-module-optional {
+  border: 1px dashed var(--admin-border);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.15rem 0.9rem 0.9rem;
+}
+
+.water-module-optional summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.75rem 0 0.55rem;
+  list-style: none;
+}
+
+.water-module-optional summary::-webkit-details-marker {
+  display: none;
+}
+
+.water-module-optional-body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.water-module-sale-submit {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.water-module-inline-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.95rem;
+  border: 1px dashed var(--admin-border);
+  background: rgba(255, 255, 255, 0.12);
+  min-width: 0;
+}
+
+.water-module-inline-summary span {
+  color: var(--admin-text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.water-module-inline-summary strong,
+.water-module-card-tag,
+.water-module-pill {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.water-module-entity-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.water-module-entity-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.9rem 0.95rem;
+  border-radius: 1rem;
+  border: 1px solid var(--admin-border);
+  background: rgba(255, 255, 255, 0.08);
+  min-width: 0;
+}
+
+.water-module-entity-item > div {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
+.water-module-entity-item span,
+.water-module-entity-meta span {
+  font-size: 0.82rem;
+  color: var(--admin-muted);
+  overflow-wrap: anywhere;
+}
+
+.water-module-entity-meta {
+  justify-items: end;
+  text-align: right;
+}
+
+.water-module-ledgers {
+  order: 5;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.water-module-table-card--orders {
+  grid-column: 1 / -1;
+}
+
+.water-module-orders-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.water-module-orders-search {
+  min-width: 0;
+}
+
+.water-module-orders-search.search-field {
+  border-radius: 1rem;
+  border: 1px solid var(--admin-border);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 10px 24px rgba(15, 23, 42, 0.06);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.water-module-orders-search.search-field:hover {
+  border-color: rgba(12, 106, 96, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.water-module-orders-search.search-field:focus-within {
+  border-color: var(--accent);
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 3px rgba(12, 106, 96, 0.12),
+    0 14px 32px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.water-module-orders-search .ui-search-field__icon {
+  left: 1rem;
+  color: var(--admin-muted);
+  opacity: 0.86;
+}
+
+.water-module-orders-search .ui-search-field__input {
+  min-height: 3.15rem;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--admin-text);
+  padding: 0.8rem 3rem 0.8rem 3rem !important;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.4;
+  box-shadow: none;
+}
+
+.water-module-orders-search .ui-search-field__input::placeholder {
+  color: var(--admin-muted);
+}
+
+.water-module-orders-search .ui-search-field__input:focus {
+  outline: none;
+}
+
+.water-module-orders-search .ui-search-field__clear {
+  right: 0.9rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--admin-muted);
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.water-module-orders-search .ui-search-field__clear:hover,
+.water-module-orders-search .ui-search-field__clear:focus-visible {
+  background: rgba(12, 106, 96, 0.12);
+  color: #0f766e;
+}
+
+.water-module-status-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.water-module-status-filter {
+  min-height: 2.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 0.65rem 0.9rem;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.water-module-status-filter:hover,
+.water-module-status-filter:focus-visible {
+  border-color: rgba(12, 106, 96, 0.24);
+  background: rgba(12, 106, 96, 0.08);
+  color: #0c6a60;
+  transform: translateY(-1px);
+}
+
+.water-module-status-filter.is-active {
+  background: rgba(12, 106, 96, 0.14);
+  border-color: rgba(12, 106, 96, 0.24);
+  color: #0c6a60;
+}
+
+.water-module-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-top-right-radius: 1rem;
+  border-top-left-radius: 1rem;
+  border: 1px solid var(--admin-border);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.water-module-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 520px;
+}
+
+.water-module-table th,
+.water-module-table td {
+  padding: 0.75rem 0.8rem;
+  text-align: left;
+  border-bottom: 1px solid var(--admin-border);
+  font-size: 0.9rem;
+}
+
+.water-module-table th {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.water-module-order-row,
+.water-module-click-row {
+  cursor: pointer;
+  outline: none;
+}
+
+.water-module-order-row td,
+.water-module-click-row td {
+  transition: background-color 0.18s ease;
+}
+
+.water-module-order-row:hover td,
+.water-module-order-row:focus-visible td,
+.water-module-order-row.is-active td,
+.water-module-click-row:hover td,
+.water-module-click-row:focus-visible td,
+.water-module-click-row.is-active td {
+  background: rgba(12, 106, 96, 0.08);
+}
+
+.water-module-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.water-module-order-primary,
+.water-module-order-status,
+.water-module-order-total {
+  display: grid;
+  gap: 0.28rem;
+}
+
+.water-module-order-primary strong,
+.water-module-order-total strong {
+  font-size: 0.92rem;
+  color: var(--admin-text);
+}
+
+.water-module-order-primary span,
+.water-module-order-subnote,
+.water-module-order-total span {
+  font-size: 0.78rem;
+  color: var(--admin-muted);
+}
+
+.water-module-table-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.water-module-order-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.water-module-row-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(248, 113, 113, 0.24);
+  background: rgba(248, 113, 113, 0.1);
+  color: #b91c1c;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.45rem 0.75rem;
+}
+
+.water-module-row-delete:hover,
+.water-module-row-delete:focus-visible {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: rgba(248, 113, 113, 0.16);
+}
+
+.water-module-row-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.water-module-row-undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.25rem;
+  border-radius: 999px;
+  border: 1px solid rgba(12, 106, 96, 0.24);
+  background: rgba(12, 106, 96, 0.1);
+  color: #0c6a60;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.45rem 0.75rem;
+}
+
+.water-module-row-undo:hover,
+.water-module-row-undo:focus-visible {
+  border-color: rgba(12, 106, 96, 0.3);
+  background: rgba(12, 106, 96, 0.16);
+}
+
+.water-module-row-undo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.water-module-order-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.34rem 0.65rem;
+}
+
+.water-module-order-pill.is-paid {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.2);
+  color: #047857;
+}
+
+.water-module-order-pill.is-pending {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: #b45309;
+}
+
+.water-module-order-pill.is-unpaid {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.2);
+  color: #b91c1c;
+}
+
+.water-order-modal {
+  max-width: 860px;
+}
+
+.water-order-modal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.6rem;
+}
+
+.water-order-modal-form {
+  gap: 1rem;
+}
+
+.water-order-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.water-order-modal-field--wide {
+  grid-column: 1 / -1;
+}
+
+.water-order-modal-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(12, 106, 96, 0.16);
+  background: rgba(12, 106, 96, 0.08);
+}
+
+.water-order-modal-summary > div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.water-order-modal-summary span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-muted);
+}
+
+.water-order-modal-summary strong {
+  font-size: 0.98rem;
+}
+
+.water-order-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.water-order-delete-btn {
+  margin-right: auto;
+  color: #b91c1c;
+  border-color: rgba(248, 113, 113, 0.24);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.water-order-delete-btn:hover,
+.water-order-delete-btn:focus-visible {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: rgba(248, 113, 113, 0.14);
+  color: #991b1b;
+}
+
+.water-order-undo-btn {
+  margin-right: auto;
+  color: #0c6a60;
+  border-color: rgba(12, 106, 96, 0.24);
+  background: rgba(12, 106, 96, 0.08);
+}
+
+[data-admin-theme="dark"] .water-order-undo-btn {
+  color: var(--sys-accent);
+  border-color: var(--admin-border);
+  background: var(--sys-accent-soft);
+}
+
+.water-order-undo-btn:hover,
+.water-order-undo-btn:focus-visible {
+  border-color: rgba(12, 106, 96, 0.3);
+  background: rgba(12, 106, 96, 0.14);
+  color: #075a52;
+}
+
+.water-order-customer-picker {
+  min-width: 0;
+}
+
+.water-order-customer-search {
+  min-height: 3.25rem;
+}
+
+.water-order-customer-option--create {
+  border-style: dashed;
+}
+
+.water-order-editor-form .ui-dropdown-field__trigger {
+  cursor: pointer;
+  min-height: 0;
+  padding: 0.8rem 0.95rem;
+  line-height: 1.4;
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.water-order-editor-form .ui-dropdown-field__trigger:hover {
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+}
+
+.water-order-editor-form .ui-dropdown-field__trigger:focus-visible {
+  border-color: var(--accent);
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 0 0 3px rgba(12, 106, 96, 0.12);
+}
+
+.water-module-table .is-positive {
+  color: #047857;
+  font-weight: 700;
+}
+
+.water-module-table .is-negative {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+@media (max-width: 1180px) {
+  .water-module-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .water-module-kpi-toolbar {
+    align-items: stretch;
+  }
+
+  .water-module-stock-period-field {
+    width: 100%;
+  }
+
+  .water-module-network-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .water-module-hero,
+  .water-module-grid,
+  .water-module-orders-toolbar,
+  .water-order-modal-grid,
+  .water-module-sale-inline-grid,
+  .water-module-order-form {
+    grid-template-columns: 1fr;
+  }
+
+  .water-module-price-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .water-module-status-filters {
+    justify-content: flex-start;
+  }
+
+  .water-module-order-form-columns {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .water-module-order-form-columns::before {
+    display: none;
+  }
+
+  .water-module-order-form-column--divided {
+    padding-left: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .water-module-table {
+    --admin-table-copy-overflow: visible;
+    --admin-table-copy-text-overflow: clip;
+    --admin-table-copy-white-space: normal;
+  }
+
+  .water-module-page {
+    padding: 1rem;
+  }
+
+  .water-module-shell {
+    gap: 0.85rem;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header {
+    padding: 0.35rem 0 0;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 0.75rem;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-copy {
+    text-align: left;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > :last-child:not(:first-child) {
+    width: auto !important;
+    justify-self: auto !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions {
+    align-items: center;
+    width: auto !important;
+    justify-content: flex-end !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-refresh,
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions .admin-secondary {
+    width: auto !important;
+  }
+
+  .water-module-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .water-module-order-section {
+    scroll-margin-top: 0.75rem;
+  }
+
+  .water-module-network-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .water-module-kpi {
+    min-height: 0;
+    padding: 0.95rem;
+  }
+
+  .water-module-order-section > .water-module-card {
+    padding: 0.9rem;
+  }
+
+  .water-module-card,
+  .water-module-table-card,
+  .water-module-network-card {
+    padding: 0.9rem;
+    border-radius: 1rem;
+  }
+
+  .water-module-order-section .water-module-card-head {
+    margin-bottom: 0.75rem;
+  }
+
+  .water-module-order-form {
+    gap: 0.75rem;
+  }
+
+  .water-module-order-form-columns,
+  .water-module-sale-inline-grid {
+    gap: 0.75rem;
+  }
+
+  .water-module-customer-options {
+    max-height: 11rem;
+  }
+
+  .water-module-inline-head,
+  .water-module-inline-summary {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .water-module-quick-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .water-order-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .water-module-order-form-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .water-module-order-form-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
+
+  .water-module-order-form-summary-item--full {
+    grid-column: 1 / -1;
+  }
+
+  .water-module-order-form .water-module-sale-submit {
+    width: 100%;
+    min-width: 0;
+    justify-self: stretch;
+  }
+
+  .water-order-modal-actions .admin-primary,
+  .water-order-modal-actions .admin-secondary {
+    width: 100%;
+  }
+
+  .water-order-modal {
+    max-width: calc(100vw - 16px);
+  }
+
+  .water-module-table {
+    min-width: 320px;
+  }
+
+  .water-module-table-wrap:not(.water-module-table-wrap--stock) {
+    overflow-x: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .water-module-table--orders,
+  .water-module-table--expenses {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .water-module-table--orders thead,
+  .water-module-table--expenses thead {
+    display: none;
+  }
+
+  .water-module-table--orders tbody,
+  .water-module-table--expenses tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .water-module-table--orders tbody tr,
+  .water-module-table--expenses tbody tr {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.8rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .water-module-table--orders .water-module-order-row:hover,
+  .water-module-table--orders .water-module-order-row:focus-visible,
+  .water-module-table--orders .water-module-order-row.is-active,
+  .water-module-table--expenses .water-module-click-row:hover,
+  .water-module-table--expenses .water-module-click-row:focus-visible,
+  .water-module-table--expenses .water-module-click-row.is-active {
+    border-color: rgba(12, 106, 96, 0.24);
+    background: rgba(12, 106, 96, 0.12);
+  }
+
+  .water-module-table--orders tbody td,
+  .water-module-table--expenses tbody td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0;
+    border-bottom: 0;
+    font-size: 0.86rem;
+  }
+
+  .water-module-table--orders tbody td::before,
+  .water-module-table--expenses tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 4.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+  }
+
+  .water-module-table--orders .water-module-order-row:hover td,
+  .water-module-table--orders .water-module-order-row:focus-visible td,
+  .water-module-table--orders .water-module-order-row.is-active td,
+  .water-module-table--expenses .water-module-click-row:hover td,
+  .water-module-table--expenses .water-module-click-row:focus-visible td,
+  .water-module-table--expenses .water-module-click-row.is-active td {
+    background: transparent;
+  }
+
+  .water-module-table--orders tbody td > *,
+  .water-module-table--expenses tbody td > * {
+    min-width: 0;
+  }
+
+  .water-module-table--orders tbody td > .water-module-table-value,
+  .water-module-table--expenses tbody td > .water-module-table-value,
+  .water-module-table--stock tbody td > .water-module-table-value {
+    flex: 1 1 auto;
+    margin-left: auto;
+    min-width: 0;
+    text-align: right;
+  }
+
+  .water-module-table--orders .water-module-order-primary,
+  .water-module-table--orders .water-module-order-status,
+  .water-module-table--orders .water-module-order-total {
+    justify-items: end;
+    text-align: right;
+  }
+
+  .water-module-table--orders .water-module-order-actions,
+  .water-module-table--expenses .water-module-order-actions {
+    width: auto;
+  }
+
+  .water-module-table--orders .water-module-order-actions::before,
+  .water-module-table--expenses .water-module-order-actions::before {
+    flex-basis: 4.75rem;
+  }
+
+  .water-module-table--orders .water-module-order-actions button,
+  .water-module-table--expenses .water-module-order-actions button {
+    margin-left: auto;
+  }
+
+  .water-module-table-wrap--stock {
+    overflow-x: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  .water-module-table--stock {
+    min-width: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .water-module-table--stock thead {
+    display: none;
+  }
+
+  .water-module-table--stock tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .water-module-table--stock tbody tr {
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.8rem;
+    border: 1px solid var(--admin-border);
+    border-radius: 0.95rem;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .water-module-table--stock .water-module-click-row:hover,
+  .water-module-table--stock .water-module-click-row:focus-visible,
+  .water-module-table--stock .water-module-click-row.is-active {
+    border-color: rgba(12, 106, 96, 0.24);
+    background: rgba(12, 106, 96, 0.12);
+  }
+
+  .water-module-table--stock tbody td {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    padding: 0;
+    border-bottom: 0;
+    font-size: 0.86rem;
+  }
+
+  .water-module-table--stock tbody td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+  }
+
+  .water-module-table--stock tbody td:last-child {
+    align-items: center;
+  }
+
+  .water-module-table--stock tbody td > * {
+    min-width: 0;
+  }
+
+  .water-module-table--stock .water-module-order-actions {
+    display: grid;
+    grid-template-columns: minmax(4.75rem, max-content) auto;
+    align-items: center;
+    justify-content: stretch;
+    width: 100%;
+    gap: 0.75rem;
+  }
+
+  .water-module-table--stock .water-module-order-actions::before {
+    min-width: 4.75rem;
+  }
+
+  .water-module-table--stock .water-module-order-actions .water-module-row-undo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    width: 2.35rem;
+    height: 2.35rem;
+    min-width: 2.35rem;
+    min-height: 2.35rem;
+    padding: 0;
+    gap: 0;
+  }
+
+  .water-module-table--stock .water-module-order-actions .water-module-row-undo .app-icon {
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+  }
+
+  .water-module-table--orders tfoot,
+  .water-module-table--expenses tfoot,
+  .water-module-table--stock tfoot {
+    display: none;
+    margin-top: 0.75rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .water-module-table--orders tfoot tr,
+  .water-module-table--expenses tfoot tr,
+  .water-module-table--stock tfoot tr {
+    display: flex;
+    align-items: stretch;
+    gap: 0.55rem;
+    min-width: max-content;
+  }
+
+  .water-module-table--orders tfoot td,
+  .water-module-table--expenses tfoot td,
+  .water-module-table--stock tfoot td {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.2rem;
+    min-width: 5.75rem;
+    padding: 0.72rem 0.82rem;
+    border: 1px solid var(--admin-border);
+    border-bottom: 1px solid var(--admin-border) !important;
+    border-radius: 0.9rem;
+    background: var(--admin-card);
+    font-size: 0.86rem;
+  }
+
+  .water-module-table--orders tfoot td::before,
+  .water-module-table--expenses tfoot td::before,
+  .water-module-table--stock tfoot td::before {
+    content: attr(data-label);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+  }
+
+  .water-module-table--orders tfoot td.is-empty,
+  .water-module-table--expenses tfoot td.is-empty,
+  .water-module-table--stock tfoot td.is-empty {
+    display: none;
+  }
+
+  .water-module-table--orders tfoot .admin-table-summary-value,
+  .water-module-table--expenses tfoot .admin-table-summary-value,
+  .water-module-table--stock tfoot .admin-table-summary-value {
+    min-width: 0;
+    text-align: left;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 520px) {
+  .water-module-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .water-module-kpi-toolbar {
+    padding: 0.9rem;
+    border-radius: 1rem;
+  }
+
+  .water-module-order-form-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .water-module-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .water-module-quick-actions,
+  .water-module-toggle-row {
+    grid-template-columns: 1fr;
+  }
+
+  .water-module-customer-option {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .water-module-status-filters {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .water-module-status-filter {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  body.admin-theme .portal-app-content .water-module-page .water-module-table tbody td,
+  body.admin-theme .portal-app-content .water-module-page .water-module-table tbody td > :is(a, div, span, p, strong, small) {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+}
+
+[data-admin-theme="dark"] .water-module-pill,
+[data-admin-theme="dark"] .water-module-card-tag,
+[data-admin-theme="dark"] .water-module-price-card {
+  color: #a7f3d0;
+  border-color: #256b54;
+  background: #12392c;
+}
+
+[data-admin-theme="dark"] .water-module-feedback--success {
+  color: #d1fae5;
+}
+
+[data-admin-theme="dark"] .water-module-feedback--error {
+  color: #fee2e2;
+}
+
+[data-admin-theme="dark"] .water-module-toggle-btn,
+[data-admin-theme="dark"] .water-module-quick-btn,
+[data-admin-theme="dark"] .water-module-stepper-btn,
+[data-admin-theme="dark"] .water-module-optional {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-admin-theme="dark"] .water-module-customer-options {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-admin-theme="dark"] .water-module-table--stock tbody tr {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-admin-theme="dark"] .water-module-picker-clear {
+  color: #99f6e4;
+}
+
+[data-admin-theme="dark"] .water-module-toggle-btn.is-active,
+[data-admin-theme="dark"] .water-module-quick-btn.is-active,
+[data-admin-theme="dark"] .water-module-customer-option.is-active {
+  background: #123d35;
+  border-color: #267567;
+  color: #99f6e4;
+}
+
+[data-admin-theme="dark"] .water-module-toggle-btn.is-active.is-danger {
+  background: #4a2424;
+  border-color: #8f4545;
+  color: #fecaca;
+}
+
+[data-admin-theme="dark"] .water-module-toggle-btn.is-active.is-success {
+  background: #12392c;
+  border-color: #256b54;
+  color: #a7f3d0;
+}
+
+[data-admin-theme="dark"] .water-module-status-filter.is-active,
+[data-admin-theme="dark"] .water-order-modal-summary {
+  color: #a7f3d0;
+  border-color: #256b54;
+  background: #12392c;
+}
+
+[data-admin-theme="dark"] .water-module-order-primary strong,
+[data-admin-theme="dark"] .water-module-order-total strong {
+  color: rgba(248, 250, 252, 0.96);
+}
+
+[data-admin-theme="dark"] .water-order-editor-form .ui-dropdown-field__trigger {
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-admin-theme="dark"] .water-order-editor-form .ui-dropdown-field__trigger:hover {
+  border-color: var(--admin-border);
+  background: var(--admin-surface);
+}
+
+[data-admin-theme="dark"] .water-order-editor-form .ui-dropdown-field__trigger:focus-visible {
+  background: var(--card);
+}
+
+@media (max-width: 600px) {
+  body.admin-theme .water-module-shell > .admin-header.water-module-header {
+    flex-wrap: wrap !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions {
+    flex: 1 1 100%;
+    width: 100% !important;
+  }
+
+  body.admin-theme .water-module-shell > .admin-header.water-module-header > .water-module-header-actions > .water-module-product-select {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+/* Keep Faako action targets round and compact even inside legacy form layouts. */
+body.admin-theme .water-module-page .portal-action {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
+}
+body.admin-theme .water-module-page .portal-action--icon { width: 44px; padding: 0.625rem; }
+@media (max-width: 767px) {
+  body.admin-theme .water-module-page .portal-action { width: 44px; padding: 0.625rem; justify-self: end; }
+  .water-order-modal-actions { flex-direction: row; flex-wrap: wrap; }
+}

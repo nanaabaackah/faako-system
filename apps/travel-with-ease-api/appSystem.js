@@ -4,7 +4,7 @@ export default {
   theme: { presetId: "core-neutral" },
   security: {
     profileId: "api-service",
-    authMode: "bearer",
+    authMode: "cookie",
     // Development origins only; deployed origins come from ALLOWED_ORIGINS.
     allowedOrigins: ["http://localhost:4328", "http://localhost:5188"],
   },

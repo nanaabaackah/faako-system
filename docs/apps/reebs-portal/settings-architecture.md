@@ -3,14 +3,14 @@
 ## Scope
 
 The Settings screen owns personal profile details, personal portal appearance,
-staff account entry points, shared commercial schedules, organization document
+staff account entry points, shared REEBS Core commercial schedules, organization document
 identity, and local diagnostic information. It does not own statutory tax
 configuration, accounting policy, inventory templates, or storefront design.
 
-Water remains a standalone business domain. Water staff can open the Settings
-commercial tab to read the Water price schedule, but cannot see REEBS Core
-commercial values or edit organization document identity. Water prices continue
-to be stored in `waterProductPrice` and are not included in REEBS Core revenue.
+Water remains a standalone business domain. Its current Retail, Company and Bulk
+prices are managed on the Water page, not in Settings → Commercial. Water prices
+are stored in `waterProductConfig`; `waterPriceChange` preserves audit history
+without controlling active prices. They are not included in REEBS Core revenue.
 
 ## Authoritative persistence
 
@@ -20,7 +20,7 @@ to be stored in `waterProductPrice` and are not included in REEBS Core revenue.
 | Theme and font size | `/api/v1/portal-settings`, `systemConfig` key `portal.preferences.user.<id>` | Authenticated user and organization | Current user |
 | Document identity | `/api/v1/portal-settings`, `systemConfig` key `portal.documentIdentity` | Organization | Owner/admin |
 | Core commercial rules | `/api/commercial-config`, `commercialConfiguration` | `REEBS_CORE`/`SHARED` | Owner/admin |
-| Water prices | `/api/commercial-config`, `waterProductPrice` | `WATER` | Owner/admin; Water role read-only |
+| Water prices | `/api/water`, `waterProductConfig` and `waterPriceChange` | `WATER` | Owner/admin |
 | Staff accounts | `/api/users` | Organization | Owner/admin for standard roles; system administrator for privileged roles |
 | Advanced health cards | Browser offline queue and snapshots | Current device | Read-only diagnostic |
 

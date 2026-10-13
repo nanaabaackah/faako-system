@@ -885,8 +885,7 @@ export default function Signup() {
           <h1>Tell us what your business needs before setup starts.</h1>
           <p className="lead">
             This guided intake collects the business details Faako needs to plan
-            your website, shop, operations tools, and launch setup. Do not enter
-            API keys, passwords, tokens, or private banking credentials here.
+            your website, shop, operations tools, and launch setup. 
           </p>
           <ul className="auth-suite-points">
             <li>

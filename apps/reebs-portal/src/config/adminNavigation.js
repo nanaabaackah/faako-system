@@ -197,7 +197,10 @@ const DRIVER_BOTTOM_NAV_ITEMS = [
   }),
 ].filter(Boolean);
 
-const WATER_BOTTOM_NAV_ITEM = buildBottomItem("water", { label: "Water" });
+const WATER_BOTTOM_NAV_ITEM = buildBottomItem("water", {
+  label: "Water",
+  external: true,
+});
 export const WATER_BOTTOM_NAV_ITEMS = WATER_BOTTOM_NAV_ITEM ? [WATER_BOTTOM_NAV_ITEM] : [];
 
 export const getReebsBaseBottomNavItems = () => BASE_BOTTOM_NAV_ITEMS;

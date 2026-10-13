@@ -1,4 +1,6 @@
 import { recordOrderPayment } from "../../functions/_shared/shopOrders.js";
+// Water reuses PaymentRecord/Application without entering Core OrderPayment.
+export { recordWaterCollection as recordManualWaterPayment } from "../water/settlement.js";
 import {
   assertManualPaymentInput,
   cleanPaymentText,

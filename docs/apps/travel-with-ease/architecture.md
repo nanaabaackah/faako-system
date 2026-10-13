@@ -1,8 +1,38 @@
 # Travel With Ease system architecture
 
+Prompt 03 implementation is in progress. [Foundation implementation](./foundation-implementation.md)
+records the new runtime safeguards, separate `twe` PostgreSQL schema and optional
+local persistence adapter. Hosted startup remains blocked; CMS/auth/media and
+publication are not yet implemented. Historical descriptions below are not
+evidence of deployed functionality.
+
+For the code-backed current state, proposed MVP data model and deployment
+decisions, see the [2026-10-11 repository audit](./repository-audit-2026-10-11.md)
+and [Prompt 03/04 implementation plan](./implementation-plan.md). This document
+retains the earlier foundation below; it is not evidence of deployed features.
+
 Status: Phase 0 approved foundation
 Date: 2026-09-27
 Base locale: `en-GH`; timezone: `Africa/Accra`; reporting currency: `GHS`
+
+Public, portal and backend implementation must follow
+[`design-engineering-standard.md`](./design-engineering-standard.md). The
+evidence-based current-state review is recorded in
+[`audits/2026-10-10/visual-audit.md`](./audits/2026-10-10/visual-audit.md).
+
+Scope precedence (2026-10-11): the October
+[`Travel_With_Ease_Solution_Roadmap.md`](./Travel_With_Ease_Solution_Roadmap.md)
+is the proposed launch baseline, subject to client approval. The Phase 0/1
+module map, diagram and models below record the earlier foundation and future
+capabilities, not a mandate to ship estimator/currency, full CRM, itineraries or
+a customer portal now. Launch uses the existing React workspace for staff CMS
+and the simple enquiry inbox. No authentication provider or framework change is
+approved here. PostgreSQL isolation is per environment; the historical single
+database decision does not mean sharing a database across staging and production.
+
+Local, staging and production must be independently verifiable; see
+[`env.md`](./env.md). Current file persistence and temporary token access are
+local/test scaffolding, not staging or production readiness.
 
 ## Outcome and boundaries
 

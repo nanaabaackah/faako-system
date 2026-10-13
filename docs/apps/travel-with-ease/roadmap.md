@@ -1,5 +1,27 @@
 # Travel With Ease implementation roadmap and decision log
 
+The current executable planning reference is the
+[Prompt 03/04 implementation plan](./implementation-plan.md), backed by the
+[2026-10-11 repository audit](./repository-audit-2026-10-11.md). It maps verified
+Trello cards to two implementation groups; the older phases/technical decision
+IDs below remain history, not new launch scope or Trello completion evidence.
+
+## Current product baseline
+
+The proposed October 2026 scope in
+[`Travel_With_Ease_Solution_Roadmap.md`](./Travel_With_Ease_Solution_Roadmap.md)
+is the current product baseline pending client approval. It narrows the launch
+to the public website, CMS, enquiries, packages, journal, travel footprint and
+supporting operations, while deferring the estimator, live exchange rates,
+payments, full CRM, itinerary and client portal.
+
+The delivery history below explains the existing foundation; it does not
+override the October launch scope. Do not remove or extend the existing
+estimator/currency code until the product owner decides whether it should be
+feature-flagged, retained as deferred code or separately re-scoped. Public
+design work is governed by
+[`design-engineering-standard.md`](./design-engineering-standard.md).
+
 ## Delivery roadmap
 
 1. **Phase 0 — foundation (this change):** audit, boundaries, data/classification/threat models, provider ports, SQL, environment contract and three workspaces.

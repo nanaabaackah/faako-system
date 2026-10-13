@@ -1,5 +1,10 @@
 # Travel With Ease security architecture and threat model
 
+The [2026-10-11 repository audit](./repository-audit-2026-10-11.md#8-security-risk-register)
+records code-backed implemented controls, current risks and Ghana privacy/legal
+approval boundaries. Use its numbered register and the linked implementation
+plan for remediation; target controls below must not be read as completed work.
+
 ## App registration and release checks
 
 All three applications declare `appSystem.js` security metadata. The API uses
@@ -9,6 +14,19 @@ Registered API/portal origins are the existing localhost development origins;
 this does not authorize any production host. Runtime deployment origins remain
 controlled by `ALLOWED_ORIGINS`. Production launch remains blocked by the existing
 API startup guard pending approved persistence and authentication adapters.
+
+Staging must meet the same deployed authentication, authorization and persistence
+requirements, using separate resources and synthetic data. Prompt 03 now rejects
+both staging and production at executable and app-factory boundaries while
+deployed integration is incomplete. Unknown modes are also rejected. Do not
+bypass these guards or expose the development bearer gate as hosted authentication.
+See [the implementation record](./foundation-implementation.md) for implemented
+safe errors/logging, bounded local limiter and pending database/auth checks.
+See [env.md](./env.md) for isolation and indexing requirements and the
+[engineering standard](./design-engineering-standard.md) for acceptance gates.
+Controls below describe the target architecture unless explicitly identified as
+implemented; deferred documents, payments, AI and client/offline features are not
+launch requirements merely because their future controls are documented.
 
 The API's conventional `src/security/securityHeaders.js` adapter delegates to
 `@faako/security`. Its baseline and denied-origin behavior are tested. No header,

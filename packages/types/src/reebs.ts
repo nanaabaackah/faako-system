@@ -319,6 +319,7 @@ export interface WaterFinancialSummaryDto {
 }
 
 export interface WaterDashboardPermissionsDto {
+  canRecordSales: boolean;
   canManagePricing: boolean;
   canOverridePrice: boolean;
   canViewCost: boolean;

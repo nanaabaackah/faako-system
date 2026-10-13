@@ -63,20 +63,16 @@ export const checkWaterReadiness = async ({ query } = {}) => {
   try {
     const result = await withTimeout(() => runQuery(
       // Global configuration probe, not per-tenant authorization or a stock /
-      // provider check. A legacy productConfig row is no longer sufficient.
+      // provider check.
       `WITH configured_prices AS (
          SELECT "organizationId"
-         FROM "waterProductPrice"
+         FROM "waterProductConfig"
          WHERE "productKey" = 'gwater-15pk'
-           AND active = true
-           AND "effectiveFrom" <= NOW()
-           AND ("effectiveTo" IS NULL OR "effectiveTo" > NOW())
-         GROUP BY "organizationId"
-         HAVING COUNT(*) = 3
-           AND COUNT(*) FILTER (WHERE "priceType" = 'RETAIL') = 1
-           AND COUNT(*) FILTER (WHERE "priceType" = 'BULK_RETAIL') = 1
-           AND COUNT(*) FILTER (WHERE "priceType" = 'COMPANY') = 1
-           AND BOOL_AND("priceCents" > 0 AND "minimumQuantity" > 0 AND currency = 'GHS')
+           AND "isActive" = true
+           AND "retailPrice" >= 0
+           AND "bulkPrice" >= 0
+           AND "companyPrice" >= 0
+           AND "bulkThreshold" > 0
        )
        SELECT EXISTS (
          SELECT 1
