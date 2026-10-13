@@ -10,6 +10,10 @@ The former Water scheduled-pricing design is retired. The historical scheduling
 documents are retained only as implementation history and are superseded by the
 current-price model below.
 
+Historical product-price scheduling, effective-window safety and snapshot rules:
+[Water historical pricing](water-historical-pricing.md). This is a Water-only
+exception to the generic current/future commercial-rule scheduling restriction.
+
 ## Boundary
 
 Water is an independently deployable React/Vite application at
