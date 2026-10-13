@@ -1,0 +1,7 @@
+---
+import Icon from "./Icon.jsx";
+import { contentPath } from "../lib/cms-source.js";
+import "../styles/components/event-listings.css";
+const { documents = [], title = "Explore more" } = Astro.props;
+---
+{documents.length > 0 && <section class="cms-content-section"><h2>{title}</h2><div class="event-card-grid">{documents.map(doc => <a class="bubble-card motion-card event-card" href={contentPath(doc)}>{doc.image && <img src={`${doc.image.url}?w=800&auto=format`} alt={doc.image.alt} width={doc.image.width} height={doc.image.height} loading="lazy" decoding="async" />}<div><h3>{doc.title}</h3><p class="event-card-summary">{doc.summary}</p><span class="text-link">Read more <Icon name="arrow-right" /></span></div></a>)}</div></section>}

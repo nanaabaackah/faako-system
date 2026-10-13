@@ -1,0 +1,9 @@
+---
+import Icon from "../components/Icon.jsx";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import CmsCards from "../components/CmsCards.astro";
+import { contentOfType } from "../lib/cms-source.js";
+const resources=await contentOfType("resource");
+---
+<BaseLayout title="Reviewed resources | TTNGH" description="Explore reviewed educational resources from The Thriving Network GH, with named authors, reviewers and sources."><main id="main-content" class="editorial-main"><PageHero title="Learn with trusted context." intro="Educational content with clear sources and review information." />{resources.length?<CmsCards documents={resources} title="Reviewed resources" />:<section><h2>Resources are being prepared.</h2><p>Reviewed resources will appear here once approved by the team.</p><a class="text-link" href="/contact">Contact the team <Icon name="arrow-right" /></a></section>}</main></BaseLayout>

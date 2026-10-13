@@ -1,0 +1,22 @@
+# ADR — TTNGH Phase 2 operational content layer
+
+Date: 13 October 2026. Status: implementation follows the user-approved Phase 2 brief; infrastructure activation pending. Scope: TTNGH only.
+
+## Decision
+
+Retain Astro static-first public delivery in apps/ttngh. Add a separately built Sanity Studio at apps/ttngh/studio and an independently deployed Express service at services/ttngh-api, hosted on Railway. This records the tracked TTNGH scaffold/continuation explicitly requested by the user; it does not change the architecture of any other app.
+
+Sanity is the source for routine public content. Astro fetches only published, validated records at build time using a private read-only token. Templates and navigation remain developer-owned. Sanity's managed identity retains sign-in, account creation and recovery; there is no custom password database or automatic editor membership.
+
+Railway handles the signed Sanity rebuild hook and the protected enquiry-to-email workflow. Turnstile is verified server-side; Resend credentials never reach the browser. No contact-message database is introduced. Existing Faako request IDs, API contracts, client, logger, security headers, validation and UI are reused.
+
+## Consequences
+
+- Static content remains available during a CMS outage; failed validation/fetch stops a new deployment.
+- Publishing requires a rebuild; daily scheduled rebuilds are also needed for event time boundaries.
+- Drafts are not exposed through public preview endpoints. Review is via Studio and controlled static previews.
+- The service is single-replica until rate-limit/deduplication storage is externalised. Process restart may repeat a harmless build trigger.
+- CMS roles, MFA, domain/email configuration, privacy/retention ownership and real provider verification are activation gates.
+- Paystack, donor persistence/reconciliation and receipts remain the separately supplied next phase. No payment or new authentication architecture is silently introduced here.
+
+Rollback and exact environment names: [deployment](deployment.md). Editorial and consent withdrawal process: [content operations](content-operations.md).

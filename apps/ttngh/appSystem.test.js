@@ -39,5 +39,5 @@ test("TTNGH public calendar integration stays consent-gated and secret-free", ()
   assert.doesNotMatch(calendar, /CLIENT_SECRET|SERVICE_ACCOUNT|PRIVATE_KEY/);
   assert.match(envExample, /PUBLIC_TTNGH_GOOGLE_CALENDAR_ID=/);
   assert.match(headers, /frame-src https:\/\/calendar\.google\.com/);
-  assert.match(privacy, /loads only after you choose “Load calendar”/);
+  assert.match(privacy, /loads only after you choose “View full Google calendar”/);
 });

@@ -2,6 +2,12 @@
 
 Status: requirements captured; content and operational details remain subject to client approval.
 
+Phase 2 status (13 October 2026): all nine CMS types, static published-content integration,
+event detail/calendar downloads, native calendar, protected enquiry API, transactional email
+adapter and signed publishing hook are implemented locally. See the [implementation report](phase-2-implementation.md)
+for verification and remaining gates. The client confirms provider accounts are not yet set up;
+therefore real publishing and delivery remain unactivated and are not claimed complete.
+
 ## Project purpose
 
 The Thriving Network GH currently relies on Facebook, Instagram, LinkedIn, and WhatsApp. The new

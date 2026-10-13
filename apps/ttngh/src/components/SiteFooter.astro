@@ -1,15 +1,15 @@
 ---
+import Icon from "./Icon.jsx";
 import { organization } from "../content/home.js";
 import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
 import SocialIcon from "./SocialIcon.jsx";
-import { FaArrowRight, FaMagnifyingGlass } from "react-icons/fa6";
 import "../styles/components/footer.css";
 ---
 
 <footer class="site-footer">
   <div class="site-footer-panel">
     <div class="footer-action-strips">
-      <a class="footer-contact-strip" href="/contact"><span>Contact us</span><span class="footer-strip-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+      <a class="footer-contact-strip" href="/contact"><span>Contact us</span><span class="footer-strip-icon" aria-hidden="true"><Icon name="arrow-right" focusable="false" /></span></a>
     </div>
 
     <div class="footer-main">
@@ -17,7 +17,7 @@ import "../styles/components/footer.css";
         <h2>Get in touch.</h2>
         <button class="footer-search-box" type="button" data-search-open aria-haspopup="dialog" aria-controls="site-search-dialog">
           <span>Search the site</span>
-          <span class="footer-search-icon" aria-hidden="true"><FaMagnifyingGlass focusable="false" /></span>
+          <span class="footer-search-icon" aria-hidden="true"><Icon name="search" focusable="false" /></span>
         </button>
       </div>
 
@@ -32,10 +32,13 @@ import "../styles/components/footer.css";
           <a href="/">Home</a>
           <a href="/about">About</a>
           <a href="/team">Our team</a>
-          <a href="/programmes">Programs</a>
+          <a href="/programmes">Programmes</a>
           <a href="/events">Events</a>
           <a href="/news">News</a>
+          <a href="/resources">Resources</a>
           <a href="/contact">Contact</a>
+          <a href="/get-involved">Get involved</a>
+          <a href="/support-us">Support / Donate</a>
         </nav>
       </div>
     </div>

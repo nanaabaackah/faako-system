@@ -1,0 +1,5 @@
+{
+ "name": "@faako/ttngh-studio", "private": true, "type": "module", "version": "0.1.0",
+ "scripts": { "dev": "sanity dev", "build": "sanity build", "test": "node --test test/*.test.js" },
+ "dependencies": { "sanity": "6.18.0", "react": "^19.2.8", "react-dom": "^19.2.8", "styled-components": "^6.1.19" }
+}

@@ -1,9 +1,10 @@
 ---
-import { FaArrowUp, FaWhatsapp } from "react-icons/fa6";
+import Icon from "./Icon.jsx";
+import { FaWhatsapp } from "react-icons/fa6";
 import { organization } from "../content/home.js";
 import "../styles/components/floating-utilities.css";
 
-const whatsappNumber = organization.phoneHref.replace(/\D/g, "");
+const whatsappNumber = organization.whatsapp || organization.phoneHref.replace(/\D/g, "");
 const whatsappHref = `https://wa.me/${whatsappNumber}`;
 ---
 
@@ -12,7 +13,7 @@ const whatsappHref = `https://wa.me/${whatsappNumber}`;
     <FaWhatsapp aria-hidden="true" focusable="false" />
   </a>
   <button class="floating-action floating-action-top" type="button" data-scroll-top aria-label="Scroll to the top of the page" hidden>
-    <FaArrowUp aria-hidden="true" focusable="false" />
+    <Icon name="arrow-up" aria-hidden="true" focusable="false" />
   </button>
 </nav>
 

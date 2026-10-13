@@ -38,7 +38,7 @@ export default {
   },
   security: {
     profileId: "public-interactive",
-    // Public Astro site: contact enquiries use an email-app handoff, not login.
+    // Public Astro site: optional Turnstile-protected Railway enquiries, no login.
     authMode: "none",
   },
 };

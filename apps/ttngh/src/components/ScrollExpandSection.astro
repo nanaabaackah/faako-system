@@ -1,11 +1,11 @@
 ---
+import Icon from "./Icon.jsx";
 import "../styles/components/scroll-expand.css";
-import { FaArrowRight } from "react-icons/fa6";
+import EditorialImage from "./EditorialImage.astro";
 
 const {
   image,
   alt = "",
-  eyebrow = "",
   title,
   text,
   href = "/contact",
@@ -19,13 +19,12 @@ const {
   <div class="scroll-expand__track">
     <section class="scroll-expand__stage" aria-labelledby={id}>
       <div class="scroll-expand__frame">
-        {image && <img class="scroll-expand__media" src={image} alt={alt} width="1600" height="1066" loading="lazy" decoding="async" />}
+        {image && <EditorialImage class="scroll-expand__media" src={image} alt={alt} loading="lazy" />}
         <div class="scroll-expand__scrim" aria-hidden="true"></div>
         <div class="scroll-expand__overlay">
-          <p class="eyebrow">{eyebrow}</p>
           <h2 id={id}>{title}</h2>
           {text && <p>{text}</p>}
-          <a class="button button-primary" href={href}><span class="button-label">{linkLabel}</span><span class="button-icon" aria-hidden="true"><FaArrowRight focusable="false" /></span></a>
+          <a class="button button-primary" href={href}><span class="button-label">{linkLabel}</span><span class="button-icon" aria-hidden="true"><Icon name="arrow-right" focusable="false" /></span></a>
         </div>
       </div>
       <p class="scroll-expand__title" aria-hidden="true">{frameTitle}</p>
@@ -57,7 +56,8 @@ const {
       const hint = this.querySelector(".scroll-expand__hint");
       if (!track || !stage || !frame || !scrim || !overlay || !title || !hint) return;
 
-      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      let reduceMotion = motionQuery.matches;
       let stageHeight = 0;
       let frameId = 0;
       let active = true;
@@ -75,7 +75,7 @@ const {
 
         frame.style.clipPath = `inset(${insetY}% ${insetX}% ${insetY}% ${insetX}% round ${radius}px)`;
         if (media) media.style.transform = `scale(${1.18 - 0.18 * eased})`;
-        scrim.style.opacity = `${0.86 * eased}`;
+        scrim.style.opacity = `${0.45 + 0.4 * eased}`;
 
         const titleOut = smoothstep(0.34, 0.82, progress);
         title.style.opacity = `${1 - titleOut}`;
@@ -88,9 +88,9 @@ const {
       };
 
       const measure = () => {
-        stageHeight = Math.max(560, window.innerHeight);
+        stageHeight = Math.max(520, Math.min(800, window.innerHeight * 0.85));
         stage.style.height = `${stageHeight}px`;
-        track.style.height = reduceMotion ? `${stageHeight}px` : `${stageHeight * 2.05}px`;
+        track.style.height = reduceMotion ? `${stageHeight}px` : `${stageHeight * 2.15}px`;
         update();
       };
 
@@ -98,7 +98,7 @@ const {
         if (!active) return;
         cancelAnimationFrame(frameId);
         frameId = requestAnimationFrame(() => {
-          const progress = reduceMotion ? 1 : clamp(-track.getBoundingClientRect().top / (stageHeight * 0.9), 0, 1);
+          const progress = reduceMotion || this.contains(document.activeElement) ? 1 : clamp(-track.getBoundingClientRect().top / (stageHeight * 1.1), 0, 1);
           apply(progress);
         });
       };
@@ -112,7 +112,21 @@ const {
       measure();
       window.addEventListener("scroll", update, { passive: true });
       window.addEventListener("resize", measure, { passive: true });
+      const motionChanged = () => { reduceMotion = motionQuery.matches; measure(); };
+      motionQuery.addEventListener("change", motionChanged);
+      const revealForFocus = () => apply(1);
+      this.addEventListener("focusin", revealForFocus);
+      this.cleanup = () => {
+        observer.disconnect();
+        cancelAnimationFrame(frameId);
+        window.removeEventListener("scroll", update);
+        window.removeEventListener("resize", measure);
+        motionQuery.removeEventListener("change", motionChanged);
+        this.removeEventListener("focusin", revealForFocus);
+        delete this.dataset.ready;
+      };
     }
+    disconnectedCallback() { this.cleanup?.(); }
   }
 
   if (!customElements.get("scroll-expand-section")) {

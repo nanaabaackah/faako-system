@@ -1,0 +1,35 @@
+---
+import Icon from "../../components/Icon.jsx";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+import { getPublishedEvents } from "../../lib/event-source.js";
+import { eventPath, formatEventDate, googleCalendarUrl, eventStructuredData } from "../../lib/events.js";
+import { productionOrigin } from "../../lib/indexability.js";
+import "../../styles/components/event-listings.css";
+export async function getStaticPaths() {
+  return (await getPublishedEvents()).map(event => ({ params: { slug: event.slug }, props: { event } }));
+}
+const { event } = Astro.props;
+const site = Astro.site || new URL(productionOrigin);
+const isPast = Date.parse(event.end) < Date.now();
+const labels = { closed: "Registration is closed.", "not-open": "Registration has not opened yet.", "not-required": "Registration is not required." };
+---
+<BaseLayout title={`${event.title} | TTNGH Events`} description={event.seoDescription} path={eventPath(event)} image={event.image.url} imageAlt={event.image.alt} event={eventStructuredData(event, site)} breadcrumbs={[{ name: "Home", path: "/" }, { name: "Events", path: "/events" }, { name: event.title, path: eventPath(event) }]}>
+  <main id="main-content" class="editorial-main">
+    <PageHero title={event.title} intro={event.summary} />
+    <section class="event-detail-grid" aria-label="Event information">
+      <div class="event-detail-body"><img class="event-detail-image" src={`${event.image.url}?w=1600&auto=format`} srcset={`${event.image.url}?w=640&auto=format 640w, ${event.image.url}?w=960&auto=format 960w, ${event.image.url}?w=1600&auto=format 1600w`} sizes="(max-width: 760px) 100vw, 60vw" alt={event.image.alt} width={event.image.width} height={event.image.height} fetchpriority="high" />{event.description.split(/\n\s*\n/).map(paragraph => <p>{paragraph}</p>)}</div>
+      <aside class="glass-card event-detail-facts"><h2>Plan your visit</h2>
+        <dl><dt>Date and time</dt><dd><time datetime={event.start}>{formatEventDate(event)}</time><br />{event.timezone}</dd>
+          <dt>{event.format === "online" ? "Online event" : "Venue"}</dt><dd>{event.format === "online" ? <a href={event.onlineUrl} rel="noopener noreferrer" target="_blank">Public joining information <Icon name="external" /></a> : <>{event.venue}{event.address && <p>{event.address}</p>}</>}</dd>
+          <dt>Accessibility</dt><dd>{event.accessibility}</dd>
+          {event.capacity && <><dt>Public capacity</dt><dd>{event.capacity}</dd></>}
+          {event.relatedProgramme && <><dt>Related programme</dt><dd><a href={event.relatedProgrammeSlug ? `/programmes/${event.relatedProgrammeSlug}` : "/programmes"}>{event.relatedProgramme}</a></dd></>}
+        </dl>
+        {isPast ? <p>This event has ended.</p> : event.registrationState === "open" ? <a class="button button-primary" href={event.registrationUrl} target="_blank" rel="noopener noreferrer"><span class="button-label">Register for this event</span><span class="button-icon" aria-hidden="true"><Icon name="external" /></span></a> : <p>{labels[event.registrationState]}</p>}
+        <div class="event-detail-actions">{!isPast && <><a href={googleCalendarUrl(event, site)} target="_blank" rel="noopener noreferrer">Add to Google Calendar <Icon name="external" /></a><a href={`${eventPath(event)}.ics`} download={`${event.slug}.ics`}>Download calendar event</a></>}<a href="/contact?topic=events">Ask about this event <Icon name="arrow-right" /></a></div>
+        {!isPast && <p>Google Calendar opens only when you choose its link. Downloading the calendar file does not connect to Google.</p>}
+      </aside>
+    </section>
+  </main>
+</BaseLayout>

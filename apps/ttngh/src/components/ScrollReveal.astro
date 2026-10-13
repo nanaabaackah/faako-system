@@ -1,60 +1,26 @@
 ---
 import "../styles/components/scroll-reveal.css";
 ---
-
 <script>
-  const revealSelector = [
-    "main > section:not(.home-hero):not(.page-hero)",
-    ".site-footer-panel",
-  ].join(",");
-
-  const initialiseScrollReveal = () => {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>(revealSelector));
-    if (!elements.length) return;
-
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-    elements.forEach((element) => {
-      element.classList.add("scroll-reveal");
-
-      const bounds = element.getBoundingClientRect();
-      element.dataset.revealOrigin = bounds.bottom <= 0 ? "top" : "bottom";
-
-      if (reduceMotion || (bounds.top < window.innerHeight * 0.88 && bounds.bottom > 0)) {
-        element.classList.add("is-revealed");
-      }
-    });
-
-    document.documentElement.dataset.scrollRevealReady = "true";
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      elements.forEach((element) => element.classList.add("is-revealed"));
-      return;
-    }
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        const element = entry.target as HTMLElement;
-
-        if (entry.isIntersecting) {
-          element.dataset.revealOrigin = entry.boundingClientRect.top < 0 ? "top" : "bottom";
-          requestAnimationFrame(() => element.classList.add("is-revealed"));
-          return;
-        }
-
-        element.dataset.revealOrigin = entry.boundingClientRect.bottom <= 0 ? "top" : "bottom";
-        element.classList.remove("is-revealed");
+  // Gentle blur/translate reveal inspired by React Bits Scroll Reveal,
+  // implemented without hydrating static content into React.
+  const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  const nodes = [...document.querySelectorAll<HTMLElement>("main > section:not(.home-hero):not(.page-hero), .home-calendar, .programme-row")];
+  if (!motion.matches && "IntersectionObserver" in window) {
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        const node = entry.target as HTMLElement;
+        node.classList.toggle("is-revealed", entry.isIntersecting);
       });
-    }, {
-      rootMargin: "-4% 0px -8% 0px",
-      threshold: 0.08,
+    }, { threshold: 0, rootMargin: "0px 0px -30px 0px" });
+    nodes.forEach(node => {
+      // Never conceal first-view content or a focused descendant.
+      if (node.getBoundingClientRect().top < innerHeight) return;
+      node.classList.add("scroll-reveal");
+      observer.observe(node);
     });
-
-    elements.forEach((element) => observer.observe(element));
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initialiseScrollReveal, { once: true });
-  } else {
-    initialiseScrollReveal();
+    motion.addEventListener("change", () => {
+      if (motion.matches) { observer.disconnect(); nodes.forEach(node => node.classList.remove("scroll-reveal")); }
+    });
   }
 </script>

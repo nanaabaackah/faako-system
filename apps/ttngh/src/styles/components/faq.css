@@ -27,8 +27,8 @@
   height: 3.25rem;
   place-items: center;
   border-radius: var(--radius-pill);
-  background: var(--brand-pink);
-  color: var(--white);
+  background: var(--white);
+  color: var(--brand-black);
   font-size: 1.2rem;
 }
 

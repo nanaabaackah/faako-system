@@ -1,3 +1,4 @@
+import { contentOfType, cmsConfigured } from "../lib/cms-source.js";
 export const founder = {
   name: "Anthonia Nonye Tony-Dibie",
   role: "Founder & Executive Director",
@@ -6,7 +7,7 @@ export const founder = {
     "I wanted to create a judgment-free community space where people could simply come, release, breathe, and be heard.",
 };
 
-export const team = [
+const originalTeam = [
   { name: "Dzifa Tay Ansah", role: "Programs Manager", image: "/images/team/dzifa-tay-ansah.jpg" },
   { name: "Emefa Adonu", role: "Operations & Strategy Lead", image: "/images/team/emefa-adonu.jpg" },
   { name: "Frances Acquaye", role: "Director of Legal Affairs", image: "/images/team/frances-acquaye.jpg" },
@@ -16,3 +17,4 @@ export const team = [
   { name: "Ruby Adeley", role: "Volunteer & Administrative Lead", image: "/images/team/ruby-adeley.jpg" },
   { name: "Vivienne Aklasi", role: "Outreach Coordinator", image: "/images/team/vivienne-aklasi.jpg" },
 ];
+export const team = cmsConfigured ? (await contentOfType("teamMember")).map(member=>({...member,image:`${member.image.url}?w=800&auto=format`,alt:member.image.alt})) : originalTeam;

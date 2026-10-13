@@ -1,4 +1,6 @@
-export const organization = {
+import { contentOfType, cmsConfigured } from "../lib/cms-source.js";
+const settings = (await contentOfType("siteSettings"))[0];
+const originalOrganization = {
   name: "The Thriving Network GH",
   shortName: "TTN GH",
   tagline: "Peace Over Everything.",
@@ -21,11 +23,20 @@ export const organization = {
   ],
 };
 
-export const impactStats = [
+export const organization = { ...originalOrganization, ...(settings ? {
+  name: settings.organisationName, tagline: settings.tagline, summary: settings.summary,
+  email: settings.email, address: settings.address || originalOrganization.address,
+  phoneDisplay: settings.phone || originalOrganization.phoneDisplay,
+  phoneHref: settings.phone?.replace(/[^+\d]/g, "") || originalOrganization.phoneHref,
+  whatsapp: settings.whatsapp?.replace(/[^\d]/g, ""), seo: settings.seo, registrationDetails: settings.registrationDetails,
+  socials: settings.socials?.map(social => ({ ...social, platform: social.label, icon: social.label.toLowerCase() })) || originalOrganization.socials,
+} : {}) };
+const originalImpactStats = [
   { value: "1,000+", label: "people impacted through our activities" },
   { value: "100+", label: "active support group members" },
   { value: "100+", label: "one-on-one counselling sessions delivered" },
 ];
+export const impactStats = cmsConfigured ? await contentOfType("impactStat") : originalImpactStats;
 
 export const programmePillars = [
   {

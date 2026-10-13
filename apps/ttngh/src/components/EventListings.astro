@@ -1,0 +1,19 @@
+---
+import Icon from "./Icon.jsx";
+import { getPublishedEvents } from "../lib/event-source.js";
+import { groupEvents, eventPath, formatEventDate } from "../lib/events.js";
+import "../styles/components/event-listings.css";
+const { compact = false, featuredEventId } = Astro.props;
+const { upcoming, past } = groupEvents(await getPublishedEvents());
+const selection=compact&&featuredEventId?[...upcoming.filter(event=>event.id===featuredEventId),...upcoming.filter(event=>event.id!==featuredEventId)]:upcoming;
+const groups = [{ title: "Upcoming events", events: compact ? selection.slice(0, 3) : upcoming }, ...(!compact && past.length ? [{ title: "Past events", events: past }] : [])];
+---
+<div class="event-listings">
+  {groups.map(group => <section class="event-listing-group">
+    <h2>{group.title}</h2>
+    {group.events.length ? <div class="event-card-grid">{group.events.map(event => <a class="bubble-card motion-card event-card" href={eventPath(event)}>
+      <img src={`${event.image.url}?w=800&auto=format`} alt={event.image.alt} width={event.image.width} height={event.image.height} loading="lazy" decoding="async" />
+      <div><h3>{event.title}</h3><p class="event-card-summary">{event.summary}</p><p><time datetime={event.start}>{formatEventDate(event)}</time><br />{event.timezone}</p><p>{event.format === "online" ? "Online" : event.venue}</p><span class="text-link">Event details <Icon name="arrow-right" /></span></div>
+    </a>)}</div> : <p>New dates have not been published yet. <a href="/contact?topic=events">Ask the team about upcoming events.</a></p>}
+  </section>)}
+</div>

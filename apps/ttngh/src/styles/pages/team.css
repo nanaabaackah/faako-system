@@ -23,7 +23,7 @@
   height: min(42rem, 70vw);
   margin: 0;
   overflow: hidden;
-  border-radius: var(--radius-pill) var(--radius-pill) var(--radius-xl) var(--radius-xl);
+  border-radius: 12px;
 }
 
 .founder-profile img {
@@ -32,7 +32,7 @@
   height: 100%;
   object-fit: cover;
   object-position: center 16%;
-  filter: grayscale(1);
+  filter: none;
 }
 
 .founder-profile h2 {
@@ -49,8 +49,8 @@
 }
 
 .leadership-team {
-  background: var(--brand-black);
-  color: var(--white);
+  background: var(--white);
+  color: var(--ink);
 }
 
 .leadership-team .eyebrow {
@@ -67,6 +67,6 @@
   }
 
   .founder-profile figure {
-    height: 32rem;
+    height: 24rem;
   }
 }
