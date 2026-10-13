@@ -4,19 +4,26 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "APP_ENV=development node src/server.js",
+    "dev": "APP_ENV=development node --env-file-if-exists=.env src/server.js",
     "start": "node src/server.js",
     "build": "node --check src/server.js && node --check src/app.js",
     "lint": "eslint src test",
     "typecheck": "node --check src/server.js && node --check src/app.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:db": "node --test test/integration/*.test.js",
+    "db:migrate": "node --env-file-if-exists=.env src/db/migrate.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1149.0",
     "@faako/api-contracts": "workspace:*",
+    "@faako/audit": "workspace:*",
     "@faako/logger": "workspace:*",
     "@faako/security": "workspace:*",
     "@faako/validation": "workspace:*",
     "express": "^5.2.1",
+    "openid-client": "6.8.8",
+    "pg": "8.20.0",
+    "sharp": "0.34.5",
     "zod": "^3.24.0"
   },
   "devDependencies": {

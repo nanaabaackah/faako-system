@@ -1,0 +1,36 @@
+# Media foundation — implementation in progress
+
+Date: 2026-10-12. TWE-017/TWE-004. No R2 bucket has been provisioned or verified.
+
+Accept JPEG, PNG and WebP only, at most 8 MiB and 24 million decoded pixels.
+Reject active formats, type/content mismatches and animated inputs. Re-encode
+to WebP without original metadata; never serve original uploaded bytes. Private
+storage holds draft assets and responsive derivatives. Public delivery is a
+separate publication concern. Image replacement creates a new asset ID so old
+revisions cannot silently change. Archive must not break referenced revisions.
+Keep alt text and rights/source evidence; the agency owns content verification.
+
+## Dependency decision
+
+`sharp` 0.34.5 (already present in the monorepo) is server-only image decoding,
+metadata stripping and resizing. `@aws-sdk/client-s3` 3.1149.0 (version checked
+against npm) provides Cloudflare's documented S3-compatible R2 transport.
+
+1. Required for validated image management and approved R2 storage.
+2. Shared packages do not provide an image decoder or R2 client; reuse existing
+   sharp version rather than adding a competing transformation stack.
+3. Browser MIME checks are insufficient; custom image parsers/request signing
+   would add security-sensitive code. Native fetch alone does not sign S3.
+4. Alt text and accessible image-selection controls remain mandatory; no visual
+   effect or frontend dependency is introduced.
+5. Both dependencies are backend-only, with no browser bundle/hydration impact.
+   Decoding is bounded by input bytes/pixels and should be concurrency-limited;
+   the SDK adds server transitive packages, accepted for supported signing.
+6. Sharp and AWS SDK use Apache-2.0 licensing; native sharp binaries need the
+   deployment platform's supported architecture. Provider credentials, orphan
+   cleanup and dependency patching remain operational responsibilities.
+7. Safe decoding and maintained signed transport justify their costs.
+
+References: [Cloudflare R2 SDK guidance](https://developers.cloudflare.com/r2/examples/aws/aws-sdk-js-v3/),
+[sharp input options](https://sharp.pixelplumbing.com/api-constructor/),
+[sharp output options](https://sharp.pixelplumbing.com/api-output/).

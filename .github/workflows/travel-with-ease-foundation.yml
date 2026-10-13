@@ -1,0 +1,71 @@
+name: Travel With Ease foundation
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'apps/travel-with-ease-*/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/travel-with-ease-foundation.yml'
+  push:
+    branches: [develop]
+    paths:
+      - 'apps/travel-with-ease-*/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/travel-with-ease-foundation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: twe-foundation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: twe_test
+          POSTGRES_PASSWORD: isolated-ci-only
+          POSTGRES_DB: twe_test_foundation
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U twe_test -d twe_test_foundation"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter '@faako/travel-with-ease-*' run lint
+      - run: pnpm --filter '@faako/travel-with-ease-*' run typecheck
+      - run: pnpm --filter '@faako/travel-with-ease-*' run build
+      - run: pnpm --filter '@faako/travel-with-ease-*' run test
+      - name: Required isolated PostgreSQL integration tests
+        run: pnpm --filter @faako/travel-with-ease-api run test:db
+        env:
+          APP_ENV: test
+          # Synthetic credentials for the disposable job-local PostgreSQL service only.
+          TWE_TEST_DATABASE_URL: postgresql://twe_test:isolated-ci-only@127.0.0.1:5432/twe_test_foundation # security-scan-ok
+      - run: pnpm monitoring:check
+      - run: pnpm project-registry:check
+      - run: pnpm workspace:manifests
+      - run: git diff --exit-code -- pnpm-lock.yaml
+
+# Intentionally no deployment job, hosting secrets or production promotion.
+# Protected staging delivery is a separate Prompt 03 gate, not implied by CI.

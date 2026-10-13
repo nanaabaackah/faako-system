@@ -5,7 +5,10 @@ export const estimateSchema = z.object({
   destination: z.string().trim().min(2).max(120),
   travellers: z.coerce.number().int().min(1).max(30),
   nights: z.coerce.number().int().min(1).max(60),
-  travelDate: isoDateSchema,
+  travelDate: isoDateSchema.refine((value) => {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  }, "Choose a valid calendar date."),
   accommodation: z.enum(["comfortable", "premium", "luxury"]),
   tripStyle: z.enum(["relaxed", "balanced", "immersive"]),
   activities: z.enum(["few", "some", "many"]),
