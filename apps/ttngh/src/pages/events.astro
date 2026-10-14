@@ -4,6 +4,7 @@ import PageHero from "../components/PageHero.astro";
 import FaqList from "../components/FaqList.astro";
 import ScrollExpandSection from "../components/ScrollExpandSection.astro";
 import EventCalendar from "../components/EventCalendar.astro";
+import EventListings from "../components/EventListings.astro";
 import EventGalleryRail from "../components/EventGalleryRail.astro";
 import { organization } from "../content/home.js";
 import eventStyles from "../styles/pages/events.css?url";
@@ -16,20 +17,18 @@ const faqItems = [
 
 <BaseLayout path="/events" pageStyles={[eventStyles]} title={`Events | ${organization.name}`} description="Discover The Thriving Network GH community sessions, outreach activities, and annual programmes." image="/images/home/vision-gathering.jpg" imageAlt="Participants gathered for TTNGH's Vision with Clarity programme" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Events", path: "/events" }]} faqItems={faqItems}>
   <main id="main-content" class="editorial-main events-page">
-    <PageHero title="Come together for honest conversation, learning, and support." intro="Our events create welcoming spaces for mental health education, connection, reflection, and community action." images={[
-      { src: "/images/home/vision-speaker.jpg", alt: "A facilitator speaking during Vision with Clarity" },
-      { src: "/images/home/vision-gathering.jpg", alt: "Participants gathered for Vision with Clarity" },
-      { src: "/images/home/initiative-audience.jpg", alt: "Community members gathered for a TTNGH programme in Tema" },
+    <PageHero links={[["Recurring events","#event-types-title"],["Calendar","#calendar-title"]]} title="Events that bring us together." intro="Our events create welcoming spaces for mental health education, connection, reflection, and community action." images={[
+      { src: "/images/refresh/vision-facilitator-1600.webp", alt: "A speaker addressing people seated around a table", caption: "Vision with Clarity · TTNGH" },
     ]} />
+    <EventListings />
     <section class="events-recurring section-dark" aria-labelledby="event-types-title">
       <header class="events-recurring-intro">
-        <div><p class="eyebrow">What to expect</p><h2 id="event-types-title">Recurring spaces for support, reflection, and learning.</h2></div>
+        <div><h2 id="event-types-title">Recurring spaces for support, reflection, and learning.</h2></div>
         <p>TTNGH brings people together through a regular support rhythm, an annual well-being programme, and outreach developed for institutions and communities.</p>
       </header>
 
       <div class="recurring-event-list">
         <article id="support-groups" class="recurring-event">
-          <figure><img src="/images/home/initiative-community.jpg" alt="Community members gathered during a TTNGH programme in Tema" width="1600" height="1066" loading="lazy" decoding="async" /></figure>
           <div class="recurring-event-copy">
             <p class="recurring-event-rhythm">Monthly · Virtual and in person</p>
             <h3>Support group sessions</h3>
@@ -38,7 +37,7 @@ const faqItems = [
         </article>
 
         <article id="vision-with-clarity" class="recurring-event">
-          <figure><img src="/images/home/vision-gathering.jpg" alt="Participants gathered for TTNGH's Vision with Clarity programme" width="1600" height="1067" loading="lazy" decoding="async" /></figure>
+          <figure><img src="/images/refresh/vision-reflection-960.webp" alt="Participants writing at a table during Vision with Clarity" width="960" height="640" loading="lazy" decoding="async" /></figure>
           <div class="recurring-event-copy">
             <p class="recurring-event-rhythm">Annual · Launched in 2026</p>
             <h3>Vision with Clarity</h3>
@@ -59,6 +58,6 @@ const faqItems = [
     <EventCalendar />
     <EventGalleryRail />
     <FaqList items={faqItems} />
-    <div id="upcoming"><ScrollExpandSection image="/images/home/vision-gathering.jpg" alt="Participants gathered for TTNGH's Vision with Clarity programme" eyebrow="Upcoming dates" title="Join the next conversation." text="Confirmed event dates and registration details will be published here as they become available." href="/contact?topic=events" linkLabel="Ask about the next event" frameTitle="Come as you are." id="dates-title" /></div>
+    <div id="upcoming"><ScrollExpandSection image="/images/refresh/vision-community-1600.webp" alt="Participants gathered for TTNGH's Vision with Clarity programme" title="Join the next conversation." text="Confirmed event dates and registration details will be published here as they become available." href="/contact?topic=events" linkLabel="Ask about the next event" frameTitle="Come as you are." id="dates-title" /></div>
   </main>
 </BaseLayout>

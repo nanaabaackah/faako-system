@@ -1,0 +1,7 @@
+# Generated Studio runtime and output are not source files.
+.sanity/
+dist/
+node_modules/
+.env
+.env.*
+!.env.example

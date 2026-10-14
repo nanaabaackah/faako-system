@@ -18,6 +18,7 @@
   display: grid;
   gap: 0.4rem;
   font-style: normal;
+  overflow-wrap: anywhere;
 }
 
 .contact-sidebar h3 {

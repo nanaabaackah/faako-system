@@ -4,22 +4,18 @@ import PageHero from "../components/PageHero.astro";
 import ScrollExpandSection from "../components/ScrollExpandSection.astro";
 import TeamGrid from "../components/TeamGrid.astro";
 import { organization } from "../content/home.js";
-import { founder } from "../content/team.js";
+import { founder, team } from "../content/team.js";
 import teamStyles from "../styles/pages/team.css?url";
 ---
 
-<BaseLayout path="/team" pageStyles={[teamStyles]} title={`Our team | ${organization.name}`} description="Meet the founder and leadership core team behind The Thriving Network GH." image={founder.image} imageAlt={`${founder.name}, ${founder.role}`} breadcrumbs={[{ name: "Home", path: "/" }, { name: "About", path: "/about" }, { name: "Our team", path: "/team" }]}>
+<BaseLayout path="/team" people={[founder, ...team]} pageStyles={[teamStyles]} title={`Our team | ${organization.name}`} description="Meet the founder and leadership core team behind The Thriving Network GH." image={founder.image} imageAlt={`${founder.name}, ${founder.role}`} breadcrumbs={[{ name: "Home", path: "/" }, { name: "About", path: "/about" }, { name: "Our team", path: "/team" }]}>
   <main id="main-content" class="team-page editorial-main">
-    <PageHero title="The people behind the work." intro="A leadership team working across programmes, operations, legal affairs, fundraising, communications, projects, administration, and outreach." images={[
-      { src: "/images/team/emefa-adonu.jpg", alt: "Emefa Adonu, Operations and Strategy Lead" },
-      { src: "/images/team/ruby-adeley.jpg", alt: "Ruby Adeley, Volunteer and Administrative Lead" },
-      { src: "/images/team/dzifa-tay-ansah.jpg", alt: "Dzifa Tay Ansah, Programs Manager" },
-    ]} />
+    <PageHero links={[["Our founder","#founder-profile-title"],["Leadership team","#leadership-title"]]} title="The people behind the work." intro="A leadership team working across programmes, operations, legal affairs, fundraising, communications, projects, administration, and outreach." variant="formal" />
 
     <section class="founder-profile" aria-labelledby="founder-profile-title">
       <figure><img src={founder.image} alt={`${founder.name}, ${founder.role}`} width="1066" height="1600" /></figure>
       <div>
-        <p class="eyebrow">{founder.role}</p>
+        <p class="role-caption">{founder.role}</p>
         <h2 id="founder-profile-title">{founder.name}</h2>
         <blockquote>“{founder.quote}”</blockquote>
       </div>
@@ -27,11 +23,11 @@ import teamStyles from "../styles/pages/team.css?url";
 
     <section class="leadership-team" aria-labelledby="leadership-title">
       <div class="section-heading">
-        <p class="eyebrow">Leadership core team</p>
+
         <h2 id="leadership-title">Many disciplines. One mission.</h2>
       </div>
       <TeamGrid />
     </section>
-    <ScrollExpandSection image="/images/home/initiative-team.jpg" alt="The TTNGH team during a school mental health programme in Tema" eyebrow="Work with us" title="Help build a stigma-free society." text="Contribute your time, professional expertise, or organisational support to the mission." href="/get-involved" linkLabel="Get involved" frameTitle="Many disciplines. One mission." id="team-cta-title" />
+    <ScrollExpandSection image="/images/home/initiative-team.jpg" alt="The TTNGH team during a school mental health programme in Tema" title="Help build a stigma-free society." text="Contribute your time, professional expertise, or organisational support to the mission." href="/get-involved" linkLabel="Get involved" frameTitle="Many disciplines. One mission." id="team-cta-title" />
   </main>
 </BaseLayout>

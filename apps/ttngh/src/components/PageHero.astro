@@ -1,32 +1,11 @@
 ---
 import "../styles/components/page-hero.css";
-
-const {
-  eyebrow,
-  title,
-  intro,
-  variant = "default",
-  images = [
-    { src: "/images/home/vision-speaker.jpg", alt: "A TTNGH facilitator speaking during Vision with Clarity" },
-    { src: "/images/home/programme-audience.jpg", alt: "Students at a TTNGH mental health education programme in Tema" },
-    { src: "/images/home/vision-reflection.jpg", alt: "Participants at TTNGH's Vision with Clarity programme" },
-  ],
-} = Astro.props;
+import EditorialImage from "./EditorialImage.astro";
+import Icon from "./Icon.jsx";
+const { title, intro, variant = "default", images = [], links = [] } = Astro.props;
+const image = images[0];
 ---
-
-<section class:list={["page-hero", `page-hero--${variant}`]} aria-labelledby="page-title">
-  <div class="page-hero-copy">
-    <p class="eyebrow">{eyebrow}</p>
-    <h1 id="page-title">{title}</h1>
-    {intro && <p class="lead">{intro}</p>}
-  </div>
-  {variant !== "formal" && (
-    <div class="page-hero-gallery" aria-label="The Thriving Network GH in the community">
-      {images.slice(0, 3).map((image, index) => (
-        <figure>
-          <img src={image.src} alt={image.alt} width="1066" height="1600" loading={index === 0 ? "eager" : "lazy"} fetchpriority={index === 0 ? "high" : "auto"} decoding="async" />
-        </figure>
-      ))}
-    </div>
-  )}
+<section class:list={["page-hero", { "page-hero--with-image": image && variant !== "formal" }]} aria-labelledby="page-title">
+  <div class="page-hero-copy"><h1 id="page-title">{title}</h1>{intro && <p class="lead">{intro}</p>}{links.length > 0 && <nav class="page-section-nav" aria-label="Explore this page">{links.map(([label, href]) => <a href={href}>{label}<Icon name="arrow-right" /></a>)}</nav>}</div>
+  {image && variant !== "formal" && <figure><EditorialImage src={image.src} alt={image.alt} sizes="(max-width: 780px) 100vw, 45vw" loading="eager" fetchpriority="high" style={image.position ? `object-position:${image.position}` : undefined} />{image.caption && <figcaption>{image.caption}</figcaption>}</figure>}
 </section>

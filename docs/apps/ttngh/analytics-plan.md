@@ -1,59 +1,26 @@
-# TTN GH Google Analytics foundation
+# TTNGH analytics and privacy
 
-Google Analytics is a requested integration but is deliberately not loaded by the scaffold.
+Updated 13 October 2026. The public site uses the shared Faako Google Analytics utility and TTNGH's consent notice. This describes implementation, not a configured/live GA property.
 
-## Enablement gate
+## Activation
 
-Before adding the Google tag:
+Set only the approved `PUBLIC_GA_MEASUREMENT_ID`. There is no PUBLIC_ANALYTICS_ENABLED or PUBLIC_GOOGLE_ANALYTICS_ID switch in this application. The tag is not loaded without explicit analytics consent. Marketing/ad storage remains denied and Do Not Track is respected. Revoking consent disables further collection and attempts removal of first-party GA cookies.
 
-1. Confirm the client-owned GA4 account, property, Ghana/Accra reporting context, and web data stream.
-2. Approve the privacy/cookie notice, retention settings, user-data policy, and internal access roles.
-3. Implement a consent mechanism that defaults analytics storage to denied and prevents Analytics from
-   loading until the approved consent condition is met.
-4. Ensure form text, URLs, page titles, and analytics payloads do not expose health information or
-   other sensitive personal data.
-5. Validate the implementation with Google Tag Assistant in both accept and reject paths.
-6. Set `PUBLIC_ANALYTICS_ENABLED=true` and the approved `PUBLIC_GOOGLE_ANALYTICS_ID` only after review.
+The organisation must approve its property owner, access roles, reporting timezone, retention and privacy notice before activation. Verify both accept and reject paths using an isolated staging property. Disable GA Enhanced Measurement **form interactions** and site-search capture; do not allow a provider setting to collect field values or sensitive query terms.
 
-## Privacy-conscious event taxonomy
+## Data boundaries
 
-Proposed aggregate events:
+The shared page-view implementation strips query strings and hash fragments from page_location/page_path. No name, email, message, health concern, donor identity, payment reference, WhatsApp number or free-text search term may be sent. The contact script does not emit analytics events, store enquiry contents or put messages into URLs. Search operates locally.
 
-- `navigation_cta_select` with a controlled CTA identifier
-- `program_summary_view` with an approved public program slug
-- `event_registration_select` with an approved public event slug
-- `partnership_enquiry_start`
-- `volunteer_enquiry_start`
-- `donation_start` with currency and broad amount band, never donor identity
-- `newsletter_signup_complete`
-- `outbound_contact_select` with channel type only
-- `resource_view` with an approved public resource slug
+Public structured data, metadata and sitemaps are publishing features, not visitor profiling. Search Console setup still needs verified domain ownership and access approval.
 
-Never send names, email addresses, phone numbers, WhatsApp numbers, form text, health/support details,
-payment references, free-text search terms that may reveal health information, or other direct
-identifiers to Analytics.
+Future aggregate CTA/programme/event interactions require a controlled identifier allowlist and privacy review. They must not include visitor-entered text. No newsletter, payment-completion or enquiry-success analytics event is claimed implemented in Phase 2.
 
-## Success measures
+## Provider privacy
 
-- Qualified contact and partnership enquiries
-- Program and event registration handoffs
-- Volunteer and newsletter completions
-- Verified donation completion rate, reconciled outside Google Analytics
-- Resource engagement and return visits
-- Mobile task completion and form-error rates
+- Turnstile loads on explicit security-check interaction; its token is sent only to the Railway verifier and is not logged.
+- Google Calendar loads after choosing “View full Google calendar”; event-level Google links are outbound and ICS downloads stay local.
+- Sanity provides public content/assets only; private enquiries are never CMS records.
+- Resend and the recipient inbox process enquiry contents for delivery and response. The organisation must approve retention/access/deletion responsibilities.
 
-Traffic and engagement metrics should support decisions; they are not substitutes for service quality,
-safeguarding outcomes, community trust, or evidenced impact.
-
-## Official implementation references
-
-- Google Analytics website setup:
-  <https://support.google.com/analytics/answer/9304153>
-- Google consent mode:
-  <https://support.google.com/analytics/answer/10000067>
-- Google consent verification:
-  <https://support.google.com/analytics/answer/14218557>
-- WCAG 2.2:
-  <https://www.w3.org/TR/WCAG22/>
-- Ghana Data Protection Commission:
-  <https://dataprotection.org.gh/>
+Before launch, verify provider settings and network requests in a real browser, obtain the organisation's privacy/legal approval, and record responsible owners. The final production phase still includes full analytics/privacy and deployed-header review.

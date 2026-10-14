@@ -1,55 +1,97 @@
-# TTNGH deployment status
+# TTNGH deployment and activation
 
-## Current boundary — 2026-09-27
+Updated 13 October 2026. Implementation is local on `feat/ttngh-phase-1-refresh` in `/private/tmp/faako-ttngh-phase1`. No merge or deployment. The client confirms that Sanity, Railway, Turnstile and the verified sender have **not yet been set up**.
 
-The existing TTNGH Astro source is under development. Cloudflare has **not** been
-configured. This change completes app metadata; it does not deploy, approve a
-production domain, enable donations or change the site's design.
+## Application boundary
 
-`apps/ttngh/appSystem.js` declares the existing pink/black theme mappings and a
-public interactive site with no authentication. The contact form currently
-prepares a mailto handoff; it is not an authenticated backend submission.
+- `apps/ttngh`: Astro static public site, no visitor authentication.
+- `apps/ttngh/studio`: separate Sanity Studio; managed editor authentication.
+- `services/ttngh-api`: Express on Railway; enquiry delivery and signed publish hook. No contact-message database.
+- Existing Faako theme/UI, API client, validation, security headers, request IDs and logging are reused.
+- Architecture: [Phase 2 decision](phase-2-architecture.md). Evidence and remaining dependencies: [implementation report](phase-2-implementation.md).
 
-## CI behavior
+## Local commands
 
-- Normal affected builds/tests and repository security checks still apply.
-- The security gate still requires app metadata and the security header baseline.
-- `scripts/hosting-policy.mjs` explicitly defers only the Cloudflare readiness
-  check for the exact `@faako/ttngh` / `apps/ttngh` workspace. The hosting check
-  reports this deferral, rather than claiming TTNGH is ready to deploy.
-- All other apps retain their checks. Railway start-path and legacy-hosting
-  checks are not disabled. Optional monitoring is not a hosting exemption.
-- CI tests the deferral boundary. TTNGH's own test checks metadata and its theme
-  mappings without loading environment files.
+From this worktree, not the unrelated REEBS checkout:
 
-## Before configuring Cloudflare
+```sh
+pnpm --filter @faako/ttngh dev
+pnpm --filter @faako/ttngh test
+pnpm --filter @faako/ttngh build
+pnpm --filter @faako/ttngh test:seo
+pnpm --filter @faako/ttngh-api test
+pnpm --filter @faako/ttngh-studio test
+pnpm --filter @faako/ttngh-studio build
+```
 
-1. Approve the production domain, editorial content and launch checklist.
-2. Configure an independently verifiable preview and production build. Supply
-   `PUBLIC_SITE_URL` for the approved deployment; keep credentials out of public
-   variables. The current `.example` default is not a production canonical URL.
-3. Add and test `public/_redirects` with an Astro `/404.html 404` fallback, not an
-   SPA rewrite. Review redirects, generated sitemap, canonical URLs and indexing.
-4. Review CSP against built scripts (including inline structured data), validate
-   actual response headers and test the contact handoff and consent behavior.
-5. Remove TTNGH's explicit deferral from `scripts/hosting-policy.mjs` and update
-   its regression test. Run `pnpm hosting:check`, security checks and the applicable
-   build/browser checks before deployment. Do not leave the exception in place
-   after Cloudflare is configured.
+Studio requires its public project/dataset identifiers. API integration tests use local sockets and mocked providers, not real mail. Website development uses port 5177; preview uses 4177. Do not run two TTNGH servers on the same port or assume changes in this worktree are in the main checkout.
 
-## Public events calendar
+## Cloudflare static site
 
-The Events page can display an approved public Google Calendar without OAuth or
-provider secrets. Create or select a dedicated TTNGH events calendar, make only
-the intended event details public, then set its public calendar ID as
-`PUBLIC_TTNGH_GOOGLE_CALENDAR_ID` in preview and production.
+Use repository root as build root; build `pnpm --filter @faako/ttngh build`; output `apps/ttngh/dist`. Keep preview separate from production. Canonical origin is `https://thethrivingnetworkgh.org`. Both the exact production origin and `PUBLIC_SITE_INDEXABLE=true` are required for indexing. Leave false until launch approval. `/cms` is always noindex and excluded from the sitemap.
 
-The calendar ID is browser-readable and must not be treated as a credential. Do
-not place a Google client secret, service-account key or private-calendar URL in
-any `PUBLIC_` variable. The external calendar is loaded only after a visitor
-chooses the load button; the local fallback remains visible when no calendar ID
-is configured. Recheck the privacy notice, CSP, event visibility and mobile
-rendering before launch.
+Static `_headers` and `_redirects` ship with the build. There is a real 404 fallback, not an SPA rewrite. The build adds only the configured exact HTTPS Railway origin to CSP connect-src. Verify actual deployed response headers: local Astro preview does not emulate Cloudflare headers.
 
-No Cloudflare/Railway credentials, secret files or live provider calls are needed
-for these local metadata and CI checks.
+The existing `scripts/hosting-policy.mjs` TTNGH hosting deferral must be removed, with its regression test updated, only when Cloudflare configuration is complete. Do not disable unrelated hosting checks.
+
+## Sanity and editor activation
+
+1. Organisation administrator creates/owns the project and a private dataset, then records named owners.
+2. Configure Studio identifiers and deploy the Studio separately using the approved Sanity account. Add only exact approved Studio/local development origins in Sanity CORS; do not permit wildcard credentialed origins.
+3. Invite named editors with least privilege supported by the selected plan. Verify authentication-provider MFA, account recovery and a second organisational administrator. No shared passwords.
+4. Set public Studio URL on the website. `/cms` explains sign-in, create-account and forgot-password/recovery flows. The managed provider controls credentials; signing up does not grant project membership.
+5. Import and review the approved source content before activation. Do not point production at an empty dataset: CMS mode intentionally does not fall back to removed team members, partners or statistics.
+6. Add a read-only build token to Cloudflare secrets, not browser variables. Set `TTNGH_CMS_REQUIRED=true`. Missing configuration, invalid publication data or provider failures stop the build.
+7. Configure the signed publish hook below and prove publish/update/unpublish on staging.
+
+## Signed publish hook
+
+Flow: Sanity → Railway `POST /api/webhooks/sanity` → private Cloudflare Pages deploy hook → Astro rebuild → reviewed deployment.
+
+Enable create/update/delete, with drafts and versions disabled. Use the nine types listed in the schema as the filter, excluding draft/version IDs. Do not filter only on the new publishState: withdrawals must rebuild too. Use this projection:
+
+```groq
+{
+  "id": coalesce(after()._id, before()._id),
+  "type": coalesce(after()._type, before()._type),
+  "revision": coalesce(after()._rev, before()._rev),
+  "projectId": sanity::projectId(),
+  "dataset": sanity::dataset()
+}
+```
+
+Set the same strong secret in Sanity and Railway. The API verifies the signature over the raw JSON, five-minute timestamp window, project/dataset/type and non-draft ID. It deduplicates body hashes for ten minutes in a bounded store and retries safely after a failed upstream hook request. A successful response means the build was requested, not that deployment succeeded. Monitor Cloudflare build completion separately.
+
+Keep **one Railway replica**: rate limiting and webhook deduplication are process-local. A restart can request the same harmless rebuild again. A distributed store is required before scaling. Arrange an owner-controlled daily rebuild as well because upcoming/past labels are static at build time; no public unauthenticated cron endpoint is provided.
+
+Source: [Sanity webhook configuration](https://www.sanity.io/docs/content-lake/webhooks).
+
+## Railway enquiry activation
+
+Use the monorepo root and `services/ttngh-api/railway.json`, not a standalone service-folder checkout. Node 22.12+; health path `/health`. Configure the listed secrets server-side. Never enable Node inspector.
+
+1. Verify a Turnstile widget for exact TTNGH hostnames; its action is `ttngh_enquiry`. Production rejects test secret-key patterns.
+2. Configure Resend and the approved receiving inbox, following [email operations](email-operations.md).
+3. Set exact browser origins; HTTPS only in production. No credentials/cookie authentication is used.
+4. Verify Railway's actual proxy chain and forwarded-header overwrite behaviour. Only then set explicit trusted proxy CIDRs. Default no trust is conservative but can rate-limit all users sharing a proxy; this must be tested before enablement. Add edge limits as defence in depth.
+5. Keep one replica, turn on the service, then configure the public API origin and Turnstile site key in the Astro build. Missing either leaves the form disabled with direct contact alternatives.
+6. Complete real staging submission, spam/expired-token, outage and delivery tests using non-sensitive test text. Approve retention and acknowledgement policy before enabling acknowledgement.
+
+## Environment inventory (names only)
+
+| Build/service | Names | Classification |
+| --- | --- | --- |
+| Public site | PUBLIC_SITE_URL, PUBLIC_SITE_INDEXABLE, PUBLIC_GA_MEASUREMENT_ID, PUBLIC_TTNGH_GOOGLE_CALENDAR_ID | Public, optional/configuration |
+| Public site | PUBLIC_TTNGH_API_ORIGIN, PUBLIC_TURNSTILE_SITE_KEY, PUBLIC_TTNGH_STUDIO_URL | Public identifiers, never secrets |
+| Astro build only | SANITY_PROJECT_ID, SANITY_DATASET, TTNGH_CMS_REQUIRED | Build configuration |
+| Astro build only | SANITY_READ_TOKEN | Secret, read-only |
+| Studio | SANITY_STUDIO_PROJECT_ID, SANITY_STUDIO_DATASET | Public identifiers |
+| Railway | NODE_ENV, PORT, TTNGH_ALLOWED_ORIGINS, TTNGH_CONTACT_ENABLED, TURNSTILE_HOSTNAMES, TTNGH_TRUSTED_PROXY_CIDRS | Runtime configuration |
+| Railway | TURNSTILE_SECRET_KEY, RESEND_API_KEY, SANITY_WEBHOOK_SECRET, CLOUDFLARE_BUILD_HOOK_URL | Secrets |
+| Railway | TTNGH_MAIL_FROM, TTNGH_ENQUIRY_TO, TTNGH_ACKNOWLEDGEMENT_APPROVED, SANITY_PROJECT_ID, SANITY_DATASET | Approved operational configuration |
+
+## Rollback
+
+Retain the last verified Cloudflare deployment. A failed build must not replace it. Roll back the site deployment and Railway service revision independently. Disable the enquiry flag during delivery incidents, rebuild without form configuration if necessary, and keep verified direct contact details visible. For incorrect/withdrawn content, unpublish and rebuild; a code rollback alone does not retract CMS content. Do not restore withdrawn consent by reimporting old data.
+
+Export the private Sanity dataset/assets to approved encrypted storage before migrations; restrict export access and rehearse restore into a separate dataset. Named owner, schedule and retention require client approval. Rotate provider tokens and publish secrets through their provider consoles and secret stores; never put them in this document.

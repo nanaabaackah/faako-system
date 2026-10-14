@@ -1,20 +1,8 @@
 ---
-import { partners } from "../content/home-page.js";
+import { partners as originalPartners } from "../content/partners.js";
+import { contentOfType, cmsConfigured } from "../lib/cms-source.js";
+const homepage=(await contentOfType("homePage"))[0];
+const records=await contentOfType("partner");
+const partners=cmsConfigured?records.filter(p=>!homepage?.partners?.length||homepage.partners.includes(p._id)).map(p=>({...p,logo:`${p.logo.url}?w=400&auto=format`,alt:p.logo.alt})):originalPartners;
 ---
-
-<section class="home-partners" aria-label="Partners and collaborators">
-  <div class="partner-marquee" aria-label="Partner logos">
-    <div class="partner-track">
-      <div class="partner-track-group">
-        {partners.map((partner) => (
-          <img src={partner.logo} alt={partner.name} width="560" height="280" loading="lazy" decoding="async" />
-        ))}
-      </div>
-      <div class="partner-track-group" aria-hidden="true">
-        {partners.map((partner) => (
-          <img src={partner.logo} alt="" width="560" height="280" loading="lazy" decoding="async" />
-        ))}
-      </div>
-    </div>
-  </div>
-</section>
+{partners.length>0&&<section class="home-partners home-shell" aria-labelledby="partners-title"><h2 id="partners-title">Our partners.</h2><div class="partner-logos">{partners.map(partner => partner.link?<a href={partner.link} rel="noopener noreferrer" target="_blank"><img src={partner.logo} alt={partner.alt||partner.name} width="280" height="140" loading="lazy" decoding="async" /></a>:<img src={partner.logo} alt={partner.alt||partner.name} width="280" height="140" loading="lazy" decoding="async" />)}</div></section>}

@@ -1,0 +1,11 @@
+/* Class-scoped, not Astro-scoped: browser-created month cells need these rules too. */
+month-calendar { display: block; min-width: 0; }
+.month-toolbar { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+.month-toolbar h3 { margin: 0; text-align: center; font-size: clamp(.95rem, 2vw, 1.2rem); line-height: 1.4; }
+.month-toolbar button { width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: var(--surface-soft-pink); color: var(--ink); cursor: pointer; }
+.month-grid { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.month-grid th, .month-grid td { width: calc(100% / 7); text-align: center; }
+.month-grid th { padding: .65rem 0; color: var(--muted); font-size: .75rem; }
+.month-grid td { height: 48px; padding: .85rem 0; border-top: 1px solid var(--line); vertical-align: top; font-size: .9rem; font-variant-numeric: tabular-nums; line-height: 1.4; }
+.month-caption { caption-side: bottom; padding-top: 1rem; text-align: left; color: var(--muted); font-size: .8rem; line-height: 1.6; }
+.month-event { display: block; min-height: 44px; padding: .4rem .2rem; color: var(--brand-pink-deep, #a20c58); font-size: .75rem; overflow-wrap: anywhere; line-height: 1.4; text-decoration: underline; }

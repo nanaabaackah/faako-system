@@ -1,0 +1,6 @@
+---
+const { src, alt = "", sizes = "100vw", width = 1600, height = 1066, ...props } = Astro.props;
+const responsive = /\/refresh\/.+-1600\.webp$/.test(src);
+const srcset = responsive ? [640, 960, 1600].map(size => `${src.replace("-1600.webp", `-${size}.webp`)} ${size}w`).join(", ") : undefined;
+---
+<img src={src} srcset={srcset} sizes={responsive ? sizes : undefined} alt={alt} width={width} height={height} decoding="async" {...props} />

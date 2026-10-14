@@ -1,8 +1,13 @@
 ---
-import { FaArrowRight, FaMagnifyingGlass, FaXmark } from "react-icons/fa6";
+import Icon from "./Icon.jsx";
 import "../styles/components/site-search.css";
+import { getCmsDocuments, contentPath } from "../lib/cms-source.js";
+import { getPublishedEvents } from "../lib/event-source.js";
 
 const searchPages = [
+  ...(await getCmsDocuments()).filter(doc=>["programme","newsArticle","resource"].includes(doc._type)).map(doc=>({title:doc.title,description:doc.summary,href:contentPath(doc),keywords:doc.category||""})),
+  ...(await getPublishedEvents()).map(event=>({title:event.title,description:event.summary,href:`/events/${event.slug}`,keywords:"event"})),
+  { title: "Reviewed resources", href: "/resources", description: "Educational resources with named reviewers and sources.", keywords: "learning" },
   { title: "Home", href: "/", description: "Mental wellness, advocacy, community support, programmes, and TTNGH highlights.", keywords: "peace over everything mental health Ghana" },
   { title: "About us", href: "/about", description: "Our story, mission, values, founder, and future direction.", keywords: "vision NGO Tema" },
   { title: "Our team", href: "/team", description: "Meet the people leading and delivering The Thriving Network GH's work.", keywords: "leadership founder staff" },
@@ -26,14 +31,14 @@ const searchPages = [
         <h2 id="site-search-title">Search the site</h2>
       </div>
       <button class="site-search-close" type="button" data-search-close aria-label="Close site search">
-        <FaXmark aria-hidden="true" focusable="false" />
+        <Icon name="close" aria-hidden="true" focusable="false" />
       </button>
     </div>
 
     <form class="site-search-form" data-site-search-form role="search">
       <label for="site-search-input">What are you looking for?</label>
       <div class="site-search-field">
-        <FaMagnifyingGlass aria-hidden="true" focusable="false" />
+        <Icon name="search" aria-hidden="true" focusable="false" />
         <input id="site-search-input" type="search" name="q" autocomplete="off" placeholder="Search programmes, events, support…" data-site-search-input />
       </div>
     </form>
@@ -44,7 +49,7 @@ const searchPages = [
         <li data-search-item data-search-text={`${page.title} ${page.description} ${page.keywords}`.toLowerCase()}>
           <a href={page.href}>
             <span><strong>{page.title}</strong><small>{page.description}</small></span>
-            <span class="search-result-arrow" aria-hidden="true"><FaArrowRight focusable="false" /></span>
+            <span class="search-result-arrow" aria-hidden="true"><Icon name="arrow-right" focusable="false" /></span>
           </a>
         </li>
       ))}
@@ -57,6 +62,7 @@ const searchPages = [
   const dialog = document.querySelector("[data-site-search-dialog]");
 
   if (dialog instanceof HTMLDialogElement) {
+    let lastTrigger: HTMLElement | null = null;
     const input = dialog.querySelector("[data-site-search-input]");
     const form = dialog.querySelector("[data-site-search-form]");
     const status = dialog.querySelector("[data-site-search-status]");
@@ -81,12 +87,23 @@ const searchPages = [
 
     document.querySelectorAll("[data-search-open]").forEach((trigger) => {
       trigger.addEventListener("click", () => {
+        lastTrigger = trigger instanceof HTMLElement ? trigger : null;
         if (!dialog.open) dialog.showModal();
         requestAnimationFrame(() => input instanceof HTMLInputElement && input.focus());
       });
     });
 
     dialog.querySelector("[data-search-close]")?.addEventListener("click", () => dialog.close());
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        dialog.close();
+      }
+    });
+    dialog.addEventListener("close", () => {
+      if (lastTrigger?.getClientRects().length) lastTrigger.focus();
+      else document.querySelector<HTMLElement>(".compact-menu summary")?.focus();
+    });
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) dialog.close();
     });

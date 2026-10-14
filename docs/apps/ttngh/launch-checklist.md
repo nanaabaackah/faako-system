@@ -2,6 +2,20 @@
 
 This is a release checklist, not a statement that the foundation is already production-ready.
 
+## Phase 2 activation gate — 13 October 2026
+
+- [ ] Organisation-owned Sanity project/private dataset, Studio URL and named administrators/editors; invite, sign-in, create-account and recovery tested; MFA confirmed.
+- [ ] Approved content migrated; reviewer/source/consent metadata checked. No synthetic QA records published.
+- [ ] Cloudflare preview configured noindex; read-only CMS build token; signed publish/update/unpublish hook proved end-to-end; failed build retains last verified deployment.
+- [ ] Railway API configured, one replica, real proxy chain tested for non-spoofable per-client rate limiting, no-cache responses and health monitoring.
+- [ ] Turnstile site/secret keys and exact hostname/action checks tested on staging, including expiry and replay.
+- [ ] Incoming aliases, approved Gmail recipient, transactional sender and SPF/DKIM/DMARC verified together; no Email Routing records overwritten.
+- [ ] Real staging enquiry delivered; provider-outage/error paths checked; acknowledgement explicitly approved or left off.
+- [ ] Named inbox retention/deletion/safeguarding owner, content approver, event and calendar owners recorded.
+- [ ] Real-device Safari and assistive-technology review completed after local Chromium checks.
+
+Provider configuration is not yet created (client confirmed). These unchecked items prevent calling Phase 2 operational or the website launch-ready. Paystack and final production work are separate; do not merge on the strength of local mocks.
+
 ## Content, SEO, and AEO
 
 - Approve the legal organization name, domain, mission, programs, leadership, contacts, and claims.
@@ -53,6 +67,11 @@ This is a release checklist, not a statement that the foundation is already prod
   with organizational sign-off before enabling donations.
 
 ## Release evidence
+
+- Before event CMS activation: verify real published/draft records in a staging Sanity dataset,
+  approve all image context/rights, check mobile calendar links and event timezone/crops, configure
+  rebuild hooks and scheduled refresh, and test failure rollback. Local synthetic tests are not live
+  provider verification. See [Phase 2 event status](phase-2-events.md).
 
 - CI passes lint, unit/integration tests, production build, SEO assertions, dependency review, and
   deployment-readiness checks.

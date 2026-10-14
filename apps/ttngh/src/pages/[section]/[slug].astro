@@ -1,0 +1,26 @@
+---
+import Icon from "../../components/Icon.jsx";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+import CmsCards from "../../components/CmsCards.astro";
+import { getCmsDocuments, contentPath } from "../../lib/cms-source.js";
+import { productionOrigin } from "../../lib/indexability.js";
+import "../../styles/components/event-listings.css";
+export async function getStaticPaths(){return (await getCmsDocuments()).filter(doc=>["programme","newsArticle","resource"].includes(doc._type)).map(doc=>({params:{section:{programme:"programmes",newsArticle:"news",resource:"resources"}[doc._type],slug:doc.slug.current},props:{doc}}));}
+const { doc }=Astro.props;
+const path=contentPath(doc),site=Astro.site||productionOrigin;
+const relatedIds=[doc.relatedProgramme,...(doc.relatedProgrammes||[]),...(doc.relatedResources||[])].filter(Boolean);
+const related=(await getCmsDocuments()).filter(item=>relatedIds.includes(item._id)&&["programme","newsArticle","resource"].includes(item._type));
+const article=doc._type==="programme"?undefined:{approved:true,title:doc.title,url:new URL(path,site).href,publishedAt:doc.publishedAt,author:doc.author,modifiedAt:doc.lastReviewed};
+---
+<BaseLayout title={`${doc.seo?.title||doc.title} | TTNGH`} description={doc.seo.description} path={path} image={doc.image?.url||"/ttngh-logo-transparent.png"} imageAlt={doc.image?.alt||"The Thriving Network GH"} article={article}>
+ <main id="main-content" class="editorial-main">
+  <PageHero title={doc.title} intro={doc.summary} />
+  <section class="event-detail-grid" aria-label={doc.title}>
+   <div class="event-detail-body">{doc.image&&<img class="event-detail-image" src={`${doc.image.url}?w=1600&auto=format`} srcset={`${doc.image.url}?w=640&auto=format 640w, ${doc.image.url}?w=960&auto=format 960w, ${doc.image.url}?w=1600&auto=format 1600w`} sizes="(max-width:760px) 100vw, 60vw" width={doc.image.width} height={doc.image.height} alt={doc.image.alt} fetchpriority="high" />}{doc.body.split(/\n\s*\n/).map(text=><p>{text}</p>)}{doc.urgentSupportRelevant&&<aside class="glass-card event-detail-facts"><h2>Important support information</h2><p>{doc.urgentSupportNotice}</p></aside>}</div>
+   <aside class="glass-card event-detail-facts"><h2>{doc._type==="programme"?"Programme details":"About this publication"}</h2><dl>{doc._type==="programme"?<><dt>Who it is for</dt><dd>{doc.audience}</dd><dt>Format</dt><dd>{doc.format}</dd><dt>Availability</dt><dd>{doc.availability}</dd>{doc.location&&<><dt>Location</dt><dd>{doc.location}</dd></>}</>:<><dt>Author</dt><dd>{doc.author}</dd><dt>Published</dt><dd><time datetime={doc.publishedAt}>{new Date(doc.publishedAt).toLocaleDateString("en-GH",{timeZone:"Africa/Accra"})}</time></dd>{doc.reviewer&&<><dt>Reviewed by</dt><dd>{doc.reviewer}</dd><dt>Last reviewed</dt><dd><time datetime={doc.lastReviewed}>{new Date(doc.lastReviewed).toLocaleDateString("en-GH",{timeZone:"Africa/Accra"})}</time></dd></>}</>}</dl><a class="text-link" href={doc.actionHref||"/contact"}>{doc.actionLabel||"Contact the team"} <Icon name="arrow-right" /></a></aside>
+  </section>
+  {doc.sources?.length>0&&<section><h2>Sources</h2><ul>{doc.sources.map(source=><li><a href={source.url} rel="noopener noreferrer" target="_blank">{source.title} <Icon name="external" /></a></li>)}</ul></section>}
+  <CmsCards documents={related} title="Related reading" />
+ </main>
+</BaseLayout>

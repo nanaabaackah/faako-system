@@ -1,0 +1,51 @@
+---
+import Icon from "./Icon.jsx";
+import "../styles/components/month-calendar.css";
+const { events = [] } = Astro.props;
+// The month grid is explicitly Ghana time; event details retain their source timezone.
+const entries = events.map(event => ({ day: new Date(event.start).toISOString().slice(0, 10), title: event.title, href: `/events/${event.slug}` }));
+const onDay = (day) => entries.filter(event => event.day === `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+const date = new Date();
+const year = date.getUTCFullYear(), month = date.getUTCMonth();
+const label = new Intl.DateTimeFormat("en-GH", { month: "long", year: "numeric", timeZone: "Africa/Accra" }).format(date);
+const offset = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7;
+const count = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+const days = Array.from({length: Math.ceil((offset + count) / 7) * 7}, (_, i) => i >= offset && i < offset + count ? i - offset + 1 : null);
+---
+<month-calendar data-year={year} data-month={month} data-events={JSON.stringify(entries)}>
+  <div class="month-toolbar"><button type="button" data-month-prev aria-label="Previous month"><Icon name="arrow-left" /></button><h3 data-month-label aria-live="polite">{label}</h3><button type="button" data-month-next aria-label="Next month"><Icon name="arrow-right" /></button></div>
+  <table class="month-grid"><caption class="month-caption">{entries.length ? "Event start dates in Ghana time (Africa/Accra). Select an event for details." : "Calendar overview. Event dates have not yet been published."}</caption><thead><tr>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><th scope="col">{d}</th>)}</tr></thead><tbody>{Array.from({length:days.length/7},(_,row)=><tr>{days.slice(row*7,row*7+7).map(day=><td>{day}{day && onDay(day).map(event => <a class="month-event" href={event.href} aria-label={`${event.title}, ${event.day}`}>{event.title}</a>)}</td>)}</tr>)}</tbody></table>
+</month-calendar>
+<script>
+  class MonthCalendar extends HTMLElement {
+    connectedCallback() {
+      const entries = JSON.parse(this.dataset.events || "[]");
+      let current = new Date(Date.UTC(Number(this.dataset.year), Number(this.dataset.month), 1));
+      const render = () => {
+        const y=current.getUTCFullYear(), m=current.getUTCMonth();
+        this.querySelector("[data-month-label]").textContent = new Intl.DateTimeFormat("en-GH",{month:"long",year:"numeric",timeZone:"Africa/Accra"}).format(current);
+        const offset=(new Date(Date.UTC(y,m,1)).getUTCDay()+6)%7, count=new Date(Date.UTC(y,m+1,0)).getUTCDate();
+        const body=this.querySelector("tbody"); body.replaceChildren();
+        for(let row=0;row<Math.ceil((offset+count)/7);row++){
+          const tr=document.createElement("tr");
+          for(let col=0;col<7;col++){
+            const cell=document.createElement("td"),day=row*7+col-offset+1;
+            if(day>0&&day<=count){
+              cell.textContent=String(day);
+              const date=`${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+              for(const event of entries.filter(event=>event.day===date)){
+                const link=document.createElement("a");link.className="month-event";link.href=event.href;link.textContent=event.title;link.setAttribute("aria-label",`${event.title}, ${date}`);cell.append(link);
+              }
+            }
+            tr.append(cell);
+          }
+          body.append(tr);
+        }
+      };
+      this.querySelector("[data-month-prev]").addEventListener("click",()=>{current.setUTCMonth(current.getUTCMonth()-1);render();});
+      this.querySelector("[data-month-next]").addEventListener("click",()=>{current.setUTCMonth(current.getUTCMonth()+1);render();});
+      const now=new Date(); current=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),1)); render();
+    }
+  }
+  if(!customElements.get("month-calendar")) customElements.define("month-calendar",MonthCalendar);
+</script>

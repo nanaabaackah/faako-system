@@ -4,19 +4,21 @@ import "@faako/ui/compat.css";
 import "../styles/global.css";
 import "../styles/components/base.css";
 import "../styles/components/shared.css";
+import "../styles/components/interactions.css";
 import { organization } from "../content/home.js";
+import ScrollReveal from "../components/ScrollReveal.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import CookieNotice from "../components/CookieNotice.astro";
 import FloatingUtilities from "../components/FloatingUtilities.astro";
 import SiteSearch from "../components/SiteSearch.astro";
-import ScrollReveal from "../components/ScrollReveal.astro";
-import PageLoadingState from "../components/PageLoadingState.astro";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
+import { isIndexable, productionOrigin } from "../lib/indexability.js";
+import { personSchema, articleSchema, eventSchema } from "../lib/page-schema.js";
 
 const {
   title = `${organization.name} | Mental health advocacy and support in Ghana`,
-  description = "The Thriving Network GH advances mental wellness through education, counselling, advocacy, community support, research, and policy engagement.",
+  description = organization.seo?.description || "The Thriving Network GH advances mental wellness through education, counselling, advocacy, community support, research, and policy engagement.",
   path = Astro.url.pathname,
   overlayHeader = false,
   pageStyles = [],
@@ -25,20 +27,25 @@ const {
   breadcrumbs = [],
   faqItems = [],
   noIndex = false,
+  people = [],
+  article,
+  event,
 } = Astro.props;
 
-const siteUrl = Astro.site || new URL("https://ttngh.example");
+const siteUrl = Astro.site || new URL(productionOrigin);
 const canonical = new URL(path, siteUrl).toString();
-const isPreviewDomain = siteUrl.hostname.endsWith(".example");
+const isPreviewDomain = !isIndexable(siteUrl, import.meta.env.PUBLIC_SITE_INDEXABLE);
 const absoluteImage = new URL(image, siteUrl).toString();
 const graph = [
+  ...people.map(person => personSchema(person, siteUrl)),
+  ...[articleSchema(article), eventSchema(event)].filter(Boolean),
   {
     "@type": "NGO",
     "@id": new URL("/#organization", siteUrl).toString(),
     name: organization.name,
     alternateName: organization.shortName,
     slogan: organization.tagline,
-    description,
+    description: "The Thriving Network GH advances mental wellness through education, counselling, advocacy, community support, research, and policy engagement.",
     url: siteUrl.toString(),
     logo: new URL("/ttngh-logo-transparent.png", siteUrl).toString(),
     image: absoluteImage,
@@ -112,7 +119,6 @@ const structuredData = JSON.stringify({ "@context": "https://schema.org", "@grap
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#ffffff" />
     <meta name="generator" content={Astro.generator} />
-    <PageLoadingState />
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="author" content={organization.name} />
@@ -136,7 +142,7 @@ const structuredData = JSON.stringify({ "@context": "https://schema.org", "@grap
   </head>
   <body id="top" class:list={{ "has-overlay-header": overlayHeader }}>
     <a class="skip-link" href="#main-content">Skip to main content</a>
-    {!overlayHeader && <SiteHeader />}
+    <SiteHeader />
     <slot />
     <SiteFooter />
     <FloatingUtilities />

@@ -1,0 +1,32 @@
+/* One interaction contract for all public-site controls, including shared footer links. */
+:where(a[href],button,summary,[role="button"]) {
+  -webkit-tap-highlight-color: rgb(var(--brand-pink-rgb) / 20%);
+  touch-action: manipulation;
+  transition: color 450ms ease, background-color 450ms ease, box-shadow 550ms ease,
+    filter 450ms ease, translate 450ms ease, text-decoration-color 450ms ease;
+}
+:where(button,summary,[role="button"]) { cursor: pointer; }
+:where(button:disabled,[aria-disabled="true"]) { cursor: not-allowed; }
+:where(a[href],button,summary,[role="button"]):focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 5px;
+}
+@media (hover:hover) {
+  :where(a[href],button,summary,[role="button"]):not(:disabled):not([aria-disabled="true"]):hover {
+    filter: brightness(.88);
+  }
+  :where(a[href]):not(.button):not(.header-logo):hover {
+    text-decoration: underline;
+    text-underline-offset: .25em;
+    text-decoration-thickness: 2px;
+  }
+  :where(button,.button,.page-section-nav a,.header-donate,summary):not(:disabled):not([aria-disabled="true"]):hover {
+    translate: 0 -2px;
+  }
+  :where(a[href],button):hover>.ttngh-icon { translate: 3px 0; }
+}
+:where(a[href],button,summary,[role="button"]):not(:disabled):not([aria-disabled="true"]):active { filter: brightness(.8); }
+.ttngh-icon { transition: translate 450ms ease; }
+@media (prefers-reduced-motion:reduce) {
+  :where(a[href],button,summary,[role="button"]),.ttngh-icon { transition:none; translate:none!important; }
+}
