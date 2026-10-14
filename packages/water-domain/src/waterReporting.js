@@ -31,9 +31,10 @@ export const buildWaterSummary = ({ restocks = [], sales = [], expenses = [], ad
     + (method(sale.paymentMethod) === paymentMethod ? sale.balanceDueCents : 0), 0);
   const salesFor = (paymentMethod) => sum(sales.filter((sale) => method(sale.paymentMethod) === paymentMethod), "totalAmount");
   const validCollections = collections.filter((row) => row.status === "PAID" && row.applicationStatus === "APPLIED");
-  const cashCollected = sum(validCollections, "amountCents");
-  const cashCollections = sum(validCollections.filter((row) => method(row.method) === "cash"), "amountCents");
-  const momoCollections = sum(validCollections.filter((row) => method(row.method) === "momo"), "amountCents");
+  const received = validCollections.map((row) => ({ ...row, receivedCents: row.cashReceivedCents ?? row.amountCents }));
+  const cashCollected = sum(received, "receivedCents");
+  const cashCollections = sum(received.filter((row) => method(row.method) === "cash"), "receivedCents");
+  const momoCollections = sum(received.filter((row) => method(row.method) === "momo"), "receivedCents");
   const extraExpenses = sum(expenses, "amount");
   const costs = calculateWaterCostBasis({ restocks, sales, stockOnHand, currentUnitCost: currentCostPrice });
   const grossProfit = costs.profitabilityAvailable ? revenue - costs.costOfGoodsSold : null;

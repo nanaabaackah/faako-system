@@ -1,14 +1,14 @@
 import { useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { SidebarEdgeToggle, useSidebarCollapsedState } from "@faako/ui";
-import { Category, Box, Receipt, People, AddCircle, Menu, SearchNormal1, Logout } from "iconsax-react";
+import { Category, Box, Receipt, People, Menu, SearchNormal1, Logout } from "iconsax-react";
 import { AppIcon } from "./AppIcon.jsx";
 import PortalAction from "./PortalAction.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
 
-const icons = { dashboard: Category, orders: Receipt, stock: Box, sales: AddCircle, customers: People };
+const icons = { dashboard: Category, orders: Receipt, stock: Box, customers: People };
 
-export default function WaterNavigation({ permissions }) {
+export default function WaterNavigation() {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
@@ -17,7 +17,6 @@ export default function WaterNavigation({ permissions }) {
   const toggleRef = useRef(null);
   const items = [
     ["dashboard", "Dashboard", true],
-    ["sales", "Sales", permissions.canRecordSales],
     ["orders", "Orders", true],
     ["customers", "Customers", true],
     ["stock", "Stock", true],

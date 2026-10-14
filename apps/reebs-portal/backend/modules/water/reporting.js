@@ -4,7 +4,12 @@ export const loadWaterCollections = async (client, organizationId, productKey, c
   const result = await client.query(
     `SELECT pr.id, pa.id AS "applicationId", w.id AS "saleId", w."productKey", w."customerId",
             w."customerName", pr.reference, pr."providerReference", pr.method, pr.provider,
-            pa."amountCents", pr.currency, pr."paidAt", pr.status, pa.status AS "applicationStatus"
+            pa."amountCents", pr.currency, pr."paidAt", pa."appliedAt", pr.status, pa.status AS "applicationStatus",
+            CASE WHEN pa.id = (SELECT MIN(origin.id) FROM "paymentApplication" origin
+              WHERE origin."organizationId" = pr."organizationId" AND origin."paymentId" = pr.id)
+              THEN pr."amountCents" ELSE 0 END AS "cashReceivedCents",
+            pa.id <> (SELECT MIN(origin.id) FROM "paymentApplication" origin
+              WHERE origin."organizationId" = pr."organizationId" AND origin."paymentId" = pr.id) AS "isCreditApplication"
      FROM "paymentApplication" pa
      JOIN "paymentRecord" pr ON pr.id = pa."paymentId" AND pr."organizationId" = pa."organizationId"
      JOIN "waterSale" w ON w.id = pa."payableId" AND w."organizationId" = pa."organizationId"

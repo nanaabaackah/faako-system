@@ -7,7 +7,18 @@ import {
   fingerprintPaymentRequest,
   parsePaymentReferenceOrganizationId,
   toPaymentAttemptDto,
+  createPaymentRecordAndApplication,
 } from "./paymentPersistence.js";
+
+test("partial allocation is Water-only and invalid applications are rejected before writes", async () => {
+  const client = { query: () => assert.fail("Invalid application must not write") };
+  for (const input of [
+    { businessUnit: "REEBS_CORE", amountCents: 1500, applicationAmountCents: 1000 },
+    { businessUnit: "WATER", amountCents: 1000, applicationAmountCents: 1500 },
+    { businessUnit: "WATER", amountCents: 1000, applicationAmountCents: 0 },
+    { businessUnit: "WATER", amountCents: 1000, applicationAmountCents: 1.5 },
+  ]) await assert.rejects(() => createPaymentRecordAndApplication(client, input), { code: "PAYMENT_OVERAPPLICATION" });
+});
 
 test("payment request fingerprints are stable and sensitive to trusted relationship changes", () => {
   const first = fingerprintPaymentRequest({ payableId: 1, payableType: "ORDER" });

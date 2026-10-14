@@ -24,7 +24,7 @@ export const runWaterTransaction = async (client, operation) => {
   }
 };
 
-const CREATION_ACTIONS = new Set(["sale", "restock", "expense", "adjustment", "record_collection"]);
+const CREATION_ACTIONS = new Set(["sale", "restock", "expense", "adjustment", "record_collection", "apply_customer_credit"]);
 
 // One transaction covers validation, the write, audit and retry marker. A failed
 // response must roll back, not cache a failed/partial business operation.

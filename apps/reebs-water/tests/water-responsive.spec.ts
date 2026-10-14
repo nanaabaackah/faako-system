@@ -87,13 +87,14 @@ for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
     if (await toggle.isVisible()) await toggle.click();
     const nav = page.getByRole("navigation", { name: "REEBS Water navigation", exact: true });
     await expect(nav).toBeVisible();
-    await expect(nav.getByRole("link")).toHaveText(["Dashboard", "Sales", "Orders", "Customers", "Stock"]);
+    await expect(nav.getByRole("link")).toHaveText(["Dashboard", "Orders", "Customers", "Stock"]);
     await page.screenshot({ path: testInfo.outputPath(`water-sidebar-${width}.png`), fullPage: true });
     await openWaterModule(page, "Sales");
     await page.getByLabel("Sale quantity", { exact: true }).fill("3");
     await expect(page.getByLabel("Restock quantity", { exact: true })).toHaveCount(0);
     await openWaterModule(page, "Orders");
-    await expect(page.getByRole("heading", { name: "Orders", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Orders", exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Hide new order form", exact: true }).click();
     await expect(page.getByLabel("Sale quantity", { exact: true })).toHaveCount(0);
     await openWaterModule(page, "Sales");
     await expect(page.getByLabel("Sale quantity", { exact: true })).toHaveValue("3");
@@ -436,7 +437,7 @@ for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
     await page.getByRole("button", { name: "Record collection for sale 97", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Record collection · Sale #97", exact: true });
     await expect(dialog).toBeVisible();
-    await dialog.getByLabel("Amount (GHS)", { exact: true }).fill("25.00");
+    await dialog.getByLabel("Amount received (GHS)", { exact: true }).fill("25.00");
     expect(await page.evaluate(() => Boolean(document.elementFromPoint(30, 200)?.closest('[aria-labelledby="water-collection-title"]')))).toBe(true);
     await dialog.getByRole("button", { name: "Collection method", exact: true }).click();
     await page.getByRole("option", { name: "Manual Mobile Money", exact: true }).click();

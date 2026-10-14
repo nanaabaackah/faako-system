@@ -2,6 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildWaterSummary } from "./waterReporting.js";
 
+test("overpayments count cash once; later credit applications do not become cash or extra revenue", () => {
+  const receipt = { amountCents: 10000, cashReceivedCents: 15000, method: "Cash", status: "PAID", applicationStatus: "APPLIED" };
+  const credit = { amountCents: 3000, cashReceivedCents: 0, method: "Cash", status: "PAID", applicationStatus: "APPLIED", isCreditApplication: true };
+  const summary = buildWaterSummary({ collections: [receipt, credit], sales: [{ totalAmount: 10000 }, { totalAmount: 3000 }] });
+  assert.equal(summary.revenue, 13000);
+  assert.equal(summary.cashCollected, 15000);
+  assert.equal(summary.cashCollections, 15000);
+  assert.equal(buildWaterSummary({ collections: [credit] }).cashCollected, 0);
+});
+
 test("Water summary distinguishes sale revenue, applied collections and live balance", () => {
   const summary = buildWaterSummary({ sales: [{ quantity: 2, totalAmount: 6000, unitCostAtSaleCents: 2000,
     paymentMethod: "Mobile Money", paymentStatus: "partially_paid", collectedCents: 2500, applicationCount: 1 }],

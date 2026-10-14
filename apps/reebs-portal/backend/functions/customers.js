@@ -4,6 +4,7 @@ import { createLogger } from "./_shared/logger.js";
 import { hasPermission, requirePermission, respond } from "./_shared/internalApi.js";
 import { ensureCrmContactTables } from "./_shared/crmContact.js";
 import { getDeliveryFeeDetails } from "./_shared/deliveryFee.js";
+import { loadWaterCustomerDetail } from "../modules/water/customerDetail.js";
 import { buildCustomerInput, getCustomerIdentitySearchTerms } from "../modules/customers/customerIdentity.js";
 import {
   CUSTOMER_ERROR_CODES,
@@ -210,31 +211,6 @@ const loadCoreCustomerDetail = async (client, organizationId, customerId, {
   };
 };
 
-const loadWaterCustomerDetail = async (client, organizationId, customerId) => {
-  const [salesResult, totalsResult] = await Promise.all([
-    client.query(
-      `SELECT id, "productName", quantity, "saleChannel", "paymentMethod", "paymentStatus",
-              "unitPrice", "totalAmount", date
-       FROM "waterSale"
-       WHERE "customerId" = $1 AND "organizationId" = $2
-       ORDER BY date DESC, id DESC LIMIT 10`,
-      [customerId, organizationId]
-    ),
-    client.query(
-      `SELECT COUNT(*)::int AS sales, COALESCE(SUM("totalAmount"), 0) AS revenue,
-              COALESCE(SUM(quantity), 0)::int AS quantity
-       FROM "waterSale" WHERE "customerId" = $1 AND "organizationId" = $2`,
-      [customerId, organizationId]
-    ),
-  ]);
-  return {
-    scope: "water",
-    waterSales: salesResult.rows || [],
-    waterTotals: totalsResult.rows?.[0] || { sales: 0, revenue: 0, quantity: 0 },
-    historyLimits: { waterSales: 10 },
-  };
-};
-
 export async function handler(event = {}) {
   const method = String(event.httpMethod || "GET").toUpperCase();
   if (method === "OPTIONS") return json(event, 204, {});
@@ -275,7 +251,9 @@ export async function handler(event = {}) {
             canReadFinancials: hasPermission(authUser, "financials:read"),
             canReadInvoices: hasPermission(authUser, "invoices:read"),
           });
-        return json(event, 200, { customer, ...detail });
+        return json(event, 200, { customer, ...detail,
+          permissions: { ...detail.permissions, canEditCustomer: hasPermission(authUser, "customers:write") },
+        });
       }
 
       const search = getCustomerIdentitySearchTerms(query.q || query.email || query.phone || query.name);

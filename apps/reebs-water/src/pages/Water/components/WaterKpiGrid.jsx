@@ -106,7 +106,7 @@ export default function WaterKpiGrid({
             <div><dt>Extra expenses</dt><dd>{formatCurrency(trackingSummary.extraExpenses)}</dd></div>
             <div><dt>Cash position</dt><dd>{formatOptionalCurrency(trackingSummary.cashPosition)}</dd></div>
             <div><dt>Current outstanding balance</dt><dd>{formatCurrency(liveSummary.outstandingBalance)}</dd></div>
-            <div><dt>Current credit balance</dt><dd>{formatCurrency(liveSummary.outstandingCredit)} · {totalCreditCount} sales</dd></div>
+            <div><dt>Pay-later outstanding</dt><dd>{formatCurrency(liveSummary.outstandingCredit)} · {totalCreditCount} sales</dd></div>
             <div><dt>Cash sales</dt><dd>{formatCurrency(trackingSummary.cashSalesTotal)} · {formatCurrency(trackingSummary.pendingCash)} pending</dd></div>
             <div><dt>MoMo sales</dt><dd>{formatCurrency(trackingSummary.momoSalesTotal)} · {formatCurrency(trackingSummary.pendingMomo)} pending</dd></div>
             <div><dt>Collected by payment date</dt><dd>{formatCurrency(trackingSummary.cashCollected)}</dd></div>
