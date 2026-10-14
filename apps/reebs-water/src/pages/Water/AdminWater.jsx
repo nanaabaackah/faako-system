@@ -8,6 +8,9 @@ import { faRotateRight } from "../../icons/iconSet.js";
 import AdminBreadcrumb from "../../components/AdminBreadcrumb.jsx";
 import WaterNavigation from "../../components/WaterNavigation.jsx";
 import WaterCustomers from "./components/WaterCustomers.jsx";
+import WaterOrdersSummary from "./components/WaterOrdersSummary.jsx";
+import PortalAction from "../../components/PortalAction.jsx";
+import { AddCircle, CloseCircle } from "iconsax-react";
 import WaterDashboardActivity from "./components/WaterDashboardActivity.jsx";
 import AdminPageHeader from "../../components/AdminPageHeader.jsx";
 import { InlineNoticeStack } from "../../components/InlineNotice.jsx";
@@ -385,8 +388,12 @@ const buildOrderSearchIndex = (sale, linkedCustomer = null) => {
 };
 
 function WaterProductWorkspace({ product, onProductChange, onAccessDenied }) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const activeModule = pathname.split("/")[1] || "dashboard";
+  const [showOrderForm, setShowOrderForm] = useState(() => new URLSearchParams(search).get("new") === "1");
+  useEffect(() => {
+    if (new URLSearchParams(search).get("new") === "1") setShowOrderForm(true);
+  }, [search, pathname]);
   const [dashboard, setDashboard] = useState(() => buildDefaultDashboard(product));
   const [vendors, setVendors] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -2049,7 +2056,16 @@ function WaterProductWorkspace({ product, onProductChange, onAccessDenied }) {
           canManageWaterPricing={permissions.canManagePricing}
         />}
 
-        {activeModule === "sales" && (permissions.canRecordSales ? <WaterOrderFormCard
+        {activeModule === "orders" && <>
+          <WaterOrdersSummary sales={filteredSales} loading={loading} formatCurrency={formatCurrency} />
+          {permissions.canRecordSales && <div className="water-module-card-head">
+            <PortalAction label={showOrderForm ? "Hide new order form" : "Record order"} action={showOrderForm ? "close" : "add"}
+              icon={showOrderForm ? CloseCircle : AddCircle} disabled={saving}
+              aria-expanded={showOrderForm} aria-controls="water-sale" onClick={() => setShowOrderForm(!showOrderForm)} />
+          </div>}
+        </>}
+
+        {activeModule === "orders" && showOrderForm && (permissions.canRecordSales ? <WaterOrderFormCard
           onSubmit={handleSaleSubmit}
           saleForm={saleForm}
           setSaleForm={setSaleForm}
@@ -2104,6 +2120,7 @@ function WaterProductWorkspace({ product, onProductChange, onAccessDenied }) {
         /> : null}
 
         {activeModule === "customers" && <WaterCustomers customers={customers} error={customerError}
+          formatCurrency={formatCurrency}
           loading={customersLoading}
           onRetry={loadCustomers} canCreate={permissions.canRecordSales} onCreate={saveWaterCustomer}
           saving={creatingCustomer} createError={customerCreateError} />}
@@ -2179,6 +2196,8 @@ function WaterProductWorkspace({ product, onProductChange, onAccessDenied }) {
           onClose={() => setCollectionSaleId(null)} saving={saving} error={error} formatCurrency={formatCurrency}
           onSubmit={async (payload) => {
             if (await handleAction("record_collection", payload, "Water collection recorded.")) setCollectionSaleId(null);
+          }} onApplyCredit={async (payload) => {
+            if (await handleAction("apply_customer_credit", payload, "Water customer credit applied. No new cash receipt created.")) setCollectionSaleId(null);
           }} /> : null}
 
         <WaterOrderEditorModal

@@ -29,7 +29,8 @@ test("Water has an independent entry point and uses the shared credentialed API 
   const manifest = JSON.parse(readWaterSource("../package.json"));
 
   assert.match(app, /BrowserRouter/);
-  assert.match(app, /\["\/", "\/sales", "\/orders", "\/customers", "\/stock"\]/);
+  assert.match(app, /\["\/", "\/orders", "\/customers", "\/stock"\]/);
+  assert.match(app, /path="\/sales" element={<Navigate to="\/orders\?new=1" replace/);
   assert.match(app, /WaterLogin/);
   assert.match(apiClient, /credentials:\s*["']include["']/);
   assert.equal(manifest.name, "@faako/reebs-water");

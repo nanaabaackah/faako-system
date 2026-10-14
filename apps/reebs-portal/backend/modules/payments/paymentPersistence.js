@@ -231,6 +231,12 @@ export const markProviderEvent = async (client, eventId, status, errorCode = nul
 };
 
 export const createPaymentRecordAndApplication = async (client, input) => {
+  const applicationAmountCents = input.applicationAmountCents ?? input.amountCents;
+  if (!Number.isSafeInteger(applicationAmountCents) || applicationAmountCents <= 0
+    || applicationAmountCents > input.amountCents
+    || (applicationAmountCents !== input.amountCents && input.businessUnit !== "WATER")) {
+    throw Object.assign(new Error("Invalid payment application amount."), { code: "PAYMENT_OVERAPPLICATION", statusCode: 400 });
+  }
   const paymentResult = await client.query(
     `INSERT INTO "paymentRecord" (
        "organizationId", "customerId", "attemptId", reference, "businessUnit",
@@ -273,7 +279,7 @@ export const createPaymentRecordAndApplication = async (client, input) => {
       input.businessUnit,
       input.payableType,
       input.payableId,
-      input.amountCents,
+      applicationAmountCents,
       input.currency,
       input.paidAt,
     ]

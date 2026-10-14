@@ -10,7 +10,7 @@ export const loadWaterAppliedCollections = async (client, organizationId, saleId
   const result = await client.query(
     `SELECT COALESCE(SUM(pa."amountCents") FILTER (WHERE pa.status = 'APPLIED' AND pr.status = 'PAID'), 0)::bigint AS "amountPaidCents",
             COUNT(*)::int AS "applicationCount",
-            MAX(pr."paidAt") FILTER (WHERE pa.status = 'APPLIED' AND pr.status = 'PAID') AS "lastPaidAt"
+            MAX(pa."appliedAt") FILTER (WHERE pa.status = 'APPLIED' AND pr.status = 'PAID') AS "lastPaidAt"
      FROM "paymentApplication" pa
      JOIN "paymentRecord" pr ON pr.id = pa."paymentId" AND pr."organizationId" = pa."organizationId"
      WHERE pa."organizationId" = $1 AND pa."payableId" = $2
@@ -83,12 +83,13 @@ export const recordWaterCollection = async (client, input) => {
   if (!sale) throw waterSettlementError("Water sale not found.", "WATER_SALE_NOT_FOUND", 404);
   await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`water-collection:${organizationId}:${input.idempotencyKey}`]);
   const replayResult = await client.query(
-    `SELECT pr.*, pa."payableId", pa."payableType", w."productKey"
+    `SELECT pr.*, pa."payableId", pa."payableType", pa."amountCents" AS "appliedAmountCents", w."productKey"
      FROM "paymentRecord" pr
      JOIN "paymentApplication" pa ON pa."paymentId" = pr.id AND pa."organizationId" = pr."organizationId"
      JOIN "waterSale" w ON w.id = pa."payableId" AND w."organizationId" = pa."organizationId"
      WHERE pr."organizationId" = $1 AND pr."idempotencyKey" = $2
-       AND pr."businessUnit" = 'WATER' AND pa."businessUnit" = 'WATER' AND pa."payableType" = 'WATER_ORDER'`,
+       AND pr."businessUnit" = 'WATER' AND pa."businessUnit" = 'WATER' AND pa."payableType" = 'WATER_ORDER'
+     ORDER BY pa.id ASC LIMIT 1`,
     [organizationId, input.idempotencyKey]
   );
   const replay = replayResult.rows[0];
@@ -99,7 +100,7 @@ export const recordWaterCollection = async (client, input) => {
       || new Date(replay.paidAt).toISOString() !== normalized.paidAt || replay.provider !== provider) {
       throw waterSettlementError("This request key belongs to a different collection.", "IDEMPOTENCY_CONFLICT");
     }
-    return { payment: replay, application: { payableId: Number(saleId), payableType: "WATER_ORDER", businessUnit: "WATER", amountCents: normalized.amountCents, status: "APPLIED" }, idempotentReplay: true };
+    return { payment: replay, application: { payableId: Number(saleId), payableType: "WATER_ORDER", businessUnit: "WATER", amountCents: Number(replay.appliedAmountCents ?? normalized.amountCents), status: "APPLIED" }, idempotentReplay: true };
   }
   if (normalized.providerReference) {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`water-reference:${organizationId}:${provider}:${normalized.providerReference.toLowerCase()}`]);
@@ -112,11 +113,16 @@ export const recordWaterCollection = async (client, input) => {
   }
   const before = deriveWaterSettlement(sale, await loadWaterAppliedCollections(client, organizationId, saleId));
   if (before.legacyPaymentCompatibility) throw waterSettlementError("This sale has legacy paid information. Reconcile it before recording another collection.", "WATER_LEGACY_PAYMENT_RECONCILIATION");
-  if (normalized.amountCents > before.balanceDueCents) throw waterSettlementError("Collection exceeds the remaining Water sale balance.", "PAYMENT_OVERAPPLICATION");
+  const excessCents = Math.max(0, normalized.amountCents - before.balanceDueCents);
+  if (before.balanceDueCents <= 0 || (excessCents && (input.retainCustomerCredit !== true || input.source === "ONLINE_PROVIDER"))) {
+    throw waterSettlementError("Collection exceeds the remaining Water sale balance.", "PAYMENT_OVERAPPLICATION");
+  }
+  if (excessCents && !sale.customerId) throw waterSettlementError("Select a customer on the order before retaining an overpayment as Water credit.", "WATER_CREDIT_CUSTOMER_REQUIRED", 400);
   const recorded = await createPaymentRecordAndApplication(client, {
     organizationId, customerId: sale.customerId || null, attemptId: input.attemptId || null,
     reference: input.reference || createInternalPaymentReference("WATER", organizationId),
     businessUnit: "WATER", ...normalized, currency: "GHS", provider,
+    applicationAmountCents: Math.min(normalized.amountCents, before.balanceDueCents),
     source: input.source === "ONLINE_PROVIDER" ? "ONLINE_PROVIDER" : "MANUAL",
     verificationStatus: input.source === "ONLINE_PROVIDER" ? "VERIFIED" : "MANUAL",
     recordedByUserId: input.actor?.userId || null, notes: String(input.notes || "").trim().slice(0, 500) || null,
@@ -128,7 +134,7 @@ export const recordWaterCollection = async (client, input) => {
     targetType: "waterSale", targetId: String(saleId), category: "finance", status: "ok",
     requestId: input.requestId, summary: "Water collection recorded.",
     metadata: { businessUnit: "WATER", productKey, paymentId: recorded.payment.id,
-      amountCents: normalized.amountCents, method: normalized.method,
+      amountCents: normalized.amountCents, customerCreditCents: excessCents, method: normalized.method,
       balanceDueCents: projection.balanceDueCents, paymentStatus: projection.paymentStatus },
   });
   return { ...recorded, projection, idempotentReplay: false };

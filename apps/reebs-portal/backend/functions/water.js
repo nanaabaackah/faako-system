@@ -34,6 +34,7 @@ import { getWaterActionError } from "../modules/water/actionErrors.js";
 import { assertWaterRevision } from "../modules/water/revisions.js";
 import { runWaterCommand, runWaterTransaction } from "../modules/water/commands.js";
 import { recordManualWaterPayment } from "../modules/payments/manualPaymentService.js";
+import { applyWaterCustomerCredit } from "../modules/water/customerCredit.js";
 import { assertWaterCommercialEdit, loadWaterAppliedCollections, projectWaterSettlement, waterSettlementError } from "../modules/water/settlement.js";
 import { deriveWaterSettlement } from "../../shared/waterSettlement.js";
 import { createLogger } from "./_shared/logger.js";
@@ -70,6 +71,7 @@ const WATER_WRITE_RATE_LIMIT = {
   windowMs: 60_000,
 };
 const WATER_ACTIONS = new Set([
+  "apply_customer_credit",
   "record_collection",
   "create_customer",
   "restock",
@@ -1384,6 +1386,17 @@ export async function handler(event = {}) {
         amountCents: parseMoney(payload.amount), method: payload.method,
         providerReference: payload.transactionReference, paidAt: payload.paidAt,
         idempotencyKey, notes: payload.notes,
+        retainCustomerCredit: payload.retainCustomerCredit === true,
+        actor: { userId: createdByUserId }, requestId: getEventHeader(event, "x-request-id"),
+      });
+      return { statusCode: 200 };
+    }
+
+    if (action === "apply_customer_credit") {
+      const saleId = parsePositiveInteger(payload.saleId);
+      if (!saleId) return json(400, { error: "A valid Water order is required." });
+      await applyWaterCustomerCredit(client, {
+        organizationId, saleId, productKey: product.key, amountCents: parseMoney(payload.amount),
         actor: { userId: createdByUserId }, requestId: getEventHeader(event, "x-request-id"),
       });
       return { statusCode: 200 };

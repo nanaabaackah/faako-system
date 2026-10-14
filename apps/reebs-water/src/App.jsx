@@ -41,7 +41,8 @@ function AppRoutes() {
         path="/login"
         element={user ? <Navigate to="/" replace /> : <WaterLogin />}
       />
-      {["/", "/sales", "/orders", "/customers", "/stock"].map((path) => (
+      <Route path="/sales" element={<Navigate to="/orders?new=1" replace />} />
+      {["/", "/orders", "/customers", "/stock"].map((path) => (
         <Route key={path} path={path} element={<ProtectedWaterApp />} />
       ))}
       <Route path="*" element={<Navigate to="/" replace />} />

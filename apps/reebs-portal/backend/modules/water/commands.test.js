@@ -29,6 +29,7 @@ test("Water creation requires a durable retry key before any transaction", async
   const { client, calls } = fixture();
   await assert.rejects(() => runWaterCommand(client, { ...context, idempotencyKey: "" }, assert.fail, assert.fail), { code: "IDEMPOTENCY_KEY_REQUIRED" });
   assert.deepEqual(calls, []);
+  await assert.rejects(() => runWaterCommand(client, { ...context, action: "apply_customer_credit", idempotencyKey: "" }, assert.fail, assert.fail), { code: "IDEMPOTENCY_KEY_REQUIRED" });
 });
 
 test("Water exact retry returns a fresh scoped projection without repeating its mutation", async () => {

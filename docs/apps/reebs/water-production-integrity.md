@@ -1,5 +1,17 @@
 # Water stabilization checkpoint — 2026-10-09
 
+## 2026-10-14 continuation
+
+The approved Orders/customer-credit work supersedes the five-module navigation
+below: Sales now redirects into Orders, leaving Dashboard, Orders, Customers and
+Stock. Customer details are editable under existing customer permissions, with
+Water-only stats. Manual overpayments can be retained as customer credit and
+explicitly applied to future Water orders without duplicating cash or Core revenue.
+See [implementation and verification notes](water-orders-customers-credit-2026-10-14.md)
+for scopes, financial safeguards and rollout limits. The reported P3009 migration
+failure is deliberately deferred; no database repair or production access is
+included in this continuation.
+
 This is a local source and mocked-test checkpoint, **not production readiness
 certification**. This requested handoff file was absent when work resumed; the
 findings below are based on the current checkout, not recovered unstaged history.
