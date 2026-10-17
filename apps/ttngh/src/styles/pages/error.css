@@ -5,15 +5,12 @@
   width: 100%;
   max-width: none;
   min-height: 100svh;
-  margin: 0;
+  margin: calc(-1 * var(--header-flow-space)) 0 0;
+  padding: calc(var(--header-flow-space) + 2rem) 1rem 3rem;
   overflow: hidden;
   place-items: center;
   background: var(--surface-soft-pink);
   color: var(--brand-black);
-}
-
-.error-page .site-header {
-  top: 1rem;
 }
 
 .error-code {

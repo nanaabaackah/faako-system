@@ -1,4 +1,4 @@
-.contact-page .page-hero { padding-block:clamp(2.5rem,5vw,4.5rem); background:var(--surface-soft-pink); }
+.contact-page .page-hero { padding-top:calc(var(--header-flow-space) + 2rem); padding-bottom:clamp(2.5rem,5vw,4.5rem); background:var(--surface-soft-pink); }
 .contact-page .page-hero img { aspect-ratio:3/2; }
 .contact-page .page-hero h1 { max-width:11ch; }
 .contact-page>.contact-workspace { padding-top:0; background:var(--surface-soft-pink); }

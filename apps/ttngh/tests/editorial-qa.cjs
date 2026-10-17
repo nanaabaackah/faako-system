@@ -6,7 +6,7 @@ const base = process.env.TTNGH_QA_URL || 'http://127.0.0.1:5177';
 if (!['localhost','127.0.0.1'].includes(new URL(base).hostname)) throw Error('Local QA only');
 const out = process.env.TTNGH_QA_OUTPUT || '/private/tmp/ttngh-editorial-qa';
 mkdirSync(out,{recursive:true});
-const routes = ['/', '/about', '/programmes', '/events', '/impact', '/team', '/get-involved', '/support-us', '/news', '/resources', '/contact', '/cms', '/privacy', '/terms'];
+const routes = ['/', '/about', '/programmes', '/events', '/impact', '/team', '/get-involved', '/support-us', '/news', '/resources', '/contact', '/cms', '/privacy', '/terms', '/404'];
 (async()=>{
  const browser = await chromium.launch({headless:true});
  const failures=[],errors=[],views=[],accessibility=[];
@@ -23,17 +23,19 @@ const routes = ['/', '/about', '/programmes', '/events', '/impact', '/team', '/g
     await page.evaluate(()=>document.fonts.ready);
     const result=await page.evaluate(()=>({
      h1:document.querySelectorAll('h1').length,
+     headers:document.querySelectorAll('.site-header').length,
+     heroTop:document.querySelector('main > .page-hero, .error-page')?.getBoundingClientRect().top,
      overflow:document.documentElement.scrollWidth>innerWidth+1,
      missingAlt:[...document.images].filter(i=>!i.hasAttribute('alt')).length,
      brokenAnchors:[...document.querySelectorAll('main a[href^="#"]')].map(a=>a.getAttribute('href')).filter(h=>h.length>1&&!document.getElementById(h.slice(1))),
      heading:getComputedStyle(document.querySelector('main h2')||document.querySelector('h1')).fontFamily
     }));
-    if(result.h1!==1||result.overflow||result.missingAlt||result.brokenAnchors.length)failures.push({width,route,...result});
+    if(result.h1!==1||result.headers!==1||result.heroTop>1||result.overflow||result.missingAlt||result.brokenAnchors.length)failures.push({width,route,...result});
     await page.evaluate(()=>scrollTo({top:1400,behavior:'instant'}));
     const nav=await page.locator('.site-header').evaluate(el=>el.getBoundingClientRect().top);
     if(nav<0||nav>40) failures.push({width,route,stickyTop:nav});
     await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));
-    if([390,1440].includes(width)&&['/','/about','/events','/contact','/cms'].includes(route)) {
+    if([390,1440].includes(width)&&['/','/about','/events','/contact','/cms','/404'].includes(route)) {
      const essential=page.getByRole('button',{name:'Essential only',exact:true});
      if(await essential.isVisible()) await essential.click();
      await page.evaluate(async()=>{ for(const i of document.images)i.loading='eager'; await Promise.all([...document.images].map(i=>i.decode().catch(()=>{}))); });
@@ -75,5 +77,6 @@ const routes = ['/', '/about', '/programmes', '/events', '/impact', '/team', '/g
   writeFileSync(out+'/results.json',JSON.stringify(report,null,2));
   console.log(JSON.stringify(report,null,2));
   assert.deepEqual(failures,[]);assert.deepEqual(errors,[]);
+  assert.deepEqual(accessibility.filter(result=>result.violations.length),[], 'Accessibility violations must be resolved');
  } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exitCode=1});
