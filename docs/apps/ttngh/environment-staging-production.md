@@ -21,7 +21,7 @@ API secrets into the website or Studio environment. Do not reuse REEBS values.
 | `PUBLIC_TTNGH_STUDIO_URL` | Approved HTTPS staging Studio URL | Approved HTTPS production Studio URL |
 | `PUBLIC_TTNGH_API_ORIGIN` | Exact staging API HTTPS origin | Exact production API HTTPS origin |
 | `PUBLIC_TURNSTILE_SITE_KEY` | Public widget key allowing staging hostname | Public widget key allowing production hostname |
-| `PUBLIC_GA_MEASUREMENT_ID` | Blank, or a separate test GA4 property | Approved `G-…` measurement ID; visitor consent still required |
+| `PUBLIC_GA_MEASUREMENT_ID` | Blank, or a separate test GA4 property | `G-L1DK9DHYT8`; visitor consent still required |
 | `PUBLIC_TTNGH_GOOGLE_CALENDAR_ID` | Blank or approved public test calendar ID | Optional approved public organisation calendar ID |
 
 The staging hostname, API origins, Studio URLs, widget keys and inbox still need
@@ -83,6 +83,26 @@ flags false. The approved GH₵1 minimum/no organisation-defined maximum is code
 configuration, not an additional environment variable.
 
 ## Provider setup, not additional website variables
+
+### GA4 verification
+
+The approved TTNGH measurement ID is `G-L1DK9DHYT8`. It is already present in
+the local website `.env`. Set `PUBLIC_GA_MEASUREMENT_ID=G-L1DK9DHYT8` in the
+production website host's build settings and rebuild; a local `.env` does not
+configure the hosted site. Do not additionally paste the standalone Google tag
+snippet into the layout: `AnalyticsConsent.astro` uses the shared Faako tag loader.
+
+The tag is blocked until analytics opt-in; advertising remains denied. Repeated
+consent events do not duplicate the current page view. URL queries/fragments are
+removed from the explicit page-view payload. Do Not Track is respected.
+
+Run `TTNGH_QA_URL=http://127.0.0.1:4189 node apps/ttngh/tests/analytics-browser-qa.cjs`
+against a local build configured with the ID to check the integration with all
+Google requests mocked. This does not verify receipt in Google's property.
+After deployment, allow analytics in a fresh browser session without a blocker
+or Do Not Track and check GA4 Realtime/Tag Assistant. Confirm the web stream's
+URL matches the production domain. Keep staging analytics blank to avoid
+polluting the production property. Hosted receipt remains a separate check.
 
 DNS, Search Console verification, SPF/DKIM/DMARC, email routing, Sanity invitations,
 Turnstile hostname allowlists, hosting branch configuration and WAF settings live
