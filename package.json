@@ -83,6 +83,8 @@
       "flat-cache>flatted": "3.4.2",
       "anymatch>picomatch": "2.3.2",
       "vite>picomatch": "4.0.4",
+      "express>proxy-addr": "2.0.8",
+      "jspdf>dompurify": "3.4.17",
       "@prisma/dev>hono": "4.12.25",
       "@prisma/dev>@hono/node-server": "1.19.10",
       "@prisma/config>effect": "3.20.0",

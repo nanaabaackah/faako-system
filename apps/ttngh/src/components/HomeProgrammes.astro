@@ -1,0 +1,14 @@
+---
+import Icon from "./Icon.jsx";
+import EditorialImage from "./EditorialImage.astro";
+import { programmePillars } from "../content/home.js";
+import "../styles/components/home-programmes.css";
+---
+<section class="home-programmes home-shell" aria-labelledby="programmes-title">
+  <div class="programme-introduction">
+    <h2 id="programmes-title">Support, education and advocacy.</h2>
+    <p>Four connected areas of work, guided by one mission.</p>
+    <figure><EditorialImage src="/images/refresh/tema-school-speaker-1600.webp" alt="A speaker holding a microphone in a school hall" sizes="(max-width:780px) 100vw, 35vw" loading="lazy" /><figcaption>School outreach · Tema</figcaption></figure>
+  </div>
+  <div class="programme-list">{programmePillars.map(p=><a href="/programmes" class="programme-row"><span aria-hidden="true">{p.number}</span><h3>{p.title}</h3><p>{p.description}</p><span aria-hidden="true"><Icon name="arrow-right" /></span></a>)}</div>
+</section>

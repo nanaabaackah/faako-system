@@ -5,6 +5,7 @@ import FaqList from "../components/FaqList.astro";
 import ScrollExpandSection from "../components/ScrollExpandSection.astro";
 import EventCalendar from "../components/EventCalendar.astro";
 import EventListings from "../components/EventListings.astro";
+import FeaturedEvent from "../components/FeaturedEvent.astro";
 import EventGalleryRail from "../components/EventGalleryRail.astro";
 import { organization } from "../content/home.js";
 import eventStyles from "../styles/pages/events.css?url";
@@ -17,11 +18,12 @@ const faqItems = [
 
 <BaseLayout path="/events" pageStyles={[eventStyles]} title={`Events | ${organization.name}`} description="Discover The Thriving Network GH community sessions, outreach activities, and annual programmes." image="/images/home/vision-gathering.jpg" imageAlt="Participants gathered for TTNGH's Vision with Clarity programme" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Events", path: "/events" }]} faqItems={faqItems}>
   <main id="main-content" class="editorial-main events-page">
-    <PageHero links={[["Recurring events","#event-types-title"],["Calendar","#calendar-title"]]} title="Events that bring us together." intro="Our events create welcoming spaces for mental health education, connection, reflection, and community action." images={[
+    <PageHero variant="immersive" links={[["Recurring events","#event-types-title"],["Calendar","#calendar-title"]]} title="Events that bring" accent="us together." intro="Our events create welcoming spaces for mental health education, connection, reflection, and community action." images={[
       { src: "/images/refresh/vision-facilitator-1600.webp", alt: "A speaker addressing people seated around a table", caption: "Vision with Clarity · TTNGH" },
     ]} />
-    <EventListings />
-    <section class="events-recurring section-dark" aria-labelledby="event-types-title">
+    <FeaturedEvent />
+    <EventListings showEmpty={false} excludeFeatured />
+    <section class="events-recurring " aria-labelledby="event-types-title">
       <header class="events-recurring-intro">
         <div><h2 id="event-types-title">Recurring spaces for support, reflection, and learning.</h2></div>
         <p>TTNGH brings people together through a regular support rhythm, an annual well-being programme, and outreach developed for institutions and communities.</p>

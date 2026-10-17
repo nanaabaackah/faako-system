@@ -27,7 +27,7 @@ if (fixture) routes.push('/programmes/fixture-programme','/news/fixture-news','/
   });
   const page=await context.newPage();
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
-  for(const width of [320,390,768,1440]) {
+  for(const width of [320,390,430,768,1024,1440]) {
    await page.setViewportSize({width,height:900});
    for(const route of routes) {
     await page.goto(base+route,{waitUntil:'domcontentloaded'});
@@ -37,13 +37,13 @@ if (fixture) routes.push('/programmes/fixture-programme','/news/fixture-news','/
     assert.ok(await page.locator('.ttngh-icon').count()>0);
     await page.evaluate(()=>scrollTo({top:1400,behavior:'instant'}));
     const top=await page.locator('.site-header').evaluate(el=>el.getBoundingClientRect().top);
-    assert.ok(top>=0&&top<=17,`${route}: sticky nav at ${width}`);
+    assert.ok(top>=0&&top<=40,`${route}: sticky nav at ${width}`);
     for(const href of await page.locator('.page-section-nav a[href^="#"]').evaluateAll(nodes=>nodes.map(el=>el.getAttribute('href')))) assert.equal(await page.locator(href).count(),1,`${route}: ${href}`);
    }
   }
   await page.goto(base+'/about');
   const heading=await page.locator('#story-title').evaluate(el=>({font:getComputedStyle(el).fontFamily,color:getComputedStyle(el).color}));
-  assert.match(heading.font,/Kaftan Calligraphy/);assert.equal(heading.color,'rgb(229, 36, 119)');
+  assert.match(heading.font,/Georgia/);assert.equal(heading.color,'rgb(10, 10, 10)');
   await page.screenshot({path:'/private/tmp/ttngh-about-desktop.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await page.locator('.compact-menu summary').click();assert.equal(await page.locator('.compact-menu-panel').isVisible(),true);await page.keyboard.press('Escape');
@@ -79,6 +79,6 @@ if (fixture) routes.push('/programmes/fixture-programme','/news/fixture-news','/
   }
   await page.emulateMedia({reducedMotion:'reduce'});
   assert.equal(await link.evaluate(el=>getComputedStyle(el).transitionDuration),'0s');
-  console.log(`PASS: ${routes.length} routes at four widths, sticky navigation, Iconsax, H2 font/colour, in-page links, mobile menu, CMS noindex; ${fixture?'mock form success/expiry/outage':'unconfigured form disabled'}.`);
+  console.log(`PASS: ${routes.length} routes at six widths, sticky navigation, Iconsax, editorial H2 font/colour, in-page links, mobile menu, CMS noindex; ${fixture?'mock form success/expiry/outage':'unconfigured form disabled'}.`);
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1});

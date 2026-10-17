@@ -1,13 +1,11 @@
 ---
 import Icon from "../components/Icon.jsx";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import SiteHeader from "../components/SiteHeader.astro";
 import errorStyles from "../styles/pages/error.css?url";
 ---
 
 <BaseLayout title="Page not found | The Thriving Network GH" description="This TTNGH page is unavailable. Return home to explore our programmes, events and ways to get involved." path="/404" overlayHeader={true} pageStyles={[errorStyles]} noIndex={true}>
   <main id="main-content" class="error-page">
-    <SiteHeader />
     <div class="error-message">
 
       <h1>This page is not available.</h1>

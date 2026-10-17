@@ -1,6 +1,14 @@
 # TTNGH deployment and activation
 
-Updated 13 October 2026. Implementation is local on `feat/ttngh-phase-1-refresh` in `/private/tmp/faako-ttngh-phase1`. No merge or deployment. The client confirms that Sanity, Railway, Turnstile and the verified sender have **not yet been set up**.
+Updated 17 October 2026. TTNGH implementation is in the main `faako-system`
+checkout, under `apps/ttngh` and `services/ttngh-api`; do not use the old temporary
+worktree. The client supplied Sanity project `d5k303l7`, dataset `production`.
+Studio deployment, approved CMS content, Railway, Turnstile and verified email
+delivery still require environment-specific confirmation. The editorial refresh
+has not been deployed; the latest instruction is local checks only.
+
+See [staging/production variables](environment-staging-production.md) for the
+complete configuration matrix and disabled-feature prerequisites.
 
 ## Application boundary
 
@@ -12,7 +20,7 @@ Updated 13 October 2026. Implementation is local on `feat/ttngh-phase-1-refresh`
 
 ## Local commands
 
-From this worktree, not the unrelated REEBS checkout:
+From the `faako-system` repository root (commands target TTNGH, not REEBS):
 
 ```sh
 pnpm --filter @faako/ttngh dev
@@ -24,7 +32,7 @@ pnpm --filter @faako/ttngh-studio test
 pnpm --filter @faako/ttngh-studio build
 ```
 
-Studio requires its public project/dataset identifiers. API integration tests use local sockets and mocked providers, not real mail. Website development uses port 5177; preview uses 4177. Do not run two TTNGH servers on the same port or assume changes in this worktree are in the main checkout.
+Studio requires its public project/dataset identifiers. API integration tests use local sockets and mocked providers, not real mail. Website development uses port 5177; preview uses 4177. Do not run two TTNGH servers on the same port. Confirm the server's working directory before diagnosing stale local content.
 
 ## Cloudflare static site
 
@@ -39,7 +47,7 @@ The existing `scripts/hosting-policy.mjs` TTNGH hosting deferral must be removed
 1. Organisation administrator creates/owns the project and a private dataset, then records named owners.
 2. Configure Studio identifiers and deploy the Studio separately using the approved Sanity account. Add only exact approved Studio/local development origins in Sanity CORS; do not permit wildcard credentialed origins.
 3. Invite named editors with least privilege supported by the selected plan. Verify authentication-provider MFA, account recovery and a second organisational administrator. No shared passwords.
-4. Set public Studio URL on the website. `/cms` explains sign-in, create-account and forgot-password/recovery flows. The managed provider controls credentials; signing up does not grant project membership.
+4. Set public Studio URL on the website. `/cms` is a minimal gateway linking to Studio. Sanity handles sign-in, account creation and recovery; signing up does not grant project membership.
 5. Import and review the approved source content before activation. Do not point production at an empty dataset: CMS mode intentionally does not fall back to removed team members, partners or statistics.
 6. Add a read-only build token to Cloudflare secrets, not browser variables. Set `TTNGH_CMS_REQUIRED=true`. Missing configuration, invalid publication data or provider failures stop the build.
 7. Configure the signed publish hook below and prove publish/update/unpublish on staging.

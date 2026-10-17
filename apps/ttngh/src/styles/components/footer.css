@@ -255,7 +255,7 @@
   padding: 1.5rem 2rem 0.4rem;
   gap: 1rem;
   border-top: 1px dashed rgb(5 4 7 / 55%);
-  color: rgb(5 4 7 / 82%);
+  color: var(--brand-black);
   font-size: 0.72rem;
   font-weight: 700;
 }
@@ -267,7 +267,7 @@
 .footer-bottom .ui-app-bottom-bar {
   --ui-bottom-bar-border-color: rgb(5 4 7 / 28%);
   --ui-bottom-bar-text-color: var(--brand-black);
-  --ui-bottom-bar-muted-color: rgb(5 4 7 / 82%);
+  --ui-bottom-bar-muted-color: var(--brand-black);
   --ui-bottom-bar-link-color: var(--brand-black);
   --ui-bottom-bar-link-hover-color: var(--brand-black);
   --ui-bottom-bar-mark-color: var(--brand-black);

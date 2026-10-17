@@ -65,6 +65,8 @@ const SystemHealth = lazy(() => import("./pages/SystemHealth/SystemHealth"));
 const Reports = lazy(() => import("./pages/Reports/Reports"));
 const Proposals = lazy(() => import("./pages/Proposals/Proposals"));
 const ProposalClientView = lazy(() => import("./pages/Proposals/ProposalClientView"));
+const StructuredProposalWorkspace = lazy(() => import("./pages/Proposals/StructuredProposalWorkspace"));
+const InteractiveProposalClient = lazy(() => import("./pages/Proposals/InteractiveProposalClient"));
 const FaakoOnboarding = lazy(() => import("./pages/FaakoOnboarding/FaakoOnboarding"));
 const Settings = lazy(() => import("./pages/Settings/Settings"));
 const AuditLogs = lazy(() => import("./pages/AuditLogs/AuditLogs"));
@@ -608,6 +610,14 @@ function App() {
           }
         />
         <Route
+          path="/proposal/interactive/:token"
+          element={
+            <RouteBoundary>
+              <InteractiveProposalClient />
+            </RouteBoundary>
+          }
+        />
+        <Route
           path="/error"
           element={
             <RouteBoundary>
@@ -700,7 +710,31 @@ function App() {
           path="/proposals"
           element={
             <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
-              <Proposals />
+              <StructuredProposalWorkspace />
+            </ShellPage>
+          }
+        />
+        <Route
+          path="/proposals/new"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <StructuredProposalWorkspace />
+            </ShellPage>
+          }
+        />
+        <Route
+          path="/proposals/catalogue"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <StructuredProposalWorkspace />
+            </ShellPage>
+          }
+        />
+        <Route
+          path="/proposals/:proposalId/edit"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <StructuredProposalWorkspace />
             </ShellPage>
           }
         />

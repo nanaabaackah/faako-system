@@ -1,0 +1,11 @@
+.content-list { display:grid; }
+.content-entry { display:grid; grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr); gap:clamp(1.5rem,4vw,4rem); padding-block:2rem; border-top:1px solid var(--line); align-items:start; }
+.content-entry--text { grid-template-columns:1fr; }
+.content-entry img { display:block; width:100%; height:auto; aspect-ratio:3/2; object-fit:cover; }
+.content-entry h3 { font-size:clamp(1.4rem,2.8vw,2.5rem); }
+.content-entry h3 a { text-decoration:none; }
+.content-entry p { max-width:62ch; color:var(--muted); }
+.content-entry .content-type { color:var(--accent); font-size:.8rem; }
+.content-entry .content-meta { font-size:.8rem; }
+.content-entry:first-child:not(.content-entry--text) { grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); }
+@media(max-width:600px) { .content-entry,.content-entry:first-child:not(.content-entry--text) { grid-template-columns:1fr; gap:1.25rem; } }

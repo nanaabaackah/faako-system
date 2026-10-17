@@ -141,7 +141,16 @@ import {
   buildInvoicePaymentSummary,
   parseInvoicePaidAmount,
 } from "./invoices/paymentSummary.js";
+import { registerInvoicePaymentRoutes } from "./invoices/paymentLedger.js";
 import {
+  calculateCommercialTotals,
+  parseCommercialLineItems,
+  roundCommercialAmount,
+} from "./commercial/pricing.js";
+import { normalizeStructuredProposal } from "./proposals/proposalContract.js";
+import { registerStructuredProposalRoutes } from "./proposals/structuredProposal.routes.js";
+import {
+  resolveEmailBccRecipients,
   resolveEmailDeliveryRecipients,
   resolveSingleEmailDeliveryTarget,
 } from "./utils/emailDelivery.js";
@@ -161,6 +170,10 @@ import { buildInvoiceEmailContent } from "./invoiceEmailTemplate.js";
 import { buildRentMonthlySummaryEmailContent } from "./rentMonthlySummaryEmailTemplate.js";
 import { buildRentPaymentRecordedEmailContent } from "./rentPaymentRecordedEmailTemplate.js";
 import { buildAccountingScheduledReminderEmailContent } from "./accountingScheduledReminderEmailTemplate.js";
+import {
+  buildProposalAcceptanceEmailContent,
+  buildProposalDeliveryEmailContent,
+} from "./proposals/proposalEmailTemplate.js";
 import { sumAmountsAsDisplayGhs } from "./utils/displayCurrency.js";
 import { refreshDisplayCurrencyRate } from "./utils/currencyRateService.js";
 import { createRequire } from "module";
@@ -525,6 +538,16 @@ const PUBLIC_BOOKING_RATE_LIMIT_MAX = parsePositiveInt(
     min: 1,
     max: 500,
   }
+);
+const PUBLIC_PROPOSAL_RATE_LIMIT_WINDOW_MS = parsePositiveInt(
+  process.env.PUBLIC_PROPOSAL_RATE_LIMIT_WINDOW_MS,
+  15 * 60 * 1000,
+  { min: 1000, max: 24 * 60 * 60 * 1000 }
+);
+const PUBLIC_PROPOSAL_RATE_LIMIT_MAX = parsePositiveInt(
+  process.env.PUBLIC_PROPOSAL_RATE_LIMIT_MAX,
+  60,
+  { min: 1, max: 500 }
 );
 const RATE_LIMIT_BUCKET_LIMIT = parsePositiveInt(
   process.env.RATE_LIMIT_BUCKET_LIMIT,
@@ -2345,6 +2368,14 @@ const sendEmail = async ({ fromEmail, fromName, recipients, subject, text, html,
     text,
     html,
   };
+  const bccRecipients = resolveEmailBccRecipients({
+    defaultAdminEmail: DEFAULT_ADMIN_EMAIL,
+    deliveryRecipients: delivery.deliveryRecipients,
+    isProduction,
+  });
+  if (bccRecipients.length) {
+    emailPayload.bcc = bccRecipients;
+  }
   const normalizedReplyTo = String(replyTo || "").trim();
   if (EMAIL_PATTERN.test(normalizedReplyTo)) {
     emailPayload.replyTo = normalizedReplyTo;
@@ -2365,6 +2396,7 @@ const sendEmail = async ({ fromEmail, fromName, recipients, subject, text, html,
     ...result,
     intendedRecipients: delivery.intendedRecipients,
     deliveryRecipients: delivery.deliveryRecipients,
+    bccRecipients,
     wasRerouted: delivery.wasRerouted,
   };
 };
@@ -5007,6 +5039,11 @@ const publicBookingRateLimit = createRateLimitMiddleware({
   scope: "public-bookings",
   windowMs: PUBLIC_BOOKING_RATE_LIMIT_WINDOW_MS,
   maxRequests: PUBLIC_BOOKING_RATE_LIMIT_MAX,
+});
+const publicProposalRateLimit = createRateLimitMiddleware({
+  scope: "public-proposals",
+  windowMs: PUBLIC_PROPOSAL_RATE_LIMIT_WINDOW_MS,
+  maxRequests: PUBLIC_PROPOSAL_RATE_LIMIT_MAX,
 });
 const aiRateLimit = createRateLimitMiddleware({
   scope: "ai-productivity-coach",
@@ -8267,6 +8304,95 @@ registerProjectTaskRoutes(app, {
   isGlobalAdmin,
   syncTaskToTrello: (taskId) => trelloSync.syncTask(taskId),
 });
+registerStructuredProposalRoutes(app, {
+  prisma,
+  faakoPool,
+  authMiddleware,
+  requireAdmin,
+  isGlobalAdmin,
+  publicRateLimit: publicProposalRateLimit,
+  proposalAi: {
+    apiKey: OPENAI_API_KEY,
+    model: OPENAI_MODEL,
+    timeoutMs: OPENAI_TIMEOUT_MS,
+    fetchImpl: fetch,
+  },
+  auditWriter: (event) => writeAuditLog(prisma, event, { environment: APP_ENV }),
+  proposalNotifier: async ({ recipient, personalMessage, path: proposalPath, linkExpiresAt, version }) => {
+    const proposalBaseUrl = resolveRequestBaseUrl();
+    if (!proposalBaseUrl) {
+      const error = new Error("APP_BASE_URL must be configured before sending proposal links.");
+      error.statusCode = 500;
+      throw error;
+    }
+    const reviewUrl = `${proposalBaseUrl}${proposalPath}`;
+    const providerCharges = (version.items || [])
+      .filter((item) => item.providerCharge && item.costOwnership === "CLIENT_DIRECT")
+      .map((item) => {
+        const charge = item.providerCharge || {};
+        const value = charge.displayPrice || (
+          charge.amount === null || charge.amount === undefined
+            ? "Custom quote"
+            : `${charge.currency || ""} ${Number(charge.amount).toFixed(2)}`.trim()
+        );
+        return `${item.name}: ${value}`;
+      });
+    const content = buildProposalDeliveryEmailContent({
+      recipientName: version.customerName,
+      proposalTitle: version.title,
+      versionNumber: version.versionNumber,
+      reviewUrl,
+      validUntil: version.validUntil,
+      linkExpiresAt,
+      currency: version.currency,
+      oneTimeTotal: version.oneTimeTotal,
+      recurringMonthlyTotal: version.recurringMonthlyTotal,
+      recurringAnnualTotal: version.recurringAnnualTotal,
+      depositAmount: version.depositAmount,
+      providerCharges,
+      personalMessage,
+    });
+    const result = await sendEmail({
+      fromEmail: process.env.PROPOSAL_EMAIL_FROM || process.env.ALERT_FROM_EMAIL || DEFAULT_ADMIN_EMAIL,
+      fromName: "Proposals By Nana",
+      recipients: [recipient],
+      ...content,
+    });
+    return { providerMessageId: String(result?.data?.id || result?.id || "").slice(0, 240) || null };
+  },
+  acceptanceNotifier: async ({
+    recipient,
+    approverName,
+    proposalId,
+    versionNumber,
+    title,
+    acceptedAt,
+    currency,
+    oneTimeTotal,
+    billingSchedule,
+  }) => sendEmail({
+    fromEmail: process.env.PROPOSAL_EMAIL_FROM || process.env.ALERT_FROM_EMAIL || DEFAULT_ADMIN_EMAIL,
+    fromName: "Proposals By Nana",
+    recipients: [recipient],
+    ...buildProposalAcceptanceEmailContent({
+      recipientName: approverName,
+      proposalTitle: title,
+      proposalId,
+      versionNumber,
+      acceptedAt,
+      currency,
+      oneTimeTotal,
+      billingSchedule,
+    }),
+  }),
+});
+registerInvoicePaymentRoutes(app, {
+  prisma,
+  authMiddleware,
+  requireAdmin,
+  isGlobalAdmin,
+  serializeInvoice: (invoice) => serializeInvoice(invoice),
+});
 
 const PROPOSAL_STATUSES = new Set([
   "draft",
@@ -8697,6 +8823,14 @@ const buildProposalRecordData = (body = {}, existingProposal = null, user = null
     return { error: "Proposal content is required." };
   }
   const content = stripProposalContentRuntimeFields(rawContent);
+
+  if (content.commercial !== undefined) {
+    const normalizedCommercial = normalizeStructuredProposal(content.commercial, {
+      fallbackTitle: body.title ?? content.title ?? existingProposal?.title ?? "Proposal",
+    });
+    if (normalizedCommercial.error) return { error: normalizedCommercial.error };
+    content.commercial = normalizedCommercial.commercial;
+  }
 
   const title = normalizeProposalText(body.title ?? content.title ?? existingProposal?.title, {
     maxLength: 240,
@@ -9355,11 +9489,7 @@ const parseInvoiceId = (value) => {
   return parsed;
 };
 
-const roundCurrencyAmount = (value) => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return NaN;
-  return Math.round((parsed + Number.EPSILON) * 100) / 100;
-};
+const roundCurrencyAmount = roundCommercialAmount;
 
 const toCurrencyDecimal = (value) =>
   new prismaPkg.Prisma.Decimal(roundCurrencyAmount(value).toFixed(2));
@@ -9372,83 +9502,20 @@ const normalizeInvoiceNumber = (value) => {
   return normalized;
 };
 
-const parseInvoiceLineItems = (value) => {
-  if (!Array.isArray(value) || !value.length) {
-    return { error: "lineItems must include at least one item." };
-  }
+const parseInvoiceLineItems = (value) => parseCommercialLineItems(value);
 
-  const lineItems = [];
-  for (let index = 0; index < value.length; index += 1) {
-    const row = value[index] || {};
-    const rawDescription = typeof row.description === "string" ? row.description : "";
-    const normalizedDescription = rawDescription.trim();
-    if (!normalizedDescription) {
-      return { error: `lineItems[${index}] description is required.` };
-    }
-
-    const quantityRaw = Number(row.quantity);
-    if (!Number.isFinite(quantityRaw) || quantityRaw <= 0) {
-      return { error: `lineItems[${index}] quantity must be greater than 0.` };
-    }
-
-    const unitPriceRaw = Number(row.unitPrice ?? row.rate);
-    if (!Number.isFinite(unitPriceRaw) || unitPriceRaw < 0) {
-      return { error: `lineItems[${index}] unitPrice must be 0 or greater.` };
-    }
-
-    const quantity = roundCurrencyAmount(quantityRaw);
-    const unitPrice = roundCurrencyAmount(unitPriceRaw);
-    const amount = roundCurrencyAmount(quantity * unitPrice);
-
-    if (!Number.isFinite(quantity) || !Number.isFinite(unitPrice) || !Number.isFinite(amount)) {
-      return { error: `lineItems[${index}] contains an invalid number.` };
-    }
-
-    lineItems.push({
-      description: rawDescription,
-      quantity,
-      unitPrice,
-      amount,
-      sortOrder: index,
-    });
-  }
-
-  return { lineItems };
-};
-
-const calculateInvoiceTotals = ({ lineItems, taxRate = 0, discount = 0 }) => {
-  const subtotal = roundCurrencyAmount(
-    lineItems.reduce((total, item) => total + Number(item.amount || 0), 0)
-  );
-  if (!Number.isFinite(subtotal)) {
+const calculateInvoiceTotals = (input) => {
+  const result = calculateCommercialTotals(input);
+  if (result.error === "Unable to calculate commercial subtotal.") {
     return { error: "Unable to calculate invoice subtotal." };
   }
-
-  const normalizedTaxRate = Number(taxRate ?? 0);
-  if (!Number.isFinite(normalizedTaxRate) || normalizedTaxRate < 0 || normalizedTaxRate > 100) {
-    return { error: "taxRate must be between 0 and 100." };
-  }
-
-  const normalizedDiscount = Number(discount ?? 0);
-  if (!Number.isFinite(normalizedDiscount) || normalizedDiscount < 0) {
-    return { error: "discount must be 0 or greater." };
-  }
-
-  const taxAmount = roundCurrencyAmount(subtotal * (normalizedTaxRate / 100));
-  const discountAmount = roundCurrencyAmount(normalizedDiscount);
-  const total = roundCurrencyAmount(subtotal + taxAmount - discountAmount);
-
-  if (total < 0) {
+  if (result.error === "Commercial total cannot be negative.") {
     return { error: "Invoice total cannot be negative." };
   }
-
-  return {
-    subtotal,
-    taxRate: roundCurrencyAmount(normalizedTaxRate),
-    taxAmount,
-    discount: discountAmount,
-    total,
-  };
+  if (result.error === "Unable to calculate commercial total.") {
+    return { error: "Unable to calculate invoice total." };
+  }
+  return result;
 };
 
 const buildNextInvoiceNumber = async (organizationId) => {
@@ -9810,6 +9877,11 @@ app.get("/api/invoices", authMiddleware, async (req, res) => {
 });
 
 app.post("/api/invoices", authMiddleware, requireAdmin, async (req, res) => {
+  if (req.body?.paidAmount !== undefined || String(req.body?.status || "").trim().toUpperCase() === "PAID") {
+    return res.status(400).json({
+      error: "Create the invoice without a paid amount, then use the invoice payment workflow to record and verify settlement.",
+    });
+  }
   const organizationScope = await resolveOrganizationWriteScope({
     user: req.user,
     organizationId: req.body?.organizationId,
@@ -10006,6 +10078,21 @@ app.patch("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =>
 
   if (!invoice) {
     return res.status(404).json({ error: "Invoice not found." });
+  }
+
+  if (req.body?.paidAmount !== undefined) {
+    return res.status(400).json({
+      error: "paidAmount is ledger-managed. Use the invoice payment workflow.",
+    });
+  }
+
+  if (
+    invoice.paymentLedgerActivatedAt &&
+    ["paidAmount", "currency", "lineItems", "taxRate", "discount"].some((field) => req.body?.[field] !== undefined)
+  ) {
+    return res.status(409).json({
+      error: "Financial values cannot be edited after the immutable payment ledger is activated. Use a payment reversal or reconciliation adjustment.",
+    });
   }
 
   const updateData = {};
@@ -10356,7 +10443,7 @@ app.delete("/api/invoices/:id", authMiddleware, requireAdmin, async (req, res) =
   res.json({ deleted: true, invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber });
 });
 
-app.post("/api/invoices/:id/payments", authMiddleware, requireAdmin, async (req, res) => {
+const legacyCumulativeInvoicePaymentHandler = async (req, res) => {
   const requesterIsGlobalAdmin = isGlobalAdmin(req.user);
   const invoiceId = parseInvoiceId(req.params.id);
   if (!invoiceId) {
@@ -10537,7 +10624,8 @@ app.post("/api/invoices/:id/payments", authMiddleware, requireAdmin, async (req,
       note: paymentNote,
     },
   });
-});
+};
+void legacyCumulativeInvoicePaymentHandler;
 
 const INVOICE_VIEW_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 

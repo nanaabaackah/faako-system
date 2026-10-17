@@ -1,0 +1,6 @@
+---
+import { verifiedImpact } from "../lib/verified-impact.js";
+const { stats = [] } = Astro.props;
+const verified = verifiedImpact(stats);
+---
+{verified.length ? <div class="impact-figures">{verified.map(stat => <article class="impact-figure"><strong>{stat.value}</strong><p>{stat.label}</p><p>Period: {stat.period}</p><p>Source: {stat.source}</p><p>Verified</p></article>)}</div> : <p class="impact-pending">Our work includes education, counselling, peer support, and community outreach. Figures will be shared here with their source and measurement period once verified for publication.</p>}

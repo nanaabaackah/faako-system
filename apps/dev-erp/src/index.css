@@ -1962,6 +1962,40 @@ body.nav-open .mobile-tabbar {
   width: min(620px, 95vw);
 }
 
+.invoice-payment-history__entry {
+  align-items: flex-start;
+  background: color-mix(in oklab, var(--surface), var(--card) 18%);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.85rem;
+}
+
+.invoice-payment-history__entry p {
+  margin: 0.25rem 0;
+}
+
+.invoice-payment-history__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .invoice-payment-history__entry {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .invoice-payment-history__actions {
+    justify-content: flex-start;
+  }
+}
+
 .invoice-payment-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
