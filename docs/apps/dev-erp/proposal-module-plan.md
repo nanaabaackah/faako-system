@@ -1,5 +1,19 @@
 # Dev ERP Proposal Module Plan
 
+## 2026-10-17 Production readiness re-audit
+
+Decision: **NOT READY for production enablement.** The proposal implementation and its mocked browser workflows pass, but the database and dependency release gates remain open.
+
+- Full DEV ERP Node suite: 325 tests, 324 passed, one guarded disposable-PostgreSQL test skipped.
+- Focused HTTP security suite: 4/4 passed.
+- Clean Playwright pass: 18/18 passed in 5.4 minutes, including all three proposal desktop/mobile scenarios. An earlier run under concurrent lint/build load timed out once in Faako Onboarding; the isolated rerun and clean full rerun both passed.
+- ESLint, TypeScript, Prisma validation/generation, repository security scan, production build, and whitespace checks passed. The production build retains the existing 514.93 kB vendor-chunk warning.
+- `DEV_ERP_TEST_DATABASE_URL` is unset. The guarded migration/payment concurrency test therefore skipped, so migration duration, database constraints, serializable concurrency, and rollback/recovery are not proven on PostgreSQL.
+- The workspace production audit reports 85 findings: 9 low, 51 moderate, 23 high, and 2 critical. The critical Astro paths affect other monorepo applications, while DEV ERP still carries unresolved production-tree findings through Prisma tooling, Express dependencies, Google APIs, and jsPDF. These require compatible upgrades, deployment-package separation, or explicit reviewed acceptance before release.
+- No migration was applied, no live email or AI request was sent, and no deployment was performed.
+
+Before staging, configure the server-only production database, trusted application origin, authentication/CORS/cookie settings, verified Resend sender, administrative BCC address, Faako form-submission database access, and OpenAI key if AI assistance is enabled. Rehearse all six additive migrations in order against a disposable production-compatible PostgreSQL database before changing the release decision.
+
 ## 2026-10-18 Phase 6 payment integrity update
 
 The invoice-payment production blocker now has an additive implementation: pending payment workflow records, immutable verified ledger postings, database-backed idempotency, verification/rejection, full compensating reversals, externally confirmed refund postings, reconciliation adjustments, derived invoice/Accounting projections, and a tenant-scoped legacy reconciliation report. See `payment-ledger-phase6.md` for the complete architecture, migration order, API contract, recovery procedure, and security assessment.

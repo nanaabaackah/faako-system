@@ -26,7 +26,8 @@ ScrollExpandSection's implementation is unchanged.
   shared heroes and homepage content use the same inset calculation.
 - Section spacing: clamp(3rem, 7vw, 7rem). Full-bleed image/black treatments
   are deliberate exceptions, not alternating rounded panels.
-- Montserrat handles body and editorial headings. Existing Kaftan display
+- Montserrat handles body text; system Georgia handles editorial headings,
+  following the supplied magazine references. Existing Kaftan display
   face remains an accent for Peace, Scroll Expand's frame text and the footer.
   No fonts were added and no new licensing claims are made.
 - Navigation links remain text links. The existing joined label/arrow button
@@ -37,15 +38,15 @@ ScrollExpandSection's implementation is unchanged.
 | Composition | Routes | Mobile behaviour |
 | --- | --- | --- |
 | Flagship photographic | / | Dedicated immersive hero, at most two actions; not PageHero |
-| Immersive | /about, /programmes, /events, /news | Full photo above dark copy area; no tight portrait crop |
-| Editorial | /impact, /resources | Asymmetric typography/photo grid, single column on mobile |
+| Immersive | /about, /programmes, /events, /news, /resources | Full photo above dark copy area; no tight portrait crop |
+| Editorial | /impact | Asymmetric typography/photo grid, single column on mobile |
 | Editorial, text-first | /team | Compact introduction preserves prominent founder feature |
 | Conversion | /contact, /get-involved, /support-us | Task-focused copy and supporting image |
 | Formal | CMS/detail templates; legal pages retain their compact legal layout | Text-first, no policy hero photography |
 
 ## Page changes
 
-Home: value strip, editorial programme rows, sourced/verified impact component,
+Home: overlapping value strip, image-led editorial programme rows, sourced/verified impact component,
 one CMS-selected upcoming event (or explicit unpublished-dates fallback),
 up to three published updates, one Scroll Expand and a calm partner row.
 The full month calendar is only on Events.
@@ -62,7 +63,7 @@ Team: one H1 restored; portrait-led founder and compact mobile leadership rows.
 Get Involved/Support: typographic participation/funding pathways; donation
 instructions are not fabricated and online payments are not implied live.
 Contact: white form, visible labels, existing validation/Turnstile behaviour,
-simple contact channels. No new submission or data-collection functionality.
+channel column paired with a white form surface. No new submission or data-collection functionality.
 News/Resources: publication-style listings with dates/categories; reviewed
 resources retain reviewer/review-date context and link to full source metadata.
 CMS: minimal configured Studio gateway, approved-editors note; no replacement
@@ -115,13 +116,14 @@ See the source IDs/consent basis in `phase-1-image-inventory.md`.
 | --- | --- |
 | vision-community | Home hero; Events CTA |
 | tema-school-conversation | Organisation introduction; Get Involved; gallery |
-| vision-reflection | No-upcoming-event feature; Resources; photo ribbon |
+| vision-reflection | Resources; photo ribbon |
+| vision-gathering | No-upcoming-event feature |
 | vision-facilitator | Events hero; Home/About CTA |
 | vision-listening | About story; News hero; Resources CTA |
 | tema-school-team | About hero; programme/participation CTAs |
 | tema-school-speaker | Programmes hero; gallery |
 | tema-school-audience | Impact and Support heroes |
-| vision-conversation | Gallery |
+| vision-conversation | Contact hero; gallery |
 | Existing approved portraits/logos | Team, founder, partners |
 
 No new web assets generated. Intentional repeated images remain across routes;
@@ -130,6 +132,31 @@ not labelled as counselling clients, diagnoses or undocumented volunteer events.
 
 ## Validation
 
-Validation is recorded below after browser/fixture QA completes. Passing the
-build alone is not visual acceptance. No WCAG certification or production
-payment/contact activation is claimed.
+The supplied reference priority is recorded in `apps/ttngh/design-qa.md`: 04 for
+Home/Contact/CMS, 02 for inner heroes, 01/03 for secondary editorial language.
+Image-to-code comparison informed the left-aligned hero, serif hierarchy,
+overlapping value strip and split contact layout without overriding locked UI.
+
+Completed locally on 17 October 2026:
+
+- Repository-content build: 15 pages; isolated synthetic CMS build: 25 pages.
+- Website tests: 24 passed; Studio tests: 9 passed.
+- SEO/static asset/link/metadata checker: 15 pages passed.
+- Responsive browser checks: 15 routes at 320/390/430/768/1024/1440px;
+  no overflow, duplicate H1/header, broken in-page anchors or runtime errors.
+- Twelve axe scans (six routes at mobile/desktop): zero reported violations.
+- Fixture browser checks: 18 routes at six widths; mocked form validation,
+  success, expiry and outage, no real provider submissions.
+- Final contact spacing adjustment: six-width spacing/overflow/axe pass.
+- 404 duplicate navbar removed; hero background now starts behind sticky
+  navigation. Footer contrast and social ARIA fixes retain its composition.
+- Screenshot comparison and evidence paths: `apps/ttngh/design-qa.md`.
+
+No WCAG certification, latest Drive sync, hosted integration verification or
+production payment/contact activation is claimed. See
+[environment matrix](environment-staging-production.md) for setup requirements.
+
+The reviewed changes were subsequently committed and pushed to the requested
+feature branch. No provider configuration or production deployment was
+performed. Review TTNGH's complete release diff and resolve the documented
+environment/dependency gates before any future promotion.

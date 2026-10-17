@@ -12,7 +12,7 @@ main:not(.home-main):not(.error-page) {
   max-width: none!important
 }
 .editorial-main>section:not(.page-hero),main:not(.home-main):not(.error-page)>section:not(.page-hero) {
-  padding: var(--section-space) var(--editorial-inset)
+  padding: var(--section-padding-top, var(--section-space)) var(--editorial-inset) var(--section-space)
 }
 .editorial-main>section:not(.page-hero):not(.scroll-expand) {
   min-height: auto;

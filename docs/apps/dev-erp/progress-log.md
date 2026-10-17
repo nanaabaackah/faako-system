@@ -1,5 +1,21 @@
 # Dev ERP Progress Log
 
+### 2026-10-17 — Proposal production-readiness re-audit
+
+Feature/change name: Post-implementation validation and release-gate refresh
+
+What changed: Re-ran the complete DEV ERP automated, browser, schema, security, build, and dependency checks from the pushed feature branch. No runtime behavior, migration, or production state was changed by the audit.
+
+Data impact: None. All six additive proposal/payment/email migrations remain unapplied. No real proposal, invoice, payment, accounting entry, email, or AI request was created.
+
+Security impact: The repository security scan passed. The workspace production dependency audit currently reports 85 findings (9 low, 51 moderate, 23 high, 2 critical); the critical Astro paths are outside DEV ERP, while unresolved DEV ERP production-tree findings remain. The guarded PostgreSQL rehearsal still cannot run because `DEV_ERP_TEST_DATABASE_URL` is unset.
+
+Testing done: Full DEV ERP Node suite 324 passed and one guarded PostgreSQL test skipped (325 total); focused HTTP security 4/4 passed; clean Playwright 18/18 passed, including proposal admin/client/mobile coverage; ESLint, TypeScript, Prisma validate/generate, production build, security scan, and whitespace checks passed. The existing 514.93 kB vendor warning remains.
+
+Rollback notes: Documentation-only audit update; no data or runtime rollback is required.
+
+Next step: Provision an approved disposable PostgreSQL database, run the ordered migration/concurrency/recovery rehearsal, resolve or formally accept the dependency findings, verify production email/domain configuration in staging, and complete two-administrator financial workflow QA. Status remains **NOT READY**.
+
 ### 2026-10-17 — Proposal email delivery and private administrative copies
 
 Feature/change name: Branded proposal Send/Resend and centralized DEV ERP email BCC

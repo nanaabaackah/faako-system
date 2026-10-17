@@ -8,7 +8,11 @@ const server=http.createServer((req,res)=>{
   let file=path.resolve(root,'.'+decodeURIComponent(new URL(req.url,'http://localhost').pathname));
   if(!file.startsWith(root+path.sep)&&file!==root){res.writeHead(403);return res.end();}
   if(fs.existsSync(file)&&fs.statSync(file).isDirectory())file=path.join(file,'index.html');
-  if(!fs.existsSync(file)){res.writeHead(404);return res.end('Not found');}
+  if(!fs.existsSync(file)){
+   file=path.join(root,'404.html');
+   res.statusCode=404;
+   if(!fs.existsSync(file))return res.end('Not found');
+  }
   res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');
   fs.createReadStream(file).pipe(res);
  }catch{res.writeHead(400);res.end();}
