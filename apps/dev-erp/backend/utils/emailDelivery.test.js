@@ -1,10 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  resolveEmailBccRecipients,
   resolveEmailDeliveryRecipients,
   resolveLocalEmailRecipient,
   resolveSingleEmailDeliveryTarget,
 } from "./emailDelivery.js";
+
+test("resolveEmailBccRecipients privately copies production human email", () => {
+  assert.deepEqual(resolveEmailBccRecipients({
+    defaultAdminEmail: "Admin@Example.com",
+    deliveryRecipients: ["client@example.com"],
+    isProduction: true,
+  }), ["admin@example.com"]);
+});
+
+test("resolveEmailBccRecipients deduplicates recipients and skips non-production", () => {
+  assert.deepEqual(resolveEmailBccRecipients({
+    defaultAdminEmail: "admin@example.com",
+    deliveryRecipients: ["ADMIN@example.com"],
+    isProduction: true,
+  }), []);
+  assert.deepEqual(resolveEmailBccRecipients({
+    defaultAdminEmail: "admin@example.com",
+    deliveryRecipients: ["client@example.com"],
+    isProduction: false,
+  }), []);
+});
+
+test("resolveEmailBccRecipients ignores an invalid default email", () => {
+  assert.deepEqual(resolveEmailBccRecipients({
+    defaultAdminEmail: "not-an-email",
+    deliveryRecipients: ["client@example.com"],
+    isProduction: true,
+  }), []);
+});
 
 const parseRecipients = (value) =>
   String(value || "")

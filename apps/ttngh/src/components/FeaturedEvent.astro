@@ -1,0 +1,19 @@
+---
+import Icon from "./Icon.jsx";
+import { getPublishedEvents } from "../lib/event-source.js";
+import { groupEvents, eventPath, formatEventDate } from "../lib/events.js";
+import "../styles/components/featured-event.css";
+const { featuredEventId } = Astro.props;
+const { upcoming } = groupEvents(await getPublishedEvents());
+const event = upcoming.find(item => item.id === featuredEventId) || upcoming[0];
+const states = { open: "Registration open", closed: "Registration closed", "not-open": "Registration not yet open", "not-required": "No registration required" };
+---
+<section class="featured-event" aria-labelledby="featured-event-title">
+  {event ? <>
+    <img src={`${event.image.url}?w=1200&auto=format`} srcset={`${event.image.url}?w=640&auto=format 640w, ${event.image.url}?w=1200&auto=format 1200w`} sizes="(max-width:780px) 100vw, 45vw" alt={event.image.alt} width={event.image.width} height={event.image.height} loading="lazy" decoding="async" />
+    <div><p class="event-meta"><time datetime={event.start}>{formatEventDate(event)}</time></p><h2 id="featured-event-title">{event.title}</h2><p>{event.summary}</p><p>{event.format === "online" ? "Online" : event.venue} · {states[event.registrationState]}</p><a class="text-link" href={eventPath(event)}>Explore this event <Icon name="arrow-right" /></a></div>
+  </> : <>
+    <img src="/images/refresh/vision-gathering-960.webp" alt="Participants gathered around tables at Vision with Clarity" width="960" height="640" loading="lazy" decoding="async" />
+    <div><h2 id="featured-event-title">The next conversation starts here.</h2><p>New event dates have not been published yet. Explore our recurring programmes and check the events page for confirmed details.</p><a class="text-link" href="/events">Explore events <Icon name="arrow-right" /></a></div>
+  </>}
+</section>

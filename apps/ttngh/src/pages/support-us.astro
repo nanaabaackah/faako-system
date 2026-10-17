@@ -13,16 +13,16 @@ const faqItems = [
 
 <BaseLayout path="/support-us" title={`Donate and support us | ${organization.name}`} description="Support TTN GH counselling, mental health education, outreach, advocacy, and community programmes." image="/images/home/closing-community.jpg" imageAlt="The Thriving Network GH team and students gathered in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Support us", path: "/support-us" }]} faqItems={faqItems}>
   <main id="main-content" class="editorial-main">
-    <PageHero links={[["Discuss a donation","/contact?topic=donations"],["Other ways to help","/get-involved"]]} title="Help the work reach further." intro="Your support helps us deliver counselling, community outreach, educational materials, awareness work, and programmes for people across Ghana." images={[
+    <PageHero variant="conversion" links={[["Discuss a donation","/contact?topic=donations"],["Other ways to help","/get-involved"]]} title="Help the work reach further." intro="Your support helps us deliver counselling, community outreach, educational materials, awareness work, and programmes for people across Ghana." images={[
       { src: "/images/refresh/tema-school-audience-1600.webp", alt: "Students seated in rows in a school hall", caption: "School outreach · Presbyterian Senior High School, Tema" },
     ]} />
-    <section class="section-dark" aria-labelledby="funds-title">
+    <section class="support-purpose" aria-labelledby="funds-title">
       <div class="section-heading"><h2 id="funds-title">Help sustain the work behind every conversation.</h2></div>
-      <div class="grid grid-two">
-        <article class="glass-card motion-card"><h3>Counselling and support</h3><p>Help more people access professional counselling, peer support, and safe community spaces.</p></article>
-        <article class="glass-card motion-card"><h3>Education and outreach</h3><p>Support workshops, school programmes, workplace talks, and practical educational materials.</p></article>
-        <article class="glass-card motion-card"><h3>Advocacy and awareness</h3><p>Strengthen public campaigns and conversations that challenge stigma and encourage help-seeking.</p></article>
-        <article class="glass-card motion-card"><h3>Programme delivery</h3><p>Contribute to the coordination, venues, resources, and people required to deliver meaningful programmes.</p></article>
+      <div class="editorial-values">
+        <article class="editorial-item"><h3>Counselling and support</h3><p>Help more people access professional counselling, peer support, and safe community spaces.</p></article>
+        <article class="editorial-item"><h3>Education and outreach</h3><p>Support workshops, school programmes, workplace talks, and practical educational materials.</p></article>
+        <article class="editorial-item"><h3>Advocacy and awareness</h3><p>Strengthen public campaigns and conversations that challenge stigma and encourage help-seeking.</p></article>
+        <article class="editorial-item"><h3>Programme delivery</h3><p>Contribute to the coordination, venues, resources, and people required to deliver meaningful programmes.</p></article>
       </div>
     </section>
     <FaqList items={faqItems} />

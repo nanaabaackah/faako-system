@@ -1,7 +1,17 @@
 ---
 import Icon from "./Icon.jsx";
 import { contentPath } from "../lib/cms-source.js";
-import "../styles/components/event-listings.css";
+import "../styles/components/content-list.css";
 const { documents = [], title = "Explore more" } = Astro.props;
+const date = value => new Intl.DateTimeFormat("en-GH", { dateStyle: "medium", timeZone: "Africa/Accra" }).format(new Date(value));
+const types = { programme: "Programme", newsArticle: "News", resource: "Reviewed resource" };
 ---
-{documents.length > 0 && <section class="cms-content-section"><h2>{title}</h2><div class="event-card-grid">{documents.map(doc => <a class="bubble-card motion-card event-card" href={contentPath(doc)}>{doc.image && <img src={`${doc.image.url}?w=800&auto=format`} alt={doc.image.alt} width={doc.image.width} height={doc.image.height} loading="lazy" decoding="async" />}<div><h3>{doc.title}</h3><p class="event-card-summary">{doc.summary}</p><span class="text-link">Read more <Icon name="arrow-right" /></span></div></a>)}</div></section>}
+{documents.length > 0 && <section class="cms-content-section"><h2>{title}</h2><div class="content-list">{documents.map(doc => <article class:list={["content-entry", { "content-entry--text": !doc.image }]}>
+  {doc.image && <a href={contentPath(doc)} tabindex="-1" aria-hidden="true"><img src={`${doc.image.url}?w=800&auto=format`} alt="" width={doc.image.width} height={doc.image.height} loading="lazy" decoding="async" /></a>}
+  <div><p class="content-type">{types[doc._type]}{doc.category && ` · ${doc.category}`}</p><h3><a href={contentPath(doc)}>{doc.title} <Icon name="arrow-right" /></a></h3>
+  <p>{doc.summary}</p>
+  {doc.publishedAt && <p class="content-meta"><time datetime={doc.publishedAt}>{date(doc.publishedAt)}</time> · {doc.author}</p>}
+  {doc._type === "programme" && <p class="content-meta">{doc.audience}<br />{doc.availability}</p>}
+  {doc._type === "resource" && <p class="content-meta">Reviewed by {doc.reviewer} · <time datetime={doc.lastReviewed}>{date(doc.lastReviewed)}</time></p>}
+  </div>
+</article>)}</div></section>}

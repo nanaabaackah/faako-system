@@ -2,8 +2,16 @@
 import Icon from "../components/Icon.jsx";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PageHero from "../components/PageHero.astro";
+import ScrollExpandSection from "../components/ScrollExpandSection.astro";
 import CmsCards from "../components/CmsCards.astro";
 import { contentOfType } from "../lib/cms-source.js";
 const resources=await contentOfType("resource");
 ---
-<BaseLayout title="Reviewed resources | TTNGH" description="Explore reviewed educational resources from The Thriving Network GH, with named authors, reviewers and sources."><main id="main-content" class="editorial-main"><PageHero title="Learn with trusted context." intro="Educational content with clear sources and review information." />{resources.length?<CmsCards documents={resources} title="Reviewed resources" />:<section><h2>Resources are being prepared.</h2><p>Reviewed resources will appear here once approved by the team.</p><a class="text-link" href="/contact">Contact the team <Icon name="arrow-right" /></a></section>}</main></BaseLayout>
+<BaseLayout path="/resources" title="Reviewed resources | TTNGH" description="Explore reviewed educational resources from The Thriving Network GH, with named authors, reviewers and sources." breadcrumbs={[{name:"Home",path:"/"},{name:"Resources",path:"/resources"}]}>
+  <main id="main-content" class="editorial-main">
+    <PageHero variant="immersive" title="Learn with" accent="trusted context." intro="Educational content with clear sources and review information." images={[{src:"/images/refresh/vision-reflection-1600.webp",alt:"Participants writing together during Vision with Clarity",caption:"Vision with Clarity · TTNGH"}]} />
+    {resources.length ? <CmsCards documents={resources} title="Reviewed resources" /> : <section><h2>Resources are being prepared.</h2><p>Reviewed resources will appear here once approved by the team.</p><a class="text-link" href="/contact">Contact the team <Icon name="arrow-right" /></a></section>}
+    <section aria-labelledby="review-title"><h2 id="review-title">Read with the context behind the guidance.</h2><p>Each published resource includes its author, reviewer, review date, and sources. News and programme updates are available separately on our <a href="/news">News page</a>.</p></section>
+    <ScrollExpandSection image="/images/refresh/vision-listening-1600.webp" alt="Participants listening together around a table" title="Keep the conversation open." text="Ask the team about education, programmes, or working together." href="/contact" linkLabel="Contact the team" frameTitle="Learning, together." id="resources-cta-title" />
+  </main>
+</BaseLayout>

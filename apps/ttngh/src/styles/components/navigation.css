@@ -1,6 +1,6 @@
 .site-header {
   position: sticky;
-  top: 1rem;
+  top: 2rem;
   z-index: 100;
   display: grid;
   grid-template-columns: 1fr 125px 1fr;

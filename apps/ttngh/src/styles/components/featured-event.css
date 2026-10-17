@@ -1,0 +1,6 @@
+.featured-event { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); align-items:center; gap:clamp(2rem,5vw,5rem); padding:var(--section-space) var(--editorial-inset); background:var(--ink); color:white; }
+.featured-event>img { width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; }
+.featured-event p { color:#dedcdd; max-width:50ch; }
+.featured-event .text-link { color:white; }
+.featured-event .event-meta { font-size:.85rem; }
+@media(max-width:780px) { .featured-event { grid-template-columns:1fr; } }

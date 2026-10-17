@@ -86,7 +86,6 @@ export const values = [
 
 export const highlights = [
   "Monthly virtual and in-person support group sessions since July 2023",
-  "More than 100 one-on-one professional counselling sessions delivered",
   "A workplace well-being talk delivered with DHL Ghana staff",
   "A mental health education programme at Presbyterian Senior High School, Tema",
   "Vision with Clarity, an annual programme launched in 2026",

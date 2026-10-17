@@ -27,7 +27,8 @@ for (const file of files) {
     assert.ok(existsSync(join(root, path)) || existsSync(join(root, path, "index.html")), `${file}: missing local target ${path}`);
   }
   for (const match of html.matchAll(/<img\b[^>]*>/g)) {
-    assert.match(match[0], /\balt=/, `${file}: missing alt`);
+    // Astro can serialize an intentional empty alt as a bare HTML attribute.
+    assert.match(match[0], /\balt(?:=|\s|>)/, `${file}: missing alt`);
   }
 }
 console.log(`Verified ${files.length} HTML pages: unique metadata, one H1, JSON-LD, local assets and destinations.`);

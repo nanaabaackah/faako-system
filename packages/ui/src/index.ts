@@ -26,6 +26,7 @@ export * from "./components/AppUpdateNotice";
 export * from "./components/SystemProvider";
 export * from "./components/Primitives";
 export * from "./components/Fields";
+export * from "./components/ComboboxField";
 export * from "./components/Feedback";
 export * from "./components/DataTable";
 export * from "./components/ERPTable";

@@ -1,20 +1,36 @@
 ---
 import EditorialImage from "./EditorialImage.astro";
+import "../styles/components/photo-ribbon.css";
+const { id = "event-gallery-title", title = "Moments of learning, reflection, and connection." } = Astro.props;
 const images = [
-  { src: "/images/home/vision-gathering.jpg", alt: "Participants gathered for TTNGH's Vision with Clarity programme", caption: "Vision with Clarity" },
-  { src: "/images/home/programme-audience.jpg", alt: "Students attending a TTNGH mental health education programme in Tema", caption: "School outreach" },
+  { src: "/images/refresh/vision-conversation-1600.webp", alt: "Participants listening together around a table", caption: "Vision with Clarity" },
   { src: "/images/refresh/tema-school-conversation-1600.webp", alt: "TTNGH team members talking with people in a school hall", caption: "School outreach · Tema" },
-  { src: "/images/home/vision-reflection.jpg", alt: "Participants completing a guided reflection exercise", caption: "Guided reflection" },
-  { src: "/images/home/programme-team.jpg", alt: "The TTNGH team during a school programme in Tema", caption: "Programme delivery" },
-  { src: "/images/home/vision-facilitator.jpg", alt: "A facilitator leading a Vision with Clarity session", caption: "Facilitated learning" },
+  { src: "/images/refresh/vision-reflection-1600.webp", alt: "Participants writing at tables during Vision with Clarity", caption: "Vision with Clarity" },
+  { src: "/images/refresh/tema-school-speaker-1600.webp", alt: "A speaker holding a microphone in a school hall", caption: "School outreach · Tema" },
 ];
 ---
-
-<section class="event-gallery-rail" aria-labelledby="event-gallery-title">
-  <div class="section-heading"><h2 id="event-gallery-title">Moments of learning, reflection, and connection.</h2></div>
-  <div class="event-gallery-viewport">
-    <div class="event-gallery-track" tabindex="0" role="region" aria-label="Event photography gallery">
-      {images.map((image) => <figure><EditorialImage src={image.src} alt={image.alt} sizes="350px" loading="lazy" /><figcaption>{image.caption}</figcaption></figure>)}
+<section class="photo-ribbon" aria-labelledby={id} data-photo-ribbon>
+  <div class="section-heading"><h2 id={id}>{title}</h2><button type="button" class="text-link" data-ribbon-toggle aria-pressed="false" hidden>Pause gallery</button></div>
+  <div class="photo-ribbon-viewport" tabindex="0" role="region" aria-label="Programme photography">
+    <div class="photo-ribbon-track">
+      <div class="photo-ribbon-group">{images.map(image => <figure><EditorialImage src={image.src} alt={image.alt} sizes="(max-width: 600px) 80vw, 350px" loading="lazy" /><figcaption>{image.caption}</figcaption></figure>)}</div>
+      <div class="photo-ribbon-group photo-ribbon-clone" aria-hidden="true" inert>{images.map(image => <figure><EditorialImage src={image.src} alt="" sizes="(max-width: 600px) 80vw, 350px" loading="lazy" /><figcaption>{image.caption}</figcaption></figure>)}</div>
     </div>
   </div>
 </section>
+<script>
+  for (const ribbon of document.querySelectorAll<HTMLElement>("[data-photo-ribbon]")) {
+    const button = ribbon.querySelector<HTMLButtonElement>("[data-ribbon-toggle]");
+    const viewport = ribbon.querySelector<HTMLElement>(".photo-ribbon-viewport");
+    const motion = matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => { ribbon.dataset.animate = String(!motion.matches); button.hidden = motion.matches; };
+    sync(); motion.addEventListener("change", sync);
+    const pause = (paused: boolean) => {
+      ribbon.dataset.paused = String(paused);
+      button.setAttribute("aria-pressed", String(paused));
+      button.textContent = paused ? "Resume gallery" : "Pause gallery";
+    };
+    button.addEventListener("click", () => pause(ribbon.dataset.paused !== "true"));
+    viewport.addEventListener("pointerdown", event => { if (event.pointerType !== "mouse") pause(true); });
+  }
+</script>

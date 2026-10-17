@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   ACCESS_MODULE_KEYS,
   AUTHENTICATED_MODULE_CAPABILITY_ROUTES,
+  MODULE_CAPABILITY_PUBLIC_PATHS,
 } from "./accessConfig.js";
 
 const resolveModulesForPath = (path) =>
@@ -10,6 +11,12 @@ const resolveModulesForPath = (path) =>
     entry.pattern.lastIndex = 0;
     return entry.pattern.test(path);
   })?.modules ?? null;
+
+const isPublicCapabilityPath = (path) =>
+  MODULE_CAPABILITY_PUBLIC_PATHS.some((pattern) => {
+    pattern.lastIndex = 0;
+    return pattern.test(path);
+  });
 
 test("ACCESS_MODULE_KEYS stays aligned with module capability route modules", () => {
   const supportedModules = new Set(ACCESS_MODULE_KEYS);
@@ -49,4 +56,15 @@ test("Faako onboarding API is protected by the onboarding module", () => {
 test("reports summary compatibility route stays owned by audit logs", () => {
   assert.deepEqual(resolveModulesForPath("/api/reports/summary"), ["audit-logs"]);
   assert.deepEqual(resolveModulesForPath("/api/reports/weekly_kpi/send"), ["reports"]);
+});
+
+test("invoice payment ledger and reconciliation routes require invoicing capability", () => {
+  assert.deepEqual(resolveModulesForPath("/api/invoices/12/payments"), ["invoicing"]);
+  assert.deepEqual(resolveModulesForPath("/api/invoice-payments/reconciliation-report"), ["invoicing"]);
+});
+
+test("interactive proposal token routes bypass module capability auth only", () => {
+  assert.equal(isPublicCapabilityPath("/api/proposals/interactive/token"), true);
+  assert.equal(isPublicCapabilityPath("/api/proposals/12/versions"), false);
+  assert.deepEqual(resolveModulesForPath("/api/proposals/12/versions"), ["proposals"]);
 });

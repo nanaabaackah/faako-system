@@ -17,28 +17,33 @@ model Organization {
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  roles                   Role[]
-  users                   User[]
-  bookings                Booking[]
-  bookingSettings         BookingSettings?
-  calendarIntegrations    CalendarIntegration[]
-  accountingEntries       AccountingEntry[]
-  invoices                Invoice[]
-  proposals               Proposal[]
-  productivityEntries     ProductivityEntry[]
-  productivityTodos       ProductivityTodo[]
-  rentTenants             RentTenant[]
-  rentPayments            RentPayment[]
-  projects                Project[]
-  projectTasks            ProjectTask[]
-  trelloConnection        TrelloConnection?
-  trelloWebhookEvents     TrelloWebhookEvent[]
-  monitoringIncidents     MonitoringIncident[]
-  alertRules              AlertRule[]
-  notificationChannels    MonitoringNotificationChannel[]
-  escalationPolicies      EscalationPolicy[]
-  maintenanceWindows      MaintenanceWindow[]
-  monitoringNotifications MonitoringNotification[]
+  roles                    Role[]
+  users                    User[]
+  bookings                 Booking[]
+  bookingSettings          BookingSettings?
+  calendarIntegrations     CalendarIntegration[]
+  accountingEntries        AccountingEntry[]
+  invoices                 Invoice[]
+  invoicePayments          InvoicePayment[]
+  invoicePaymentLedger     InvoicePaymentLedgerEntry[]
+  paymentIdempotencyClaims PaymentIdempotencyClaim[]
+  proposals                Proposal[]
+  commercialCatalogueItems CommercialCatalogueItem[]
+  commercialPackages       CommercialPackage[]
+  productivityEntries      ProductivityEntry[]
+  productivityTodos        ProductivityTodo[]
+  rentTenants              RentTenant[]
+  rentPayments             RentPayment[]
+  projects                 Project[]
+  projectTasks             ProjectTask[]
+  trelloConnection         TrelloConnection?
+  trelloWebhookEvents      TrelloWebhookEvent[]
+  monitoringIncidents      MonitoringIncident[]
+  alertRules               AlertRule[]
+  notificationChannels     MonitoringNotificationChannel[]
+  escalationPolicies       EscalationPolicy[]
+  maintenanceWindows       MaintenanceWindow[]
+  monitoringNotifications  MonitoringNotification[]
 
   @@index([parentOrganizationId])
 }
@@ -57,29 +62,33 @@ model Role {
 }
 
 model User {
-  id                   Int                 @id @default(autoincrement())
-  organizationId       Int
-  organization         Organization        @relation(fields: [organizationId], references: [id])
-  roleId               Int
-  role                 Role                @relation(fields: [roleId], references: [id])
-  firstName            String
-  lastName             String
-  fullName             String
-  email                String              @unique
-  password             String
-  status               UserStatus          @default(ACTIVE)
-  tokenVersion         Int                 @default(0)
-  loginAttempts        Int                 @default(0)
-  lockedUntil          DateTime?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-  createdProposals     Proposal[]          @relation("ProposalCreatedBy")
-  editedProposals      Proposal[]          @relation("ProposalLastEditedBy")
-  ownedProjects        Project[]           @relation("ProjectOwner")
-  assignedProjectTasks ProjectTask[]       @relation("ProjectTaskAssignee")
-  productivityEntries  ProductivityEntry[]
-  productivityTodos    ProductivityTodo[]
-  refreshTokens        RefreshToken[]
+  id                      Int                         @id @default(autoincrement())
+  organizationId          Int
+  organization            Organization                @relation(fields: [organizationId], references: [id])
+  roleId                  Int
+  role                    Role                        @relation(fields: [roleId], references: [id])
+  firstName               String
+  lastName                String
+  fullName                String
+  email                   String                      @unique
+  password                String
+  status                  UserStatus                  @default(ACTIVE)
+  tokenVersion            Int                         @default(0)
+  loginAttempts           Int                         @default(0)
+  lockedUntil             DateTime?
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+  createdProposals        Proposal[]                  @relation("ProposalCreatedBy")
+  editedProposals         Proposal[]                  @relation("ProposalLastEditedBy")
+  ownedProjects           Project[]                   @relation("ProjectOwner")
+  assignedProjectTasks    ProjectTask[]               @relation("ProjectTaskAssignee")
+  productivityEntries     ProductivityEntry[]
+  productivityTodos       ProductivityTodo[]
+  refreshTokens           RefreshToken[]
+  recordedInvoicePayments InvoicePayment[]            @relation("InvoicePaymentRecordedBy")
+  verifiedInvoicePayments InvoicePayment[]            @relation("InvoicePaymentVerifiedBy")
+  rejectedInvoicePayments InvoicePayment[]            @relation("InvoicePaymentRejectedBy")
+  paymentLedgerEntries    InvoicePaymentLedgerEntry[] @relation("PaymentLedgerActor")
 }
 
 model RefreshToken {
@@ -285,40 +294,149 @@ model ProductivityTodo {
 }
 
 model Invoice {
-  id                 Int           @id @default(autoincrement())
-  organizationId     Int
-  organization       Organization  @relation(fields: [organizationId], references: [id])
-  invoiceNumber      String
-  status             InvoiceStatus @default(DRAFT)
-  currency           CurrencyCode
-  issueDate          DateTime      @db.Date
-  dueDate            DateTime?     @db.Date
-  paidAt             DateTime?
-  clientName         String
-  clientEmail        String?
-  clientAddress      String?
-  notes              String?
-  subtotal           Decimal       @db.Decimal(14, 2)
-  taxRate            Decimal       @default(0) @db.Decimal(5, 2)
-  taxAmount          Decimal       @default(0) @db.Decimal(14, 2)
-  discount           Decimal       @default(0) @db.Decimal(14, 2)
-  total              Decimal       @db.Decimal(14, 2)
-  paidAmount         Decimal       @default(0) @db.Decimal(14, 2)
-  viewToken          String?       @unique
-  viewTokenExpiresAt DateTime?
-  respondedAt        DateTime?
-  archivedAt         DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                       Int                          @id @default(autoincrement())
+  organizationId           Int
+  organization             Organization                 @relation(fields: [organizationId], references: [id])
+  invoiceNumber            String
+  status                   InvoiceStatus                @default(DRAFT)
+  currency                 CurrencyCode
+  issueDate                DateTime                     @db.Date
+  dueDate                  DateTime?                    @db.Date
+  paidAt                   DateTime?
+  clientName               String
+  clientEmail              String?
+  clientAddress            String?
+  notes                    String?
+  subtotal                 Decimal                      @db.Decimal(14, 2)
+  taxRate                  Decimal                      @default(0) @db.Decimal(5, 2)
+  taxAmount                Decimal                      @default(0) @db.Decimal(14, 2)
+  discount                 Decimal                      @default(0) @db.Decimal(14, 2)
+  total                    Decimal                      @db.Decimal(14, 2)
+  paidAmount               Decimal                      @default(0) @db.Decimal(14, 2)
+  legacyPaidAmount         Decimal?                     @db.Decimal(14, 2)
+  paymentLedgerActivatedAt DateTime?
+  proposalVersionId        Int?
+  proposalVersion          ProposalVersion?             @relation(fields: [proposalVersionId], references: [id], onDelete: SetNull)
+  billingScheduleItemId    Int?
+  billingScheduleItem      ProposalBillingScheduleItem? @relation(fields: [billingScheduleItemId], references: [id], onDelete: SetNull)
+  generationKey            String?                      @unique
+  viewToken                String?                      @unique
+  viewTokenExpiresAt       DateTime?
+  respondedAt              DateTime?
+  archivedAt               DateTime?
+  createdAt                DateTime                     @default(now())
+  updatedAt                DateTime                     @updatedAt
 
-  lineItems InvoiceLineItem[]
+  lineItems                InvoiceLineItem[]
+  payments                 InvoicePayment[]
+  paymentLedgerEntries     InvoicePaymentLedgerEntry[]
+  paymentIdempotencyClaims PaymentIdempotencyClaim[]
 
   @@unique([organizationId, invoiceNumber])
   @@index([organizationId, status])
   @@index([organizationId, archivedAt])
   @@index([organizationId, dueDate])
   @@index([organizationId, issueDate])
+  @@index([proposalVersionId, status])
+  @@index([billingScheduleItemId, issueDate])
   @@index([viewToken])
+}
+
+model InvoicePayment {
+  id                   Int                         @id @default(autoincrement())
+  transactionId        String                      @unique @default(uuid())
+  organizationId       Int
+  organization         Organization                @relation(fields: [organizationId], references: [id])
+  invoiceId            Int
+  invoice              Invoice                     @relation(fields: [invoiceId], references: [id])
+  customerName         String
+  amount               Decimal                     @db.Decimal(14, 2)
+  currency             CurrencyCode
+  method               InvoicePaymentMethod
+  provider             String?
+  externalReference    String?
+  externalReferenceKey String?
+  paymentDate          DateTime                    @db.Date
+  verificationStatus   PaymentVerificationStatus   @default(PENDING_VERIFICATION)
+  evidenceUrl          String?
+  note                 String?
+  recordedByUserId     Int
+  recordedByUser       User                        @relation("InvoicePaymentRecordedBy", fields: [recordedByUserId], references: [id])
+  verifiedByUserId     Int?
+  verifiedByUser       User?                       @relation("InvoicePaymentVerifiedBy", fields: [verifiedByUserId], references: [id])
+  verifiedAt           DateTime?
+  rejectedByUserId     Int?
+  rejectedByUser       User?                       @relation("InvoicePaymentRejectedBy", fields: [rejectedByUserId], references: [id])
+  rejectedAt           DateTime?
+  rejectionReason      String?
+  reversedAt           DateTime?
+  correctsPaymentId    Int?
+  correctsPayment      InvoicePayment?             @relation("InvoicePaymentCorrection", fields: [correctsPaymentId], references: [id])
+  corrections          InvoicePayment[]            @relation("InvoicePaymentCorrection")
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime                    @updatedAt
+  ledgerEntries        InvoicePaymentLedgerEntry[]
+  idempotencyClaims    PaymentIdempotencyClaim[]
+
+  @@unique([organizationId, externalReferenceKey])
+  @@index([organizationId, invoiceId, createdAt])
+  @@index([organizationId, verificationStatus, createdAt])
+  @@index([invoiceId, paymentDate])
+  @@index([correctsPaymentId])
+}
+
+model InvoicePaymentLedgerEntry {
+  id                Int                        @id @default(autoincrement())
+  transactionId     String                     @unique @default(uuid())
+  organizationId    Int
+  organization      Organization               @relation(fields: [organizationId], references: [id])
+  invoiceId         Int
+  invoice           Invoice                    @relation(fields: [invoiceId], references: [id])
+  paymentId         Int?
+  payment           InvoicePayment?            @relation(fields: [paymentId], references: [id])
+  entryType         PaymentLedgerEntryType
+  status            PaymentLedgerEntryStatus   @default(POSTED)
+  signedAmount      Decimal                    @db.Decimal(14, 2)
+  currency          CurrencyCode
+  method            InvoicePaymentMethod?
+  externalReference String?
+  effectiveAt       DateTime                   @db.Date
+  postedAt          DateTime                   @default(now())
+  actorUserId       Int
+  actorUser         User                       @relation("PaymentLedgerActor", fields: [actorUserId], references: [id])
+  reversesEntryId   Int?                       @unique
+  reversesEntry     InvoicePaymentLedgerEntry? @relation("PaymentLedgerReversal", fields: [reversesEntryId], references: [id])
+  reversalEntry     InvoicePaymentLedgerEntry? @relation("PaymentLedgerReversal")
+  reason            String?
+  metadata          Json?
+  idempotencyClaims PaymentIdempotencyClaim[]
+
+  @@unique([paymentId, entryType])
+  @@index([organizationId, invoiceId, postedAt])
+  @@index([invoiceId, effectiveAt])
+  @@index([paymentId])
+}
+
+model PaymentIdempotencyClaim {
+  id                 Int                        @id @default(autoincrement())
+  organizationId     Int
+  organization       Organization               @relation(fields: [organizationId], references: [id])
+  invoiceId          Int
+  invoice            Invoice                    @relation(fields: [invoiceId], references: [id])
+  operation          PaymentOperationType
+  idempotencyKey     String
+  requestFingerprint String
+  paymentId          Int?
+  payment            InvoicePayment?            @relation(fields: [paymentId], references: [id])
+  ledgerEntryId      Int?
+  ledgerEntry        InvoicePaymentLedgerEntry? @relation(fields: [ledgerEntryId], references: [id])
+  responseSnapshot   Json?
+  completedAt        DateTime?
+  createdAt          DateTime                   @default(now())
+
+  @@unique([organizationId, operation, idempotencyKey])
+  @@index([invoiceId, createdAt])
+  @@index([paymentId])
 }
 
 model InvoiceLineItem {
@@ -337,28 +455,31 @@ model InvoiceLineItem {
 }
 
 model Project {
-  id              Int             @id @default(autoincrement())
-  organizationId  Int
-  organization    Organization    @relation(fields: [organizationId], references: [id])
-  ownerUserId     Int?
-  ownerUser       User?           @relation("ProjectOwner", fields: [ownerUserId], references: [id])
-  title           String
-  clientName      String?
-  projectType     ProjectType     @default(PERSONAL)
-  stage           ProjectStage    @default(BACKLOG)
-  priority        ProjectPriority @default(MEDIUM)
-  currency        CurrencyCode?
-  budgetAmount    Decimal?        @db.Decimal(14, 2)
-  startDate       DateTime?       @db.Date
-  dueDate         DateTime?       @db.Date
-  progressPercent Int             @default(0)
-  health          ProjectHealth   @default(ON_TRACK)
-  description     String?
-  externalRef     String?
-  archivedAt      DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  tasks           ProjectTask[]
+  id                        Int              @id @default(autoincrement())
+  organizationId            Int
+  organization              Organization     @relation(fields: [organizationId], references: [id])
+  ownerUserId               Int?
+  ownerUser                 User?            @relation("ProjectOwner", fields: [ownerUserId], references: [id])
+  title                     String
+  clientName                String?
+  projectType               ProjectType      @default(PERSONAL)
+  stage                     ProjectStage     @default(BACKLOG)
+  priority                  ProjectPriority  @default(MEDIUM)
+  currency                  CurrencyCode?
+  budgetAmount              Decimal?         @db.Decimal(14, 2)
+  startDate                 DateTime?        @db.Date
+  dueDate                   DateTime?        @db.Date
+  progressPercent           Int              @default(0)
+  health                    ProjectHealth    @default(ON_TRACK)
+  description               String?
+  externalRef               String?
+  acceptedProposalVersionId Int?             @unique
+  acceptedProposalVersion   ProposalVersion? @relation("AcceptedProposalProject", fields: [acceptedProposalVersionId], references: [id], onDelete: SetNull)
+  archivedAt                DateTime?
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  tasks                     ProjectTask[]
+  proposals                 Proposal[]
 
   @@index([organizationId, stage])
   @@index([organizationId, projectType])
@@ -444,32 +565,341 @@ model TrelloWebhookEvent {
 }
 
 model Proposal {
-  id                  Int          @id @default(autoincrement())
+  id                  Int                       @id @default(autoincrement())
   organizationId      Int
-  organization        Organization @relation(fields: [organizationId], references: [id])
+  organization        Organization              @relation(fields: [organizationId], references: [id])
   createdByUserId     Int?
-  createdByUser       User?        @relation("ProposalCreatedBy", fields: [createdByUserId], references: [id])
+  createdByUser       User?                     @relation("ProposalCreatedBy", fields: [createdByUserId], references: [id])
   lastEditedByUserId  Int?
-  lastEditedByUser    User?        @relation("ProposalLastEditedBy", fields: [lastEditedByUserId], references: [id])
+  lastEditedByUser    User?                     @relation("ProposalLastEditedBy", fields: [lastEditedByUserId], references: [id])
+  projectId           Int?
+  project             Project?                  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   title               String
   clientName          String?
-  proposalType        String       @default("website")
-  status              String       @default("draft")
-  version             Int          @default(1)
+  proposalType        String                    @default("website")
+  status              String                    @default("draft")
+  version             Int                       @default(1)
   metadata            Json?
   content             Json
-  shareToken          String?      @unique
+  shareToken          String?                   @unique
   shareTokenCreatedAt DateTime?
   shareTokenExpiresAt DateTime?
   sharedAt            DateTime?
   archivedAt          DateTime?
-  createdAt           DateTime     @default(now())
-  updatedAt           DateTime     @updatedAt
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  versions            ProposalVersion[]
+  revisionRequests    ProposalRevisionRequest[]
 
   @@index([organizationId, status])
   @@index([organizationId, proposalType])
   @@index([organizationId, updatedAt])
+  @@index([organizationId, projectId])
   @@index([shareToken])
+}
+
+model CommercialCatalogueItem {
+  id                      Int                             @id @default(autoincrement())
+  organizationId          Int
+  organization            Organization                    @relation(fields: [organizationId], references: [id])
+  kind                    CommercialItemKind
+  name                    String
+  normalizedName          String
+  systemKey               String?
+  category                String?
+  description             String?
+  deliverables            Json?
+  defaultUnitPrice        Decimal?                        @db.Decimal(14, 2)
+  defaultBillingType      CommercialBillingType           @default(ONE_TIME)
+  defaultBillingFrequency CommercialBillingFrequency      @default(NONE)
+  defaultCostOwnership    CommercialCostOwnership         @default(FAAKO_BILLED)
+  sourceUrl               String?
+  active                  Boolean                         @default(true)
+  archivedAt              DateTime?
+  createdByUserId         Int?
+  createdAt               DateTime                        @default(now())
+  updatedAt               DateTime                        @updatedAt
+  packageItems            CommercialPackageItem[]
+  proposalItems           ProposalVersionItem[]
+  dependencies            CommercialCatalogueDependency[] @relation("CatalogueItemDependencies")
+  dependents              CommercialCatalogueDependency[] @relation("CatalogueItemDependents")
+  tiers                   CommercialCatalogueTier[]
+
+  @@unique([organizationId, kind, normalizedName])
+  @@unique([organizationId, systemKey])
+  @@index([organizationId, kind, active])
+  @@index([organizationId, category])
+}
+
+model CommercialCatalogueTier {
+  id               Int                        @id @default(autoincrement())
+  catalogueItemId  Int
+  catalogueItem    CommercialCatalogueItem    @relation(fields: [catalogueItemId], references: [id], onDelete: Cascade)
+  name             String
+  normalizedName   String
+  priceModel       CommercialTierPriceModel   @default(FIXED)
+  providerAmount   Decimal?                   @db.Decimal(14, 2)
+  providerCurrency String?
+  displayPrice     String?
+  faakoSetupFee    Decimal                    @default(0) @db.Decimal(14, 2)
+  billingFrequency CommercialBillingFrequency @default(NONE)
+  sourceUrl        String?
+  lastVerifiedAt   DateTime?                  @db.Date
+  includedFeatures Json?
+  isDefault        Boolean                    @default(false)
+  active           Boolean                    @default(true)
+  sortOrder        Int                        @default(0)
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  @@unique([catalogueItemId, normalizedName])
+  @@index([catalogueItemId, active, sortOrder])
+}
+
+model CommercialCatalogueDependency {
+  id              Int                     @id @default(autoincrement())
+  itemId          Int
+  item            CommercialCatalogueItem @relation("CatalogueItemDependencies", fields: [itemId], references: [id], onDelete: Cascade)
+  dependsOnItemId Int
+  dependsOnItem   CommercialCatalogueItem @relation("CatalogueItemDependents", fields: [dependsOnItemId], references: [id], onDelete: Cascade)
+  createdAt       DateTime                @default(now())
+
+  @@unique([itemId, dependsOnItemId])
+  @@index([dependsOnItemId])
+}
+
+model CommercialPackage {
+  id              Int                     @id @default(autoincrement())
+  organizationId  Int
+  organization    Organization            @relation(fields: [organizationId], references: [id])
+  name            String
+  normalizedName  String
+  description     String?
+  active          Boolean                 @default(true)
+  archivedAt      DateTime?
+  createdByUserId Int?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  items           CommercialPackageItem[]
+
+  @@unique([organizationId, normalizedName])
+  @@index([organizationId, active])
+}
+
+model CommercialPackageItem {
+  id              Int                      @id @default(autoincrement())
+  packageId       Int
+  package         CommercialPackage        @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  catalogueItemId Int?
+  catalogueItem   CommercialCatalogueItem? @relation(fields: [catalogueItemId], references: [id], onDelete: SetNull)
+  configuration   Json
+  sortOrder       Int                      @default(0)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([packageId, sortOrder])
+  @@index([catalogueItemId])
+}
+
+model ProposalVersion {
+  id                    Int                           @id @default(autoincrement())
+  proposalId            Int
+  proposal              Proposal                      @relation(fields: [proposalId], references: [id])
+  versionNumber         Int
+  status                ProposalVersionStatus         @default(DRAFT)
+  schemaVersion         Int                           @default(2)
+  customerReference     String?
+  customerName          String?
+  customerEmail         String?
+  customerAddress       String?
+  projectReference      String?
+  projectTitle          String?
+  title                 String
+  summary               String?
+  currency              CurrencyCode
+  validUntil            DateTime?                     @db.Date
+  scope                 String?
+  exclusions            Json?
+  terms                 Json?
+  taxRate               Decimal                       @default(0) @db.Decimal(5, 2)
+  discount              Decimal                       @default(0) @db.Decimal(14, 2)
+  depositPercent        Decimal                       @default(0) @db.Decimal(5, 2)
+  subtotal              Decimal                       @default(0) @db.Decimal(14, 2)
+  taxAmount             Decimal                       @default(0) @db.Decimal(14, 2)
+  total                 Decimal                       @default(0) @db.Decimal(14, 2)
+  oneTimeTotal          Decimal                       @default(0) @db.Decimal(14, 2)
+  recurringMonthlyTotal Decimal                       @default(0) @db.Decimal(14, 2)
+  recurringAnnualTotal  Decimal                       @default(0) @db.Decimal(14, 2)
+  depositAmount         Decimal                       @default(0) @db.Decimal(14, 2)
+  sourceSnapshot        Json
+  publishedAt           DateTime?
+  createdByUserId       Int?
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
+  items                 ProposalVersionItem[]
+  selections            ProposalClientSelection[]
+  revisionRequests      ProposalRevisionRequest[]
+  approvalSnapshot      ProposalApprovalSnapshot?
+  billingSchedule       ProposalBillingScheduleItem[]
+  accessLinks           ProposalAccessLink[]
+  invoices              Invoice[]
+  deliveryProject       Project?                      @relation("AcceptedProposalProject")
+
+  @@unique([proposalId, versionNumber])
+  @@index([proposalId, status])
+}
+
+model ProposalVersionItem {
+  id                Int                        @id @default(autoincrement())
+  proposalVersionId Int
+  proposalVersion   ProposalVersion            @relation(fields: [proposalVersionId], references: [id], onDelete: Cascade)
+  catalogueItemId   Int?
+  catalogueItem     CommercialCatalogueItem?   @relation(fields: [catalogueItemId], references: [id], onDelete: SetNull)
+  kind              CommercialItemKind
+  name              String
+  description       String?
+  deliverables      Json?
+  quantity          Decimal                    @db.Decimal(10, 2)
+  unitPrice         Decimal                    @db.Decimal(14, 2)
+  discount          Decimal                    @default(0) @db.Decimal(14, 2)
+  amount            Decimal                    @db.Decimal(14, 2)
+  billingType       CommercialBillingType
+  billingFrequency  CommercialBillingFrequency @default(NONE)
+  required          Boolean                    @default(true)
+  clientSelectable  Boolean                    @default(false)
+  selectedByDefault Boolean                    @default(true)
+  custom            Boolean                    @default(false)
+  costOwnership     CommercialCostOwnership    @default(FAAKO_BILLED)
+  estimatedDelivery String?
+  internalNotes     String?
+  clientNotes       String?
+  dependencies      Json?
+  configuration     Json?
+  selectedTierName  String?
+  pricingSourceUrl  String?
+  pricingVerifiedAt DateTime?                  @db.Date
+  providerCharge    Json?
+  sortOrder         Int                        @default(0)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  selections        ProposalClientSelection[]
+
+  @@index([proposalVersionId, sortOrder])
+  @@index([catalogueItemId])
+}
+
+model ProposalClientSelection {
+  id                    Int                 @id @default(autoincrement())
+  proposalVersionId     Int
+  proposalVersion       ProposalVersion     @relation(fields: [proposalVersionId], references: [id], onDelete: Cascade)
+  proposalVersionItemId Int
+  proposalVersionItem   ProposalVersionItem @relation(fields: [proposalVersionItemId], references: [id], onDelete: Cascade)
+  clientKey             String              @default("default")
+  selected              Boolean
+  quantity              Decimal?            @db.Decimal(10, 2)
+  configuration         Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@unique([proposalVersionItemId, clientKey])
+  @@index([proposalVersionId, clientKey])
+}
+
+model ProposalRevisionRequest {
+  id                Int                       @id @default(autoincrement())
+  proposalId        Int
+  proposal          Proposal                  @relation(fields: [proposalId], references: [id])
+  proposalVersionId Int
+  proposalVersion   ProposalVersion           @relation(fields: [proposalVersionId], references: [id])
+  status            ProposalRevisionStatus    @default(OPEN)
+  kind              ProposalClientMessageKind @default(REVISION)
+  message           String
+  requesterName     String?
+  requesterContact  String?
+  requestKey        String?                   @unique
+  resolvedAt        DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  @@index([proposalId, status])
+  @@index([proposalVersionId, createdAt])
+  @@index([proposalVersionId, kind, createdAt])
+}
+
+model ProposalApprovalSnapshot {
+  id                Int                    @id @default(autoincrement())
+  proposalVersionId Int                    @unique
+  proposalVersion   ProposalVersion        @relation(fields: [proposalVersionId], references: [id])
+  status            ProposalApprovalStatus @default(PREPARED)
+  accessLinkId      Int?
+  accessLink        ProposalAccessLink?    @relation(fields: [accessLinkId], references: [id], onDelete: SetNull)
+  acceptanceKey     String?                @unique
+  selectionSnapshot Json
+  pricingSnapshot   Json
+  termsSnapshot     Json?
+  scopeSnapshot     Json?
+  termsVersion      String?
+  consentConfirmed  Boolean                @default(false)
+  approverName      String?
+  approverContact   String?
+  acceptedAt        DateTime?
+  revokedAt         DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([accessLinkId, status])
+}
+
+model ProposalBillingScheduleItem {
+  id                Int                           @id @default(autoincrement())
+  proposalVersionId Int
+  proposalVersion   ProposalVersion               @relation(fields: [proposalVersionId], references: [id], onDelete: Cascade)
+  type              ProposalBillingScheduleType
+  label             String
+  percentage        Decimal?                      @db.Decimal(5, 2)
+  amount            Decimal                       @db.Decimal(14, 2)
+  dueRule           String?
+  billingFrequency  CommercialBillingFrequency    @default(NONE)
+  status            ProposalBillingScheduleStatus @default(PENDING)
+  generationRule    ProposalBillingGenerationRule @default(MANUAL)
+  startDate         DateTime?                     @db.Date
+  nextBillingDate   DateTime?                     @db.Date
+  lastBillingDate   DateTime?                     @db.Date
+  generatedCount    Int                           @default(0)
+  maxOccurrences    Int?
+  sortOrder         Int                           @default(0)
+  createdAt         DateTime                      @default(now())
+  updatedAt         DateTime                      @updatedAt
+  invoices          Invoice[]
+
+  @@index([proposalVersionId, sortOrder])
+  @@index([status, nextBillingDate])
+}
+
+model ProposalAccessLink {
+  id                     Int                          @id @default(autoincrement())
+  proposalVersionId      Int
+  proposalVersion        ProposalVersion              @relation(fields: [proposalVersionId], references: [id], onDelete: Cascade)
+  tokenHash              String                       @unique
+  expiresAt              DateTime
+  revokedAt              DateTime?
+  lastAccessedAt         DateTime?
+  createdByUserId        Int?
+  sentTo                 String?
+  deliveryStatus         ProposalEmailDeliveryStatus?
+  sentAt                 DateTime?
+  failedAt               DateTime?
+  providerMessageId      String?
+  sendIdempotencyKey     String?
+  sendRequestFingerprint String?
+  failureCategory        String?
+  createdAt              DateTime                     @default(now())
+  approvalSnapshots      ProposalApprovalSnapshot[]
+
+  @@unique([proposalVersionId, sendIdempotencyKey])
+  @@index([proposalVersionId, revokedAt])
+  @@index([proposalVersionId, sentAt])
+  @@index([expiresAt])
 }
 
 model RentTenant {
@@ -859,6 +1289,132 @@ enum InvoiceStatus {
   PAID
   OVERDUE
   VOID
+}
+
+enum InvoicePaymentMethod {
+  MOBILE_MONEY
+  BANK_TRANSFER
+  CASH
+  CARD_GATEWAY
+  OTHER
+}
+
+enum PaymentVerificationStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+  REVERSED
+}
+
+enum PaymentLedgerEntryType {
+  PAYMENT
+  REVERSAL
+  CORRECTION
+  REFUND
+  RECONCILIATION_ADJUSTMENT
+}
+
+enum PaymentLedgerEntryStatus {
+  POSTED
+}
+
+enum PaymentOperationType {
+  RECORD
+  VERIFY
+  REJECT
+  REVERSE
+  ADJUST
+}
+
+enum CommercialItemKind {
+  SERVICE
+  INTEGRATION
+}
+
+enum CommercialBillingType {
+  ONE_TIME
+  RECURRING
+  USAGE_BASED
+  INCLUDED
+}
+
+enum CommercialBillingFrequency {
+  NONE
+  MONTHLY
+  QUARTERLY
+  ANNUAL
+  CUSTOM
+}
+
+enum CommercialCostOwnership {
+  FAAKO_BILLED
+  CLIENT_DIRECT
+  INCLUDED
+  PASS_THROUGH
+}
+
+enum CommercialTierPriceModel {
+  FIXED
+  PERCENTAGE
+  USAGE
+  CUSTOM_QUOTE
+}
+
+enum ProposalVersionStatus {
+  DRAFT
+  PUBLISHED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  SUPERSEDED
+  WITHDRAWN
+}
+
+enum ProposalRevisionStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+enum ProposalClientMessageKind {
+  REVISION
+  QUESTION
+  DECLINE
+}
+
+enum ProposalApprovalStatus {
+  PREPARED
+  ACCEPTED
+  REVOKED
+}
+
+enum ProposalEmailDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum ProposalBillingScheduleType {
+  FULL
+  DEPOSIT
+  MILESTONE
+  BALANCE
+  RECURRING
+}
+
+enum ProposalBillingScheduleStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+  ERROR
+}
+
+enum ProposalBillingGenerationRule {
+  ON_ACCEPTANCE
+  MANUAL
+  SCHEDULED
 }
 
 enum ProjectType {

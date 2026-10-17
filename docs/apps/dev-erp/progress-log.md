@@ -1,5 +1,41 @@
 # Dev ERP Progress Log
 
+### 2026-10-17 — Proposal email delivery and private administrative copies
+
+Feature/change name: Branded proposal Send/Resend and centralized DEV ERP email BCC
+
+What changed: Added an idempotent published-proposal email endpoint, “Proposals By Nana” delivery and acceptance templates, fresh-token resend with post-success link rotation, safe access-link delivery metadata, audit events, builder recipient/message/expiry controls, and centralized production BCC to `DEFAULT_ADMIN_EMAIL` for human-facing DEV ERP email. Trello email-to-board remains excluded and non-production delivery remains rerouted through `EMAIL_FORCE_TO`.
+
+Data impact: One additive migration extends `ProposalAccessLink`; it was not applied. Existing links remain readable and valid. Raw proposal tokens are never stored.
+
+Security impact: Sending remains authenticated, Admin-only, capability/CSRF/tenant protected, and idempotent. Provider failures are categorized without returning secrets. Failed sends preserve the prior active client link; successful sends revoke older links.
+
+Testing done: 43/43 focused proposal-email, route, BCC, schema, and UI tests passed. The full DEV ERP suite completed with 324 passing and the guarded disposable-PostgreSQL rehearsal intentionally skipped (325 total). ESLint, TypeScript, Prisma validate/generate, the production build, and whitespace checks passed; the existing 514.93 kB vendor warning remains. The workspace production dependency audit still blocks readiness with 85 findings (9 low, 51 moderate, 23 high, 2 critical). No live email, migration, or deployment was performed.
+
+Rollback notes: Before applying the migration, revert the endpoint, template, UI, schema, and migration. After delivery metadata exists, roll forward rather than dropping link history.
+
+Next step: Rehearse the ordered migrations and payment concurrency against an approved disposable PostgreSQL database, then resolve or formally accept the remaining dependency findings. Production status remains **NOT READY**.
+
+### 2026-10-18 — Phase 6 immutable invoice payment ledger
+
+Feature/change name: Immutable invoice payment ledger, verification, reconciliation, and database-integrity harness
+
+What changed: Added pending invoice-payment workflow records, append-only database-protected ledger entries, operation-scoped idempotency claims and response replay, provider-scoped reference uniqueness, serializable transactions/invoice row locking, independent verification/rejection, full reversals, externally confirmed refund metadata, reconciliation adjustments, exact minor-unit balance enforcement, legacy opening-balance preservation, Accounting/invoice projections, audit events, reconciliation reporting, Invoicing history/actions, and a guarded disposable-PostgreSQL rehearsal test.
+
+Why it changed: The former endpoint incremented `Invoice.paidAmount` and overwrote a cumulative Accounting entry without an individual receipt, verification state, idempotency key, database reference constraint, or reversal trail.
+
+Files changed: Payment ledger service/tests, Prisma schema and `20261018090000_add_immutable_invoice_payment_ledger`, Invoicing UI/styles, capability mapping, root dependency override/lockfile, README, proposal plan, implementation notes, and `payment-ledger-phase6.md`.
+
+Data impact: Additive migration only; not applied. Historical paid values are not converted. The first future ledger posting freezes an invoice's existing paid amount as a legacy opening balance. Posted ledger rows cannot be updated or deleted at the database level.
+
+Security impact: Financial writes require authentication, Admin, Invoicing capability, CSRF, tenant scope, idempotency, serializable locking, and audit history. A recorder cannot verify their own payment unless a global administrator supplies an audited override reason. MoMo secrets/PINs are never accepted. Prisma's deepmerge and bundled-MySQL advisories remain open release gates; a MySQL-only transitive override was rejected because it caused broad workspace peer-resolution churn.
+
+Testing done: 316 DEV ERP tests completed with 315 passing and the guarded real-PostgreSQL rehearsal intentionally skipped. The focused payment set has 6 passing tests plus that one skipped integration test. All existing proposal/invoice regressions, ESLint, TypeScript, Prisma format/validate/generate, production build, and whitespace checks pass; the existing >500 kB vendor warning remains. The real PostgreSQL harness did not run without `DEV_ERP_TEST_DATABASE_URL`, so no migration duration, real concurrency, or production-like database claim is made.
+
+Rollback notes: Before any real postings, revert the application and unapplied migration. After ledger data exists, do not drop or rewrite ledger records; disable financial writes and roll forward with a reviewed compensating migration.
+
+Next step: Run `test:payments:postgres` against a disposable loopback database with sanitized representative legacy data, review the reconciliation report, resolve/accept Prisma/deepmerge, and complete two-admin browser QA. Status remains **NOT READY**.
+
 ## Purpose
 
 Track meaningful changes to Dev ERP, the fully live operational system in the Faako monorepo.
@@ -22,6 +58,84 @@ Rollback notes:
 Next step:
 
 ## Entries
+
+### Interactive proposal builder catalogue, client, and AI enhancements
+
+Date: 2026-10-16
+Feature/change name: Form-backed client selection, governed catalogue tiers, website rules, and bounded AI drafting
+What changed: Added a reusable Faako combobox for searchable Faako form-submission clients with proposal-only manual snapshots; replaced proposal-native selects; added stable catalogue keys, configurable provider tiers and source freshness, separate provider/Faako charges, selected/configure states, and a catalogue administration route. Website Development now enforces one automatic included CMS row and UI/UX deliverables on the server and in the draft UI. Added summary refinement and once-per-revision editable Scope & Delivery generation through a server-only structured OpenAI endpoint with atomic audit-store claims and a ten-request per-user UTC-day quota.
+Why it changed: Improve proposal authoring without creating a customer master, parallel quotation engine, untrusted pricing path, or uncontrolled AI spend.
+Files changed: Dev ERP proposal contract/routes/client-option/AI services and tests; Prisma schema and `20261017090000_add_proposal_catalogue_tiers`; builder/client UI and tests; shared `@faako/ui` combobox; server/middleware/env documentation; proposal plan, README, implementation notes, and this log.
+Data impact: Additive catalogue tier/system-key/source fields and nullable immutable proposal-item tier snapshots only. No migration was applied and no legacy proposal, quotation, invoice, payment, or accounting record was rewritten.
+Security impact: Client options return a minimal field projection under auth/admin/Proposals capability. AI remains server-side, CSRF/rate-limit protected, input/output bounded, price-blind, audit claimed, idempotency-keyed, and limited to ten user requests per UTC day; provider failures still consume the claim.
+Testing done: 308/308 Dev ERP tests, 51/51 focused proposal tests, 3/3 local Playwright proposal scenarios, ESLint, TypeScript, Prisma format/validate/generate, production build, and whitespace checks passed. The production dependency audit remains a release gate: the workspace reported 84 findings (9 low, 51 moderate, 22 high, 2 critical), including unrelated Astro-app findings and the documented DEV ERP Prisma/deepmerge path. No migration, production E2E, live OpenAI call, deployment, invoice, approval, or payment was performed.
+Rollback notes: Remove the enhancement routes/UI and leave the additive migration unapplied. If later applied, retain tier and version snapshot rows for historical proposals; application rollback can leave the additive fields dormant.
+Next step: Keep Phase 5 **NOT READY**. Rehearse all four proposal migrations in disposable PostgreSQL and independently resolve the payment-ledger and dependency gates before any production enablement.
+
+### Interactive Proposals Phase 5 production-readiness review
+
+Date: 2026-10-16
+Feature/change name: End-to-end proposal QA, security hardening, and release decision
+What changed: Audited the complete structured proposal path, added fixed-deposit configuration, hardened token pages with no-index responses and token-route CSRF compatibility, improved accepted-state/error/accessibility behavior, fixed a browser loading race found by Playwright, added a full client interaction/mobile browser test, and pinned patched `proxy-addr` and DOMPurify transitive versions. Added requirements traceability, QA evidence, security findings, defects, deployment/rollback steps, and operational guidance to the existing proposal plan.
+Why it changed: Establish evidence-based production readiness without deploying, touching real commercial records, or hiding gaps in the existing invoice/payment infrastructure.
+Files changed: Structured proposal pricing/contract/builder/client/routes/tests; CSRF middleware/tests; root dependency overrides/lockfile; proposal plan, README, implementation notes, and this progress log.
+Data impact: None. All three proposal migrations remain unapplied. No proposal, approval, invoice, payment, accounting, project, or notification record was created in a real database.
+Security impact: Fixed the critical Express `proxy-addr` dependency finding, pinned the jsPDF sanitizer, kept raw structured tokens hashed, added token-page indexing defenses, and verified tenant/admin/public-token boundaries. High Prisma-tooling advisories and legacy plaintext proposal tokens remain documented release risks.
+Testing done: 294/294 Dev ERP tests, 50/50 focused proposal/security tests, 2/2 Playwright proposal tests, ESLint, TypeScript, Prisma validate/generate/schema diff, production build, and whitespace checks passed. Real PostgreSQL migration/concurrency testing was blocked by the lack of an isolated database/tooling environment.
+Rollback notes: Revert the Phase 5 UI/security/test changes and narrow dependency overrides if necessary. Do not remove Phase 2–4 traceability schema after accepted or invoice-linked data exists; no database rollback is needed now because no migration was applied.
+Next step: Status is NOT READY. Implement an immutable, idempotent manual-payment ledger with method/reference/reversal support; resolve or formally accept remaining high Prisma supply-chain findings; then run the ordered migrations and concurrent end-to-end workflow against disposable PostgreSQL before a controlled internal rollout.
+
+### Interactive Proposals Phase 4 acceptance, billing, and invoice integration
+
+Date: 2026-10-16
+Feature/change name: Auditable client acceptance and accepted-schedule finance handoff
+What changed: Added exact immutable-version acceptance with stored selections, authoritative shared-pricing snapshot, scope/deliverables, terms version, identity, explicit consent, server time, hashed idempotency, serializable status transition, audit events, and best-effort existing-email confirmation. Added derived sent/viewed/change-requested lifecycle states, explicit transactional withdrawal/link revocation, billing schedule state and recurring dates, idempotent accepted-event-to-draft-invoice generation with direct traceability, recoverable billing errors, pause/resume/cancel controls, invoice payment/balance visibility, and unique tenant-scoped project handoff with optional deliverable tasks.
+Why it changed: Complete the proposal-to-invoice and project-delivery handoff while retaining Invoice/Accounting as the financial source of truth and preserving all legacy `QUOTATION` behavior.
+Files changed: apps/dev-erp/prisma/schema.prisma and migrations/20261016090000_add_proposal_acceptance_billing/migration.sql; backend/proposals/structuredProposal.routes.js, proposalContract.js, and tests; backend/server.js; src/pages/Proposals/InteractiveProposalClient.jsx, StructuredProposalWorkspace.jsx, StructuredProposal.css, and UI tests; apps/dev-erp/.env.example; apps/dev-erp/README.md; and Dev ERP proposal/implementation/progress documentation.
+Data impact: Additive enum values, nullable/ defaulted columns, indexes, and foreign keys only. No migration was applied; no legacy record was converted; no production proposal, invoice, payment, accounting, project, or notification record was created.
+Security impact: Public acceptance requires the version-bound hashed token, link validity, exact version, explicit consent, and server-side selection/pricing validation. Admin billing/project/withdrawal routes retain authentication, Proposals admin capability, CSRF, and authoritative tenant scope. Raw tokens/idempotency keys and submitted totals are not trusted or stored.
+Testing done: Focused acceptance, mismatch, notification-failure, invoice idempotency/failure recovery, withdrawal, project tenant linkage, pricing, compatibility, schema, and UI tests plus complete Dev ERP tests, Prisma validation/generation, lint, typecheck, production build, and whitespace checks. Final counts are recorded in the completion handoff.
+Rollback notes: Disable structured Phase 4 actions first, preserve accepted snapshots and generated invoice/project references, then revert application routes/UI. Reverse the Phase 4 migration only after confirming no structured acceptances, billing invoices, or accepted-project links must be retained. No database rollback is currently needed because the migration was not applied.
+Next step: Review and deploy the three additive migrations in order to an isolated environment, then add a durable general notification outbox, method-level invoice payment ledger if approved, leased recurring scheduler, formal change orders/signatures, and optional verified Paystack collection as separate phases.
+
+### Interactive Proposals Phase 3 builder and client experience
+
+Date: 2026-10-16
+Feature/change name: Structured proposal administration and secure interactive client review
+What changed: Replaced the `/proposals` landing workflow with a searchable structured management view and responsive six-step builder; connected catalogue/package selection, full item configuration, server-reconciled live pricing, immutable publication, version activity, link creation/revocation, duplication, owner/expiry/request visibility, and client-request triage. Added a branded public token route for fixed/optional service review, permitted quantity changes, recalculated totals, progressive scope disclosure, questions, revisions, decline, and version metadata. Added typed/idempotent client messages, public-route throttling, audit events, and a small additive message-kind migration while retaining all legacy proposal and invoice quotation paths.
+Why it changed: Deliver the Phase 3 configuration and review experience on the approved Phase 2 aggregate/version/pricing foundation without introducing a parallel quotation system or prematurely enabling financial side effects.
+Files changed: apps/dev-erp/src/App.jsx; apps/dev-erp/src/pages/Proposals/StructuredProposalWorkspace.jsx, InteractiveProposalClient.jsx, StructuredProposal.css, structuredProposalDraft.js and tests; apps/dev-erp/backend/proposals/structuredProposal.routes.js and tests; apps/dev-erp/backend/commercial/pricing.test.js; apps/dev-erp/backend/server.js; apps/dev-erp/.env.example; apps/dev-erp/prisma/schema.prisma; apps/dev-erp/prisma/migrations/20261015090000_add_proposal_client_message_kind/migration.sql; apps/dev-erp/README.md; and existing Dev ERP proposal/progress/implementation documentation.
+Data impact: Additive enum/columns/index only. Neither proposal migration was applied, no legacy row was converted, and no approval, invoice, payment, or accounting record was created.
+Security impact: Internal routes retain authenticated Proposals capability/admin enforcement and tenant scoping. Public routes require a hashed, version-bound, unexpired, unrevoked token and have a dedicated rate limit. Published definitions are immutable, prices are server-recalculated, internal notes/source snapshots stay private, and client idempotency keys are access-link-scoped and hashed.
+Testing done: Focused pricing, package, schema, catalogue, state, tenant, token, message-idempotency, request-resolution, and migration tests; full Dev ERP tests; Prisma format/validate/generate; lint; typecheck; production build; and whitespace checks. Exact final counts are recorded in the completion handoff.
+Rollback notes: Restore the legacy `/proposals` component route, remove the new structured/client UI and Phase 3 endpoints, and revert the Phase 3 schema/migration. The migration was not applied, so no database rollback is currently required. If deployed later, reverse it only after preserving any question/revision/decline classifications.
+Next step: Phase 4 must implement verified client acceptance evidence and transactional, idempotent proposal-version/billing-schedule invoice generation. A general proposal notification/reminder channel and authoritative customer master also require separate reviewed foundations.
+
+### Interactive Proposals Phase 2 structured foundation
+
+Date: 2026-10-14
+Feature/change name: Structured proposal compatibility, catalogue, immutable versions, and client configuration foundation
+What changed: Added a backward-compatible structured commercial contract and legacy adapter; additive Prisma models for catalogue items/dependencies, reusable packages, proposal versions/items, client selections, revision requests, approval snapshots, billing schedules, access links, and optional project linkage; tenant-scoped catalogue/package/version routes; draft-only version editing and immutable publication; hashed expiring/revocable version access links; token-scoped read, selection, and revision-request routes; and prepared-only approval snapshots. Extended the shared pricing service for one-time, recurring, usage, included, client-direct, pass-through, tax, discount, deposit, and milestone calculations.
+Why it changed: Establish the data and API compatibility layer needed by the future admin proposal builder and interactive client experience while retaining Proposal as the commercial aggregate and Invoice as the issued financial record.
+Files changed: apps/dev-erp/backend/commercial/pricing.js and tests; apps/dev-erp/backend/proposals/proposalContract.js, structuredProposal.routes.js, and tests; apps/dev-erp/backend/auth/accessConfig.js and tests; apps/dev-erp/backend/server.js; apps/dev-erp/prisma/schema.prisma; apps/dev-erp/prisma/migrations/20261014090000_add_structured_proposal_foundation/migration.sql; apps/dev-erp/README.md; docs/apps/dev-erp/proposal-module-plan.md; docs/apps/dev-erp/progress-log.md; docs/apps/dev-erp/implementation-notes.md.
+Data impact: Additive schema and migration only. No database migration was applied, no legacy proposal/invoice record was converted, and no invoice/payment/accounting record was created or changed.
+Security impact: Backend organization scope remains authoritative. Catalogue/package/version writes require authenticated proposal admin access. Public structured routes require an unexpired, unrevoked version token; only its SHA-256 hash is persisted. Internal notes are omitted from public payloads and submitted totals are ignored.
+Testing done: Prisma format/validate/generate and 28 focused pricing, compatibility, catalogue, version-state, tenant-isolation, token-hash, approval-foundation, schema, and capability tests passed. Full Dev ERP validation results are recorded in the completion handoff.
+Rollback notes: Revert the structured route registration/compatibility hook, proposal backend files, additive schema/migration, access matcher, pricing extensions, and documentation. Because the migration was not applied, no database rollback is currently required. If later deployed, reverse only after confirming new structured proposal records are disposable.
+Next step: Build the admin catalogue/package manager and six-step structured proposal builder, then the interactive client UI. Acceptance and invoice generation require a separate transactional/idempotent finance phase.
+
+### Interactive Proposals architecture audit and shared pricing foundation
+
+Date: 2026-10-14
+Feature/change name: Interactive Proposals audit and commercial calculation extraction
+What changed: Audited Dev ERP proposal, invoice/quotation, payment, accounting, project, client-link, PDF, permissions, audit, and AI foundations before schema work. Recorded the existing flow, duplication risks, compatibility strategy, proposed additive data/API changes, and file-level phased plan in the existing proposal architecture document. Extracted invoice line parsing, rounding, tax, discount, and total calculation from the server monolith into `backend/commercial/pricing.js`, using integer minor-unit arithmetic behind the existing invoice API compatibility wrapper, and added focused unit tests.
+Why it changed: The Interactive Proposals redesign must reuse the existing Proposal and Invoice foundations and must not create a second quotation or pricing system. This establishes one calculation boundary before structured proposal items, versions, approvals, or billing schedules are introduced.
+Files changed: apps/dev-erp/backend/commercial/pricing.js, apps/dev-erp/backend/commercial/pricing.test.js, apps/dev-erp/backend/server.js, apps/dev-erp/README.md, docs/apps/dev-erp/proposal-module-plan.md, docs/apps/dev-erp/progress-log.md.
+Data impact: None. No schema, migration, backfill, proposal content, invoice, payment, accounting, project, token, or PDF record is changed. Existing API shapes and invoice-specific error wording remain compatible.
+Security impact: Neutral-to-positive. No public route, auth, CSRF, permission, token, or tenant-scope behavior changes. Server-owned pricing remains authoritative, and the extracted service provides a reusable boundary for later proposal recalculation.
+Testing done: Focused commercial-pricing and invoice-payment tests passed with 8 tests. `node --check` passed for the extracted pricing service and the server. The full Dev ERP suite passed with 253 tests after allowing its HTTP security tests to bind a temporary localhost port. Dev ERP lint, typecheck, production build, and affected-file whitespace checks passed. The build retained its existing large-chunk advisory.
+Rollback notes: Restore the local invoice pricing helpers in `backend/server.js`, remove `backend/commercial/pricing.js` and its tests, and revert the documentation updates. No data rollback is required.
+Next step: Define and test the structured proposal draft contract and compatibility adapter, then introduce the reviewed additive version/catalogue/approval/billing migration before replacing the admin builder.
 
 ### System Health incident response Phase 3
 

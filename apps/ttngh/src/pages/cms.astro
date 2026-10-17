@@ -1,6 +1,5 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import PageHero from "../components/PageHero.astro";
 import Icon from "../components/Icon.jsx";
 const studioUrl = import.meta.env.PUBLIC_TTNGH_STUDIO_URL?.trim() || "";
 if (studioUrl) {
@@ -8,13 +7,11 @@ if (studioUrl) {
   if (url.protocol !== "https:" || url.username || url.password) throw new Error("Configure an approved HTTPS Studio URL");
 }
 ---
-<BaseLayout path="/cms" title="Editor access | TTNGH" description="Account access and recovery guidance for approved TTNGH content editors." noIndex={true}>
-  <main id="main-content" class="editorial-main">
-    <PageHero title="Your content workspace." intro="For approved TTNGH editors. Sanity manages your sign-in, account creation and password recovery. This website does not collect your password." />
-    <section class="section-pink" aria-labelledby="access-title"><h2 id="access-title">Access the CMS</h2><div class="grid grid-three">
-      <article class="bubble-card"><h3>Sign in</h3><p>Use the account and sign-in method associated with your TTNGH invitation.</p>{studioUrl ? <a class="text-link" href={studioUrl}>Open TTNGH Studio <Icon name="arrow-right" /></a> : <p>The TTNGH Studio address is awaiting configuration. Ask the organisation administrator for your invitation.</p>}</article>
-      <article class="bubble-card"><h3>Create an account</h3><p>Follow your administrator's invitation and create a Sanity account. Account creation alone does not grant access to TTNGH content.</p><a class="text-link" href="https://www.sanity.io/login">Continue to Sanity <Icon name="arrow-right" /></a></article>
-      <article class="bubble-card"><h3>Forgot password?</h3><p>Choose email sign-in and the password-recovery option. If you signed up with Google or GitHub, recover access through that provider instead.</p><a class="text-link" href="https://api.sanity.io/v1/auth/login/sanity">Email sign-in and recovery <Icon name="arrow-right" /></a><a class="text-link" href="https://www.sanity.io/docs/help/account-recovery">Account recovery help <Icon name="arrow-right" /></a></article>
-    </div></section>
+<BaseLayout path="/cms" title="Editor access | TTNGH" description="Content Studio access for approved TTNGH editors." noIndex={true}>
+  <main id="main-content" class="cms-gateway">
+    <h1>Content Studio</h1>
+    <p>Manage TTNGH's published content. Sign-in and account recovery are handled securely by Sanity.</p>
+    {studioUrl ? <a class="button button-primary" href={studioUrl}><span class="button-label">Open TTNGH Studio</span><span class="button-icon"><Icon name="arrow-right" /></span></a> : <p>The Studio address is awaiting configuration. Please ask your administrator for your invitation.</p>}
+    <p><small>Approved editors only.</small></p>
   </main>
 </BaseLayout>

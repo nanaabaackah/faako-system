@@ -4,9 +4,9 @@ import "@faako/ui/compat.css";
 import "../styles/global.css";
 import "../styles/components/base.css";
 import "../styles/components/shared.css";
+import "../styles/components/editorial.css";
 import "../styles/components/interactions.css";
 import { organization } from "../content/home.js";
-import ScrollReveal from "../components/ScrollReveal.astro";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
 import CookieNotice from "../components/CookieNotice.astro";
@@ -149,6 +149,5 @@ const structuredData = JSON.stringify({ "@context": "https://schema.org", "@grap
     <SiteSearch />
     <CookieNotice />
     <AnalyticsConsent />
-    <ScrollReveal />
   </body>
 </html>

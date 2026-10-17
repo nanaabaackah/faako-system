@@ -46,6 +46,22 @@ export const resolveEmailDeliveryRecipients = ({
   };
 };
 
+export const resolveEmailBccRecipients = ({
+  defaultAdminEmail,
+  deliveryRecipients = [],
+  isProduction,
+}) => {
+  if (!isProduction) return [];
+  const normalizedAdmin = normalizeEmailCandidate(defaultAdminEmail).toLowerCase();
+  if (!EMAIL_PATTERN.test(normalizedAdmin)) return [];
+  const delivered = new Set(
+    (Array.isArray(deliveryRecipients) ? deliveryRecipients : [])
+      .map((entry) => normalizeEmailCandidate(entry).toLowerCase())
+      .filter(Boolean)
+  );
+  return delivered.has(normalizedAdmin) ? [] : [normalizedAdmin];
+};
+
 export const resolveSingleEmailDeliveryTarget = ({
   recipient,
   isProduction,

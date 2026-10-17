@@ -6,6 +6,11 @@ export const CSRF_EXCLUDED_PATHS = [
   "/auth/forgot-password",
   "/public/",
   "/webhooks/",
+  // These routes authorize with a high-entropy proposal token rather than the
+  // session cookie. Excluding them also lets a signed-in staff browser review
+  // and respond through a client link without an unrelated CSRF failure.
+  "/proposals/interactive/",
+  "/proposals/view/",
 ];
 
 export const createCsrfMiddleware = ({
