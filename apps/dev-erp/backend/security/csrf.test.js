@@ -50,6 +50,22 @@ test("csrf middleware skips excluded auth paths", () => {
   assert.equal(nextCalled, true);
 });
 
+test("csrf middleware skips token-authorized public proposal actions even when an auth cookie exists", () => {
+  let called = false;
+  const middleware = createCsrfMiddleware({
+    getCookieValue: (_req, name) => name === "auth" ? "session-token" : null,
+    authCookieName: "auth",
+    csrfCookieName: "csrf",
+    timingSafeEqual: () => false,
+  });
+  middleware({
+    method: "POST",
+    path: "/proposals/interactive/token/accept",
+    header: () => "",
+  }, createResponse(), () => { called = true; });
+  assert.equal(called, true);
+});
+
 test("csrf middleware allows refresh recovery without a browser-readable csrf token", () => {
   const middleware = createCsrfMiddleware({
     getCookieValue,

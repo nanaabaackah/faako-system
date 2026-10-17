@@ -10,7 +10,7 @@ import teamStyles from "../styles/pages/team.css?url";
 
 <BaseLayout path="/team" people={[founder, ...team]} pageStyles={[teamStyles]} title={`Our team | ${organization.name}`} description="Meet the founder and leadership core team behind The Thriving Network GH." image={founder.image} imageAlt={`${founder.name}, ${founder.role}`} breadcrumbs={[{ name: "Home", path: "/" }, { name: "About", path: "/about" }, { name: "Our team", path: "/team" }]}>
   <main id="main-content" class="team-page editorial-main">
-    <PageHero links={[["Our founder","#founder-profile-title"],["Leadership team","#leadership-title"]]} title="The people behind the work." intro="A leadership team working across programmes, operations, legal affairs, fundraising, communications, projects, administration, and outreach." variant="formal" />
+    <PageHero variant="editorial" title="The people behind the work." intro="A leadership team bringing programmes, operations, communications, and outreach together." links={[["Meet the founder", "#founder-profile-title"], ["Leadership team", "#leadership-title"]]} />
 
     <section class="founder-profile" aria-labelledby="founder-profile-title">
       <figure><img src={founder.image} alt={`${founder.name}, ${founder.role}`} width="1066" height="1600" /></figure>

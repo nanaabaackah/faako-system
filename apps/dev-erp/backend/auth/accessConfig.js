@@ -35,6 +35,7 @@ export const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
   { pattern: /^\/api\/rent(?:\/|$)/, modules: ["rent"] },
   { pattern: /^\/api\/accounting(?:\/|$)/, modules: ["accounting"] },
   { pattern: /^\/api\/invoices(?:\/|$)/, modules: ["invoicing"] },
+  { pattern: /^\/api\/invoice-payments(?:\/|$)/, modules: ["invoicing"] },
   { pattern: /^\/api\/bookings(?:\/|$)/, modules: ["bookings"] },
   { pattern: /^\/api\/integrations\/google(?:\/|$)/, modules: ["bookings"] },
   { pattern: /^\/api\/organizations(?:\/|$)/, modules: ["organizations"] },
@@ -52,4 +53,5 @@ export const MODULE_CAPABILITY_PUBLIC_PATHS = [
   /^\/api\/public(?:\/|$)/,
   /^\/api\/webhooks(?:\/|$)/,
   /^\/api\/users\/me(?:\/|$)/,
+  /^\/api\/proposals\/interactive(?:\/|$)/,
 ];

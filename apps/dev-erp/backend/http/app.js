@@ -55,6 +55,7 @@ export const configureBaseHttpMiddleware = (
   app.use("/api/public/bookings", publicBookingRateLimit);
   app.use("/api/ai/productivity-coach", aiRateLimit);
   app.use("/api/ai/system-health-diagnosis", aiRateLimit);
+  app.use("/api/proposals/ai/generate", aiRateLimit);
   app.use("/api", csrfMiddleware);
   app.use("/api", capabilityAccessMiddleware);
 };

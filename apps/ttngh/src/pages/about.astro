@@ -6,6 +6,7 @@ import PageHero from "../components/PageHero.astro";
 import FaqList from "../components/FaqList.astro";
 import ScrollExpandSection from "../components/ScrollExpandSection.astro";
 import { organization, roadmap, values } from "../content/home.js";
+import { team } from "../content/team.js";
 import aboutStyles from "../styles/pages/about.css?url";
 
 const faqItems = [
@@ -17,14 +18,14 @@ const faqItems = [
 
 <BaseLayout path="/about" pageStyles={[aboutStyles]} title={`About us | ${organization.name}`} description="Learn how The Thriving Network GH began, what guides the organisation, and the future it is working to build." image="/images/home/founder-anthonia.jpg" imageAlt="Anthonia Nonye Tony-Dibie, founder of The Thriving Network GH" breadcrumbs={[{ name: "Home", path: "/" }, { name: "About", path: "/about" }]} faqItems={faqItems}>
   <main id="main-content" class="editorial-main about-page">
-    <PageHero links={[["Our story", "#story"], ["Our people", "#founder"], ["Our direction", "#roadmap"]]} title="Mental wellness is not a privilege. It is a right." intro="We are a community-centred NGO working to eradicate mental health stigma through education, advocacy, direct support, research, and policy engagement." images={[
+    <PageHero variant="immersive" links={[["Our story", "#story"], ["Our people", "#founder"], ["Our direction", "#roadmap"]]} title="Mental wellness is not a privilege." accent="It is a right." intro="We are a community-centred NGO working to eradicate mental health stigma through education, advocacy, direct support, research, and policy engagement." images={[
       { src: "/images/refresh/tema-school-team-1600.webp", alt: "TTNGH team members standing together at a school outreach event", caption: "School outreach · Presbyterian Senior High School, Tema" },
     ]} />
 
     <AboutStory />
     {organization.registrationDetails && <section aria-labelledby="registration-title"><h2 id="registration-title">Organisation details</h2><p>{organization.registrationDetails}</p></section>}
 
-    <section id="founder" class="founder-feature section-pink" aria-labelledby="founder-title">
+    <section id="founder" class="founder-feature" aria-labelledby="founder-title">
       <figure class="founder-portrait">
         <img src="/images/home/founder-anthonia.jpg" alt="Anthonia Nonye Tony-Dibie, Founder and Executive Director of The Thriving Network GH" width="1066" height="1600" loading="lazy" decoding="async" />
         <figcaption><strong>Anthonia Nonye Tony-Dibie</strong><span>Founder & Executive Director</span></figcaption>
@@ -43,20 +44,18 @@ const faqItems = [
         <a class="button button-primary" href="/team"><span class="button-label">Meet the team</span><span class="button-icon" aria-hidden="true"><Icon name="arrow-right" focusable="false" /></span></a>
       </div>
       <div class="about-team-portraits" aria-hidden="true">
-        <img src="/images/team/emefa-adonu.jpg" alt="" loading="lazy" />
-        <img src="/images/team/ruby-adeley.jpg" alt="" loading="lazy" />
-        <img src="/images/team/dzifa-tay-ansah.jpg" alt="" loading="lazy" />
+        {team.slice(0,3).map(person => <img src={person.image} alt="" width="800" height="1000" loading="lazy" decoding="async" />)}
       </div>
     </section>
 
-    <section id="values" class="section-dark" aria-labelledby="values-title">
+    <section id="values" aria-labelledby="values-title">
       <div class="section-heading"><h2 id="values-title">Our values</h2></div>
-      <div class="grid grid-four">{values.map((value) => <article class="bubble-card motion-card"><h3>{value.title}</h3><p>{value.description}</p></article>)}</div>
+      <div class="editorial-values">{values.map((value) => <article class="editorial-item"><h3>{value.title}</h3><p>{value.description}</p></article>)}</div>
     </section>
 
     <section id="roadmap" class="direction-section" aria-labelledby="roadmap-title">
       <div class="direction-heading"><h2 id="roadmap-title">Building from community reach to national presence.</h2><p>Each stage strengthens the foundation for the next.</p></div>
-      <ol class="direction-roadmap">{roadmap.map((item, index) => <li class="bubble-card motion-card"><span class="direction-index">{String(index + 1).padStart(2, "0")}</span><h3>{item.period}</h3><p>{item.description}</p></li>)}</ol>
+      <ol class="direction-roadmap">{roadmap.map((item, index) => <li class="editorial-item"><span class="direction-index">{String(index + 1).padStart(2, "0")}</span><h3>{item.period}</h3><p>{item.description}</p></li>)}</ol>
     </section>
     <FaqList items={faqItems} />
     <ScrollExpandSection image="/images/refresh/vision-facilitator-1600.webp" alt="People gathered around a table at Vision with Clarity" title="Help build a stigma-free society." text="Bring your time, professional expertise, platform, or organisational support to the mission." href="/get-involved" linkLabel="Get involved" frameTitle="The work grows together." id="about-cta-title" />

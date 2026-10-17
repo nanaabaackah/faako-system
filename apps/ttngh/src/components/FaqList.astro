@@ -5,18 +5,17 @@ import "../styles/components/faq.css";
 const { items = [], title = "Frequently asked questions", id = "faq-title" } = Astro.props;
 ---
 
-<section class="faq-section section-pink" aria-labelledby={id}>
+<section class="faq-section" aria-labelledby={id}>
   <div class="faq-heading">
-    <span class="faq-heading-icon" aria-hidden="true"><Icon name="question" focusable="false" /></span>
     <div>
       <h2 id={id}>{title}</h2>
     </div>
   </div>
   <div class="faq-list">
     {items.map((item, index) => (
-      <details class="bubble-card motion-card">
-        <summary><span class="faq-index">{String(index + 1).padStart(2, "0")}</span><span>{item.question}</span><span class="faq-toggle" aria-hidden="true"><Icon name="add" focusable="false" /></span></summary>
-        <div><p>{item.answer}</p></div>
+      <details>
+        <summary id={`${id}-question-${index}`} aria-controls={`${id}-answer-${index}`}><span class="faq-index">{String(index + 1).padStart(2, "0")}</span><span>{item.question}</span><span class="faq-toggle" aria-hidden="true"><Icon name="add" focusable="false" /></span></summary>
+        <div id={`${id}-answer-${index}`} role="region" aria-labelledby={`${id}-question-${index}`}><p>{item.answer}</p></div>
       </details>
     ))}
   </div>

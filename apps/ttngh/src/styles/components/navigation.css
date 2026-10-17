@@ -1,6 +1,7 @@
+:root { --header-flow-space: 104px; }
 .site-header {
   position: sticky;
-  top: 1rem;
+  top: 2rem;
   z-index: 100;
   display: grid;
   grid-template-columns: 1fr 125px 1fr;
@@ -25,6 +26,7 @@
 .compact-menu { display: none; }
 .site-header :is(a,button,summary):focus-visible { outline: 3px solid white; outline-offset: 4px; }
 @media(max-width:1000px) {
+  :root { --header-flow-space: 96px; }
   .site-header { grid-template-columns: 1fr auto 1fr; height: 64px; padding: .35rem 1rem; gap: .75rem; }
   .header-logo { width: 110px; }
   .desktop-nav, .header-donate, .header-search { display: none; }

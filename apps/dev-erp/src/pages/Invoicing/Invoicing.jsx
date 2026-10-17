@@ -61,6 +61,21 @@ const PAYMENT_STATUS_TONE = {
   overpaid: "warning",
 };
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: "MOBILE_MONEY", label: "Mobile Money" },
+  { value: "BANK_TRANSFER", label: "Bank transfer" },
+  { value: "CASH", label: "Cash" },
+  { value: "CARD_GATEWAY", label: "Card / gateway" },
+  { value: "OTHER", label: "Other" },
+];
+
+const PAYMENT_VERIFICATION_LABELS = {
+  PENDING_VERIFICATION: "Pending verification",
+  VERIFIED: "Verified and settled",
+  REJECTED: "Rejected",
+  REVERSED: "Reversed",
+};
+
 const CURRENCY_OPTIONS = ["CAD", "GHS"];
 const DEFAULT_QUANTITY_UNIT = "unit";
 const QUANTITY_UNITS = ["unit", "hours", "days", "weeks", "months", "sessions", "units", "projects"];
@@ -253,7 +268,12 @@ const buildPaymentForm = (invoice = null) => {
   return {
     amount,
     paidAt: buildTodayDate(),
+    method: "MOBILE_MONEY",
+    provider: "",
+    externalReference: "",
+    evidenceUrl: "",
     note: "",
+    idempotencyKey: globalThis.crypto?.randomUUID?.() || `payment-${Date.now()}-${Math.random()}`,
   };
 };
 
@@ -299,6 +319,10 @@ const Invoicing = () => {
   const [paymentForm, setPaymentForm] = useState(() => buildPaymentForm());
   const [paymentError, setPaymentError] = useState("");
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState([]);
+  const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
+  const [paymentActionReason, setPaymentActionReason] = useState("");
+  const [paymentActionId, setPaymentActionId] = useState(null);
   const [openActionId, setOpenActionId] = useState(null);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState(() => new Set());
   const [isBulkActionRunning, setIsBulkActionRunning] = useState(false);
@@ -519,6 +543,8 @@ const Invoicing = () => {
 
   const openInvoiceModal = (invoice) => {
     setSelectedInvoice(invoice);
+    setPaymentHistory([]);
+    setPaymentActionReason("");
     setError("");
   };
 
@@ -555,6 +581,23 @@ const Invoicing = () => {
   const updatePaymentField = (field, value) => {
     setPaymentForm((prev) => ({ ...prev, [field]: value }));
   };
+
+  useEffect(() => {
+    if (!selectedInvoice?.id || !isAdmin) return undefined;
+    let cancelled = false;
+    setPaymentHistoryLoading(true);
+    apiGet(`/api/invoices/${selectedInvoice.id}/payments`, { fallbackMessage: "Unable to load payment history" })
+      .then((payload) => {
+        if (!cancelled) setPaymentHistory(Array.isArray(payload?.payments) ? payload.payments : []);
+      })
+      .catch((historyError) => {
+        if (!cancelled) setError(historyError.message || "Unable to load payment history.");
+      })
+      .finally(() => {
+        if (!cancelled) setPaymentHistoryLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [isAdmin, selectedInvoice?.id]);
 
   const updateLineItem = (lineId, field, value) => {
     setFormState((prev) => ({
@@ -884,6 +927,14 @@ const Invoicing = () => {
       setPaymentError("Payment date is required.");
       return;
     }
+    if (paymentForm.method === "MOBILE_MONEY" && !paymentForm.provider.trim()) {
+      setPaymentError("Select or enter the Mobile Money provider.");
+      return;
+    }
+    if (["MOBILE_MONEY", "BANK_TRANSFER", "CARD_GATEWAY"].includes(paymentForm.method) && !paymentForm.externalReference.trim()) {
+      setPaymentError("A transaction reference is required for this payment method.");
+      return;
+    }
 
     setIsRecordingPayment(true);
     setPaymentError("");
@@ -894,9 +945,14 @@ const Invoicing = () => {
         {
           amount,
           paidAt: paymentForm.paidAt,
+          currency: paymentInvoice.currency,
+          method: paymentForm.method,
+          provider: paymentForm.provider.trim() || null,
+          externalReference: paymentForm.externalReference.trim() || null,
+          evidenceUrl: paymentForm.evidenceUrl.trim() || null,
           note: paymentForm.note.trim() || null,
         },
-        { fallbackMessage: "Unable to record invoice payment" }
+        { headers: { "Idempotency-Key": paymentForm.idempotencyKey }, fallbackMessage: "Unable to record invoice payment" }
       );
       const nextInvoice = payload?.invoice || null;
       if (nextInvoice?.id) {
@@ -908,11 +964,42 @@ const Invoicing = () => {
       setPaymentForm(buildPaymentForm());
       setPaymentError("");
       await loadInvoices({ silent: true });
-      setNotice(`Payment recorded for invoice ${paymentInvoice.invoiceNumber}.`);
+      setNotice(`Payment recorded for invoice ${paymentInvoice.invoiceNumber} and is pending independent verification.`);
     } catch (paymentSaveError) {
       setPaymentError(paymentSaveError.message || "Unable to record invoice payment.");
     } finally {
       setIsRecordingPayment(false);
+    }
+  };
+
+  const handlePaymentAction = async (payment, action) => {
+    if (!selectedInvoice || !payment?.id || paymentActionId) return;
+    const needsReason = action === "reject" || action === "reverse";
+    if (needsReason && !paymentActionReason.trim()) {
+      setError(`Enter a reason before you ${action} this payment.`);
+      return;
+    }
+    setPaymentActionId(payment.id);
+    setError("");
+    try {
+      const payload = await apiPost(
+        `/api/invoices/${selectedInvoice.id}/payments/${payment.id}/${action}`,
+        { reason: paymentActionReason.trim() || null },
+        { headers: { "Idempotency-Key": globalThis.crypto?.randomUUID?.() || `payment-action-${Date.now()}` }, fallbackMessage: `Unable to ${action} payment` }
+      );
+      if (payload?.invoice?.id) {
+        setSelectedInvoice(payload.invoice);
+        setInvoices((current) => current.map((invoice) => invoice.id === payload.invoice.id ? payload.invoice : invoice));
+      }
+      if (payload?.payment) {
+        setPaymentHistory((current) => current.map((entry) => entry.id === payload.payment.id ? payload.payment : entry));
+      }
+      setPaymentActionReason("");
+      setNotice(`Payment ${action === "verify" ? "verified and posted" : action === "reject" ? "rejected" : "reversed"}.`);
+    } catch (actionError) {
+      setError(actionError.message || `Unable to ${action} payment.`);
+    } finally {
+      setPaymentActionId(null);
     }
   };
 
@@ -1420,6 +1507,48 @@ const Invoicing = () => {
                     <p className="invoice-preview-note">{selectedInvoice.notes}</p>
                   </section>
                 ) : null}
+
+                {isAdmin ? (
+                  <section className="invoice-preview-card invoice-payment-history">
+                    <div className="invoice-preview-card__header">
+                      <div>
+                        <h4>Payment history</h4>
+                        <p className="muted">Only verified ledger postings contribute to the received amount.</p>
+                      </div>
+                    </div>
+                    {paymentHistoryLoading ? <AnimatedLoadingState compact title="Loading payment history" /> : null}
+                    {!paymentHistoryLoading && !paymentHistory.length ? <p className="muted">No individual payment records are available. Any existing received amount is retained as a legacy opening balance for reconciliation.</p> : null}
+                    {paymentHistory.length ? (
+                      <div className="stack">
+                        <label className="form-field">
+                          <span>Reason for rejection or reversal</span>
+                          <input className="input" value={paymentActionReason} onChange={(event) => setPaymentActionReason(event.target.value)} placeholder="Required for reject or reverse actions" />
+                        </label>
+                        {paymentHistory.map((payment) => (
+                          <article className="invoice-payment-history__entry" key={payment.id}>
+                            <div>
+                              <strong>{formatAmount(payment.amount, payment.currency)}</strong>
+                              <p className="muted">{PAYMENT_METHOD_OPTIONS.find((option) => option.value === payment.method)?.label || payment.method} · {payment.provider || "No provider"} · {payment.externalReference || "No reference"}</p>
+                              <small>{formatDate(payment.paymentDate)} · {payment.recordedBy?.name || payment.recordedBy?.email || "Recorded user unavailable"}</small>
+                            </div>
+                            <div className="invoice-payment-history__actions">
+                              <span className={`status-pill is-${payment.verificationStatus === "VERIFIED" ? "success" : payment.verificationStatus === "PENDING_VERIFICATION" ? "warning" : "danger"}`}>{PAYMENT_VERIFICATION_LABELS[payment.verificationStatus] || payment.verificationStatus}</span>
+                              {payment.verificationStatus === "PENDING_VERIFICATION" ? (
+                                <>
+                                  <button className="button button-primary" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "verify")}>Verify</button>
+                                  <button className="button button-ghost" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "reject")}>Reject</button>
+                                </>
+                              ) : null}
+                              {payment.verificationStatus === "VERIFIED" ? (
+                                <button className="button button-ghost" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "reverse")}>Reverse</button>
+                              ) : null}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
               </div>
 
               <aside className="invoice-preview-side">
@@ -1654,6 +1783,17 @@ const Invoicing = () => {
 	              </div>
 
 	              <div className="invoice-grid">
+	                <SelectField
+	                  fieldClassName="form-field"
+	                  label="Payment method"
+	                  value={paymentForm.method}
+	                  onChange={(event) => updatePaymentField("method", event.target.value)}
+	                  required
+	                >
+	                  {PAYMENT_METHOD_OPTIONS.map((option) => (
+	                    <option key={option.value} value={option.value}>{option.label}</option>
+	                  ))}
+	                </SelectField>
 	                <label className="form-field">
 	                  <span>Payment amount</span>
 	                  <input
@@ -1676,15 +1816,37 @@ const Invoicing = () => {
 	                />
 	              </div>
 
+	              <div className="invoice-grid">
+	                {paymentForm.method === "MOBILE_MONEY" ? (
+	                  <label className="form-field">
+	                    <span>Provider / network</span>
+	                    <input className="input" value={paymentForm.provider} onChange={(event) => updatePaymentField("provider", event.target.value)} placeholder="MTN, Telecel, AT Money…" required />
+	                  </label>
+	                ) : null}
+	                <label className="form-field">
+	                  <span>Transaction reference</span>
+	                  <input className="input" value={paymentForm.externalReference} onChange={(event) => updatePaymentField("externalReference", event.target.value)} placeholder={paymentForm.method === "CASH" ? "Optional receipt reference" : "Required provider or bank reference"} required={["MOBILE_MONEY", "BANK_TRANSFER", "CARD_GATEWAY"].includes(paymentForm.method)} />
+	                </label>
+	              </div>
+
+	              <label className="form-field">
+	                <span>Supporting evidence URL</span>
+	                <input className="input" type="url" value={paymentForm.evidenceUrl} onChange={(event) => updatePaymentField("evidenceUrl", event.target.value)} placeholder="https://… (optional)" />
+	              </label>
+
 	              <label className="form-field">
 	                <span>Payment note</span>
 	                <textarea
 	                  className="input"
 	                  value={paymentForm.note}
 	                  onChange={(event) => updatePaymentField("note", event.target.value)}
-	                  placeholder="Optional reference, channel, or note"
+	                  placeholder="Optional internal note"
 	                />
 	              </label>
+
+	              <div className="notice">
+	                Recording creates a pending payment. It will not reduce the balance until another authorized administrator verifies it.
+	              </div>
 
 	              <div className="header-actions">
 	                <button

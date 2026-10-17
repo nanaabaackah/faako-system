@@ -1,3 +1,0 @@
-.scroll-reveal { opacity: .35; transform: translateY(22px); filter: blur(3px); transition: opacity 1000ms ease, transform 1100ms cubic-bezier(.2,.7,.2,1), filter 1100ms ease; }
-.scroll-reveal.is-revealed, .scroll-reveal:focus-within { opacity: 1; transform: none; filter: none; }
-@media (prefers-reduced-motion: reduce) { .scroll-reveal { opacity: 1; transform: none; filter: none; transition: none; } }

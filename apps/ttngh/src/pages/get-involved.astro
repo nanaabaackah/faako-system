@@ -7,12 +7,12 @@ import { organization, partnershipGroups, supportPaths } from "../content/home.j
 
 <BaseLayout path="/get-involved" title={`Get involved | ${organization.name}`} description="Volunteer, partner, advocate, or contribute to The Thriving Network GH." image="/images/home/initiative-team.jpg" imageAlt="The Thriving Network GH team during a school mental health programme in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Get involved", path: "/get-involved" }]}>
   <main id="main-content" class="editorial-main">
-    <PageHero links={[["Ways to help","#paths-title"],["Partnerships","#partnerships"]]} title="Be part of the work." intro="A stronger mental health community is built by people and institutions choosing to take part." images={[
+    <PageHero variant="conversion" links={[["Ways to help","#paths-title"],["Partnerships","#partnerships"]]} title="Be part of the work." intro="A stronger mental health community is built by people and institutions choosing to take part." images={[
       { src: "/images/refresh/tema-school-conversation-1600.webp", alt: "TTNGH team members talking with people seated in a school hall", caption: "School outreach · Presbyterian Senior High School, Tema" },
     ]} />
     <section class="section-dark" aria-labelledby="paths-title">
       <div class="section-heading"><h2 id="paths-title">Find the path that fits you.</h2></div>
-      <div class="grid grid-three">{supportPaths.map((path) => <article class="bubble-card card-link"><h3>{path.title}</h3><p>{path.description}</p><a class="text-link" href={path.href}>{path.linkLabel}</a></article>)}</div>
+      <div class="editorial-paths">{supportPaths.map((path) => <article class="editorial-row"><h3>{path.title}</h3><p>{path.description}</p><a class="text-link" href={path.href}>{path.linkLabel}</a></article>)}</div>
     </section>
     <section id="partnerships" aria-labelledby="partners-title">
       <div class="section-heading"><h2 id="partners-title">Partnerships across sectors and communities.</h2><p>We design collaborations around shared goals, from one-off engagements to longer-term programmes.</p></div>
