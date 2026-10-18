@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 import { createGoogleAnalyticsHtmlPlugin } from "../../scripts/vite/googleAnalyticsHtml.mjs";
+import { createGoogleSiteVerificationHtmlPlugin } from "../../scripts/vite/googleSiteVerificationHtml.mjs";
 import { createManualChunks } from "../../scripts/vite/manualChunks.mjs";
 
 export default defineConfig(({ mode }) => {
@@ -19,6 +20,9 @@ export default defineConfig(({ mode }) => {
   const plugins = [react()];
   if (buildSurface !== "portal") {
     plugins.push(
+      createGoogleSiteVerificationHtmlPlugin({
+        verificationToken: env.VITE_GOOGLE_SITE_VERIFICATION,
+      }),
       createGoogleAnalyticsHtmlPlugin({
         measurementId: env.VITE_GA_MEASUREMENT_ID,
         fallbackMeasurementId: env.VITE_GA_ID,

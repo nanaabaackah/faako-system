@@ -15,6 +15,14 @@ import SiteSearch from "../components/SiteSearch.astro";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import { isIndexable, productionOrigin } from "../lib/indexability.js";
 import { personSchema, articleSchema, eventSchema } from "../lib/page-schema.js";
+import {
+  absoluteDiscoveryUrl,
+  buildBreadcrumbList,
+  buildFaqPage,
+  canonicalUrl,
+  normalizeDiscoveryPath,
+  serializeJsonLd,
+} from "@faako/discovery";
 
 const {
   title = `${organization.name} | Mental health advocacy and support in Ghana`,
@@ -33,9 +41,10 @@ const {
 } = Astro.props;
 
 const siteUrl = Astro.site || new URL(productionOrigin);
-const canonical = new URL(path, siteUrl).toString();
+const normalizedPath = normalizeDiscoveryPath(path);
+const canonical = canonicalUrl(normalizedPath, siteUrl);
 const isPreviewDomain = !isIndexable(siteUrl, import.meta.env.PUBLIC_SITE_INDEXABLE);
-const absoluteImage = new URL(image, siteUrl).toString();
+const absoluteImage = absoluteDiscoveryUrl(image, siteUrl);
 const graph = [
   ...people.map(person => personSchema(person, siteUrl)),
   ...[articleSchema(article), eventSchema(event)].filter(Boolean),
@@ -87,29 +96,15 @@ const graph = [
 ];
 
 if (breadcrumbs.length) {
-  graph.push({
-    "@type": "BreadcrumbList",
-    itemListElement: breadcrumbs.map((item, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
-      name: item.name,
-      item: new URL(item.path, siteUrl).toString(),
-    })),
-  });
+  graph.push(buildBreadcrumbList(breadcrumbs, siteUrl));
 }
 
 if (faqItems.length) {
-  graph.push({
-    "@type": "FAQPage",
-    mainEntity: faqItems.map((item) => ({
-      "@type": "Question",
-      name: item.question,
-      acceptedAnswer: { "@type": "Answer", text: item.answer },
-    })),
-  });
+  graph.push(buildFaqPage(faqItems));
 }
 
-const structuredData = JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c");
+const structuredData = serializeJsonLd({ "@context": "https://schema.org", "@graph": graph });
+const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
 ---
 
 <!doctype html>
@@ -122,6 +117,7 @@ const structuredData = JSON.stringify({ "@context": "https://schema.org", "@grap
     <title>{title}</title>
     <meta name="description" content={description} />
     <meta name="author" content={organization.name} />
+    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
     <meta name="robots" content={isPreviewDomain || noIndex ? "noindex, nofollow" : "index, follow, max-image-preview:large"} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

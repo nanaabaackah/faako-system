@@ -256,11 +256,51 @@ test("failed proposal delivery revokes only the new link and preserves old links
     params: { proposalId: "5", versionId: "8" },
     headers: { "idempotency-key": "send-request-fail" },
   }), res);
-  assert.equal(res.statusCode, 502);
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.failureCategory, "PROVIDER_UNAVAILABLE");
   assert.equal(failedUpdate.deliveryStatus, "FAILED");
   assert.ok(failedUpdate.revokedAt instanceof Date);
   assert.equal(transactionCalled, false);
   assert.doesNotMatch(res.body.error, /secret provider detail/);
+});
+
+test("proposal delivery reports incomplete server email configuration safely", async () => {
+  let failedUpdate = null;
+  const prisma = {
+    proposal: { findFirst: async () => ({ id: 5, organizationId: 2 }) },
+    proposalVersion: { findFirst: async () => ({
+      id: 8, proposalId: 5, status: "PUBLISHED", versionNumber: 1, title: "Proposal",
+      customerEmail: "client@example.com", validUntil: new Date(Date.now() + 86400000),
+      items: [], billingSchedule: [], accessLinks: [],
+    }) },
+    proposalAccessLink: {
+      findFirst: async () => null,
+      create: async ({ data }) => ({ id: 45, ...data }),
+      update: async ({ data }) => { failedUpdate = data; return {}; },
+    },
+  };
+  const handlers = createStructuredProposalHandlers({
+    prisma, isGlobalAdmin: () => false,
+    proposalNotifier: async () => {
+      throw Object.assign(new Error("RESEND_API_KEY is not configured"), {
+        code: "EMAIL_PROVIDER_NOT_CONFIGURED",
+        statusCode: 503,
+      });
+    },
+    auditWriter: async () => {},
+  });
+  const res = createResponse();
+  await handlers.sendPublishedVersion(request({
+    params: { proposalId: "5", versionId: "8" },
+    headers: { "idempotency-key": "configuration-failure" },
+  }), res);
+
+  assert.equal(res.statusCode, 503);
+  assert.equal(res.body.failureCategory, "DELIVERY_CONFIGURATION");
+  assert.match(res.body.error, /APP_BASE_URL.*RESEND_API_KEY.*PROPOSAL_EMAIL_FROM.*DEFAULT_ADMIN_EMAIL/);
+  assert.doesNotMatch(res.body.error, /not configured$/);
+  assert.equal(failedUpdate.failureCategory, "DELIVERY_CONFIGURATION");
+  assert.ok(failedUpdate.revokedAt instanceof Date);
 });
 
 test("proposal send idempotency replays success without sending again", async () => {

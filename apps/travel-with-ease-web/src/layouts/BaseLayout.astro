@@ -1,8 +1,17 @@
 ---
 import "../styles/global.css";
-const { title, description, path = Astro.url.pathname, type = "website" } = Astro.props;
+import {
+  canonicalUrl,
+  serializeJsonLd,
+} from "@faako/discovery";
+import AnalyticsConsent from "../components/AnalyticsConsent.astro";
+import CookieNotice from "../components/CookieNotice.astro";
+
+const { title, description, path = Astro.url.pathname, type = "website", noIndex = false } = Astro.props;
 const site = Astro.site || new URL("https://travelwithease.example");
-const canonical = new URL(path === "/" ? "/" : path.replace(/\/$/, ""), site);
+const canonical = canonicalUrl(path, site);
+const approvedForIndexing = import.meta.env.PUBLIC_SITE_INDEXABLE === "true" && site.hostname !== "travelwithease.example";
+const shouldIndex = approvedForIndexing && !noIndex;
 const schema = {
   "@context": "https://schema.org",
   "@type": "TravelAgency",
@@ -11,7 +20,8 @@ const schema = {
   areaServed: "Ghana",
   description,
 };
-const jsonLd = JSON.stringify(schema).replace(/</g, "\\u003c");
+const jsonLd = serializeJsonLd(schema);
+const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
 ---
 <!doctype html>
 <html lang="en-GH">
@@ -21,8 +31,10 @@ const jsonLd = JSON.stringify(schema).replace(/</g, "\\u003c");
     <meta name="theme-color" content="#010c33" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <meta name="robots" content="index, follow" />
+    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
+    <meta name="robots" content={shouldIndex ? "index, follow" : "noindex, nofollow"} />
     <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en-GH" href={canonical} />
     <meta property="og:site_name" content="Travel With Ease" />
     <meta property="og:locale" content="en_GH" />
     <meta property="og:type" content={type} />
@@ -30,6 +42,8 @@ const jsonLd = JSON.stringify(schema).replace(/</g, "\\u003c");
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
     <script is:inline type="application/ld+json" set:html={jsonLd}></script>
   </head>
   <body>
@@ -41,6 +55,8 @@ const jsonLd = JSON.stringify(schema).replace(/</g, "\\u003c");
       </nav>
     </header>
     <main id="main-content"><slot /></main>
-    <footer><div><strong>Travel With Ease</strong><p>Thoughtful journeys from Ghana to the world.</p></div><div><a href="mailto:hello@travelwithease.example">Email us</a><span>Accra, Ghana</span></div></footer>
+    <footer><div><strong>Travel With Ease</strong><p>Thoughtful journeys from Ghana to the world.</p></div><div><a href="mailto:hello@travelwithease.example">Email us</a><button class="footer-cookie-settings" type="button" data-cookie-settings>Cookie settings</button><span>Accra, Ghana</span></div></footer>
+    <CookieNotice />
+    <AnalyticsConsent />
   </body>
 </html>

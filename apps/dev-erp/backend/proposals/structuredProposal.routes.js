@@ -99,10 +99,55 @@ const proposalSendFingerprint = ({ versionId, recipient, personalMessage, ttlHou
   .update(JSON.stringify({ versionId, recipient, personalMessage, ttlHours }))
   .digest("hex");
 const safeDeliveryFailureCategory = (error) => {
+  const code = String(error?.code || "").trim().toUpperCase();
   const status = Number(error?.statusCode || 0);
+  if ([
+    "APP_BASE_URL_MISSING",
+    "EMAIL_PROVIDER_NOT_CONFIGURED",
+    "EMAIL_SENDER_INVALID",
+  ].includes(code)) return "DELIVERY_CONFIGURATION";
+  if (status === 429) return "PROVIDER_RATE_LIMITED";
   if (status === 401 || status === 403) return "PROVIDER_CONFIGURATION";
+  if (status >= 500) return "PROVIDER_UNAVAILABLE";
   if (status >= 400 && status < 500) return "PROVIDER_REJECTED";
   return "DELIVERY_FAILED";
+};
+
+const safeDeliveryFailureResponse = (failureCategory) => {
+  if (failureCategory === "DELIVERY_CONFIGURATION") {
+    return {
+      status: 503,
+      error: "Proposal email delivery is not fully configured. Check APP_BASE_URL, RESEND_API_KEY, PROPOSAL_EMAIL_FROM, and DEFAULT_ADMIN_EMAIL on the DEV ERP API service. The previous client link remains active.",
+    };
+  }
+  if (failureCategory === "PROVIDER_CONFIGURATION") {
+    return {
+      status: 503,
+      error: "The email provider rejected the configured credentials or sender. Check the DEV ERP Resend key and verified proposal sender. The previous client link remains active.",
+    };
+  }
+  if (failureCategory === "PROVIDER_RATE_LIMITED") {
+    return {
+      status: 503,
+      error: "The email provider is temporarily rate limiting proposal delivery. Please retry shortly. The previous client link remains active.",
+    };
+  }
+  if (failureCategory === "PROVIDER_REJECTED") {
+    return {
+      status: 502,
+      error: "The email provider rejected this proposal message. Confirm the recipient and verified proposal sender, then retry. The previous client link remains active.",
+    };
+  }
+  if (failureCategory === "PROVIDER_UNAVAILABLE") {
+    return {
+      status: 503,
+      error: "The email provider is temporarily unavailable. Please retry shortly. The previous client link remains active.",
+    };
+  }
+  return {
+    status: 502,
+    error: "Unable to send the proposal email. The previous client link remains active.",
+  };
 };
 
 const normalizeTiers = (value, { defaultSourceUrl = null } = {}) => {
@@ -665,7 +710,12 @@ export const createStructuredProposalHandlers = ({ prisma, isGlobalAdmin, auditW
       const suggestions = COMMON_CATALOGUE_ITEMS.filter((item) => {
         if (kind && item.kind !== kind) return false;
         if (category && item.category.toLowerCase() !== category.toLowerCase()) return false;
-        if (search && !`${item.name} ${item.category}`.toLowerCase().includes(search.toLowerCase())) return false;
+        if (
+          search
+          && !`${item.name} ${item.category} ${item.description || ""}`
+            .toLowerCase()
+            .includes(search.toLowerCase())
+        ) return false;
         return !persistedNames.has(`${item.kind}:${normalizeCatalogueName(item.name)}`);
       });
       return res.json({ items: items.map(serializeCatalogueItem), suggestions });
@@ -1247,7 +1297,11 @@ export const createStructuredProposalHandlers = ({ prisma, isGlobalAdmin, auditW
           metadata: { proposalId: scoped.proposal.id, linkId: link.id, recipient, failureCategory },
           requestId: req.requestId,
         });
-        return res.status(502).json({ error: "Unable to send the proposal email. The previous client link remains active." });
+        const failureResponse = safeDeliveryFailureResponse(failureCategory);
+        return res.status(failureResponse.status).json({
+          error: failureResponse.error,
+          failureCategory,
+        });
       }
 
       const sentAt = new Date();

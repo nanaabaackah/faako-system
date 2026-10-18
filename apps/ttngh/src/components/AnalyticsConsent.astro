@@ -20,7 +20,7 @@ const measurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID || "";
   const readConsent = () => {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-      return saved && typeof saved.analytics === "boolean" ? saved : null;
+      return saved?.essential === true && typeof saved.analytics === "boolean" ? saved : null;
     } catch {
       return null;
     }
