@@ -16,6 +16,7 @@
   "dependencies": {
     "@astrojs/react": "^6.0.1",
     "@astrojs/sitemap": "^3.7.3",
+    "@faako/discovery": "workspace:*",
     "@faako/ui": "workspace:*",
     "animejs": "^4.3.6",
     "astro": "^7.1.3",

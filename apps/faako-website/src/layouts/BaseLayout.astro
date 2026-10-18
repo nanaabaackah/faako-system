@@ -10,6 +10,12 @@ import CookieConsentIsland from "../components/islands/CookieConsentIsland.jsx";
 import AnalyticsIsland from "../components/islands/AnalyticsIsland.jsx";
 import SiteEnhancementsIsland from "../components/islands/SiteEnhancementsIsland.jsx";
 import {
+  absoluteDiscoveryUrl,
+  canonicalUrl,
+  normalizeDiscoveryPath,
+  serializeJsonLd,
+} from "@faako/discovery";
+import {
   DEFAULT_SOCIAL_IMAGE,
   SITE_NAME,
   SITE_URL,
@@ -31,14 +37,12 @@ const seo = {
   ...(description ? { description } : {}),
   ...(typeof noIndex === "boolean" ? { noIndex } : {}),
 };
-const normalizedPath = path === "/" ? "/" : path.replace(/\/+$/, "");
-const canonical = new URL(normalizedPath, SITE_URL).toString();
-const image = new URL(seo.image || DEFAULT_SOCIAL_IMAGE, SITE_URL).toString();
+const normalizedPath = normalizeDiscoveryPath(path);
+const canonical = canonicalUrl(normalizedPath, SITE_URL);
+const image = absoluteDiscoveryUrl(seo.image || DEFAULT_SOCIAL_IMAGE, SITE_URL);
 const structuredData = buildStructuredData(normalizedPath, seo);
-const serializedStructuredData = JSON.stringify(structuredData).replace(
-  /</g,
-  "\\u003c",
-);
+const serializedStructuredData = serializeJsonLd(structuredData);
+const googleSiteVerification = import.meta.env.VITE_GOOGLE_SITE_VERIFICATION || "";
 
 if (status !== 200) Astro.response.status = status;
 ---
@@ -64,6 +68,7 @@ if (status !== 200) Astro.response.status = status;
     <title>{seo.title}</title>
     <meta name="description" content={seo.description} />
     <meta name="author" content="Faako" />
+    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
     <meta
       name="robots"
       content={seo.noIndex ? "noindex, nofollow" : "index, follow"}

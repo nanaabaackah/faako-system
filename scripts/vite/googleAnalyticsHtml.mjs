@@ -129,7 +129,7 @@ export const createGoogleAnalyticsHtmlPlugin = ({
         response.statusCode = 200;
         response.setHeader("Content-Type", "application/javascript; charset=utf-8");
         response.setHeader("Cache-Control", "no-store");
-        response.end(BOOTSTRAP_SOURCE);
+        response.end(bootstrapSource);
       });
     },
     generateBundle() {

@@ -59,6 +59,7 @@
     "@faako/api-client": "workspace:*",
     "@faako/audit": "workspace:*",
     "@faako/core": "workspace:*",
+    "@faako/discovery": "workspace:*",
     "@faako/notifications": "workspace:*",
     "@faako/offline-sync": "workspace:*",
     "@faako/security": "workspace:*",
