@@ -31,6 +31,7 @@
     "@faako/api-client": "workspace:*",
     "@faako/config": "workspace:*",
     "@faako/core": "workspace:*",
+    "@faako/discovery": "workspace:*",
     "@faako/finance": "workspace:*",
     "@faako/theme": "workspace:*",
     "@faako/types": "workspace:*",

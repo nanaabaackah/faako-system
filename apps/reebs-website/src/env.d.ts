@@ -5,6 +5,7 @@ interface ImportMetaEnv {
   readonly VITE_BACKEND_BASE_URL?: string;
   readonly VITE_REEBS_PORTAL_URL?: string;
   readonly VITE_GA_MEASUREMENT_ID?: string;
+  readonly VITE_GOOGLE_SITE_VERIFICATION?: string;
   readonly VITE_GA_ID?: string;
   readonly VITE_ENABLE_GA_IN_DEV?: string;
   readonly VITE_ENABLE_APP_UPDATE_NOTICE?: string;

@@ -3,6 +3,15 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { verifiedImpact } from "../src/lib/verified-impact.js";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
+test("empty CMS team shows an explanation without silently republishing repository profiles", () => {
+  const grid = read("../src/components/TeamGrid.astro");
+  assert.match(grid, /team.length > 0/);
+  assert.match(grid, /class="team-empty"/);
+  assert.match(grid, /href="\/contact"/);
+  const source = read("../src/content/team.js");
+  assert.match(source, /cmsConfigured \?/);
+  assert.doesNotMatch(source, /team\.length\s*\?|\.length\s*\?\s*.*originalTeam/);
+});
 test("impact requires a verified value, label, source and measurement period", () => {
   const stat = {value:"10",label:"Test count",period:"Test period",source:"Test source",verificationStatus:"verified"};
   assert.deepEqual(verifiedImpact([stat]),[stat]);

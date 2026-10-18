@@ -23,6 +23,7 @@
 .structured-selector-option { display: flex; justify-content: space-between; gap: .75rem; text-align: left; padding: .8rem; border: 1px solid var(--border); border-radius: .9rem; color: var(--text); background: var(--surface-2); cursor: pointer; }
 .structured-selector-option span:first-child { display: grid; gap: .2rem; }
 .structured-selector-option small, .structured-selected-item small, .structured-proposal-table small { color: var(--muted); }
+.structured-selector-description { max-width: 42rem; line-height: 1.4; }
 .structured-selector-option:disabled { opacity: .55; cursor: default; }
 .structured-selector-option.is-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); }
 .structured-selector-option > button { align-self: center; }

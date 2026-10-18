@@ -45,6 +45,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:discovery": "node --test packages/discovery/test/*.test.mjs tests/discovery/*.test.mjs",
     "test:e2e": "turbo run test:e2e",
     "test:python": "node ./scripts/run-reebs-analytics-tests.mjs",
     "check": "node ./scripts/run-quality-checks.mjs",

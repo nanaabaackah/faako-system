@@ -24,6 +24,9 @@ if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw Error('L
       const page = await context.newPage();
       await page.goto(base + '/?email=private@example.org#private');
       assert.equal(await page.locator('[data-analytics-config]').getAttribute('data-measurement-id'), id);
+      await page.evaluate(() => localStorage.setItem('ttngh-cookie-consent-v1', '{"analytics":true}'));
+      await page.reload();
+      await page.locator('[data-cookie-notice]').waitFor({ state: 'visible' });
       await page.getByRole('button', { name: 'Essential only', exact: true }).click();
       assert.equal(tagRequests, 0);
       await page.locator('[data-cookie-settings]').click();
