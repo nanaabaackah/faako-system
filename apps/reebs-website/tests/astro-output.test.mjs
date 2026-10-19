@@ -173,3 +173,14 @@ test("redirect and robots output does not restore the obsolete SPA fallback", ()
   assert.match(robots, /Disallow: \/reset-password/);
   assert.match(robots, /Sitemap: https:\/\/www\.reebspartythemes\.com\/sitemap-index\.xml/);
 });
+
+test("analytics passes the rendered route through the shared page-path contract", () => {
+  const source = readFileSync(
+    join(appRoot, "src", "components", "islands", "AnalyticsIsland.jsx"),
+    "utf8",
+  );
+  assert.match(source, /pagePath:\s*path/);
+  assert.doesNotMatch(source, /\n\s*path,\n/);
+  const config = readFileSync(join(appRoot, "astro.config.mjs"), "utf8");
+  assert.match(config, /envPrefix:\s*\["PUBLIC_", "VITE_"\]/);
+});

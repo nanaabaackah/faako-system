@@ -78,10 +78,11 @@ Vite apps use `scripts/vite/googleAnalyticsHtml.mjs` plus `GoogleAnalyticsRouteT
 
 - Set `VITE_GA_MEASUREMENT_ID` on the deployed app whenever Google Analytics should be connected.
 - `VITE_GA_ID` remains a legacy fallback, but new deployments should use `VITE_GA_MEASUREMENT_ID`.
+- Astro applications that retain this Vite-era contract must explicitly include `VITE_` in `vite.envPrefix`; otherwise Astro replaces the client value with `undefined` at build time. New Astro-only applications should prefer a documented `PUBLIC_GA_MEASUREMENT_ID` contract.
 - `VITE_ENABLE_GA_IN_DEV=true` is only for local verification. Production builds enable the tag automatically when a measurement ID exists.
-- The build injects a CSP-safe local bootstrap asset and the Google tag script into the initial HTML. The bootstrap sends the GA4 `js` and `config` commands with `send_page_view: false`, then the route tracker sends SPA page views on route changes.
+- The build injects a CSP-safe local bootstrap with analytics storage denied. It does not fetch the Google tag until explicit analytics consent. After consent, the shared initializer configures GA4 with `send_page_view: false`, then the route tracker sends the current SPA route once.
 - Keep `public/_headers` compatible with `https://www.googletagmanager.com`, `https://*.google-analytics.com`, `https://*.analytics.google.com`, and `https://stats.g.doubleclick.net` when an app uses a strict CSP.
-- If Google Analytics still reports "not connected", first confirm the production deploy has the env value, the deployed HTML contains the `googletagmanager.com/gtag/js?id=...` script, and the browser is not blocking requests through consent, extensions, Do Not Track, or CSP.
+- If Google Analytics still reports "not connected", confirm the production deploy has that application's own env value, accept analytics in an isolated browser, and then verify the DOM contains `googletagmanager.com/gtag/js?id=...` and a `page_view` request. A tag in pre-consent HTML is now a defect. Also check Do Not Track, extensions, CSP, and the matching GA4 Realtime/DebugView stream.
 
 ## Public Privacy And Cookie Consent
 

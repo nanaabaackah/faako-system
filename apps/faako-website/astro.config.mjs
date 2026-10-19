@@ -27,6 +27,7 @@ export default defineConfig({
     }),
   ],
   vite: {
+    envPrefix: ["PUBLIC_", "VITE_"],
     resolve: {
       alias: [
         {

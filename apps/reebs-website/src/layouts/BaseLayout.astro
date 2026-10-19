@@ -7,6 +7,12 @@ import ClientSetupIsland from "../components/islands/ClientSetupIsland.jsx";
 import CookieConsentIsland from "../components/islands/CookieConsentIsland.jsx";
 import ScrollRevealIsland from "../components/islands/ScrollRevealIsland.jsx";
 import {
+  absoluteDiscoveryUrl,
+  canonicalUrl,
+  normalizeDiscoveryPath,
+  serializeJsonLd,
+} from "@faako/discovery";
+import {
   DEFAULT_IMAGE,
   SITE_NAME,
   SITE_URL,
@@ -24,7 +30,7 @@ const {
   noIndex,
   structuredData = null,
 } = Astro.props;
-const normalizedPath = path === "/" ? "/" : path.replace(/\/+$/, "");
+const normalizedPath = normalizeDiscoveryPath(path);
 const routeSeo = getSeoForPath(normalizedPath);
 const seo = {
   ...routeSeo,
@@ -34,10 +40,11 @@ const seo = {
   ...(type ? { type } : {}),
   ...(typeof noIndex === "boolean" ? { noIndex } : {}),
 };
-const canonical = new URL(normalizedPath, SITE_URL).toString();
-const socialImage = new URL(seo.image || DEFAULT_IMAGE, SITE_URL).toString();
+const canonical = canonicalUrl(normalizedPath, SITE_URL);
+const socialImage = absoluteDiscoveryUrl(seo.image || DEFAULT_IMAGE, SITE_URL);
 const schema = buildStructuredData(normalizedPath, seo, structuredData);
-const serializedSchema = JSON.stringify(schema).replace(/</g, "\\u003c");
+const serializedSchema = serializeJsonLd(schema);
+const googleSiteVerification = import.meta.env.VITE_GOOGLE_SITE_VERIFICATION || "";
 
 if (status !== 200) Astro.response.status = status;
 ---
@@ -63,6 +70,7 @@ if (status !== 200) Astro.response.status = status;
     <title>{seo.title}</title>
     <meta name="description" content={seo.description} />
     <meta name="author" content={SITE_NAME} />
+    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
     <meta
       name="robots"
       content={seo.noIndex ? "noindex, nofollow" : "index, follow"}

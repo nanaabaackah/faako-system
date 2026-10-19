@@ -1,6 +1,9 @@
 # TTNGH content operations
 
-Updated 13 October 2026. Sanity Studio and the static publishing boundary are implemented locally. Accounts and content migration are not yet configured.
+Updated 18 October 2026. Studio and published-content reads are live. The production
+dataset is PUBLIC; team/event publication filters returned zero records in the
+[audit](production-status-2026-10-18.md). Editor access, migration completeness and
+publish/withdrawal rebuilds are not yet verified.
 
 ## Who controls what
 
@@ -15,7 +18,7 @@ The organisation must name a CMS administrator and backup administrator, editori
 | siteSettings | Organisation/contact/social details, SEO defaults, approved registration details | Organisation name, summary, tagline, contact email and safe public URLs |
 | homePage | Hero text, introduction, featured programmes/event/updates, impact, CTAs and partners | Headline/subtitle/introduction, safe CTA destinations |
 | programme | /programmes and /programmes/[slug] | Audience, format, availability, owner, safeguarding approval, image/alt, summary/body, slug and SEO |
-| event | /events, homepage calendar, /events/[slug], .ics | Owner, ordered dates, IANA timezone, format, public venue/joining information, registration state, accessibility, image/alt, SEO; capacity only with approval |
+| event | /events calendar, homepage featured event, /events/[slug], .ics | Owner, ordered dates, IANA timezone, format, public venue/joining information, registration state, accessibility, image/alt, SEO; capacity only with approval |
 | newsArticle | /news and /news/[slug] | Author/date, title, summary/body, image/alt, slug and SEO |
 | resource | /resources and /resources/[slug] | Author/owner/reviewer, approved review/date, linked sources, answer-first summary, urgent-support notice when relevant, slug and SEO |
 | teamMember | /team | Approved biography, name/role, image/alt, publication consent; separately approved public links |
@@ -25,6 +28,33 @@ The organisation must name a CMS administrator and backup administrator, editori
 Both Studio and the build validate content. Studio errors block normal publishing; the build rejects invalid published records even if a token/API bypassed Studio. Draft/version namespaces and publishState other than published are excluded. Duplicate slugs/singletons fail the build. SEO descriptions are 50–160 characters; titles max 120 and slugs max 96. Images must resolve to Sanity CDN assets with dimensions. Text is rendered escaped, not interpreted as CMS HTML.
 
 ## Initial migration
+
+### Team draft preparation — 19 October 2026
+
+At the user's request, seven missing team profiles were created as Sanity drafts:
+Emefa Adonu, Frances Acquaye, Basilila Nanbigne Adu-Wusu, Maame Ebe Ackah,
+Marian Roberts, Ruby Adeley and Vivienne Aklasi. Dzifa Tay Ansah already had a
+record and was left untouched. Names, roles and portrait mappings came from
+`apps/ttngh/src/content/team.js` and the documented approved image inventory.
+Portrait copies were uploaded to Sanity; originals were unchanged.
+
+All seven records were read back with `drafts.` IDs, `publishState: draft` and
+image references. No profiles were published. Approved biographies were not in
+the repository source, so biography fields were deliberately left blank rather
+than invented. Profile consent remains pending editorial confirmation; this does
+not revoke the previously confirmed photography-library permission.
+
+To complete them in Studio: open Team Member, verify names/roles/portraits, supply
+approved biographies, confirm profile publication consent, set publishState to
+published and publish only after approval. Verify the resulting rebuild and team
+page on mobile/desktop. Draft preparation is not an end-to-end publishing test.
+
+Follow-up on 19 October: the user approved concise role-based biography copy.
+That copy was saved to all seven existing drafts and read back successfully.
+These are role descriptions, not independently verified credentials or career
+histories. Dzifa's existing record and all consent/publication states were left
+unchanged. Biographies are no longer blank; profile consent confirmation and
+publication review remain outstanding. Nothing was published by this update.
 
 Populate approved content from the company profile/proposal and the consent-confirmed Drive library. Preserve source/photo context, never infer diagnoses, participation as a counselling client, names or dates. Use the [image inventory](phase-1-image-inventory.md). Optimised local photography remains available; the Drive originals are unchanged.
 
@@ -39,7 +69,7 @@ Create siteSettings and homePage singletons. Populate and approve programme, tea
 5. The signed webhook requests an Astro rebuild. Check build completion and the preview output, not just webhook acceptance.
 6. Review mobile/desktop and links before approving production. Keep preview noindex.
 7. Preserve the slug after launch. A changed public URL needs a developer-reviewed tested redirect.
-8. To withdraw, unpublish or change state away from published, trigger a rebuild, verify removal and handle any old cached copies. Escalate consent/safeguarding withdrawals promptly.
+8. To withdraw public access, unpublish the record where required, trigger a rebuild, verify website and public API removal and handle assets/cached copies. Changing publishState alone hides website output but does not make a published public-dataset record private. Escalate consent/safeguarding withdrawals promptly. Never store private consent evidence, enquiries or health details in published records.
 
 This static site does not provide draft-preview sessions or timed publication scheduling. Date fields describe the publication, not a scheduler. Use approved previews and deliberate publication.
 

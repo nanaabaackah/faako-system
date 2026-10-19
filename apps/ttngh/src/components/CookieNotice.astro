@@ -2,7 +2,7 @@
 import "../styles/components/cookie.css";
 ---
 
-<aside class="cookie-notice" data-cookie-notice hidden aria-label="Cookie notice">
+<aside class="cookie-notice" data-cookie-notice hidden aria-label="Cookie notice" aria-live="polite">
   <div>
     <strong>Your privacy, your choice.</strong>
     <p>Essential browser storage remembers your preference. Optional Google Analytics helps us understand visits only when you allow it; advertising cookies are not used.</p>
@@ -23,11 +23,16 @@ import "../styles/components/cookie.css";
     const show = () => notice.removeAttribute("hidden");
     const hide = () => notice.setAttribute("hidden", "");
 
-    try {
-      if (!localStorage.getItem(key)) show();
-    } catch {
-      show();
-    }
+    const hasValidChoice = () => {
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || "null");
+        return saved?.essential === true && typeof saved.analytics === "boolean";
+      } catch {
+        return false;
+      }
+    };
+
+    if (!hasValidChoice()) show();
 
     const save = (analytics) => {
       const choice = { essential: true, analytics, updatedAt: new Date().toISOString() };

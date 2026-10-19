@@ -181,8 +181,20 @@ export const initializeGoogleAnalytics = ({
     || !resolvedMeasurementId
     || !analyticsWindow
     || !analyticsDocument
-    || (respectDoNotTrack && isDoNotTrackEnabled())
   ) {
+    return false;
+  }
+
+  if (respectDoNotTrack && isDoNotTrackEnabled()) {
+    setGoogleAnalyticsCollectionEnabled(resolvedMeasurementId, false);
+    return false;
+  }
+
+  if (!consent.analytics) {
+    setGoogleAnalyticsConsent(resolvedMeasurementId, {
+      ...consent,
+      analytics: false,
+    });
     return false;
   }
 

@@ -2349,7 +2349,10 @@ const buildEmailFromHeader = ({ fromEmail, fromName }) => {
 
 const sendEmail = async ({ fromEmail, fromName, recipients, subject, text, html, replyTo }) => {
   if (!resend) {
-    throw new Error("RESEND_API_KEY is not configured");
+    const error = new Error("RESEND_API_KEY is not configured");
+    error.code = "EMAIL_PROVIDER_NOT_CONFIGURED";
+    error.statusCode = 503;
+    throw error;
   }
   const delivery = resolveEmailDeliveryRecipients({
     recipients,
@@ -2361,8 +2364,16 @@ const sendEmail = async ({ fromEmail, fromName, recipients, subject, text, html,
     throw new Error("No valid email recipients configured");
   }
 
+  const normalizedFromEmail = String(fromEmail || DEFAULT_ADMIN_EMAIL).trim();
+  if (!EMAIL_PATTERN.test(normalizedFromEmail)) {
+    const error = new Error("A valid email sender is not configured");
+    error.code = "EMAIL_SENDER_INVALID";
+    error.statusCode = 500;
+    throw error;
+  }
+
   const emailPayload = {
-    from: buildEmailFromHeader({ fromEmail, fromName }),
+    from: buildEmailFromHeader({ fromEmail: normalizedFromEmail, fromName }),
     to: delivery.deliveryRecipients,
     subject,
     text,
@@ -8322,6 +8333,7 @@ registerStructuredProposalRoutes(app, {
     const proposalBaseUrl = resolveRequestBaseUrl();
     if (!proposalBaseUrl) {
       const error = new Error("APP_BASE_URL must be configured before sending proposal links.");
+      error.code = "APP_BASE_URL_MISSING";
       error.statusCode = 500;
       throw error;
     }

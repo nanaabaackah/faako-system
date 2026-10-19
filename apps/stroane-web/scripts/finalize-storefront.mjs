@@ -2,6 +2,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { canonicalUrl, serializeJsonLd } from "@faako/discovery";
 
 const appRoot = fileURLToPath(new URL("..", import.meta.url));
 const outputRoot = join(appRoot, "dist", "storefront");
@@ -18,9 +19,6 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;");
-
-const escapeScriptJson = (value) =>
-  JSON.stringify(value).replaceAll("<", "\\u003c");
 
 const replaceMeta = (html, selector, content) => {
   const escaped = escapeHtml(content);
@@ -45,7 +43,7 @@ const renderRoute = ({
   image = defaultImage,
   schema,
 }) => {
-  const canonical = `${siteUrl}${path === "/" ? "/" : path}`;
+  const canonical = canonicalUrl(path, siteUrl);
   let html = template.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(title)}</title>`);
   html = replaceMeta(html, 'name="description"', description);
   html = replaceMeta(html, 'name="robots"', noIndex ? "noindex, nofollow" : "index, follow");
@@ -61,7 +59,7 @@ const renderRoute = ({
   if (schema) {
     html = html.replace(
       "</head>",
-      `  <script type="application/ld+json">${escapeScriptJson(schema)}</script>\n  </head>`,
+      `  <script type="application/ld+json">${serializeJsonLd(schema)}</script>\n  </head>`,
     );
   }
   return html;

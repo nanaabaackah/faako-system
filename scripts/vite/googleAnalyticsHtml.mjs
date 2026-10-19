@@ -1,24 +1,9 @@
-const SCRIPT_ID_PREFIX = "faako-google-analytics";
 const BOOTSTRAP_FILE_PREFIX = "assets/faako-google-analytics";
-
-const getScriptId = (measurementId) => (
-  `${SCRIPT_ID_PREFIX}-${measurementId.replace(/[^a-z0-9_-]/gi, "-")}`
-);
 
 const getSafeMeasurementId = (measurementId) => measurementId.replace(/[^a-z0-9_-]/gi, "-");
 
 const createBootstrapSource = (measurementId) => `(function () {
   var measurementId = ${JSON.stringify(measurementId)};
-  var doNotTrack = String(window.doNotTrack || "") === "1"
-    || (typeof navigator !== "undefined" && String(navigator.doNotTrack || "") === "1")
-    || (typeof navigator !== "undefined" && String(navigator.msDoNotTrack || "") === "1");
-  var initializedIds = window.__faakoGoogleAnalyticsInitializedIds;
-
-  if (!Array.isArray(initializedIds)) {
-    initializedIds = [];
-    window.__faakoGoogleAnalyticsInitializedIds = initializedIds;
-  }
-
   window.dataLayer = window.dataLayer || [];
   if (typeof window.gtag !== "function") {
     window.gtag = function gtag() {
@@ -33,22 +18,7 @@ const createBootstrapSource = (measurementId) => `(function () {
     wait_for_update: 500
   });
   window.__faakoGoogleAnalyticsConsentDefaulted = true;
-
-  if (doNotTrack) {
-    window["ga-disable-" + measurementId] = true;
-    return;
-  }
-
-  window["ga-disable-" + measurementId] = false;
-  window.gtag("js", new Date());
-  window.gtag("config", measurementId, {
-    send_page_view: false
-  });
-  window.__faakoGoogleAnalyticsBootstrapped = true;
-
-  if (initializedIds.indexOf(measurementId) === -1) {
-    initializedIds.push(measurementId);
-  }
+  window["ga-disable-" + measurementId] = true;
 }());
 `;
 
@@ -129,7 +99,7 @@ export const createGoogleAnalyticsHtmlPlugin = ({
         response.statusCode = 200;
         response.setHeader("Content-Type", "application/javascript; charset=utf-8");
         response.setHeader("Cache-Control", "no-store");
-        response.end(BOOTSTRAP_SOURCE);
+        response.end(bootstrapSource);
       });
     },
     generateBundle() {
@@ -144,22 +114,11 @@ export const createGoogleAnalyticsHtmlPlugin = ({
     transformIndexHtml() {
       if (!shouldInject) return;
 
-      const scriptId = getScriptId(resolvedMeasurementId);
-
       return [
         {
           tag: "script",
           attrs: {
             src: getBootstrapSrc(resolvedConfig?.base, resolvedMeasurementId),
-          },
-          injectTo: "head-prepend",
-        },
-        {
-          tag: "script",
-          attrs: {
-            id: scriptId,
-            async: true,
-            src: `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(resolvedMeasurementId)}`,
           },
           injectTo: "head-prepend",
         },

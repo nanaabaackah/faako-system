@@ -13,7 +13,7 @@ export default function AnalyticsIsland({ path = "/" }) {
     if (!initializeReebsGoogleAnalytics()) return;
     trackGoogleAnalyticsPageView({
       measurementId: GOOGLE_ANALYTICS_MEASUREMENT_ID,
-      path,
+      pagePath: path,
     });
   }, [path]);
 

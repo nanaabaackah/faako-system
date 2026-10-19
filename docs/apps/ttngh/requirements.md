@@ -5,8 +5,9 @@ Status: requirements captured; content and operational details remain subject to
 Phase 2 status (13 October 2026): all nine CMS types, static published-content integration,
 event detail/calendar downloads, native calendar, protected enquiry API, transactional email
 adapter and signed publishing hook are implemented locally. See the [implementation report](phase-2-implementation.md)
-for verification and remaining gates. The client confirms provider accounts are not yet set up;
-therefore real publishing and delivery remain unactivated and are not claimed complete.
+for historical implementation evidence. The [18 October production audit](production-status-2026-10-18.md)
+supersedes the former provider-not-created assumption: hosting, API health, Studio
+and public CMS reads work. Real publishing/withdrawal and delivery remain unverified.
 
 ## Project purpose
 

@@ -1,0 +1,14 @@
+{
+  "name": "@faako/discovery",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "types": "./src/index.d.ts",
+  "scripts": {
+    "lint": "eslint src test",
+    "test": "node --test test/*.test.mjs"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  }
+}

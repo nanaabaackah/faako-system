@@ -2,6 +2,7 @@
 import '@faako/ui/compat.css';
 import '../styles/global.css';
 import PortfolioApp from '../components/PortfolioApp.jsx';
+import { absoluteDiscoveryUrl, canonicalUrl, normalizeDiscoveryPath, serializeJsonLd } from '@faako/discovery';
 import {
   DEFAULT_IMAGE,
   SITE_NAME,
@@ -11,12 +12,14 @@ import {
 } from '../content/seo.js';
 
 const { path = Astro.url.pathname, status = 200 } = Astro.props;
-const seo = getSeoForPath(path);
-const canonical = new URL(path === '/' ? '/' : path, SITE_URL).toString();
-const image = new URL(seo.image || DEFAULT_IMAGE, SITE_URL).toString();
-const structuredData = buildStructuredData(path, seo);
-const serializedStructuredData = JSON.stringify(structuredData).replace(/</g, '\\u003c');
+const normalizedPath = normalizeDiscoveryPath(path);
+const seo = getSeoForPath(normalizedPath);
+const canonical = canonicalUrl(normalizedPath, SITE_URL);
+const image = absoluteDiscoveryUrl(seo.image || DEFAULT_IMAGE, SITE_URL);
+const structuredData = buildStructuredData(normalizedPath, seo);
+const serializedStructuredData = serializeJsonLd(structuredData);
 const imageAlt = `${seo.name || 'Nana Aba Ackah'} preview`;
+const googleSiteVerification = import.meta.env.VITE_GOOGLE_SITE_VERIFICATION || '';
 
 if (status !== 200) Astro.response.status = status;
 ---
@@ -30,6 +33,7 @@ if (status !== 200) Astro.response.status = status;
     <title>{seo.title}</title>
     <meta name="description" content={seo.description} />
     <meta name="author" content="Nana Aba Ackah" />
+    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
     <meta name="robots" content={seo.noIndex ? 'noindex, nofollow' : 'index, follow'} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/assets/favicon.ico" sizes="any" />
@@ -55,9 +59,9 @@ if (status !== 200) Astro.response.status = status;
   <body>
     {
       path === '/contact' ? (
-        <PortfolioApp staticLocation={path} client:load />
+        <PortfolioApp staticLocation={normalizedPath} client:load />
       ) : (
-        <PortfolioApp staticLocation={path} client:idle={{ timeout: 2000 }} />
+        <PortfolioApp staticLocation={normalizedPath} client:idle={{ timeout: 2000 }} />
       )
     }
     <noscript>This portfolio works best with JavaScript enabled, but all page content remains available in the HTML.</noscript>

@@ -2,12 +2,43 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  COMMON_CATALOGUE_ITEMS,
   adaptLegacyProposal,
   normalizeCatalogueName,
   normalizeStructuredProposal,
   validateClientSelections,
   validateVersionTransition,
 } from "./proposalContract.js";
+
+test("curated proposal services expose distinct search and discovery capabilities", () => {
+  const services = new Map(
+    COMMON_CATALOGUE_ITEMS
+      .filter((item) => item.kind === "SERVICE")
+      .map((item) => [item.systemKey, item])
+  );
+
+  for (const systemKey of [
+    "search-engine-optimisation",
+    "answer-engine-optimisation",
+    "generative-engine-optimisation",
+    "geographic-search-targeting",
+    "search-measurement-setup",
+    "accessibility-audit-remediation",
+    "agentic-ai-readiness-assessment",
+  ]) {
+    const service = services.get(systemKey);
+    assert.ok(service, `${systemKey} should be available in the proposal catalogue`);
+    assert.ok(service.description);
+    assert.ok(service.deliverables.length > 0);
+    assert.equal(service.tiers[0].priceModel, "CUSTOM_QUOTE");
+  }
+
+  assert.equal(
+    COMMON_CATALOGUE_ITEMS.some((item) => item.name === "SEO & AEO"),
+    false,
+    "the legacy combined suggestion should not compete with the distinct services"
+  );
+});
 
 test("legacy proposals remain readable through a structured compatibility view", () => {
   const result = adaptLegacyProposal({

@@ -1,6 +1,10 @@
 # TTNGH donations: architecture and implementation status
 
-13 October 2026. Dedicated Railway PostgreSQL approved by the user. Minimum donation **GH₵1**, with **no TTNGH fundraising maximum**. Paystack account not yet created. Status: foundation implemented, not enabled; not ready for production.
+13 October 2026 architecture; status reconciled 19 October. Dedicated Railway PostgreSQL
+is approved. Minimum donation **GH₵1**, with **no TTNGH fundraising maximum**.
+Current Paystack/database provider configuration is UNVERIFIED (earlier client report:
+account not created). Foundation implemented, checkout absent; not ready for payment
+activation. This is POST-LAUNCH for the informational site. See [audit](production-status-2026-10-18.md).
 
 ## Decision
 
@@ -51,6 +55,9 @@ The configuration helper is not yet wired into the server; setting these variabl
 
 Ten focused tests pass via `node --test services/ttngh-api/test/payments.test.js`. They exercise exact conversion/limits, schema rejection, environment gates, signatures, transaction mismatch/status handling, adapter failures/redirects, metadata minimization and store transaction-call behaviour. Store tests use a mock query client: **they are not evidence of PostgreSQL concurrency or migration correctness**.
 
-P0: endpoint/frontend/worker integration, real database tests, provider test checkout, required failure/retry matrix, receipt handling and launch approval remain. No live transaction, deployment or merge was performed. This document is not the final production-readiness report.
+Payment-activation blockers: endpoint/frontend/worker integration, real database
+tests, provider test checkout, failure/retry matrix, receipt handling and approval.
+These are not P0 blockers for an informational site with payments disabled. No live
+transaction or migration was performed by the audit.
 
 Provider references: [transactions](https://paystack.com/docs/api/transaction/), [webhooks](https://paystack.com/docs/payments/webhooks/).
