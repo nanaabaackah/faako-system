@@ -1,6 +1,13 @@
 # Visual follow-up before operational Phase 2
 
-Historical visual-pass notes follow. For the current implementation and activation status, see the [Phase 2 handover](phase-2-implementation.md).
+> Historical record. Status reconciled 19 October 2026: use the
+> [18 October production evidence](production-status-2026-10-18.md) for current
+> service readiness. Branch/worktree, deployment, image-placement, typography and
+> provider-status statements below describe their original milestone, not current
+> operations. The later editorial refresh supersedes earlier visual treatments.
+
+Historical visual-pass notes follow. For current activation evidence, see the
+[production status](production-status-2026-10-18.md); the Phase 2 handover is also historical.
 
 This user-directed visual pass supersedes the Phase 1 decision to remove all reveal motion and flatten Faako cards. The operational CMS/forms/email brief remains separate and is next.
 

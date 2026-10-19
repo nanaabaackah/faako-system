@@ -1,5 +1,11 @@
 # Phase 1 implementation report
 
+> Historical record. Status reconciled 19 October 2026: use the
+> [18 October production evidence](production-status-2026-10-18.md) for current
+> service readiness. Branch/worktree, deployment, image-placement, typography and
+> provider-status statements below describe their original milestone, not current
+> operations. The later editorial refresh supersedes earlier visual treatments.
+
 Date: 2026-10-12. Branch: `feat/ttngh-phase-1-refresh`, based on local `develop` at `5d09f1c0b`.
 Isolated worktree: `/private/tmp/faako-ttngh-phase1`. No merge, deployment, CMS, payment collection or
 production contact API is included. Other applications and shared packages are unchanged.

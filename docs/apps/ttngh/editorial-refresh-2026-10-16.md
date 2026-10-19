@@ -1,5 +1,11 @@
 # TTNGH editorial refresh
 
+> Historical record. Status reconciled 19 October 2026: use the
+> [18 October production evidence](production-status-2026-10-18.md) for current
+> service readiness. Branch/worktree, deployment, image-placement, typography and
+> provider-status statements below describe their original milestone, not current
+> operations. The later editorial refresh supersedes earlier visual treatments.
+
 Branch: `feat/ttngh-editorial-refresh`. Based on fetched `origin/main` at
 `0a7977e5e`; existing TTNGH working edits carried forward with permission.
 No merge, deployment, provider configuration, or infrastructure change.

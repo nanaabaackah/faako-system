@@ -1,10 +1,14 @@
 # TTNGH email operations
 
-Updated 13 October 2026. Architecture and local tests are implemented; no domain routing, sender verification or real delivery is configured yet.
+Updated 18 October 2026. Public DNS shows Cloudflare routing MX/root SPF, a Resend
+DKIM selector and monitoring DMARC. These do not prove alias destinations, sender
+approval, API credentials or delivery. Those remain UNVERIFIED; no mail was sent.
+See [production evidence](production-status-2026-10-18.md).
 
 ## Incoming mail: Cloudflare Email Routing
 
-The domain owner should configure these incoming aliases to forward into the organisation's approved existing Gmail inbox:
+The domain owner should verify which of these proposed aliases exist and forward
+to the approved inbox. Do not advertise an alias until tested:
 
 - hello@thethrivingnetworkgh.org
 - events@thethrivingnetworkgh.org

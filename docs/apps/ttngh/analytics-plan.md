@@ -1,6 +1,10 @@
 # TTNGH analytics and privacy
 
-Updated 13 October 2026. The public site uses the shared Faako Google Analytics utility and TTNGH's consent notice. This describes implementation, not a configured/live GA property.
+Updated 18 October 2026. The public measurement ID is CONFIGURED. Browser checks
+verified consent/DNT gating and sanitized explicit pageviews, not successful GA
+reporting or provider privacy settings. Audited main queued another pageview on
+repeat acceptance; do not count newer branch fixes as deployed without verification.
+See [production evidence](production-status-2026-10-18.md).
 
 ## Activation
 

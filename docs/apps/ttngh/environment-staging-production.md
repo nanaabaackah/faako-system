@@ -1,6 +1,6 @@
 # TTNGH staging and production configuration
 
-Updated 17 October 2026. These are configuration names and non-secret examples,
+Updated 19 October 2026 using the 18 October audit. These are configuration names and non-secret examples,
 not credentials. No provider settings were changed in this pass.
 
 Set website variables in the hosting project's **build environment**, with
@@ -16,7 +16,7 @@ API secrets into the website or Studio environment. Do not reuse REEBS values.
 | `PUBLIC_SITE_INDEXABLE` | `false` | `true` only for the approved public launch |
 | `SANITY_PROJECT_ID` | `d5k303l7` | `d5k303l7` |
 | `SANITY_DATASET` | Separately provisioned staging dataset; do not assume one exists | `production` |
-| `SANITY_READ_TOKEN` | Secret read-only token scoped to staging content | Secret read-only production build token |
+| `SANITY_READ_TOKEN` | Read-only secret if dataset access requires it | Optional for observed PUBLIC dataset; required for authenticated/private reads; never browser-exposed |
 | `TTNGH_CMS_REQUIRED` | `true` when testing CMS-backed builds | `true` once approved CMS content is ready |
 | `PUBLIC_TTNGH_STUDIO_URL` | Approved HTTPS staging Studio URL | Approved HTTPS production Studio URL |
 | `PUBLIC_TTNGH_API_ORIGIN` | Exact staging API HTTPS origin | Exact production API HTTPS origin |
@@ -24,8 +24,10 @@ API secrets into the website or Studio environment. Do not reuse REEBS values.
 | `PUBLIC_GA_MEASUREMENT_ID` | Blank, or a separate test GA4 property | `G-L1DK9DHYT8`; visitor consent still required |
 | `PUBLIC_TTNGH_GOOGLE_CALENDAR_ID` | Blank or approved public test calendar ID | Optional approved public organisation calendar ID |
 
-The staging hostname, API origins, Studio URLs, widget keys and inbox still need
-to be supplied/verified. Do not paste the literal examples as active values.
+Production website/API/Studio origins and public widget configuration are observable;
+see [dated evidence](production-status-2026-10-18.md). Staging configuration, inbox,
+private secrets and real delivery remain unverified. Do not paste literal examples
+as active values. Public behavior does not prove stored provider variable values.
 
 For a deliberate repository-content-only build, leave **both** Sanity identifiers
 and the token blank and set `TTNGH_CMS_REQUIRED=false`. Setting that flag false
@@ -111,5 +113,5 @@ hosted checkout. Do not add secrets to `PUBLIC_` or `SANITY_STUDIO_` variables.
 
 Before promotion, verify the staging build, contact delivery with synthetic data,
 consent-gated analytics, CMS rebuild hook, production hostname/indexability and a
-rollback deployment. No production push is authorised at present: the user's
-latest instruction is to finish local checks only.
+rollback deployment. The website is already live/indexable; this documentation
+does not authorise a new deployment or provider changes.

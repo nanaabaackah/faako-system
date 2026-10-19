@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import {
   initializeGoogleAnalytics,
   resolveGoogleAnalyticsMeasurementId,
+  setGoogleAnalyticsConsent,
   trackGoogleAnalyticsPageView,
   type GoogleAnalyticsConsentOptions,
 } from "@faako/utils";
@@ -29,29 +30,54 @@ export const GoogleAnalyticsRouteTracker = ({
     && resolvedMeasurementId
     && (!shouldTrack || shouldTrack())
   );
+  const analyticsConsent = consent?.analytics ?? true;
+  const marketingConsent = consent?.marketing ?? false;
+  const consentWaitMs = consent?.waitForUpdateMs;
+  const lastTrackedPage = useRef("");
 
   useEffect(() => {
-    if (!trackingAllowed) return;
+    if (!trackingAllowed || !analyticsConsent) {
+      setGoogleAnalyticsConsent(resolvedMeasurementId, {
+        analytics: false,
+        marketing: false,
+      });
+      lastTrackedPage.current = "";
+      return;
+    }
 
-    initializeGoogleAnalytics({
+    const initialized = initializeGoogleAnalytics({
       measurementId: resolvedMeasurementId,
       enabled: true,
-      consent,
+      consent: {
+        analytics: analyticsConsent,
+        marketing: marketingConsent,
+        waitForUpdateMs: consentWaitMs,
+      },
       debugMode,
     });
-  }, [consent, debugMode, resolvedMeasurementId, trackingAllowed]);
+    if (!initialized) return;
 
-  useEffect(() => {
-    if (!trackingAllowed) return;
+    const pageKey = [
+      resolvedMeasurementId,
+      location.pathname,
+      location.search,
+      location.hash,
+    ].join("|");
+    if (lastTrackedPage.current === pageKey) return;
 
-    trackGoogleAnalyticsPageView({
+    const tracked = trackGoogleAnalyticsPageView({
       measurementId: resolvedMeasurementId,
       pagePath: `${location.pathname}${location.search}${location.hash}`,
     });
+    if (tracked) lastTrackedPage.current = pageKey;
   }, [
+    analyticsConsent,
+    consentWaitMs,
+    debugMode,
     location.hash,
     location.pathname,
     location.search,
+    marketingConsent,
     resolvedMeasurementId,
     trackingAllowed,
   ]);

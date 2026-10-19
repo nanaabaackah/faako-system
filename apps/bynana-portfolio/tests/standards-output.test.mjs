@@ -160,3 +160,8 @@ test('static routes defer hydration while the contact form remains immediately i
   assert.match(layoutSource, /client:load/);
   assert.match(layoutSource, /client:idle=\{\{ timeout: 2000 \}\}/);
 });
+
+test('the Astro client build exposes the documented public Vite variables', () => {
+  const config = readFileSync(new URL('../astro.config.mjs', import.meta.url), 'utf8');
+  assert.match(config, /envPrefix:\s*\['PUBLIC_', 'VITE_'\]/);
+});

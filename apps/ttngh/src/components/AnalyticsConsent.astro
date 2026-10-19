@@ -35,7 +35,7 @@ const measurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID || "";
     });
   };
 
-  const applyConsent = (analytics) => {
+  const applyConsent = (analytics: boolean) => {
     if (!measurementId) return;
 
     if (!analytics) {
@@ -63,7 +63,8 @@ const measurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID || "";
   if (savedConsent) applyConsent(savedConsent.analytics);
 
   document.addEventListener("ttngh:consent-changed", (event) => {
-    const analytics = Boolean(event.detail?.analytics);
+    const detail = (event as CustomEvent<{ analytics?: boolean }>).detail;
+    const analytics = Boolean(detail?.analytics);
     applyConsent(analytics);
   });
 </script>
