@@ -156,7 +156,7 @@ jobs:
 
   public-browser-smoke:
     name: Public-site browser smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: detect-changes
     if: needs.detect-changes.outputs.faako_public == 'true' || needs.detect-changes.outputs.reebs_public == 'true'
     steps:
@@ -196,7 +196,7 @@ jobs:
 
   reebs-water-browser:
     name: REEBS Water isolated browser regressions
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: detect-changes
     if: needs.detect-changes.outputs.reebs_water == 'true'
     steps:
@@ -225,7 +225,7 @@ jobs:
 
   dev-erp-browser:
     name: Dev ERP browser regressions
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: detect-changes
     if: needs.detect-changes.outputs.dev_erp == 'true'
     steps:
