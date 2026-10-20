@@ -7,6 +7,7 @@ export type StroaneCookiePreferences = {
 
 export const STROANE_COOKIE_PREFS_KEY = "stroane_cookie_preferences_v1";
 export const STROANE_COOKIE_PREFS_EVENT = "stroane-cookie-preferences";
+export const STROANE_COOKIE_PREFS_OPEN_EVENT = "stroane-cookie-preferences-open";
 
 export const readStroaneCookiePreferences = (): StroaneCookiePreferences | null => {
   if (typeof window === "undefined") return null;
@@ -15,6 +16,11 @@ export const readStroaneCookiePreferences = (): StroaneCookiePreferences | null 
     const stored = window.localStorage.getItem(STROANE_COOKIE_PREFS_KEY);
     if (!stored) return null;
     const parsed = JSON.parse(stored);
+    if (
+      parsed?.necessary !== true
+      || typeof parsed.analytics !== "boolean"
+      || typeof parsed.marketing !== "boolean"
+    ) return null;
 
     return {
       necessary: true,
@@ -28,6 +34,10 @@ export const readStroaneCookiePreferences = (): StroaneCookiePreferences | null 
 };
 
 export const hasStroaneAnalyticsConsent = () => Boolean(readStroaneCookiePreferences()?.analytics);
+
+export const openStroaneCookiePreferences = () => {
+  window.dispatchEvent(new CustomEvent(STROANE_COOKIE_PREFS_OPEN_EVENT));
+};
 
 export const writeStroaneCookiePreferences = (
   preferences: Omit<StroaneCookiePreferences, "updatedAt">,

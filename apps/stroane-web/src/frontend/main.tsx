@@ -14,7 +14,7 @@ import "../styles/globals.css";
 import appSystem from "../../appSystem.js";
 import StorefrontApp from "./StorefrontApp";
 import {
-  hasStroaneAnalyticsConsent,
+  readStroaneCookiePreferences,
   STROANE_COOKIE_PREFS_EVENT,
   type StroaneCookiePreferences,
 } from "./utils/cookieConsent";
@@ -27,15 +27,19 @@ const updateNoticeEnabled =
   import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true";
 
 const StorefrontRuntime = () => {
-  const [analyticsAllowed, setAnalyticsAllowed] = useState(
-    hasStroaneAnalyticsConsent,
-  );
+  const [analyticsConsent, setAnalyticsConsent] = useState(() => {
+    const saved = readStroaneCookiePreferences();
+    return { analytics: Boolean(saved?.analytics), marketing: Boolean(saved?.marketing) };
+  });
   useLocation();
 
   useEffect(() => {
     const handlePreferences = (event: Event) => {
       const detail = (event as CustomEvent<StroaneCookiePreferences>).detail;
-      setAnalyticsAllowed(Boolean(detail?.analytics));
+      setAnalyticsConsent({
+        analytics: Boolean(detail?.analytics),
+        marketing: Boolean(detail?.marketing),
+      });
     };
     window.addEventListener(STROANE_COOKIE_PREFS_EVENT, handlePreferences);
     return () => window.removeEventListener(STROANE_COOKIE_PREFS_EVENT, handlePreferences);
@@ -46,7 +50,7 @@ const StorefrontRuntime = () => {
       <GoogleAnalyticsRouteTracker
         measurementId={measurementId}
         enabled={analyticsEnabled}
-        shouldTrack={() => analyticsAllowed}
+        consent={analyticsConsent}
       />
       <AppUpdateNotice
         appName="Stroane"

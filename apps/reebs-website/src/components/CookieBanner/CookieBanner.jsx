@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
+  readReebsAnalyticsPrefs,
+  REEBS_COOKIE_PREFS_OPEN_EVENT,
   REEBS_ANALYTICS_PREFS_STORAGE_KEY,
   updateReebsGoogleAnalyticsConsent,
 } from "../../utils/analytics";
@@ -27,23 +29,27 @@ const writeConsentCookie = (value) => {
 const CookieBanner = () => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [analyticsAllowed, setAnalyticsAllowed] = useState(true);
+  const [analyticsAllowed, setAnalyticsAllowed] = useState(false);
   const [marketingAllowed, setMarketingAllowed] = useState(false);
 
   useEffect(() => {
     const consentValue = readConsentCookie();
-    setIsVisible(!consentValue);
+    const savedPrefs = readReebsAnalyticsPrefs();
+    const hasValidConsentCookie = ['accepted', 'rejected', 'customized'].includes(consentValue);
+    setIsVisible(!hasValidConsentCookie || !savedPrefs);
+    setAnalyticsAllowed(Boolean(savedPrefs?.analytics));
+    setMarketingAllowed(Boolean(savedPrefs?.marketing));
 
-    try {
-      const savedPrefs = localStorage.getItem(REEBS_ANALYTICS_PREFS_STORAGE_KEY);
-      if (savedPrefs) {
-        const parsed = JSON.parse(savedPrefs);
-        setAnalyticsAllowed(Boolean(parsed.analytics));
-        setMarketingAllowed(Boolean(parsed.marketing));
-      }
-    } catch (err) {
-      console.warn('Unable to read cookie preferences', err);
-    }
+    const handleOpenPreferences = () => {
+      const current = readReebsAnalyticsPrefs();
+      setAnalyticsAllowed(Boolean(current?.analytics));
+      setMarketingAllowed(Boolean(current?.marketing));
+      setIsExpanded(true);
+      setIsVisible(true);
+    };
+
+    window.addEventListener(REEBS_COOKIE_PREFS_OPEN_EVENT, handleOpenPreferences);
+    return () => window.removeEventListener(REEBS_COOKIE_PREFS_OPEN_EVENT, handleOpenPreferences);
   }, []);
 
   const persistPreferences = (prefs) => {

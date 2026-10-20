@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { FaWhatsapp, FaFacebook, FaInstagram } from "react-icons/fa";
 import { AppBottomBar } from "@faako/ui";
 import { PORTAL_LOGIN_URL } from "../config/appSurface";
+import { openStroaneCookiePreferences } from "../frontend/utils/cookieConsent";
 import "../styles/components/Footer.css";
 
 const NAV_COLUMNS = [
@@ -31,6 +32,7 @@ const NAV_COLUMNS = [
       { label: "Terms & Conditions", to: "/terms" },
       { label: "Privacy Policy",     to: "/privacy" },
       { label: "Cookie Policy",      to: "/cookies" },
+      { label: "Cookie settings", action: openStroaneCookiePreferences },
       { label: "Sitemap",            to: "/sitemap" },
     ],
   },
@@ -85,7 +87,9 @@ const Footer: React.FC<{ externalNavigationBaseUrl?: string }> = ({
               <ul className="footer__col-links">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    {"href" in link ? (
+                    {"action" in link ? (
+                      <button type="button" onClick={link.action}>{link.label}</button>
+                    ) : "href" in link ? (
                       <a href={link.href}>{link.label}</a>
                     ) : externalNavigationBaseUrl ? (
                       <a href={toSiteUrl(externalNavigationBaseUrl, link.to)}>{link.label}</a>

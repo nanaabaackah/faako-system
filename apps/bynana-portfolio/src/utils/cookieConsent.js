@@ -9,6 +9,7 @@ export const readByNanaCookiePreferences = () => {
     const stored = window.localStorage.getItem(BYNANA_COOKIE_PREFS_KEY);
     if (!stored) return null;
     const parsed = JSON.parse(stored);
+    if (parsed?.necessary !== true || typeof parsed.analytics !== 'boolean') return null;
     return {
       necessary: true,
       analytics: Boolean(parsed?.analytics),

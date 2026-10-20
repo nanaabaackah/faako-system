@@ -10,6 +10,8 @@ This note covers the public-facing websites and storefronts:
 - `apps/faako-website`
 - `apps/bynana-portfolio`
 - `apps/reebs-website`
+- `apps/ttngh`
+- `apps/travel-with-ease-web`
 
 Admin portals and internal ERP apps should not reuse the public marketing copy verbatim. If a portal needs consent or privacy messaging, document it beside the app because portal storage, authentication, audit logs, and staff data policies are different.
 
@@ -32,6 +34,9 @@ Consent choices should be stored locally with a versioned app-specific key. Do n
 - Faako Website uses `src/components/CookieConsentBanner.jsx` and `src/utils/cookieConsent.js`. Google Analytics route tracking is gated by analytics consent.
 - By Nana Portfolio uses `src/components/CookieConsentBanner.jsx` and `src/utils/cookieConsent.js`. Google Analytics route tracking is gated by analytics consent.
 - REEBS Website uses the existing `src/components/CookieBanner/CookieBanner.jsx` as a global public-site banner mounted from `App.jsx`.
+- TTNGH and Travel With Ease use Astro cookie notices plus consent adapters backed by the shared `@faako/utils` GA4 lifecycle.
+
+All public implementations validate the stored choice, default optional analytics off, respect Do Not Track, and provide a persistent Cookie settings control. Withdrawing analytics disables collection and removes accessible Google Analytics cookies. See `docs/architecture/google-analytics-architecture.md` for the shared lifecycle and hosted verification checklist.
 
 ## Policy Pages
 

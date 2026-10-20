@@ -226,14 +226,23 @@
   flex-wrap: wrap;
 }
 
-.footer-legal-links a {
+.footer-legal-links a,
+.footer-legal-links button {
+  appearance: none;
+  border: 0;
+  padding: 0;
   color: inherit;
+  background: none;
+  font: inherit;
   text-decoration: none;
+  cursor: pointer;
   transition: color 0.2s ease;
 }
 
 .footer-legal-links a:hover,
-.footer-legal-links a:focus-visible {
+.footer-legal-links a:focus-visible,
+.footer-legal-links button:hover,
+.footer-legal-links button:focus-visible {
   color: color-mix(in srgb, var(--accent-soft) 88%, #f3fff9);
 }
 

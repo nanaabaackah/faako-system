@@ -32,7 +32,7 @@ export default function AnalyticsIsland({ path = "/" }) {
     <MemoryRouter initialEntries={[path]}>
       <GoogleAnalyticsRouteTracker
         measurementId={measurementId}
-        enabled={analyticsAllowed}
+        enabled={enabled}
         consent={{ analytics: analyticsAllowed, marketing: false }}
       />
     </MemoryRouter>

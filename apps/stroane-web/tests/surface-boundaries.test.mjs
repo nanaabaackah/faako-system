@@ -17,6 +17,13 @@ const walk = (directory) =>
 
 const read = (root, path) => readFileSync(join(root, path), "utf8");
 
+test("combined runtime tracks only consented storefront routes", () => {
+  const source = readFileSync(join(appRoot, "src", "App.tsx"), "utf8");
+  assert.match(source, /shouldTrack=\{\(\) => isStorefrontSurface\}/);
+  assert.match(source, /analytics:\s*isStorefrontSurface && analyticsConsent\.analytics/);
+  assert.doesNotMatch(source, /!isStorefrontSurface \|\| analyticsAllowed/);
+});
+
 test("root build keeps the existing Cloudflare deployment operational during cutover", () => {
   assert.equal(existsSync(join(compatibilityRoot, "index.html")), true);
   const rootAssets = readdirSync(join(compatibilityRoot, "assets"));

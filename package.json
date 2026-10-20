@@ -20,6 +20,7 @@
     "dev:starter": "pnpm --filter @faako/system-starter run dev",
     "affected:apps": "node ./scripts/affected-apps.mjs",
     "monitoring:check": "node ./scripts/check-monorepo-app-registry.mjs",
+    "analytics:check-builds": "node ./scripts/check-public-ga-builds.mjs",
     "bundle:reebs": "node ./scripts/report-reebs-bundles.mjs",
     "project-registry:check": "node ./scripts/check-project-registry.mjs",
     "hosting:check": "node ./scripts/check-cloudflare-railway-readiness.mjs",

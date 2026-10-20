@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import {
   initializeGoogleAnalytics,
@@ -33,15 +33,12 @@ export const GoogleAnalyticsRouteTracker = ({
   const analyticsConsent = consent?.analytics ?? true;
   const marketingConsent = consent?.marketing ?? false;
   const consentWaitMs = consent?.waitForUpdateMs;
-  const lastTrackedPage = useRef("");
-
   useEffect(() => {
     if (!trackingAllowed || !analyticsConsent) {
       setGoogleAnalyticsConsent(resolvedMeasurementId, {
         analytics: false,
         marketing: false,
       });
-      lastTrackedPage.current = "";
       return;
     }
 
@@ -57,19 +54,10 @@ export const GoogleAnalyticsRouteTracker = ({
     });
     if (!initialized) return;
 
-    const pageKey = [
-      resolvedMeasurementId,
-      location.pathname,
-      location.search,
-      location.hash,
-    ].join("|");
-    if (lastTrackedPage.current === pageKey) return;
-
-    const tracked = trackGoogleAnalyticsPageView({
+    trackGoogleAnalyticsPageView({
       measurementId: resolvedMeasurementId,
       pagePath: `${location.pathname}${location.search}${location.hash}`,
     });
-    if (tracked) lastTrackedPage.current = pageKey;
   }, [
     analyticsConsent,
     consentWaitMs,

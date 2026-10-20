@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
+  FAAKO_COOKIE_PREFS_OPEN_EVENT,
   readFaakoCookiePreferences,
   saveFaakoCookiePreferences,
 } from "../utils/cookieConsent";
@@ -15,6 +16,16 @@ export default function CookieConsentBanner() {
     const saved = readFaakoCookiePreferences();
     setVisible(!saved);
     setAnalytics(Boolean(saved?.analytics));
+
+    const handleOpenPreferences = () => {
+      const current = readFaakoCookiePreferences();
+      setAnalytics(Boolean(current?.analytics));
+      setExpanded(true);
+      setVisible(true);
+    };
+
+    window.addEventListener(FAAKO_COOKIE_PREFS_OPEN_EVENT, handleOpenPreferences);
+    return () => window.removeEventListener(FAAKO_COOKIE_PREFS_OPEN_EVENT, handleOpenPreferences);
   }, []);
 
   const persist = (nextAnalytics) => {

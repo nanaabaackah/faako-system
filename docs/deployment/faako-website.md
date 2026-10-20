@@ -36,6 +36,8 @@ Production public inputs:
 - `VITE_ERP_DEMO_URL`
 - `VITE_GA_MEASUREMENT_ID`
 
+The measurement ID must belong to Faako Website's own GA4 web stream. Consent is required before the Google tag loads. After deployment, complete the Tag Assistant, route, withdrawal, Do Not Track, CSP, and GA4 receipt checks in `docs/architecture/google-analytics-architecture.md`.
+
 Optional compatibility inputs:
 
 - `VITE_ENABLE_APP_UPDATE_NOTICE`

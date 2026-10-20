@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   readStroaneCookiePreferences,
+  STROANE_COOKIE_PREFS_OPEN_EVENT,
   writeStroaneCookiePreferences,
 } from "../utils/cookieConsent";
 import "./CookieConsentBanner.css";
@@ -17,6 +18,17 @@ const CookieConsentBanner: React.FC = () => {
     setVisible(!saved);
     setAnalytics(Boolean(saved?.analytics));
     setMarketing(Boolean(saved?.marketing));
+
+    const handleOpenPreferences = () => {
+      const current = readStroaneCookiePreferences();
+      setAnalytics(Boolean(current?.analytics));
+      setMarketing(Boolean(current?.marketing));
+      setExpanded(true);
+      setVisible(true);
+    };
+
+    window.addEventListener(STROANE_COOKIE_PREFS_OPEN_EVENT, handleOpenPreferences);
+    return () => window.removeEventListener(STROANE_COOKIE_PREFS_OPEN_EVENT, handleOpenPreferences);
   }, []);
 
   const persist = (next: { analytics: boolean; marketing: boolean }) => {

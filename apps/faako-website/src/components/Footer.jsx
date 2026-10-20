@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { AppBottomBar } from "@faako/ui";
 import FooterLanguagePicker from "./FooterLanguagePicker.jsx";
 import { moduleShowcaseItems } from "../data/modules.js";
+import { openFaakoCookiePreferences } from "../utils/cookieConsent.js";
 
 export default function Footer({ footerLogo }) {
   const featuredModules = moduleShowcaseItems.slice(0, 4);
@@ -71,6 +72,7 @@ export default function Footer({ footerLogo }) {
         <div className="footer-bottom">
           <div className="footer-legal-links">
             <Link to="/privacy">Privacy & Cookie Policy</Link>
+            <button type="button" onClick={openFaakoCookiePreferences}>Cookie settings</button>
             <Link to="/terms">Terms of Service</Link>
           </div>
         </div>

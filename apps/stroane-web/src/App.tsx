@@ -4,7 +4,7 @@ import { BrowserRouter as Router, useLocation } from "react-router-dom";
 import { AnimatedLoadingState, AppUpdateNotice, GoogleAnalyticsRouteTracker } from "@faako/ui";
 import { resolveAppSurface } from "./config/appSurface";
 import {
-  hasStroaneAnalyticsConsent,
+  readStroaneCookiePreferences,
   STROANE_COOKIE_PREFS_EVENT,
   type StroaneCookiePreferences,
 } from "./frontend/utils/cookieConsent";
@@ -47,13 +47,19 @@ const StroaneUpdateNotice: React.FC = () => {
 const StroaneAnalyticsTracker: React.FC = () => {
   const location = useLocation();
   const surface = resolveAppSurface();
-  const [analyticsAllowed, setAnalyticsAllowed] = useState(hasStroaneAnalyticsConsent);
+  const [analyticsConsent, setAnalyticsConsent] = useState(() => {
+    const saved = readStroaneCookiePreferences();
+    return { analytics: Boolean(saved?.analytics), marketing: Boolean(saved?.marketing) };
+  });
   const isStorefrontSurface = surface === "storefront" || (surface === "combined" && !isPortalPath(location.pathname));
 
   useEffect(() => {
     const handlePreferences = (event: Event) => {
       const detail = (event as CustomEvent<StroaneCookiePreferences>).detail;
-      setAnalyticsAllowed(Boolean(detail?.analytics));
+      setAnalyticsConsent({
+        analytics: Boolean(detail?.analytics),
+        marketing: Boolean(detail?.marketing),
+      });
     };
 
     window.addEventListener(STROANE_COOKIE_PREFS_EVENT, handlePreferences);
@@ -64,7 +70,11 @@ const StroaneAnalyticsTracker: React.FC = () => {
     <GoogleAnalyticsRouteTracker
       measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
       enabled={GOOGLE_ANALYTICS_ENABLED}
-      shouldTrack={() => !isStorefrontSurface || analyticsAllowed}
+      consent={{
+        analytics: isStorefrontSurface && analyticsConsent.analytics,
+        marketing: isStorefrontSurface && analyticsConsent.marketing,
+      }}
+      shouldTrack={() => isStorefrontSurface}
     />
   );
 };

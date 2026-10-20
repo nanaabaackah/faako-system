@@ -122,7 +122,8 @@ function AppLayout() {
     <div className="app-layer">
       <GoogleAnalyticsRouteTracker
         measurementId={GOOGLE_ANALYTICS_MEASUREMENT_ID}
-        enabled={GOOGLE_ANALYTICS_ENABLED && analyticsAllowed}
+        enabled={GOOGLE_ANALYTICS_ENABLED}
+        consent={{ analytics: analyticsAllowed, marketing: false }}
       />
       <AppUpdateNotice
         appName="By Nana"

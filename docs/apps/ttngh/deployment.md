@@ -103,6 +103,8 @@ Use the monorepo root and `services/ttngh-api/railway.json`, not a standalone se
 | Railway | TURNSTILE_SECRET_KEY, RESEND_API_KEY, SANITY_WEBHOOK_SECRET, CLOUDFLARE_BUILD_HOOK_URL | Secrets |
 | Railway | TTNGH_MAIL_FROM, TTNGH_ENQUIRY_TO, TTNGH_ACKNOWLEDGEMENT_APPROVED, SANITY_PROJECT_ID, SANITY_DATASET | Approved operational configuration |
 
+GA4 uses the shared lifecycle documented in `docs/architecture/google-analytics-architecture.md`. The local mocked browser check does not replace a post-deployment Tag Assistant and GA4 Realtime/DebugView receipt check.
+
 ## Rollback
 
 Retain the last verified Cloudflare deployment. A failed build must not replace it. Roll back the site deployment and Railway service revision independently. Disable the enquiry flag during delivery incidents, rebuild without form configuration if necessary, and keep verified direct contact details visible. For incorrect/withdrawn content, unpublish and rebuild; a code rollback alone does not retract CMS content. Do not restore withdrawn consent by reimporting old data.

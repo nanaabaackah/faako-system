@@ -26,6 +26,8 @@ Optional build inputs:
 - `VITE_ENABLE_GA_IN_DEV`
 - `VITE_ENABLE_APP_UPDATE_NOTICE`
 
+`VITE_GA_MEASUREMENT_ID` must be the portfolio's own GA4 web-stream ID. Leave it blank when analytics is not approved. The tag loads only after analytics consent; use the shared verification checklist in `docs/architecture/google-analytics-architecture.md` after deployment.
+
 Audit-only/local names:
 
 - `PORTFOLIO_AUDIT_URL`
