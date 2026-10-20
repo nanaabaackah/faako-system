@@ -13,7 +13,7 @@ const configuredId = envText
   ?.split("=")
   .slice(1)
   .join("=")
-  .replace(/^['\"]|['\"]$/g, "")
+  .replace(/^['"]|['"]$/g, "")
   .trim();
 const measurementId = process.env.STROANE_QA_GA_ID || configuredId;
 if (!measurementId) throw Error("Stroane GA4 measurement ID is not configured");
