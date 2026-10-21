@@ -157,3 +157,16 @@ test("generated documents have no unresolved placeholder links or missing local 
     }
   });
 });
+
+test("analytics uses the shared consent contract", () => {
+  const source = readFileSync(
+    join(appRoot, "src", "components", "islands", "AnalyticsIsland.jsx"),
+    "utf8",
+  );
+  assert.match(source, /enabled=\{enabled\}/);
+  assert.match(source, /consent=\{\{ analytics: analyticsAllowed, marketing: false \}\}/);
+  assert.doesNotMatch(source, /!analyticsAllowed\) return null/);
+  assert.doesNotMatch(source, /analyticsStorage/);
+  const config = readFileSync(join(appRoot, "astro.config.mjs"), "utf8");
+  assert.match(config, /envPrefix:\s*\["PUBLIC_", "VITE_"\]/);
+});

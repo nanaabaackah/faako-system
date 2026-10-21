@@ -19,6 +19,7 @@ import {
   loadExpiringDraft,
   saveExpiringDraft,
 } from '@faako/utils';
+import { openReebsCookiePreferences } from '../../utils/analytics';
 
 const MENU_LINKS = [
   { to: '/', label: 'Home' },
@@ -160,6 +161,9 @@ function Footer() {
                   {link.label}
                 </Link>
               ))}
+              <button type="button" className="footer-link" onClick={openReebsCookiePreferences}>
+                Cookie settings
+              </button>
             </nav>
 
             <div className="footer-column" aria-label="Social links">

@@ -26,14 +26,14 @@ export default function AnalyticsIsland({ path = "/" }) {
       window.removeEventListener(FAAKO_COOKIE_PREFS_EVENT, handlePreferences);
   }, []);
 
-  if (!measurementId || !enabled || !analyticsAllowed) return null;
+  if (!measurementId || !enabled) return null;
 
   return (
     <MemoryRouter initialEntries={[path]}>
       <GoogleAnalyticsRouteTracker
         measurementId={measurementId}
-        enabled
-        consent={{ analyticsStorage: "granted" }}
+        enabled={enabled}
+        consent={{ analytics: analyticsAllowed, marketing: false }}
       />
     </MemoryRouter>
   );

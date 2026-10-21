@@ -246,6 +246,13 @@
 }
 
 .footer-link {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
   color: rgba(var(--white-rgb), 0.94);
   text-decoration: none;
   font-size: 0.96rem;

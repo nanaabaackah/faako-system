@@ -48,6 +48,8 @@ Explicit catalogue-refresh configuration:
 
 `APP_ENV` remains in the existing example file for compatibility but is not an Astro public build input. Payment-provider credentials are not public-site variables.
 
+`VITE_GA_MEASUREMENT_ID` must identify REEBS Website's own GA4 stream. Do not reuse the REEBS Portal or TTNGH stream. Analytics is opt-in and must pass the hosted checklist in `docs/architecture/google-analytics-architecture.md` before being marked verified.
+
 ## Catalogue refresh
 
 Ordinary local and CI builds are offline and deterministic. Refresh public catalogue content only when inventory publication changes are ready for review:

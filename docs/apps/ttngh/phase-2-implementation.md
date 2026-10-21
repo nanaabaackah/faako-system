@@ -1,5 +1,11 @@
 # TTNGH Phase 2 implementation handover
 
+> Historical record. Status reconciled 19 October 2026: use the
+> [18 October production evidence](production-status-2026-10-18.md) for current
+> service readiness. Branch/worktree, deployment, image-placement, typography and
+> provider-status statements below describe their original milestone, not current
+> operations. The later editorial refresh supersedes earlier visual treatments.
+
 13 October 2026 · `feat/ttngh-phase-1-refresh` · `/private/tmp/faako-ttngh-phase1`
 
 ## Status

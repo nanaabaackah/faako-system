@@ -2,11 +2,11 @@
 
 This is a release checklist, not a statement that the foundation is already production-ready.
 
-## Phase 2 activation gate — 13 October 2026
+## Operational acceptance gate — updated 19 October 2026
 
-- [ ] Organisation-owned Sanity project/private dataset, Studio URL and named administrators/editors; invite, sign-in, create-account and recovery tested; MFA confirmed.
+- [ ] Confirm organisation ownership and approved PUBLIC dataset policy; named administrators/editors; invitations, sign-in, recovery and MFA verified. Studio is reachable, not yet operationally signed off.
 - [ ] Approved content migrated; reviewer/source/consent metadata checked. No synthetic QA records published.
-- [ ] Cloudflare preview configured noindex; read-only CMS build token; signed publish/update/unpublish hook proved end-to-end; failed build retains last verified deployment.
+- [ ] Cloudflare alias/preview indexing verified; read-only build token only where required by dataset access; signed publish/update/unpublish hook proved end-to-end; failed build retains last verified deployment.
 - [ ] Railway API configured, one replica, real proxy chain tested for non-spoofable per-client rate limiting, no-cache responses and health monitoring.
 - [ ] Turnstile site/secret keys and exact hostname/action checks tested on staging, including expiry and replay.
 - [ ] Incoming aliases, approved Gmail recipient, transactional sender and SPF/DKIM/DMARC verified together; no Email Routing records overwritten.
@@ -14,7 +14,11 @@ This is a release checklist, not a statement that the foundation is already prod
 - [ ] Named inbox retention/deletion/safeguarding owner, content approver, event and calendar owners recorded.
 - [ ] Real-device Safari and assistive-technology review completed after local Chromium checks.
 
-Provider configuration is not yet created (client confirmed). These unchecked items prevent calling Phase 2 operational or the website launch-ready. Paystack and final production work are separate; do not merge on the strength of local mocks.
+The [18 October audit](production-status-2026-10-18.md) verified live hosting, API
+health, public CMS reads, Studio and production indexing. Unchecked items above
+remain acceptance gaps, not evidence those providers do not exist. Informational
+launch is READY WITH CONDITIONS; Paystack and Drive → R2 are post-launch work.
+No confirmed P0 defect was found. Do not equate mocked tests with live delivery.
 
 ## Content, SEO, and AEO
 

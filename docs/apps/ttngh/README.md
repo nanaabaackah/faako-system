@@ -2,16 +2,20 @@
 
 ## Current milestone
 
-Final production-readiness work has started; see the [implementation plan and launch blockers](production-readiness-plan.md). Sanity identifiers are supplied but its connection is not yet verified. Dedicated PostgreSQL and GH₵1 minimum/no fundraising maximum are approved. The [payment foundation](payments-architecture.md) is implemented and tested; endpoint, frontend and receipt-worker integration remain pending.
+18 October 2026: the public website, Railway health endpoint and Sanity Studio are
+reachable. Published-content reads/builds work against a PUBLIC Sanity dataset.
+The informational-launch recommendation is **READY WITH CONDITIONS**, not full
+provider sign-off. See the [dated production evidence and remaining gaps](production-status-2026-10-18.md).
 
-13 October 2026: Phase 2 code and local verification are covered in the [implementation report](phase-2-implementation.md).
-The client confirms provider accounts are not yet configured. Follow [deployment](deployment.md),
-[content operations](content-operations.md) and [email operations](email-operations.md) for activation.
-Do not treat historical Phase 1/event-only reports as the current operational status.
+Contact delivery, CMS publish/withdrawal rebuilds, private provider settings and
+operational ownership remain unverified. The optional Calendar requires sign-in;
+team/event publication filters currently return no records. Follow [deployment](deployment.md),
+[content operations](content-operations.md) and [email operations](email-operations.md).
+Historical Phase 1/2 reports are not the current operational status.
 
-Cloudflare is not configured yet. See [deployment status and CI policy](./deployment.md)
-for the explicit hosting deferral and the checks that still apply to the existing
-Astro implementation.
+Dedicated PostgreSQL and GH₵1 minimum/no fundraising maximum are approved. The
+[payment foundation](payments-architecture.md) is implemented/tested but checkout,
+database runtime and receipt-worker integration remain post-launch work.
 
 Phase 1 refresh: static Astro public pages, an editorial white/black/pink visual system,
 reviewed Drive photography, signature Scroll Expand CTAs and the retained pink footer.
@@ -26,9 +30,11 @@ The monthly authoring model is documented in [content-operations.md](./content-o
 
 - Donation collection or payment-provider network calls
 - Contact or volunteer submission persistence
-- Live email/CMS activation (local adapters, Studio and tests now implemented)
+- Payment activation and Drive → R2 automation are post-launch work
 - SMS, receipts and CRM integration
-- Production deployment (the approved canonical domain is thethrivingnetworkgh.org)
+
+Production is already accessible at the approved canonical domain. Live email/CMS
+workflow verification is required follow-up, not a claim that those services do not exist.
 
 ## Delivery strategy
 

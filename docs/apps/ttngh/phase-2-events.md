@@ -1,5 +1,11 @@
 # Phase 2: event delivery foundation
 
+> Historical record. Status reconciled 19 October 2026: use the
+> [18 October production evidence](production-status-2026-10-18.md) for current
+> service readiness. Branch/worktree, deployment, image-placement, typography and
+> provider-status statements below describe their original milestone, not current
+> operations. The later editorial refresh supersedes earlier visual treatments.
+
 Status: local implementation, not deployed; continuation of `feat/ttngh-phase-1-refresh`.
 
 Historical event-only milestone. The remaining CMS/form/email items below are superseded by the

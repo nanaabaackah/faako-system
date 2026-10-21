@@ -49,6 +49,8 @@ Names only:
 
 No Paystack secret, database URL, email key, auth secret, or webhook secret belongs in this deployment.
 
+Configure `VITE_GA_MEASUREMENT_ID` only on the public storefront project, using Stroane's own GA4 stream. The `build:admin` artifact intentionally receives no Google bootstrap or Google CSP allowance. Verify storefront consent, SPA route changes, withdrawal, Do Not Track, deployed CSP and GA4 receipt using `docs/architecture/google-analytics-architecture.md`.
+
 ## Routing and API
 
 - Static route shells exist for public/product/transactional routes.

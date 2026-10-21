@@ -121,15 +121,23 @@
   gap: 0.6rem;
 }
 
-.footer__col-links a {
+.footer__col-links a,
+.footer__col-links button {
+  appearance: none;
+  border: 0;
+  padding: 0;
   color: var(--footer-text);
+  background: none;
   text-decoration: none;
   font-size: var(--font-size-sm);
   font-family: var(--font-family);
+  text-align: left;
+  cursor: pointer;
   transition: color 0.15s;
 }
 
-.footer__col-links a:hover {
+.footer__col-links a:hover,
+.footer__col-links button:hover {
   color: var(--color-text-inverse);
 }
 

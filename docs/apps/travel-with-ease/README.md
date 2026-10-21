@@ -19,3 +19,5 @@
 - [Progress/change log](./progress-log.md) — dated work and actual verification results.
 
 Current verified status: local foundation; no verified staging/production deployment. Production startup remains blocked pending reviewed persistence/authentication. Use [Prompt 03 handoff](./implementation-plan.md#prompt-03-handoff-scope) for the next authorized implementation task.
+
+The public website has the shared consent-controlled GA4 integration, but no local `PUBLIC_GA_MEASUREMENT_ID` is configured and no production analytics receipt is verified. Create a Travel With Ease-specific GA4 web stream only when the public deployment is approved, configure that public ID in the hosting environment, and complete `docs/architecture/google-analytics-architecture.md`'s hosted verification checklist. Do not reuse another Faako site's measurement ID.

@@ -17,6 +17,18 @@ export type TrackGoogleAnalyticsPageViewOptions = {
   pageTitle?: string;
   pageLocation?: string;
   pagePath?: string;
+  deduplicate?: boolean;
+};
+
+export type GoogleAnalyticsDiagnostics = {
+  configured: boolean;
+  collectionEnabled: boolean;
+  consentDefaulted: boolean;
+  doNotTrack: boolean;
+  initialized: boolean;
+  lastAction: string;
+  lastPagePath: string;
+  scriptPresent: boolean;
 };
 
 type GoogleAnalyticsWindow = Window & Record<string, unknown> & {
@@ -25,6 +37,8 @@ type GoogleAnalyticsWindow = Window & Record<string, unknown> & {
   __faakoGoogleAnalyticsBootstrapped?: boolean;
   __faakoGoogleAnalyticsConsentDefaulted?: boolean;
   __faakoGoogleAnalyticsInitializedIds?: string[];
+  __faakoGoogleAnalyticsLastPagePaths?: Record<string, string>;
+  __faakoGoogleAnalyticsDiagnostics?: Record<string, GoogleAnalyticsDiagnostics>;
 };
 
 const SCRIPT_ID_PREFIX = "faako-google-analytics";
@@ -80,6 +94,11 @@ const getInitializedIds = (analyticsWindow: GoogleAnalyticsWindow) => {
   return analyticsWindow.__faakoGoogleAnalyticsInitializedIds;
 };
 
+const getLastPagePaths = (analyticsWindow: GoogleAnalyticsWindow) => {
+  analyticsWindow.__faakoGoogleAnalyticsLastPagePaths ||= {};
+  return analyticsWindow.__faakoGoogleAnalyticsLastPagePaths;
+};
+
 const ensureGtag = (analyticsWindow: GoogleAnalyticsWindow) => {
   analyticsWindow.dataLayer = analyticsWindow.dataLayer || [];
 
@@ -113,12 +132,79 @@ const hasGoogleAnalyticsScript = (
   });
 };
 
+const updateDiagnostics = (measurementId: string, lastAction: string) => {
+  const analyticsWindow = getAnalyticsWindow();
+  const analyticsDocument = getAnalyticsDocument();
+  if (!analyticsWindow || !measurementId) return;
+
+  const scriptId = `${SCRIPT_ID_PREFIX}-${measurementId.replace(/[^a-z0-9_-]/gi, "-")}`;
+  const initialized = Boolean(
+    analyticsWindow.__faakoGoogleAnalyticsInitializedIds?.includes(measurementId)
+  );
+  analyticsWindow.__faakoGoogleAnalyticsDiagnostics ||= {};
+  analyticsWindow.__faakoGoogleAnalyticsDiagnostics[measurementId] = {
+    configured: true,
+    collectionEnabled: initialized && analyticsWindow[getDisabledKey(measurementId)] === false,
+    consentDefaulted: Boolean(analyticsWindow.__faakoGoogleAnalyticsConsentDefaulted),
+    doNotTrack: isDoNotTrackEnabled(),
+    initialized,
+    lastAction,
+    lastPagePath: analyticsWindow.__faakoGoogleAnalyticsLastPagePaths?.[measurementId] || "",
+    scriptPresent: Boolean(
+      analyticsDocument
+      && hasGoogleAnalyticsScript(analyticsDocument, scriptId, measurementId)
+    ),
+  };
+};
+
 export const resolveGoogleAnalyticsMeasurementId = (...values: unknown[]) => {
   const measurementId = values
     .map((value) => String(value || "").trim())
     .find(Boolean);
 
   return measurementId || "";
+};
+
+export const getGoogleAnalyticsDiagnostics = (
+  measurementId: string | null | undefined,
+): GoogleAnalyticsDiagnostics => {
+  const analyticsWindow = getAnalyticsWindow();
+  const resolvedMeasurementId = resolveGoogleAnalyticsMeasurementId(measurementId);
+  const empty: GoogleAnalyticsDiagnostics = {
+    configured: Boolean(resolvedMeasurementId),
+    collectionEnabled: false,
+    consentDefaulted: false,
+    doNotTrack: isDoNotTrackEnabled(),
+    initialized: false,
+    lastAction: resolvedMeasurementId ? "not-initialized" : "missing-measurement-id",
+    lastPagePath: "",
+    scriptPresent: false,
+  };
+
+  if (!analyticsWindow || !resolvedMeasurementId) return empty;
+  updateDiagnostics(resolvedMeasurementId, analyticsWindow.__faakoGoogleAnalyticsDiagnostics?.[resolvedMeasurementId]?.lastAction || "not-initialized");
+  return analyticsWindow.__faakoGoogleAnalyticsDiagnostics?.[resolvedMeasurementId] || empty;
+};
+
+export const clearGoogleAnalyticsCookies = () => {
+  const analyticsWindow = getAnalyticsWindow();
+  const analyticsDocument = getAnalyticsDocument();
+  if (!analyticsWindow || !analyticsDocument) return 0;
+
+  const names = String(analyticsDocument.cookie || "")
+    .split(";")
+    .map((entry) => entry.split("=")[0]?.trim())
+    .filter((name): name is string => Boolean(name && /^_ga(?:_|$)/.test(name)));
+  const hostname = analyticsWindow.location.hostname;
+  const domains = ["", hostname, hostname ? `.${hostname}` : ""];
+
+  names.forEach((name) => {
+    domains.forEach((domain) => {
+      analyticsDocument.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax${domain ? `; Domain=${domain}` : ""}`;
+    });
+  });
+
+  return names.length;
 };
 
 export const isGoogleAnalyticsEnabledForEnvironment = (
@@ -153,6 +239,7 @@ export const setGoogleAnalyticsCollectionEnabled = (
   if (!analyticsWindow || !resolvedMeasurementId) return false;
 
   analyticsWindow[getDisabledKey(resolvedMeasurementId)] = !enabled;
+  updateDiagnostics(resolvedMeasurementId, enabled ? "collection-enabled" : "collection-disabled");
   return true;
 };
 
@@ -162,7 +249,7 @@ export const isGoogleAnalyticsCollectionEnabled = (measurementId: string | null 
 
   if (!analyticsWindow || !resolvedMeasurementId) return false;
 
-  return !Boolean(analyticsWindow[getDisabledKey(resolvedMeasurementId)]);
+  return analyticsWindow[getDisabledKey(resolvedMeasurementId)] === false;
 };
 
 export const initializeGoogleAnalytics = ({
@@ -181,8 +268,21 @@ export const initializeGoogleAnalytics = ({
     || !resolvedMeasurementId
     || !analyticsWindow
     || !analyticsDocument
-    || (respectDoNotTrack && isDoNotTrackEnabled())
   ) {
+    return false;
+  }
+
+  if (respectDoNotTrack && isDoNotTrackEnabled()) {
+    setGoogleAnalyticsConsent(resolvedMeasurementId, { analytics: false, marketing: false });
+    updateDiagnostics(resolvedMeasurementId, "blocked-by-do-not-track");
+    return false;
+  }
+
+  if (!consent.analytics) {
+    setGoogleAnalyticsConsent(resolvedMeasurementId, {
+      ...consent,
+      analytics: false,
+    });
     return false;
   }
 
@@ -195,6 +295,7 @@ export const initializeGoogleAnalytics = ({
   if (!analyticsWindow.__faakoGoogleAnalyticsBootstrapped) {
     const consentCommand = analyticsWindow.__faakoGoogleAnalyticsConsentDefaulted ? "update" : "default";
     gtag("consent", consentCommand, consentPayload);
+    analyticsWindow.__faakoGoogleAnalyticsConsentDefaulted = true;
     gtag("js", new Date());
     analyticsWindow.__faakoGoogleAnalyticsBootstrapped = true;
   } else {
@@ -217,6 +318,8 @@ export const initializeGoogleAnalytics = ({
     initializedIds.push(resolvedMeasurementId);
   }
 
+  updateDiagnostics(resolvedMeasurementId, "initialized");
+
   return true;
 };
 
@@ -231,9 +334,18 @@ export const setGoogleAnalyticsConsent = (
 
   setGoogleAnalyticsCollectionEnabled(resolvedMeasurementId, Boolean(consent.analytics));
 
-  if (typeof analyticsWindow.gtag !== "function") return false;
+  if (!consent.analytics) {
+    clearGoogleAnalyticsCookies();
+    delete getLastPagePaths(analyticsWindow)[resolvedMeasurementId];
+  }
+
+  if (typeof analyticsWindow.gtag !== "function") {
+    updateDiagnostics(resolvedMeasurementId, consent.analytics ? "consent-granted-pending-initialization" : "consent-denied");
+    return true;
+  }
 
   analyticsWindow.gtag("consent", "update", getConsentPayload(consent));
+  updateDiagnostics(resolvedMeasurementId, consent.analytics ? "consent-granted" : "consent-denied");
   return true;
 };
 
@@ -242,6 +354,7 @@ export const trackGoogleAnalyticsPageView = ({
   pageTitle,
   pageLocation,
   pagePath,
+  deduplicate = true,
 }: TrackGoogleAnalyticsPageViewOptions = {}) => {
   const analyticsWindow = getAnalyticsWindow();
   const analyticsDocument = getAnalyticsDocument();
@@ -266,6 +379,12 @@ export const trackGoogleAnalyticsPageView = ({
     pagePath || safePage.path,
     analyticsWindow.location.origin,
   ).path;
+  const lastPagePaths = getLastPagePaths(analyticsWindow);
+
+  if (deduplicate && lastPagePaths[resolvedMeasurementId] === safePath) {
+    updateDiagnostics(resolvedMeasurementId, "duplicate-page-view-blocked");
+    return false;
+  }
 
   analyticsWindow.gtag("event", "page_view", {
     send_to: resolvedMeasurementId,
@@ -275,6 +394,8 @@ export const trackGoogleAnalyticsPageView = ({
     page_location: safePage.location,
     page_path: safePath,
   });
+  lastPagePaths[resolvedMeasurementId] = safePath;
+  updateDiagnostics(resolvedMeasurementId, "page-view-sent");
 
   return true;
 };

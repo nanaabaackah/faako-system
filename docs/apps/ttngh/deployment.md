@@ -1,11 +1,12 @@
 # TTNGH deployment and activation
 
-Updated 17 October 2026. TTNGH implementation is in the main `faako-system`
+Updated 18 October 2026. TTNGH implementation is in the main `faako-system`
 checkout, under `apps/ttngh` and `services/ttngh-api`; do not use the old temporary
 worktree. The client supplied Sanity project `d5k303l7`, dataset `production`.
-Studio deployment, approved CMS content, Railway, Turnstile and verified email
-delivery still require environment-specific confirmation. The editorial refresh
-has not been deployed; the latest instruction is local checks only.
+The website, Railway health endpoint and Studio are live; the dataset is PUBLIC.
+The [dated audit](production-status-2026-10-18.md) separates verified behavior from
+unverified roles, secrets, contact delivery and publishing hooks. Exact deployed
+commit metadata is still required. Updating this runbook does not authorise deployment.
 
 See [staging/production variables](environment-staging-production.md) for the
 complete configuration matrix and disabled-feature prerequisites.
@@ -40,16 +41,20 @@ Use repository root as build root; build `pnpm --filter @faako/ttngh build`; out
 
 Static `_headers` and `_redirects` ship with the build. There is a real 404 fallback, not an SPA rewrite. The build adds only the configured exact HTTPS Railway origin to CSP connect-src. Verify actual deployed response headers: local Astro preview does not emulate Cloudflare headers.
 
-The existing `scripts/hosting-policy.mjs` TTNGH hosting deferral must be removed, with its regression test updated, only when Cloudflare configuration is complete. Do not disable unrelated hosting checks.
+The existing `scripts/hosting-policy.mjs` TTNGH deferral now has a stale rationale:
+Cloudflare is live. Review and remove that exemption with its regression test in
+a separate code change; no CI policy is changed by this documentation update.
+Production currently allows indexing; the pages.dev alias also does. Verify
+host-specific alias/preview controls, not only build-time environment defaults.
 
 ## Sanity and editor activation
 
-1. Organisation administrator creates/owns the project and a private dataset, then records named owners.
+1. Confirm organisation ownership and named owners for the existing project. The production dataset is PUBLIC; explicitly approve that policy and public-safe published fields. Do not assume a private dataset or change visibility without a reviewed decision.
 2. Configure Studio identifiers and deploy the Studio separately using the approved Sanity account. Add only exact approved Studio/local development origins in Sanity CORS; do not permit wildcard credentialed origins.
 3. Invite named editors with least privilege supported by the selected plan. Verify authentication-provider MFA, account recovery and a second organisational administrator. No shared passwords.
 4. Set public Studio URL on the website. `/cms` is a minimal gateway linking to Studio. Sanity handles sign-in, account creation and recovery; signing up does not grant project membership.
 5. Import and review the approved source content before activation. Do not point production at an empty dataset: CMS mode intentionally does not fall back to removed team members, partners or statistics.
-6. Add a read-only build token to Cloudflare secrets, not browser variables. Set `TTNGH_CMS_REQUIRED=true`. Missing configuration, invalid publication data or provider failures stop the build.
+6. Use a read-only server-side build token if the chosen dataset access policy requires authentication; the audited public dataset supports unauthenticated reads. Never put a token in browser variables. Set `TTNGH_CMS_REQUIRED=true`; its actual production setting remains unverified. Missing configuration, invalid publication data or provider failures stop the build.
 7. Configure the signed publish hook below and prove publish/update/unpublish on staging.
 
 ## Signed publish hook
@@ -98,8 +103,10 @@ Use the monorepo root and `services/ttngh-api/railway.json`, not a standalone se
 | Railway | TURNSTILE_SECRET_KEY, RESEND_API_KEY, SANITY_WEBHOOK_SECRET, CLOUDFLARE_BUILD_HOOK_URL | Secrets |
 | Railway | TTNGH_MAIL_FROM, TTNGH_ENQUIRY_TO, TTNGH_ACKNOWLEDGEMENT_APPROVED, SANITY_PROJECT_ID, SANITY_DATASET | Approved operational configuration |
 
+GA4 uses the shared lifecycle documented in `docs/architecture/google-analytics-architecture.md`. The local mocked browser check does not replace a post-deployment Tag Assistant and GA4 Realtime/DebugView receipt check.
+
 ## Rollback
 
 Retain the last verified Cloudflare deployment. A failed build must not replace it. Roll back the site deployment and Railway service revision independently. Disable the enquiry flag during delivery incidents, rebuild without form configuration if necessary, and keep verified direct contact details visible. For incorrect/withdrawn content, unpublish and rebuild; a code rollback alone does not retract CMS content. Do not restore withdrawn consent by reimporting old data.
 
-Export the private Sanity dataset/assets to approved encrypted storage before migrations; restrict export access and rehearse restore into a separate dataset. Named owner, schedule and retention require client approval. Rotate provider tokens and publish secrets through their provider consoles and secret stores; never put them in this document.
+Export the Sanity dataset/assets to approved encrypted storage before migrations; restrict export access and rehearse restore into a separate dataset. Public dataset visibility is not a substitute for backup access controls. Named owner, schedule and retention require client approval. Rotate provider tokens and publish secrets through their provider consoles and secret stores; never put them in this document.

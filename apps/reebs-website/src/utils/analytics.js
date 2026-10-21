@@ -7,6 +7,7 @@ import {
 } from "@faako/utils";
 
 export const REEBS_ANALYTICS_PREFS_STORAGE_KEY = "reebsCookiePrefs";
+export const REEBS_COOKIE_PREFS_OPEN_EVENT = "reebs-cookie-preferences-open";
 export const GOOGLE_ANALYTICS_MEASUREMENT_ID = resolveGoogleAnalyticsMeasurementId(
   import.meta.env.VITE_GA_MEASUREMENT_ID,
   import.meta.env.VITE_GA_ID,
@@ -17,20 +18,30 @@ export const GOOGLE_ANALYTICS_ENABLED = isGoogleAnalyticsEnabledForEnvironment(
 );
 
 export const readReebsAnalyticsPrefs = () => {
-  if (typeof localStorage === "undefined") return false;
+  if (typeof localStorage === "undefined") return null;
 
   try {
     const savedPrefs = localStorage.getItem(REEBS_ANALYTICS_PREFS_STORAGE_KEY);
-    if (!savedPrefs) return false;
+    if (!savedPrefs) return null;
     const parsed = JSON.parse(savedPrefs);
+    if (
+      parsed?.necessary !== true
+      || typeof parsed.analytics !== "boolean"
+      || typeof parsed.marketing !== "boolean"
+    ) return null;
     return {
+      necessary: true,
       analytics: Boolean(parsed?.analytics),
       marketing: Boolean(parsed?.marketing),
     };
   } catch (error) {
     console.warn("Unable to read analytics preferences", error);
-    return false;
+    return null;
   }
+};
+
+export const openReebsCookiePreferences = () => {
+  window.dispatchEvent(new CustomEvent(REEBS_COOKIE_PREFS_OPEN_EVENT));
 };
 
 export const hasReebsAnalyticsConsent = () => Boolean(readReebsAnalyticsPrefs()?.analytics);

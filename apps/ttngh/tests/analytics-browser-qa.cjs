@@ -49,14 +49,21 @@ if (!['localhost', '127.0.0.1'].includes(new URL(base).hostname)) throw Error('L
         assert.equal(consent[2].ad_storage, 'denied');
         await page.evaluate(() => document.dispatchEvent(new CustomEvent('ttngh:consent-changed', { detail: { analytics: true } })));
         assert.equal(await page.evaluate(() => window.dataLayer.filter(item => item[0] === 'event').length), 1);
+        await page.evaluate(() => { document.cookie = '_ga_QATEST=temporary; Path=/; SameSite=Lax'; });
         await page.locator('[data-cookie-settings]').click();
         await page.getByRole('button', { name: 'Essential only', exact: true }).click();
         assert.equal(await page.evaluate(id => window['ga-disable-' + id], id), true);
+        assert.equal(await page.evaluate(() => document.cookie.includes('_ga_QATEST=')), false);
+        await page.locator('[data-cookie-settings]').click();
+        await page.getByRole('button', { name: 'Allow analytics', exact: true }).click();
+        assert.equal(await page.evaluate(() => window.dataLayer.filter(item => item[0] === 'event').length), 2);
+        await page.locator('[data-cookie-settings]').click();
+        await page.getByRole('button', { name: 'Essential only', exact: true }).click();
         await page.reload();
         assert.equal(await page.locator('script[src*="googletagmanager.com"]').count(), 0);
       }
       await context.close();
     }
-    console.log('PASS: correct GA ID, opt-in only, one page view, sanitized URL, advertising denied, withdrawal, persisted refusal and Do Not Track. Google requests mocked.');
+    console.log('PASS: correct GA ID, opt-in only, deduplication, sanitized URL, advertising denied, cookie cleanup, withdrawal/regrant, persisted refusal and Do Not Track. Google requests mocked.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

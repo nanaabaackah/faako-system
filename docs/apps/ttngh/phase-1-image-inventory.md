@@ -1,5 +1,11 @@
 # TTNGH image review and usage inventory
 
+> Historical record. Status reconciled 19 October 2026: use the
+> [18 October production evidence](production-status-2026-10-18.md) for current
+> service readiness. Branch/worktree, deployment, image-placement, typography and
+> provider-status statements below describe their original milestone, not current
+> operations. The later editorial refresh supersedes earlier visual treatments.
+
 Reviewed: 2026-10-12. Source: [approved Drive library](https://drive.google.com/drive/folders/1ifwYbrAS88Q3DrYps1xMpMbkLn3QTa51).
 
 The client explicitly confirmed website-publication consent for the library, including identifiable people and minors, in this implementation conversation. This is the approval basis; the code does not infer consent from a public sharing link. Keep the client's consent records and withdrawal process outside the public repository.
