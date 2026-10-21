@@ -1,6 +1,9 @@
 import { emailSchema } from "@faako/validation";
+import { calendarUrl } from "./calendar/service.js";
 
 export function loadConfig(env) {
+  const calendarId = env.TTNGH_GOOGLE_CALENDAR_ID?.trim() || "";
+  if (calendarId) calendarUrl(calendarId);
   const list = name => (env[name] || "").split(",").map(value => value.trim()).filter(Boolean);
   const origins = list("TTNGH_ALLOWED_ORIGINS");
   if (!origins.length || origins.some(value => {
@@ -18,7 +21,7 @@ export function loadConfig(env) {
     if (url.protocol !== "https:" || url.hostname !== "api.cloudflare.com" || !url.pathname.startsWith("/client/v4/pages/webhooks/deploy_hooks/") || url.username || url.password) throw new Error("Invalid Cloudflare build hook URL");
     buildHook = url.href;
   }
-  return { origins, enabled, secret, hostnames, resendKey: env.RESEND_API_KEY, from: env.TTNGH_MAIL_FROM, to: env.TTNGH_ENQUIRY_TO,
+  return { calendarId, origins, enabled, secret, hostnames, resendKey: env.RESEND_API_KEY, from: env.TTNGH_MAIL_FROM, to: env.TTNGH_ENQUIRY_TO,
     acknowledgement: env.TTNGH_ACKNOWLEDGEMENT_APPROVED === "true", webhookSecret: env.SANITY_WEBHOOK_SECRET || "", buildHook,
     project: env.SANITY_PROJECT_ID, dataset: env.SANITY_DATASET,
     // Default: no proxy trust. Set explicit proxy addresses/subnets only after verifying Railway topology.

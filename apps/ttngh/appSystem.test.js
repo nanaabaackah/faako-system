@@ -27,17 +27,15 @@ test("TTNGH config preserves the site's existing shared theme mappings", () => {
   assert.ok(layout.includes(`data-faako-theme="${appSystem.theme.presetId}"`));
 });
 
-test("TTNGH public calendar integration stays consent-gated and secret-free", () => {
+test("TTNGH calendar uses its API without a provider embed", () => {
   const calendar = readFileSync(new URL("./src/components/EventCalendar.astro", import.meta.url), "utf8");
   const envExample = readFileSync(new URL("./.env.example", import.meta.url), "utf8");
   const headers = readFileSync(new URL("./public/_headers", import.meta.url), "utf8");
   const privacy = readFileSync(new URL("./src/pages/privacy.astro", import.meta.url), "utf8");
 
-  assert.match(calendar, /PUBLIC_TTNGH_GOOGLE_CALENDAR_ID/);
-  assert.match(calendar, /data-calendar-load/);
-  assert.match(calendar, /data-src=\{calendarUrl\}/);
-  assert.doesNotMatch(calendar, /CLIENT_SECRET|SERVICE_ACCOUNT|PRIVATE_KEY/);
-  assert.match(envExample, /PUBLIC_TTNGH_GOOGLE_CALENDAR_ID=/);
-  assert.match(headers, /frame-src https:\/\/calendar\.google\.com/);
-  assert.match(privacy, /loads only after you choose “View full Google calendar”/);
+  assert.match(calendar, /<MonthCalendar/);
+  assert.doesNotMatch(calendar, /iframe|data-calendar-load|calendarUrl/);
+  assert.doesNotMatch(envExample, /PUBLIC_TTNGH_GOOGLE_CALENDAR_ID=/);
+  assert.doesNotMatch(headers, /frame-src[^;]*calendar.google.com/);
+  assert.match(privacy, /Google receives feed requests from TTNGH/);
 });

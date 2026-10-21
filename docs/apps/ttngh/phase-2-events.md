@@ -5,6 +5,8 @@ Status: local implementation, not deployed; continuation of `feat/ttngh-phase-1-
 Historical event-only milestone. The remaining CMS/form/email items below are superseded by the
 [13 October Phase 2 implementation report](phase-2-implementation.md); live provider activation is still pending.
 
+Calendar behaviour below is historical. The [20 October live-calendar extension](calendar-data-source.md) supersedes the static Sanity month grid and opt-in Google iframe, but preserves the editorial event features.
+
 ## Implemented
 
 - Build-only Sanity HTTP reader with an explicit published perspective, draft/release exclusion,
