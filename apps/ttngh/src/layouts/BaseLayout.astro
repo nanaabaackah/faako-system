@@ -6,6 +6,7 @@ import "../styles/components/base.css";
 import "../styles/components/shared.css";
 import "../styles/components/editorial.css";
 import "../styles/components/interactions.css";
+import "../styles/components/motion.css";
 import { organization } from "../content/home.js";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
@@ -145,5 +146,6 @@ const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION |
     <SiteSearch />
     <CookieNotice />
     <AnalyticsConsent />
+    <script>import "../scripts/editorial-motion";</script>
   </body>
 </html>

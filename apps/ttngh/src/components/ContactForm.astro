@@ -21,7 +21,7 @@ if (apiOrigin) {
   <label class="contact-form-consent contact-form-wide"><input name="consent" type="checkbox" required /><span>I have read the <a href="/privacy">privacy notice</a> and agree to my details being used to respond to this enquiry.</span></label>
  </fieldset>
  {enabled&&<div class="contact-form-verification"><p>The security check connects to Cloudflare to help prevent spam.</p><button type="button" class="text-link" data-load-verification>Load security check</button><div data-turnstile></div></div>}
- <div class="contact-form-submit"><button class="button button-primary" type="submit" disabled><span class="button-label">Send enquiry</span><span class="button-icon" aria-hidden="true"><Icon name="arrow-right" focusable="false" /></span></button><p class="contact-form-status" data-form-status role="status" aria-live="polite" tabindex="-1"></p></div>
+ <div class="contact-form-submit"><button class="button button-primary" type="submit" data-async-state="idle" aria-busy="false" disabled><span class="button-label"><span data-async-label>Send enquiry</span></span><span class="button-icon" aria-hidden="true"><span data-async-default><Icon name="arrow-right" /></span><span class="async-spinner" data-async-working></span><span data-async-success><Icon name="check" /></span></span></button><p class="contact-form-status" data-form-status role="status" aria-live="polite" tabindex="-1"></p></div>
  <noscript><p>Online submission needs JavaScript for the security check. You can email <a href={`mailto:${organization.email}`}>{organization.email}</a> instead.</p></noscript>
 </form>
 <script>

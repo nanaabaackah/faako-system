@@ -44,7 +44,6 @@ const {
   class ScrollExpandElement extends HTMLElement {
     connectedCallback() {
       if (this.dataset.ready) return;
-      this.dataset.ready = "true";
 
       const track = this.querySelector(".scroll-expand__track");
       const stage = this.querySelector(".scroll-expand__stage");
@@ -55,16 +54,21 @@ const {
       const title = this.querySelector(".scroll-expand__title");
       const hint = this.querySelector(".scroll-expand__hint");
       if (!track || !stage || !frame || !scrim || !overlay || !title || !hint) return;
+      if (!("IntersectionObserver" in window)) return;
+      this.dataset.ready = "true";
 
       const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
       let reduceMotion = motionQuery.matches;
       let stageHeight = 0;
       let frameId = 0;
       let active = true;
+      let mobile = window.innerWidth < 700;
+      let lastProgress = -1;
 
       const apply = (progress) => {
+        if (progress === lastProgress) return;
+        lastProgress = progress;
         const eased = smoothstep(0, 1, progress);
-        const mobile = window.innerWidth < 700;
         const startWidth = mobile ? 86 : 52;
         const startHeight = mobile ? 54 : 58;
         const width = startWidth + (100 - startWidth) * eased;
@@ -88,16 +92,19 @@ const {
       };
 
       const measure = () => {
+        mobile = window.innerWidth < 700;
+        lastProgress = -1;
         stageHeight = Math.max(520, Math.min(800, window.innerHeight * 0.85));
         stage.style.height = `${stageHeight}px`;
-        track.style.height = reduceMotion ? `${stageHeight}px` : `${stageHeight * 2.15}px`;
+        track.style.height = reduceMotion || mobile ? `${stageHeight}px` : `${stageHeight * 2.15}px`;
+        if (reduceMotion || mobile) { apply(1); return; }
         update();
       };
 
       const update = () => {
-        if (!active) return;
-        cancelAnimationFrame(frameId);
+        if (!active || reduceMotion || mobile || frameId) return;
         frameId = requestAnimationFrame(() => {
+          frameId = 0;
           const progress = reduceMotion || this.contains(document.activeElement) ? 1 : clamp(-track.getBoundingClientRect().top / (stageHeight * 1.1), 0, 1);
           apply(progress);
         });
@@ -105,6 +112,7 @@ const {
 
       const observer = new IntersectionObserver(([entry]) => {
         active = entry.isIntersecting;
+        this.toggleAttribute("data-motion-active", active && !reduceMotion && !mobile);
         if (active) update();
       }, { rootMargin: "100px" });
 
@@ -112,7 +120,7 @@ const {
       measure();
       window.addEventListener("scroll", update, { passive: true });
       window.addEventListener("resize", measure, { passive: true });
-      const motionChanged = () => { reduceMotion = motionQuery.matches; measure(); };
+      const motionChanged = () => { reduceMotion = motionQuery.matches; cancelAnimationFrame(frameId); frameId = 0; measure(); };
       motionQuery.addEventListener("change", motionChanged);
       const revealForFocus = () => apply(1);
       this.addEventListener("focusin", revealForFocus);
