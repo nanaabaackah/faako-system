@@ -1,6 +1,6 @@
 # TTNGH staging and production configuration
 
-Updated 19 October 2026 using the 18 October audit. These are configuration names and non-secret examples,
+Updated 21 October 2026, preserving the 18 October audit and adding the live calendar setup. These are configuration names and non-secret examples,
 not credentials. No provider settings were changed in this pass.
 
 Set website variables in the hosting project's **build environment**, with
@@ -22,7 +22,6 @@ API secrets into the website or Studio environment. Do not reuse REEBS values.
 | `PUBLIC_TTNGH_API_ORIGIN` | Exact staging API HTTPS origin | Exact production API HTTPS origin |
 | `PUBLIC_TURNSTILE_SITE_KEY` | Public widget key allowing staging hostname | Public widget key allowing production hostname |
 | `PUBLIC_GA_MEASUREMENT_ID` | Blank, or a separate test GA4 property | `G-L1DK9DHYT8`; visitor consent still required |
-| `PUBLIC_TTNGH_GOOGLE_CALENDAR_ID` | Blank or approved public test calendar ID | Optional approved public organisation calendar ID |
 
 Production website/API/Studio origins and public widget configuration are observable;
 see [dated evidence](production-status-2026-10-18.md). Staging configuration, inbox,
@@ -34,6 +33,8 @@ and the token blank and set `TTNGH_CMS_REQUIRED=false`. Setting that flag false
 does **not** disable an otherwise configured CMS. An empty/unavailable/malformed
 CMS must not silently replace approved content. Leave API origin and widget key
 blank until contact delivery is verified; the form then clearly stays disabled.
+
+The live calendar also uses `PUBLIC_TTNGH_API_ORIGIN`. After both calendar API and website changes are released, retire `PUBLIC_TTNGH_GOOGLE_CALENDAR_ID`; this branch does not change hosted variables. See [calendar setup and verification](calendar-data-source.md).
 
 ## Sanity Studio — `apps/ttngh/studio/.env.example`
 
@@ -55,6 +56,7 @@ Use environment-specific values, secrets, allowed hosts and build hooks.
 | `PORT` | Railway-provided port; `5180` for local use |
 | `RAILWAY_REPLICA_COUNT` | `1` while request limits are in-memory |
 | `TTNGH_ALLOWED_ORIGINS` | Exact comma-separated website HTTPS origins; no paths, trailing slash or wildcard |
+| `TTNGH_GOOGLE_CALENDAR_ID` | Approved public organisation calendar ID; server-only, no key/OAuth. Blank disables live calendar. |
 | `TTNGH_CONTACT_ENABLED` | `false` until the environment's contact end-to-end checks pass |
 | `TURNSTILE_SECRET_KEY` | **Secret** matching the public widget key |
 | `TURNSTILE_HOSTNAMES` | Allowed website hostnames only, without `https://` |

@@ -18,7 +18,7 @@ The organisation must name a CMS administrator and backup administrator, editori
 | siteSettings | Organisation/contact/social details, SEO defaults, approved registration details | Organisation name, summary, tagline, contact email and safe public URLs |
 | homePage | Hero text, introduction, featured programmes/event/updates, impact, CTAs and partners | Headline/subtitle/introduction, safe CTA destinations |
 | programme | /programmes and /programmes/[slug] | Audience, format, availability, owner, safeguarding approval, image/alt, summary/body, slug and SEO |
-| event | /events calendar, homepage featured event, /events/[slug], .ics | Owner, ordered dates, IANA timezone, format, public venue/joining information, registration state, accessibility, image/alt, SEO; capacity only with approval |
+| event | /events listings, homepage feature, /events/[slug], .ics | Owner, ordered dates, IANA timezone, format, public venue/joining information, registration state, accessibility, image/alt, SEO; capacity only with approval |
 | newsArticle | /news and /news/[slug] | Author/date, title, summary/body, image/alt, slug and SEO |
 | resource | /resources and /resources/[slug] | Author/owner/reviewer, approved review/date, linked sources, answer-first summary, urgent-support notice when relevant, slug and SEO |
 | teamMember | /team | Approved biography, name/role, image/alt, publication consent; separately approved public links |
@@ -75,9 +75,9 @@ This static site does not provide draft-preview sessions or timed publication sc
 
 ## Events and Google Calendar
 
-Sanity is the public source of truth. Upcoming and past groups, descriptive event pages, schema, registration links and calendar downloads work without JavaScript. The native month-switching control enhances that content. Current/past state is evaluated at build time: configure a daily rebuild.
+Sanity remains the editorial source for upcoming/past listings, full event pages, schema, registration, accessibility and local calendar downloads. These work without JavaScript. Current/past listing state is evaluated at build time: retain the scheduled rebuild. Google Calendar drives the separate live month grid and selected-day agenda.
 
-Google Calendar is secondary and loads only after interaction. The calendar owner supplies an approved public calendar ID and ensures it contains no private appointments. Event-level Google links are outbound; .ics downloads are local. No OAuth or two-way sync is introduced. A future one-way CMS → Google Calendar integration requires a separate owner/credential/reconciliation plan.
+The calendar owner maintains an events-only public Google Calendar with approved titles and locations, never private appointments or counselling details. Railway retrieves and caches its ICS feed; the browser sees only TTNGH’s UI. Scheduling updates need no website rebuild. Explicit Google add links and local .ics downloads remain. No OAuth, title matching or synchronisation is introduced. Future editorial enrichment must use an explicit UID link. See [calendar architecture and setup](calendar-data-source.md).
 
 ## Editor accounts
 
