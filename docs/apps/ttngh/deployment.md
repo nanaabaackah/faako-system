@@ -110,3 +110,7 @@ GA4 uses the shared lifecycle documented in `docs/architecture/google-analytics-
 Retain the last verified Cloudflare deployment. A failed build must not replace it. Roll back the site deployment and Railway service revision independently. Disable the enquiry flag during delivery incidents, rebuild without form configuration if necessary, and keep verified direct contact details visible. For incorrect/withdrawn content, unpublish and rebuild; a code rollback alone does not retract CMS content. Do not restore withdrawn consent by reimporting old data.
 
 Export the Sanity dataset/assets to approved encrypted storage before migrations; restrict export access and rehearse restore into a separate dataset. Public dataset visibility is not a substitute for backup access controls. Named owner, schedule and retention require client approval. Rotate provider tokens and publish secrets through their provider consoles and secret stores; never put them in this document.
+
+## Live calendar extension
+
+See [calendar setup, limits and verification](calendar-data-source.md). The API requires `TTNGH_GOOGLE_CALENDAR_ID` for the approved public events feed. The website uses the existing `PUBLIC_TTNGH_API_ORIGIN`; no Google key or OAuth is required. Keep one Railway replica and exact allowed origins. Roll out the API before the website after review; neither is deployed by this implementation. Retire the obsolete frontend calendar-ID variable only after both versions are verified.

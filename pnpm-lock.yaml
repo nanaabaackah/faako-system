@@ -1420,11 +1420,32 @@ importers:
       express-rate-limit:
         specifier: 8.7.1
         version: 8.7.1(express@5.2.1)
+      node-ical:
+        specifier: 0.27.3
+        version: 0.27.3
       zod:
         specifier: ^3.24.0
         version: 3.25.76
 
 packages:
+
+  node-ical@0.27.3:
+    resolution:
+      integrity: sha512-KT8DFQXcOlx4kXRUEr7XvEDa3SE7yury8ZKG6GB3JB20v9d0SKSSieThbXCI8kpTsyNeQkKqfJn/nbnmaRMpRw==
+    engines:
+      node: ">=22"
+  rrule-temporal@2.2.8:
+    resolution:
+      integrity: sha512-+wWUe0J02oMh1UWKIt1RTu2H0Cz+gP11O/iweK0MN2UP6JLGeepTUkbSBa90Hxq0W+ywSxM9IlJNouIUdMOwhg==
+  temporal-spec@1.0.1:
+    resolution:
+      integrity: sha512-wxVoanmDeavXie1vu2JaQ3WIc3JZnWAOYFBsJyATaVsXsycKYUflGsyBmrRSnoCpZJpwPyr38VpgSUlQ8CbFxg==
+  temporal-polyfill@1.0.6:
+    resolution:
+      integrity: sha512-tYyEry1HLGUDbm2356W3iYD0OZdo7rlP7h98Zr/EnjqLZQwTAfcBDUvJnJbfA15v/vQad57hJZScG5O0W2oKEA==
+  temporal-utils@1.0.3:
+    resolution:
+      integrity: sha512-9jbTSX3HvkOWvDpNpFzwX/d1mkCrgQgwLmVTOEiuocZGKHsrQJtttGZFmybJ2zYP5zCSZuU5ZyeS8+eOEPABiQ==
 
   '@adobe/css-tools@4.4.4':
     resolution: {integrity: sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg==}
@@ -10875,6 +10896,20 @@ packages:
         optional: true
 
 snapshots:
+
+  node-ical@0.27.3:
+    dependencies:
+      rrule-temporal: 2.2.8
+      temporal-polyfill: 1.0.6
+  rrule-temporal@2.2.8:
+    dependencies:
+      temporal-spec: 1.0.1
+  temporal-spec@1.0.1: {}
+  temporal-polyfill@1.0.6:
+    dependencies:
+      temporal-spec: 1.0.1
+      temporal-utils: 1.0.3
+  temporal-utils@1.0.3: {}
 
   '@adobe/css-tools@4.4.4': {}
 

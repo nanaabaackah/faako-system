@@ -23,7 +23,7 @@ Future aggregate CTA/programme/event interactions require a controlled identifie
 ## Provider privacy
 
 - Turnstile loads on explicit security-check interaction; its token is sent only to the Railway verifier and is not logged.
-- Google Calendar loads after choosing “View full Google calendar”; event-level Google links are outbound and ICS downloads stay local.
+- Calendar viewing calls the TTNGH API, which retrieves Google’s public ICS server-side. No Google Calendar iframe/resources load in the visitor’s browser; Google still receives infrastructure feed requests. Explicit event-level Google links remain outbound and ICS downloads stay local.
 - Sanity provides public content/assets only; private enquiries are never CMS records.
 - Resend and the recipient inbox process enquiry contents for delivery and response. The organisation must approve retention/access/deletion responsibilities.
 

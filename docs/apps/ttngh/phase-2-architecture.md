@@ -18,10 +18,14 @@ password database or automatic editor membership.
 
 Railway handles the signed Sanity rebuild hook and the protected enquiry-to-email workflow. Turnstile is verified server-side; Resend credentials never reach the browser. No contact-message database is introduced. Existing Faako request IDs, API contracts, client, logger, security headers, validation and UI are reused.
 
+## Calendar extension — 20 October 2026
+
+Railway now exposes a bounded, read-only public calendar endpoint. It retrieves the approved public Google ICS feed server-side and returns cached normalized occurrences to the custom Astro/vanilla-JavaScript calendar. Google is the live scheduling source; Sanity remains the reviewed editorial/SEO source. This extends the existing service without changing frameworks, authentication or deployment boundaries. No Google iframe, OAuth or API key is introduced. See [calendar decision and operational limits](calendar-data-source.md).
+
 ## Consequences
 
 - Static content remains available during a CMS outage; failed validation/fetch stops a new deployment.
-- Publishing requires a rebuild; daily scheduled rebuilds are also needed for event time boundaries.
+- Publishing Sanity editorial content requires a rebuild; daily scheduled rebuilds are also needed for listing time boundaries. Google calendar changes refresh through the API without a rebuild.
 - Drafts are not exposed through public preview endpoints. Review is via Studio and controlled static previews.
 - The service is single-replica until rate-limit/deduplication storage is externalised. Process restart may repeat a harmless build trigger.
 - CMS roles, MFA, domain/email configuration, privacy/retention ownership and real provider verification are activation gates.

@@ -1,11 +1,37 @@
-/* Class-scoped, not Astro-scoped: browser-created month cells need these rules too. */
+/* Shared by server-rendered shell and browser-created calendar cells. */
 month-calendar { display: block; min-width: 0; }
-.month-toolbar { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: .5rem; margin-bottom: 1rem; }
+.month-toolbar { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px auto; align-items: center; gap: .5rem; margin-bottom: 1rem; }
 .month-toolbar h3 { margin: 0; text-align: center; font-size: clamp(.95rem, 2vw, 1.2rem); line-height: 1.4; }
-.month-toolbar button { width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: var(--surface-soft-pink); color: var(--ink); cursor: pointer; }
+.month-toolbar button, .month-retry { min-width: 44px; min-height: 44px; padding: .5rem; border: 0; border-radius: var(--radius-md, 12px); background: var(--surface-soft-pink); color: var(--ink); cursor: pointer; transition: background .3s ease, color .3s ease; }
+.month-toolbar button:disabled { opacity: .5; cursor: wait; }
+.month-status { min-height: 3.5em; font-size: .9rem; line-height: 1.6; }
 .month-grid { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .month-grid th, .month-grid td { width: calc(100% / 7); text-align: center; }
 .month-grid th { padding: .65rem 0; color: var(--muted); font-size: .75rem; }
-.month-grid td { height: 48px; padding: .85rem 0; border-top: 1px solid var(--line); vertical-align: top; font-size: .9rem; font-variant-numeric: tabular-nums; line-height: 1.4; }
+.month-grid td { height: 60px; padding: .2rem; border-top: 1px solid var(--line); vertical-align: middle; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.month-day { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 52px; gap: .15rem; padding: .2rem 0; border: 0; border-radius: var(--radius-sm, 8px); background: transparent; color: var(--ink); cursor: pointer; transition: background .3s ease, color .3s ease; }
+.month-day[aria-current="date"] { box-shadow: inset 0 -3px var(--brand-pink-deep, #a20c58); }
+.month-day:hover, .month-toolbar button:hover, .month-retry:hover { background: var(--surface-soft-pink); }
+.month-day[aria-pressed="true"] { background: var(--brand-pink-deep, #a20c58); color: white; }
+month-calendar button:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+.month-count { font-size: .65rem; font-weight: 700; line-height: 1; }
 .month-caption { caption-side: bottom; padding-top: 1rem; text-align: left; color: var(--muted); font-size: .8rem; line-height: 1.6; }
-.month-event { display: block; min-height: 44px; padding: .4rem .2rem; color: var(--brand-pink-deep, #a20c58); font-size: .75rem; overflow-wrap: anywhere; line-height: 1.4; text-decoration: underline; }
+.month-agenda { margin-top: 1.5rem; overflow-wrap: anywhere; }
+.month-agenda h4 { font-size: 1.2rem; line-height: 1.5; }
+.month-agenda-event { padding: 1rem 0; border-top: 1px solid var(--line); }
+.month-agenda-event h5 { font-family: inherit; font-size: 1rem; line-height: 1.5; margin: 0 0 .5rem; }
+.month-agenda-event p { font-size: .9rem; line-height: 1.6; margin: .25rem 0; }
+.month-tentative { font-weight: 600; }
+.month-placeholder { display: block; width: 60%; height: 2rem; margin: auto; background: var(--surface-soft-pink); }
+.month-loading tbody { animation: calendar-pulse 1.8s ease-in-out infinite alternate; }
+@keyframes calendar-pulse { from { opacity: .35; } to { opacity: .8; } }
+@media (max-width: 430px) {
+  .month-toolbar { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .month-toolbar [data-month-today] { grid-column: 1 / -1; justify-self: center; padding-inline: 1rem; }
+  .month-grid td { padding: 0; height: 52px; }
+  .month-day { min-height: 48px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .month-loading tbody { animation: none; }
+  month-calendar button { transition: none; }
+}

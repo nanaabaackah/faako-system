@@ -6,6 +6,7 @@ import { createErrorResponse, createSuccessResponse, errorCodeForStatus } from "
 import { createRequestContextMiddleware } from "@faako/logger";
 import { buildApiSecurityHeaders } from "@faako/security";
 import { enquirySchema, verifyTurnstile, sendEmail, staffMessage, acknowledgementMessage } from "./enquiry.js";
+import { mountCalendar } from "./calendar/route.js";
 
 const types = new Set(["siteSettings", "homePage", "programme", "event", "newsArticle", "resource", "teamMember", "impactStat", "partner"]);
 export function createApp(config, { request = fetch, verifySignature = isValidSignature } = {}) {
@@ -21,6 +22,7 @@ export function createApp(config, { request = fetch, verifySignature = isValidSi
   const fail = (req, res, status, message) => res.status(status).json(createErrorResponse({ code: errorCodeForStatus(status), message }, { requestId: req.requestId }));
   const ok = (req, res, data) => res.json(createSuccessResponse(data, { requestId: req.requestId }));
   app.get("/health", (req, res) => ok(req, res, { status: "ok" }));
+  mountCalendar(app, config, { request, fail, ok });
   const limit = rateLimit({ windowMs: config.windowMs, limit: config.limit, standardHeaders: "draft-8", legacyHeaders: false, handler: (req, res) => fail(req, res, 429, "Too many attempts. Please try again later.") });
   app.use("/api/enquiries", (req, res, next) => {
     if (!config.origins.includes(req.headers.origin)) return fail(req, res, 403, "This origin is not permitted.");
