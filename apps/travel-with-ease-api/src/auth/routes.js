@@ -22,6 +22,7 @@ export function createStaffAuth({ store, provider, settings, limiter, logger }) 
   const configured = Boolean(store && provider && settings);
 
   async function requireStaff(req, res, next) {
+    if (req.get("Origin") && req.get("Origin") !== settings?.portalOrigin) return reject(req, res, 403, "permission_error", "Staff requests must originate from the portal.");
     const token = tokenFrom(req, sessionName);
     if (!configured || !token) return reject(req, res, 401, "authentication_error", "Sign in to continue.");
     const session = await store.getSession(hash(token));
@@ -45,12 +46,16 @@ export function createStaffAuth({ store, provider, settings, limiter, logger }) 
     next();
   }
 
-  router.get("/status", (req, res) => res.json(createSuccessResponse({ configured }, { requestId: req.requestId })));
+  router.get("/status", (req, res) => res.json(createSuccessResponse({ configured,
+    recoveryUrl: configured ? settings.recoveryUrl || null : null,
+    registrationUrl: configured ? settings.registrationUrl || null : null,
+  }, { requestId: req.requestId })));
   router.get("/login", limiter, async (req, res) => {
     if (!configured) return reject(req, res, 503, "service_unavailable", "Staff sign-in has not been configured.");
+    if (req.query.remember !== undefined && !["0", "1"].includes(req.query.remember)) return reject(req, res, 400, "validation_error", "Invalid sign-in preference.");
     const flow = await provider.begin();
     const token = newToken();
-    await store.saveFlow(hash(token), flow);
+    await store.saveFlow(hash(token), { ...flow, remember_me: req.query.remember === "1" });
     res.cookie(flowName, token, { ...cookie, maxAge: 300_000 });
     res.redirect(303, flow.url);
   });
@@ -70,9 +75,11 @@ export function createStaffAuth({ store, provider, settings, limiter, logger }) 
       if (!user) throw new Error("Staff not provisioned");
       const previous = tokenFrom(req, sessionName);
       if (previous) await store.revoke(hash(previous), req.requestId);
-      res.cookie(sessionName, sessionToken, { ...cookie, maxAge: 3_600_000 });
+      res.cookie(sessionName, sessionToken, { ...cookie, ...(flow.remember_me === true ? { maxAge: 3_600_000 } : {}) });
       return res.redirect(303, settings.portalOrigin);
     } catch {
+      try { await store.recordDenied(req.requestId); }
+      catch { logger?.error({ eventName: "auth.audit_failed", requestId: req.requestId }, "Sign-in denial could not be audited"); }
       logger?.warn({ eventName: "auth.denied", requestId: req.requestId }, "Staff sign-in denied");
       return reject(req, res, 401, "authentication_error", "Sign-in could not be verified. Start again.");
     }
@@ -80,6 +87,11 @@ export function createStaffAuth({ store, provider, settings, limiter, logger }) 
   router.get("/session", requireStaff, (req, res) => res.json(createSuccessResponse({ user: req.staff, csrfToken: req.staffSession.csrf, expiresAt: req.staffSession.expiresAt }, { requestId: req.requestId })));
   router.post("/logout", requireStaff, requireMutation, async (req, res) => {
     await store.revoke(req.staffSession.hash, req.requestId);
+    res.clearCookie(sessionName, cookie);
+    res.json(createSuccessResponse({ signedOut: true }, { requestId: req.requestId }));
+  });
+  router.post("/logout-all", requireStaff, requireMutation, async (req, res) => {
+    await store.revokeAll(req.staff.id, req.requestId);
     res.clearCookie(sessionName, cookie);
     res.json(createSuccessResponse({ signedOut: true }, { requestId: req.requestId }));
   });

@@ -10,5 +10,15 @@ export const REQUIRED_SECURITY_HEADERS = Object.freeze([
   "Permissions-Policy",
 ]);
 
-export const createSecurityHeaders = ({ allowedOrigins = [] } = {}) =>
-  createExpressSecurityHeadersMiddleware({ profileId: "api-service", allowedOrigins });
+export const createSecurityHeaders = ({ allowedOrigins = [] } = {}) => {
+  const shared = createExpressSecurityHeadersMiddleware({ profileId: "api-service", allowedOrigins });
+  return (req, res, next) => shared(req, res, () => {
+    // The shared browser client sends this header on every request.
+    res.setHeader("Access-Control-Allow-Headers", `${res.getHeader("Access-Control-Allow-Headers")}, X-Request-Id`);
+    // Extend only TWE's upload protocol; preserve shared origin/credential policy.
+    if (req.path?.startsWith("/api/agent/media/")) {
+      res.setHeader("Access-Control-Allow-Headers", `${res.getHeader("Access-Control-Allow-Headers")}, X-Media-Alt, X-Media-Rights`);
+    }
+    next();
+  });
+};

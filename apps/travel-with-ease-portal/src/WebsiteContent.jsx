@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, InlineNotice } from "@faako/ui";
+import MediaLibrary from "./MediaLibrary.jsx";
 
 const pages = ["home", "about", "services", "faqs", "testimonials", "contact"];
 const emptyBody = () => ({ heading: "", body: "", ctaLabel: "", ctaPath: "/#plan", seoTitle: "", seoDescription: "", imageId: null, entries: [], contactEmail: "", contactPhone: "" });
@@ -9,8 +10,10 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
   const [history, setHistory] = useState([]);
+  const [jobs, setJobs] = useState([]);
   const [dirty, setDirty] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [chooseImage, setChooseImage] = useState(false);
   const [state, setState] = useState({ loading: true, error: "", message: "" });
   const heading = useRef(null);
   useEffect(() => { onDirtyChange(dirty); }, [dirty, onDirtyChange]);
@@ -30,8 +33,10 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
         try { item = await api.get(`/api/agent/content/${page}`, { responseMode: "data" }); }
         catch (error) { if (error.status !== 404) throw error; }
         const revisions = await api.get(`/api/agent/content/${page}/revisions`, { responseMode: "data" });
+        const publications = await api.get("/api/agent/content/publication-jobs", { responseMode: "data" });
         if (!active) return;
         setBody(item?.body || emptyBody()); setVersion(item?.version || 0); setHistory(revisions.items);
+        setJobs(publications.items);
         setDirty(false); setState({ loading: false, error: "", message: "" });
         heading.current?.focus();
       } catch (error) { if (active) setState({ loading: false, error: error.message, message: "" }); }
@@ -66,6 +71,16 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
       setState({ loading: false, error: "", message: "Revision restored as a new draft. Nothing has been published." });
     } catch (error) { setState({ loading: false, error: error.message, message: "" }); }
   }
+  async function publication(action, id) {
+    if (action !== "refresh" && !window.confirm(action === "unpublish" ? "Request removal of this page from the next public build?" : "Request a website build using the saved content?")) return;
+    setState({ loading: true, error: "", message: "" });
+    try {
+      if (action !== "refresh") await api.post(id ? `/api/agent/content/publication-jobs/${id}/retry` : `/api/agent/content/${page}/${action}`, { responseMode: "data", ...(id ? {} : { json: { expectedVersion: version } }), headers: { "X-CSRF-Token": session.csrfToken } });
+      const result = await api.get("/api/agent/content/publication-jobs", { responseMode: "data" });
+      setJobs(result.items);
+      setState({ loading: false, error: "", message: action === "refresh" ? "Publication status refreshed." : "Request queued. The site changes only after a successful deployment is verified." });
+    } catch (error) { setState({ loading: false, error: error.message, message: "" }); }
+  }
 
   return <section className="content-editor" aria-labelledby="content-heading">
     <h2 id="content-heading" tabIndex={-1} ref={heading}>Website content</h2>
@@ -92,7 +107,14 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
         <div className="editor-actions"><Button type="submit">Save draft</Button><Button type="button" disabled={!version || dirty} onClick={showPreview}>Preview saved content</Button></div>
       </fieldset>
     </form>
-    <p>Publishing and image selection are not enabled yet.</p>
+    <p>{body.imageId ? `Selected image: ${body.imageId}` : "No image selected."} Image selection is saved with the draft.</p>
+    <Button type="button" disabled={state.loading} onClick={() => setChooseImage((current) => !current)}>{chooseImage ? "Close image library" : "Choose image"}</Button>
+    {body.imageId && <Button type="button" disabled={state.loading} onClick={() => change("imageId", null)}>Remove image from draft</Button>}
+    {chooseImage && <MediaLibrary api={api} session={session} onSelect={(item) => { change("imageId", item.id); setChooseImage(false); heading.current?.focus(); }} />}
+    <h3>Publication</h3>
+    <p>Builds use saved revisions and require Baaba's reviewed deployment workflow. A pending or building request is not live.</p>
+    <div className="editor-actions"><Button type="button" disabled={state.loading || dirty || !version} onClick={() => publication("publish")}>Request publication</Button><Button type="button" disabled={state.loading || dirty || !version} onClick={() => publication("unpublish")}>Request unpublish</Button><Button type="button" disabled={state.loading} onClick={() => publication("refresh")}>Refresh publication status</Button></div>
+    <ul>{jobs.map((job, index) => <li key={job.id}>{job.status} — {new Date(job.created_at).toLocaleString("en-GH", { timeZone: "Africa/Accra" })}{job.status === "failed" && index === 0 && <Button type="button" disabled={state.loading} onClick={() => publication("retry", job.id)}>Retry failed publication</Button>}</li>)}</ul>
     {preview && <section aria-label="Saved content preview"><h3>{preview.heading}</h3><p className="preserve-lines">{preview.body}</p>{preview.entries.map((entry, index) => <div key={index}><h4>{entry.heading}</h4><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</div>)}<p>This content preview does not reproduce the final page layout.</p></section>}
     <h3>Revision history</h3>
     {history.length ? <ol>{history.map((revision) => <li key={revision.id}>Version {revision.version} — {new Date(revision.created_at).toLocaleString("en-GH", { timeZone: "Africa/Accra" })} <Button type="button" disabled={state.loading} onClick={() => revert(revision.id)}>Restore version {revision.version}</Button></li>)}</ol> : <p>No saved revisions.</p>}

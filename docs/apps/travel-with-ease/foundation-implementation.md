@@ -4,6 +4,19 @@ Date: 2026-10-11. Status: **in progress, not staging-ready**.
 Owner workstreams: TWE-005 (database), TWE-017 (staff/CMS/publishing),
 TWE-022 (deployment/monitoring/data protection).
 
+### Continuation status — 2026-10-21
+
+Provider-neutral staff sessions and structured CMS draft/revision routes now
+exist, along with the portal draft editor. Private media routes are wired into
+the API with staff-session and mutation protection; see `media-foundation.md`
+for configuration and tested boundaries. Earlier checkpoints below are historical,
+not a claim that these capabilities are absent or fully accepted.
+
+Prompt 03 remains incomplete: portal media selection, tracked static publishing,
+real PostgreSQL verification, staging/backup acceptance and a chosen live MFA
+provider are outstanding. No deployment, provider account or R2 bucket was
+created in this continuation.
+
 ## Scope and sequence
 
 The supplied Prompt 03 supersedes the earlier plan's allocation of CMS/media

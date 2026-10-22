@@ -1,5 +1,21 @@
 # Travel With Ease progress log
 
+## 2026-10-21 — Prompt 03 private-media API integration
+
+- Connected the existing media routes/service to API startup behind staff
+  sessions and CSRF-protected mutations. Missing storage remains unavailable;
+  partial configuration and storage without PostgreSQL fail startup.
+- Added TWE-only media preflight headers and server-only R2 variable names to
+  the example environment file. No shared package or unrelated application changed.
+- Fixed replacement-upload concurrency accounting before asynchronous lookup.
+- Added synthetic image, configuration, cleanup, concurrency and HTTP access
+  tests. No live bucket, provider or shared database was used.
+- Verification: API tests 26/26 pass with permitted local loopback access;
+  API lint, typecheck, build (syntax checks) and whitespace checks pass.
+  Real PostgreSQL/R2 integration and browser acceptance are not verified here.
+- Prompt 03 is still in progress; media UI, publishing and hosted acceptance
+  remain outstanding. No deployment or external task-status update performed.
+
 ## 2026-10-11 — Prompt 02 repository audit and implementation plan
 
 - Completed a source-backed public/API/portal and relevant shared-package review
@@ -118,3 +134,9 @@ alignment. Prior test results below remain dated historical results.
 - Root `pnpm build` passes (14/14 tasks).
 - Root `pnpm test` completes 22 of 24 tasks before the existing REEBS Portal TCP test fails; the REEBS suite reports 493/494 passing and `versioned auth preflight reaches the compatibility handler` fails because its test server does not expose a TCP address. The failure reproduces when that unchanged workspace is run alone with loopback access and is outside this change set.
 - Registry integrity, workspace-manifest validation and `git diff --check` pass.
+## 2026-10-22 — Staff login assistance
+
+- Added opt-in Remember me with the existing one-hour server expiry, persisted through the one-use OIDC flow (migration 005).
+- Added password recovery and account-creation panels with optional validated provider links and explicit unconfigured guidance.
+- Preserved provisioned-staff-only access: provider account creation does not grant a role. No local password authentication or public staff registration was introduced.
+- Added tests for invalid/duplicate preferences, session versus persistent cookie attributes, and invalid provider links. Live provider configuration and end-to-end recovery/enrollment remain blocked on provider selection.

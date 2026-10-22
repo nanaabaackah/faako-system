@@ -24,10 +24,11 @@ test("API runtime emits the registered baseline and denies unlisted CORS origins
     let continued = false;
     createSecurityHeaders({ allowedOrigins: api.security.allowedOrigins })(
       { headers: { origin }, secure: true },
-      { setHeader: (name, value) => { headers[name] = value; } },
+      { setHeader: (name, value) => { headers[name] = value; }, getHeader: (name) => headers[name] },
       () => { continued = true; },
     );
     assert.equal(continued, true);
+    assert.match(headers["Access-Control-Allow-Headers"], /X-Request-Id/);
     for (const name of REQUIRED_SECURITY_HEADERS) assert.ok(headers[name], name);
     assert.equal(headers["Access-Control-Allow-Origin"], origin.startsWith("http://localhost:") ? origin : undefined);
   }

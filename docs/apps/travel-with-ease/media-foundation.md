@@ -10,6 +10,38 @@ separate publication concern. Image replacement creates a new asset ID so old
 revisions cannot silently change. Archive must not break referenced revisions.
 Keep alt text and rights/source evidence; the agency owns content verification.
 
+## API integration — 2026-10-21
+
+The server now mounts the private media service when PostgreSQL is configured.
+All `/api/agent/media` routes require staff sessions; upload, replacement and
+archive additionally require the existing exact-origin/CSRF checks. The app
+factory rejects a media service without session protection. Upload preflight
+allows `X-Media-Alt` and `X-Media-Rights` only on media paths while retaining the
+shared origin allowlist. These metadata headers contain URI-encoded text.
+
+Configure all four server-only names together: `TWE_R2_ACCOUNT_ID`,
+`TWE_R2_ACCESS_KEY_ID`, `TWE_R2_SECRET_ACCESS_KEY`, `TWE_R2_PRIVATE_BUCKET`.
+The bucket must start with `twe-<APP_ENV>-`; configuration without PostgreSQL
+fails startup. With no R2 configuration, the media list reports
+`configured: false` and uploads/previews return unavailable. Never put these
+credentials in `PUBLIC_` or `VITE_` variables.
+
+Endpoints: `GET /api/agent/media`, `GET /api/agent/media/:id/preview`,
+`POST /api/agent/media/upload`, `POST /api/agent/media/:id/replace`, and
+`POST /api/agent/media/:id/archive`. Upload bodies are raw image bytes, not
+multipart. Replacement creates a new asset; it does not rewrite existing content
+references. Historical references prevent archive. Processing capacity is reserved
+before asynchronous replacement lookup; failed uploads attempt object cleanup.
+
+Local tests cover re-encoding, MIME mismatch, corrupt/oversized inputs, optional
+and environment-scoped R2 configuration, cleanup on storage failure, concurrent
+replacement limits, unauthenticated access and CORS. Storage is mocked: these
+checks do **not** verify live R2 permissions or PostgreSQL persistence.
+
+Still pending: portal media controls/image selection, real isolated PostgreSQL
+integration tests, live private-bucket verification, public asset publication and
+end-to-end acceptance. Staging/production startup remains intentionally blocked.
+
 ## Dependency decision
 
 `sharp` 0.34.5 (already present in the monorepo) is server-only image decoding,

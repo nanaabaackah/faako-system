@@ -1,0 +1,27 @@
+---
+interface Props {
+  content: {
+    heading: string; body: string; ctaLabel: string; ctaPath: string;
+    contactEmail: string; contactPhone: string;
+    entries: { heading: string; text: string; attribution: string }[];
+    image: { src: string; alt: string; width: number; height: number } | null;
+  } | null;
+}
+const { content } = Astro.props;
+---
+<section class="published-content">
+  {content ? <>
+    <h1>{content.heading}</h1>
+    {content.image && <img src={content.image.src} alt={content.image.alt} width={content.image.width} height={content.image.height} />}
+    <p class="body-copy">{content.body}</p>
+    {content.entries.map((entry) => <section><h2>{entry.heading}</h2><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</section>)}
+    {content.contactEmail && <p>{content.contactEmail}</p>}
+    {content.contactPhone && <p>{content.contactPhone}</p>}
+    {content.ctaLabel && <a class="button" href={content.ctaPath}>{content.ctaLabel}</a>}
+  </> : <><h1>Content unavailable</h1><p>This page is not currently published.</p></>}
+</section>
+<style>
+  .published-content { max-width: 70ch; margin: 48px auto; padding: 0 24px; }
+  .published-content img { max-width: 100%; height: auto; }
+  .body-copy { white-space: pre-wrap; }
+</style>
