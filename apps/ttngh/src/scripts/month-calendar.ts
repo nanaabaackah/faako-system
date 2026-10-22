@@ -87,11 +87,25 @@ class MonthCalendar extends HTMLElement {
       select(selected);
       if (focusedDay) this.querySelector<HTMLButtonElement>('[data-day="' + focusedDay + '"]')?.focus({ preventScroll: true });
     };
+    const renderLoading = () => {
+      body.replaceChildren();
+      for (let row = 0; row < 6; row++) {
+        const tr = document.createElement("tr");
+        for (let col = 0; col < 7; col++) {
+          const cell = document.createElement("td");
+          const placeholder = node("span", "", "month-placeholder");
+          placeholder.setAttribute("aria-hidden", "true");
+          cell.append(placeholder); tr.append(cell);
+        }
+        body.append(tr);
+      }
+    };
     const load = async (nextYear = year, nextMonth = month, force = false) => {
       if (busy) return;
       busy = true; desired = { year: nextYear, month: nextMonth };
       controls.forEach(button => button.disabled = true); retry.hidden = true;
       table.setAttribute("aria-busy", "true"); this.classList.toggle("month-loading", !loaded);
+      if (!loaded) renderLoading();
       status.textContent = loaded ? "Refreshing the live calendar…" : "Loading the live calendar…";
       try {
         if (!client) throw new Error("Calendar not configured");
@@ -109,6 +123,7 @@ class MonthCalendar extends HTMLElement {
         render();
         status.textContent = events.length ? events.length + " scheduled events this month. Select a day for details." : "No events are scheduled for this month.";
       } catch {
+        if (!loaded) render();
         status.textContent = "We couldn’t refresh the live calendar right now." + (loaded ? " The displayed schedule has not been refreshed; dates may have changed." : "");
         retry.hidden = false;
       } finally {
@@ -124,7 +139,7 @@ class MonthCalendar extends HTMLElement {
       void load(Number(now.slice(0, 4)), Number(now.slice(5, 7)) - 1);
     });
     retry.addEventListener("click", () => void load(desired.year, desired.month, true));
-    render(); void load();
+    void load();
     this.timer = setInterval(() => {
       const bounds = this.getBoundingClientRect();
       const cached = cache.get(monthRange(year, month).from);

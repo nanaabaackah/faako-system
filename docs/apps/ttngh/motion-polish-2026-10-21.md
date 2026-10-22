@@ -112,3 +112,16 @@ Within `apps/ttngh`:
 
 This report is the only documentation added. Concurrent Travel With Ease changes
 in the shared checkout are outside this task and must not be included in its commit.
+
+## Skeleton correction — 22 October 2026
+
+The initial calendar controller rendered dates before its first request completed,
+discarding the server-rendered skeleton. It now keeps 42 decorative placeholders
+through initial loading and retries before the first success. Subsequent refreshes
+retain existing dates. Failure exits the skeleton into the usable grid and Retry.
+No artificial delay or whole-page skeleton was added to static content.
+
+Validation: 32 website tests and the build passed. Updated browser checks confirm
+placeholders remain while a mocked response is held and disappear after success,
+at all seven widths (320–1440px), with no horizontal overflow. Existing calendar
+navigation, retry, reduced-motion and agenda assertions also passed.

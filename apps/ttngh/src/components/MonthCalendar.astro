@@ -15,7 +15,7 @@ const api = import.meta.env.PUBLIC_TTNGH_API_ORIGIN?.trim() || "";
   <table class="month-grid" aria-busy="true">
     <caption class="month-caption">Dates and times are in Ghana time (Africa/Accra). Use arrow keys to choose a day, or select it to read its agenda.</caption>
     <thead><tr>{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => <th scope="col">{day}</th>)}</tr></thead>
-    <tbody>{Array.from({ length: 6 }, () => <tr>{Array.from({ length: 7 }, () => <td><span class="month-placeholder" /></td>)}</tr>)}</tbody>
+    <tbody>{Array.from({ length: 6 }, () => <tr>{Array.from({ length: 7 }, () => <td><span class="month-placeholder" aria-hidden="true" /></td>)}</tr>)}</tbody>
   </table>
   <section class="month-agenda" aria-label="Selected day events" aria-live="polite" aria-atomic="true">
     <h4 data-agenda-title>Selected day</h4>
