@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "node --test appSystem.test.js indexability.test.js events.test.js cms.test.js tests/editorial.test.js tests/calendar.test.js tests/motion.test.js",
+    "test": "node --test appSystem.test.js indexability.test.js events.test.js cms.test.js tests/editorial.test.js tests/calendar.test.js tests/motion.test.js tests/social-metadata.test.js",
     "test:seo": "node scripts/check-built-site.mjs",
     "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --host 0.0.0.0 --port 5177",
     "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
