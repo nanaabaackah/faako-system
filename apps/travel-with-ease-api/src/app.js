@@ -4,6 +4,7 @@ import { createErrorResponse, resolveRequestId, createSuccessResponse } from "@f
 import { createLogger } from "@faako/logger";
 import { assertLocalFoundation } from "./config.js";
 import { contentRoutes } from "./content/routes.js";
+import { mediaRoutes } from "./media/routes.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
 import { estimateSchema, inquirySchema } from "./validation.js";
 
@@ -40,9 +41,10 @@ export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Da
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, contentRepository, allowedOrigins = [], agentToken = "", staffAuth, environment = "test", logger = createLogger("travel-with-ease-api") }) => {
+export const createApp = ({ repository, estimatorService, contentRepository, publicationRepository, mediaService, allowedOrigins = [], agentToken = "", staffAuth, environment = "test", logger = createLogger("travel-with-ease-api") }) => {
   assertLocalFoundation(environment);
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
+  if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", false);
@@ -60,7 +62,8 @@ export const createApp = ({ repository, estimatorService, contentRepository, all
     app.use("/api/auth", staffAuth.router);
     app.use("/api/agent", staffAuth.requireStaff);
   }
-  if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, auth: staffAuth }));
+  if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, publication: publicationRepository, auth: staffAuth }));
+  if (mediaService) app.use("/api/agent/media", mediaRoutes({ service: mediaService, auth: staffAuth }));
 
   app.get("/healthz", (_req, res) => res.json({ ok: true, service: "travel-with-ease-api" }));
   app.get("/readyz", async (req, res) => {

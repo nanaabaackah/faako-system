@@ -10,6 +10,9 @@ test("OIDC is disabled without configuration and partial/insecure configuration 
   assert.throws(() => readAuthConfig({ TWE_OIDC_ISSUER: "https://id.example.invalid" }));
   const config = { TWE_OIDC_ISSUER: "https://id.example.invalid", TWE_OIDC_CLIENT_ID: "synthetic", TWE_OIDC_CLIENT_SECRET: "synthetic-only", TWE_OIDC_MFA_ACR: "test-mfa", TWE_API_ORIGIN: "http://localhost:3090", TWE_PORTAL_ORIGIN: "http://localhost:5188" };
   assert.equal(readAuthConfig(config).secure, false);
+  assert.equal(readAuthConfig({ ...config, TWE_OIDC_RECOVERY_URL: "https://id.example.invalid/recover" }).recoveryUrl, "https://id.example.invalid/recover");
+  assert.throws(() => readAuthConfig({ ...config, TWE_OIDC_REGISTRATION_URL: "javascript:alert(1)" }));
+  assert.throws(() => readAuthConfig({ ...config, TWE_OIDC_RECOVERY_URL: "https://secret@id.example.invalid/recover" }));
   assert.throws(() => readAuthConfig({ ...config, APP_ENV: "staging" }));
   assert.throws(() => readAuthConfig({ ...config, TWE_OIDC_ISSUER: "http://id.example.invalid" }));
   assert.throws(() => readAuthConfig({ ...config, TWE_PORTAL_ORIGIN: "https://portal.example.invalid/path" }));
@@ -31,6 +34,8 @@ test("server sessions protect routes, reject replay/CSRF, enforce roles and revo
     },
     async getSession(hash) { return sessions.get(hash); },
     async revoke(hash) { sessions.delete(hash); },
+    async revokeAll() { sessions.clear(); },
+    async recordDenied() {},
   };
   const provider = {
     async begin() { return { state: "test-state", nonce: "test-nonce", verifier: "test-verifier", url: "https://id.example.invalid/authorize" }; },
@@ -50,6 +55,8 @@ test("server sessions protect routes, reject replay/CSRF, enforce roles and revo
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = (path, init = {}) => fetch(base + path, { redirect: "manual", ...init });
   assert.equal((await request("/api/agent/leads")).status, 401);
+  assert.equal((await request("/api/auth/login?remember=unexpected")).status, 400);
+  assert.equal((await request("/api/auth/login?remember=1&remember=0")).status, 400);
   const begin = await request("/api/auth/login");
   assert.equal(begin.status, 303);
   const flowCookie = begin.headers.get("set-cookie").split(";")[0];
@@ -59,12 +66,14 @@ test("server sessions protect routes, reject replay/CSRF, enforce roles and revo
   const complete = await request("/api/auth/callback?state=test-state", { headers: { cookie: flowCookie, "x-forwarded-host": "attacker.invalid" } });
   assert.equal(complete.status, 303);
   assert.equal(complete.headers.get("location"), settings.portalOrigin);
+  assert.doesNotMatch(complete.headers.getSetCookie().find((value) => value.startsWith("__Host-twe_session=")), /Max-Age|Expires=/);
   const sessionCookie = complete.headers.getSetCookie().find((value) => value.startsWith("__Host-twe_session=")).split(";")[0];
   const sessionResponse = await request("/api/auth/session", { headers: { cookie: sessionCookie } });
   const payload = (await sessionResponse.json()).data;
   assert.equal(payload.user.role, "editor");
   assert.equal(payload.user.organisationId, "synthetic-org");
   assert.equal((await request("/api/agent/leads", { headers: { cookie: sessionCookie } })).status, 200);
+  assert.equal((await request("/api/auth/session", { headers: { cookie: sessionCookie, origin: "https://public.example.invalid" } })).status, 403);
   assert.equal((await request("/api/auth/callback?state=test-state", { headers: { cookie: flowCookie } })).status, 401);
   assert.equal((await request("/api/auth/logout", { method: "POST", headers: { cookie: sessionCookie } })).status, 403);
   const headers = { cookie: sessionCookie, origin: settings.portalOrigin, "X-CSRF-Token": payload.csrfToken };
@@ -76,6 +85,21 @@ test("server sessions protect routes, reject replay/CSRF, enforce roles and revo
   const second = await request("/api/auth/login");
   const secondCookie = second.headers.get("set-cookie").split(";")[0];
   assert.equal((await request("/api/auth/callback?state=test-state", { headers: { cookie: secondCookie } })).status, 401);
+  deniedIdentity = false;
+  const ownerBegin = await request("/api/auth/login?remember=1");
+  const ownerComplete = await request("/api/auth/callback?state=test-state", { headers: { cookie: ownerBegin.headers.get("set-cookie").split(";")[0] } });
+  const ownerCookie = ownerComplete.headers.getSetCookie().find((value) => value.startsWith("__Host-twe_session=")).split(";")[0];
+  assert.match(ownerComplete.headers.getSetCookie().find((value) => value.startsWith("__Host-twe_session=")), /Max-Age=3600/);
+  const ownerSession = (await (await request("/api/auth/session", { headers: { cookie: ownerCookie } })).json()).data;
+  const ownerHeaders = { cookie: ownerCookie, origin: settings.portalOrigin, "X-CSRF-Token": ownerSession.csrfToken };
+  assert.equal((await request("/api/auth/owner-test", { method: "POST", headers: ownerHeaders })).status, 204);
+  const stored = [...sessions.values()][0];
+  stored.expires_at = new Date(Date.now() - 1).toISOString();
+  assert.equal((await request("/api/auth/session", { headers: ownerHeaders })).status, 401);
+  stored.expires_at = new Date(Date.now() + 60_000).toISOString();
+  assert.equal((await request("/api/auth/logout-all", { method: "POST", headers: ownerHeaders })).status, 200);
+  assert.equal(sessions.size, 0);
+  assert.equal((await request("/api/auth/session", { headers: ownerHeaders })).status, 401);
 });
 
 test("unconfigured staff login reports unavailable without a token fallback", async (context) => {

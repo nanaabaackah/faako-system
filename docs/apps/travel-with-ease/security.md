@@ -8,8 +8,9 @@ plan for remediation; target controls below must not be read as completed work.
 ## App registration and release checks
 
 All three applications declare `appSystem.js` security metadata. The API uses
-`api-service`, the portal uses `authenticated-workspace` with its existing
-development bearer gate, and the website uses `public-interactive` without auth.
+`api-service`, the portal uses `authenticated-workspace` with server-side OIDC
+sessions, and the website uses `public-interactive` without auth. Live OIDC/MFA
+configuration remains pending; there is no operational token fallback.
 Registered API/portal origins are the existing localhost development origins;
 this does not authorize any production host. Runtime deployment origins remain
 controlled by `ALLOWED_ORIGINS`. Production launch remains blocked by the existing
@@ -22,6 +23,12 @@ deployed integration is incomplete. Unknown modes are also rejected. Do not
 bypass these guards or expose the development bearer gate as hosted authentication.
 See [the implementation record](./foundation-implementation.md) for implemented
 safe errors/logging, bounded local limiter and pending database/auth checks.
+
+Current 2026-10-21 controls include exact portal-Origin checks for staff browser
+reads, session-bound CSRF for mutations, current staff role/active checks,
+single-session and all-device revocation, and persisted login-denial audit.
+Drafts/media require sessions; published builds contain only the pinned public
+projection. Review remaining hosted/recovery blockers in `staging-operations.md`.
 See [env.md](./env.md) for isolation and indexing requirements and the
 [engineering standard](./design-engineering-standard.md) for acceptance gates.
 Controls below describe the target architecture unless explicitly identified as

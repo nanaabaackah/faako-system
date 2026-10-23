@@ -6,6 +6,14 @@ Evidence: [repository audit](./repository-audit-2026-10-11.md). Rules: [design/e
 
 ## Reading and ownership
 
+**2026-10-21 scope/ownership update:** the continuation request moves structured
+CMS, media administration and publication into Prompt 03. Older A/B allocation
+below is historical planning, not permission to defer those foundations. Baaba
+is developer/technical contact; Faako owns developer services including GitHub,
+Railway, PostgreSQL and Resend. TWE owns Namecheap/Cloudflare and delegates
+configuration to Baaba, supplies approved content and approves staging/UAT.
+See [current operations and gates](./staging-operations.md).
+
 There are exactly two implementation groups below. `A1`–`A5` and `B1`–`B9` are local slice references under verified existing Trello cards, **not new Trello task IDs**. A large card such as TWE-017 spans several testable slices; completion of one slice does not complete that card. Links were checked through read-only Trello search on 2026-10-11. No Trello changes are authorized by this plan.
 
 W/P/A file prefixes mean `apps/travel-with-ease-web/`, `apps/travel-with-ease-portal/`, `apps/travel-with-ease-api/`. Paths marked **new** are proposed, not existing functionality. File placement may be adjusted after inspection without expanding scope. Each task must document the standard's seven-question justification before adding dependencies, components or integrations.

@@ -10,7 +10,7 @@ import CookieNotice from "../components/CookieNotice.astro";
 const { title, description, path = Astro.url.pathname, type = "website", noIndex = false } = Astro.props;
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
-const approvedForIndexing = import.meta.env.PUBLIC_SITE_INDEXABLE === "true" && site.hostname !== "travelwithease.example";
+const approvedForIndexing = import.meta.env.PUBLIC_APP_ENV === "production" && import.meta.env.PUBLIC_SITE_INDEXABLE === "true" && site.hostname !== "travelwithease.example";
 const shouldIndex = approvedForIndexing && !noIndex;
 const schema = {
   "@context": "https://schema.org",

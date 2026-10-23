@@ -16,6 +16,9 @@ body { margin: 0; color: var(--sys-text); font-family: var(--sys-font-body); }
 .content-editor fieldset { border: 1px solid var(--sys-border); padding: 16px; min-width: 0; }
 .editor-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
 .preserve-lines { white-space: pre-wrap; }
+.media-list { list-style: none; padding: 0; }
+.media-list > li { padding: 20px 0; border-bottom: 1px solid var(--sys-border); overflow-wrap: anywhere; }
+.media-preview { max-width: 100%; height: auto; }
 .portal-shell nav small { display: block; color: #b6b1a9; font-size: 12px; }
 .ui-page-shell { width: min(1000px, 100%); padding: 32px; }
 .ui-page-shell section { max-width: 65ch; margin-bottom: 24px; }

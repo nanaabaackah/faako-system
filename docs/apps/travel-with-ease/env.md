@@ -15,7 +15,7 @@ Placeholders only; never commit values.
 
 Never copy production customer records into local or staging. Staging identities must not be able to read production databases, objects or secrets. A different URL alone is not isolation. Robots directives are discovery controls, not access control. Verify the deployed HTML/headers and build-time frontend API origins independently in each environment.
 
-**Current implementation (2026-10-11, Prompt 03 in progress):** explicit runtime validation now recognises development/test/staging/production and rejects unknown modes. Both executable and app factory refuse staging/production while deployed adapters remain incomplete; the staging bypass is closed. Optional local PostgreSQL persistence, migration tooling and database identity checks are implemented but SQL integration remains unverified. See [foundation implementation](./foundation-implementation.md). The web layout still emits `index, follow`; static staging indexing protection is outstanding.
+**Current implementation (2026-10-21, Prompt 03 in progress):** explicit runtime validation recognises development/test/staging/production and rejects unknown modes. Executable and factory refuse deployed startup while acceptance remains incomplete. Web indexing now requires both `PUBLIC_APP_ENV=production` and `PUBLIC_SITE_INDEXABLE=true`; default/staging builds are noindex with no sitemap. See [foundation implementation](./foundation-implementation.md) for actual test results and [operations](./staging-operations.md) for ownership and external setup.
 
 Production readiness additionally requires monitoring/alert ownership, encrypted backups with restore evidence, approved migrations, recorded previous artifacts and rollback/forward-fix instructions. The branch-to-environment recommendation and release gates are in [design-engineering-standard.md](./design-engineering-standard.md#environments-git-and-deployment). No hosted resources or external deployment hooks were verified or changed by this alignment.
 
@@ -38,7 +38,7 @@ The table records current/future variable names, not implemented capabilities. P
 | `TWE_DATABASE_CA` | API / migrations | Provider-dependent | Yes | Trusted provider CA, not a TLS-verification bypass |
 | `TWE_TEST_DATABASE_URL` | Integration tests only | test:db | Yes | Disposable loopback twe_test_* database |
 | `TWE_LOCAL_DATA_FILE` | API | Development only | No | Local Phase 1 repository file |
-| `TWE_AGENT_API_TOKEN` | API + manually entered in development portal | Development only | Yes | Temporary staff gate; forbidden as production auth |
+| `TWE_TEST_PG_BIN` | Isolated test runner | test:db:isolated | No | Absolute PostgreSQL 17 bin directory; runner never consumes an application DB URL |
 | `EXCHANGE_RATE_API_BASE_URL` | API | No | No | Provider endpoint override |
 | `EXCHANGE_RATE_API_KEY` | API | Provider-dependent | Yes | Server-only provider credential |
 | `EXCHANGE_RATE_CACHE_TTL_SECONDS` | API | No | No | Fresh cache duration |
@@ -51,3 +51,22 @@ The table records current/future variable names, not implemented capabilities. P
 | `AI_PROVIDER_API_KEY` | Future API | Before AI | Yes | Sanitised draft-generation requests |
 
 Only variables intentionally prefixed `PUBLIC_` or `VITE_` enter browser builds. Provider secrets are API-only.
+
+Additional implemented names (values belong in provider secret stores):
+
+- Staff: `TWE_OIDC_ISSUER`, `TWE_OIDC_CLIENT_ID`, `TWE_OIDC_CLIENT_SECRET`
+  (secret), `TWE_OIDC_MFA_ACR`, `TWE_API_ORIGIN`, `TWE_PORTAL_ORIGIN`.
+- Media: `TWE_R2_ACCOUNT_ID`, `TWE_R2_PRIVATE_BUCKET`,
+  `TWE_R2_ACCESS_KEY_ID`, `TWE_R2_SECRET_ACCESS_KEY` (credentials secret).
+- Notification worker: `TWE_RESEND_API_KEY` (secret), `TWE_EMAIL_FROM`,
+  `TWE_EMAIL_RECIPIENT`, `TWE_EMAIL_TEST_RECIPIENTS`, `TWE_PORTAL_ORIGIN`.
+- Publication: `TWE_RELEASE_SHA`, `TWE_PUBLIC_SITE_ORIGIN`,
+  `TWE_PUBLIC_API_ORIGIN`. Build CLI sets private local `TWE_CONTENT_SNAPSHOT`,
+  `TWE_BUILD_PUBLIC_DIR`, `TWE_BUILD_OUT_DIR`; never accept these from public API input.
+- Web: `PUBLIC_APP_ENV`, `PUBLIC_SITE_INDEXABLE`; production indexing is explicit.
+
+`TWE_AGENT_API_TOKEN` is no longer consumed by normal server startup or the portal.
+Legacy factory-only compatibility tests do not constitute a deployed auth mode.
+# Optional staff account assistance
+
+`TWE_OIDC_RECOVERY_URL` and `TWE_OIDC_REGISTRATION_URL` are operator-approved HTTPS provider pages, not secrets or callback destinations. They are exposed through auth status only when staff authentication is configured. Leave blank until provider selection and enrollment policy are approved; never include tokens or credentials in these URLs.

@@ -9,6 +9,8 @@
 
 ## Supporting references
 
+- [Staging operations and ownership](./staging-operations.md) — Baaba/Faako/TWE responsibilities, manual setup, publication, mail and recovery gates; no deployment claimed.
+
 - [Prompt 03 implementation record](./foundation-implementation.md) — current changes, migration commands, dependency decision and outstanding gates; not a completion report.
 - [Architecture](./architecture.md) — preserved historical foundation and current-scope precedence.
 - [Environment contract](./env.md) — local/staging/production isolation and current deployed-mode gaps.

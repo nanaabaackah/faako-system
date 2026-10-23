@@ -1,0 +1,12 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PublishedContent from "../components/PublishedContent.astro";
+import { publishedPage } from "../lib/published.js";
+export function getStaticPaths() {
+  return ["faqs", "testimonials", "contact"].filter((slug) => publishedPage(slug) !== undefined).map((contentPage) => ({ params: { contentPage } }));
+}
+const content = publishedPage(Astro.params.contentPage);
+---
+<BaseLayout title={content?.seoTitle || "Content unavailable | Travel With Ease"} description={content?.seoDescription || "This page is not currently published."} noIndex={!content}>
+  <PublishedContent content={content} />
+</BaseLayout>

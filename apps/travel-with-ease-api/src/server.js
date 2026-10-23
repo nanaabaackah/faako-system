@@ -15,6 +15,9 @@ import { createOidcProvider } from "./auth/oidc.js";
 import { PostgresAuthStore } from "./auth/store.js";
 import { createStaffAuth } from "./auth/routes.js";
 import { ContentRepository } from "./content/repository.js";
+import { PublicationRepository } from "./content/publication.js";
+import { MediaService } from "./media/service.js";
+import { readR2Config, R2Store } from "./media/r2.js";
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { environment, allowedOrigins, port } = readConfig();
@@ -44,7 +47,11 @@ const staffAuth = createStaffAuth({
   limiter: createLimiter({ limit: 10, windowMs: 300_000 }), logger,
 });
 const contentRepository = pool ? new ContentRepository(pool, process.env.TWE_ORGANISATION_ID) : null;
-const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, allowedOrigins, staffAuth, environment, logger });
+const publicationRepository = pool ? new PublicationRepository(pool, { organisationId: process.env.TWE_ORGANISATION_ID, environment, sourceSha: process.env.TWE_RELEASE_SHA }) : null;
+const mediaSettings = readR2Config();
+if (mediaSettings && !pool) throw new Error("Media storage requires PostgreSQL.");
+const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger) : null;
+const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, environment, logger });
 const server = app.listen(port, () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;

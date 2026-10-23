@@ -2,8 +2,10 @@
 
 Prompt 03 implementation is in progress. [Foundation implementation](./foundation-implementation.md)
 records the new runtime safeguards, separate `twe` PostgreSQL schema and optional
-local persistence adapter. Hosted startup remains blocked; CMS/auth/media and
-publication are not yet implemented. Historical descriptions below are not
+local persistence adapter. Staff sessions, CMS drafts/revisions, media management,
+notification jobs and pinned publication preparation now have implementations.
+Hosted startup remains blocked; see [operations and acceptance gaps](./staging-operations.md).
+Historical descriptions below are not
 evidence of deployed functionality.
 
 For the code-backed current state, proposed MVP data model and deployment

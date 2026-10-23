@@ -4,7 +4,7 @@ import globals from "globals";
 export default [
   { ignores: ["data", "dist"] },
   {
-    files: ["**/*.js"],
+    files: ["**/*.{js,mjs}"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
