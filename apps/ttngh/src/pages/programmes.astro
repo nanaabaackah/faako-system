@@ -27,7 +27,7 @@ const faqItems = [
       </div>
     </section>
     <CmsCards documents={publishedProgrammes} title="Explore our programmes" />
-    <section class="programme-initiatives" aria-labelledby="initiatives-title">
+    <section class="programme-initiatives" aria-labelledby="initiatives-title" data-reveal>
       <div class="section-heading"><h2 id="initiatives-title">How the work takes shape</h2></div>
       <div class="editorial-rows">{currentInitiatives.map((initiative) => <article class="editorial-row"><h3>{initiative.title}</h3><p>{initiative.description}</p></article>)}</div>
     </section>

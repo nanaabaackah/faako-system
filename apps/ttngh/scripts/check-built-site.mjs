@@ -18,6 +18,15 @@ for (const file of files) {
   descriptions.add(description);
   assert.match(html, /<link rel="canonical" href="https:\/\//, `${file}: canonical`);
   assert.match(html, /<meta property="og:image" content="https:\/\//, `${file}: OG image`);
+  assert.match(html, /<link rel="canonical" href="https:\/\/thethrivingnetworkgh\.org(?:\/|\")/, `${file}: production canonical`);
+  assert.match(html, /<meta property="og:url" content="https:\/\/thethrivingnetworkgh\.org(?:\/|\")/, `${file}: production share URL`);
+  for (const property of ["og:image:width", "og:image:height"]) assert.match(html, new RegExp(`<meta property="${property}" content="[1-9][0-9]*"`), `${file}: actual image dimensions`);
+  for (const property of ["og:site_name","og:title","og:description","og:image:alt"]) assert.match(html, new RegExp(`<meta property="${property}" content="[^"]+"`), `${file}: ${property}`);
+  assert.match(html, /<meta name="twitter:image:alt" content="[^"]+"/, `${file}: Twitter alt`);
+  assert.match(html, /<meta name="twitter:card" content="summary_large_image"/, `${file}: Twitter card`);
+  for (const tag of html.matchAll(/<(?:meta|link)\b[^>]*(?:og:|twitter:|rel="canonical")[^>]*>/g)) assert.ok(!tag[0].includes("preview.thethrivingnetworkgh.org"), `${file}: preview leakage`);
+  for (const asset of ["/favicon.svg","/favicon.ico","/favicon_io/apple-touch-icon.png"]) assert.ok(html.includes(`href="${asset}"`), `${file}: ${asset}`);
+  if (process.env.EXPECT_NOINDEX === "true") assert.match(html, /<meta name="robots" content="noindex, nofollow"/, `${file}: preview must be noindex`);
   for (const match of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)) {
     const data = JSON.parse(match[1]);
     assert.ok(data["@graph"].some(item => item["@type"] === "WebPage"));

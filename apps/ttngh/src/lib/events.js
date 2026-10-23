@@ -54,6 +54,7 @@ export function validateEvents(documents) {
       relatedProgramme: text(doc.relatedProgramme, "related programme", 120, false),
       relatedProgrammeSlug: typeof doc.relatedProgrammeSlug === "string" && slugPattern.test(doc.relatedProgrammeSlug) ? doc.relatedProgrammeSlug : "",
       capacity: doc.capacityApproved === true && Number.isSafeInteger(doc.capacity) && doc.capacity > 0 ? doc.capacity : null,
+      seo: doc.seo,
       seoDescription: text(doc.seoDescription || doc.summary, "SEO description", 320),
     };
   });

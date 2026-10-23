@@ -1,7 +1,7 @@
 import { validateCmsDocuments } from "./cms-validation.js";
 const imageProjection = `{"url": asset->url,"width":asset->metadata.dimensions.width,"height":asset->metadata.dimensions.height,alt}`;
 const query = `*[_type in ["siteSettings","homePage","programme","newsArticle","resource","teamMember","impactStat","partner"] && publishState == "published" && !(_id in path("drafts.**")) && !(_id in path("versions.**"))]{
-_id,_type,publishState,title,slug,summary,body,seo,organisationName,tagline,email,phone,whatsapp,address,socials,registrationDetails,
+_id,_type,publishState,title,slug,summary,body,seo{...,"socialImage":select(defined(socialImage.asset)=>socialImage${imageProjection})},organisationName,tagline,email,phone,whatsapp,address,socials,registrationDetails,
 heroTitle,heroSubtitle,introduction,actions,"featuredProgrammes":featuredProgrammes[]._ref,"featuredEvent":featuredEvent._ref,"featuredUpdates":featuredUpdates[]._ref,"impact":impact[]._ref,"partners":partners[]._ref,
 category,audience,format,availability,location,actionLabel,actionHref,safeguardingState,owner,author,publishedAt,reviewer,lastReviewed,reviewState,sources,urgentSupportRelevant,urgentSupportNotice,
 "relatedProgramme":relatedProgramme._ref,"relatedProgrammes":relatedProgrammes[]._ref,"relatedResources":relatedResources[]._ref,

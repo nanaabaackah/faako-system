@@ -12,6 +12,8 @@
 .photo-ribbon[data-animate="true"] .photo-ribbon-viewport { overflow:hidden; }
 .photo-ribbon[data-animate="true"] .photo-ribbon-track { animation:photo-ribbon-loop 85s linear infinite; }
 .photo-ribbon[data-paused="true"] .photo-ribbon-track,.photo-ribbon:focus-within .photo-ribbon-track { animation-play-state:paused; }
+.photo-ribbon[data-suspended="true"] .photo-ribbon-track,
+.photo-ribbon[data-offscreen="true"] .photo-ribbon-track { animation-play-state:paused; }
 @media(hover:hover) { .photo-ribbon:hover .photo-ribbon-track { animation-play-state:paused; } }
 @keyframes photo-ribbon-loop { to { transform:translateX(-50%); } }
 @media(max-width:600px) { .photo-ribbon .section-heading { display:block; } }
