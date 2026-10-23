@@ -10,11 +10,11 @@ export async function getStaticPaths() {
   return (await getPublishedEvents()).map(event => ({ params: { slug: event.slug }, props: { event } }));
 }
 const { event } = Astro.props;
-const site = Astro.site || new URL(productionOrigin);
+const site = new URL(productionOrigin);
 const isPast = Date.parse(event.end) < Date.now();
 const labels = { closed: "Registration is closed.", "not-open": "Registration has not opened yet.", "not-required": "Registration is not required." };
 ---
-<BaseLayout title={`${event.title} | TTNGH Events`} description={event.seoDescription} path={eventPath(event)} image={event.image.url} imageAlt={event.image.alt} event={eventStructuredData(event, site)} breadcrumbs={[{ name: "Home", path: "/" }, { name: "Events", path: "/events" }, { name: event.title, path: eventPath(event) }]}>
+<BaseLayout title={`${event.title} | TTNGH Events`} description={event.seoDescription} path={eventPath(event)} seo={event.seo} imageWidth={event.image.width} imageHeight={event.image.height} image={event.image.url} imageAlt={event.image.alt} event={eventStructuredData(event, site)} breadcrumbs={[{ name: "Home", path: "/" }, { name: "Events", path: "/events" }, { name: event.title, path: eventPath(event) }]}>
   <main id="main-content" class="editorial-main">
     <PageHero title={event.title} intro={event.summary} />
     <section class="event-detail-grid" aria-label="Event information">

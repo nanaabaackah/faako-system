@@ -27,6 +27,26 @@
 }
 :where(a[href],button,summary,[role="button"]):not(:disabled):not([aria-disabled="true"]):active { filter: brightness(.8); }
 .ttngh-icon { transition: translate 450ms ease; }
+/* Async presentation never changes the label footprint or bypasses form security. */
+[data-async-state] .button-label { display: grid; text-align: center; }
+[data-async-state] .button-label::after { content: "Send enquiry"; visibility: hidden; grid-area: 1 / 1; }
+[data-async-label] { grid-area: 1 / 1; }
+[data-async-state] .button-icon > span { place-items: center; }
+[data-async-state] [data-async-default] { display: grid; }
+[data-async-state] [data-async-working],
+[data-async-state] [data-async-success] { display: none; }
+[data-async-state="working"] [data-async-default],
+[data-async-state="success"] [data-async-default] { display: none; }
+[data-async-state="working"] [data-async-working],
+[data-async-state="success"] [data-async-success] { display: grid; }
+[data-async-state="working"] { cursor: progress; }
+.async-spinner { width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: async-spin 900ms linear infinite; }
+@keyframes async-spin { to { rotate: 360deg; } }
 @media (prefers-reduced-motion:reduce) {
   :where(a[href],button,summary,[role="button"]),.ttngh-icon { transition:none; translate:none!important; }
+  :where(a[href],button,summary,[role="button"]):is(:hover,:active,:focus-visible),
+  :where(a[href],button):hover .ttngh-icon,
+  :where(a,figure,article):is(:hover,:focus-within) img { transform: none!important; }
+  .async-spinner { animation: none!important; rotate: none; }
+  .button .button-icon, .motion-card:hover { transform: none!important; }
 }

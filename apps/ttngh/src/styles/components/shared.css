@@ -125,8 +125,8 @@ h3 {
   height: 1.25rem
 }
 .text-link>.ttngh-icon { width:1.2em; height:1.2em; }
-.button:hover .button-icon {
-  transform: rotate(-25deg)
+@media (hover: hover) {
+  .button:not(:disabled):hover .button-icon { transform: translateX(2px); }
 }
 .button-primary .button-label,.button-primary .button-icon {
   background: var(--brand-pink-dark);

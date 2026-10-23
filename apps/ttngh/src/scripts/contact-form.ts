@@ -1,4 +1,5 @@
 import { createBrowserApiClient } from "@faako/api-client/browser";
+import { setAsyncButtonState } from "../lib/async-button.js";
 type Turnstile = { render: (element: Element, options: Record<string, unknown>) => string; reset: (id: string) => void };
 const form = document.querySelector<HTMLFormElement>("[data-contact-form]");
 if (form?.dataset.api && form.dataset.sitekey) {
@@ -13,7 +14,7 @@ if (form?.dataset.api && form.dataset.sitekey) {
  const topics:Record<string,string>={events:"Events",volunteering:"Volunteering",donations:"Donations",partnerships:"Partnerships",privacy:"Privacy question"};
  const selected=topics[new URLSearchParams(location.search).get("topic")||""];
  if(selected)(form.elements.namedItem("topic") as HTMLSelectElement).value=selected;
- form.addEventListener("input",()=>{if(!busy){submissionId=crypto.randomUUID();deliveryOutcome="";}});
+ form.addEventListener("input",()=>{if(!busy){submissionId=crypto.randomUUID();deliveryOutcome="";setAsyncButtonState(submit,"idle");submit.disabled=!token;}});
  load.addEventListener("click",()=>{
   load.disabled=true; status.textContent="Loading security check…";
   const script=document.createElement("script");script.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";script.async=true;
@@ -31,14 +32,14 @@ if (form?.dataset.api && form.dataset.sitekey) {
   if(busy)return;
   if(!form.reportValidity()){status.textContent="Please complete the required fields.";return;}
   if(!token){status.textContent="Please complete the security check.";return;}
-  deliveryOutcome="";busy=true;submit.disabled=true;form.setAttribute("aria-busy","true");status.textContent="Sending your enquiry…";
+  deliveryOutcome="";busy=true;submit.disabled=true;setAsyncButtonState(submit,"working");form.setAttribute("aria-busy","true");status.textContent="Sending your enquiry…";
   const data=new FormData(form);
   fields.disabled=true;
   try {
    await client.post("/api/enquiries",{json:{name:String(data.get("name")||"").trim(),email:String(data.get("email")||"").trim(),topic:data.get("topic"),message:String(data.get("message")||"").trim(),website:String(data.get("website")||""),consent:data.get("consent")==="on",turnstileToken:token,submissionId},signal:AbortSignal.timeout(30000)});
-   form.reset();submissionId=crypto.randomUUID();deliveryOutcome="Thank you. Your enquiry has been sent to the TTNGH team.";status.textContent=deliveryOutcome;
+   form.reset();submissionId=crypto.randomUUID();deliveryOutcome="Thank you. Your enquiry has been sent to the TTNGH team.";status.textContent=deliveryOutcome;setAsyncButtonState(submit,"success");
   } catch {
-   deliveryOutcome="Delivery could not be confirmed. Please complete a new security check and try again, or use the contact details on this page.";status.textContent=deliveryOutcome;
-  } finally {busy=false;fields.disabled=false;token="";submit.disabled=true;form.removeAttribute("aria-busy");provider?.reset(widget);status.focus();}
+   deliveryOutcome="Delivery could not be confirmed. Please complete a new security check and try again, or use the contact details on this page.";status.textContent=deliveryOutcome;setAsyncButtonState(submit,"error");
+  } finally {busy=false;fields.disabled=false;token="";submit.disabled=submit.dataset.asyncState!=="error";form.removeAttribute("aria-busy");provider?.reset(widget);status.focus();}
  });
 }

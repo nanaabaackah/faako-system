@@ -23,6 +23,12 @@ const images = [
     const button = ribbon.querySelector<HTMLButtonElement>("[data-ribbon-toggle]");
     const viewport = ribbon.querySelector<HTMLElement>(".photo-ribbon-viewport");
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
+    const visibility = () => { ribbon.dataset.suspended = String(document.hidden); };
+    document.addEventListener("visibilitychange", visibility);
+    visibility();
+    if ("IntersectionObserver" in window) new IntersectionObserver(([entry]) => {
+      ribbon.dataset.offscreen = String(!entry.isIntersecting);
+    }).observe(ribbon);
     const sync = () => { ribbon.dataset.animate = String(!motion.matches); button.hidden = motion.matches; };
     sync(); motion.addEventListener("change", sync);
     const pause = (paused: boolean) => {

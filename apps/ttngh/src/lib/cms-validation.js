@@ -18,6 +18,19 @@ export function contentIssues(doc) {
     if (!meaningful(doc.seo?.description, 160) || doc.seo.description.length < 50) issues.push("SEO description must be 50–160 characters.");
   }
   const image = doc.image || doc.logo;
+  for (const [key, max] of [["socialTitle",120],["socialDescription",320]]) {
+    if (doc.seo?.[key] != null && !meaningful(doc.seo[key], max)) issues.push(`Provide ${key} within its length limit.`);
+  }
+  const share = doc.seo?.socialImage;
+  if (share) {
+    if (!meaningful(share.alt, 300) || !(share.asset?._ref || share.url)) issues.push("Social image requires an asset and descriptive alt text.");
+    if (share.url) {
+      try {
+        const url = new URL(share.url);
+        if (url.protocol !== "https:" || url.hostname !== "cdn.sanity.io" || ![share.width,share.height].every(n => Number.isInteger(n) && n > 0)) issues.push("Social image requires a Sanity asset with dimensions.");
+      } catch { issues.push("Invalid social image URL."); }
+    }
+  }
   if (["programme", "event", "newsArticle", "teamMember", "partner"].includes(doc._type) && !image) issues.push("An approved image is required.");
   if (image && (!meaningful(image.alt, 300) || !(image.asset?._ref || image.url))) issues.push("Image asset and descriptive alt text are required.");
   for (const key of ["link", "registrationUrl", "onlineUrl", "actionHref"]) if (doc[key] && !safeLink(doc[key])) issues.push(`${key} must be a safe public URL.`);

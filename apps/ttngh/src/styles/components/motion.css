@@ -1,0 +1,11 @@
+/* Opt-in entrances only. Default markup stays visible with no JS. */
+[data-reveal] { transition: opacity 600ms ease, translate 600ms cubic-bezier(.2,.65,.3,1); }
+[data-reveal-pending] { opacity: 0; translate: 0 16px; }
+[data-reveal]:focus-within { opacity: 1; translate: none; }
+img[data-editorial-image]:not(.scroll-expand__media) { transition: opacity 450ms ease, transform 650ms ease; }
+img[data-image-pending] { opacity: .92; }
+@media (max-width: 600px) { [data-reveal-pending] { translate: 0 12px; } }
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal], [data-reveal-pending] { opacity: 1!important; translate: none!important; transition: none!important; }
+  img[data-editorial-image], img[data-image-pending] { opacity: 1!important; transition: none!important; }
+}
