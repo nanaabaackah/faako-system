@@ -23,10 +23,11 @@ export class MediaService {
     if (actor.organisationId !== this.organisationId) throw new ContentError(403, "permission_error", "Organisation access denied.");
     if (this.processing >= 2) throw new ContentError(429, "rate_limited", "Image processing is busy. Please retry shortly.");
     const fields = mediaMetadataSchema.parse(metadata);
-    if (replaceId) await this.get(replaceId);
     this.processing += 1;
     const keys = [];
     try {
+      // Reserve capacity before the first await, including replacement lookup.
+      if (replaceId) await this.get(replaceId);
       const outputs = await prepareImage(bytes, type);
       const id = randomUUID();
       const variants = [];

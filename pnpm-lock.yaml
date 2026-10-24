@@ -1082,6 +1082,9 @@ importers:
       express:
         specifier: ^5.2.1
         version: 5.2.1
+      jose:
+        specifier: 6.2.12
+        version: 6.2.12
       openid-client:
         specifier: 6.8.8
         version: 6.8.8
@@ -1168,6 +1171,9 @@ importers:
       '@faako/discovery':
         specifier: workspace:*
         version: link:../../packages/discovery
+      '@faako/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@faako/utils':
         specifier: workspace:*
         version: link:../../packages/utils

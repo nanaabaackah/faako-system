@@ -1,0 +1,46 @@
+[
+  {
+    "country": "Kenya",
+    "driveId": "1gheZMzRvzQ41HYNhakhslSQfh5rhx4EM",
+    "sourceSha256": "09d34a112ab0e7d155946e3e9e5deef30d6f3e4c45df0b19494950a65a537cda",
+    "alt": "Blue and white boats moored beside a lake — Kenya.",
+    "width": 1199,
+    "height": 1600,
+    "sources": [
+      {
+        "src": "/media/kenya-09d34a112ab0-640.webp",
+        "width": 640,
+        "bytes": 96854,
+        "reviewFile": "09d34a112ab0e7d155946e3e9e5deef30d6f3e4c45df0b19494950a65a537cda-640.webp"
+      },
+      {
+        "src": "/media/kenya-09d34a112ab0-1199.webp",
+        "width": 1199,
+        "bytes": 268362,
+        "reviewFile": "09d34a112ab0e7d155946e3e9e5deef30d6f3e4c45df0b19494950a65a537cda-1280.webp"
+      }
+    ]
+  },
+  {
+    "country": "Zanzibar",
+    "driveId": "1fXM3ZotzhpkooutNoKtaL9-drEQ_be6X",
+    "sourceSha256": "387e34e68a079df5cf5bfcdc9d5e73e7cfc0af47d38786e42be06e092cc47e49",
+    "alt": "Boats and a thatched floating structure on blue water — Zanzibar.",
+    "width": 1280,
+    "height": 1707,
+    "sources": [
+      {
+        "src": "/media/zanzibar-387e34e68a07-640.webp",
+        "width": 640,
+        "bytes": 40828,
+        "reviewFile": "387e34e68a079df5cf5bfcdc9d5e73e7cfc0af47d38786e42be06e092cc47e49-640.webp"
+      },
+      {
+        "src": "/media/zanzibar-387e34e68a07-1280.webp",
+        "width": 1280,
+        "bytes": 147196,
+        "reviewFile": "387e34e68a079df5cf5bfcdc9d5e73e7cfc0af47d38786e42be06e092cc47e49-1280.webp"
+      }
+    ]
+  }
+]

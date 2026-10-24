@@ -1,0 +1,14 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PublishedContent from "../components/PublishedContent.astro";
+import { publishedPage } from "../lib/published.js";
+export function getStaticPaths() {
+  return ["faqs", "testimonials", "contact", "journal", "travel-footprint", "privacy", "terms"].map((contentPage) => ({ params: { contentPage } }));
+}
+const content = publishedPage(Astro.params.contentPage);
+const labels = { faqs: "Frequently asked questions", testimonials: "Traveller stories", contact: "Plan a trip", journal: "Travel Journal", "travel-footprint": "Travel footprint", privacy: "Privacy policy", terms: "Terms and booking information" };
+const label = labels[Astro.params.contentPage as keyof typeof labels];
+---
+<BaseLayout title={content?.seoTitle || "Content unavailable | Travel With Ease"} description={content?.seoDescription || "This page is not currently published."} noIndex={!content}>
+  {content === undefined ? <section class="editorial-wrap"><h1>{label}</h1><div class="review-empty"><p>Placeholder for review — approved content is not available yet.</p><p>{Astro.params.contentPage === "contact" ? "Personalised and package enquiry forms will appear here when connected. This preview does not submit enquiries or collect your details." : Astro.params.contentPage === "travel-footprint" ? "No approved activity data is available. No trip totals or geographic claims are displayed." : "This page is not a published policy, offer or business claim."}</p></div><a href="/">Back to home</a></section> : <PublishedContent content={content} />}
+</BaseLayout>

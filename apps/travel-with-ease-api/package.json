@@ -6,11 +6,16 @@
   "scripts": {
     "dev": "APP_ENV=development node --env-file-if-exists=.env src/server.js",
     "start": "node src/server.js",
+    "start:portal": "node src/portal/server.js",
+    "preflight:hosted": "node scripts/check-hosted-readiness.mjs",
     "build": "node --check src/server.js && node --check src/app.js",
-    "lint": "eslint src test",
+    "lint": "eslint src test scripts",
     "typecheck": "node --check src/server.js && node --check src/app.js",
     "test": "node --test test/*.test.js",
     "test:db": "node --test test/integration/*.test.js",
+    "test:db:isolated": "node scripts/test-isolated-postgres.mjs",
+    "notifications:once": "node --env-file-if-exists=.env src/notifications/worker.js",
+    "publication": "node --env-file-if-exists=.env src/content/publication-command.js",
     "db:migrate": "node --env-file-if-exists=.env src/db/migrate.js"
   },
   "dependencies": {
@@ -22,6 +27,7 @@
     "@faako/validation": "workspace:*",
     "express": "^5.2.1",
     "openid-client": "6.8.8",
+    "jose": "6.2.12",
     "pg": "8.20.0",
     "sharp": "0.34.5",
     "zod": "^3.24.0"

@@ -4,6 +4,7 @@
     <p>
       Essential browser storage remembers your preference. Optional Google Analytics
       helps us understand visits only when you allow it; advertising cookies are not used.
+      <a href="/privacy">Privacy information</a>
     </p>
   </div>
   <div class="cookie-notice__actions">
@@ -17,6 +18,7 @@
     const key = "twe-cookie-consent-v1";
     const notice = document.querySelector("[data-cookie-notice]");
     if (!notice) return;
+    let returnFocus = null;
 
     const show = () => notice.removeAttribute("hidden");
     const hide = () => notice.setAttribute("hidden", "");
@@ -36,12 +38,14 @@
       try { localStorage.setItem(key, JSON.stringify(choice)); } catch {}
       document.dispatchEvent(new CustomEvent("twe:consent-changed", { detail: choice }));
       hide();
+      if (returnFocus instanceof HTMLElement) { returnFocus.focus(); returnFocus = null; }
     };
 
     notice.querySelector("[data-cookie-essential]")?.addEventListener("click", () => save(false));
     notice.querySelector("[data-cookie-analytics]")?.addEventListener("click", () => save(true));
     document.querySelectorAll("[data-cookie-settings]").forEach((button) => {
       button.addEventListener("click", () => {
+        returnFocus = button;
         show();
         notice.querySelector("[data-cookie-essential]")?.focus();
       });

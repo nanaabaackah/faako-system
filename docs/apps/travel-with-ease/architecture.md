@@ -1,9 +1,21 @@
 # Travel With Ease system architecture
 
+2026-10-24: [staging-only API startup after verified preflight](./staging-activation-2026-10-24.md)
+supersedes the earlier blanket staging API block. Production and workers remain gated.
+
+Hosted portal follow-up: [separate server and proxy decision](./portal-hosting-preparation-2026-10-23.md).
+
+2026-10-23 provider decision: the user requested Cloudflare Access with independent
+MFA and a separate Faako Platform Admin. See the [Access ADR and implementation
+record](./access-platform-admin-2026-10-23.md). This supersedes the proposed OIDC
+provider, not the PostgreSQL/session boundary. Hosted acceptance remains blocked.
+
 Prompt 03 implementation is in progress. [Foundation implementation](./foundation-implementation.md)
 records the new runtime safeguards, separate `twe` PostgreSQL schema and optional
-local persistence adapter. Hosted startup remains blocked; CMS/auth/media and
-publication are not yet implemented. Historical descriptions below are not
+local persistence adapter. Staff sessions, CMS drafts/revisions, media management,
+notification jobs and pinned publication preparation now have implementations.
+Hosted startup remains blocked; see [operations and acceptance gaps](./staging-operations.md).
+Historical descriptions below are not
 evidence of deployed functionality.
 
 For the code-backed current state, proposed MVP data model and deployment

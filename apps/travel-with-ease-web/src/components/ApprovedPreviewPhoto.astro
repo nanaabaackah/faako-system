@@ -1,0 +1,15 @@
+---
+import photos from "../lib/approved-preview-media.json";
+interface Props { country: "Kenya" | "Zanzibar"; eager?: boolean }
+const { country, eager = false } = Astro.props;
+const photo = photos.find(photo => photo.country === country)!;
+---
+<figure class="approved-photo">
+  <img src={photo.sources[0].src} srcset={photo.sources.map(source => `${source.src} ${source.width}w`).join(", ")} sizes="(max-width: 600px) 90vw, (max-width: 1333px) 43vw, 560px" width={photo.width} height={photo.height} alt={photo.alt} loading={eager ? "eager" : "lazy"} fetchpriority={eager ? "high" : "auto"} decoding="async" />
+  <figcaption>{country} · Photograph supplied by Travel With Ease</figcaption>
+</figure>
+<style>
+  .approved-photo { margin: 0; }
+  img { display: block; width: 100%; height: auto; }
+  figcaption { margin-top: .6rem; font-size: .8rem; }
+</style>

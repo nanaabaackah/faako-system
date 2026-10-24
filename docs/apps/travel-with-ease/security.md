@@ -1,5 +1,16 @@
 # Travel With Ease security architecture and threat model
 
+2026-10-24: [staging startup verification](./staging-activation-2026-10-24.md)
+allows only staging API activation after database/configuration preflight and
+adapter binding. Production and background workers remain blocked pending live acceptance.
+
+Current authentication changes and threat decisions are in the [Cloudflare Access
+and platform administration record](./access-platform-admin-2026-10-23.md).
+The executable uses Access, not the historical OIDC adapter described below.
+Platform Admin has no implicit client-record or publishing permission. Owner-only
+support approval is expiring and audited; email headers cannot confer any role.
+Live policy/MFA and alternate-host verification remain mandatory and incomplete.
+
 The [2026-10-11 repository audit](./repository-audit-2026-10-11.md#8-security-risk-register)
 records code-backed implemented controls, current risks and Ghana privacy/legal
 approval boundaries. Use its numbered register and the linked implementation
@@ -8,8 +19,9 @@ plan for remediation; target controls below must not be read as completed work.
 ## App registration and release checks
 
 All three applications declare `appSystem.js` security metadata. The API uses
-`api-service`, the portal uses `authenticated-workspace` with its existing
-development bearer gate, and the website uses `public-interactive` without auth.
+`api-service`, the portal uses `authenticated-workspace` with server-side OIDC
+sessions, and the website uses `public-interactive` without auth. Live OIDC/MFA
+configuration remains pending; there is no operational token fallback.
 Registered API/portal origins are the existing localhost development origins;
 this does not authorize any production host. Runtime deployment origins remain
 controlled by `ALLOWED_ORIGINS`. Production launch remains blocked by the existing
@@ -22,6 +34,12 @@ deployed integration is incomplete. Unknown modes are also rejected. Do not
 bypass these guards or expose the development bearer gate as hosted authentication.
 See [the implementation record](./foundation-implementation.md) for implemented
 safe errors/logging, bounded local limiter and pending database/auth checks.
+
+Current 2026-10-21 controls include exact portal-Origin checks for staff browser
+reads, session-bound CSRF for mutations, current staff role/active checks,
+single-session and all-device revocation, and persisted login-denial audit.
+Drafts/media require sessions; published builds contain only the pinned public
+projection. Review remaining hosted/recovery blockers in `staging-operations.md`.
 See [env.md](./env.md) for isolation and indexing requirements and the
 [engineering standard](./design-engineering-standard.md) for acceptance gates.
 Controls below describe the target architecture unless explicitly identified as

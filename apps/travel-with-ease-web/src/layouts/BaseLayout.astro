@@ -1,17 +1,26 @@
 ---
 import "../styles/global.css";
+import "../styles/editorial.css";
+import SharedFaakoFooter from "../components/SharedFaakoFooter.jsx";
 import {
   canonicalUrl,
   serializeJsonLd,
 } from "@faako/discovery";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import CookieNotice from "../components/CookieNotice.astro";
+import { ArrowRight4 } from "@faako/ui";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { sharingMetadata } from "../lib/sharing.js";
+import { publishedPage } from "../lib/published.js";
 
 const { title, description, path = Astro.url.pathname, type = "website", noIndex = false } = Astro.props;
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
-const approvedForIndexing = import.meta.env.PUBLIC_SITE_INDEXABLE === "true" && site.hostname !== "travelwithease.example";
-const shouldIndex = approvedForIndexing && !noIndex;
+const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
+const sharing = sharingMetadata({ site: site.href, image: Astro.props.image || pageContent?.socialImage?.src || "/og/default.jpg", imageAlt: Astro.props.imageAlt || pageContent?.socialImage?.alt || "Travel With Ease — your guide to stress-free travel", type });
+const approvedForIndexing = import.meta.env.PUBLIC_APP_ENV === "production" && import.meta.env.PUBLIC_SITE_INDEXABLE === "true" && site.hostname !== "travelwithease.example";
+const shouldIndex = approvedForIndexing && !noIndex && Boolean(pageContent);
 const schema = {
   "@context": "https://schema.org",
   "@type": "TravelAgency",
@@ -21,7 +30,19 @@ const schema = {
   description,
 };
 const jsonLd = serializeJsonLd(schema);
+const arrowRightMarkup = renderToStaticMarkup(createElement(ArrowRight4, { className: "link-arrow", "aria-hidden": true, focusable: "false" }));
+const breadcrumbs = Astro.props.breadcrumbs || [];
+if (!Array.isArray(breadcrumbs) || breadcrumbs.length > 10) throw new Error("Invalid breadcrumb list.");
+const breadcrumbJson = breadcrumbs.length ? serializeJsonLd({
+  "@context": "https://schema.org", "@type": "BreadcrumbList",
+  itemListElement: breadcrumbs.map((item: { name: string; path: string }, index: number) => {
+    if (typeof item.name !== "string" || !item.name.trim() || item.name.length > 120 || typeof item.path !== "string" || !/^\/(?!\/)[a-z0-9/_-]*$/i.test(item.path)) throw new Error("Invalid public breadcrumb.");
+    return { "@type": "ListItem", position: index + 1, name: item.name, item: canonicalUrl(item.path, site) };
+  }),
+}) : null;
 const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
+const review = !process.env.TWE_CONTENT_SNAPSHOT;
+const navigation = [["/destinations", "Destinations"], ["/services", "Services"], ["/about", "About"], ["/journal", "Journal"], ["/travel-footprint", "Travel footprint"]];
 ---
 <!doctype html>
 <html lang="en-GH">
@@ -29,6 +50,10 @@ const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION |
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#010c33" />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <link rel="manifest" href="/site.webmanifest" />
     <title>{title}</title>
     <meta name="description" content={description} />
     {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
@@ -41,22 +66,61 @@ const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION |
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={sharing.image} />
+    <meta property="og:image:width" content={String(sharing.width)} />
+    <meta property="og:image:height" content={String(sharing.height)} />
+    <meta property="og:image:alt" content={sharing.imageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content={sharing.image} />
+    <meta name="twitter:image:alt" content={sharing.imageAlt} />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <script is:inline type="application/ld+json" set:html={jsonLd}></script>
+    {breadcrumbJson && <script is:inline type="application/ld+json" set:html={breadcrumbJson}></script>}
   </head>
-  <body>
+  <body id="top">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="Travel With Ease home"><span>TWE</span> Travel With Ease</a>
-      <nav aria-label="Primary navigation">
-        <a href="/destinations">Destinations</a><a href="/services">Services</a><a href="/about">About</a><a class="nav-cta" href="/#plan">Plan a trip</a>
+      <a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" /></a>
+      <button type="button" class="menu-toggle" hidden aria-expanded="false" aria-controls="primary-navigation">Menu</button>
+      <nav id="primary-navigation" aria-label="Primary navigation">
+        {navigation.map(([href, label]) => <a href={href} aria-current={Astro.url.pathname.replace(/\/$/, "") === href ? "page" : undefined}>{label}</a>)}
+        <a class="nav-cta" href="/contact">Plan a trip</a>
       </nav>
     </header>
+    {review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
     <main id="main-content"><slot /></main>
-    <footer><div><strong>Travel With Ease</strong><p>Thoughtful journeys from Ghana to the world.</p></div><div><a href="mailto:hello@travelwithease.example">Email us</a><button class="footer-cookie-settings" type="button" data-cookie-settings>Cookie settings</button><span>Accra, Ghana</span></div></footer>
+    <footer class="site-footer"><div class="footer-main"><div><a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" loading="lazy" /></a><p>Travel planning from Ghana.</p>{review && <small>Email, WhatsApp and social links awaiting approval.</small>}</div><nav aria-label="Footer navigation"><a href="/faqs">FAQs</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><button class="footer-cookie-settings" type="button" data-cookie-settings>Cookie settings</button><a href="#top">Back to top</a></nav></div><SharedFaakoFooter /></footer>
     <CookieNotice />
     <AnalyticsConsent />
   </body>
 </html>
+<script define:vars={{ arrowRightMarkup }}>
+  const arrowTemplate = document.createElement("template");
+  arrowTemplate.innerHTML = arrowRightMarkup;
+  const arrow = arrowTemplate.content.firstElementChild;
+  if (arrow) {
+    document.querySelectorAll("a:not(.brand):not(.skip-link)").forEach((link) => {
+      link.append(arrow.cloneNode(true));
+    });
+  }
+</script>
+<script>
+  const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
+  const nav = document.querySelector<HTMLElement>("#primary-navigation");
+  if (toggle && nav) {
+    const mobile = matchMedia("(max-width: 900px)");
+    const setOpen = (open: boolean) => {
+      toggle.setAttribute("aria-expanded", String(open));
+      nav.dataset.collapsed = String(!open && mobile.matches);
+    };
+    toggle.hidden = false;
+    setOpen(false);
+    toggle.addEventListener("click", () => setOpen(toggle.getAttribute("aria-expanded") !== "true"));
+    nav.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && mobile.matches) { setOpen(false); toggle.focus(); }
+    });
+    toggle.addEventListener("keydown", (event) => { if (event.key === "Escape") setOpen(false); });
+    mobile.addEventListener("change", () => setOpen(false));
+  }
+</script>
