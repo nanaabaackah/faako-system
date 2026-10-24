@@ -17,7 +17,9 @@ test("review home contains discovery, shared footer and honest placeholder bound
   assert.doesNotMatch(html, /drive\.google\.com/);
   assert.match(html, /ui-app-bottom-bar--footer/);
   assert.match(html, /href="\/favicon-48.png"/);
-  assert.match(html, /src="\/brand\/primary.png"/);
+  assert.match(html, /src="\/brand\/Primary gold\.png"/);
+  const logo = await readFile(new URL("../dist/brand/Primary gold.png", import.meta.url));
+  assert.ok(logo.byteLength > 0, "Approved logo is present in the built output");
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.equal((html.match(/property="og:image"/g) || []).length, 1);
   assert.match(html, /https:\/\/faako.nanaabaackah.com/);
