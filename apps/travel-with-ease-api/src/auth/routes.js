@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { randomBytes, createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { createErrorResponse, createSuccessResponse } from "@faako/api-contracts";
+import { hasPermission, ROLE_PERMISSIONS, validSupportGrant } from "./permissions.js";
+
+const accessAdapters = new WeakMap();
+export const accessAdapterDetails = (auth) => accessAdapters.get(auth);
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const csrfFor = (token) => createHmac("sha256", token).update("twe-csrf-v1").digest("base64url");
@@ -13,21 +17,37 @@ const tokenFrom = (req, name) => {
 };
 const reject = (req, res, status, code, message) => res.status(status).json(createErrorResponse({ code, message }, { requestId: req.requestId }));
 
-export function createStaffAuth({ store, provider, settings, limiter, logger }) {
+export function createStaffAuth({ store, provider, settings, limiter, logger, administration }) {
   const router = Router();
   const secure = settings?.secure ?? false;
   const sessionName = secure ? "__Host-twe_session" : "twe_session";
   const flowName = secure ? "__Host-twe_flow" : "twe_flow";
   const cookie = { httpOnly: true, secure, sameSite: "lax", path: "/" };
   const configured = Boolean(store && provider && settings);
+  const accessMode = settings?.mode === "cloudflare_access";
+
+  async function verifiedAccess(req) {
+    // Duplicate headers are rejected, not joined or chosen by order.
+    if (req.rawHeaders.filter((value, index) => index % 2 === 0 && value.toLowerCase() === "cf-access-jwt-assertion").length !== 1) throw new Error("Missing or ambiguous assertion");
+    return provider.verify(req.get("Cf-Access-Jwt-Assertion"));
+  }
 
   async function requireStaff(req, res, next) {
     if (req.get("Origin") && req.get("Origin") !== settings?.portalOrigin) return reject(req, res, 403, "permission_error", "Staff requests must originate from the portal.");
     const token = tokenFrom(req, sessionName);
     if (!configured || !token) return reject(req, res, 401, "authentication_error", "Sign in to continue.");
     const session = await store.getSession(hash(token));
-    if (!session || !["owner", "editor"].includes(session.role) || !(new Date(session.expires_at).getTime() > Date.now())) return reject(req, res, 401, "authentication_error", "Your session has expired. Sign in again.");
-    req.staff = { id: session.id, role: session.role, organisationId: store.organisationId };
+    if (!session || !Object.hasOwn(ROLE_PERMISSIONS, session.role) || (!accessMode && session.role === "platform_admin") || !(new Date(session.expires_at).getTime() > Date.now())) return reject(req, res, 401, "authentication_error", "Your session has expired. Sign in again.");
+    if (accessMode) {
+      try {
+        const identity = await verifiedAccess(req);
+        if (identity.issuer !== session.issuer || identity.subject !== session.subject || identity.audience !== session.access_audience || identity.assertionHash !== session.access_assertion_hash) throw new Error("Session identity mismatch");
+      } catch {
+        await store.recordDenied(req.requestId);
+        return reject(req, res, 401, "authentication_error", "Access identity could not be verified. Sign in again.");
+      }
+    }
+    req.staff = { id: session.id, role: session.role, organisationId: store.organisationId, permissions: ROLE_PERMISSIONS[session.role] };
     req.staffSession = { hash: hash(token), csrf: csrfFor(token), csrfHash: session.csrf_hash, expiresAt: session.expires_at };
     next();
   }
@@ -46,11 +66,41 @@ export function createStaffAuth({ store, provider, settings, limiter, logger }) 
     next();
   }
 
-  router.get("/status", (req, res) => res.json(createSuccessResponse({ configured,
+  function requirePermission(permission) {
+    return async (req, res, next) => {
+      if (!hasPermission(req.staff, permission, store?.organisationId)) {
+        const grant = administration && req.staff?.role === "platform_admin" && permission === "enquiries.read"
+          ? await administration.supportGrant(req.staff.id) : null;
+        if (!validSupportGrant(grant, req.staff, permission, store?.organisationId)) return reject(req, res, 403, "permission_error", "You do not have permission for this action.");
+        await administration.auditSupportUse(req.staff, grant, req.requestId);
+      }
+      next();
+    };
+  }
+
+  router.get("/status", (req, res) => res.json(createSuccessResponse({ configured, mode: accessMode ? "cloudflare_access" : "unconfigured",
     recoveryUrl: configured ? settings.recoveryUrl || null : null,
     registrationUrl: configured ? settings.registrationUrl || null : null,
   }, { requestId: req.requestId })));
+  router.post("/access-session", limiter, async (req, res) => {
+    if (!configured || !accessMode) return reject(req, res, 503, "service_unavailable", "Access sign-in has not been configured.");
+    if (req.get("Origin") !== settings.portalOrigin || req.get("X-TWE-Session-Init") !== "1") return reject(req, res, 403, "permission_error", "Start sign-in from the staff portal.");
+    try {
+      const identity = await verifiedAccess(req);
+      const token = newToken();
+      const user = await store.createSession(identity, hash(token), hash(csrfFor(token)), req.requestId);
+      if (!user) { await store.recordDenied(req.requestId); return reject(req, res, 403, "permission_error", "Your identity is not provisioned for this workspace. Contact your owner."); }
+      const previous = tokenFrom(req, sessionName);
+      if (previous) await store.revoke(hash(previous), req.requestId);
+      res.cookie(sessionName, token, cookie);
+      res.status(201).json(createSuccessResponse({ signedIn: true }, { requestId: req.requestId }));
+    } catch {
+      await store.recordDenied(req.requestId);
+      return reject(req, res, 401, "authentication_error", "Access sign-in failed or was already used. Reauthenticate through Cloudflare Access.");
+    }
+  });
   router.get("/login", limiter, async (req, res) => {
+    if (accessMode) return res.redirect(303, settings.portalOrigin);
     if (!configured) return reject(req, res, 503, "service_unavailable", "Staff sign-in has not been configured.");
     if (req.query.remember !== undefined && !["0", "1"].includes(req.query.remember)) return reject(req, res, 400, "validation_error", "Invalid sign-in preference.");
     const flow = await provider.begin();
@@ -60,6 +110,7 @@ export function createStaffAuth({ store, provider, settings, limiter, logger }) 
     res.redirect(303, flow.url);
   });
   router.get("/callback", limiter, async (req, res) => {
+    if (accessMode) return reject(req, res, 404, "not_found", "Route not found.");
     const token = tokenFrom(req, flowName);
     res.clearCookie(flowName, cookie);
     if (!configured || !token) return reject(req, res, 401, "authentication_error", "Sign-in could not be verified. Start again.");
@@ -95,5 +146,7 @@ export function createStaffAuth({ store, provider, settings, limiter, logger }) 
     res.clearCookie(sessionName, cookie);
     res.json(createSuccessResponse({ signedOut: true }, { requestId: req.requestId }));
   });
-  return { router, requireStaff, requireMutation, requireOwner };
+  const adapter = { router, requireStaff, requireMutation, requireOwner, requirePermission };
+  if (configured && accessMode) accessAdapters.set(adapter, { store, settings });
+  return adapter;
 }

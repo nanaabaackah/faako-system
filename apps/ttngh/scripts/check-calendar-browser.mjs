@@ -48,8 +48,11 @@ try {
     await page.waitForFunction(() => document.querySelector("month-calendar")?.classList.contains("month-loading"));
     assert.equal(await calendar.locator("tbody").evaluate(el => getComputedStyle(el).animationName), "none");
     assert.equal(await calendar.locator("[data-month-next]").isDisabled(), true);
+    assert.equal(await calendar.locator(".month-placeholder").count(), 42, "initial pending request retains the skeleton");
+    assert.equal(await calendar.locator("[data-day]").count(), 0);
     mode = "success"; release();
     await page.waitForFunction(() => document.querySelector("[data-month-status]")?.textContent.includes("2 scheduled"));
+    assert.equal(await calendar.locator(".month-placeholder").count(), 0, "loaded dates replace the skeleton");
     const chosen = calendar.locator("[data-day$='-20']");
     await chosen.click();
     assert.equal(await calendar.locator(".month-agenda-event").count(), 2);

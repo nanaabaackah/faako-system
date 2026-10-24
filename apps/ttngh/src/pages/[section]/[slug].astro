@@ -8,12 +8,12 @@ import { productionOrigin } from "../../lib/indexability.js";
 import "../../styles/components/event-listings.css";
 export async function getStaticPaths(){return (await getCmsDocuments()).filter(doc=>["programme","newsArticle","resource"].includes(doc._type)).map(doc=>({params:{section:{programme:"programmes",newsArticle:"news",resource:"resources"}[doc._type],slug:doc.slug.current},props:{doc}}));}
 const { doc }=Astro.props;
-const path=contentPath(doc),site=Astro.site||productionOrigin;
+const path=contentPath(doc),site=productionOrigin;
 const relatedIds=[doc.relatedProgramme,...(doc.relatedProgrammes||[]),...(doc.relatedResources||[])].filter(Boolean);
 const related=(await getCmsDocuments()).filter(item=>relatedIds.includes(item._id)&&["programme","newsArticle","resource"].includes(item._type));
 const article=doc._type==="programme"?undefined:{approved:true,title:doc.title,url:new URL(path,site).href,publishedAt:doc.publishedAt,author:doc.author,modifiedAt:doc.lastReviewed};
 ---
-<BaseLayout title={`${doc.seo?.title||doc.title} | TTNGH`} description={doc.seo.description} path={path} image={doc.image?.url||"/ttngh-logo-transparent.png"} imageAlt={doc.image?.alt||"The Thriving Network GH"} article={article}>
+<BaseLayout title={`${doc.seo?.title||doc.title} | TTNGH`} description={doc.seo.description} path={path} seo={doc.seo} image={doc.image?.url} imageWidth={doc.image?.width} imageHeight={doc.image?.height} imageAlt={doc.image?.alt||"The Thriving Network GH"} article={article}>
  <main id="main-content" class="editorial-main">
   <PageHero title={doc.title} intro={doc.summary} />
   <section class="event-detail-grid" aria-label={doc.title}>

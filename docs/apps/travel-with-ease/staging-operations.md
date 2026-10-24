@@ -1,5 +1,12 @@
 # Prompt 03 staging setup and operating gate
 
+2026-10-24 update: [staging activation](./staging-activation-2026-10-24.md) now permits
+the staging API after mandatory runtime preflight. Earlier blanket blocking claims
+below remain applicable to production and background workers, not this staging path.
+
+Current Access portal configuration: [hosting preparation](./portal-hosting-preparation-2026-10-23.md).
+This supersedes the static-only portal instructions below. API activation is still gated.
+
 Updated 2026-10-21. **Preparation only: no verified deployment URLs and no
 authority to commit, push, deploy or create paid resources.** Baaba is the named
 developer and technical contact. The API, notification worker and publication
@@ -194,3 +201,10 @@ test-mail receipt, protected draft preview, successful/failed publication and
 reconciliation, protected staging aliases/noindex, alerts, encrypted off-site
 backup restoration and TWE UAT approval. Until then Prompt 03 is **not complete**
 and Prompt 04 must not start automatically.
+
+## Authentication update — 2026-10-23
+
+Use the [Cloudflare Access runbook](./access-platform-admin-2026-10-23.md) for
+current onboarding/offboarding, MFA recovery and origin-security requirements.
+The supplied Access AUD is production-only. Do not reuse it in staging or bypass
+the hosted-startup guard. Earlier OIDC-provider instructions above are superseded.

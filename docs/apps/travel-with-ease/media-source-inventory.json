@@ -1,0 +1,2195 @@
+{
+  "reviewedAt": "2026-10-23",
+  "approvalEvidence": "User answered all to website/social use, people consent and credit question on 2026-10-23. No specific credit text supplied. Technical review still required.",
+  "files": [
+    {
+      "driveId": "1JRsfDdfL8RJGTKpPOKuA2dJVJScggF6B",
+      "filename": "IMG_7180.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 7635168,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "b253d47c70c7fbbb0e58b7ade3bd9a017046728c3572c260e21b3cc98f3c332f",
+      "altText": "Woman standing near elephants — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "b253d47c70c7fbbb0e58b7ade3bd9a017046728c3572c260e21b3cc98f3c332f-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 194280,
+          "location": "private review directory"
+        },
+        {
+          "filename": "b253d47c70c7fbbb0e58b7ade3bd9a017046728c3572c260e21b3cc98f3c332f-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 796166,
+          "location": "private review directory"
+        },
+        {
+          "filename": "b253d47c70c7fbbb0e58b7ade3bd9a017046728c3572c260e21b3cc98f3c332f-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 1742062,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1IhnTNBsAAUVgWaGNhdMjUcj-cqfOgfrh",
+      "filename": "IMG_3328.jpeg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 6255044,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "036a11de2795c826dfae8c84b538ff2c24d5b61add25447ac25c158b14dfa40d",
+      "altText": "Woman beside a safari vehicle — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "036a11de2795c826dfae8c84b538ff2c24d5b61add25447ac25c158b14dfa40d-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 131534,
+          "location": "private review directory"
+        },
+        {
+          "filename": "036a11de2795c826dfae8c84b538ff2c24d5b61add25447ac25c158b14dfa40d-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 473638,
+          "location": "private review directory"
+        },
+        {
+          "filename": "036a11de2795c826dfae8c84b538ff2c24d5b61add25447ac25c158b14dfa40d-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 947766,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1AYT7BvrVGhqvlH2YF0ELHXDbKK7EkCd8",
+      "filename": "IMG_3079.JPG",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 5535756,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "2c7744e25798a2228d00e27b82865e8115f4f28396498ba11f2082aa094d9408",
+      "altText": "Swimming pool surrounded by trees — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "2c7744e25798a2228d00e27b82865e8115f4f28396498ba11f2082aa094d9408-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 204416,
+          "location": "private review directory"
+        },
+        {
+          "filename": "2c7744e25798a2228d00e27b82865e8115f4f28396498ba11f2082aa094d9408-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 747136,
+          "location": "private review directory"
+        },
+        {
+          "filename": "2c7744e25798a2228d00e27b82865e8115f4f28396498ba11f2082aa094d9408-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 1421548,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1PNC96TprxCg3FFCIytARWu6nf5wfNHjF",
+      "filename": "IMG_7001.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 4301823,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "fbd757b068d8fe3c0c5d31a8c8f7ab983742f0dda9003ba40171b93a7940eb87",
+      "altText": "Restaurant terrace beneath a glass roof — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "fbd757b068d8fe3c0c5d31a8c8f7ab983742f0dda9003ba40171b93a7940eb87-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 150692,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fbd757b068d8fe3c0c5d31a8c8f7ab983742f0dda9003ba40171b93a7940eb87-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 539154,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fbd757b068d8fe3c0c5d31a8c8f7ab983742f0dda9003ba40171b93a7940eb87-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 1047114,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1zVhM3GVeEF1JwGtEHCEawc4CFARLTnIf",
+      "filename": "IMG_7360.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 4111425,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "1493be00fc36420609ac5d43ef920af9197435c4bf0ecebcbefcc8023aecd716",
+      "altText": "Woman in a mirrored room with hanging decorations — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "1493be00fc36420609ac5d43ef920af9197435c4bf0ecebcbefcc8023aecd716-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 176900,
+          "location": "private review directory"
+        },
+        {
+          "filename": "1493be00fc36420609ac5d43ef920af9197435c4bf0ecebcbefcc8023aecd716-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 560456,
+          "location": "private review directory"
+        },
+        {
+          "filename": "1493be00fc36420609ac5d43ef920af9197435c4bf0ecebcbefcc8023aecd716-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 1007696,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1n8lFBFPR7TaElq5P-nkNVw2j7Nl14UTN",
+      "filename": "IMG_6932.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 3997449,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6",
+      "altText": "Covered entrance with a Welcome to Nairobi sign — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 122806,
+          "location": "private review directory"
+        },
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 436436,
+          "location": "private review directory"
+        },
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 870924,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1N7yJmJVqQrpguQbAw1YEfy7sv_jBAq3D",
+      "filename": "IMG_7335.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 3203015,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "a4350cbd784686905e809827a8b7f4d9c6fc8b121f417a7ba9c7d2c66bcb4d4b",
+      "altText": "Woman reflected in a blue mirrored installation — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "a4350cbd784686905e809827a8b7f4d9c6fc8b121f417a7ba9c7d2c66bcb4d4b-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 108542,
+          "location": "private review directory"
+        },
+        {
+          "filename": "a4350cbd784686905e809827a8b7f4d9c6fc8b121f417a7ba9c7d2c66bcb4d4b-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 285038,
+          "location": "private review directory"
+        },
+        {
+          "filename": "a4350cbd784686905e809827a8b7f4d9c6fc8b121f417a7ba9c7d2c66bcb4d4b-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 504584,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1h5SQMbY-9hibVxh_Ykq-H5G2eVMTFbDT",
+      "filename": "IMG_7158.JPG",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 2198625,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "0ea3cb31667795451c860ebbbc1c127a7c602a9347ec8aaa20a2f262cf8c2262",
+      "altText": "Elephants viewed by a crowd — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "0ea3cb31667795451c860ebbbc1c127a7c602a9347ec8aaa20a2f262cf8c2262-640.webp",
+          "width": 640,
+          "height": 1138,
+          "bytes": 178398,
+          "location": "private review directory"
+        },
+        {
+          "filename": "0ea3cb31667795451c860ebbbc1c127a7c602a9347ec8aaa20a2f262cf8c2262-1280.webp",
+          "width": 1280,
+          "height": 2276,
+          "bytes": 547904,
+          "location": "private review directory"
+        },
+        {
+          "filename": "0ea3cb31667795451c860ebbbc1c127a7c602a9347ec8aaa20a2f262cf8c2262-1920.webp",
+          "width": 1920,
+          "height": 3413,
+          "bytes": 922598,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "11DkrCD4YoXZO2JxYw_v6FIfYOA9IDAkL",
+      "filename": "IMG_7287.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 2090515,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "889dbd7e4572c875a0f01860825cc3147a182884c5eddefa4294509a9880ce77",
+      "altText": "Woman beneath an arched window indoors — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "889dbd7e4572c875a0f01860825cc3147a182884c5eddefa4294509a9880ce77-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 70152,
+          "location": "private review directory"
+        },
+        {
+          "filename": "889dbd7e4572c875a0f01860825cc3147a182884c5eddefa4294509a9880ce77-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 200230,
+          "location": "private review directory"
+        },
+        {
+          "filename": "889dbd7e4572c875a0f01860825cc3147a182884c5eddefa4294509a9880ce77-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 354036,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "12UTobhM73C8aCPNY4CpkF9Hr1JH8WpeF",
+      "filename": "IMG_3236.JPG",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 5633953,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "fe3d52a1e6c6e7b800c5e1cd69ab531078b72dce87bfa99e8d00120959228e85",
+      "altText": "Safari vehicle at a national park entrance — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "background people unclear; treat as consent-requiring",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "fe3d52a1e6c6e7b800c5e1cd69ab531078b72dce87bfa99e8d00120959228e85-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 103734,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fe3d52a1e6c6e7b800c5e1cd69ab531078b72dce87bfa99e8d00120959228e85-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 386964,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fe3d52a1e6c6e7b800c5e1cd69ab531078b72dce87bfa99e8d00120959228e85-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 802128,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1Rzkq-S9TtmXKgQ7npfxtruMsCx-ntVx3",
+      "filename": "IMG_6932.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 3997449,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6",
+      "altText": "Covered entrance with a Welcome to Nairobi sign — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": "1n8lFBFPR7TaElq5P-nkNVw2j7Nl14UTN",
+      "derivatives": [
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 122806,
+          "location": "private review directory"
+        },
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 436436,
+          "location": "private review directory"
+        },
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 870924,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1CZrCnxCRQgiIFiUNJkzlZysJ9geqEsaf",
+      "filename": "IMG_6932.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 3997449,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6",
+      "altText": "Covered entrance with a Welcome to Nairobi sign — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": "1n8lFBFPR7TaElq5P-nkNVw2j7Nl14UTN",
+      "derivatives": [
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 122806,
+          "location": "private review directory"
+        },
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 436436,
+          "location": "private review directory"
+        },
+        {
+          "filename": "885ba1bcfedba279b2e3d2e49c0477e79b6b90e609cc6a3d5fcb1e93749dfea6-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 870924,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1q_BLzP3uFtRLnj5Ymehv4CqSJbiRRw1E",
+      "filename": "IMG_6942.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 3514124,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "d9d82d88e21e8936572c4c07610846a62a39cbb90bd132f1d57313b17851cf8c",
+      "altText": "Rooftop pool with swimmers — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "d9d82d88e21e8936572c4c07610846a62a39cbb90bd132f1d57313b17851cf8c-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 85466,
+          "location": "private review directory"
+        },
+        {
+          "filename": "d9d82d88e21e8936572c4c07610846a62a39cbb90bd132f1d57313b17851cf8c-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 320864,
+          "location": "private review directory"
+        },
+        {
+          "filename": "d9d82d88e21e8936572c4c07610846a62a39cbb90bd132f1d57313b17851cf8c-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 661804,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1qMKMXf0qoJgaXsdjsnj1YNq-YqU0LUny",
+      "filename": "IMG_6942.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 3514124,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "d9d82d88e21e8936572c4c07610846a62a39cbb90bd132f1d57313b17851cf8c",
+      "altText": "Rooftop pool with swimmers — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": "1q_BLzP3uFtRLnj5Ymehv4CqSJbiRRw1E",
+      "derivatives": [
+        {
+          "filename": "d9d82d88e21e8936572c4c07610846a62a39cbb90bd132f1d57313b17851cf8c-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 85466,
+          "location": "private review directory"
+        },
+        {
+          "filename": "d9d82d88e21e8936572c4c07610846a62a39cbb90bd132f1d57313b17851cf8c-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 320864,
+          "location": "private review directory"
+        },
+        {
+          "filename": "d9d82d88e21e8936572c4c07610846a62a39cbb90bd132f1d57313b17851cf8c-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 661804,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "15-1aBCtYvD_ovS0TKLe8TAc_Ya5_Rq1p",
+      "filename": "IMG_7390.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 2886628,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "2c789abc40c338c94d34e67b2540f6f883cc5accc1f0147f89fe217da6ff654a",
+      "altText": "Illuminated Nairobi counter inside an airport — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "background people unclear; treat as consent-requiring",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "2c789abc40c338c94d34e67b2540f6f883cc5accc1f0147f89fe217da6ff654a-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 62906,
+          "location": "private review directory"
+        },
+        {
+          "filename": "2c789abc40c338c94d34e67b2540f6f883cc5accc1f0147f89fe217da6ff654a-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 216362,
+          "location": "private review directory"
+        },
+        {
+          "filename": "2c789abc40c338c94d34e67b2540f6f883cc5accc1f0147f89fe217da6ff654a-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 410082,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1MM6Ecxcw3FfI3BBJfwt9DfjlWBa3d4r2",
+      "filename": "IMG_7164.JPG",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 2800378,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "7f577a38244b70a7bd709c3f48d789f75fb99f6d1f58fea8d26577cc90effcf9",
+      "altText": "Elephants on red soil — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "7f577a38244b70a7bd709c3f48d789f75fb99f6d1f58fea8d26577cc90effcf9-640.webp",
+          "width": 640,
+          "height": 1138,
+          "bytes": 201604,
+          "location": "private review directory"
+        },
+        {
+          "filename": "7f577a38244b70a7bd709c3f48d789f75fb99f6d1f58fea8d26577cc90effcf9-1280.webp",
+          "width": 1280,
+          "height": 2276,
+          "bytes": 717894,
+          "location": "private review directory"
+        },
+        {
+          "filename": "7f577a38244b70a7bd709c3f48d789f75fb99f6d1f58fea8d26577cc90effcf9-1920.webp",
+          "width": 1920,
+          "height": 3413,
+          "bytes": 1311802,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1OuWOXnVtDKhnAE5piaSvrXrFBI54hXtC",
+      "filename": "IMG_6956.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 1846422,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "9f0b85180c4cee39b83feb92c015235bf6d1d2154f51e1256092e6fbe2a566c1",
+      "altText": "Table flag and glasses inside a restaurant — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "background people unclear; treat as consent-requiring",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "9f0b85180c4cee39b83feb92c015235bf6d1d2154f51e1256092e6fbe2a566c1-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 36884,
+          "location": "private review directory"
+        },
+        {
+          "filename": "9f0b85180c4cee39b83feb92c015235bf6d1d2154f51e1256092e6fbe2a566c1-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 84222,
+          "location": "private review directory"
+        },
+        {
+          "filename": "9f0b85180c4cee39b83feb92c015235bf6d1d2154f51e1256092e6fbe2a566c1-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 137344,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1jeZSCOGvFrBmAuBvGydRN2j7TnorICVE",
+      "filename": "IMG_7132.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 2604866,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "7fecf53942ecdd3aa9acf66c6bd69a4342b4e20f1dd8db57b5213ad39ac98479",
+      "altText": "Giraffe on a dirt road — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "7fecf53942ecdd3aa9acf66c6bd69a4342b4e20f1dd8db57b5213ad39ac98479-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 154454,
+          "location": "private review directory"
+        },
+        {
+          "filename": "7fecf53942ecdd3aa9acf66c6bd69a4342b4e20f1dd8db57b5213ad39ac98479-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 620460,
+          "location": "private review directory"
+        },
+        {
+          "filename": "7fecf53942ecdd3aa9acf66c6bd69a4342b4e20f1dd8db57b5213ad39ac98479-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 1210594,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1oNWvUwJEi35w-bQJjTeu4VWmnuggcPbL",
+      "filename": "IMG_7131.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 1964891,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "80a2f3546917a2c691d070337f9ba94c33f00b71accdc93c20e7ed854e39cb14",
+      "altText": "Giraffe beside a dirt road — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "80a2f3546917a2c691d070337f9ba94c33f00b71accdc93c20e7ed854e39cb14-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 119376,
+          "location": "private review directory"
+        },
+        {
+          "filename": "80a2f3546917a2c691d070337f9ba94c33f00b71accdc93c20e7ed854e39cb14-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 460440,
+          "location": "private review directory"
+        },
+        {
+          "filename": "80a2f3546917a2c691d070337f9ba94c33f00b71accdc93c20e7ed854e39cb14-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 845396,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1LPzqp5DPZwj22tYfKsTOzyaKgCdLmWPa",
+      "filename": "IMG_6956.HEIC",
+      "folder": "Kenya",
+      "mimeType": "image/heif",
+      "bytes": 1846422,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "9f0b85180c4cee39b83feb92c015235bf6d1d2154f51e1256092e6fbe2a566c1",
+      "altText": "Table flag and glasses inside a restaurant — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "background people unclear; treat as consent-requiring",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": "1OuWOXnVtDKhnAE5piaSvrXrFBI54hXtC",
+      "derivatives": [
+        {
+          "filename": "9f0b85180c4cee39b83feb92c015235bf6d1d2154f51e1256092e6fbe2a566c1-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 36884,
+          "location": "private review directory"
+        },
+        {
+          "filename": "9f0b85180c4cee39b83feb92c015235bf6d1d2154f51e1256092e6fbe2a566c1-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 84222,
+          "location": "private review directory"
+        },
+        {
+          "filename": "9f0b85180c4cee39b83feb92c015235bf6d1d2154f51e1256092e6fbe2a566c1-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 137344,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1gheZMzRvzQ41HYNhakhslSQfh5rhx4EM",
+      "filename": "478618a5-8596-43bb-939a-e7bb44c9357c.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 503429,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "09d34a112ab0e7d155946e3e9e5deef30d6f3e4c45df0b19494950a65a537cda",
+      "altText": "Blue and white boats moored beside a lake — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "local homepage editorial preview; not a package",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "09d34a112ab0e7d155946e3e9e5deef30d6f3e4c45df0b19494950a65a537cda-640.webp",
+          "width": 640,
+          "height": 854,
+          "bytes": 96854,
+          "location": "private review directory"
+        },
+        {
+          "filename": "09d34a112ab0e7d155946e3e9e5deef30d6f3e4c45df0b19494950a65a537cda-1280.webp",
+          "width": 1199,
+          "height": 1600,
+          "bytes": 268362,
+          "location": "private review directory"
+        },
+        {
+          "filename": "09d34a112ab0e7d155946e3e9e5deef30d6f3e4c45df0b19494950a65a537cda-1920.webp",
+          "width": 1199,
+          "height": 1600,
+          "bytes": 268362,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1srai16o0GXawJ0-4lefpzX1QUb0nVEZS",
+      "filename": "3e62e015-b4cb-48b6-8fc6-f7385ec68852.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 323491,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "067893b7a1b1ef0a54cad528c421fec73d90513e4a27c921b14a5e2be4b0dacd",
+      "altText": "Close view of a giraffe — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "067893b7a1b1ef0a54cad528c421fec73d90513e4a27c921b14a5e2be4b0dacd-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 60534,
+          "location": "private review directory"
+        },
+        {
+          "filename": "067893b7a1b1ef0a54cad528c421fec73d90513e4a27c921b14a5e2be4b0dacd-1280.webp",
+          "width": 1200,
+          "height": 1600,
+          "bytes": 125574,
+          "location": "private review directory"
+        },
+        {
+          "filename": "067893b7a1b1ef0a54cad528c421fec73d90513e4a27c921b14a5e2be4b0dacd-1920.webp",
+          "width": 1200,
+          "height": 1600,
+          "bytes": 125574,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1Bjl1aT8TCQaAZ8OJ7a8AYrY7xU5TyydW",
+      "filename": "6544889f-5caa-4552-9502-606d8c5b44a0.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 303379,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "4d26239d9de2cc605b9ca65bbd81f565c7c8641ae74ced256c60b993431ae3b5",
+      "altText": "Woman beside a giraffe enclosure — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "4d26239d9de2cc605b9ca65bbd81f565c7c8641ae74ced256c60b993431ae3b5-640.webp",
+          "width": 640,
+          "height": 740,
+          "bytes": 95174,
+          "location": "private review directory"
+        },
+        {
+          "filename": "4d26239d9de2cc605b9ca65bbd81f565c7c8641ae74ced256c60b993431ae3b5-1280.webp",
+          "width": 1280,
+          "height": 1480,
+          "bytes": 215350,
+          "location": "private review directory"
+        },
+        {
+          "filename": "4d26239d9de2cc605b9ca65bbd81f565c7c8641ae74ced256c60b993431ae3b5-1920.webp",
+          "width": 1280,
+          "height": 1480,
+          "bytes": 215350,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "17MLVc2kvd7f4xkqcE9iPCq23s1yyav-G",
+      "filename": "f952c0a6-f43b-408e-9209-5e7a36c5c60b.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 250742,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "9944212dcee25ea1d37bada1a8de18ccdc05c9e2a7a3a0381b95d0eb1f17dd64",
+      "altText": "Pelicans taking flight over a lake — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "9944212dcee25ea1d37bada1a8de18ccdc05c9e2a7a3a0381b95d0eb1f17dd64-640.webp",
+          "width": 640,
+          "height": 430,
+          "bytes": 66286,
+          "location": "private review directory"
+        },
+        {
+          "filename": "9944212dcee25ea1d37bada1a8de18ccdc05c9e2a7a3a0381b95d0eb1f17dd64-1280.webp",
+          "width": 1280,
+          "height": 860,
+          "bytes": 220550,
+          "location": "private review directory"
+        },
+        {
+          "filename": "9944212dcee25ea1d37bada1a8de18ccdc05c9e2a7a3a0381b95d0eb1f17dd64-1920.webp",
+          "width": 1280,
+          "height": 860,
+          "bytes": 220550,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1WxHcB-IT9gIy369IgEZBuAa31dD060am",
+      "filename": "c0ae0d06-55cb-43d5-b6c3-33001a1f8b78.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 250010,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "410197f3cbf698b6a7c7c9e0ebb53aaa24c317479c5025f8e45b328ef8dae666",
+      "altText": "Elephants in grassland — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "410197f3cbf698b6a7c7c9e0ebb53aaa24c317479c5025f8e45b328ef8dae666-640.webp",
+          "width": 640,
+          "height": 426,
+          "bytes": 88032,
+          "location": "private review directory"
+        },
+        {
+          "filename": "410197f3cbf698b6a7c7c9e0ebb53aaa24c317479c5025f8e45b328ef8dae666-1280.webp",
+          "width": 1280,
+          "height": 851,
+          "bytes": 212458,
+          "location": "private review directory"
+        },
+        {
+          "filename": "410197f3cbf698b6a7c7c9e0ebb53aaa24c317479c5025f8e45b328ef8dae666-1920.webp",
+          "width": 1280,
+          "height": 851,
+          "bytes": 212458,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1CX16aBpUJfTBwyhk-nlVAv8PQ55v251h",
+      "filename": "c5b032e0-a1ab-4fe7-a2a4-8af2730a5074.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 243647,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "8947b7727ddb234d5f086f0ee741717e497f8b41fceb36c6be4da859371ea461",
+      "altText": "Elephant herd in grassland — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "8947b7727ddb234d5f086f0ee741717e497f8b41fceb36c6be4da859371ea461-640.webp",
+          "width": 640,
+          "height": 427,
+          "bytes": 86058,
+          "location": "private review directory"
+        },
+        {
+          "filename": "8947b7727ddb234d5f086f0ee741717e497f8b41fceb36c6be4da859371ea461-1280.webp",
+          "width": 1280,
+          "height": 853,
+          "bytes": 203722,
+          "location": "private review directory"
+        },
+        {
+          "filename": "8947b7727ddb234d5f086f0ee741717e497f8b41fceb36c6be4da859371ea461-1920.webp",
+          "width": 1280,
+          "height": 853,
+          "bytes": 203722,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1x8drpMzcj7uc8SXOR22lmGdRg_EnTJEi",
+      "filename": "bef2d203-8c1c-4cde-a3f5-b2c53ac0d639.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 239095,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "a80149a2420d2041898eaba0a6aaadf0b70f5ed1389e0a624b320d56a5929286",
+      "altText": "People beside boats on a lakeshore — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "a80149a2420d2041898eaba0a6aaadf0b70f5ed1389e0a624b320d56a5929286-640.webp",
+          "width": 640,
+          "height": 360,
+          "bytes": 65936,
+          "location": "private review directory"
+        },
+        {
+          "filename": "a80149a2420d2041898eaba0a6aaadf0b70f5ed1389e0a624b320d56a5929286-1280.webp",
+          "width": 1280,
+          "height": 720,
+          "bytes": 220758,
+          "location": "private review directory"
+        },
+        {
+          "filename": "a80149a2420d2041898eaba0a6aaadf0b70f5ed1389e0a624b320d56a5929286-1920.webp",
+          "width": 1280,
+          "height": 720,
+          "bytes": 220758,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1EDCpKx04IipFqNz_KJEoZdFLbgv-CdYj",
+      "filename": "15f2793c-5ea0-485f-969e-0910c2d09484.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 212727,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "fef2b95fe14ac46fc2facdc0751b872c15c51e363b373141bf05588b65829e1b",
+      "altText": "Hippos in water near a wooded shore — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "fef2b95fe14ac46fc2facdc0751b872c15c51e363b373141bf05588b65829e1b-640.webp",
+          "width": 640,
+          "height": 360,
+          "bytes": 55308,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fef2b95fe14ac46fc2facdc0751b872c15c51e363b373141bf05588b65829e1b-1280.webp",
+          "width": 1280,
+          "height": 720,
+          "bytes": 192564,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fef2b95fe14ac46fc2facdc0751b872c15c51e363b373141bf05588b65829e1b-1920.webp",
+          "width": 1280,
+          "height": 720,
+          "bytes": 192564,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "136YWuBSsKOpzpabpshwmnbyQWcOfgz8R",
+      "filename": "0bd9d47d-1120-407d-97e9-d4112e55e736.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 184761,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "fb8ceb1452f821d5bb8ca7f31d6bfc15c0135b031c9069112f2768ca6a5fcdb2",
+      "altText": "Keeper bottle-feeding an elephant calf — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "fb8ceb1452f821d5bb8ca7f31d6bfc15c0135b031c9069112f2768ca6a5fcdb2-640.webp",
+          "width": 640,
+          "height": 480,
+          "bytes": 57174,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fb8ceb1452f821d5bb8ca7f31d6bfc15c0135b031c9069112f2768ca6a5fcdb2-1280.webp",
+          "width": 1280,
+          "height": 960,
+          "bytes": 133494,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fb8ceb1452f821d5bb8ca7f31d6bfc15c0135b031c9069112f2768ca6a5fcdb2-1920.webp",
+          "width": 1280,
+          "height": 960,
+          "bytes": 133494,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1-dE-h8QxuMTuuhp_XrDlJUyRF4KtRRVz",
+      "filename": "effed4f8-fa0a-4630-abd8-c87f9f76bbec.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 170455,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "5e0c80e54815b003194b10e372a9463eff33a48c8bf5631754f6ca27ed75a5d0",
+      "altText": "Elephant calf drinking from a bottle — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "5e0c80e54815b003194b10e372a9463eff33a48c8bf5631754f6ca27ed75a5d0-640.webp",
+          "width": 640,
+          "height": 504,
+          "bytes": 50352,
+          "location": "private review directory"
+        },
+        {
+          "filename": "5e0c80e54815b003194b10e372a9463eff33a48c8bf5631754f6ca27ed75a5d0-1280.webp",
+          "width": 1280,
+          "height": 1008,
+          "bytes": 118608,
+          "location": "private review directory"
+        },
+        {
+          "filename": "5e0c80e54815b003194b10e372a9463eff33a48c8bf5631754f6ca27ed75a5d0-1920.webp",
+          "width": 1280,
+          "height": 1008,
+          "bytes": 118608,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1RZmDqcy6W07pZtvuH2OocPtNBRQmVXuj",
+      "filename": "a4f20aa9-bd3d-4470-b10c-6ebd69e7e205.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 165890,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "f8018d4979c8075963e6ca9cdbdd240a157cae1c5b5e2df92b5982d1a8f608c4",
+      "altText": "Rock pinnacle beside a dirt trail — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "f8018d4979c8075963e6ca9cdbdd240a157cae1c5b5e2df92b5982d1a8f608c4-640.webp",
+          "width": 640,
+          "height": 429,
+          "bytes": 52300,
+          "location": "private review directory"
+        },
+        {
+          "filename": "f8018d4979c8075963e6ca9cdbdd240a157cae1c5b5e2df92b5982d1a8f608c4-1280.webp",
+          "width": 1280,
+          "height": 858,
+          "bytes": 127094,
+          "location": "private review directory"
+        },
+        {
+          "filename": "f8018d4979c8075963e6ca9cdbdd240a157cae1c5b5e2df92b5982d1a8f608c4-1920.webp",
+          "width": 1280,
+          "height": 858,
+          "bytes": 127094,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "14Tr7Hi2Ql2OKIIHskgSLakoJ6kbey1lI",
+      "filename": "b2f6de4d-0308-45fd-aafe-3e6e84320d24.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 145139,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "73c754435306152983f40911d9aad6bac7a14c0fb781a3d338cffed9c78cece8",
+      "altText": "Lion with its mouth open — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "73c754435306152983f40911d9aad6bac7a14c0fb781a3d338cffed9c78cece8-640.webp",
+          "width": 640,
+          "height": 1088,
+          "bytes": 130932,
+          "location": "private review directory"
+        },
+        {
+          "filename": "73c754435306152983f40911d9aad6bac7a14c0fb781a3d338cffed9c78cece8-1280.webp",
+          "width": 688,
+          "height": 1170,
+          "bytes": 138626,
+          "location": "private review directory"
+        },
+        {
+          "filename": "73c754435306152983f40911d9aad6bac7a14c0fb781a3d338cffed9c78cece8-1920.webp",
+          "width": 688,
+          "height": 1170,
+          "bytes": 138626,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1UbJuTvTOvZAIPkSS7DItUpMD-vM8zZGR",
+      "filename": "8d76255c-bde2-4864-a8ec-462ed422acde.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 131365,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "c675b3c4991954c3ab58c1abd45826b7304e6059496edfcbb79d9777c76b2e41",
+      "altText": "Waterbird perched on a rock — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "c675b3c4991954c3ab58c1abd45826b7304e6059496edfcbb79d9777c76b2e41-640.webp",
+          "width": 640,
+          "height": 427,
+          "bytes": 28832,
+          "location": "private review directory"
+        },
+        {
+          "filename": "c675b3c4991954c3ab58c1abd45826b7304e6059496edfcbb79d9777c76b2e41-1280.webp",
+          "width": 1280,
+          "height": 853,
+          "bytes": 82278,
+          "location": "private review directory"
+        },
+        {
+          "filename": "c675b3c4991954c3ab58c1abd45826b7304e6059496edfcbb79d9777c76b2e41-1920.webp",
+          "width": 1280,
+          "height": 853,
+          "bytes": 82278,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "17X7QiwBiqCkm-rYw6vHiNGm4l92BFnO_",
+      "filename": "9d1d8ecd-81f2-466a-8a22-2f274a9d0e51.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 131184,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "ce04a8ee500e222ada4e0bf935333ac74a674273a071abfc62115bc3d42da42e",
+      "altText": "Rhinoceroses on a dirt track — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "ce04a8ee500e222ada4e0bf935333ac74a674273a071abfc62115bc3d42da42e-640.webp",
+          "width": 640,
+          "height": 922,
+          "bytes": 108916,
+          "location": "private review directory"
+        },
+        {
+          "filename": "ce04a8ee500e222ada4e0bf935333ac74a674273a071abfc62115bc3d42da42e-1280.webp",
+          "width": 712,
+          "height": 1026,
+          "bytes": 120934,
+          "location": "private review directory"
+        },
+        {
+          "filename": "ce04a8ee500e222ada4e0bf935333ac74a674273a071abfc62115bc3d42da42e-1920.webp",
+          "width": 712,
+          "height": 1026,
+          "bytes": 120934,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1_ytdoQdHUGg-fN_odzWnBkJoYXAFsdhR",
+      "filename": "5744bf3e-2806-4ed0-aae7-2af556651858.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 122222,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "b69f3fd18a13989bdf9c670bc7c5acfb388705956ce4d7a7350cca82b79625b9",
+      "altText": "Ostriches in open ground — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "b69f3fd18a13989bdf9c670bc7c5acfb388705956ce4d7a7350cca82b79625b9-640.webp",
+          "width": 640,
+          "height": 700,
+          "bytes": 107268,
+          "location": "private review directory"
+        },
+        {
+          "filename": "b69f3fd18a13989bdf9c670bc7c5acfb388705956ce4d7a7350cca82b79625b9-1280.webp",
+          "width": 720,
+          "height": 788,
+          "bytes": 122810,
+          "location": "private review directory"
+        },
+        {
+          "filename": "b69f3fd18a13989bdf9c670bc7c5acfb388705956ce4d7a7350cca82b79625b9-1920.webp",
+          "width": 720,
+          "height": 788,
+          "bytes": 122810,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1fpUNAE13L54BZ4SUin9GecmDu_xNA6I2",
+      "filename": "b7e55aec-f09f-41a5-8476-b846a9e925d4.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 93668,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "fe3690eae0c556255eda27f0b9e5d6db4688fb15bb1b8fa2b1c74d024d585898",
+      "altText": "Antelope herd — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "fe3690eae0c556255eda27f0b9e5d6db4688fb15bb1b8fa2b1c74d024d585898-640.webp",
+          "width": 640,
+          "height": 740,
+          "bytes": 74316,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fe3690eae0c556255eda27f0b9e5d6db4688fb15bb1b8fa2b1c74d024d585898-1280.webp",
+          "width": 716,
+          "height": 828,
+          "bytes": 87398,
+          "location": "private review directory"
+        },
+        {
+          "filename": "fe3690eae0c556255eda27f0b9e5d6db4688fb15bb1b8fa2b1c74d024d585898-1920.webp",
+          "width": 716,
+          "height": 828,
+          "bytes": 87398,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1UTeBQOkASXHZX4mZjjfE89QBsQte2R-i",
+      "filename": "0dfc5411-9620-498d-9eb4-395198149c6f.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 86763,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "64ed83079834aa67f9354dd3088924f9f838cd9b309087cc7f4dcd08c0b34d6c",
+      "altText": "Lion walking — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "64ed83079834aa67f9354dd3088924f9f838cd9b309087cc7f4dcd08c0b34d6c-640.webp",
+          "width": 640,
+          "height": 750,
+          "bytes": 67674,
+          "location": "private review directory"
+        },
+        {
+          "filename": "64ed83079834aa67f9354dd3088924f9f838cd9b309087cc7f4dcd08c0b34d6c-1280.webp",
+          "width": 720,
+          "height": 844,
+          "bytes": 75678,
+          "location": "private review directory"
+        },
+        {
+          "filename": "64ed83079834aa67f9354dd3088924f9f838cd9b309087cc7f4dcd08c0b34d6c-1920.webp",
+          "width": 720,
+          "height": 844,
+          "bytes": 75678,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1M3ta5havBhhAFI7DQufj0TWUFcBzDx8k",
+      "filename": "617432ca-18a6-441b-9b62-993c26a58eea.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 79963,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "3e4b8e0193e5af2c38512b1d52d4e4e078c5b372c4f9f1d370fbaa8582e54c50",
+      "altText": "Close view of an ostrich — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "3e4b8e0193e5af2c38512b1d52d4e4e078c5b372c4f9f1d370fbaa8582e54c50-640.webp",
+          "width": 640,
+          "height": 772,
+          "bytes": 56408,
+          "location": "private review directory"
+        },
+        {
+          "filename": "3e4b8e0193e5af2c38512b1d52d4e4e078c5b372c4f9f1d370fbaa8582e54c50-1280.webp",
+          "width": 720,
+          "height": 868,
+          "bytes": 64020,
+          "location": "private review directory"
+        },
+        {
+          "filename": "3e4b8e0193e5af2c38512b1d52d4e4e078c5b372c4f9f1d370fbaa8582e54c50-1920.webp",
+          "width": 720,
+          "height": 868,
+          "bytes": 64020,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1ofhICmEM0E0YWGwWxz2RfzmY93MqAgk0",
+      "filename": "b40fb46f-f87e-474f-a48b-8c1089ab0b98.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 72829,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "432e1823630ac10d115d9d99507989a64a7dd8af2de852e5853e11366813d04c",
+      "altText": "Buffalo herd — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "432e1823630ac10d115d9d99507989a64a7dd8af2de852e5853e11366813d04c-640.webp",
+          "width": 640,
+          "height": 748,
+          "bytes": 51550,
+          "location": "private review directory"
+        },
+        {
+          "filename": "432e1823630ac10d115d9d99507989a64a7dd8af2de852e5853e11366813d04c-1280.webp",
+          "width": 720,
+          "height": 842,
+          "bytes": 58492,
+          "location": "private review directory"
+        },
+        {
+          "filename": "432e1823630ac10d115d9d99507989a64a7dd8af2de852e5853e11366813d04c-1920.webp",
+          "width": 720,
+          "height": 842,
+          "bytes": 58492,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1gbkEqNTn8fpwUomQ_vLyxBg4tAgaEp15",
+      "filename": "12bacbf0-6d0f-40e2-8388-009f39df26c9.jpg",
+      "folder": "Kenya",
+      "mimeType": "image/jpeg",
+      "bytes": 40428,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "a4a771d35edb53796740137a82a9263ab30f1522eb73ce386fadbb8880142480",
+      "altText": "Close view of an antelope — Kenya.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "a4a771d35edb53796740137a82a9263ab30f1522eb73ce386fadbb8880142480-640.webp",
+          "width": 640,
+          "height": 421,
+          "bytes": 24960,
+          "location": "private review directory"
+        },
+        {
+          "filename": "a4a771d35edb53796740137a82a9263ab30f1522eb73ce386fadbb8880142480-1280.webp",
+          "width": 720,
+          "height": 474,
+          "bytes": 28894,
+          "location": "private review directory"
+        },
+        {
+          "filename": "a4a771d35edb53796740137a82a9263ab30f1522eb73ce386fadbb8880142480-1920.webp",
+          "width": 720,
+          "height": 474,
+          "bytes": 28894,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1TGX0GrhbvNXkghKOBd-DAS-ckuDxWcMG",
+      "filename": "IMG_8446.PNG",
+      "folder": "Zanzibar",
+      "mimeType": "image/jpeg",
+      "bytes": 214805,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "bfb2dad00137178715b8761888f2735a99ee8c12b21b2e836b8ba385cb784761",
+      "altText": "People silhouetted on a boat at sunset — Zanzibar.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "bfb2dad00137178715b8761888f2735a99ee8c12b21b2e836b8ba385cb784761-640.webp",
+          "width": 640,
+          "height": 1125,
+          "bytes": 30064,
+          "location": "private review directory"
+        },
+        {
+          "filename": "bfb2dad00137178715b8761888f2735a99ee8c12b21b2e836b8ba385cb784761-1280.webp",
+          "width": 1206,
+          "height": 2119,
+          "bytes": 72090,
+          "location": "private review directory"
+        },
+        {
+          "filename": "bfb2dad00137178715b8761888f2735a99ee8c12b21b2e836b8ba385cb784761-1920.webp",
+          "width": 1206,
+          "height": 2119,
+          "bytes": 72090,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1T2tZQ4zZ7MkN4jD5c5mFhKMbCvl26xvz",
+      "filename": "IMG_8015.HEIC",
+      "folder": "Zanzibar",
+      "mimeType": "image/heif",
+      "bytes": 6458092,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "4897464bd27da0fdcb45e7b117b8069c7d5c29ffc7f2073e2e48a268b7b4cd76",
+      "altText": "Large tree beside a garden path — Zanzibar.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "4897464bd27da0fdcb45e7b117b8069c7d5c29ffc7f2073e2e48a268b7b4cd76-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 235524,
+          "location": "private review directory"
+        },
+        {
+          "filename": "4897464bd27da0fdcb45e7b117b8069c7d5c29ffc7f2073e2e48a268b7b4cd76-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 882616,
+          "location": "private review directory"
+        },
+        {
+          "filename": "4897464bd27da0fdcb45e7b117b8069c7d5c29ffc7f2073e2e48a268b7b4cd76-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 1770352,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1IlK313JN86QhzbNgHWhJp7EWAbV8ckCo",
+      "filename": "IMG_8021.HEIC",
+      "folder": "Zanzibar",
+      "mimeType": "image/heif",
+      "bytes": 3916767,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "b50652ce8b776f23f9442fae4fb0df84c8a391b45aecf9c41b7ffd3e86645198",
+      "altText": "Twin-towered church facade with an arched entrance — Zanzibar.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "background people unclear; treat as consent-requiring",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "b50652ce8b776f23f9442fae4fb0df84c8a391b45aecf9c41b7ffd3e86645198-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 126656,
+          "location": "private review directory"
+        },
+        {
+          "filename": "b50652ce8b776f23f9442fae4fb0df84c8a391b45aecf9c41b7ffd3e86645198-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 482740,
+          "location": "private review directory"
+        },
+        {
+          "filename": "b50652ce8b776f23f9442fae4fb0df84c8a391b45aecf9c41b7ffd3e86645198-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 977604,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1g_M2AmX1JNwlUzdT4AwEBMinGPNk1zZQ",
+      "filename": "IMG_8002.HEIC",
+      "folder": "Zanzibar",
+      "mimeType": "image/heif",
+      "bytes": 2753064,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "cfe3b503ac4f3f1db347de8d86bf533e0455f43f58efc71413d6627ee404de76",
+      "altText": "Person walking along a street of white buildings — Zanzibar.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "cfe3b503ac4f3f1db347de8d86bf533e0455f43f58efc71413d6627ee404de76-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 81662,
+          "location": "private review directory"
+        },
+        {
+          "filename": "cfe3b503ac4f3f1db347de8d86bf533e0455f43f58efc71413d6627ee404de76-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 267016,
+          "location": "private review directory"
+        },
+        {
+          "filename": "cfe3b503ac4f3f1db347de8d86bf533e0455f43f58efc71413d6627ee404de76-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 501626,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1fXM3ZotzhpkooutNoKtaL9-drEQ_be6X",
+      "filename": "IMG_8007.HEIC",
+      "folder": "Zanzibar",
+      "mimeType": "image/heif",
+      "bytes": 1196652,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "387e34e68a079df5cf5bfcdc9d5e73e7cfc0af47d38786e42be06e092cc47e49",
+      "altText": "Boats and a thatched floating structure on blue water — Zanzibar.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "local homepage editorial preview; not a package",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "387e34e68a079df5cf5bfcdc9d5e73e7cfc0af47d38786e42be06e092cc47e49-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 40828,
+          "location": "private review directory"
+        },
+        {
+          "filename": "387e34e68a079df5cf5bfcdc9d5e73e7cfc0af47d38786e42be06e092cc47e49-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 147196,
+          "location": "private review directory"
+        },
+        {
+          "filename": "387e34e68a079df5cf5bfcdc9d5e73e7cfc0af47d38786e42be06e092cc47e49-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 261670,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1L60OnDx25usrRg5v_hQOfVCv3uEYCW_U",
+      "filename": "IMG_3680.jpg",
+      "folder": "Zanzibar",
+      "mimeType": "image/jpeg",
+      "bytes": 908062,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "b60ec1e6297ad0f203062823c4f28a09f81e007f0d544fe55018e11251b989d9",
+      "altText": "Swimming pool and palms with people nearby — Zanzibar.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "b60ec1e6297ad0f203062823c4f28a09f81e007f0d544fe55018e11251b989d9-640.webp",
+          "width": 640,
+          "height": 1138,
+          "bytes": 63988,
+          "location": "private review directory"
+        },
+        {
+          "filename": "b60ec1e6297ad0f203062823c4f28a09f81e007f0d544fe55018e11251b989d9-1280.webp",
+          "width": 1280,
+          "height": 2276,
+          "bytes": 184072,
+          "location": "private review directory"
+        },
+        {
+          "filename": "b60ec1e6297ad0f203062823c4f28a09f81e007f0d544fe55018e11251b989d9-1920.webp",
+          "width": 1920,
+          "height": 3413,
+          "bytes": 312540,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "17ktxzftl8NQG0sQs8JZ3KHmwp-ziWjqM",
+      "filename": "IMG_8063.HEIC",
+      "folder": "Zanzibar",
+      "mimeType": "image/heif",
+      "bytes": 779886,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "2b5687ef2e65ac90acb29998ff38e3e8443efa620060a657dce73be4f995f6ea",
+      "altText": "Illuminated swimming pool at night — Zanzibar.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "none apparent in reviewed image",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "2b5687ef2e65ac90acb29998ff38e3e8443efa620060a657dce73be4f995f6ea-640.webp",
+          "width": 640,
+          "height": 853,
+          "bytes": 27336,
+          "location": "private review directory"
+        },
+        {
+          "filename": "2b5687ef2e65ac90acb29998ff38e3e8443efa620060a657dce73be4f995f6ea-1280.webp",
+          "width": 1280,
+          "height": 1707,
+          "bytes": 84656,
+          "location": "private review directory"
+        },
+        {
+          "filename": "2b5687ef2e65ac90acb29998ff38e3e8443efa620060a657dce73be4f995f6ea-1920.webp",
+          "width": 1920,
+          "height": 2560,
+          "bytes": 151894,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "13Yn0mjCvvANlHgDB_OsF2BQ9dn1Wa3ON",
+      "filename": "IMG_8069.JPG",
+      "folder": "Zanzibar",
+      "mimeType": "image/jpeg",
+      "bytes": 558234,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed website/social use and people consent on 2026-10-23",
+      "sha256": "da78a29486080caadd67b8acd0a616536e4c26dcc854c095ee0e5dcbdd78dd3c",
+      "altText": "Hand holding a drink beside a swimming pool — Zanzibar.",
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "people visible; user consent confirmed",
+      "consent": "user confirmed all",
+      "privacyReview": "Orientation normalized; EXIF/XMP/IPTC absent from all generated WebP derivatives. Original retained privately.",
+      "assignment": "country media library; no package assigned",
+      "duplicateOf": null,
+      "derivatives": [
+        {
+          "filename": "da78a29486080caadd67b8acd0a616536e4c26dcc854c095ee0e5dcbdd78dd3c-640.webp",
+          "width": 640,
+          "height": 1138,
+          "bytes": 78808,
+          "location": "private review directory"
+        },
+        {
+          "filename": "da78a29486080caadd67b8acd0a616536e4c26dcc854c095ee0e5dcbdd78dd3c-1280.webp",
+          "width": 1242,
+          "height": 2208,
+          "bytes": 191316,
+          "location": "private review directory"
+        },
+        {
+          "filename": "da78a29486080caadd67b8acd0a616536e4c26dcc854c095ee0e5dcbdd78dd3c-1920.webp",
+          "width": 1242,
+          "height": 2208,
+          "bytes": 191316,
+          "location": "private review directory"
+        }
+      ]
+    },
+    {
+      "driveId": "1JJh-boz_sKiLLINIo06uiF0j14g1fYXv",
+      "filename": "sky blue symbol.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 1378867,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "14DusINiNxH5iwPLPDQJNjII6WhbJUQXH",
+      "filename": "secondary gold.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 1385821,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "12vMWyoL9_ZaNaVNiMu9ZZ69BCBBSlngT",
+      "filename": "dark mode symbol.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 769863,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "1XFZpKSeFZur6NXz4RNuaeaqlxvd83EzZ",
+      "filename": "warm grey plus gold symbol.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 980172,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "1Zb3zKhISNETAHJvSwK2vH3j7O3-bu_ZL",
+      "filename": "gold symbol.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 1448597,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "1QNeFvZNH2_Xgm_TK5cDEwGgEhQhPJ_hV",
+      "filename": "navy symbol.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 1362825,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "15ahVVagDsv6xpIivV72kJEhF12kyq5tx",
+      "filename": "midnight primary.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 870051,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "1BOo9grlNWsEZasiKXXjmgKcqMc84Ltoc",
+      "filename": "Warm grey plus gold primary.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 820011,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "1jmq-G-j-YrKBZESCNUpnuQYf2BkWhsG3",
+      "filename": "Sky Blue Primary.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 920353,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "107L6oJ2foD6zFufmbJ30GN0OB60jlbJg",
+      "filename": "Primary gold.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 1391461,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "17Yw12v8A06E0TZSIr1eFw_f2HbgTKTbZ",
+      "filename": "Primary.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 114885,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "1HdAAqYGwTA6esN-tK5Cs-Eisj1SD8Udz",
+      "filename": "Secondary.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 125467,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    },
+    {
+      "driveId": "1YZdrGbu5fUYWKujDJ8_vrFfVSQj65PcL",
+      "filename": "Symbol.png",
+      "folder": "Logos",
+      "mimeType": "image/png",
+      "bytes": 55163,
+      "downloadReported": true,
+      "access": "folder listing readable; permission details not returned",
+      "usageApproval": "user confirmed all; technical review required",
+      "sha256": null,
+      "altText": null,
+      "photographerCredit": "no specific credit text supplied",
+      "identifiablePeople": "not reviewed",
+      "consent": "not applicable to branding",
+      "privacyReview": "pending",
+      "assignment": null
+    }
+  ]
+}

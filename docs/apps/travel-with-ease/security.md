@@ -1,5 +1,16 @@
 # Travel With Ease security architecture and threat model
 
+2026-10-24: [staging startup verification](./staging-activation-2026-10-24.md)
+allows only staging API activation after database/configuration preflight and
+adapter binding. Production and background workers remain blocked pending live acceptance.
+
+Current authentication changes and threat decisions are in the [Cloudflare Access
+and platform administration record](./access-platform-admin-2026-10-23.md).
+The executable uses Access, not the historical OIDC adapter described below.
+Platform Admin has no implicit client-record or publishing permission. Owner-only
+support approval is expiring and audited; email headers cannot confer any role.
+Live policy/MFA and alternate-host verification remain mandatory and incomplete.
+
 The [2026-10-11 repository audit](./repository-audit-2026-10-11.md#8-security-risk-register)
 records code-backed implemented controls, current risks and Ghana privacy/legal
 approval boundaries. Use its numbered register and the linked implementation

@@ -4,6 +4,40 @@ Date: 2026-10-11. Status: **in progress, not staging-ready**.
 Owner workstreams: TWE-005 (database), TWE-017 (staff/CMS/publishing),
 TWE-022 (deployment/monitoring/data protection).
 
+### Prompt 04 prerequisite verification — 2026-10-22
+
+The user supplied Prompt 04 and authorized work on the MVP, including safely
+addressing unfinished foundation prerequisites. No new commit, push or deployment
+is authorized. Starting state: clean `feat/twe-foundation-login-flows`, commit
+`ae5ccbff3`, based on local `develop`. Earlier status entries below are historical.
+
+Real PostgreSQL 17.11 integration, restart persistence and logical backup/restore
+now pass locally. Five migrations apply and rerun safely; failed migration rollback,
+constraints, organisation isolation, concurrent CMS edits, media references/cleanup,
+session revocation, one-use login preferences, notification leases and pinned
+publication failure/retry/unpublish paths are exercised with synthetic data.
+
+The first restore harness stalled because restarting PostgreSQL inherited its
+captured stdout/stderr pipe. Passing the private log destination explicitly on
+restart fixes the harness. The failed drill's own temporary cluster was stopped;
+no existing database was reset or changed. Two subsequent complete drills passed.
+
+Latest result: 15 tables, 49 synthetic rows; identical full-table fingerprints
+before restart, after restart and after restore into a second fresh database.
+SHA-256: `f1ea4e30c5c297bd57b49e5e82798d5acdcfbffc7f3ba9bebb0d969f76d7c24e`.
+Private local evidence directory:
+`/var/folders/b_/tqnndpmj7wn35nfm_6mg02vr0000gn/T/twe-isolated-pg17-VPGLMR`.
+Clusters are stopped after the drill; synthetic data and backup are retained.
+API lint and whitespace checks pass. This run is not browser or hosted acceptance.
+
+Media selection, notification delivery primitives and pinned static publication
+preparation are implemented in the starting commit, correcting older absence
+claims below. Still open: real MFA provider/recovery/enrollment, hosted resources,
+runtime-role grants, protected layout-faithful preview, deployment acknowledgement
+and interrupted-build recovery, encrypted offsite backups/monitoring and UAT.
+Mock object storage and mail are not live R2 or Resend verification. Prompt 03
+hosted acceptance remains incomplete; Prompt 04 is started, not complete.
+
 ### Continuation status — 2026-10-21
 
 Provider-neutral staff sessions and structured CMS draft/revision routes now

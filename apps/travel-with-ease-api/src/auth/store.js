@@ -18,17 +18,18 @@ export class PostgresAuthStore {
 
   async createSession(identity, tokenHash, csrfHash, requestId) {
     return transaction(this.pool, async (client) => {
-      const { rows } = await client.query("SELECT id, role FROM twe.staff_users WHERE organisation_id = $1 AND issuer = $2 AND subject = $3 AND active = true FOR UPDATE", [this.organisationId, identity.issuer, identity.subject]);
+      const { rows } = await client.query("SELECT id, role FROM twe.staff_users WHERE organisation_id = $1 AND issuer = $2 AND subject = $3 AND active = true AND access_audience IS NOT DISTINCT FROM $4 FOR UPDATE", [this.organisationId, identity.issuer, identity.subject, identity.audience || null]);
       const user = rows[0];
       if (!user) return null;
-      await client.query("INSERT INTO twe.staff_sessions (token_hash, organisation_id, user_id, csrf_hash, expires_at) VALUES ($1, $2, $3, $4, now() + interval '1 hour')", [tokenHash, this.organisationId, user.id, csrfHash]);
+      await client.query("INSERT INTO twe.staff_sessions (token_hash, organisation_id, user_id, csrf_hash, expires_at, access_assertion_hash) VALUES ($1, $2, $3, $4, LEAST(now() + interval '1 hour', COALESCE($5::timestamptz, now() + interval '1 hour')), $6)", [tokenHash, this.organisationId, user.id, csrfHash, identity.expiresAt || null, identity.assertionHash || null]);
       await this.audit(client, user.id, "auth.login", requestId);
       return user;
     });
   }
 
   async getSession(hash) {
-    const { rows } = await this.pool.query(`SELECT s.user_id AS id, s.csrf_hash, u.role, s.expires_at
+    const { rows } = await this.pool.query(`SELECT s.user_id AS id, s.csrf_hash, u.role, s.expires_at,
+      u.issuer, u.subject, u.access_audience, s.access_assertion_hash
       FROM twe.staff_sessions s JOIN twe.staff_users u ON u.id = s.user_id AND u.organisation_id = s.organisation_id
       WHERE s.token_hash = $1 AND s.organisation_id = $2 AND s.expires_at > now()
         AND s.revoked_at IS NULL AND u.active = true`, [hash, this.organisationId]);

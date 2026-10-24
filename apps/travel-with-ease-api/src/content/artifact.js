@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { manifestDigest } from "./publication.js";
 import { contentBodySchema, pageSchema } from "./schema.js";
+import sharp from "sharp";
 
 export async function preparePublication(job, media, directory) {
   const publicDirectory = path.join(directory, "public");
@@ -14,6 +15,7 @@ export async function preparePublication(job, media, directory) {
     if (!item.body) { pages[item.slug] = null; continue; }
     const body = contentBodySchema.parse(item.body);
     let image = null;
+    let socialImage = null;
     if (body.imageId) {
       const stored = await media.get(body.imageId);
       if (stored.archived_at) throw new Error("Selected media is archived.");
@@ -21,8 +23,12 @@ export async function preparePublication(job, media, directory) {
       await writeFile(path.join(publicDirectory, "media", filename), await media.preview(body.imageId), { mode: 0o600 });
       const variant = stored.derivatives[0];
       image = { src: `/media/${filename}`, alt: stored.alt_text, width: variant.width, height: variant.height };
+      const socialFilename = `${body.imageId}-social.jpg`;
+      const source = await media.store.get(stored.derivatives.at(-1).key);
+      await sharp(source).rotate().resize(1200, 630, { fit: "cover", position: "centre" }).jpeg({ quality: 88 }).toFile(path.join(publicDirectory, "media", socialFilename));
+      socialImage = { src: `/media/${socialFilename}`, alt: stored.alt_text, width: 1200, height: 630 };
     }
-    pages[item.slug] = { ...body, image };
+    pages[item.slug] = { ...body, image, socialImage };
   }
   const marker = { jobId: job.id, sourceSha: job.source_sha, digest: manifestDigest(job.manifest) };
   const snapshot = path.join(directory, "snapshot.json");

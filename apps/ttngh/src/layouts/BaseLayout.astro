@@ -6,6 +6,7 @@ import "../styles/components/base.css";
 import "../styles/components/shared.css";
 import "../styles/components/editorial.css";
 import "../styles/components/interactions.css";
+import "../styles/components/motion.css";
 import { organization } from "../content/home.js";
 import SiteFooter from "../components/SiteFooter.astro";
 import SiteHeader from "../components/SiteHeader.astro";
@@ -14,9 +15,12 @@ import FloatingUtilities from "../components/FloatingUtilities.astro";
 import SiteSearch from "../components/SiteSearch.astro";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import { isIndexable, productionOrigin } from "../lib/indexability.js";
+import { socialMetadata } from "../lib/social-metadata.js";
+import { imageMetadata } from "astro/assets/utils";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { personSchema, articleSchema, eventSchema } from "../lib/page-schema.js";
 import {
-  absoluteDiscoveryUrl,
   buildBreadcrumbList,
   buildFaqPage,
   canonicalUrl,
@@ -30,8 +34,11 @@ const {
   path = Astro.url.pathname,
   overlayHeader = false,
   pageStyles = [],
-  image = "/images/home/closing-community.jpg",
-  imageAlt = "The Thriving Network GH team and community in Tema, Ghana",
+  image,
+  imageAlt,
+  imageWidth,
+  imageHeight,
+  seo = {},
   breadcrumbs = [],
   faqItems = [],
   noIndex = false,
@@ -40,11 +47,16 @@ const {
   event,
 } = Astro.props;
 
-const siteUrl = Astro.site || new URL(productionOrigin);
+const siteUrl = new URL(productionOrigin);
 const normalizedPath = normalizeDiscoveryPath(path);
 const canonical = canonicalUrl(normalizedPath, siteUrl);
-const isPreviewDomain = !isIndexable(siteUrl, import.meta.env.PUBLIC_SITE_INDEXABLE);
-const absoluteImage = absoluteDiscoveryUrl(image, siteUrl);
+const isPreviewDomain = !isIndexable(Astro.site || Astro.url, import.meta.env.PUBLIC_SITE_INDEXABLE);
+const social = socialMetadata({ title, description, path: normalizedPath, seo, siteSeo: organization.seo, image: image ? { url: image, alt: imageAlt || title, width: imageWidth, height: imageHeight } : undefined, article: Boolean(article) });
+const absoluteImage = social.image.url;
+if (new URL(absoluteImage).origin === productionOrigin) {
+  const bytes = await readFile(resolve("public", `.${new URL(absoluteImage).pathname}`));
+  Object.assign(social.image, await imageMetadata(bytes, absoluteImage));
+}
 const graph = [
   ...people.map(person => personSchema(person, siteUrl)),
   ...[articleSchema(article), eventSchema(event)].filter(Boolean),
@@ -91,7 +103,7 @@ const graph = [
     url: canonical,
     isPartOf: { "@id": new URL("/#website", siteUrl).toString() },
     about: { "@id": new URL("/#organization", siteUrl).toString() },
-    primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage, caption: imageAlt },
+    primaryImageOfPage: { "@type": "ImageObject", url: absoluteImage, caption: social.image.alt },
   },
 ];
 
@@ -121,19 +133,27 @@ const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION |
     <meta name="robots" content={isPreviewDomain || noIndex ? "noindex, nofollow" : "index, follow, max-image-preview:large"} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" sizes="any" href="/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon_io/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon_io/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon_io/apple-touch-icon.png" />
+    <link rel="manifest" href="/favicon_io/site.webmanifest" />
     {pageStyles.map((href) => <link rel="stylesheet" href={href} />)}
     <meta property="og:locale" content="en_GH" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={social.type} />
     <meta property="og:site_name" content={organization.name} />
-    <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
+    <meta property="og:title" content={social.title} />
+    <meta property="og:description" content={social.description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={absoluteImage} />
-    <meta property="og:image:alt" content={imageAlt} />
+    <meta property="og:image:width" content={social.image.width} />
+    <meta property="og:image:height" content={social.image.height} />
+    <meta property="og:image:alt" content={social.image.alt} />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
+    <meta name="twitter:title" content={social.title} />
+    <meta name="twitter:description" content={social.description} />
     <meta name="twitter:image" content={absoluteImage} />
+    <meta name="twitter:image:alt" content={social.image.alt} />
     <script type="application/ld+json" set:html={structuredData} />
   </head>
   <body id="top" class:list={{ "has-overlay-header": overlayHeader }}>
@@ -145,5 +165,6 @@ const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION |
     <SiteSearch />
     <CookieNotice />
     <AnalyticsConsent />
+    <script>import "../scripts/editorial-motion";</script>
   </body>
 </html>

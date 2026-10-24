@@ -1,6 +1,17 @@
 # Travel With Ease environment contract
 
+Portal runtime now requires server-only `TWE_PORTAL_API_ORIGIN` alongside the Access
+settings. Hosted `VITE_API_BASE_URL` must be empty. See [hosting preparation](./portal-hosting-preparation-2026-10-23.md).
+
 Placeholders only; never commit values.
+
+2026-10-23: executable staff authentication now uses `TWE_AUTH_MODE`,
+`TWE_ACCESS_TEAM_DOMAIN`, `TWE_ACCESS_AUDIENCE` and `TWE_PORTAL_ORIGIN`.
+`TWE_AUTH_MODE` must be `cloudflare_access`; nonempty historical `TWE_OIDC_*`
+settings are rejected. Production and staging must use distinct Access applications.
+The user confirmed the supplied AUD is **production**, not staging; private `.env`
+files were not edited. See [setup and release gates](./access-platform-admin-2026-10-23.md).
+The historical OIDC inventory below is not an active deployment contract.
 
 ## Required environment separation
 

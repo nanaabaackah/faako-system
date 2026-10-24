@@ -27,7 +27,6 @@
   overflow: hidden;
   background: var(--brand-pink);
   clip-path: inset(21% 24% round 30px);
-  will-change: clip-path;
 }
 
 .scroll-expand--colour .scroll-expand__frame {
@@ -42,12 +41,13 @@
 }
 
 .scroll-expand__media {
+  /* Direct scroll transforms must not chase an image-hover transition. */
+  transition: none;
   width: 100%;
   height: 100%;
   object-fit: cover;
   transform: scale(1.18);
   transform-origin: center;
-  will-change: transform;
 }
 
 .scroll-expand__scrim {
@@ -70,7 +70,6 @@
   padding: max(var(--page-gutter), 6vw);
   opacity: 80%;
   text-align: center;
-  will-change: opacity, transform;
 }
 
 .scroll-expand__overlay .eyebrow {
@@ -112,7 +111,6 @@
   pointer-events: none;
   text-align: center;
   text-shadow: 0 3px 30px rgb(0 0 0 / 42%);
-  will-change: opacity, transform;
 }
 
 .scroll-expand--colour .scroll-expand__title {
@@ -143,7 +141,8 @@
   text-transform: uppercase;
 }
 
-@media (prefers-reduced-motion: reduce) {
+.scroll-expand[data-motion-active] .scroll-expand__media { will-change: transform; }
+@media (prefers-reduced-motion: reduce), (max-width: 699px) {
   .scroll-expand__frame {
     clip-path: none !important;
   }

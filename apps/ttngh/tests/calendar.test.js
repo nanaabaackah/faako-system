@@ -1,7 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { dateKey, monthRange, eventsOnDay, eventTime, validateCalendarResponse } from "../src/lib/calendar.js";
 const event = { id: "fixture", uid: "fixture", title: "Community event", start: "2026-10-20", end: "2026-10-22", allDay: true, location: "", timezone: "Africa/Accra", status: "confirmed" };
+test("initial loading retains placeholders instead of rendering dates early", () => {
+  const script = readFileSync(new URL("../src/scripts/month-calendar.ts", import.meta.url), "utf8");
+  assert.match(script, /if \(!loaded\) renderLoading\(\)/);
+  assert.doesNotMatch(script, /render\(\); void load\(\)/);
+});
 test("Ghana dates, month boundaries and exclusive all-day ends", () => {
   assert.equal(dateKey(new Date("2026-10-20T23:30:00-04:00")), "2026-10-21");
   assert.deepEqual(monthRange(2026, 11), { from: "2026-12-01", to: "2027-01-01" });
