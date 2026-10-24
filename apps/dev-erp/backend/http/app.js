@@ -40,9 +40,13 @@ export const configureBaseHttpMiddleware = (
   app.use(securityHeaders);
   app.use(
     express.json({
-      limit: "1mb",
+      limit: "256kb",
       verify: (req, _res, buffer) => {
-        if (String(req.originalUrl || req.url || "").startsWith("/api/webhooks/trello/")) {
+        const requestPath = String(req.originalUrl || req.url || "");
+        if (
+          requestPath.startsWith("/api/webhooks/trello/") ||
+          requestPath.startsWith("/api/webhooks/paystack")
+        ) {
           req.rawBody = Buffer.from(buffer);
         }
       },

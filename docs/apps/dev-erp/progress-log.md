@@ -1,5 +1,21 @@
 # Dev ERP Progress Log
 
+### 2026-10-24 — Default-off Paystack payment collection
+
+Feature/change name: Verified invoice and standalone Paystack collections
+
+What changed: Added hosted Paystack payment attempts for eligible GHS invoices and standalone requests, independent webhook/return verification, raw-body signature validation, provider-event idempotency, Phase 6 immutable invoice-ledger posting, explicit standalone-to-invoice reconciliation, receipt snapshots/PDFs/email, reconciliation exceptions, an admin Payments workspace, invoice payment-link controls, and a public payment-status view. Payment-link email sends use durable tenant-scoped idempotency claims so transport retries cannot duplicate client email. Runtime enablement is guarded by matching test/live configuration and defaults off.
+
+Data impact: One additive migration adds standalone payment, payment intent, payment-link delivery, provider event, and receipt records plus optional relations. It does not rewrite historical invoices, quotations, ledger entries, accounting entries, proposals, rent payments, or links. The migration was not applied to production.
+
+Security impact: Authenticated operations require Admin, Invoicing capability, CSRF, tenant scope, and financial idempotency where applicable. Webhooks validate HMAC-SHA512 over the exact raw body and all successes are independently verified for reference, amount, currency, customer, and environment. Public tokens are hashed; no payment instrument credentials are handled or stored.
+
+Testing done: The full DEV ERP Node suite completed with 345 tests: 343 passed, zero failed, and the two guarded PostgreSQL rehearsals skipped because `DEV_ERP_TEST_DATABASE_URL` is not configured. Paystack gateway, exact minor-unit pricing, raw-body signatures, tenant/idempotency controls, duplicate email suppression, PDF receipts, and additive migration checks pass. The three focused Chrome tests pass for admin link delivery, mobile overflow, and the server-authoritative public return state. Affected lint, TypeScript, Prisma format/validate/generate, production build, and whitespace checks pass; the existing circular-chunk and large-bundle advisories remain. The refreshed workspace production audit reports 14 low, 63 moderate, 30 high, and 2 critical advisories; 26 advisories are on DEV ERP dependency paths (2 low, 20 moderate, 4 high), so dependency review remains a release gate. No real Paystack request was made.
+
+Rollback notes: Keep `PAYSTACK_PAYMENTS_ENABLED=false`; review any unsettled provider attempts before code rollback. Preserve financial/event/receipt history and use forward migrations after any real data exists.
+
+Next step: Run both PostgreSQL harnesses, full suite/E2E/audit, then perform test-mode end-to-end QA before any separate live-mode approval. Status remains **NOT READY**.
+
 ### 2026-10-17 — Proposal production-readiness re-audit
 
 Feature/change name: Post-implementation validation and release-gate refresh

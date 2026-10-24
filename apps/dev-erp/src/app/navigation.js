@@ -34,6 +34,7 @@ const NAV_ITEM_ORDER = [
   "rent",
   "accounting",
   "invoicing",
+  "payment-requests",
   "bookings",
   "customers",
   "system-health",
@@ -54,6 +55,7 @@ const ICONS_BY_MODULE_KEY = {
   projects: TaskSquare,
   proposals: DocumentText,
   invoicing: ReceiptItem,
+  "payment-requests": ReceiptItem,
   profile: Profile2User,
   rent: WalletMoney,
   reports: DocumentText,
@@ -185,6 +187,7 @@ export const getTopbarLabel = (pathname) => {
   if (pathname.startsWith("/projects")) return "Projects";
   if (pathname.startsWith("/proposals")) return "Proposals";
   if (pathname.startsWith("/faako-onboarding")) return "Faako Onboarding";
+  if (pathname.startsWith("/payments")) return "Payments";
   switch (pathname) {
     case "/dashboard":
       return "Dashboard";
@@ -226,6 +229,7 @@ export const getTitleForPath = (pathname) => {
   if (pathname.startsWith("/projects")) return "Projects | Dev";
   if (pathname.startsWith("/proposals")) return "Proposals | Dev";
   if (pathname.startsWith("/faako-onboarding")) return "Faako Onboarding | Dev";
+  if (pathname.startsWith("/payment")) return "Payments | Dev";
   switch (pathname) {
     case "/":
     case "/dashboard":

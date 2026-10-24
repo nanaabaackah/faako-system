@@ -202,6 +202,74 @@ const updateInvoiceProjection = async (tx, invoice, effectiveAt) => {
   return { invoice: updated, accountingEntry };
 };
 
+export const postVerifiedProviderInvoicePayment = async ({ tx, intent, providerResult, actorUserId, requestId }) => {
+  await lockInvoice(tx, intent.invoiceId);
+  const invoice = await tx.invoice.findFirst({ where: { id: intent.invoiceId, organizationId: intent.organizationId, archivedAt: null } });
+  if (!invoice) throw new PaymentError(404, "Invoice not found.");
+  if (!["SENT", "ACCEPTED", "OVERDUE"].includes(invoice.status)) throw new PaymentError(409, "Invoice is not eligible for provider settlement.", "INVOICE_NOT_COLLECTIBLE");
+  if (invoice.currency !== providerResult.currency || invoice.currency !== intent.currency) throw new PaymentError(409, "Provider settlement currency does not match the invoice.", "CURRENCY_MISMATCH");
+  const amountCents = BigInt(intent.amountMinor);
+  const openingCents = centsFrom((invoice.legacyPaidAmount ?? invoice.paidAmount ?? 0).toString());
+  const ledgerCents = await sumLedgerCents(tx, invoice.id);
+  if (openingCents + ledgerCents + amountCents > centsFrom(invoice.total.toString())) throw new PaymentError(409, "Provider settlement would overpay the invoice.", "OVERPAYMENT");
+  const externalReferenceKey = buildExternalReferenceKey({ method: "CARD_GATEWAY", provider: "Paystack", externalReference: providerResult.reference });
+  const existing = await tx.invoicePayment.findFirst({ where: { organizationId: invoice.organizationId, externalReferenceKey } });
+  if (existing) {
+    if (existing.invoiceId !== invoice.id || centsFrom(existing.amount.toString()) !== amountCents) throw new PaymentError(409, "Provider transaction is already associated with another settlement.", "DUPLICATE_PAYMENT_REFERENCE");
+    return { payment: existing, invoice };
+  }
+  const paidAt = providerResult.paidAt ? new Date(providerResult.paidAt) : new Date();
+  const paymentDate = dateOnly(paidAt);
+  const payment = await tx.invoicePayment.create({ data: {
+    organizationId: invoice.organizationId,
+    invoiceId: invoice.id,
+    customerName: intent.customerName,
+    amount: decimalFromCents(amountCents),
+    currency: invoice.currency,
+    method: "CARD_GATEWAY",
+    provider: "Paystack",
+    externalReference: providerResult.reference,
+    externalReferenceKey,
+    paymentDate,
+    verificationStatus: "VERIFIED",
+    recordedByUserId: actorUserId,
+    verifiedByUserId: actorUserId,
+    verifiedAt: new Date(),
+    note: "Server-verified Paystack settlement.",
+  } });
+  const entry = await tx.invoicePaymentLedgerEntry.create({ data: {
+    organizationId: invoice.organizationId,
+    invoiceId: invoice.id,
+    paymentId: payment.id,
+    entryType: "PAYMENT",
+    signedAmount: decimalFromCents(amountCents),
+    currency: invoice.currency,
+    method: "CARD_GATEWAY",
+    externalReference: providerResult.reference,
+    effectiveAt: paymentDate,
+    actorUserId,
+    metadata: { provider: "Paystack", providerTransactionId: providerResult.transactionId || null, verification: "server" },
+  } });
+  const projection = await updateInvoiceProjection(tx, invoice, paymentDate);
+  await tx.auditLog.create({ data: {
+    organizationId: invoice.organizationId,
+    userId: actorUserId,
+    action: "INVOICE_PAYMENT_PROVIDER_VERIFIED",
+    targetType: "invoice-payment",
+    targetId: String(payment.id),
+    source: "paystack",
+    category: "financial",
+    severity: "info",
+    status: "ok",
+    summary: `Verified Paystack payment for invoice ${invoice.invoiceNumber}.`,
+    actorType: "payment_provider",
+    actorLabel: "Paystack",
+    requestId: requestId || null,
+    metadata: { invoiceId: invoice.id, ledgerEntryId: entry.id, providerReference: providerResult.reference, amountMinor: intent.amountMinor },
+  } });
+  return { payment, ledgerEntry: entry, invoice: projection.invoice };
+};
+
 const audit = (tx, req, invoice, action, summary, metadata) => tx.auditLog.create({ data: {
   userId: req.user.userId,
   organizationId: invoice.organizationId,

@@ -53,4 +53,7 @@ test("route mapping covers legacy and nested module paths", () => {
   assert.equal(getModuleKeyForPath("/faako-onboarding/abc"), "faako-onboarding");
   assert.equal(getModuleKeyForPath("/users"), "user-control");
   assert.equal(getModuleKeyForPath("/system-health"), "system-health");
+  assert.equal(getModuleKeyForPath("/payments"), "invoicing");
+  assert.equal(canAccessPath(userWithModules(["reports"]), "/payments"), false);
+  assert.equal(canAccessPath(userWithModules(["invoicing"]), "/payments"), true);
 });

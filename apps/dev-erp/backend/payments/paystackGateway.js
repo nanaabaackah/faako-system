@@ -4,10 +4,11 @@ const PAYSTACK_ORIGIN = "https://api.paystack.co";
 const REFERENCE_PATTERN = /^[A-Za-z0-9._=-]{8,120}$/;
 
 export class PaystackGatewayError extends Error {
-  constructor(message, status = 502) {
+  constructor(message, status = 502, code = "PAYSTACK_REJECTED") {
     super(message);
     this.name = "PaystackGatewayError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -30,23 +31,32 @@ export const parseGhsPesewas = (amount) => {
 export const createPaystackGateway = ({ secretKey, fetchImpl = fetch, timeoutMs = 10000 }) => {
   if (!secretKey || typeof secretKey !== "string") throw new PaystackGatewayError("Paystack server configuration missing", 503);
   const request = async (path, options = {}) => {
-    const response = await fetchImpl(new URL(path, PAYSTACK_ORIGIN), {
-      ...options,
-      redirect: "error",
-      signal: AbortSignal.timeout(timeoutMs),
-      headers: { Authorization: `Bearer ${secretKey}`, "Content-Type": "application/json" },
-    });
+    let response;
+    try {
+      response = await fetchImpl(new URL(path, PAYSTACK_ORIGIN), {
+        ...options,
+        redirect: "error",
+        signal: AbortSignal.timeout(timeoutMs),
+        headers: { Authorization: `Bearer ${secretKey}`, "Content-Type": "application/json" },
+      });
+    } catch (error) {
+      if (error?.name === "TimeoutError" || error?.name === "AbortError") throw new PaystackGatewayError("Paystack request timed out", 504, "PAYSTACK_TIMEOUT");
+      throw new PaystackGatewayError("Paystack is unavailable", 503, "PAYSTACK_UNAVAILABLE");
+    }
     const payload = await response.json().catch(() => null);
-    if (!response.ok || payload?.status !== true) throw new PaystackGatewayError("Paystack request failed", 502);
+    if (response.status === 404) throw new PaystackGatewayError("Paystack transaction was not found", 404, "PAYSTACK_TRANSACTION_NOT_FOUND");
+    if (!response.ok || payload?.status !== true) throw new PaystackGatewayError("Paystack request failed", 502, "PAYSTACK_REJECTED");
     return payload.data;
   };
   return {
-    async initialize({ reference, amountPesewas, email, callbackUrl, metadata = {} }) {
+    async initialize({ reference, amountPesewas, email, callbackUrl, metadata = {}, channels = ["card", "bank", "mobile_money", "bank_transfer"] }) {
       if (!REFERENCE_PATTERN.test(reference) || !Number.isSafeInteger(amountPesewas) || amountPesewas < 100) throw new PaystackGatewayError("Invalid payment request", 400);
       if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new PaystackGatewayError("Valid customer email required", 400);
       const callback = new URL(callbackUrl);
       if (callback.protocol !== "https:") throw new PaystackGatewayError("HTTPS callback required", 400);
-      const data = await request("/transaction/initialize", { method: "POST", body: JSON.stringify({ reference, amount: amountPesewas, email, currency: "GHS", callback_url: callback.toString(), metadata }) });
+      const allowedChannels = channels.filter((channel) => ["card", "bank", "mobile_money", "bank_transfer", "ussd", "qr"].includes(channel));
+      const safeMetadata = Object.fromEntries(Object.entries(metadata).slice(0, 20).map(([key, value]) => [String(key).slice(0, 80), String(value).slice(0, 500)]));
+      const data = await request("/transaction/initialize", { method: "POST", body: JSON.stringify({ reference, amount: String(amountPesewas), email, currency: "GHS", callback_url: callback.toString(), channels: allowedChannels, metadata: safeMetadata }) });
       const checkout = new URL(data.authorization_url);
       if (checkout.protocol !== "https:" || !(checkout.hostname === "checkout.paystack.com" || checkout.hostname.endsWith(".checkout.paystack.com"))) throw new PaystackGatewayError("Untrusted checkout URL");
       if (data.reference !== reference) throw new PaystackGatewayError("Paystack reference mismatch");
@@ -56,7 +66,17 @@ export const createPaystackGateway = ({ secretKey, fetchImpl = fetch, timeoutMs 
       if (!REFERENCE_PATTERN.test(reference)) throw new PaystackGatewayError("Invalid payment reference", 400);
       const data = await request(`/transaction/verify/${encodeURIComponent(reference)}`);
       if (data.reference !== reference) throw new PaystackGatewayError("Paystack reference mismatch");
-      return { reference, status: data.status, amountPesewas: data.amount, currency: data.currency, paidAt: data.paid_at || null };
+      return {
+        reference,
+        status: data.status,
+        amountPesewas: Number(data.amount),
+        currency: data.currency,
+        paidAt: data.paid_at || null,
+        transactionId: data.id == null ? null : String(data.id),
+        channel: data.channel || null,
+        customerEmail: data.customer?.email || null,
+        domain: data.domain || null,
+      };
     },
   };
 };

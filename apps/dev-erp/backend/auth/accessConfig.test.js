@@ -61,6 +61,7 @@ test("reports summary compatibility route stays owned by audit logs", () => {
 test("invoice payment ledger and reconciliation routes require invoicing capability", () => {
   assert.deepEqual(resolveModulesForPath("/api/invoices/12/payments"), ["invoicing"]);
   assert.deepEqual(resolveModulesForPath("/api/invoice-payments/reconciliation-report"), ["invoicing"]);
+  assert.deepEqual(resolveModulesForPath("/api/payments/requests"), ["invoicing"]);
 });
 
 test("interactive proposal token routes bypass module capability auth only", () => {

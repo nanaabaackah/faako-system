@@ -1,138 +1,160 @@
-# Dev ERP Paystack Foundation Plan
+# DEV ERP Paystack Payment Integration
 
-## Purpose
+## Status
 
-Plan the safe Paystack integration path for Dev ERP invoice and payment workflows before any live payment-link generation, webhook handling, receipt generation, or persistence changes are implemented.
+The Paystack implementation is complete in code but remains **disabled and NOT READY for production**. No production migration, keys, webhook, payment, email, or deployment was changed.
 
-## Current State
+Release requires the additive migration and concurrency harness to pass on an approved disposable PostgreSQL database, Paystack test-mode end-to-end evidence, an explicit live-mode review, and completion or acceptance of the dependency-audit gates.
 
-- Dev ERP is fully live with real operational data.
-- No Dev ERP Paystack runtime integration is currently wired.
-- Invoices are created and edited through `apps/dev-erp/src/pages/Invoicing/Invoicing.jsx` and backend `/api/invoices` routes.
-- Accounting entries can prepare invoice numbers/PDFs through `/api/accounting/entries/:id/invoice` and `apps/dev-erp/src/utils/invoicePdf.js`.
-- Public invoice token views use `/api/invoices/view/:token`, `/accept`, and `/decline`.
-- Rent payments are manually recorded through `apps/dev-erp/src/pages/Rent/Rent.jsx` and backend `/api/rent/payments` routes.
-- Dev ERP has no dedicated immutable receipt source of truth yet.
+## Architecture and boundaries
 
-## Non-Goals For This Phase
+Paystack is a collection provider, not a second invoice, accounting, or proposal system.
 
-- Do not generate live Paystack payment links.
-- Do not add Paystack webhook routes.
-- Do not update invoice, rent payment, receipt, accounting, or report persistence.
-- Do not alter existing manual payment recording.
-- Do not change database schema.
-- Do not implement Proposal Generator.
+```mermaid
+flowchart LR
+  A[Sent or accepted GHS invoice] --> B[PaymentIntent]
+  S[Standalone payment request] --> B
+  B --> C[Paystack hosted checkout]
+  C --> D[Signed webhook or status return]
+  D --> E[Independent server verify]
+  E --> F{Target}
+  F -->|Invoice| G[Immutable InvoicePayment ledger]
+  F -->|Standalone| H[Standalone received balance]
+  G --> I[Invoice and accounting projections]
+  E --> J[Immutable receipt snapshot]
+  H -->|Explicit admin action| G
+```
 
-## Environment Variables
+- Existing invoices, the Phase 6 immutable ledger, and Accounting remain authoritative for issued financial records.
+- Standalone collections do not create invoices or accounting entries automatically. An administrator must explicitly reconcile a settled request to an eligible same-tenant invoice.
+- Proposal acceptance remains separate. No proposal approval automatically creates a payment.
+- Rent and existing manual payment workflows are unchanged.
 
-Expected server-side values:
+## Persistence
 
-- `PAYSTACK_SECRET_KEY`
-- `PAYSTACK_PUBLIC_KEY`
-- `PAYSTACK_WEBHOOK_SECRET`
-- `PAYSTACK_CALLBACK_URL`
-- `PAYSTACK_CURRENCY`
+Additive migration `20261022130000_add_paystack_payment_collection` follows the proposal email migration. It adds `StandalonePayment`, `PaymentIntent`, `PaymentLinkDelivery`, `PaymentProviderEvent`, and `PaymentReceipt`, plus optional relations to existing invoices, invoice payments, organizations, and users. It does not rewrite legacy invoices, quotations, paid amounts, ledger entries, accounting entries, proposals, rent payments, or public links. `customerReference` is the compatibility link for standalone requests because DEV ERP does not currently have an authoritative customer-master model.
 
-Notes:
+Provider amounts use integer pesewas. Invoice postings reuse the existing decimal ledger contract. Database constraints reject non-positive attempts and impossible standalone balances. Provider transaction IDs, references, token hashes, event fingerprints, and tenant-scoped initialization keys are unique.
 
-- Keep keys in server-side env only. Do not expose secret keys or webhook secrets through `VITE_*`.
-- `PAYSTACK_CURRENCY` should start with `GHS` unless a specific invoice requires a supported different currency later.
-- `PAYSTACK_CALLBACK_URL` should point to a future server-owned callback/confirmation flow, not a client-only success screen.
+```mermaid
+sequenceDiagram
+  actor Admin
+  participant ERP as DEV ERP
+  participant PS as Paystack
+  participant Ledger as Invoice ledger
+  Admin->>ERP: Create invoice payment attempt + Idempotency-Key
+  ERP->>ERP: Validate tenant, invoice, balance, and reserved attempts
+  ERP->>PS: Initialize hosted checkout
+  PS-->>ERP: Checkout URL
+  PS->>ERP: Signed charge.success webhook
+  ERP->>PS: Verify transaction independently
+  ERP->>Ledger: Post verified provider payment once
+  Ledger-->>ERP: Payment, projections, audit, receipt snapshot
+```
 
-## Planned Connection Points
+```mermaid
+sequenceDiagram
+  actor Admin
+  participant ERP as DEV ERP
+  participant PS as Paystack
+  Admin->>ERP: Create standalone request
+  Admin->>ERP: Initialize attempt + Idempotency-Key
+  ERP->>PS: Initialize hosted checkout
+  PS->>ERP: Signed event
+  ERP->>PS: Verify transaction independently
+  ERP->>ERP: Update standalone balance and immutable receipt
+  Admin->>ERP: Explicitly reconcile to eligible invoice (optional)
+  ERP->>ERP: Reuse immutable invoice ledger posting
+```
 
-### Invoice Creation
+```mermaid
+stateDiagram-v2
+  [*] --> CREATED
+  CREATED --> INITIALIZING
+  INITIALIZING --> PENDING: provider initialized
+  INITIALIZING --> FAILED: initialization rejected
+  PENDING --> SUCCEEDED: signed event/return + independent verification
+  PENDING --> FAILED: provider terminal failure
+  PENDING --> EXPIRED: expiry reached
+  PENDING --> CANCELED: request canceled
+  FAILED --> INITIALIZING: safe retry after independent status check
+  SUCCEEDED --> [*]
+```
 
-- Keep current invoice creation through `/api/invoices`.
-- Future Paystack support should attach a provider reference after an invoice exists and has a stable invoice id/number.
-- Do not create payment references before invoice totals, currency, client email, and status are server-validated.
+```mermaid
+erDiagram
+  Invoice ||--o{ PaymentIntent : collects
+  StandalonePayment ||--o{ PaymentIntent : attempts
+  PaymentIntent ||--o{ PaymentProviderEvent : receives
+  PaymentIntent ||--o{ PaymentLinkDelivery : sends
+  PaymentIntent ||--o| PaymentReceipt : issues
+  PaymentIntent ||--o| InvoicePayment : posts
+  StandalonePayment }o--o| Invoice : explicitly_reconciles
+```
 
-### Payment Link Generation
+## Verified settlement lifecycle
 
-- Future endpoint should be server-only and permission-gated.
-- It should call Paystack with the invoice id/number, amount, currency, customer email, callback URL, and metadata.
-- It should return only safe link/reference data to the frontend.
-- It should preserve manual payment fallback.
+1. An authenticated administrator with Invoicing access supplies an `Idempotency-Key` and requests an invoice or standalone attempt.
+2. The server verifies tenant ownership, eligible state, GHS currency, customer email, exact balance, reserved attempts, and link lifetime.
+3. The server creates the reference/token and initializes provider-hosted checkout. The browser receives only the checkout URL and safe metadata.
+4. `/api/webhooks/paystack` verifies HMAC-SHA512 against the exact raw request body.
+5. A success event or redirect is never trusted alone. The backend independently verifies reference, amount, currency, customer, and test/live domain with Paystack.
+6. Reconciliation uses a serializable transaction and row locks. Duplicate delivery cannot create a second payment, posting, standalone settlement, or receipt.
+7. Invoice settlement posts through the Phase 6 immutable ledger and updates existing invoice/accounting projections transactionally. Standalone settlement updates only its received balance.
+8. Receipts are generated only from immutable server-verified snapshots.
 
-### Payment Status Tracking
+Failed/mismatched events become safe reconciliation exceptions. Secrets, provider payloads, instrument details, and raw public tokens are not logged or persisted.
 
-- Paystack status should not be trusted from a client redirect alone.
-- Store Paystack reference/status only after backend verification.
-- Invoice status should remain unchanged until verified settlement rules are implemented.
-- Any status mapping must preserve existing `DRAFT`, `QUOTATION`, `SENT`, `ACCEPTED`, `DECLINED`, `PAID`, `OVERDUE`, and `VOID` behavior.
+## API
 
-### Webhook Confirmation
+Authenticated Admin/Invoicing routes:
 
-- Future webhook route should verify Paystack signatures before reading event payloads.
-- The webhook must be idempotent and transaction-safe.
-- Duplicate webhook events should not duplicate payment records or receipts.
-- Webhook failures should be auditable and reviewable.
+- `POST /api/invoices/:id/paystack-intents`
+- `POST /api/payments/standalone`
+- `POST /api/payments/standalone/:id/intents`
+- `GET /api/payments/requests` and `GET /api/payments/requests/:id`
+- `POST /api/payments/requests/:id/cancel`
+- `POST /api/payments/requests/:id/reconcile-invoice`
+- `POST /api/payments/intents/:id/retry` and `/send`
+- `GET /api/payments/receipts/:id` and `POST /api/payments/receipts/:id/send`
+- `GET /api/payments/reconciliation-exceptions`
 
-### Receipt Generation
+Public provider/token routes:
 
-- Dev ERP should not issue final receipts from client redirects.
-- Future receipts should be generated after server-confirmed payment success.
-- Receipt numbers/snapshots require a separate receipt source-of-truth plan and likely additive schema work.
+- `POST /api/webhooks/paystack`
+- `GET /api/public/payments/status/:token`
+- `GET /api/public/payments/status/:token/receipt`
 
-## Security Requirements
+Authenticated writes retain cookie auth, Admin authorization, CSRF, tenant checks, and mutation idempotency. Payment-link email delivery also requires an `Idempotency-Key`; each claim is stored separately so network retries cannot send duplicate email, while an intentional resend uses a new key. Public tokens are hashed at rest. Hosted checkout means DEV ERP never receives card numbers, CVVs, MoMo PINs, or reusable authorization credentials.
 
-- Keep `PAYSTACK_SECRET_KEY` and `PAYSTACK_WEBHOOK_SECRET` server-side only.
-- Verify webhook signatures before processing events.
-- Do not store card numbers, CVVs, full MoMo account details, or other sensitive payment instrument data.
-- Store the Paystack reference and safe provider metadata only.
-- Require backend permission checks for payment-link generation and manual payment reconciliation.
-- Preserve organization scoping and invoice ownership checks.
-- Preserve manual payment fallback for bank transfer, cash, and offline-confirmed payments.
-- Add audit logging before enabling live payment status mutations.
+## Environment setup
 
-## Data Safety Requirements
+```dotenv
+PAYSTACK_PAYMENTS_ENABLED="false"
+PAYSTACK_MODE="test"
+PAYSTACK_SECRET_KEY="sk_test_replace_me"
+PAYSTACK_CALLBACK_URL="https://your-dev-erp-frontend.example/payment/status"
+PAYSTACK_CURRENCY="GHS"
+PAYMENT_EMAIL_FROM="payments@your-verified-domain.example"
+```
 
-- Use additive migrations only when persistence is implemented later.
-- Preserve existing invoice numbers, rent payment records, accounting entries, reports, and public invoice token behavior.
-- Do not mark invoices paid from frontend callbacks.
-- Keep current manual rent payment behavior unchanged.
-- Treat Paystack references as external identifiers that require uniqueness/idempotency review.
+- Start disabled and in test mode. The secret prefix must match `PAYSTACK_MODE`.
+- The account secret also verifies webhooks; there is no separate invented webhook secret.
+- The callback must be the trusted HTTPS frontend status page. The server adds its token.
+- Configure Paystack to post to `https://<api-host>/api/webhooks/paystack`.
+- Never use a `VITE_*` variable for Paystack secrets.
+- The payment sender must be accepted by the existing email provider/domain. Human email continues through the central BCC policy.
 
-## International Payments Later
+## Test and release procedure
 
-Potential future options:
+1. Create a disposable loopback PostgreSQL database whose name contains `test`, `tmp`, or `disposable`.
+2. Export `DEV_ERP_TEST_DATABASE_URL`. The harness refuses production/default and non-loopback URLs.
+3. Run `pnpm --filter @faako/dev-erp test:payments:postgres` and `pnpm --filter @faako/dev-erp test:paystack:postgres`.
+4. Run full tests, lint, typecheck, Prisma validate/generate, production build, desktop/mobile E2E, dependency audit, and whitespace checks.
+5. Deploy migrations to isolated preview before preview code.
+6. In test mode verify invoice full/deposit/partial payment, duplicate webhook, mismatch/failure exceptions, standalone partial settlement, explicit invoice reconciliation, receipt download/email, expiry, and tenant isolation.
+7. Review audit and reconciliation evidence, then perform a separate live-mode approval. Verify one bounded real payment across Paystack, ledger, invoice, Accounting, receipt, and email.
 
-- Manual bank transfer
-- Wise
-- PayPal
-- Stripe
+## Rollback
 
-These should be evaluated after Dev ERP has a stable provider-neutral payment reference model, receipt source of truth, and reconciliation workflow.
-
-## Recommended Implementation Order
-
-1. Keep current planning/config foundation only.
-2. Define provider-neutral payment reference and status contracts.
-3. Add backend-only Paystack config validation and health reporting without secrets.
-4. Add a server-only payment-link creation endpoint for invoices.
-5. Add webhook verification and idempotent event handling.
-6. Add safe payment-reference persistence through additive migrations.
-7. Add receipt source-of-truth planning and implementation.
-8. Add invoice status reconciliation.
-9. Add manual fallback reconciliation UI.
-10. Review international provider support.
-
-## Manual Testing Checklist For Future Implementation
-
-- Verify invoice creation/edit/send/quotation flows remain unchanged.
-- Verify public invoice view, accept, and decline remain unchanged.
-- Verify manual rent payment create/edit/delete flows remain unchanged.
-- Verify Paystack link creation requires authenticated, authorized users.
-- Verify webhook signature rejection for invalid signatures.
-- Verify duplicate webhook events do not duplicate payments.
-- Verify invoice status updates only after server-confirmed success.
-- Verify manual payment fallback remains available.
-- Verify reports and accounting summaries do not change until payment reconciliation rules are explicitly implemented.
-
-## Rollback Notes
-
-For this phase, rollback is documentation/config-only: remove the Paystack env placeholders, the non-runtime Paystack config descriptor, the registry check script, and the related documentation updates. No data rollback is required.
-
-## Next Step
-
-Proposal Generator foundation can proceed after Dev ERP monitoring checks and Paystack safety boundaries are accepted.
+Set `PAYSTACK_PAYMENTS_ENABLED=false` first; this blocks new initialization and link delivery while configured webhook/status verification continues to reconcile attempts that may already have reached Paystack. Review unsettled attempts before rolling code back. Never delete payment, event, receipt, ledger, or audit rows. After real data exists, correct schema issues through forward migrations rather than dropping these additive tables.

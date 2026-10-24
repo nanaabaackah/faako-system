@@ -323,6 +323,12 @@ const Invoicing = () => {
   const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
   const [paymentActionReason, setPaymentActionReason] = useState("");
   const [paymentActionId, setPaymentActionId] = useState(null);
+  const [paystackInvoice, setPaystackInvoice] = useState(null);
+  const [paystackForm, setPaystackForm] = useState({ mode: "REMAINING", amount: "", percentage: "50", expiresInDays: "7" });
+  const [paystackResult, setPaystackResult] = useState(null);
+  const [paystackError, setPaystackError] = useState("");
+  const [isGeneratingPaystack, setIsGeneratingPaystack] = useState(false);
+  const [paystackRequestKey, setPaystackRequestKey] = useState("");
   const [openActionId, setOpenActionId] = useState(null);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState(() => new Set());
   const [isBulkActionRunning, setIsBulkActionRunning] = useState(false);
@@ -403,12 +409,53 @@ const Invoicing = () => {
   }, [notice]);
 
   useEffect(() => {
-    if (!showForm && !selectedInvoice && !paymentInvoice) return undefined;
+    if (!showForm && !selectedInvoice && !paymentInvoice && !paystackInvoice) return undefined;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = "";
     };
-  }, [paymentInvoice, showForm, selectedInvoice]);
+  }, [paymentInvoice, paystackInvoice, showForm, selectedInvoice]);
+
+  const openPaystackModal = (invoice) => {
+    setPaystackInvoice(invoice);
+    setPaystackForm({ mode: "REMAINING", amount: "", percentage: "50", expiresInDays: "7" });
+    setPaystackRequestKey(globalThis.crypto?.randomUUID?.() || `paystack-${Date.now()}`);
+    setPaystackResult(null);
+    setPaystackError("");
+  };
+
+  const closePaystackModal = () => {
+    if (isGeneratingPaystack) return;
+    setPaystackInvoice(null);
+    setPaystackRequestKey("");
+    setPaystackResult(null);
+    setPaystackError("");
+  };
+
+  const handleGeneratePaystackLink = async (event) => {
+    event.preventDefault();
+    if (!paystackInvoice) return;
+    setIsGeneratingPaystack(true);
+    setPaystackError("");
+    try {
+      const body = {
+        mode: paystackForm.mode,
+        expiresInDays: Number(paystackForm.expiresInDays),
+        ...(paystackForm.mode === "DEPOSIT_PERCENT" ? { percentage: paystackForm.percentage } : {}),
+        ...(["DEPOSIT_FIXED", "PARTIAL"].includes(paystackForm.mode) ? { amount: paystackForm.amount } : {}),
+      };
+      const result = await apiPost(`/api/invoices/${paystackInvoice.id}/paystack-intents`, body, {
+        headers: { "Idempotency-Key": paystackRequestKey },
+        fallbackMessage: "Unable to create the Paystack payment link",
+      });
+      setPaystackResult(result);
+      setNotice(`Paystack link created for invoice ${paystackInvoice.invoiceNumber}.`);
+    } catch (generateError) {
+      setPaystackError(generateError.message || "Unable to create the Paystack payment link.");
+    } finally {
+      setIsGeneratingPaystack(false);
+    }
+  };
 
   const invoiceTotals = useMemo(
     () =>
@@ -1657,6 +1704,16 @@ const Invoicing = () => {
 	                        <span>Record payment</span>
 	                      </button>
 	                    ) : null}
+	                    {isAdmin && canRecordInvoicePayment(selectedInvoice) && selectedInvoice.currency === "GHS" ? (
+	                      <button
+	                        className="button button-primary"
+	                        type="button"
+	                        onClick={() => openPaystackModal(selectedInvoice)}
+	                      >
+	                        <FiCreditCard aria-hidden="true" />
+	                        <span>Create Paystack link</span>
+	                      </button>
+	                    ) : null}
 	                    {isAdmin && selectedInvoice.status !== "VOID" ? (
 	                      <button
 	                        className="button button-ghost"
@@ -1866,6 +1923,38 @@ const Invoicing = () => {
 	          </div>
 	        </div>
 	      ) : null}
+
+      {paystackInvoice ? (
+        <div className="modal-backdrop" role="presentation">
+          <button className="modal-dismiss" type="button" aria-label="Close Paystack link form" onClick={closePaystackModal} />
+          <div className="modal-card invoice-payment-modal" role="dialog" aria-modal="true" aria-labelledby="paystack-payment-title">
+            <div className="modal-header">
+              <div><p className="eyebrow">Provider-verified collection</p><h3 id="paystack-payment-title">Create Paystack link</h3><p className="muted">{paystackInvoice.invoiceNumber} for {paystackInvoice.clientName}</p></div>
+              <button className="button button-ghost" type="button" onClick={closePaystackModal} disabled={isGeneratingPaystack}>Close</button>
+            </div>
+            {paystackError ? <div className="notice is-error" role="alert">{paystackError}</div> : null}
+            {paystackResult?.intent?.checkoutUrl ? <div className="stack">
+              <div className="notice is-success">Secure link created for {formatAmount(Number(paystackResult.intent.amount), paystackInvoice.currency)}.</div>
+              <label className="form-field"><span>Paystack checkout link</span><input className="input" readOnly value={paystackResult.intent.checkoutUrl} /></label>
+              <div className="header-actions"><button className="button button-primary" type="button" onClick={() => navigator.clipboard.writeText(paystackResult.intent.checkoutUrl)}>Copy link</button><a className="button button-ghost" href="/payments">Open Payments</a></div>
+            </div> : <form className="stack" onSubmit={handleGeneratePaystackLink}>
+              <SelectField fieldClassName="form-field" label="Amount to collect" value={paystackForm.mode} onChange={(event) => setPaystackForm((current) => ({ ...current, mode: event.target.value }))}>
+                <option value="REMAINING">Full remaining balance</option>
+                <option value="DEPOSIT_PERCENT">Percentage deposit</option>
+                <option value="DEPOSIT_FIXED">Fixed deposit</option>
+                <option value="PARTIAL">Partial payment</option>
+              </SelectField>
+              {paystackForm.mode === "DEPOSIT_PERCENT" ? <label className="form-field"><span>Deposit percentage</span><input className="input" type="number" min="0.01" max="100" step="0.01" required value={paystackForm.percentage} onChange={(event) => setPaystackForm((current) => ({ ...current, percentage: event.target.value }))} /></label> : null}
+              {["DEPOSIT_FIXED", "PARTIAL"].includes(paystackForm.mode) ? <label className="form-field"><span>Amount (GHS)</span><input className="input" type="number" min="1" step="0.01" required value={paystackForm.amount} onChange={(event) => setPaystackForm((current) => ({ ...current, amount: event.target.value }))} /></label> : null}
+              <SelectField fieldClassName="form-field" label="Link lifetime" value={paystackForm.expiresInDays} onChange={(event) => setPaystackForm((current) => ({ ...current, expiresInDays: event.target.value }))}>
+                <option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option><option value="30">30 days</option>
+              </SelectField>
+              <p className="muted">The final amount, currency, customer, and transaction are verified by the server before anything is posted to the invoice ledger.</p>
+              <button className="button button-primary" disabled={isGeneratingPaystack}>{isGeneratingPaystack ? "Creating secure link…" : "Create payment link"}</button>
+            </form>}
+          </div>
+        </div>
+      ) : null}
 
 	      {showForm ? (
 	        <div className="modal-backdrop" role="presentation">

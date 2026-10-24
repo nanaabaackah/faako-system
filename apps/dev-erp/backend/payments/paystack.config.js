@@ -1,14 +1,13 @@
 export const PAYSTACK_ENV_KEYS = Object.freeze({
+  ENABLED: "PAYSTACK_PAYMENTS_ENABLED",
+  MODE: "PAYSTACK_MODE",
   SECRET_KEY: "PAYSTACK_SECRET_KEY",
-  PUBLIC_KEY: "PAYSTACK_PUBLIC_KEY",
-  WEBHOOK_SECRET: "PAYSTACK_WEBHOOK_SECRET",
   CALLBACK_URL: "PAYSTACK_CALLBACK_URL",
   CURRENCY: "PAYSTACK_CURRENCY",
 });
 
 export const PAYSTACK_REQUIRED_SERVER_ENV_KEYS = Object.freeze([
   PAYSTACK_ENV_KEYS.SECRET_KEY,
-  PAYSTACK_ENV_KEYS.WEBHOOK_SECRET,
   PAYSTACK_ENV_KEYS.CALLBACK_URL,
 ]);
 
@@ -16,8 +15,7 @@ export const PAYSTACK_DEFAULT_CURRENCY = "GHS";
 
 export const PAYSTACK_REFERENCE_TYPES = Object.freeze({
   INVOICE: "invoice",
-  RENT_PAYMENT: "rent_payment",
-  MANUAL_PAYMENT: "manual_payment",
+  STANDALONE: "standalone",
 });
 
 const normalizeCurrency = (value) => {
@@ -35,8 +33,9 @@ export const getPaystackConfigStatus = (env = globalThis.process?.env ?? {}) => 
   return {
     configured: missingRequiredKeys.length === 0,
     missingRequiredKeys,
-    publicKeyConfigured: isConfigured(env, PAYSTACK_ENV_KEYS.PUBLIC_KEY),
-    webhookVerificationConfigured: isConfigured(env, PAYSTACK_ENV_KEYS.WEBHOOK_SECRET),
+    enabled: String(env?.[PAYSTACK_ENV_KEYS.ENABLED] || "").toLowerCase() === "true",
+    mode: String(env?.[PAYSTACK_ENV_KEYS.MODE] || "test").toLowerCase() === "live" ? "live" : "test",
+    webhookVerificationConfigured: isConfigured(env, PAYSTACK_ENV_KEYS.SECRET_KEY),
     callbackUrlConfigured: isConfigured(env, PAYSTACK_ENV_KEYS.CALLBACK_URL),
     currency: normalizeCurrency(env?.[PAYSTACK_ENV_KEYS.CURRENCY]),
   };
@@ -44,7 +43,7 @@ export const getPaystackConfigStatus = (env = globalThis.process?.env ?? {}) => 
 
 export const PAYSTACK_FOUNDATION_NOTES = Object.freeze({
   behavior:
-    "Planning/config foundation only. Do not generate payment links or update invoice/payment records until server verification, webhook handling, and persistence contracts are implemented.",
+    "Hosted checkout is disabled by default. Enable only after migrations, test-mode webhooks, and reconciliation checks pass.",
   security:
     "Keep secret keys server-side, verify webhook signatures, store provider references only, and never store card or mobile-money sensitive details.",
   fallback:

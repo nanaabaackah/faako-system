@@ -142,6 +142,7 @@ import {
   parseInvoicePaidAmount,
 } from "./invoices/paymentSummary.js";
 import { registerInvoicePaymentRoutes } from "./invoices/paymentLedger.js";
+import { registerPaystackPaymentRoutes } from "./payments/paystackPayments.js";
 import {
   calculateCommercialTotals,
   parseCommercialLineItems,
@@ -5062,6 +5063,12 @@ const aiRateLimit = createRateLimitMiddleware({
   maxRequests: AI_RATE_LIMIT_MAX,
   errorMessage: "Too many requests, slow down",
 });
+const paymentMutationRateLimit = createRateLimitMiddleware({
+  scope: "payment-mutation",
+  windowMs: 60_000,
+  maxRequests: 30,
+  errorMessage: "Too many payment requests. Please wait and try again.",
+});
 
 if (!jwtSecret) {
   throw new Error("Missing JWT_SECRET in environment config.");
@@ -8404,6 +8411,15 @@ registerInvoicePaymentRoutes(app, {
   requireAdmin,
   isGlobalAdmin,
   serializeInvoice: (invoice) => serializeInvoice(invoice),
+});
+registerPaystackPaymentRoutes(app, {
+  prisma,
+  authMiddleware,
+  requireAdmin,
+  isGlobalAdmin,
+  sendEmail,
+  env: process.env,
+  mutationRateLimit: paymentMutationRateLimit,
 });
 
 const PROPOSAL_STATUSES = new Set([

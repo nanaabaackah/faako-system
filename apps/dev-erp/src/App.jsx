@@ -76,6 +76,8 @@ const SetupAccount = lazy(() => import("./pages/SetupAccount/SetupAccount"));
 const Accounting = lazy(() => import("./pages/Accounting/Accounting"));
 const Invoicing = lazy(() => import("./pages/Invoicing/Invoicing"));
 const InvoiceView = lazy(() => import("./pages/InvoiceView/InvoiceView"));
+const Payments = lazy(() => import("./pages/Payments/Payments"));
+const PaymentStatus = lazy(() => import("./pages/Payments/PaymentStatus"));
 const ErrorPage = lazy(() => import("./pages/ErrorPage/ErrorPage"));
 
 const NAV_SWIPE_CLOSE_THRESHOLD = 72;
@@ -602,6 +604,14 @@ function App() {
           }
         />
         <Route
+          path="/payment/status"
+          element={
+            <RouteBoundary>
+              <PaymentStatus />
+            </RouteBoundary>
+          }
+        />
+        <Route
           path="/proposal/view/:token"
           element={
             <RouteBoundary>
@@ -767,6 +777,14 @@ function App() {
           element={
             <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
               <Invoicing />
+            </ShellPage>
+          }
+        />
+        <Route
+          path="/payments"
+          element={
+            <ShellPage authReady={authReady} currentUser={currentUser} theme={theme} onToggleTheme={handleToggleTheme}>
+              <Payments />
             </ShellPage>
           }
         />

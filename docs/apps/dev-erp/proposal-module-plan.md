@@ -38,7 +38,7 @@ This audit was completed before introducing catalogue, proposal-version, accepta
 - `Invoice` and `InvoiceLineItem` are the issued-finance records. Invoice line items snapshot description, quantity, unit price, amount, and order. Invoice headers snapshot subtotal, tax rate/amount, fixed discount, total, paid amount, dates, status, client details, and public response-token data.
 - Invoicing already supports draft creation/editing, invoice numbering, quotation send/accept/decline states, normal invoice sending, partial payment recording, balance derivation, archive/delete controls, public token views, and accounting-entry creation when payments are recorded.
 - Accounting can independently hand a manual revenue entry into an invoice draft. Projects are organization-scoped but currently have no proposal or invoice relation. There is no Dev ERP customer table: commercial client identity is currently snapshotted as name/email/address, while `Organization` supplies tenant ownership rather than acting as a customer master.
-- Manual payment recording is implemented. Paystack remains configuration/planning only, and there is no general Dev ERP `Payment` record; cumulative invoice payment state is stored on `Invoice.paidAmount`, with accounting entries used as the payment ledger effect.
+- Manual payment recording and the immutable invoice ledger are implemented. Default-off Paystack collection reuses that ledger for eligible issued invoices and keeps proposal acceptance, invoice issuance, and payment as distinct states.
 - Notifications are email-provider and audit-event based rather than a proposal notification model. Proposal PDFs can be uploaded and safely served, while browser print remains the generated-export fallback.
 - Existing server-side AI infrastructure is authenticated, rate-limited, key-protected, and confirmation-oriented for Productivity/System Health. It can provide a future proposal-assistance extension point, but no proposal AI route exists.
 
@@ -110,7 +110,7 @@ The Phase 2 migration implements the catalogue, package, version/item, selection
 - Old proposals remain editable/viewable through the compatibility adapter. Old invoice quotations remain in the invoice lifecycle. Old proposal metadata invoice links remain readable even after relational links are introduced.
 - Highest risks are duplicate invoices during concurrent acceptance, mutable accepted terms, tenant-scope leaks on public tokens, divergent frontend/backend totals, and changing invoice/payment semantics. Database uniqueness, transactions, server recalculation, version-bound tokens, capability checks, and focused regression tests are required before enabling the new client actions.
 - Do not auto-generate or send invoices during the initial migration. Keep staff review as the default until deposit/milestone schedules and rollback behavior are proven.
-- Paystack stays optional and manual MoMo stays supported through the existing manual payment workflow. No provider integration is required for proposal approval.
+- Paystack stays optional and manual MoMo stays supported. No provider integration is required for proposal approval, and acceptance never creates a payment attempt automatically.
 
 ## 2026-10-14 Phase 2 Structured Proposal Foundation
 
@@ -217,7 +217,7 @@ Phase 4 completes the guarded handoff from the structured proposal experience in
 - Each invoice stores nullable `proposalVersionId`, `billingScheduleItemId`, and unique `generationKey`. The invoice and schedule advancement occur in one serializable transaction. Repeated requests return the existing invoice; failures preserve acceptance and mark the billing event `ERROR` for recovery.
 - Generated invoices remain `DRAFT` for internal review and use the existing `INV-YYYYMM-ORG-####` convention. The billing event amount is already the final accepted, shared-pricing result, so generated invoice tax and discount fields are zero to prevent applying accepted tax/discount twice.
 - Recurring generation advances monthly, quarterly, or annually and supports active, paused, cancelled, completed, and error states. It generates invoices only; it never charges a payment method. No scheduler is introduced in this phase.
-- Invoice `paidAmount`, status, balance helpers, and accounting entry behavior remain authoritative. The proposal dashboard reads linked invoice totals and paid amounts; it does not keep a second balance or payment ledger. Manual MoMo, bank, cash, and other reconciliation continue through existing Invoicing. Paystack remains planning/config only.
+- The immutable invoice payment ledger remains authoritative, with `Invoice.paidAmount`, status, balance helpers, and Accounting maintained as compatibility projections. The proposal dashboard reads linked invoice projections and never keeps a second balance. Manual and default-off Paystack settlement remain owned by Invoicing/Payments.
 
 ### Project handoff and dashboard
 
@@ -317,7 +317,7 @@ Pre-deployment requirements:
 2. Resolve or formally accept the remaining high Prisma supply-chain findings with an approved security exception; no release recommendation is made while they remain open.
 3. Provision a disposable PostgreSQL environment with production-compatible version/extensions and no real customer data.
 4. Back up the target database and record current migration status. Confirm environment isolation and rollback owner.
-5. Apply, in order: `20261014090000_add_structured_proposal_foundation`, `20261015090000_add_proposal_client_message_kind`, `20261016090000_add_proposal_acceptance_billing`, `20261017090000_add_proposal_catalogue_tiers`, `20261018090000_add_immutable_invoice_payment_ledger`, and `20261019090000_add_proposal_email_delivery`.
+5. Apply, in order: `20261014090000_add_structured_proposal_foundation`, `20261015090000_add_proposal_client_message_kind`, `20261016090000_add_proposal_acceptance_billing`, `20261017090000_add_proposal_catalogue_tiers`, `20261018090000_add_immutable_invoice_payment_ledger`, `20261019090000_add_proposal_email_delivery`, and `20261022130000_add_paystack_payment_collection`.
 6. Validate legacy proposal reads, legacy `QUOTATION` invoices, structured draft/publish/link/select/accept, one due draft invoice, retry idempotency, recurring advancement, and project handoff in the disposable environment.
 7. Deploy migrations before application code. Initially restrict structured publishing/acceptance to an internal tenant and keep invoice generation manual.
 8. Monitor proposal acceptance failures, billing `ERROR` rows, duplicate-key conflicts, notification failures, invoice generation latency, and tenant-scope audit events.

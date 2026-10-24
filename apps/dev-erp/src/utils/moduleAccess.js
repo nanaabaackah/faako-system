@@ -15,6 +15,7 @@ const MODULE_ROUTE_RULES = [
   { pattern: /^\/rent(?:\/|$)/, module: "rent" },
   { pattern: /^\/accounting(?:\/|$)/, module: "accounting" },
   { pattern: /^\/invoicing(?:\/|$)/, module: "invoicing" },
+  { pattern: /^\/payments(?:\/|$)/, module: "invoicing" },
   { pattern: /^\/bookings(?:\/|$)/, module: "bookings" },
   { pattern: /^\/organizations(?:\/|$)/, module: "organizations" },
   { pattern: /^\/system-health(?:\/|$)/, module: "system-health" },

@@ -50,6 +50,9 @@ const createTestApp = () => {
   });
 
   app.post("/api/echo", (req, res) => res.json({ received: req.body }));
+  app.post("/api/webhooks/paystack", (req, res) =>
+    res.json({ rawBody: req.rawBody?.toString("utf8") || null })
+  );
   registerErrorHandler(app, {
     classifyApiError,
     isProduction: true,
@@ -126,19 +129,33 @@ test("malformed JSON responses receive security headers without internal details
   });
 });
 
-test("oversized JSON responses receive security headers and preserve the 1 MB limit", async () => {
+test("oversized JSON responses receive security headers and preserve the 256 KB limit", async () => {
   const { app } = createTestApp();
   await withServer(app, async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/echo`, {
       method: "POST",
       headers: { "content-type": "application/json", origin: allowedOrigin },
-      body: JSON.stringify({ value: "x".repeat(1024 * 1024) }),
+      body: JSON.stringify({ value: "x".repeat(256 * 1024) }),
     });
     assert.equal(response.status, 413);
     assertSecurityHeaders(response);
     const payload = await response.json();
     assert.equal(payload.error, "Request body is too large.");
     assert.equal(payload.apiError.code, "validation_error");
+  });
+});
+
+test("Paystack webhook requests preserve the exact raw JSON body for signature verification", async () => {
+  const { app } = createTestApp();
+  await withServer(app, async (baseUrl) => {
+    const body = '{"event":"charge.success","data":{"reference":"DEV-PAY-test"}}';
+    const response = await fetch(`${baseUrl}/api/webhooks/paystack`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body,
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { rawBody: body });
   });
 });
 

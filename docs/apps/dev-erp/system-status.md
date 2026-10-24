@@ -31,7 +31,7 @@ Fully live system with real operational data. Treat all changes as production-se
 - Operational dashboards, projects, rent, accounting, invoicing, appointments, reports, user access, alerts, and integration refinements.
 - Shared shell and form styling alignment with other ERP-style apps.
 - Backend route hardening and deployment readiness.
-- Paystack invoice/payment foundation planning. Current work is config/documentation only and does not generate payment links, verify webhooks, create receipts, or mutate payment/invoice records.
+- Paystack invoice and standalone collection is implemented behind a default-off runtime flag. It provides hosted links, independently verified webhooks/returns, immutable invoice-ledger posting, explicit standalone reconciliation, receipts, and reconciliation exceptions. It remains pre-production until the additive migration and disposable-PostgreSQL/test-mode gates pass.
 - Proposal persistence, preview, secure client view, lightweight client responses, audit logging, and invoice draft handoff. Current `/proposals` work supports private authenticated proposal records, lightweight versioning, internal preview routing, secure-token preparation/sharing, `/proposal/view/:token` client viewing, approve/request-changes responses for `shared` proposals, and editable invoice drafts for approved proposals. It does not expose drafts/internal-review proposals, generate Paystack links, create digital signatures, send approval notifications, or run AI generation.
 
 ## Experimental modules/features
@@ -47,7 +47,7 @@ Fully live system with real operational data. Treat all changes as production-se
 - Environment variables, OAuth token encryption, email workflows, third-party integrations, and AI/productivity endpoints.
 - CAD-to-GHS display conversion depends on the backend rate endpoint. Keep currency API keys server-side only, monitor provider failures, and keep fallback rates current enough that dashboards, PDFs, public invoice views, reports, and emails do not disagree badly during provider outages.
 - Railway log visibility depends on `RAILWAY_WEBHOOK_SECRET` being set on the Dev API service and the Railway project webhook posting to `/api/webhooks/railway` with the matching secret. Missing or mismatched webhook config means Railway events will not appear in Audit Logs even when the rest of the API is healthy.
-- Paystack keys, payment references, webhook signature verification, invoice paid-state reconciliation, manual payment fallback, receipt ownership, and future payment-provider audit logging.
+- Paystack keys, payment references, webhook verification/reconciliation, invoice paid-state projection, standalone-to-invoice matching, receipt delivery, and payment-provider audit logging remain high-risk even while default-off.
 
 ## Production sensitivity
 

@@ -27,6 +27,11 @@ model Organization {
   invoicePayments          InvoicePayment[]
   invoicePaymentLedger     InvoicePaymentLedgerEntry[]
   paymentIdempotencyClaims PaymentIdempotencyClaim[]
+  standalonePayments       StandalonePayment[]
+  paymentIntents           PaymentIntent[]
+  paymentProviderEvents    PaymentProviderEvent[]
+  paymentReceipts          PaymentReceipt[]
+  paymentLinkDeliveries    PaymentLinkDelivery[]
   proposals                Proposal[]
   commercialCatalogueItems CommercialCatalogueItem[]
   commercialPackages       CommercialPackage[]
@@ -62,33 +67,36 @@ model Role {
 }
 
 model User {
-  id                      Int                         @id @default(autoincrement())
-  organizationId          Int
-  organization            Organization                @relation(fields: [organizationId], references: [id])
-  roleId                  Int
-  role                    Role                        @relation(fields: [roleId], references: [id])
-  firstName               String
-  lastName                String
-  fullName                String
-  email                   String                      @unique
-  password                String
-  status                  UserStatus                  @default(ACTIVE)
-  tokenVersion            Int                         @default(0)
-  loginAttempts           Int                         @default(0)
-  lockedUntil             DateTime?
-  createdAt               DateTime                    @default(now())
-  updatedAt               DateTime                    @updatedAt
-  createdProposals        Proposal[]                  @relation("ProposalCreatedBy")
-  editedProposals         Proposal[]                  @relation("ProposalLastEditedBy")
-  ownedProjects           Project[]                   @relation("ProjectOwner")
-  assignedProjectTasks    ProjectTask[]               @relation("ProjectTaskAssignee")
-  productivityEntries     ProductivityEntry[]
-  productivityTodos       ProductivityTodo[]
-  refreshTokens           RefreshToken[]
-  recordedInvoicePayments InvoicePayment[]            @relation("InvoicePaymentRecordedBy")
-  verifiedInvoicePayments InvoicePayment[]            @relation("InvoicePaymentVerifiedBy")
-  rejectedInvoicePayments InvoicePayment[]            @relation("InvoicePaymentRejectedBy")
-  paymentLedgerEntries    InvoicePaymentLedgerEntry[] @relation("PaymentLedgerActor")
+  id                           Int                         @id @default(autoincrement())
+  organizationId               Int
+  organization                 Organization                @relation(fields: [organizationId], references: [id])
+  roleId                       Int
+  role                         Role                        @relation(fields: [roleId], references: [id])
+  firstName                    String
+  lastName                     String
+  fullName                     String
+  email                        String                      @unique
+  password                     String
+  status                       UserStatus                  @default(ACTIVE)
+  tokenVersion                 Int                         @default(0)
+  loginAttempts                Int                         @default(0)
+  lockedUntil                  DateTime?
+  createdAt                    DateTime                    @default(now())
+  updatedAt                    DateTime                    @updatedAt
+  createdProposals             Proposal[]                  @relation("ProposalCreatedBy")
+  editedProposals              Proposal[]                  @relation("ProposalLastEditedBy")
+  ownedProjects                Project[]                   @relation("ProjectOwner")
+  assignedProjectTasks         ProjectTask[]               @relation("ProjectTaskAssignee")
+  productivityEntries          ProductivityEntry[]
+  productivityTodos            ProductivityTodo[]
+  refreshTokens                RefreshToken[]
+  recordedInvoicePayments      InvoicePayment[]            @relation("InvoicePaymentRecordedBy")
+  verifiedInvoicePayments      InvoicePayment[]            @relation("InvoicePaymentVerifiedBy")
+  rejectedInvoicePayments      InvoicePayment[]            @relation("InvoicePaymentRejectedBy")
+  paymentLedgerEntries         InvoicePaymentLedgerEntry[] @relation("PaymentLedgerActor")
+  createdStandalonePayments    StandalonePayment[]         @relation("StandalonePaymentCreatedBy")
+  reconciledStandalonePayments StandalonePayment[]         @relation("StandalonePaymentReconciledBy")
+  createdPaymentIntents        PaymentIntent[]             @relation("PaymentIntentCreatedBy")
 }
 
 model RefreshToken {
@@ -327,10 +335,12 @@ model Invoice {
   createdAt                DateTime                     @default(now())
   updatedAt                DateTime                     @updatedAt
 
-  lineItems                InvoiceLineItem[]
-  payments                 InvoicePayment[]
-  paymentLedgerEntries     InvoicePaymentLedgerEntry[]
-  paymentIdempotencyClaims PaymentIdempotencyClaim[]
+  lineItems                    InvoiceLineItem[]
+  payments                     InvoicePayment[]
+  paymentLedgerEntries         InvoicePaymentLedgerEntry[]
+  paymentIdempotencyClaims     PaymentIdempotencyClaim[]
+  paymentIntents               PaymentIntent[]
+  reconciledStandalonePayments StandalonePayment[]         @relation("StandalonePaymentInvoice")
 
   @@unique([organizationId, invoiceNumber])
   @@index([organizationId, status])
@@ -377,6 +387,7 @@ model InvoicePayment {
   updatedAt            DateTime                    @updatedAt
   ledgerEntries        InvoicePaymentLedgerEntry[]
   idempotencyClaims    PaymentIdempotencyClaim[]
+  paymentIntent        PaymentIntent?
 
   @@unique([organizationId, externalReferenceKey])
   @@index([organizationId, invoiceId, createdAt])
@@ -437,6 +448,155 @@ model PaymentIdempotencyClaim {
   @@unique([organizationId, operation, idempotencyKey])
   @@index([invoiceId, createdAt])
   @@index([paymentId])
+}
+
+model StandalonePayment {
+  id                  Int                     @id @default(autoincrement())
+  organizationId      Int
+  organization        Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  customerReference   String?
+  customerName        String
+  customerEmail       String
+  customerPhone       String?
+  description         String
+  internalReference   String?
+  internalNotes       String?
+  creationKey         String
+  requestFingerprint  String
+  expectedMinor       Int
+  receivedMinor       Int                     @default(0)
+  currency            CurrencyCode            @default(GHS)
+  status              StandalonePaymentStatus @default(DRAFT)
+  dueAt               DateTime?               @db.Date
+  canceledAt          DateTime?
+  reconciledInvoiceId Int?
+  reconciledInvoice   Invoice?                @relation("StandalonePaymentInvoice", fields: [reconciledInvoiceId], references: [id], onDelete: Restrict)
+  reconciledAt        DateTime?
+  reconciledByUserId  Int?
+  reconciledByUser    User?                   @relation("StandalonePaymentReconciledBy", fields: [reconciledByUserId], references: [id], onDelete: Restrict)
+  createdByUserId     Int
+  createdByUser       User                    @relation("StandalonePaymentCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  paymentIntents      PaymentIntent[]
+  receipts            PaymentReceipt[]
+
+  @@unique([organizationId, internalReference])
+  @@unique([organizationId, creationKey])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, customerEmail])
+  @@index([organizationId, dueAt])
+  @@index([organizationId, reconciledInvoiceId])
+}
+
+model PaymentIntent {
+  id                    Int                          @id @default(autoincrement())
+  organizationId        Int
+  organization          Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  type                  PaymentIntentType
+  invoiceId             Int?
+  invoice               Invoice?                     @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  standalonePaymentId   Int?
+  standalonePayment     StandalonePayment?           @relation(fields: [standalonePaymentId], references: [id], onDelete: Restrict)
+  invoicePaymentId      Int?                         @unique
+  invoicePayment        InvoicePayment?              @relation(fields: [invoicePaymentId], references: [id], onDelete: Restrict)
+  customerName          String
+  customerEmail         String
+  amountMinor           Int
+  currency              CurrencyCode                 @default(GHS)
+  provider              String                       @default("PAYSTACK")
+  providerReference     String                       @unique
+  checkoutUrl           String?
+  publicTokenHash       String                       @unique
+  initializationKey     String
+  requestFingerprint    String
+  status                PaymentIntentStatus          @default(CREATED)
+  expiresAt             DateTime?
+  initializedAt         DateTime?
+  completedAt           DateTime?
+  failedAt              DateTime?
+  failureCategory       String?
+  providerTransactionId String?                      @unique
+  providerChannel       String?
+  providerPaidAt        DateTime?
+  linkDeliveryStatus    PaymentReceiptDeliveryStatus @default(NOT_SENT)
+  linkSentTo            String?
+  linkSentAt            DateTime?
+  linkDeliveryFailure   String?
+  createdByUserId       Int
+  createdByUser         User                         @relation("PaymentIntentCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  providerEvents        PaymentProviderEvent[]
+  receipt               PaymentReceipt?
+  linkDeliveries        PaymentLinkDelivery[]
+
+  @@unique([organizationId, initializationKey])
+  @@index([organizationId, type, status, createdAt])
+  @@index([organizationId, invoiceId, createdAt])
+  @@index([organizationId, standalonePaymentId, createdAt])
+  @@index([provider, status, updatedAt])
+}
+
+model PaymentLinkDelivery {
+  id                 Int                          @id @default(autoincrement())
+  organizationId     Int
+  organization       Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  paymentIntentId    Int
+  paymentIntent      PaymentIntent                @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  recipient          String
+  idempotencyKey     String
+  requestFingerprint String
+  status             PaymentReceiptDeliveryStatus @default(NOT_SENT)
+  sentAt             DateTime?
+  failedAt           DateTime?
+  failureCategory    String?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([paymentIntentId, createdAt])
+  @@index([organizationId, status, createdAt])
+}
+
+model PaymentProviderEvent {
+  id               Int                        @id @default(autoincrement())
+  organizationId   Int
+  organization     Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  paymentIntentId  Int
+  paymentIntent    PaymentIntent              @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  provider         String                     @default("PAYSTACK")
+  eventFingerprint String                     @unique
+  eventType        String
+  status           PaymentProviderEventStatus @default(RECEIVED)
+  receivedAt       DateTime                   @default(now())
+  processedAt      DateTime?
+  failureCategory  String?
+
+  @@index([organizationId, status, receivedAt])
+  @@index([paymentIntentId, receivedAt])
+}
+
+model PaymentReceipt {
+  id                  Int                          @id @default(autoincrement())
+  organizationId      Int
+  organization        Organization                 @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  paymentIntentId     Int                          @unique
+  paymentIntent       PaymentIntent                @relation(fields: [paymentIntentId], references: [id], onDelete: Restrict)
+  standalonePaymentId Int?
+  standalonePayment   StandalonePayment?           @relation(fields: [standalonePaymentId], references: [id], onDelete: Restrict)
+  receiptNumber       String                       @unique
+  publicTokenHash     String                       @unique
+  snapshot            Json
+  issuedAt            DateTime                     @default(now())
+  deliveryStatus      PaymentReceiptDeliveryStatus @default(NOT_SENT)
+  sentTo              String?
+  sentAt              DateTime?
+  deliveryFailure     String?
+  createdAt           DateTime                     @default(now())
+
+  @@index([organizationId, issuedAt])
+  @@index([standalonePaymentId, issuedAt])
 }
 
 model InvoiceLineItem {
@@ -1324,6 +1484,43 @@ enum PaymentOperationType {
   REJECT
   REVERSE
   ADJUST
+}
+
+enum PaymentIntentType {
+  INVOICE
+  STANDALONE
+}
+
+enum PaymentIntentStatus {
+  CREATED
+  INITIALIZING
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  CANCELED
+}
+
+enum StandalonePaymentStatus {
+  DRAFT
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentProviderEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+enum PaymentReceiptDeliveryStatus {
+  NOT_SENT
+  SENT
+  FAILED
 }
 
 enum CommercialItemKind {

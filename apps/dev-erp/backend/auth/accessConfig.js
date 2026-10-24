@@ -36,6 +36,7 @@ export const AUTHENTICATED_MODULE_CAPABILITY_ROUTES = [
   { pattern: /^\/api\/accounting(?:\/|$)/, modules: ["accounting"] },
   { pattern: /^\/api\/invoices(?:\/|$)/, modules: ["invoicing"] },
   { pattern: /^\/api\/invoice-payments(?:\/|$)/, modules: ["invoicing"] },
+  { pattern: /^\/api\/payments(?:\/|$)/, modules: ["invoicing"] },
   { pattern: /^\/api\/bookings(?:\/|$)/, modules: ["bookings"] },
   { pattern: /^\/api\/integrations\/google(?:\/|$)/, modules: ["bookings"] },
   { pattern: /^\/api\/organizations(?:\/|$)/, modules: ["organizations"] },
