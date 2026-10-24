@@ -1,15 +1,12 @@
-// iconsax-react ships CommonJS; read its exports from the default namespace so
-// Astro's Node SSR build does not rely on ESM named-export detection.
-import iconsax from "iconsax-react";
-const {
-  Add, ArrowLeft4, ArrowUp, Calendar, CloseCircle,
+import {
+  Add, ArrowLeft, ArrowUp, Calendar, CloseCircle,
   HambergerMenu, Heart, Location, MessageQuestion,
   People, SearchNormal1, Sms, TickCircle,
-} = iconsax;
+} from "iconsax-react";
 import ArrowRight4 from "./ArrowRight4.jsx";
 
 const icons = {
-  add: Add, "arrow-left": ArrowLeft4, "arrow-right": ArrowRight4,
+  add: Add, "arrow-left": ArrowLeft, "arrow-right": ArrowRight4,
   "arrow-up": ArrowUp, calendar: Calendar, close: CloseCircle,
   external: ArrowRight4, menu: HambergerMenu, heart: Heart,
   location: Location, question: MessageQuestion, people: People,

@@ -1,251 +1,162 @@
 # Faako System Monorepo
 
-Faako System is the shared product and engineering monorepo for Faako, REEBS,
-Stroane, byNana, The Thriving Network GH (TTNGH), and Travel With Ease. It uses
-pnpm 10.33 and Turborepo for JavaScript and TypeScript workspaces, with an
-independently managed Python analytics service.
+Faako System is a PNPM + Turborepo workspace for the active Faako, Reebs, Dev ERP, ByNana, and support apps. The monorepo is organized around real running products plus shared shell, UI, theme, security, logging, and backend packages.
 
-## Current Repository Snapshot
+## Current Workspace
 
-As of 23 October 2026, the pnpm graph contains 38 child workspaces:
+This repo currently contains 25 workspace packages:
 
-- 16 application workspaces in `apps/`, including the nested TTNGH Sanity Studio
-- 21 framework-neutral shared packages in `packages/`
-- 1 Node service workspace in `services/ttngh-api`
+- 10 deployable apps in `apps/`
+- 15 shared packages in `packages/`
 
-`services/reebs-analytics` is the shared Faako Analytics Python service. It is
-deliberately outside the pnpm/Turbo graph and retains its current path for
-deployment compatibility.
+Main directories:
 
-The repository currently spans several maturity levels:
+- `apps/`: deployable frontends, APIs, and full-stack app shells
+- `packages/`: shared UI, theme, config, utils, types, core, security, logger, and email helpers
+- `scripts/`: stack runners, workspace graph helpers, database refresh tools, and security checks
+- `docs/`: platform notes, local database refresh guidance, monorepo notes, and security reports
 
-- Dev ERP and REEBS Portal are live operational systems with real data.
-- Faako, REEBS, Stroane, byNana, and TTNGH have public-facing surfaces.
-- REEBS Water is a standalone operational frontend backed by the existing
-  REEBS Portal API and identity boundary.
-- Travel With Ease is an active local foundation; staging and production are
-  not yet verified.
-- Faako ERP is a demo/reference operational surface.
-- System Starter and UI Workbench are internal engineering tools, not default
-  production deployments.
+## Apps
 
-## Repository Layout
-
-| Path | Responsibility |
-| --- | --- |
-| `apps/` | Deployable websites, portals, operational applications, APIs, and internal tools |
-| `packages/` | Reusable framework-neutral contracts, validation, security, UI, domain, and runtime helpers |
-| `services/` | Independently deployed services, including TTNGH API and Faako Analytics |
-| `scripts/` | Workspace checks, stack runners, release helpers, database refresh tooling, and security checks |
-| `docs/` | Architecture decisions, app status, deployment runbooks, migrations, testing, security, and operations guidance |
-
-## Applications
-
-| Workspace | Path | Current role | Local command |
+| Workspace package | Path | Purpose | Primary local command |
 | --- | --- | --- | --- |
-| `@faako/bynana-portfolio` | `apps/bynana-portfolio` | Astro public portfolio and contact surface | `pnpm run dev:portfolio` |
-| `@faako/dev-erp` | `apps/dev-erp` | Live React/Vite operational ERP with Express/Prisma backend | `pnpm run dev:dev-erp` |
-| `@faako/faako-api` | `apps/faako-api` | Express/Prisma signup, onboarding, demo-access, and health API | `pnpm --filter @faako/faako-api run dev` |
-| `@faako/faako-erp` | `apps/faako-erp` | React/Vite ERP demo and shared-shell reference | `pnpm --filter @faako/faako-erp run dev` |
-| `@faako/faako-website` | `apps/faako-website` | Astro public marketing and signup site | `pnpm run dev:faako` |
-| `@faako/reebs-portal` | `apps/reebs-portal` | Live/private-beta React/Vite operations portal with authoritative API | `pnpm --filter @faako/reebs-portal run dev:with-backend` |
-| `@faako/reebs-water` | `apps/reebs-water` | Standalone React/Vite Water Business frontend using REEBS auth and API | `pnpm run dev:reebs-water` |
-| `@faako/reebs-website` | `apps/reebs-website` | Astro public catalogue, rental, booking, cart, and checkout site | `pnpm run dev:reebs` |
-| `@faako/stroane-web` | `apps/stroane-web` | React/Vite storefront and admin surfaces with Express/Prisma API | `pnpm run dev:stroane` |
-| `@faako/travel-with-ease-api` | `apps/travel-with-ease-api` | Travel With Ease API foundation | `pnpm --filter @faako/travel-with-ease-api run dev` |
-| `@faako/travel-with-ease-portal` | `apps/travel-with-ease-portal` | Travel With Ease React/Vite operations portal foundation | `pnpm --filter @faako/travel-with-ease-portal run dev` |
-| `@faako/travel-with-ease-web` | `apps/travel-with-ease-web` | Travel With Ease Astro public-site foundation | `pnpm --filter @faako/travel-with-ease-web run dev` |
-| `@faako/ttngh` | `apps/ttngh` | TTNGH Astro public website | `pnpm run dev:ttngh` |
-| `@faako/ttngh-studio` | `apps/ttngh/studio` | Sanity Studio for TTNGH content operations | `pnpm --filter @faako/ttngh-studio run dev` |
-| `@faako/system-starter` | `apps/system-starter` | Internal React/Vite shared-system starter | `pnpm run dev:starter` |
-| `@faako/ui-workbench` | `apps/ui-workbench` | Internal shared UI, theme, and layout playground | `pnpm run dev:workbench` |
-
-Run all three Travel With Ease workspaces together with:
-
-```bash
-pnpm run dev:twe
-```
-
-## Services
-
-| Service | Path | Boundary |
-| --- | --- | --- |
-| TTNGH API | `services/ttngh-api` | Node API for server-owned TTNGH operations and integrations; included in the pnpm workspace |
-| Faako Analytics | `services/reebs-analytics` | Private FastAPI/Python, read-only, tenant-scoped analytics service; outside the pnpm workspace |
-
-The analytics service must not receive a transactional `DATABASE_URL`. Approved
-application backends send minimised, tenant-scoped snapshots after enforcing
-authentication, permissions, and organisation scope. Its existing directory name
-is a compatibility location; the logical shared service is Faako Analytics.
+| `@faako/faako-api` | `apps/faako-api` | Faako Express API for signup and health flows | `pnpm --filter @faako/faako-api run dev` |
+| `@faako/faako-website` | `apps/faako-website` | Faako marketing site and signup funnel | `pnpm --filter @faako/faako-website run dev:frontend` |
+| `@faako/faako-erp` | `apps/faako-erp` | Shared-shell Faako ERP frontend | `pnpm --filter @faako/faako-erp run dev:frontend` |
+| `@faako/reebs-portal` | `apps/reebs-portal` | REEBS admin portal plus API wrapper backend | `pnpm --filter @faako/reebs-portal run dev:with-backend` |
+| `@faako/reebs-website` | `apps/reebs-website` | REEBS public storefront, rentals, and booking site | `pnpm --filter @faako/reebs-website run dev:with-backend` |
+| `@faako/dev-erp` | `apps/dev-erp` | Fully live operational ERP with real operational data | `pnpm --filter @faako/dev-erp run dev:with-backend` |
+| `@faako/bynana-portfolio` | `apps/bynana-portfolio` | ByNana public portfolio and contact entry points | `pnpm --filter @faako/bynana-portfolio run dev` |
+| `@faako/stroane-web` | `apps/stroane-web` | Full-stack Stroane commerce app | `pnpm --filter @faako/stroane-web run dev:with-backend` |
+| `@faako/system-starter` | `apps/system-starter` | Minimal starter app for the current shared shell system | `pnpm --filter @faako/system-starter run dev` |
+| `@faako/ui-workbench` | `apps/ui-workbench` | Local playground for the shared UI system | `pnpm --filter @faako/ui-workbench run dev` |
 
 ## Shared Packages
 
-| Package | Responsibility |
+| Package | Purpose |
 | --- | --- |
-| `@faako/api-client` | Browser/server-safe request transport and compatibility adapters |
-| `@faako/api-contracts` | Shared response envelopes, errors, pagination, and request metadata |
-| `@faako/audit` | Audit-event constants and safe audit metadata helpers |
-| `@faako/auth` | Shared authentication-facing primitives without owning app session models |
-| `@faako/config` | App, shell, module-registry, mode, and monorepo configuration helpers |
-| `@faako/core` | Shared framework-neutral product and organisation helpers |
-| `@faako/discovery` | Search, metadata, structured-data, and public discovery foundations |
+| `@faako/audit` | Shared audit event constants, safe metadata helpers, and display formatting foundations |
+| `@faako/config` | App-local ERP and shell configuration builders, shared ERP module registry helpers, app-mode helpers, and monorepo app monitoring metadata |
+| `@faako/core` | Shared auth, organization, and template-config helpers |
 | `@faako/email-kit` | Shared email rendering and theme helpers |
-| `@faako/finance` | Presentation-safe finance constants and pure helpers; no payment persistence |
-| `@faako/layout` | Shared ERP shell layout contracts and responsive helpers |
-| `@faako/logger` | Structured, redacted application logging helpers |
-| `@faako/notifications` | Notification constants, templates, and user-triggered sharing helpers |
-| `@faako/offline-sync` | Local drafts, offline queues, retry metadata, and passive sync UI |
-| `@faako/org-settings` | Organisation settings shapes and display helpers |
-| `@faako/security` | Shared security headers, CSRF, throttling, secret, and permission helpers |
-| `@faako/theme` | Shared design tokens and shell CSS foundations |
-| `@faako/types` | Framework-independent domain and API types |
-| `@faako/ui` | Shared presentation primitives and operational shell components |
-| `@faako/utils` | Shared browser and application utilities |
-| `@faako/validation` | Framework-independent Zod boundary schemas and inferred inputs |
-| `@faako/water-domain` | REEBS Water contracts and domain-specific helpers |
+| `@faako/finance` | Shared payment and receipt constants, pure helpers, and presentation utilities |
+| `@faako/logger` | Structured application logging for Node.js API services and app runtimes |
+| `@faako/layout` | Shared ERP shell layout contracts, region names, and responsive layout helpers |
+| `@faako/notifications` | Shared notification constants, customer-safe templates, and user-triggered share helpers |
+| `@faako/offline-sync` | Shared offline queue constants, local draft storage helpers, status hooks, review/recovery helpers, and passive sync UI |
+| `@faako/org-settings` | Shared organization settings shapes, safe metadata helpers, display helpers, currencies, and timezones |
+| `@faako/security` | Shared CSRF, throttling, secret, and security utilities |
+| `@faako/theme` | Shared shell tokens and CSS foundations |
+| `@faako/types` | Shared contracts and type definitions |
+| `@faako/ui` | Shared shell primitives, navigation, fields, low-risk ERP form/table/modal/action presentation wrappers, and compat styles |
+| `@faako/utils` | Shared title, path, role, and layout observer helpers |
 
-Shared packages provide compatible foundations; they do not replace app-owned
-workflows or backend authorization. Reuse existing packages before creating a new
-overlapping package.
+## Current Shared System
 
-## Architecture Boundaries
+- `@faako/layout`, `@faako/ui`, and `@faako/theme` now define the common shell system used across the ERP and portal apps, including shell region contracts, uniform sidebar widths, the edge collapse toggle, shared topbar/content/mobile-nav wrappers, shared field sizing, and mobile-safe topbar behavior.
+- The shared compat layer normalizes `select`, `date`, `time`, `month`, and related controls so Safari and other WebKit browsers do not fall back to mismatched native chrome unexpectedly.
+- `@faako/utils`, `@faako/security`, `@faako/logger`, and `@faako/email-kit` hold the shared runtime helpers used by the current full-stack apps.
+- `@faako/config` includes ERP module registry helpers in `packages/config/src/erpModules`. REEBS Portal, Dev ERP, and Faako ERP now use app-specific registries to feed navigation adapters while preserving current routes, labels, permission behavior, and flat navigation.
+- `@faako/config` also includes monorepo app metadata in `packages/config/src/monorepoApps`. Dev ERP monitoring consumes this config-driven list so monitored apps can include REEBS Portal/API, Dev ERP/API, Stroane Web/portal/API, Faako Website/API, REEBS Website, the portfolio site, and Faako ERP without maintaining a fragile local site list.
+- Use `pnpm run monitoring:check` after adding apps to compare `apps/` against the shared monorepo app registry without exposing URLs or secrets.
+- `@faako/config` includes app-mode helpers in `packages/config/src/appModes` for `normal`, `degraded`, `read_only`, and `maintenance` states. These helpers normalize environment/config values only; backend/API enforcement remains required for reliable write protection.
+- ERP module conventions now include `visibility` and `state` metadata for hidden, disabled, internal, coming-soon, and experimental modules. Navigation ignores hidden modules, carries subtle state badges/classes for visible modules, and keeps disabled module routes available for now. These conventions prepare future org-level toggles, permissions integration, and SaaS plan gating, but they do not enforce access control, add billing, persist module settings, or change database behavior.
+- Shared ERP shell conventions now include sidebar, topbar, mobile bottom navigation, page content, page header, module group, and status badge patterns. Placeholder slots exist for offline indicators, sync status, notifications, and a future organization switcher; these are structural only and do not implement backend behavior.
+- Shared UI presentation conventions now include low-risk ERP panel, panel-header, section-header, stack, form-group, form-section, form-row, form-action, field, validation, notice, table, toolbar, search/filter/action, pagination, loading/empty, status badge, modal, drawer, confirm-dialog, and action-button wrappers. These are presentation-only and should be adopted gradually after visual checks; mobile POS layout, workflow-heavy forms/tables/modals, and deeper ERP page templates remain future design-system work.
+- Shared ERP table conventions now include presentation-only table, toolbar, search/filter/action, pagination, loading/empty, and status badge wrappers in `@faako/ui`. Apps still own row data, filters, pagination state, row actions, permissions, and business workflows.
+- Shared ERP form conventions now include presentation-only form, form section, form row, form actions, field group, common field controls, validation message, and form notice wrappers in `@faako/ui`. Apps still own form state, validation, submit handlers, API calls, auth/permission checks, local draft behavior, and workflow side effects.
+- Shared ERP modal/action conventions now include presentation-only modal, drawer, confirm-dialog, action bar, button group, primary/secondary/danger actions, and icon action wrappers in `@faako/ui`. Apps still own open/close state, destructive-action policy, save/delete/submit handlers, API calls, auth/permission checks, and workflow side effects.
+- Shared alert conventions now include presentation-only notices, alerts, banners, sync/offline notices, toast helpers, and ERP/generic maintenance/read-only/degraded-mode wrappers in `@faako/ui`. Generic app-mode wrappers use neutral `ui-app-mode-*` classes so public/client sites can keep their own branding through theme tokens and `className` overrides. These components do not enforce backend maintenance mode, read-only restrictions, degraded-mode behavior, permissions, or data-write rules.
+- REEBS Portal and Dev ERP now have documentation-only workflow reviews for order, payment, receipt, invoice, rent-payment, and balance behavior. Use those reviews before creating shared payment/receipt/order runtime packages or expanding `@faako/finance` beyond constants, helpers, and presentation utilities; no shared finance runtime behavior has been implemented yet.
+- The shared Payment and Receipt architecture plan lives in [docs/platform/shared-payment-receipt-architecture.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/shared-payment-receipt-architecture.md). It is planning-only and sets the safety path for future payment/receipt constants, types, wrappers, gateways, offline support, and app-by-app migration.
+- `@faako/finance` now contains shared payment/receipt constants, documented type-shape descriptors, pure formatting/normalization helpers, balance display helpers, metadata normalization helpers, and receipt presentation helpers. It does not implement payment recording, receipt generation, invoice persistence, gateway integrations, schema changes, API changes, or app workflow changes.
+- `@faako/notifications` now contains shared notification channel/type/status constants, customer-safe message templates, channel availability helpers, and user-triggered `mailto:`/WhatsApp draft link helpers. REEBS uses it for receipt summary copy/email/WhatsApp drafts, and Dev ERP uses it for the appointment link email draft. It does not send automated WhatsApp messages, emails, SMS, or in-app notifications, and it does not change Resend/email behavior, receipt/payment/order behavior, schema, or customer data handling.
+- `@faako/offline-sync` now contains shared offline queue constants, local draft storage helpers, IndexedDB queue storage helpers, retry metadata helpers, queue summary/review helpers, online/offline status hooks, and passive sync UI components. REEBS Portal uses local draft storage for Store Mode POS/manual order payment drafts, queues offline Store Mode POS orders, queues offline manual order payments, queues offline inventory stock adjustments, and queues offline booking create/edit/status actions through existing server endpoints when online returns; Dev ERP queues new offline rent payments, keeps rent payment edits and booking/calendar settings online-only, and has no inventory adjustment surface wired for offline sync. REEBS Admin Workspace and Dev ERP Settings now expose local Sync Review panels for pending, failed, conflict, and needs-review queue visibility plus retry/cancel/mark-resolved controls. The server remains the source of truth for auth, permissions, stock validation, booking availability, rental/variant checks, payment persistence, receipt creation, accounting effects, balances, and final order/payment/inventory/booking status.
 
-- Astro is the approved default for content-first public sites. byNana Portfolio,
-  Faako Website, REEBS Website, TTNGH, and Travel With Ease Web use Astro.
-- Dev ERP, Faako ERP, REEBS Portal, REEBS Water, Travel With Ease Portal, and
-  Stroane retain their documented React/Vite boundaries.
-- Do not introduce Next.js without an approved ADR.
-- Application backends and databases remain authoritative for authentication,
-  permissions, tenant scope, writes, payments, inventory, and workflow state.
-- Prisma schemas and database lifecycles are app-owned. Cross-system integration
-  uses explicit HTTP/webhook contracts rather than shared database access.
-- REEBS Water is a separate business segment. It must not be silently folded into
-  core REEBS revenue, customer, sales, or profitability totals.
-- Advanced analytics is a shared platform capability. Review the analytics
-  architecture, contracts, metric catalogue, data-quality standards, and tenant
-  boundary before adding calculations or Python services.
+## Common Commands
 
-## Getting Started
-
-Install the repository-pinned pnpm version through Corepack, then install from the
-repository root:
+Install dependencies from the repo root:
 
 ```bash
-corepack enable
 pnpm install
 ```
 
-Use the relevant app or service `.env.example` as the local configuration contract.
-Never copy production secrets into committed files, browser code, logs, or docs.
-
-Frequently used development commands:
+Helpful stack shortcuts:
 
 ```bash
 pnpm dev
-pnpm run dev:faako
-pnpm run dev:reebs
-pnpm run dev:reebs-water
-pnpm run dev:dev-erp
-pnpm run dev:stroane
-pnpm run dev:twe
-pnpm run dev:ttngh
-pnpm run dev:portfolio
-pnpm run dev:workbench
+pnpm dev:faako
+pnpm dev:reebs
+pnpm dev:dev-erp
+pnpm dev:workbench
+pnpm dev:starter
 ```
 
-Prisma-backed local stack commands run their documented migration preparation
-where configured. Never reset a shared database as a routine development fix.
+Prisma-backed dev commands run their local predeploy migration checks first.
+That means Faako API, Dev ERP, REEBS Portal/Website combined dev, and Stroane
+generate Prisma clients and apply pending development migrations before their
+long-running local servers start.
 
-## Quality and Repository Checks
+Common workspace operations:
 
 ```bash
-pnpm lint
-pnpm typecheck
-pnpm test
 pnpm build
-pnpm check
-pnpm test:e2e
-pnpm test:python
-```
-
-Useful focused repository checks:
-
-```bash
-pnpm run release:prerequisites
-pnpm run workspace:manifests
+pnpm lint
+pnpm test
 pnpm run monitoring:check
-pnpm run project-registry:check
 pnpm run hosting:check
-pnpm run analytics:check-builds
-pnpm run security:all
 pnpm affected:apps -- --files <path>
+pnpm db:refresh:local
+pnpm db:refresh:local:dry
+pnpm db:refresh:local:biweekly
+pnpm security:all
 ```
 
-Run targeted app tests for production-sensitive changes. Browser E2E suites must
-use local, preview, or isolated test environments and must never target production.
+## Environment And Data Safety
 
-## Environment and Data Safety
+- Use each app's `.env.example` file as the source of truth for local setup.
+- `VITE_*` values are browser-visible and must stay non-secret.
+- REEBS Portal and Dev ERP are both live systems with real data. Any change affecting auth, API permissions, customer/user data, payments, receipts, inventory, bookings, orders, rent, reports, email workflows, AI/productivity endpoints, or database schema must be treated as production-sensitive.
+- Local database refresh flows live in [docs/local-db-refresh.md](/Users/Nana/Desktop/Developer/faako-system/docs/local-db-refresh.md).
+- Pre-commit and manual security scripts help catch secrets before they enter git history.
 
-- Treat Dev ERP and REEBS Portal changes as production-sensitive because both
-  systems use real operational data.
-- Treat auth, permissions, customer/user data, payments, receipts, inventory,
-  bookings, orders, rent, reports, email, AI/productivity endpoints, migrations,
-  and deployment configuration as high-risk areas.
-- `PUBLIC_*` and `VITE_*` values are browser-visible and must never contain secrets.
-- Validate external input at the boundary and preserve request IDs across services.
-- Backend permission and tenant enforcement is mandatory; frontend guards are UX only.
-- Use structured, redacted diagnostic logs and keep them distinct from audit events.
-- Deploy reviewed, environment-scoped migrations before code that depends on them.
+## Deployment
 
-Local database refresh guidance lives in
-[`docs/local-db-refresh.md`](docs/local-db-refresh.md).
+- Static frontends deploy through Cloudflare Pages. Every Vite/static app keeps `public/_headers` and `public/_redirects` checked in for security headers and SPA fallback routing.
+- API/backend services deploy through Railway using the root [nixpacks.toml](/Users/Nana/Desktop/Developer/faako-system/nixpacks.toml), which delegates to [scripts/railway-service.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/railway-service.mjs).
+- Set `RAILWAY_WORKSPACE` on each Railway service to the workspace package, app key, or `apps/<app>` path it should run, for example `@faako/dev-erp`, `@faako/reebs-portal`, `@faako/stroane-web`, or `@faako/faako-api`.
+- Use `pnpm run hosting:check` after adding or moving apps to confirm static apps have Cloudflare files, API apps have Railway start paths, and legacy hosting artifacts are absent.
+- `faako-website` calls the dedicated Faako API through `VITE_API_BASE_URL` or the local Vite `/api` proxy during development.
+- Workspace impact checks are driven by [scripts/workspace-graph.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/workspace-graph.mjs).
 
-## Deployment Shape
+## Docs
 
-- Static Astro and Vite frontends are prepared for Cloudflare Pages where their
-  app-specific deployment documentation says so.
-- Node APIs deploy independently, primarily through Railway. Root Railway routing
-  is handled by `nixpacks.toml` and `scripts/railway-service.mjs` for supported
-  workspaces.
-- Faako Analytics deploys as its own private Docker/Railway-compatible service.
-- TTNGH separates the public Astro site, Sanity Studio, and Railway API boundaries.
-- Travel With Ease remains a local foundation until its staging/production gates
-  and ownership checks are completed.
+README update rule:
 
-Do not infer deployment readiness from the presence of a build script. Use the
-app-specific deployment runbook and record preview and production verification
-separately, with a rollback path.
+- Any time a new feature, module, workflow, integration, package, API endpoint, environment variable, setup step, deployment process, or security-related change is implemented, update the relevant README files in the same change.
+- README updates should cover what changed, where the feature/module lives, how to use it, required environment variables, setup or migration steps, security or data impact, known limitations, and testing notes.
+- Update the app-specific README for app changes, package README for shared package changes, the root README for monorepo-wide changes, and the relevant `docs/apps/<app>/implementation-notes.md` file when detailed implementation notes are needed.
+- Do not leave implemented functionality undocumented.
 
-## Documentation Map
+Platform docs:
 
-Related architecture and operating guidance:
+- [docs/app-platform.md](/Users/Nana/Desktop/Developer/faako-system/docs/app-platform.md)
+- [docs/local-db-refresh.md](/Users/Nana/Desktop/Developer/faako-system/docs/local-db-refresh.md)
+- [docs/monorepo-restructure.md](/Users/Nana/Desktop/Developer/faako-system/docs/monorepo-restructure.md)
+- [docs/platform/codex-handoff-verification.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/codex-handoff-verification.md)
+- [docs/platform/operations-manual.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/operations-manual.md)
+- [docs/platform/shared-payment-receipt-architecture.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/shared-payment-receipt-architecture.md)
+- [docs/security_best_practices_report.md](/Users/Nana/Desktop/Developer/faako-system/docs/security_best_practices_report.md)
 
-- [Final system map](docs/architecture/final-system-map.md)
-- [Framework decisions](docs/decisions/framework-decisions.md)
-- [Repository quality gates](docs/architecture/quality-gates.md)
-- [Platform operations manual](docs/platform/operations-manual.md)
-- [Pre-deploy checklist](docs/platform/pre-deploy-checklist.md)
-- [Security status](docs/platform/security-status.md)
-- [Shared analytics architecture](docs/architecture/shared-analytics-architecture.md)
-- [REEBS Water domain boundary](docs/architecture/reebs-water-domain.md)
-- [TTNGH documentation](docs/apps/ttngh/README.md)
-- [Travel With Ease documentation](docs/apps/travel-with-ease/README.md)
+App docs:
 
-Each established application and shared package also owns local documentation at
-its path. Some dated architecture and audit documents are historical snapshots;
-check their date and status before treating them as current operational truth.
-
-## Documentation Rule
-
-When implementation changes a feature, workflow, integration, API, environment
-contract, setup step, deployment process, package boundary, security behavior, or
-database requirement, update the relevant documentation in the same change:
-
-- app changes: the app README and applicable `docs/apps/<app>/` records
-- shared package changes: the package README and affected architecture guidance
-- monorepo-wide changes: this README and the relevant platform/architecture docs
-- architecture, authentication, permission, payment, migration, or deployment
-  boundary changes: the applicable ADR, runbook, tests, and rollback guidance
-
-Document what is implemented, how it is verified, known limitations, and any data,
-security, migration, or deployment impact. Do not present planned work as shipped.
+- [apps/faako-api/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-api/README.md)
+- [apps/faako-website/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-website/README.md)
+- [apps/faako-erp/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-erp/README.md)
+- [apps/reebs-portal/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-portal/README.md)
+- [apps/reebs-website/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-website/README.md)
+- [apps/dev-erp/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/dev-erp/README.md)
+- [apps/bynana-portfolio/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/bynana-portfolio/README.md)
+- [apps/stroane-web/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/stroane-web/README.md)
+- [apps/system-starter/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/system-starter/README.md)
+- [apps/ui-workbench/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/ui-workbench/README.md)

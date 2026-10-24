@@ -29,7 +29,7 @@ The Vite HTML plugin is limited to the Stroane storefront/combined build. It emi
 | REEBS Website | Astro documents + React islands | `VITE_GA_MEASUREMENT_ID` | Shared utility adapter; document navigation | Local ID present; hosted receipt not checked in this change |
 | Stroane storefront | React/Vite | `VITE_GA_MEASUREMENT_ID` | Shared React Router tracker; SPA navigation | Local ID present; portal excluded; hosted receipt not checked in this change |
 | TTNGH | Astro | `PUBLIC_GA_MEASUREMENT_ID` | Shared utility adapter; document navigation | Local ID present; user previously confirmed GA receipt; current change used mocked Google requests only |
-| Travel With Ease Website | Astro foundation | `PUBLIC_GA_MEASUREMENT_ID` | Shared utility adapter; document navigation | User-supplied local ID verified in build on 2026-10-23; hosted receipt not verified |
+| Travel With Ease Website | Astro foundation | `PUBLIC_GA_MEASUREMENT_ID` | Shared utility adapter; document navigation | No local ID; production is not approved/verified |
 
 `VITE_GA_ID` remains a compatibility fallback for existing Vite/Astro-with-Vite settings. New deployments should use the primary variable above. `VITE_ENABLE_GA_IN_DEV=true` is an explicit local-only override for applications that otherwise restrict analytics to production builds.
 
