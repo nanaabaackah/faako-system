@@ -1,5 +1,10 @@
 # Travel With Ease security architecture and threat model
 
+> Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
+> supersedes the production API blanket block and startup release-SHA requirement
+> below. Both hosted API environments require verified persistence and Access;
+> SHA remains mandatory for publishing. Worker and live-acceptance gates remain.
+
 Current release gates: [readiness check](./readiness-check.md) and
 [staging startup verification](./staging-activation-2026-10-24.md).
 Staging API startup is conditional on the checked PostgreSQL/Access preflight

@@ -1,5 +1,10 @@
 # Travel With Ease — release readiness check
 
+> Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
+> supersedes the production API blanket block and startup release-SHA requirement
+> below. Both hosted API environments require verified persistence and Access;
+> SHA remains mandatory for publishing. Worker and live-acceptance gates remain.
+
 Reviewed: 2026-10-25. Applies to the October 2026 website-and-staff-CMS
 MVP. **Current decision: staging API activation is conditionally supported;
 the complete MVP is not staging-accepted or production-certified.**

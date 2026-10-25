@@ -1,5 +1,10 @@
 # Travel With Ease system architecture
 
+> Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
+> supersedes the production API blanket block and startup release-SHA requirement
+> below. Both hosted API environments require verified persistence and Access;
+> SHA remains mandatory for publishing. Worker and live-acceptance gates remain.
+
 2026-10-24: [staging-only API startup after verified preflight](./staging-activation-2026-10-24.md)
 supersedes the earlier blanket staging API block. Production and workers remain gated.
 
