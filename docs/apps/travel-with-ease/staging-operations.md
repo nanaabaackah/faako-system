@@ -1,17 +1,14 @@
 # Prompt 03 staging setup and operating gate
 
-2026-10-24 update: [staging activation](./staging-activation-2026-10-24.md) now permits
-the staging API after mandatory runtime preflight. Earlier blanket blocking claims
-below remain applicable to production and background workers, not this staging path.
-
-Current Access portal configuration: [hosting preparation](./portal-hosting-preparation-2026-10-23.md).
-This supersedes the static-only portal instructions below. API activation is still gated.
-
-Updated 2026-10-21. **Preparation only: no verified deployment URLs and no
-authority to commit, push, deploy or create paid resources.** Baaba is the named
-developer and technical contact. The API, notification worker and publication
-CLI still reject staging/production startup; do not remove that guard merely
-to make deployment succeed. Resolve the acceptance gates below first.
+Current status (reviewed 2026-10-25): [readiness check](./readiness-check.md)
+and [staging API activation](./staging-activation-2026-10-24.md) are authoritative.
+The **staging API** can start only after its validated PostgreSQL/Access preflight;
+**production API and background workers** remain blocked. The staff portal now
+uses the separate [Express Access proxy](./portal-hosting-preparation-2026-10-23.md),
+not the obsolete static-only/cross-origin portal setup. The remaining numbered
+steps are operational prerequisites, not evidence that a provider was deployed.
+The 2026-10-21 preparation had no deployment authority; this document does not
+grant production rollout or infrastructure spending approval.
 
 ## Ownership
 
@@ -60,45 +57,52 @@ separation is mandatory, not just different subdomains.
    Scope separate credentials to media versus backup duties. Production uses
    separate `twe-production-` buckets and keys. Set the four `TWE_R2_*` names in
    API/worker secrets, never frontend variables. Verify unauthenticated reads fail.
-6. Create separate Cloudflare Pages projects for staging web and portal. Build
-   from repository root with the corresponding pnpm workspace filter; outputs
-   are `apps/travel-with-ease-web/dist` and `apps/travel-with-ease-portal/dist` for
-   ordinary builds. Publication artifacts use the path printed by the build CLI.
-   Disable provider auto-deployment until the protected release path is agreed.
-   Do not independently rebuild a pinned publication from latest drafts.
+6. Create an isolated Cloudflare Pages project for the staging **public Astro
+   website**. Serve the Vite **staff portal** from a separately deployed Express
+   portal service with its static build and fixed same-origin API proxy (see the
+   portal hosting handoff). Build from the repository root with the correct
+   workspace filter; ordinary build outputs are `apps/travel-with-ease-web/dist`
+   and `apps/travel-with-ease-portal/dist`. Publication artifacts use the path
+   printed by the build CLI. Disable unreviewed auto-deploy and do not rebuild a
+   pinned publication from newer drafts.
 7. Agree exact custom origins for web, portal and API. Use HTTPS and a same-site
    portal/API domain topology compatible with host-only SameSite=Lax cookies;
    unrelated pages.dev/railway.app domains are not an accepted login topology.
    Configure DNS in TWE Cloudflare using provider-issued target values, not
    guessed CNAMEs. Namecheap remains TWE-owned. Record DNS/TLS verification.
-8. Configure Cloudflare Access for **all** staging web/portal aliases, including
-   default provider domains and preview URLs. Protect draft previews before
-   uploading any draft artifact. Noindex is not authentication. Verify signed-out
-   requests are denied and invited UAT users can enter. Keep OIDC callback access
-   and API routing compatible with the approved topology; test actual cookies.
+8. Configure Cloudflare Access for **all** staging staff-portal aliases and
+   protected draft previews, including provider hostnames and preview URLs. Public
+   Astro content remains public where explicitly approved. Noindex is not access
+   control. Verify signed-out portal requests are denied and invited test users
+   can enter with independent MFA. Keep Access assertion and same-origin API
+   proxy routing compatible with the approved topology; test actual cookies.
 9. Build web with `PUBLIC_APP_ENV=staging`, `PUBLIC_SITE_INDEXABLE=false`, exact
-   `PUBLIC_SITE_URL` and `PUBLIC_API_BASE_URL`; build portal with its exact
-   `VITE_API_BASE_URL`. No analytics ID in staging. Inspect HTML, robots, absent
-   sitemap, headers and bundles. Rebuild production with its own values; never
-   promote a bundle containing staging URLs. Portal/API remain noindex always.
-10. Configure the OIDC application using `staff-authentication.md`. Configure the
-    API with `NODE_ENV=production`, `APP_ENV=staging`, exact `ALLOWED_ORIGINS`,
-    runtime `DATABASE_URL`, organisation UUID and all `TWE_OIDC_*`/origin names.
-    Validate Railway's proxy/header behaviour and edge rate limits; do not set
-    trust proxy blindly. Resolve the hosted startup gate through reviewed code
-    and tests, not a development-mode override.
+   `PUBLIC_SITE_URL` and appropriate `PUBLIC_API_BASE_URL`; build the **hosted**
+   portal with **empty `VITE_API_BASE_URL`** and configure the portal process with
+   server-only `TWE_PORTAL_API_ORIGIN`. No analytics ID in staging. Inspect HTML,
+   robots, absent sitemap, headers and bundles. Rebuild production with its own
+   settings; never promote a staging URL in production. Portal/API remain noindex.
+10. Configure separate **staging Cloudflare Access** application/AUD and
+    independently enforced MFA using `access-platform-admin-2026-10-23.md`.
+    Configure the API with `NODE_ENV=production`, `APP_ENV=staging`, exact
+    `ALLOWED_ORIGINS`, runtime `DATABASE_URL`, organisation UUID,
+    `TWE_AUTH_MODE=cloudflare_access`, `TWE_ACCESS_TEAM_DOMAIN`,
+    `TWE_ACCESS_AUDIENCE`, `TWE_PORTAL_ORIGIN` and reviewed `TWE_RELEASE_SHA`.
+    Remove legacy `TWE_OIDC_*` values and local bearer/file settings. Validate
+    Railway proxy/headers and rate limits; never enable blind trust proxy.
 11. In Faako Resend, create a narrowly scoped stage sending credential. Baaba
     installs Resend's actual sender-verification DNS records in TWE Cloudflare
     after sender-domain approval. Configure `TWE_EMAIL_FROM`,
     `TWE_EMAIL_RECIPIENT`, `TWE_EMAIL_TEST_RECIPIENTS`, `TWE_RESEND_API_KEY` and
     HTTPS `TWE_PORTAL_ORIGIN`. Non-production recipients must match the exact
     allowlist. Test only an approved mailbox; no live message was sent here.
-12. Only after reviewed hosted guards and deployment approval, run API using
-    `pnpm --filter @faako/travel-with-ease-api start`, health path `/healthz`.
-    `/readyz` verifies DB identity/organisation, not every external integration.
-    Schedule `notifications:once` once per minute with non-overlapping execution;
-    leases also fence overlapping workers. Schedule publication build processing
-    only after the approval/deployment/confirmation sequence below is operational.
+12. After approved staging configuration, run the read-only
+    `pnpm --filter @faako/travel-with-ease-api preflight:hosted` in the hosting
+    environment, then `pnpm --filter @faako/travel-with-ease-api start`.
+    Startup repeats the preflight. `/healthz` proves liveness and `/readyz`
+    checks persistence, **not** external integrations or launch acceptance.
+    Notification and publication workers still require their own reviewed
+    activation; do **not** schedule them merely because the staging API starts.
 
 ## Publication and failure handling
 
@@ -194,8 +198,10 @@ objects. Those remain external/implementation acceptance requirements.
 
 ## Exit evidence required
 
-No staging URL has been verified. Record actual web, portal, API and provider
-deployment references only after authorised deployment. Required evidence:
+A staging portal DNS/Access redirect has been observed, but full portal/API
+availability, authenticated MFA and provider workflow acceptance have **not**
+been established. Record actual web, portal, API and provider deployment
+references only after authorised verification. Required evidence:
 runtime-role DB tests, live MFA/login/recovery, private R2 permissions, approved
 test-mail receipt, protected draft preview, successful/failed publication and
 reconciliation, protected staging aliases/noindex, alerts, encrypted off-site
@@ -206,5 +212,6 @@ and Prompt 04 must not start automatically.
 
 Use the [Cloudflare Access runbook](./access-platform-admin-2026-10-23.md) for
 current onboarding/offboarding, MFA recovery and origin-security requirements.
-The supplied Access AUD is production-only. Do not reuse it in staging or bypass
-the hosted-startup guard. Earlier OIDC-provider instructions above are superseded.
+The supplied production Access AUD must not be reused in staging. The older OIDC
+setup is superseded. Follow the staging preflight/receipt gate for the API and
+retain the separate production and worker restrictions.

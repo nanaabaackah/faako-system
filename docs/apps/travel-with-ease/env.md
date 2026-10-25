@@ -1,7 +1,9 @@
 # Travel With Ease environment contract
 
-Portal runtime now requires server-only `TWE_PORTAL_API_ORIGIN` alongside the Access
-settings. Hosted `VITE_API_BASE_URL` must be empty. See [hosting preparation](./portal-hosting-preparation-2026-10-23.md).
+Current startup and environment decisions: [readiness check](./readiness-check.md),
+[staging activation](./staging-activation-2026-10-24.md) and [portal hosting](./portal-hosting-preparation-2026-10-23.md).
+The hosted Express portal uses server-only `TWE_PORTAL_API_ORIGIN` alongside
+Access settings. Hosted `VITE_API_BASE_URL` must be **empty**.
 
 Placeholders only; never commit values.
 
@@ -26,7 +28,7 @@ The historical OIDC inventory below is not an active deployment contract.
 
 Never copy production customer records into local or staging. Staging identities must not be able to read production databases, objects or secrets. A different URL alone is not isolation. Robots directives are discovery controls, not access control. Verify the deployed HTML/headers and build-time frontend API origins independently in each environment.
 
-**Current implementation (2026-10-21, Prompt 03 in progress):** explicit runtime validation recognises development/test/staging/production and rejects unknown modes. Executable and factory refuse deployed startup while acceptance remains incomplete. Web indexing now requires both `PUBLIC_APP_ENV=production` and `PUBLIC_SITE_INDEXABLE=true`; default/staging builds are noindex with no sitemap. See [foundation implementation](./foundation-implementation.md) for actual test results and [operations](./staging-operations.md) for ownership and external setup.
+**Current implementation (reviewed 2026-10-25):** runtime configuration validates development/test/staging/production and rejects unknown modes. The API now permits **staging only** with verified PostgreSQL 17/Access settings and a preflight-bound persistent adapter receipt. **Production API and background workers remain gated.** Web indexing requires both `PUBLIC_APP_ENV=production` and `PUBLIC_SITE_INDEXABLE=true`; default/staging builds are noindex with no sitemap. See the [current readiness check](./readiness-check.md) and [operations](./staging-operations.md).
 
 Production readiness additionally requires monitoring/alert ownership, encrypted backups with restore evidence, approved migrations, recorded previous artifacts and rollback/forward-fix instructions. The branch-to-environment recommendation and release gates are in [design-engineering-standard.md](./design-engineering-standard.md#environments-git-and-deployment). No hosted resources or external deployment hooks were verified or changed by this alignment.
 
@@ -38,10 +40,10 @@ The table records current/future variable names, not implemented capabilities. P
 | --- | --- | --- | --- | --- |
 | `PUBLIC_SITE_URL` | Web build | Production | No | Canonical public origin |
 | `PUBLIC_API_BASE_URL` | Web browser | Production | No | Public API origin |
-| `VITE_API_BASE_URL` | Portal browser | Production | No | API origin |
+| `VITE_API_BASE_URL` | Portal browser | Local optional; hosted must be empty | No | Local dev API only; hosted portal uses same-origin proxy |
 | `PORT` | API | No | No | Listen port |
-| `APP_ENV` | API | Yes | No | Validated development/test/staging/production; both deployed modes remain blocked pending integration |
-| `ALLOWED_ORIGINS` | API | Production | No | Comma-separated exact web/portal origins |
+| `APP_ENV` | API | Yes | No | Validated modes; staging requires verified startup preflight; production API remains blocked |
+| `ALLOWED_ORIGINS` | API | Hosted | No | Comma-separated exact HTTPS allowed origins; include the configured portal origin |
 | `DATABASE_URL` | API | Production | Yes | PostgreSQL connection URL |
 | `TWE_MIGRATION_DATABASE_URL` | Migration CLI | PostgreSQL setup | Yes | Separate migration-role connection URL |
 | `TWE_ORGANISATION_ID` | API / migrations | PostgreSQL mode | No | Server-owned UUID; must match persisted DB identity |
@@ -65,8 +67,12 @@ Only variables intentionally prefixed `PUBLIC_` or `VITE_` enter browser builds.
 
 Additional implemented names (values belong in provider secret stores):
 
-- Staff: `TWE_OIDC_ISSUER`, `TWE_OIDC_CLIENT_ID`, `TWE_OIDC_CLIENT_SECRET`
-  (secret), `TWE_OIDC_MFA_ACR`, `TWE_API_ORIGIN`, `TWE_PORTAL_ORIGIN`.
+- Staff/Access: `TWE_AUTH_MODE=cloudflare_access`, `TWE_ACCESS_TEAM_DOMAIN`,
+  `TWE_ACCESS_AUDIENCE`, `TWE_PORTAL_ORIGIN`; production and staging use
+  different Access applications/AUDs. `TWE_PORTAL_API_ORIGIN` is a **portal
+  process-only** upstream setting and never belongs in a browser bundle.
+  Historical `TWE_OIDC_*` variables are **not** the current executable staff
+  authentication contract and nonempty legacy values are rejected.
 - Media: `TWE_R2_ACCOUNT_ID`, `TWE_R2_PRIVATE_BUCKET`,
   `TWE_R2_ACCESS_KEY_ID`, `TWE_R2_SECRET_ACCESS_KEY` (credentials secret).
 - Notification worker: `TWE_RESEND_API_KEY` (secret), `TWE_EMAIL_FROM`,
@@ -78,6 +84,9 @@ Additional implemented names (values belong in provider secret stores):
 
 `TWE_AGENT_API_TOKEN` is no longer consumed by normal server startup or the portal.
 Legacy factory-only compatibility tests do not constitute a deployed auth mode.
-# Optional staff account assistance
+## Historical staff-assistance settings (retired)
 
-`TWE_OIDC_RECOVERY_URL` and `TWE_OIDC_REGISTRATION_URL` are operator-approved HTTPS provider pages, not secrets or callback destinations. They are exposed through auth status only when staff authentication is configured. Leave blank until provider selection and enrollment policy are approved; never include tokens or credentials in these URLs.
+`TWE_OIDC_RECOVERY_URL` and `TWE_OIDC_REGISTRATION_URL` belonged to the earlier
+OIDC-provider design. Do not add them to current Access hosting configuration or
+require them for launch. Staff onboarding, MFA recovery and disabled-account
+operations follow the [Cloudflare Access runbook](./access-platform-admin-2026-10-23.md).

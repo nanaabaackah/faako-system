@@ -1,8 +1,10 @@
 # Travel With Ease security architecture and threat model
 
-2026-10-24: [staging startup verification](./staging-activation-2026-10-24.md)
-allows only staging API activation after database/configuration preflight and
-adapter binding. Production and background workers remain blocked pending live acceptance.
+Current release gates: [readiness check](./readiness-check.md) and
+[staging startup verification](./staging-activation-2026-10-24.md).
+Staging API startup is conditional on the checked PostgreSQL/Access preflight
+and adapter binding. Production and background workers remain blocked pending
+separate live acceptance.
 
 Current authentication changes and threat decisions are in the [Cloudflare Access
 and platform administration record](./access-platform-admin-2026-10-23.md).
@@ -19,21 +21,20 @@ plan for remediation; target controls below must not be read as completed work.
 ## App registration and release checks
 
 All three applications declare `appSystem.js` security metadata. The API uses
-`api-service`, the portal uses `authenticated-workspace` with server-side OIDC
-sessions, and the website uses `public-interactive` without auth. Live OIDC/MFA
-configuration remains pending; there is no operational token fallback.
-Registered API/portal origins are the existing localhost development origins;
-this does not authorize any production host. Runtime deployment origins remain
-controlled by `ALLOWED_ORIGINS`. Production launch remains blocked by the existing
-API startup guard pending approved persistence and authentication adapters.
+`api-service`, the portal is an `authenticated-workspace` using a separate
+Access-verified Express host and PostgreSQL staff sessions, and the public
+Astro website is `public-interactive`. Hosted Access has **not** been verified
+end to end; there is no hosted development-token fallback.
 
-Staging must meet the same deployed authentication, authorization and persistence
-requirements, using separate resources and synthetic data. Prompt 03 now rejects
-both staging and production at executable and app-factory boundaries while
-deployed integration is incomplete. Unknown modes are also rejected. Do not
-bypass these guards or expose the development bearer gate as hosted authentication.
-See [the implementation record](./foundation-implementation.md) for implemented
-safe errors/logging, bounded local limiter and pending database/auth checks.
+The localhost app-registry origins are development metadata, not authority to
+add production hosts. Runtime `ALLOWED_ORIGINS` must match explicit HTTPS
+origins. Staging startup checks actual PostgreSQL 17, organisation/migrations,
+non-superuser role flags and authenticated persistent adapters before allowing
+requests. Staging acceptance still needs real Access MFA, session, permissions,
+origin and recovery testing. Production startup remains blocked. No blanket
+staging prohibition or generic OIDC provider/callback gate should be reintroduced.
+See [the current readiness check](./readiness-check.md) and
+[staging operations](./staging-operations.md).
 
 Current 2026-10-21 controls include exact portal-Origin checks for staff browser
 reads, session-bound CSRF for mutations, current staff role/active checks,
@@ -64,8 +65,8 @@ Inquiry Phase 1 accepts only contact and planning data. It does not accept ident
 
 ## Controls and data flow
 
-- TLS is mandatory. Staff authentication must support MFA, secure `HttpOnly`/`Secure`/`SameSite` cookies, short sessions, rotation and login/session history. The Phase 1 development token gate is explicitly non-production and the API fails closed in production without an approved auth adapter.
-- API permission and organisation checks are authoritative. Clients see only explicitly linked records. Staff roles start as Owner/Admin, Agent and Client but permissions use stable action identifiers.
+- TLS is mandatory. Cloudflare Access with independently enforced MFA, verified JWTs and provisioned staff is the selected hosted identity boundary. Secure `HttpOnly`/`Secure`/`SameSite` cookies, bounded PostgreSQL sessions, revocation, CSRF and per-request permissions remain mandatory. The Phase 1 development bearer path is not a hosted authentication mode; production API startup is still blocked.
+- API permission and organisation checks are authoritative. The implemented staff roles are `platform_admin`, `owner` and `editor` with explicit action permissions; platform administration does not grant content or customer-record access. A future customer role/portal is outside this MVP.
 - Public submission uses boundary validation, unknown-key stripping, honeypot rejection, body limits, origin allowlisting and bounded rate limits. Request IDs are returned; internal errors are not.
 - Structured logs redact credentials, tokens, passport/document keys and request bodies. Audit events are separate, append-oriented and contain references rather than sensitive snapshots.
 - Highly sensitive structured fields use authenticated application encryption with versioned key IDs. Keys live in a secret manager/environment boundary, not PostgreSQL. Rotation decrypts with the old version and rewrites with the active version under audited jobs.
@@ -87,7 +88,7 @@ These controls treat Ghana's Data Protection Act, 2012 (Act 843) as an architect
 | Webhook/payment forgery or replay | Raw-body signature verification, idempotency store, server verification | Paystack sandbox tests |
 | Exchange-rate manipulation/staleness | Validated provider response, cached timestamp/status, override audit, no invented fallback | Dual-provider/alerting in finance phase |
 | Lost/stolen offline device | Minimal allowlist, expiry, logout purge, no document cache, device/session revocation | Evaluate platform encryption before rollout |
-| Staff account takeover | MFA, throttling, session rotation, least privilege, security events | Auth provider selection/pen test |
+| Staff account takeover | Access JWT verification, independent MFA, bounded/revocable sessions, least privilege, security events | Verify actual Access MFA/policy, hosted routing and recovery; review penetration-test scope |
 | Formula/CSV injection in exports | Neutralise leading formula characters; explicit schemas | Export fixtures |
 | Sensitive telemetry leakage | Field classification, logger redaction, analytics denylist | Automated scan and sampling review |
 
