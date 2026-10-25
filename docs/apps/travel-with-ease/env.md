@@ -1,5 +1,10 @@
 # Travel With Ease environment contract
 
+> Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
+> supersedes the production API blanket block and startup release-SHA requirement
+> below. Both hosted API environments require verified persistence and Access;
+> SHA remains mandatory for publishing. Worker and live-acceptance gates remain.
+
 Current startup and environment decisions: [readiness check](./readiness-check.md),
 [staging activation](./staging-activation-2026-10-24.md) and [portal hosting](./portal-hosting-preparation-2026-10-23.md).
 The hosted Express portal uses server-only `TWE_PORTAL_API_ORIGIN` alongside

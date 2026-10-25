@@ -20,12 +20,12 @@ import { ContentRepository } from "./content/repository.js";
 import { PublicationRepository } from "./content/publication.js";
 import { MediaService } from "./media/service.js";
 import { readR2Config, R2Store } from "./media/r2.js";
-import { prepareStagingStartup } from "./staging-startup.js";
-import { readHostedPrerequisites } from "./portal/readiness.js";
+import { prepareHostedStartup } from "./staging-startup.js";
+import { readHostedPrerequisites, readinessFailureCode } from "./portal/readiness.js";
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { environment, allowedOrigins, port } = readConfig();
-if (environment === "staging") readHostedPrerequisites(process.env);
+const { environment, deployed, allowedOrigins, port } = readConfig();
+if (deployed) readHostedPrerequisites(process.env);
 else assertLocalFoundation(environment);
 const logger = createLogger("travel-with-ease-api", { environment });
 
@@ -40,13 +40,13 @@ const provider = new ExchangeRateApiProvider({
 const currencyService = new CurrencyService({ provider, supportedCurrencies: currencies.filter((currency) => currency.enabled).map((currency) => currency.code), ttlMs: Number(process.env.EXCHANGE_RATE_CACHE_TTL_SECONDS || 21600) * 1000 });
 const pool = process.env.DATABASE_URL ? createDatabase(process.env, "DATABASE_URL", logger) : null;
 let startupReceipt;
-if (environment === "staging") {
+if (deployed) {
   try {
-    if (!pool) throw new Error("Staging requires PostgreSQL.");
-    startupReceipt = await prepareStagingStartup(process.env, pool);
-  } catch {
+    if (!pool) throw new Error("Hosted startup requires PostgreSQL.");
+    startupReceipt = await prepareHostedStartup(process.env, pool);
+  } catch (error) {
     await pool?.end();
-    logger.error({ eventName: "staging.preflight.failed" }, "Staging startup denied: check runtime database identity, role, PostgreSQL version and migration inventory.");
+    logger.error({ eventName: "hosted.preflight.failed", reason: readinessFailureCode(error) }, "Hosted startup denied: check runtime database identity, role, PostgreSQL version and migration inventory.");
     process.exit(1);
   }
 }

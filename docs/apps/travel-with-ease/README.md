@@ -1,7 +1,7 @@
 # Travel With Ease documentation
 
 Current release source of truth: [readiness check — reviewed 2026-10-25](./readiness-check.md).
-Latest implementation: [staging API activation — 2026-10-24](./staging-activation-2026-10-24.md).
+Latest implementation: [hosted API startup — 2026-10-25](./hosted-startup-2026-10-25.md).
 
 Staff login deployment: [portal hosting preparation](./portal-hosting-preparation-2026-10-23.md).
 

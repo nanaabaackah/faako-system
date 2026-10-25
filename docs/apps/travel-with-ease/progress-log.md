@@ -1,5 +1,15 @@
 # Travel With Ease progress log
 
+## 2026-10-25 — Hosted API startup guard correction
+
+- Removed the unconditional production API block; both hosted environments
+  require a database-verified receipt bound to their exact environment and adapters.
+- Removed release SHA from general startup requirements. Publishing still requires
+  the reviewed SHA; database, Access, role and tenant protections remain enforced.
+- API lint and 44 unit tests pass. No live MFA, database or release acceptance is
+  implied. Background workers remain separately gated.
+- See [startup and TLS handoff](./hosted-startup-2026-10-25.md).
+
 ## 2026-10-24 — Verified staging API startup
 
 - Implemented staging-only startup after mandatory PostgreSQL/Access configuration

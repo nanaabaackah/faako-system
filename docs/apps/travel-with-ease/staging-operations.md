@@ -1,5 +1,10 @@
 # Prompt 03 staging setup and operating gate
 
+> Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
+> supersedes the production API blanket block and startup release-SHA requirement
+> below. Both hosted API environments require verified persistence and Access;
+> SHA remains mandatory for publishing. Worker and live-acceptance gates remain.
+
 Current status (reviewed 2026-10-25): [readiness check](./readiness-check.md)
 and [staging API activation](./staging-activation-2026-10-24.md) are authoritative.
 The **staging API** can start only after its validated PostgreSQL/Access preflight;
