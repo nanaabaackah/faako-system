@@ -82,21 +82,22 @@ runtime roles, missing tenant and mismatched migration checksums. It does not pr
 least privilege beyond those role flags, validate live Access policy, change data
 or disable the startup guard. The command deliberately does not load a local `.env`.
 
-## Remaining release gates
+## Remaining release gates (reconciled 2026-10-25)
 
-1. Review tests, PostgreSQL 17 evidence and exact patch. Do not deploy the mixed
-   worktree wholesale: unrelated TTNGH/shared changes are present.
-2. Configure staging Access/MFA, database and hosts; review actual routing and
-   alternate-host protection.
-3. Review a focused change to the still-active API hosted-startup gate with verified
-   persistence/configuration prerequisites. This preparation does not remove
-   `assertLocalFoundation` or add a bypass flag. The API still refuses staging and
-   production startup until that activation review.
-4. Deploy staging; verify real login/provisioning, expiry, revocation, logout/re-login,
-   role/tenant separation, uploads, CSRF and recovery.
-5. Review production promotion separately. Back up before migrations and retain the
-   previous release/maintenance option. Prefer roll-forward if platform roles or
-   support records make restoring the previous role constraint unsafe.
+1. Review TWE-only changes, PostgreSQL 17 evidence and exact release SHA. Do not
+   deploy the mixed worktree wholesale or assume a dated local test is hosted proof.
+2. Configure separate staging Access/MFA, database and hosts; verify actual TLS,
+   Access policy, proxy routing and alternate-host protection.
+3. **Staging API startup guard review completed 2026-10-24:** the API now accepts
+   a successful read-only PostgreSQL/Access preflight and binds the receipt to
+   persistent adapters. The guard remains active for production. Run
+   `preflight:hosted` in the actual staging host, then verify startup repeats it.
+4. Deploy staging with approval; test real login/provisioning, MFA, expiry,
+   revocation, logout/re-login, role/tenant separation, uploads, CSRF and recovery.
+5. Complete the functional MVP, alert and backup/restore evidence, then review
+   production promotion separately. Back up before migrations, keep the previous
+   release/maintenance option and prefer reviewed forward-fix when role changes
+   make restoring old constraints unsafe. See [readiness check](./readiness-check.md).
 
 No real staff bootstrap, live MFA acceptance, Railway/Cloudflare/database change or
 Trello state change was performed by this preparation.
