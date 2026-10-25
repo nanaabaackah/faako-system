@@ -20,7 +20,7 @@ const faqItems = [
     <PageHero variant="immersive" links={[["Our pillars","#pillars-title"],["Current initiatives","#initiatives-title"]]} title="Support, education" accent="and advocacy." intro="Our four programme pillars work together to improve access to support, strengthen mental health knowledge, and reduce stigma." images={[
       { src: "/images/refresh/tema-school-speaker-1600.webp", alt: "A speaker holding a microphone in a school hall", caption: "School outreach · Presbyterian Senior High School, Tema" },
     ]} />
-    <section class="section-dark" aria-labelledby="pillars-title">
+    <section class="section-dark" aria-labelledby="pillars-title" data-reveal>
       <div class="section-heading"><h2 id="pillars-title">Four programme pillars</h2></div>
       <div class="editorial-rows">
         {programmePillars.map((programme) => <article class="numbered-card editorial-row"><span>{programme.number}</span><div><h3>{programme.title}</h3><p>{programme.description}</p></div></article>)}

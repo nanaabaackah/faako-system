@@ -4,7 +4,7 @@
 .faq-list summary { display:grid; grid-template-columns:2rem minmax(0,1fr) 1.5rem; align-items:start; gap:1rem; padding:1.5rem 0; min-height:44px; cursor:pointer; list-style:none; font-size:clamp(1rem,1.5vw,1.2rem); font-weight:600; }
 .faq-list summary::-webkit-details-marker { display:none; }
 .faq-index { color:var(--accent); font-size:.8rem; padding-top:.25rem; }
-.faq-toggle { display:grid; place-items:center; height:1.8rem; color:var(--accent); transition:transform var(--transition-hover); }
+.faq-toggle { display:grid; place-items:center; height:1.8rem; color:var(--accent); transition:transform var(--transition-fast); }
 .faq-list details[open] .faq-toggle { transform:rotate(45deg); }
 .faq-list details>div { padding:0 2.5rem 1.75rem 3rem; color:var(--muted); max-width:65ch; }
 .faq-list details p { margin:0; line-height:1.75; }

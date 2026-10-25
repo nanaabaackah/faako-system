@@ -37,3 +37,39 @@ test("signature motion and calendar failure behaviour remain", () => {
   assert.match(read("styles/components/month-calendar.css"), /month-loading/);
   assert.doesNotMatch(read("components/EventCalendar.astro"), /iframe/);
 });
+test("second-pass heroes are CSS-only, visible during entrance and exempt formal pages", () => {
+  const css=read("styles/components/motion.css");
+  assert.match(css,/prefers-reduced-motion: no-preference/);
+  assert.match(css,/page-hero:not\(\.page-hero--formal\)/);
+  assert.match(css,/@keyframes editorial-arrive \{ from \{ opacity: \.85/);
+  assert.match(css,/@keyframes editorial-image-arrive \{ from \{ opacity: \.94/);
+  assert.doesNotMatch(read("components/PageHero.astro"),/data-reveal|data-reveal-pending/);
+  assert.doesNotMatch(read("pages/index.astro"),/class="home-hero"[^>]*data-reveal/);
+});
+test("motion is grouped and excludes footer, paragraphs, verified values and large-grid staggering", () => {
+  for (const name of ["index","about","events","programmes"]) {
+    const page=read(`pages/${name}.astro`);
+    assert.doesNotMatch(page,/<(?:h[1-6]|p|img|a)\b[^>]*data-reveal/);
+    assert.equal((page.match(/<ScrollExpandSection\b/g)||[]).length,1);
+  }
+  assert.match(read("pages/index.astro"),/home-intro home-shell" data-reveal/);
+  assert.match(read("pages/index.astro"),/home-impact" data-reveal/);
+  assert.doesNotMatch(read("components/ImpactFigures.astro"),/countUp|requestAnimationFrame|setInterval/);
+  for(const file of ["SiteFooter","TeamGrid"])assert.doesNotMatch(read(`components/${file}.astro`),/data-reveal|animation-delay/);
+});
+test("interaction contract uses shared timings, keyboard parity and linked images only", () => {
+  const css=read("styles/components/interactions.css");
+  assert.match(css,/team-member:has\(a\)/);
+  assert.match(css,/:focus-within img \{ transform: scale\(1\.015\)/);
+  assert.match(css,/var\(--transition-hover-image\)/);
+  assert.match(css,/prefers-reduced-motion:reduce/);
+  assert.doesNotMatch(read("styles/pages/events.css"),/recurring-event:hover/);
+  assert.match(read("styles/components/month-calendar.css"),/month-grid \{ transition: opacity var\(--motion-fast\)/);
+  for(const token of ["motion-fast","motion-ui","motion-editorial","motion-image","ease-standard","ease-out"])assert.match(read("styles/global.css"),new RegExp(`--${token}:`));
+});
+test("observer construction and observation errors recover without hiding content", () => {
+  const script=read("scripts/editorial-motion.ts");
+  assert.match(script,/try \{\s*observer =/);
+  assert.match(script,/try \{ observer.observe\(element\); \} catch \{ reveal\(element\); \}/);
+  assert.ok(script.indexOf("setTimeout")<script.indexOf('element.setAttribute("data-reveal-pending"'));
+});

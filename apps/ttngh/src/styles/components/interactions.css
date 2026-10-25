@@ -2,8 +2,9 @@
 :where(a[href],button,summary,[role="button"]) {
   -webkit-tap-highlight-color: rgb(var(--brand-pink-rgb) / 20%);
   touch-action: manipulation;
-  transition: color 450ms ease, background-color 450ms ease, box-shadow 550ms ease,
-    filter 450ms ease, translate 450ms ease, text-decoration-color 450ms ease;
+  transition: color var(--motion-ui) var(--ease-standard), background-color var(--motion-ui) var(--ease-standard),
+    filter var(--motion-ui) var(--ease-standard), translate var(--motion-ui) var(--ease-out),
+    border-color var(--motion-ui) var(--ease-standard), text-decoration-color var(--motion-ui) var(--ease-standard);
 }
 :where(button,summary,[role="button"]) { cursor: pointer; }
 :where(button:disabled,[aria-disabled="true"]) { cursor: not-allowed; }
@@ -26,7 +27,22 @@
   :where(a[href],button):hover>.ttngh-icon { translate: 3px 0; }
 }
 :where(a[href],button,summary,[role="button"]):not(:disabled):not([aria-disabled="true"]):active { filter: brightness(.8); }
-.ttngh-icon { transition: translate 450ms ease; }
+.ttngh-icon { transition: translate var(--motion-ui) var(--ease-out); }
+/* Linked editorial compositions share feedback; informational photographs stay still. */
+.programme-row h3, .event-card h3, .team-member:has(a) > p { transition: color var(--motion-ui) var(--ease-standard); }
+:is(.content-entry > a, .event-card-visual) { overflow: clip; }
+:is(.content-entry, .event-card, .team-member:has(a)) img { transition: transform var(--transition-hover-image); }
+:is(.programme-row, .event-card, .content-entry, .team-member):focus-within .ttngh-icon { translate: 3px 0; }
+:is(.programme-row, .event-card):focus-within { border-color: var(--accent); }
+:is(.programme-row, .event-card):focus-within h3, .team-member:has(a):focus-within > p { color: var(--accent); }
+:is(.content-entry, .event-card, .team-member:has(a)):focus-within img { transform: scale(1.015); }
+:where(a[href],button):focus-visible > .ttngh-icon { translate: 3px 0; }
+@media (hover:hover) {
+  :is(.programme-row, .event-card, .content-entry, .team-member):hover .ttngh-icon { translate: 3px 0; }
+  :is(.programme-row, .event-card):hover { border-color: var(--accent); }
+  :is(.programme-row, .event-card):hover h3, .team-member:has(a):hover > p { color: var(--accent); }
+  :is(.content-entry, .event-card, .team-member:has(a)):hover img { transform: scale(1.015); }
+}
 /* Async presentation never changes the label footprint or bypasses form security. */
 [data-async-state] .button-label { display: grid; text-align: center; }
 [data-async-state] .button-label::after { content: "Send enquiry"; visibility: hidden; grid-area: 1 / 1; }

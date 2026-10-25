@@ -65,13 +65,9 @@
   height: 100%;
   object-fit: cover;
   filter: none;
-  transition: filter var(--transition-hover-image), transform var(--transition-hover-image);
 }
 
-.recurring-event:hover img {
-  filter: grayscale(0);
-  transform: scale(1.025);
-}
+/* Recurring-event photographs are informational, not interactive controls. */
 
 .recurring-event-copy {
   max-width: 43rem;
