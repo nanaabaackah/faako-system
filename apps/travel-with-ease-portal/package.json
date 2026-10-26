@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5188",
     "build": "vite build",
+    "railway:build": "vite build",
+    "railway:start": "pnpm --filter @faako/travel-with-ease-api run start:portal",
     "preview": "vite preview --port 5188",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

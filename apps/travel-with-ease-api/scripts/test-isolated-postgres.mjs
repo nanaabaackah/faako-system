@@ -60,7 +60,9 @@ try {
     APP_ENV: "test", TWE_TEST_DATABASE_URL: `postgresql://twe_test@127.0.0.1:${port}/twe_test_foundation`,
   } });
   const before = await fingerprint("twe_test_foundation");
-  await run("pg_ctl", ["-D", data, "-m", "fast", "-w", "restart"], { capture: true });
+  // Restart must redirect the new server's output too. Otherwise PostgreSQL
+  // inherits the captured pipe and keeps it open after pg_ctl exits.
+  await run("pg_ctl", ["-D", data, "-l", path.join(directory, "server.log"), "-m", "fast", "-w", "restart"], { capture: true });
   assert.deepEqual(await fingerprint("twe_test_foundation"), before, "All TWE records must survive database restart.");
   const archive = path.join(directory, "synthetic-backup.dump");
   await run("pg_dump", [...args, "--format=custom", "--no-owner", "--no-acl", "--file", archive, "twe_test_foundation"], { capture: true });

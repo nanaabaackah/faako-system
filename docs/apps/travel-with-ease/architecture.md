@@ -1,12 +1,29 @@
 # Travel With Ease system architecture
 
+> Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
+> supersedes the production API blanket block and startup release-SHA requirement
+> below. Both hosted API environments require verified persistence and Access;
+> SHA remains mandatory for publishing. Worker and live-acceptance gates remain.
+
+2026-10-24: [staging-only API startup after verified preflight](./staging-activation-2026-10-24.md)
+supersedes the earlier blanket staging API block. Production and workers remain gated.
+
+Hosted portal follow-up: [separate server and proxy decision](./portal-hosting-preparation-2026-10-23.md).
+
+2026-10-23 provider decision: the user requested Cloudflare Access with independent
+MFA and a separate Faako Platform Admin. See the [Access ADR and implementation
+record](./access-platform-admin-2026-10-23.md). This supersedes the proposed OIDC
+provider, not the PostgreSQL/session boundary. Hosted acceptance remains blocked.
+
 Prompt 03 implementation is in progress. [Foundation implementation](./foundation-implementation.md)
 records the new runtime safeguards, separate `twe` PostgreSQL schema and optional
 local persistence adapter. Staff sessions, CMS drafts/revisions, media management,
 notification jobs and pinned publication preparation now have implementations.
-Hosted startup remains blocked; see [operations and acceptance gaps](./staging-operations.md).
-Historical descriptions below are not
-evidence of deployed functionality.
+Staging **API** startup is now conditionally supported after the verified
+preflight; production API and background workers remain blocked. See the
+[current readiness checklist](./readiness-check.md) and
+[operations and acceptance gaps](./staging-operations.md).
+Historical descriptions below are not evidence of deployed functionality.
 
 For the code-backed current state, proposed MVP data model and deployment
 decisions, see the [2026-10-11 repository audit](./repository-audit-2026-10-11.md)
@@ -28,9 +45,10 @@ is the proposed launch baseline, subject to client approval. The Phase 0/1
 module map, diagram and models below record the earlier foundation and future
 capabilities, not a mandate to ship estimator/currency, full CRM, itineraries or
 a customer portal now. Launch uses the existing React workspace for staff CMS
-and the simple enquiry inbox. No authentication provider or framework change is
-approved here. PostgreSQL isolation is per environment; the historical single
-database decision does not mean sharing a database across staging and production.
+and the simple enquiry inbox. Cloudflare Access is the selected hosted staff provider under the later
+2026-10-23 decision; the earlier generic OIDC proposal is obsolete.
+PostgreSQL isolation is per environment; the historical single database
+decision does not mean sharing a database across staging and production.
 
 Local, staging and production must be independently verifiable; see
 [`env.md`](./env.md). Current file persistence and temporary token access are

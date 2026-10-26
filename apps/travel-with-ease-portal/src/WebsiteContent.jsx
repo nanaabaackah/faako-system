@@ -6,6 +6,7 @@ const pages = ["home", "about", "services", "faqs", "testimonials", "contact"];
 const emptyBody = () => ({ heading: "", body: "", ctaLabel: "", ctaPath: "/#plan", seoTitle: "", seoDescription: "", imageId: null, entries: [], contactEmail: "", contactPhone: "" });
 
 export default function WebsiteContent({ api, session, onDirtyChange }) {
+  const canPublish = session.user.permissions?.includes("content.publish") === true;
   const [page, setPage] = useState("home");
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
@@ -113,8 +114,9 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
     {chooseImage && <MediaLibrary api={api} session={session} onSelect={(item) => { change("imageId", item.id); setChooseImage(false); heading.current?.focus(); }} />}
     <h3>Publication</h3>
     <p>Builds use saved revisions and require Baaba's reviewed deployment workflow. A pending or building request is not live.</p>
-    <div className="editor-actions"><Button type="button" disabled={state.loading || dirty || !version} onClick={() => publication("publish")}>Request publication</Button><Button type="button" disabled={state.loading || dirty || !version} onClick={() => publication("unpublish")}>Request unpublish</Button><Button type="button" disabled={state.loading} onClick={() => publication("refresh")}>Refresh publication status</Button></div>
-    <ul>{jobs.map((job, index) => <li key={job.id}>{job.status} — {new Date(job.created_at).toLocaleString("en-GH", { timeZone: "Africa/Accra" })}{job.status === "failed" && index === 0 && <Button type="button" disabled={state.loading} onClick={() => publication("retry", job.id)}>Retry failed publication</Button>}</li>)}</ul>
+    {!canPublish && <p>Only an Owner can request publication, unpublishing or retries.</p>}
+    <div className="editor-actions"><Button type="button" disabled={!canPublish || state.loading || dirty || !version} onClick={() => publication("publish")}>Request publication</Button><Button type="button" disabled={!canPublish || state.loading || dirty || !version} onClick={() => publication("unpublish")}>Request unpublish</Button><Button type="button" disabled={state.loading} onClick={() => publication("refresh")}>Refresh publication status</Button></div>
+    <ul>{jobs.map((job, index) => <li key={job.id}>{job.status} — {new Date(job.created_at).toLocaleString("en-GH", { timeZone: "Africa/Accra" })}{job.status === "failed" && index === 0 && <Button type="button" disabled={!canPublish || state.loading} onClick={() => publication("retry", job.id)}>Retry failed publication</Button>}</li>)}</ul>
     {preview && <section aria-label="Saved content preview"><h3>{preview.heading}</h3><p className="preserve-lines">{preview.body}</p>{preview.entries.map((entry, index) => <div key={index}><h4>{entry.heading}</h4><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</div>)}<p>This content preview does not reproduce the final page layout.</p></section>}
     <h3>Revision history</h3>
     {history.length ? <ol>{history.map((revision) => <li key={revision.id}>Version {revision.version} — {new Date(revision.created_at).toLocaleString("en-GH", { timeZone: "Africa/Accra" })} <Button type="button" disabled={state.loading} onClick={() => revert(revision.id)}>Restore version {revision.version}</Button></li>)}</ol> : <p>No saved revisions.</p>}

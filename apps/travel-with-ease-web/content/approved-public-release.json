@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "approval": {
+    "date": "2026-10-26",
+    "scope": "Existing homepage copy and previously permission-approved photography; missing business details remain unpublished."
+  },
+  "pages": {
+    "home": {
+      "heading": "A little further. A little more you.",
+      "body": "Travel With Ease — journeys from Ghana, shaped around your plans.",
+      "seoTitle": "Travel With Ease | Travel planning from Ghana",
+      "seoDescription": "Travel With Ease — journeys from Ghana, shaped around your plans.",
+      "ctaLabel": "",
+      "ctaPath": "/#plan",
+      "contactEmail": "",
+      "contactPhone": "",
+      "entries": [],
+      "image": {
+        "src": "/media/kenya-09d34a112ab0-1199.webp",
+        "alt": "Blue and white boats moored beside a lake — Kenya.",
+        "width": 1199,
+        "height": 1600
+      },
+      "socialImage": {
+        "src": "/og/kenya.jpg",
+        "alt": "Blue and white boats moored beside a lake — Kenya."
+      }
+    },
+    "about": null,
+    "services": null,
+    "destinations": null,
+    "contact": null,
+    "faqs": null,
+    "testimonials": null,
+    "journal": null,
+    "travel-footprint": null,
+    "privacy": null,
+    "terms": null
+  }
+}

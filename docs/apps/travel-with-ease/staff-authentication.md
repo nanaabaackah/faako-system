@@ -1,10 +1,37 @@
-# Staff authentication roadmap — Prompt 03
+# Staff authentication — Cloudflare Access and historical decisions
 
-Status: provider-neutral implementation authorised in the conversation;
-provider selection, account setup and live acceptance pending. Date: 2026-10-11.
-Workstream: TWE-017. No other Faako application's authentication is changed.
+Current decision (reviewed 2026-10-25): [Cloudflare Access and Faako Platform
+Admin](./access-platform-admin-2026-10-23.md) replaced the earlier generic
+OIDC proposal. Follow the [readiness checklist](./readiness-check.md),
+[staging activation](./staging-activation-2026-10-24.md) and
+[portal hosting instructions](./portal-hosting-preparation-2026-10-23.md).
+The old OIDC discussion below is archived context, **not a deployment
+configuration, authentication-provider selection task or release gate**.
 
-## Decision and rollout
+## Active staff-authentication checks
+
+- Configure **separate** staging and production Access applications/audiences,
+  verified issuer and origin, exact staff allowlist and **independently enforced
+  MFA**. Live MFA/policy and recovery still require real hosted acceptance.
+- Protect the hosted Vite portal behind the separate Express proxy. Keep
+  `VITE_API_BASE_URL` empty in hosted builds; route staff API calls through
+  the same-origin proxy with a fixed server-only upstream.
+- Verify the signed Access assertion on each private API request, together with
+  an active, short-lived, hashed, revocable PostgreSQL session and CSRF/Origin
+  checks. Identity comes from verified issuer/subject/audience, never email
+  headers; only approved staff provisioning grants a role.
+- Use application permissions for `platform_admin`, `owner` and `editor`;
+  the platform role does not imply business content/enquiry privileges. Exercise
+  revocation, inactive user, tenant isolation and Owner-approved expiring
+  support access in staging.
+- Start the **staging API** only after read-only PostgreSQL 17/Access
+  preflight and the matching persistent session/repository receipt. Production
+  API and background workers remain blocked pending separate acceptance.
+- Do **not** provision `TWE_OIDC_*` callbacks/secrets, use the legacy
+  developer bearer UI, add a second identity provider, or treat old PKCE/ACR
+  tests as live Access/MFA acceptance requirements.
+
+## Historical OIDC proposal (superseded 2026-10-23)
 
 Use OpenID Connect Authorization Code flow with PKCE/state/nonce, performed on
 the Express server. Keep provider tokens out of browser storage. Identify staff
@@ -24,7 +51,7 @@ expired/revoked/wrong-organisation denial, PKCE/state/nonce rejection tests,
 controlled provider redirects and an observed recovery drill. Until then, keep
 hosted startup blocked. Do not deploy the legacy development token screen.
 
-## Implemented controls and manual provider setup (2026-10-21)
+## Historical OIDC implementation notes (2026-10-21; not active setup)
 
 The existing `openid-client` integration remains the established protocol adapter;
 no new vendor or account has been silently selected. Baaba/Faako must register a
@@ -53,7 +80,7 @@ performs provider recovery/re-enrolment with the approved staff member. Active
 membership is checked on every request. Re-enable only after recovery acceptance.
 Application logout does not terminate a provider-wide SSO session.
 
-## Dependency decision: openid-client 6.8.8
+## Historical dependency decision: openid-client 6.8.8
 
 1. Meets the requirement for an established configurable identity protocol.
 2. Faako's shared security package supplies headers/permissions, not this OIDC
@@ -69,7 +96,7 @@ Application logout does not terminate a provider-wide SSO session.
 The version was checked against npm before installation. Source/API reference:
 [openid-client](https://github.com/panva/openid-client). This library choice is
 not evidence of configured MFA, valid staff sessions or a working live login.
-# Login assistance — 2026-10-22
+## Historical OIDC login-assistance milestone — 2026-10-22
 
 - Remember me is opt-in cookie persistence, not a longer authentication grant. Checked: HttpOnly cookie survives browser closure for at most one hour; unchecked: session cookie. Server expiry remains one hour in both cases, and browser session restoration may restore session cookies. MFA, staff provisioning and revocation remain mandatory.
 - Migration `005_login_preference.sql` stores the choice in the expiring, one-use OIDC flow. Apply it before deploying the updated API. Existing flows default to unchecked.

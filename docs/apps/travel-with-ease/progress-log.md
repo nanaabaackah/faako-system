@@ -1,5 +1,162 @@
 # Travel With Ease progress log
 
+## 2026-10-26 — Approved initial public content and database compatibility
+
+- Recorded approval of existing copy/photography; hosted builds can use the reviewed
+  bundled homepage snapshot. Missing business/legal pages stay unpublished and hidden
+  from navigation; explicit CMS snapshots retain precedence and fail closed.
+- Removed exact PostgreSQL 17 startup pin; report actual server major and retain
+  identity, runtime-role and migration verification. Add safe failure code to messages.
+- See [release scope and remaining limitations](./public-release-2026-10-26.md).
+
+## 2026-10-25 — Hosted API startup guard correction
+
+- Removed the unconditional production API block; both hosted environments
+  require a database-verified receipt bound to their exact environment and adapters.
+- Removed release SHA from general startup requirements. Publishing still requires
+  the reviewed SHA; database, Access, role and tenant protections remain enforced.
+- API lint and 44 unit tests pass. No live MFA, database or release acceptance is
+  implied. Background workers remain separately gated.
+- See [startup and TLS handoff](./hosted-startup-2026-10-25.md).
+
+## 2026-10-24 — Verified staging API startup
+
+- Implemented staging-only startup after mandatory PostgreSQL/Access configuration
+  preflight. A process-local receipt binds verified persistence to the actual
+  repository/session adapters and exact scope/configuration at application creation.
+- Production and background-worker guards remain intact. No environment bypass,
+  bearer fallback, automatic migration or staff provisioning added.
+- API lint and all 43 tests passed; see [activation handoff](./staging-activation-2026-10-24.md).
+- No deployment or live configuration changes. Railway 502 cause is not confirmed
+  without startup logs; production login is user-reported, not verified by this change.
+
+## 2026-10-23 — PostgreSQL 17 and staging DNS verification
+
+- PostgreSQL 17.11 installation completed; isolated migration/auth/tenant tests,
+  restart persistence and logical restore passed (16 tables, 63 synthetic rows).
+  Temporary cluster stopped; existing databases and PostgreSQL 16 linking preserved.
+- Public portal DNS and unauthenticated Cloudflare Access login redirect verified.
+  Both authoritative nameservers returned NXDOMAIN for the supplied staging API host.
+  No authenticated login or MFA-policy verification is claimed.
+- Updated the hosting handoff with evidence. API hosted activation remains gated;
+  no deployment, live configuration change or staff bootstrap performed.
+
+## 2026-10-23 — Hosted staff portal preparation
+
+- Added a separate Access-protected portal server using existing API dependencies,
+  a fixed-upstream same-origin proxy and explicit staff route/method allowlist.
+  Preserved scoped cookies, CSRF, request IDs and authoritative API permissions;
+  blocked redirects, arbitrary destinations, oversized bodies and caching.
+- Added Railway wrapper scripts, empty same-origin frontend configuration and a
+  hosted build guard against cross-origin API URLs. Public Astro hosting unchanged.
+- Added a read-only hosted preflight for environment/tenant identity, PostgreSQL 17,
+  runtime role flags and exact migration inventory. It is not an activation bypass.
+- Final API suite passed 42/42, including proxy and preflight tests. Portal
+  staging-configured build, lint, typecheck and existing test pass. A hosted build
+  with a cross-origin API URL correctly fails closed. PostgreSQL 17
+  installation/verification is recorded separately.
+- Follow [hosting preparation](./portal-hosting-preparation-2026-10-23.md) for setup.
+  API hosted-startup guard remains active. No deploy, commit/push, real bootstrap,
+  hosted settings, private environment file or Trello state changes.
+
+## 2026-10-23 — User-supplied Google tag configuration verified
+
+- The requested stream was already configured in the local web environment. Kept the existing shared consent-controlled loader; no duplicate inline tag or private-portal tracking added, and no private environment values committed.
+- Local development-mode static build passes and contains the requested measurement ID in exactly one analytics configuration element, without an eagerly loaded external Google script.
+- Shared analytics tests pass 7/7 (consent, withdrawal, Do Not Track, sanitized page views and deduplication). Web tests pass 4/5; the unrelated homepage assertion still expects `/brand/primary.png`, which the current layout does not render. No branding changes made for this task.
+- Updated setup status and build-time configuration instructions. No deployment or live Google receipt verification performed; hosting configuration and post-deployment verification remain required.
+
+## 2026-10-23 — Cloudflare Access and separate platform authority
+
+- User requested Access/independent MFA and `platform_admin`; supplied Access AUD
+  was explicitly confirmed as production, not staging. No private `.env` edits.
+- Added RS256/JWKS verification, audience-bound PostgreSQL sessions, replayed
+  exchange rejection, central permissions and additive migration 006. Preserved
+  CSRF, short cookies, revocation, shared audit/security contracts and startup guard.
+- Added reviewed bootstrap command (not run for a real identity), staged Editor
+  provisioning, Owner activation, audited read-only support grants (max 30 minutes),
+  scoped diagnostics/security events and controlled session revocation.
+- Added protected System Administration and staff-access UI; business publishing
+  now explicitly requires Owner permission. Platform authority does not imply
+  business access or any provider/account ownership.
+- API tests 38/38, API/portal lint and portal build pass. PostgreSQL 16 disposable
+  compatibility/restart/restore check passed (16 tables, 63 rows). PostgreSQL 17
+  release verification remains pending; the unchanged runner rejects version 16.
+- Full acceptance remains blocked on distinct staging Access configuration,
+  reviewed hosted proxy, real MFA/recovery/logout checks and target-version database
+  tests. No staging-login screenshots or production readiness claimed.
+- See [Access decision and runbook](./access-platform-admin-2026-10-23.md).
+  No commit, push, deployment, real bootstrap or Trello state change.
+
+## 2026-10-23 — Approved media, branding and discovery follow-up
+
+- Processed 48 supplied photos into 44 unique image sets (four exact duplicates),
+  preserving originals privately. Recorded hashes, proposed alt text, people/
+  consent review and metadata removal in `media-source-inventory.json`.
+- Added two approved photographs to the local editorial homepage via four static
+  responsive WebPs; no Drive hotlinks or new hydration. Published CMS selections
+  remain authoritative. Other business content remains labelled as a preview.
+- Imported official primary logo, symbol favicons and three 1200×630 sharing
+  cards; added page-specific metadata and selected-CMS-image sharing crops.
+- Web build, five web tests, Astro check, web/API lint and 33 API tests pass.
+  Chrome checks at 320/768/1440px pass for reflow, photos, mobile navigation,
+  favicon and mocked analytics consent/DNT/withdrawal/deduplication.
+- Updated existing TWE-009/TWE-007 with evidence comments only; checklist/list
+  states preserved. See the follow-up document for external verification gaps.
+- No commit, push, deployment, live collection or production DNS change.
+
+## 2026-10-22 — Prompt 04 local placeholder review shell
+
+- User confirmed approved business assets/copy are unavailable and requested
+  placeholders. Replaced the local homepage's abstract globe, unsupported portal/
+  offline claims and exposed estimator with an editorial review composition.
+  Estimator source is preserved, not extended. No fabricated offers or images.
+- Added labelled image spaces, honest unpublished-content routes, mobile navigation
+  with Escape/focus return and no-JS links, the official shared Faako attribution,
+  a privacy link in the consent notice and focus return to cookie settings.
+- Reused `@faako/ui` via a workspace dependency; no new external library. Its
+  AppBottomBar renders statically using its existing context default and explicit
+  business name. It is not hydrated and no duplicate logo/attribution is created.
+- Hosted builds without a publication snapshot now fail closed. Local review
+  content is noindex and is not approved legal copy, an offer or a working enquiry.
+- Component decision (seven-question standard): the image placeholder supports
+  explicit review without false photography; there is no equivalent app component;
+  native figure/caption suffices; text labels supply the fallback; it adds no
+  hydration or image bytes; no licence/dependency burden; visible content gaps
+  make review more truthful. The footer wrapper reuses existing shared behaviour,
+  is necessary for Astro's React integration, uses server rendering, adds no
+  interaction burden and avoids duplicated branding. CSS and native menu events
+  avoid an animation/menu library. Existing typography is retained pending approval.
+- Build, Astro checks and static route tests verified in this slice; browser results
+  and remaining MVP work must be distinguished from full release acceptance.
+- Actual Chrome/Playwright checks passed at 320/768/1440px: no horizontal overflow,
+  menu open/Escape/focus return, consent persistence and withdrawal, a single shared
+  attribution link, no-JS mobile navigation and no page-script errors. Mobile and
+  desktop screenshots were inspected; local evidence is `/private/tmp/twe-review-320.png`,
+  `twe-review-768.png` and `twe-review-1440.png` (same directory). These dev-server
+  screenshots include Astro's developer toolbar, which is not in the production build.
+  This is not screen-reader, performance, live analytics or full-MVP acceptance.
+- Install initially rewrote unrelated lock resolutions; those generated changes
+  and tracked dependency-link changes were reverted. The retained lockfile change
+  is only the TWE web workspace's shared UI link. No unrelated app source changed.
+
+## 2026-10-22 — Prompt 04 prerequisite verification
+
+- Accepted the supplied MVP implementation scope, preserving Astro/React/Express/
+  PostgreSQL boundaries and the prohibition on unapproved commits/pushes/deploys.
+- Began from clean `feat/twe-foundation-login-flows` at `ae5ccbff3`; TTNGH untouched.
+- Ran real PostgreSQL integration and corrected a restart harness output-pipe hang.
+  The final drill verified five migrations, one-use Remember me flow persistence,
+  CMS/media/auth/job constraints and restart/restore integrity for 15 tables and
+  49 synthetic rows. Full evidence and remaining gates are in the foundation record.
+- API lint and whitespace checks pass. No hosted resources, email deliveries,
+  browser verification, staging URLs or MVP completion claimed in this checkpoint.
+- Reviewed the public layout, consent notice and existing shared footer, fields
+  and loading exports for subsequent UI reuse. Requested approved imagery,
+  package/contact/WhatsApp and legal content; do not invent missing business data.
+- No Trello card was marked complete: local database evidence does not complete
+  TWE-005/017/022 or the dependent MVP delivery cards.
+
 ## 2026-10-21 — Prompt 03 private-media API integration
 
 - Connected the existing media routes/service to API startup behind staff

@@ -1,5 +1,12 @@
 # Travel With Ease documentation
 
+Latest update: [approved initial public release and PostgreSQL compatibility](./public-release-2026-10-26.md).
+
+Current release source of truth: [readiness check — reviewed 2026-10-25](./readiness-check.md).
+Latest implementation: [hosted API startup — 2026-10-25](./hosted-startup-2026-10-25.md).
+
+Staff login deployment: [portal hosting preparation](./portal-hosting-preparation-2026-10-23.md).
+
 ## Start here
 
 1. [Product baseline](./Travel_With_Ease_Solution_Roadmap.md) — October scope; Prompt 02 confirms MVP requirements, while client legal/commercial approvals remain separate.
@@ -9,7 +16,9 @@
 
 ## Supporting references
 
-- [Staging operations and ownership](./staging-operations.md) — Baaba/Faako/TWE responsibilities, manual setup, publication, mail and recovery gates; no deployment claimed.
+- [Cloudflare Access and Platform Admin](./access-platform-admin-2026-10-23.md) — authentication ADR, role matrix, bootstrap, MFA checklist and release blockers.
+- [Media, branding and discovery follow-up](./media-sharing-followup-2026-10-23.md) — approved photo inventory, local QA and outstanding live-service checks.
+- [Staging operations and ownership](./staging-operations.md) — responsibilities, current Access/Express portal staging setup, publishing, mail and recovery gates; hosted acceptance is not claimed.
 
 - [Prompt 03 implementation record](./foundation-implementation.md) — current changes, migration commands, dependency decision and outstanding gates; not a completion report.
 - [Architecture](./architecture.md) — preserved historical foundation and current-scope precedence.
@@ -20,6 +29,6 @@
 - [Visual audit — 2026-10-10](./audits/2026-10-10/visual-audit.md) — original screenshot-supported design audit, preserved as dated evidence.
 - [Progress/change log](./progress-log.md) — dated work and actual verification results.
 
-Current verified status: local foundation; no verified staging/production deployment. Production startup remains blocked pending reviewed persistence/authentication. Use [Prompt 03 handoff](./implementation-plan.md#prompt-03-handoff-scope) for the next authorized implementation task.
+Current verified status: local implementation/tests and conditional staging API startup guard; no complete hosted staging acceptance or production certification. Production API and background workers remain blocked pending a separate release review. Do not confuse readiness preflight, DNS/Access redirects or local tests with observed MFA/UAT/backup verification. Use [the readiness check](./readiness-check.md) for active gates and [Prompt 03 handoff](./implementation-plan.md#prompt-03-handoff-scope) for remaining acceptance.
 
-The public website has the shared consent-controlled GA4 integration, but no local `PUBLIC_GA_MEASUREMENT_ID` is configured and no production analytics receipt is verified. Create a Travel With Ease-specific GA4 web stream only when the public deployment is approved, configure that public ID in the hosting environment, and complete `docs/architecture/google-analytics-architecture.md`'s hosted verification checklist. Do not reuse another Faako site's measurement ID.
+The public website uses the shared consent-controlled GA4 integration. The user-supplied TWE stream is configured locally through `PUBLIC_GA_MEASUREMENT_ID` and was verified in the local build on 2026-10-23. Do not add a second inline Google tag: the existing loader loads it after analytics consent and respects Do Not Track. Set the same variable in the **public website's build environment**, then rebuild/deploy the approved site and complete `docs/architecture/google-analytics-architecture.md`'s hosted verification checklist. Production analytics receipt has not been verified. Do not configure tracking on the staff portal or reuse another Faako site's measurement ID.

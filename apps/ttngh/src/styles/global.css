@@ -74,10 +74,17 @@
   --navigation-width: 1016px;
   --page-gutter: clamp(1.25rem, 4vw, 3rem);
   --header-offset: 2rem;
-  --transition-fast: 180ms ease;
-  --transition-medium: 220ms ease;
-  --transition-hover: 480ms cubic-bezier(0.22, 1, 0.36, 1);
-  --transition-hover-image: 750ms cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: 180ms;
+  --motion-ui: 260ms;
+  --motion-editorial: 600ms;
+  --motion-image: 650ms;
+  --motion-hero: 700ms;
+  --ease-standard: cubic-bezier(.2,.65,.3,1);
+  --ease-out: cubic-bezier(.22,1,.36,1);
+  --transition-fast: var(--motion-fast) var(--ease-standard);
+  --transition-medium: 220ms var(--ease-standard);
+  --transition-hover: 480ms var(--ease-out);
+  --transition-hover-image: var(--motion-image) var(--ease-out);
 
   /* Typography */
   /* Existing system serif fallback: no new font download or licensed asset. */

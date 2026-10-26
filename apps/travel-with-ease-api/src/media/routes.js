@@ -6,6 +6,7 @@ import { MAX_UPLOAD_BYTES } from "./images.js";
 
 export function mediaRoutes({ service, auth }) {
   const router = Router();
+  router.use(auth.requirePermission("media.read"));
   const id = (value) => z.string().uuid().parse(value);
   router.get("/", async (req, res) => res.json(createSuccessResponse(await service.list(), { requestId: req.requestId })));
   router.get("/:id/preview", async (req, res) => {
@@ -21,9 +22,9 @@ export function mediaRoutes({ service, auth }) {
     const result = await service.upload(req.body, req.get("Content-Type"), metadata, req.staff, req.requestId, req.params.id ? id(req.params.id) : null);
     res.status(201).json(createSuccessResponse(result, { requestId: req.requestId }));
   };
-  router.post("/upload", auth.requireMutation, express.raw({ type: () => true, limit: MAX_UPLOAD_BYTES, inflate: false }), upload);
-  router.post("/:id/replace", auth.requireMutation, express.raw({ type: () => true, limit: MAX_UPLOAD_BYTES, inflate: false }), upload);
-  router.post("/:id/archive", auth.requireMutation, async (req, res) => {
+  router.post("/upload", auth.requireMutation, auth.requirePermission("media.write"), express.raw({ type: () => true, limit: MAX_UPLOAD_BYTES, inflate: false }), upload);
+  router.post("/:id/replace", auth.requireMutation, auth.requirePermission("media.write"), express.raw({ type: () => true, limit: MAX_UPLOAD_BYTES, inflate: false }), upload);
+  router.post("/:id/archive", auth.requireMutation, auth.requirePermission("media.write"), async (req, res) => {
     await service.archive(id(req.params.id), req.staff, req.requestId);
     res.json(createSuccessResponse({ archived: true }, { requestId: req.requestId }));
   });

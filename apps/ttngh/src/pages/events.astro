@@ -30,7 +30,7 @@ const faqItems = [
       </header>
 
       <div class="recurring-event-list">
-        <article id="support-groups" class="recurring-event">
+        <article id="support-groups" class="recurring-event" data-reveal>
           <div class="recurring-event-copy">
             <p class="recurring-event-rhythm">Monthly · Virtual and in person</p>
             <h3>Support group sessions</h3>
@@ -38,7 +38,7 @@ const faqItems = [
           </div>
         </article>
 
-        <article id="vision-with-clarity" class="recurring-event">
+        <article id="vision-with-clarity" class="recurring-event" data-reveal>
           <figure><img src="/images/refresh/vision-reflection-960.webp" alt="Participants writing at a table during Vision with Clarity" width="960" height="640" loading="lazy" decoding="async" /></figure>
           <div class="recurring-event-copy">
             <p class="recurring-event-rhythm">Annual · Launched in 2026</p>
@@ -47,7 +47,7 @@ const faqItems = [
           </div>
         </article>
 
-        <article id="community-outreach" class="recurring-event">
+        <article id="community-outreach" class="recurring-event" data-reveal>
           <figure><img src="/images/home/programme-audience.jpg" alt="Students attending a TTNGH mental health education programme in Tema" width="1600" height="1067" loading="lazy" decoding="async" /></figure>
           <div class="recurring-event-copy">
             <p class="recurring-event-rhythm">By arrangement · Institutions and communities</p>
@@ -60,6 +60,6 @@ const faqItems = [
     <EventCalendar />
     <EventGalleryRail />
     <FaqList items={faqItems} />
-    <div id="upcoming"><ScrollExpandSection image="/images/refresh/vision-community-1600.webp" alt="Participants gathered for TTNGH's Vision with Clarity programme" title="Join the next conversation." text="Confirmed event dates and registration details will be published here as they become available." href="/contact?topic=events" linkLabel="Ask about the next event" frameTitle="Come as you are." id="dates-title" /></div>
+    <div id="upcoming"><ScrollExpandSection image="/images/refresh/vision-community-1600.webp" alt="Participants gathered for TTNGH's Vision with Clarity programme" title="Help bring people together." text="Donate to support TTNGH community programmes and mental health education." frameTitle="Come as you are." id="dates-title" /></div>
   </main>
 </BaseLayout>
