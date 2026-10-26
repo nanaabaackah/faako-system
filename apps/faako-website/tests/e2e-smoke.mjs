@@ -129,11 +129,24 @@ try {
   );
   await noJavaScript.close();
 
+  // Astro's local preview returns a 404 status for an unknown URL but does
+  // not emulate Cloudflare Pages' `/* /404.html 404` fallback rule.
   const missing = await browser.newPage();
   const missingResponse = await missing.goto(`${baseUrl}/not-a-real-faako-route`);
-  assert.equal(missingResponse?.status(), 404);
-  assert.ok(await missing.locator("h1").isVisible());
+  assert.equal(missingResponse?.status(), 404, "unknown routes must return HTTP 404");
   await missing.close();
+
+  // Validate the actual prerendered custom error page separately. Cloudflare
+  // serves this document for unknown routes via the deployment redirect rule.
+  const custom404 = await browser.newPage();
+  const custom404Response = await custom404.goto(`${baseUrl}/404.html`);
+  assert.ok(
+    [200, 404].includes(custom404Response?.status()),
+    "the generated /404.html page must be served",
+  );
+  await custom404.locator("h1").waitFor({ state: "visible" });
+  assert.match(await custom404.locator("h1").innerText(), /This route is not available/);
+  await custom404.close();
 
   console.log(`Verified ${routes.length} public routes, mobile navigation/forms, no-JS content, and 404 handling.`);
 } finally {
