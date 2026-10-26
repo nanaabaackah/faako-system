@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { publicationSnapshotPath } from "../src/lib/published.js";
 
@@ -30,7 +30,10 @@ test("an explicit missing CMS snapshot fails closed rather than republishing bun
 });
 
 test("production build publishes approved content without preview copy or unpublished navigation", () => {
-  const output = mkdtempSync(path.join(tmpdir(), "twe-approved-build-"));
+  // Astro renames prerender assets; output must share the checkout filesystem.
+  const cache = fileURLToPath(new URL("../node_modules/.cache/", import.meta.url));
+  mkdirSync(cache, { recursive: true });
+  const output = mkdtempSync(path.join(cache, "twe-approved-build-"));
   execFileSync("pnpm", ["run", "build"], {
     cwd: new URL("../", import.meta.url),
     env: { ...process.env, PUBLIC_APP_ENV: "production", PUBLIC_SITE_URL: "https://travelwitheasegh.com", PUBLIC_SITE_INDEXABLE: "true", TWE_CONTENT_SNAPSHOT: "", TWE_BUILD_OUT_DIR: output },
