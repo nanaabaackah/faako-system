@@ -97,6 +97,7 @@ test("404, error, redirects, and forms use the Astro deployment contract", () =>
   const contact = readRoute("/contact");
 
   assert.ok(notFound.includes('content="noindex, nofollow"'));
+  assert.match(notFound, /<h1[\\s>]/, "custom 404 output must contain an SSR heading");
   assert.ok(serverError.includes('content="noindex, nofollow"'));
   assert.match(redirects, /^\/case-studies\/\* \/case-studies 301$/m);
   assert.match(redirects, /^\/\* \/404\.html 404$/m);
