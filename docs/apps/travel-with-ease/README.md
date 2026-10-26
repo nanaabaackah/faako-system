@@ -1,5 +1,7 @@
 # Travel With Ease documentation
 
+Latest update: [approved initial public release and PostgreSQL compatibility](./public-release-2026-10-26.md).
+
 Current release source of truth: [readiness check — reviewed 2026-10-25](./readiness-check.md).
 Latest implementation: [hosted API startup — 2026-10-25](./hosted-startup-2026-10-25.md).
 

@@ -6,8 +6,10 @@ import { publishedPage } from "./src/lib/published.js";
 
 const site = process.env.PUBLIC_SITE_URL || "https://travelwithease.example";
 if (process.env.PUBLIC_APP_ENV === "production" && site !== "https://travelwitheasegh.com") throw new Error("Production requires the approved canonical origin https://travelwitheasegh.com.");
-if (["production", "staging"].includes(process.env.PUBLIC_APP_ENV) && !process.env.TWE_CONTENT_SNAPSHOT) {
-  throw new Error("Hosted builds require an approved publication snapshot; local placeholders cannot be deployed.");
+if (["production", "staging"].includes(process.env.PUBLIC_APP_ENV)) {
+  // Read the explicit CMS snapshot or the version-controlled approved release.
+  // Missing/invalid explicit snapshots still fail; never fall back to drafts.
+  publishedPage("home");
 }
 const indexable = process.env.PUBLIC_APP_ENV === "production" && process.env.PUBLIC_SITE_INDEXABLE === "true" && !site.endsWith(".example");
 

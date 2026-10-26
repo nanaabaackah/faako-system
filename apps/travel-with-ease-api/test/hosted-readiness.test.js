@@ -25,7 +25,7 @@ test("hosted preflight requires explicit reviewed configuration and rejects loca
   }
 });
 
-test("read-only preflight denies wrong database tenant/version/role or migration history", async () => {
+test("read-only preflight reports actual PostgreSQL major and denies unsafe identity/role/migrations", async () => {
   const identity = readHostedPrerequisites(env);
   const migrations = [{ name: "006_access_roles.sql", checksum: "fixture" }];
   const pool = (changes = {}) => ({ async query(sql) {
@@ -37,7 +37,10 @@ test("read-only preflight denies wrong database tenant/version/role or migration
     return { rows: changes.org || [{ id: identity.organisationId }] };
   } });
   assert.deepEqual(await verifyHostedDatabase(pool(), identity, migrations), { databaseMajor: 17, migrations: 1, identityVerified: true });
-  for (const changes of [{ identity: { environment: "production" } }, { identity: { organisation_id: "other" } }, { version: "160015" }, { role: { rolsuper: true } }, { role: { rolbypassrls: true } }, { migrations: [] }, { migrations: [{ name: migrations[0].name, checksum: "changed" }] }, { org: [] }]) {
+  for (const [version, major] of [["160015", 16], ["170011", 17], ["180001", 18]]) {
+    assert.equal((await verifyHostedDatabase(pool({ version }), identity, migrations)).databaseMajor, major);
+  }
+  for (const changes of [{ identity: { environment: "production" } }, { identity: { organisation_id: "other" } }, { version: "invalid" }, { version: "-1" }, { version: "0" }, { role: { rolsuper: true } }, { role: { rolbypassrls: true } }, { migrations: [] }, { migrations: [{ name: migrations[0].name, checksum: "changed" }] }, { org: [] }]) {
     await assert.rejects(verifyHostedDatabase(pool(changes), identity, migrations));
   }
 });

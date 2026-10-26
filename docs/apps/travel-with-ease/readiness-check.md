@@ -1,5 +1,9 @@
 # Travel With Ease — release readiness check
 
+> 26 October: [public release and database compatibility update](./public-release-2026-10-26.md)
+> supersedes the exact PostgreSQL 17 runtime requirement below. The detected server
+> version is diagnostic; identity, runtime-role and migration checks still apply.
+
 > Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
 > supersedes the production API blanket block and startup release-SHA requirement
 > below. Both hosted API environments require verified persistence and Access;

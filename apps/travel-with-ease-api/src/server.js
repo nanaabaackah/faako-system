@@ -46,7 +46,8 @@ if (deployed) {
     startupReceipt = await prepareHostedStartup(process.env, pool);
   } catch (error) {
     await pool?.end();
-    logger.error({ eventName: "hosted.preflight.failed", reason: readinessFailureCode(error) }, "Hosted startup denied: check runtime database identity, role, PostgreSQL version and migration inventory.");
+    const reason = readinessFailureCode(error);
+    logger.error({ eventName: "hosted.preflight.failed", reason }, `Hosted startup denied (${reason}): check runtime database configuration, identity, role and migrations.`);
     process.exit(1);
   }
 }
