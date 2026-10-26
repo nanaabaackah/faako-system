@@ -125,3 +125,143 @@ Validation: 32 website tests and the build passed. Updated browser checks confir
 placeholders remain while a mocked response is held and disappear after success,
 at all seven widths (320–1440px), with no horizontal overflow. Existing calendar
 navigation, retry, reduced-motion and agenda assertions also passed.
+
+## Second editorial pass — 25 October 2026
+
+Branch: `feat/ttngh-editorial-motion-pass-2`, based on current main at
+`287828c3c` when this pass began. Target: a PR into `develop`, not a direct main merge.
+
+### Architecture and deliberate rhythm
+
+The existing native IntersectionObserver, lazy-image handling, shared interaction
+contract and ScrollExpand remain the foundation. No animation dependency, global
+mutation observer, new scroll handler or new scroll-controlled composition was added.
+Observer construction/observation errors now explicitly leave content visible;
+the existing eight-second recovery is scheduled before observation starts.
+
+Hero presentation is CSS-only: 12px movement over 600–700ms, with a short
+120–160ms follow-on for supporting copy/actions. Text starts at 85% opacity,
+not zero; images start at 94% opacity and scale 1.015. This deliberately favours
+immediate readable content and the existing eager/LCP image over an invisible
+entrance. The complete title moves together, without character splitting. Formal
+PageHero variants are exempt. Image figures clip the tiny scale without moving captions.
+
+Grouped reveals: homepage value strip, intro pairing, programmes, impact block,
+featured content and populated CMS content groups; About founder (preserved) and
+values; Programmes pillars and initiatives (preserved); Events recurring compositions.
+There are no nested paragraph/image/heading reveal chains or card-grid staggers.
+Impact values remain the final verified markup: no count-up was introduced.
+
+Shared motion timings live in `styles/global.css`: fast 180ms, UI 260ms, editorial
+600ms, image 650ms, hero 700ms, with shared standard/out easing. Existing compatible
+transition aliases are reused. Linked programme/event rows receive restrained
+arrow/title/divider feedback. Linked CMS/event/team images share a 1.015 scale and
+keyboard focus parity; unlinked informational portraits and photographs stay still.
+The old recurring-event image hover zoom was removed for that reason.
+
+Calendar fading now uses the 180ms token, without changing its fetching, skeleton,
+navigation or agenda controller. FAQ/menu opening fades use the same fast token;
+native details remain immediately operable. Button-icon keyboard feedback matches
+hover. No new contact-form animation/controller logic was added: validation,
+Turnstile, request IDs, duplicate guards, privacy, state labels and spinner remain intact.
+
+Intentionally static: roadmap rows, unlinked portraits, captions, partner band,
+footer composition, legal content and large team grids. Existing gallery controls
+and motion are preserved; no new autoplay or carousel is added. Navbar/footer layout,
+copy, colours, CMS, APIs, donations, SEO and routes are unchanged. ScrollExpand's
+desktop behavior and mobile/reduced-motion static fallbacks are unchanged.
+
+### Accessibility and checks
+
+Reduced-motion rules disable entrances, image zoom, icon translation, spinner
+rotation and transitions. No-JS markup is visible; CSS hero enhancement never
+sets zero opacity. Keyboard focus retains its outline and reveals a pending group.
+No essential content or interaction waits for animation.
+
+- 42 website unit tests passed, including four second-pass regression tests.
+- Focused ESLint passed for the motion controller, browser runner and unit tests.
+- Preview build passed; all 15 generated pages passed HTML/SEO/noindex checks.
+- Full browser run passed 168 page/viewport/motion combinations: 12 routes × seven
+  widths (320–1440px) × normal/reduced motion, plus no-JS routes and missing/throwing
+  observer scenarios.
+- Mocked contact validation, loading labels, stable button width, duplicate-submit
+  prevention, success/error and Turnstile reset passed in both motion modes.
+- Calendar browser tests passed all seven widths, with held initial responses,
+  skeleton replacement, retry, cached month navigation, keyboard agenda navigation
+  and no horizontal overflow.
+- Final focused run passed 90 combinations (15 routes including CMS/legal ×
+  desktop/tablet/mobile × normal/reduced motion), with corrected screenshots,
+  linked CMS/event/team image fixtures, keyboard focus, no-JS and observer-failure
+  checks, and repeated mocked contact validation/success/error checks.
+
+Checks use the existing `test`, `build`, `test:seo`, `check-motion-browser.mjs` and
+`check-calendar-browser.mjs` tools. Browser QA accepts `TTNGH_QA_WIDTHS` for a focused
+rerun and `TTNGH_MOTION_SCREENSHOT_DIR` for optional screenshots. The test runners
+use local servers; external requests are blocked/mocked and no real enquiry is sent.
+The build used public Sanity access with its read token omitted command-locally,
+and dummy contact settings; no `.env` file changed. Do not deploy this QA output.
+
+Visual evidence is saved locally under `/private/tmp/ttngh-motion-pass-2-20261025/`.
+The first homepage full-page capture was rejected: back-navigation restarted reveals
+before capture. The capture step now scrolls each composition and waits for pending
+reveals to clear. Full-page screenshots alone cannot validate ScrollExpand's sticky
+scroll travel; browser checks additionally cover its keyboard and static fallbacks.
+The public dataset currently supplies empty team/news/resource/event-detail states;
+local-only image fixtures exercise the linked-image CSS without inventing public content.
+This is not a full WCAG audit or a measured field Core Web Vitals claim, and Safari
+has not been tested in this pass.
+
+### Visual review notes
+
+Fresh captures were inspected with the Product Design audit guidance; rejected
+captures were not treated as evidence. Screenshot filenames below are relative to
+the local evidence directory above and are not shipped as website assets.
+
+1. **Homepage — healthy after settled capture.** `home-hero-390.png` and
+   `home-hero-1440.png` retain the existing photographic composition and navigation;
+   `home-intro-390.png` and `home-impact-390.png` show readable grouped content and
+   stable captions. No fabricated impact values appear. The existing faint hero
+   photo caption is a contrast follow-up, not changed by this motion-only pass.
+2. **About — layout preserved.** `-about-390.png` keeps founder/copy together and
+   the values/roadmap readable without a cascade of paragraph animations.
+3. **Programmes — healthy.** `-programmes-390.png` retains the editorial rows,
+   FAQs and static-mobile CTA; keyboard tests cover the programme entry links.
+4. **Events/calendar — usable fallback.** `-events-768.png` shows recurring
+   compositions and a clear calendar failure/retry state with the live endpoint
+   intentionally blocked. Separate synthetic calendar tests verify success and loading.
+5. **Team — honest empty state.** `-team-1440.png` retains the founder split and
+   shows the published-content empty message, rather than inventing team profiles.
+   Linked portrait interaction is checked with local DOM fixtures.
+6. **News/resources — readable empty states.** `-news-768.png` and
+   `-resources-390.png` preserve hierarchy and context; populated CMS image behavior
+   is checked with local fixtures, not claimed as a published-content visual audit.
+7. **Contact/footer — layout preserved.** `-contact-390.png` shows the complete
+   labelled form, consent and manual verification control, with the original pink
+   footer. Mocked browser tests cover submission success/error without delivery.
+
+These screenshots establish layout and visible-state evidence. They do not prove
+screen-reader compatibility or contrast compliance throughout the site; focus,
+reduced motion, navigation and form behavior are supported separately by browser checks.
+
+### Modified files
+
+- Tokens/styles: `src/styles/global.css`, component `motion.css`, `interactions.css`,
+  `shared.css`, `faq.css`, `month-calendar.css`, and `styles/pages/events.css`.
+- Group opt-ins: `CmsCards.astro`, `FeaturedEvent.astro`, and pages `index.astro`,
+  `about.astro`, `programmes.astro`, `events.astro`.
+- Fail-open handling: `src/scripts/editorial-motion.ts`.
+- Checks: `tests/motion.test.js`, `scripts/check-motion-browser.mjs`.
+- This existing report; no duplicate progress document.
+
+### Donation-first ScrollExpand CTAs — 26 October 2026
+
+At the client's request, all ten ScrollExpand CTAs now use the shared primary
+"Donate" action, defaulting to `/support-us`. Supporting copy reflects donating
+to existing TTNGH activities. The Support Us page instead links directly to
+`/contact?topic=donations`, avoiding a self-link while verified payment details
+remain pending. Its payment-readiness notice is preserved. Images, animation,
+layout, and other page actions are unchanged.
+
+Validation: all 43 website tests and `git diff --check` passed, including a new
+regression check covering all ten CTA instances and their donation destinations.
+Delivery is tracked with the editorial motion changes in PR #103 to `develop`.

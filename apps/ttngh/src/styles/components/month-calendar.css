@@ -26,7 +26,7 @@ month-calendar button:focus-visible { outline: 3px solid var(--ink); outline-off
 .month-loading tbody { animation: calendar-pulse 1.8s ease-in-out infinite alternate; }
 /* Retain the current grid during refresh; only completed replacements fade gently. */
 .month-grid[aria-busy="true"] { opacity: .8; }
-.month-grid { transition: opacity 250ms ease; }
+.month-grid { transition: opacity var(--motion-fast) var(--ease-standard); }
 .month-agenda-event { animation: calendar-arrive 300ms ease-out; }
 @keyframes calendar-arrive { from { opacity: .7; } to { opacity: 1; } }
 @keyframes calendar-pulse { from { opacity: .35; } to { opacity: .8; } }

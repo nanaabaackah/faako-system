@@ -1,8 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { verifiedImpact } from "../src/lib/verified-impact.js";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
+test("all ScrollExpand CTAs prioritise Donate and avoid a support-page self-link", () => {
+  const component = read("../src/components/ScrollExpandSection.astro");
+  assert.match(component, /href = "\/support-us"/);
+  assert.match(component, /linkLabel = "Donate"/);
+  assert.match(component, /class="button button-primary"/);
+  const pages = readdirSync(new URL("../src/pages/", import.meta.url), { recursive: true });
+  let count = 0;
+  for (const page of pages.filter(path => path.endsWith(".astro"))) {
+    const source = read(`../src/pages/${page}`);
+    for (const [tag] of source.matchAll(/<ScrollExpandSection\b[^>]*\/>/g)) {
+      count++;
+      assert.doesNotMatch(tag, /linkLabel=/, page);
+      if (page === "support-us.astro") assert.match(tag, /href="\/contact\?topic=donations"/);
+      else assert.doesNotMatch(tag, /href=/, page);
+    }
+  }
+  assert.equal(count, 10);
+});
 test("empty CMS team shows an explanation without silently republishing repository profiles", () => {
   const grid = read("../src/components/TeamGrid.astro");
   assert.match(grid, /team.length > 0/);

@@ -118,13 +118,14 @@ h3 {
   border-radius: 50%;
   background: var(--surface);
   color: var(--ink);
-  transition: transform 650ms ease
+  transition: transform var(--motion-ui) var(--ease-out)
 }
 .button-icon svg {
   width: 1.25rem;
   height: 1.25rem
 }
 .text-link>.ttngh-icon { width:1.2em; height:1.2em; }
+.button:not(:disabled):focus-visible .button-icon { transform: translateX(2px); }
 @media (hover: hover) {
   .button:not(:disabled):hover .button-icon { transform: translateX(2px); }
 }
