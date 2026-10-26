@@ -12,7 +12,7 @@ import { ArrowRight4 } from "@faako/ui";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { sharingMetadata } from "../lib/sharing.js";
-import { publishedPage } from "../lib/published.js";
+import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
 
 const { title, description, path = Astro.url.pathname, type = "website", noIndex = false } = Astro.props;
 const site = Astro.site || new URL("https://travelwithease.example");
@@ -41,7 +41,8 @@ const breadcrumbJson = breadcrumbs.length ? serializeJsonLd({
   }),
 }) : null;
 const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
-const review = !process.env.TWE_CONTENT_SNAPSHOT;
+const review = !publicationSnapshotPath();
+const visible = (href: string) => review || Boolean(publishedPage(href.slice(1)));
 const navigation = [["/destinations", "Destinations"], ["/services", "Services"], ["/about", "About"], ["/journal", "Journal"], ["/travel-footprint", "Travel footprint"]];
 ---
 <!doctype html>
@@ -84,13 +85,13 @@ const navigation = [["/destinations", "Destinations"], ["/services", "Services"]
       <a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" /></a>
       <button type="button" class="menu-toggle" hidden aria-expanded="false" aria-controls="primary-navigation">Menu</button>
       <nav id="primary-navigation" aria-label="Primary navigation">
-        {navigation.map(([href, label]) => <a href={href} aria-current={Astro.url.pathname.replace(/\/$/, "") === href ? "page" : undefined}>{label}</a>)}
-        <a class="nav-cta" href="/contact">Plan a trip</a>
+        {navigation.filter(([href]) => visible(href)).map(([href, label]) => <a href={href} aria-current={Astro.url.pathname.replace(/\/$/, "") === href ? "page" : undefined}>{label}</a>)}
+        {visible("/contact") && <a class="nav-cta" href="/contact">Plan a trip</a>}
       </nav>
     </header>
     {review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
     <main id="main-content"><slot /></main>
-    <footer class="site-footer"><div class="footer-main"><div><a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" loading="lazy" /></a><p>Travel planning from Ghana.</p>{review && <small>Email, WhatsApp and social links awaiting approval.</small>}</div><nav aria-label="Footer navigation"><a href="/faqs">FAQs</a><a href="/contact">Contact</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><button class="footer-cookie-settings" type="button" data-cookie-settings>Cookie settings</button><a href="#top">Back to top</a></nav></div><SharedFaakoFooter /></footer>
+    <footer class="site-footer"><div class="footer-main"><div><a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" loading="lazy" /></a><p>Travel planning from Ghana.</p>{review && <small>Email, WhatsApp and social links awaiting approval.</small>}</div><nav aria-label="Footer navigation">{[["/faqs", "FAQs"], ["/contact", "Contact"], ["/privacy", "Privacy"], ["/terms", "Terms"]].filter(([href]) => visible(href)).map(([href, label]) => <a href={href}>{label}</a>)}<button class="footer-cookie-settings" type="button" data-cookie-settings>Cookie settings</button><a href="#top">Back to top</a></nav></div><SharedFaakoFooter /></footer>
     <CookieNotice />
     <AnalyticsConsent />
   </body>

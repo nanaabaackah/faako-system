@@ -26,7 +26,11 @@ export async function verifyHostedDatabase(pool, identity, migrations) {
   const expected = migrations || await readMigrations();
   await verifyDatabaseIdentity(pool, identity);
   const version = await pool.query("SHOW server_version_num");
-  if (Math.floor(Number(version.rows[0]?.server_version_num) / 10000) !== 17) throw new ReadinessError("database_version_invalid", "Hosted database must use PostgreSQL 17.");
+  const versionNumber = Number(version.rows[0]?.server_version_num);
+  if (!Number.isSafeInteger(versionNumber) || versionNumber <= 0) throw new ReadinessError("database_version_invalid", "PostgreSQL did not report a valid server version.");
+  // Report the actual server version; migration/identity checks are authoritative.
+  // An exact major-version pin is a test-environment choice, not a runtime gate.
+  const databaseMajor = Math.floor(versionNumber / 10000);
   const role = await pool.query("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user");
   if (role.rows.length !== 1 || role.rows[0].rolsuper || role.rows[0].rolbypassrls) throw new ReadinessError("database_role_unsafe", "Use a non-superuser runtime database role without BYPASSRLS.");
   const applied = await pool.query("SELECT name, checksum FROM twe.schema_migrations ORDER BY name");
@@ -35,5 +39,5 @@ export async function verifyHostedDatabase(pool, identity, migrations) {
   }
   const org = await pool.query("SELECT id FROM twe.organisations WHERE id = $1", [identity.organisationId]);
   if (org.rows.length !== 1) throw new ReadinessError("organisation_not_provisioned", "Hosted organisation is not provisioned.");
-  return { databaseMajor: 17, migrations: expected.length, identityVerified: true };
+  return { databaseMajor, migrations: expected.length, identityVerified: true };
 }

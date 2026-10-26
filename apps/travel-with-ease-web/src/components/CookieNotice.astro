@@ -1,15 +1,18 @@
+---
+import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
+const privacyAvailable = !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
+---
 <aside class="cookie-notice" data-cookie-notice hidden aria-label="Cookie notice" aria-live="polite">
   <div>
     <strong>Your privacy, your choice.</strong>
     <p>
-      Essential browser storage remembers your preference. Optional Google Analytics
-      helps us understand visits only when you allow it; advertising cookies are not used.
-      <a href="/privacy">Privacy information</a>
+      Essential browser storage remembers your preference. Advertising cookies are not used.
+      {privacyAvailable && <>Optional Google Analytics helps us understand visits only when you allow it. <a href="/privacy">Privacy information</a></>}
     </p>
   </div>
   <div class="cookie-notice__actions">
     <button class="secondary" type="button" data-cookie-essential>Essential only</button>
-    <button type="button" data-cookie-analytics>Allow analytics</button>
+    {privacyAvailable && <button type="button" data-cookie-analytics>Allow analytics</button>}
   </div>
 </aside>
 

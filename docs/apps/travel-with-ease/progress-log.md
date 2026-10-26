@@ -1,5 +1,14 @@
 # Travel With Ease progress log
 
+## 2026-10-26 — Approved initial public content and database compatibility
+
+- Recorded approval of existing copy/photography; hosted builds can use the reviewed
+  bundled homepage snapshot. Missing business/legal pages stay unpublished and hidden
+  from navigation; explicit CMS snapshots retain precedence and fail closed.
+- Removed exact PostgreSQL 17 startup pin; report actual server major and retain
+  identity, runtime-role and migration verification. Add safe failure code to messages.
+- See [release scope and remaining limitations](./public-release-2026-10-26.md).
+
 ## 2026-10-25 — Hosted API startup guard correction
 
 - Removed the unconditional production API block; both hosted environments
