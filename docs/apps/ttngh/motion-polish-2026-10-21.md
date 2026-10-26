@@ -252,3 +252,16 @@ reduced motion, navigation and form behavior are supported separately by browser
 - Fail-open handling: `src/scripts/editorial-motion.ts`.
 - Checks: `tests/motion.test.js`, `scripts/check-motion-browser.mjs`.
 - This existing report; no duplicate progress document.
+
+### Donation-first ScrollExpand CTAs — 26 October 2026
+
+At the client's request, all ten ScrollExpand CTAs now use the shared primary
+"Donate" action, defaulting to `/support-us`. Supporting copy reflects donating
+to existing TTNGH activities. The Support Us page instead links directly to
+`/contact?topic=donations`, avoiding a self-link while verified payment details
+remain pending. Its payment-readiness notice is preserved. Images, animation,
+layout, and other page actions are unchanged.
+
+Validation: all 43 website tests and `git diff --check` passed, including a new
+regression check covering all ten CTA instances and their donation destinations.
+Delivery is tracked with the editorial motion changes in PR #103 to `develop`.
