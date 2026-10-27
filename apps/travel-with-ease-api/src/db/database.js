@@ -1,20 +1,22 @@
 import pg from "pg";
 import { validateEnvironment } from "../config.js";
+import { DatabaseConfigurationError } from "./configuration-error.js";
 
 export function databaseOptions(env = process.env, variable = "DATABASE_URL") {
   const environment = validateEnvironment(env.APP_ENV || "development", env.NODE_ENV);
+  const connectionKind = variable === "TWE_MIGRATION_DATABASE_URL" ? "migration" : "runtime";
   let url;
-  try { url = new URL(env[variable]); } catch { throw new Error(`${variable} must be a PostgreSQL URL.`); }
+  try { url = new URL(env[variable]); } catch { throw new DatabaseConfigurationError(`${connectionKind}_url_invalid`); }
   if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname || !url.pathname.slice(1)) {
-    throw new Error(`${variable} must identify a PostgreSQL database.`);
+    throw new DatabaseConfigurationError(`${connectionKind}_url_invalid`);
   }
   // Connection-string SSL parameters override pg's ssl object. Reject them so
   // certificate verification cannot be silently disabled by a copied URL.
-  if (url.search || url.hash) throw new Error(`${variable} must not contain query parameters or a fragment.`);
+  if (url.search || url.hash) throw new DatabaseConfigurationError(`${connectionKind}_url_options_forbidden`);
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   const ssl = env.TWE_DATABASE_TLS !== "disable";
   if (!ssl && (!local || !["development", "test"].includes(environment))) {
-    throw new Error("Disabling database TLS is allowed only for local development/test databases.");
+    throw new DatabaseConfigurationError("database_tls_disabled");
   }
   return {
     connectionString: url.href,

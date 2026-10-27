@@ -1,5 +1,13 @@
 # Travel With Ease progress log
 
+## 2026-10-27 — Actionable pre-deploy configuration diagnostics
+
+- Replaced misleading generic configuration failures with allowlisted reason codes
+  and corrective messages naming settings, never their values.
+- Added subprocess coverage for deployment log output and credential redaction,
+  including malformed URLs, approval, endpoint, role and TLS configuration.
+- Preserved migration, tenant, role and TLS guards. No hosted database changed.
+
 ## 2026-10-27 — Controlled API pre-deploy database setup
 
 - Added a hosted-only pre-deploy command with explicit environment approval,
