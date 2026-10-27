@@ -1,5 +1,7 @@
 # Travel With Ease documentation
 
+Database deployment: [pre-deploy migrations and first-time setup](./predeploy-migrations-2026-10-27.md).
+
 Latest update: [approved initial public release and PostgreSQL compatibility](./public-release-2026-10-26.md).
 
 Current release source of truth: [readiness check — reviewed 2026-10-25](./readiness-check.md).

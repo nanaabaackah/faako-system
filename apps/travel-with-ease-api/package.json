@@ -16,7 +16,8 @@
     "test:db:isolated": "node scripts/test-isolated-postgres.mjs",
     "notifications:once": "node --env-file-if-exists=.env src/notifications/worker.js",
     "publication": "node --env-file-if-exists=.env src/content/publication-command.js",
-    "db:migrate": "node --env-file-if-exists=.env src/db/migrate.js"
+    "db:migrate": "node --env-file-if-exists=.env src/db/migrate.js",
+    "db:deploy": "node scripts/deploy-database.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1149.0",

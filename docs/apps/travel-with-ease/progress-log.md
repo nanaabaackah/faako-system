@@ -1,5 +1,22 @@
 # Travel With Ease progress log
 
+## 2026-10-27 — Actionable pre-deploy configuration diagnostics
+
+- Replaced misleading generic configuration failures with allowlisted reason codes
+  and corrective messages naming settings, never their values.
+- Added subprocess coverage for deployment log output and credential redaction,
+  including malformed URLs, approval, endpoint, role and TLS configuration.
+- Preserved migration, tenant, role and TLS guards. No hosted database changed.
+
+## 2026-10-27 — Controlled API pre-deploy database setup
+
+- Added a hosted-only pre-deploy command with explicit environment approval,
+  distinct runtime/migration users and first-time initialisation consent.
+- Reused transactional SQL migration history; added idempotent organisation
+  provisioning with audit and explicit grants to an existing restricted runtime role.
+- Runtime readiness is checked after migration. No hosted database or Railway
+  setting changed during implementation; see the [setup runbook](./predeploy-migrations-2026-10-27.md).
+
 ## 2026-10-26 — Approved initial public content and database compatibility
 
 - Recorded approval of existing copy/photography; hosted builds can use the reviewed
