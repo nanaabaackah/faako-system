@@ -2,6 +2,9 @@ import { readdir, readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { transaction, verifyDatabaseIdentity } from "./database.js";
 import { validateEnvironment } from "../config.js";
+import { randomUUID } from "node:crypto";
+import { appendAudit } from "../audit.js";
+import { grantRuntimeAccess } from "./runtime-grants.js";
 
 export const migrationDirectory = new URL("../../db/migrations/", import.meta.url);
 
@@ -14,9 +17,10 @@ export async function readMigrations(directory = migrationDirectory) {
   }));
 }
 
-export async function migrate(pool, { environment, organisationId, initialise = false, migrations }) {
+export async function migrate(pool, { environment, organisationId, initialise = false, organisationName, runtimeRole, migrations }) {
   validateEnvironment(environment);
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(organisationId || "")) throw new Error("TWE_ORGANISATION_ID must be a UUID.");
+  if (organisationName !== undefined && (!initialise || typeof organisationName !== "string" || !organisationName.trim() || organisationName.length > 160)) throw new Error("Organisation provisioning requires explicit initialisation and a valid name.");
   const files = migrations || await readMigrations();
   return transaction(pool, async (client) => {
     await client.query("SELECT pg_advisory_xact_lock(740031)");
@@ -39,6 +43,11 @@ export async function migrate(pool, { environment, organisationId, initialise = 
       await client.query(file.sql);
       await client.query("INSERT INTO twe.schema_migrations (name, checksum) VALUES ($1, $2)", [file.name, file.checksum]);
     }
+    if (organisationName) {
+      const created = await client.query("INSERT INTO twe.organisations (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING RETURNING id", [organisationId, organisationName.trim()]);
+      if (created.rowCount) await appendAudit(client, { organisationId, action: "organisation.provisioned", recordId: organisationId, requestId: randomUUID() });
+    }
+    if (runtimeRole) await grantRuntimeAccess(client, runtimeRole);
     return pending.map((file) => file.name);
   });
 }

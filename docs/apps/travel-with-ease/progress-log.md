@@ -1,5 +1,14 @@
 # Travel With Ease progress log
 
+## 2026-10-27 — Controlled API pre-deploy database setup
+
+- Added a hosted-only pre-deploy command with explicit environment approval,
+  distinct runtime/migration users and first-time initialisation consent.
+- Reused transactional SQL migration history; added idempotent organisation
+  provisioning with audit and explicit grants to an existing restricted runtime role.
+- Runtime readiness is checked after migration. No hosted database or Railway
+  setting changed during implementation; see the [setup runbook](./predeploy-migrations-2026-10-27.md).
+
 ## 2026-10-26 — Approved initial public content and database compatibility
 
 - Recorded approval of existing copy/photography; hosted builds can use the reviewed
