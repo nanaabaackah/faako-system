@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "buildCommand": "pnpm --filter @faako/travel-with-ease-api build"
+  },
+  "deploy": {
+    "preDeployCommand": ["pnpm --filter @faako/travel-with-ease-api db:deploy"],
+    "startCommand": "pnpm --filter @faako/travel-with-ease-api start",
+    "healthcheckPath": "/readyz",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 3
+  }
+}
