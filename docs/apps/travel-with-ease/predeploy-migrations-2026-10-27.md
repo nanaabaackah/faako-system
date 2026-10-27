@@ -65,6 +65,17 @@ API can start. A passing migration is not proof of live login, MFA or release ac
 
 ## Failure and rollback
 
+Configuration failures now report a stable reason and fixed corrective guidance,
+without logging connection strings, passwords, certificate contents or raw error
+objects. For example, `migration_approval_mismatch` identifies
+`TWE_MIGRATION_APPROVED_ENV`; `database_endpoint_mismatch` identifies the two
+connection URLs; `runtime_url_options_forbidden` identifies query/fragment options
+in `DATABASE_URL`. Correct the named setting on the Railway **API service**:
+editing a local .env does not change hosted variables. `TWE_DATABASE_TLS=require`
+is accepted. Configuration-phase failure precedes any database queries; it is not
+evidence of a network outage or missing tables. Unexpected errors remain redacted.
+No guards were removed or relaxed by this diagnostic change.
+
 Migration, organisation and grant failures roll back their shared transaction.
 A later runtime-readiness failure blocks release but **does not undo committed
 migrations**. Correct configuration/grants; do not reset the database. Existing
