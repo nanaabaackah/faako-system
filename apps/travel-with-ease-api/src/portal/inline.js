@@ -2,10 +2,11 @@ import express from "express";
 import { createErrorResponse, errorCodeForStatus } from "@faako/api-contracts";
 import { buildSecurityHeaders } from "@faako/security";
 import { isAllowedPortalApiRoute } from "./proxy.js";
+import { accessFailureReason } from "../auth/access-diagnostics.js";
 
 // A single Railway process can expose two hostnames: the protected CMS hostname
 // and the existing API hostname. Do not proxy HTTP requests back into this process.
-export function createInlinePortal({ settings, verifier, distDirectory }) {
+export function createInlinePortal({ settings, verifier, distDirectory, logger }) {
   if (!settings?.portalOrigin || !verifier?.verify || !distDirectory) {
     throw new Error("The embedded portal requires Access verification and a built frontend.");
   }
@@ -33,16 +34,28 @@ export function createInlinePortal({ settings, verifier, distDirectory }) {
     // The shared Railway service uses /healthz and /readyz for operations.
     // All other portal-host requests require a verified Access assertion.
     if (req.path === "/healthz") return next();
+    const rejectAuthentication = (reason) => {
+      // Diagnostic, not a staff audit event: no verified identity exists yet.
+      // Keep failures fail-closed even if the logging transport is unavailable.
+      try {
+        logger?.warn?.({
+          eventName: "portal.access.rejected",
+          requestId: req.requestId,
+          reason,
+        }, "Portal Access assertion rejected.");
+      } catch { /* Logging must not change the authentication decision. */ }
+      return reject(req, res, 401);
+    };
     const assertions = req.rawHeaders.filter((name, index) => (
       index % 2 === 0 && name.toLowerCase() === "cf-access-jwt-assertion"
     ));
     if (assertions.length !== 1 || typeof req.headers["cf-access-jwt-assertion"] !== "string") {
-      return reject(req, res, 401);
+      return rejectAuthentication(assertions.length === 0 ? "assertion_missing" : "assertion_header_invalid");
     }
     try {
       await verifier.verify(req.headers["cf-access-jwt-assertion"]);
-    } catch {
-      return reject(req, res, 401);
+    } catch (error) {
+      return rejectAuthentication(accessFailureReason(error));
     }
 
     if (req.url.startsWith("/api")) {
