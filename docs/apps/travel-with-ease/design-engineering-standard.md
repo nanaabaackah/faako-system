@@ -242,19 +242,3 @@ The standards above govern subsequent authorized work. The following decisions r
 11. client scope/legal acceptance and each production release.
 
 The trade-offs are deliberate: authentic imagery needs licensing/content ownership; minimal islands reduce JavaScript but limit effect choices; separate staging increases operational cost but protects production; shared operational UI improves maintainability without dictating the public editorial layout.
-
-## 27 October 2026 — roadmap-aligned visual refinement
-
-Implemented the TWE-only toast variant, explicit Iconsax content-link arrows,
-roadmap-ordered home/demo, native restrained reveals, travel-photo closing CTA,
-and shared homepage/footer footprint view. See
-[implementation and verification notes](./visual-refinement-2026-10-27.md).
-No Sileo or animation runtime was installed. Public activity remains empty until
-verified data exists; synthetic totals are local-demo-only. This does not complete
-the footprint editor/backend, content approvals, draft synchronisation or rollout.
-## FAQ disclosure standard
-
-Use the shared TWE Astro Accordion for FAQ and comparable answer disclosures.
-Keep native details/summary semantics, independent expansion, trailing Iconsax
-indicator, 44px minimum targets and visible keyboard focus. No animated heights
-or JavaScript-only content. Form selects and navigation retain their own patterns.

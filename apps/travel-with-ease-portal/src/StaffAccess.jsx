@@ -1,6 +1,5 @@
-import Button from "./ActionButton.jsx";
 import { useCallback, useEffect, useState } from "react";
-import { TextField, KpiCard, StatusPill, InlineNotice } from "@faako/ui";
+import { Button, InlineNotice } from "@faako/ui";
 
 export default function StaffAccess({api,session}) {
   const [staff,setStaff]=useState([]),[subject,setSubject]=useState(""),[reason,setReason]=useState(""),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);
@@ -15,16 +14,16 @@ export default function StaffAccess({api,session}) {
     catch {setMessage("Action was not completed. Your permission or session may have changed; refresh before retrying.");}
     finally {setBusy(false);}
   }
-  return <section className="staff-workspace" aria-labelledby="staff-access-heading"><div className="workspace-intro"><h2 id="staff-access-heading">Your team, with the right access</h2><p>Provision verified identities and review who can use this workspace.</p></div><div className="workspace-kpis"><KpiCard label="Staff accounts" value={staff.length} detail="Accounts returned for this workspace" /><KpiCard label="Active" value={staff.filter(user => user.active).length} detail="Currently enabled" /><KpiCard label="Editors" value={staff.filter(user => user.role === "editor").length} detail="Business content role" /></div>
+  return <section aria-labelledby="staff-access-heading"><h2 id="staff-access-heading">Staff access</h2>
     <p>Use the independently verified Cloudflare subject—not an email address. New accounts are Editors. Platform operators stage inactive accounts; an Owner activates them. Owner and platform role assignment requires a reviewed administrative procedure.</p>
     {message && <InlineNotice title="Staff access result" message={message}/>}
-    <form className="staff-provision" onSubmit={event=>{event.preventDefault();mutate("staff",{subject});}}>
-      <TextField label="Verified Access subject" hint="Use the verified stable identity, not an email address." required maxLength={255} value={subject} onChange={event=>setSubject(event.target.value)}/>
-      <Button icon="plus" variant="primary" type="submit" disabled={busy}>{owner?"Provision Editor":"Stage Editor for Owner approval"}</Button>
+    <form onSubmit={event=>{event.preventDefault();mutate("staff",{subject});}}>
+      <label>Verified Access subject<input required maxLength={255} value={subject} onChange={event=>setSubject(event.target.value)}/></label>
+      <Button type="submit" disabled={busy}>{owner?"Provision Editor":"Stage Editor for Owner approval"}</Button>
     </form>
-    {owner && <TextField label="Approved support ticket reference" maxLength={120} value={reason} onChange={event=>setReason(event.target.value)} placeholder="SUP-123"/>}
-    <ul className="staff-list">{staff.map(user=><li key={user.id}><div className="staff-identity"><strong>{user.role.replaceAll("_", " ")}</strong><code>{user.id}</code></div><StatusPill tone={user.active ? "success" : "neutral"}>{user.active ? "Active" : "Inactive"}</StatusPill>
-      {user.role==="editor" && (user.active || owner) && <Button variant={user.active ? "danger" : "primary"} type="button" disabled={busy} onClick={()=>{if(window.confirm(`${user.active?"Revoke":"Activate"} this Editor? Existing sessions will be revoked.`))mutate(`staff/${user.id}/status`,{active:!user.active});}}>{user.active?"Revoke access":"Activate"}</Button>}
+    {owner && <label>Approved support ticket reference<input maxLength={120} value={reason} onChange={event=>setReason(event.target.value)} placeholder="SUP-123"/></label>}
+    <ul>{staff.map(user=><li key={user.id}><code>{user.id}</code> — {user.role}, {user.active?"active":"inactive"}
+      {user.role==="editor" && (user.active || owner) && <Button type="button" disabled={busy} onClick={()=>{if(window.confirm(`${user.active?"Revoke":"Activate"} this Editor? Existing sessions will be revoked.`))mutate(`staff/${user.id}/status`,{active:!user.active});}}>{user.active?"Revoke access":"Activate"}</Button>}
       {!owner && <Button type="button" disabled={busy} onClick={()=>{if(window.confirm("Revoke this staff member’s local sessions and support grants?"))mutate(`staff/${user.id}/revoke-sessions`,{});}}>Revoke sessions</Button>}
       {owner && user.role==="platform_admin" && user.active && <Button type="button" disabled={busy || !/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/.test(reason)} onClick={()=>{if(window.confirm("Approve read-only enquiry support for 15 minutes? This permits private client-record access and will be audited."))mutate("support-grants",{userId:user.id,reasonReference:reason,minutes:15});}}>Approve 15-minute support</Button>}
     </li>)}</ul>

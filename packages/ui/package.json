@@ -22,7 +22,6 @@
   "exports": {
     ".": "./src/index.ts",
     "./useFrontFacingScrollReveal": "./src/useFrontFacingScrollReveal.ts",
-    "./twe-feedback.css": "./src/twe-feedback.css",
     "./ui.css": "./src/ui.css",
     "./compat.css": "./src/compat.css",
     "./reebs-sidebar.css": "./src/reebs-sidebar.css"

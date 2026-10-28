@@ -24,7 +24,6 @@ export * from "./SidebarEdgeToggle";
 export * from "./components/AppBottomBar";
 export * from "./components/AppUpdateNotice";
 export * from "./components/ArrowRight4";
-export * from "./components/IconsaxIcon";
 export * from "./components/SystemProvider";
 export * from "./components/Primitives";
 export * from "./components/Fields";

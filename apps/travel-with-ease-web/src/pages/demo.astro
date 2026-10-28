@@ -1,7 +1,0 @@
----
-import BaseLayout from "../layouts/BaseLayout.astro";
-import DemoWebsite from "../components/DemoWebsite.astro";
-const enabled = import.meta.env.DEV && ["localhost", "127.0.0.1", "[::1]"].includes(Astro.url.hostname);
-if (!enabled) return Astro.redirect("/");
----
-<BaseLayout demo title="Travel With Ease | Local demo" description="Sample travel workspace. Offers are not bookable." noIndex><DemoWebsite /></BaseLayout>

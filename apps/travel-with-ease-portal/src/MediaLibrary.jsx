@@ -1,6 +1,5 @@
-import Button from "./ActionButton.jsx";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { InlineNotice, TextField, TextareaField } from "@faako/ui";
+import { Button, InlineNotice } from "@faako/ui";
 
 export default function MediaLibrary({ api, session, onSelect }) {
   const [items, setItems] = useState([]);
@@ -65,23 +64,23 @@ export default function MediaLibrary({ api, session, onSelect }) {
     } catch (error) { setState({ loading: false, error: error.message, message: "" }); }
   }
 
-  return <section className="content-editor media-workspace" aria-labelledby="media-heading">
-    <h2 id="media-heading">Media library</h2><p className="workspace-caption">Manage licensed photography and descriptive text. Assets remain private until published through a content revision.</p>
+  return <section className="content-editor" aria-labelledby="media-heading">
+    <h2 id="media-heading">Media library</h2>
     <div ref={notice} tabIndex={-1}>{state.error && <InlineNotice tone="danger" title="Media request unsuccessful" message={state.error} />}</div>
     <p role="status">{state.loading ? "Working…" : state.message}</p>
     {!state.loading && !configured && <p>Private storage is not configured. Baaba must complete the environment-specific R2 setup before uploads or previews are available.</p>}
     <form ref={form} onSubmit={upload}>
       <fieldset disabled={state.loading || !configured}>
         <legend>{replacement ? "Upload replacement as a new asset" : "Upload a licensed image"}</legend>
-        <label className="file-picker">Image<input name="image" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
-        <TextField label="Alternative text" name="alt" maxLength={500} required />
-        <TextareaField label="Source and licence evidence" name="rights" maxLength={2000} required />
+        <label>Image<input name="image" type="file" accept="image/jpeg,image/png,image/webp" required /></label>
+        <label>Alternative text<input name="alt" maxLength={500} required /></label>
+        <label>Source and licence evidence<textarea name="rights" maxLength={2000} required /></label>
         <p>JPEG, PNG or WebP, up to 8 MiB. Images are re-encoded; original metadata is removed. Never upload identity documents.</p>
         <Button type="submit">{replacement ? "Save replacement" : "Upload image"}</Button>
         {replacement && <Button type="button" onClick={() => setReplacement("")}>Cancel replacement</Button>}
       </fieldset>
     </form>
-    <h3>Active library <span className="library-count">{items.length}</span></h3><ul className="media-list">{items.map((item) => <li key={item.id}>
+    <ul className="media-list">{items.map((item) => <li key={item.id}>
       <h3>{item.alt_text}</h3><p>{item.width} × {item.height} pixels</p><p>{item.rights}</p>
       <div className="editor-actions">
         <Button type="button" disabled={state.loading || !configured} onClick={() => showPreview(item)}>Preview {item.alt_text}</Button>
@@ -90,7 +89,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         <Button type="button" disabled={state.loading} onClick={() => archive(item)}>Archive {item.alt_text}</Button>
       </div>
     </li>)}</ul>
-    {!state.loading && !state.error && !items.length && <div className="workspace-empty"><h4>Your library is empty</h4><p>Add licensed images when private storage is available. No placeholder assets will be published.</p></div>}
+    {!state.loading && !state.error && !items.length && <p>No active images.</p>}
     {preview && <figure><img className="media-preview" src={preview.url} alt={preview.alt} width={preview.width} height={preview.height} /><figcaption>Private preview. Not published.</figcaption><Button type="button" onClick={() => setPreview(null)}>Close preview</Button></figure>}
   </section>;
 }
