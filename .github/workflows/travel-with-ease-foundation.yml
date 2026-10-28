@@ -55,6 +55,10 @@ jobs:
       - run: pnpm --filter '@faako/travel-with-ease-*' run lint
       - run: pnpm --filter '@faako/travel-with-ease-*' run typecheck
       - run: pnpm --filter '@faako/travel-with-ease-*' run build
+      - name: Verify existing Railway API can build the embedded CMS
+        run: |
+          APP_ENV=staging NODE_ENV=production pnpm --filter @faako/travel-with-ease-api railway:build
+          test -f apps/travel-with-ease-portal/dist/index.html
       - run: pnpm --filter '@faako/travel-with-ease-*' run test
       - name: Required isolated PostgreSQL integration tests
         run: pnpm --filter @faako/travel-with-ease-api run test:db
