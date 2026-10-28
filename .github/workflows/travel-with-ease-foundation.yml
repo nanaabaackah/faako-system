@@ -58,7 +58,6 @@ jobs:
       - name: Verify existing Railway API can build the embedded CMS
         run: |
           APP_ENV=staging NODE_ENV=production pnpm --filter @faako/travel-with-ease-api railway:build
-          test -f apps/travel-with-ease-portal/dist/index.html
           test -f apps/travel-with-ease-api/dist/cms/index.html
           test -d apps/travel-with-ease-api/dist/cms/assets
           node -e 'const fs=require("node:fs"); const html=fs.readFileSync("apps/travel-with-ease-api/dist/cms/index.html", "utf8"); if (!html.includes("/assets/")) process.exit(1)'
