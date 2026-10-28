@@ -68,7 +68,7 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
     app.use("/api/agent/leads", staffAuth.requirePermission("enquiries.read"));
     if (staffAuth.administrationRouter) app.use("/api/agent/administration", staffAuth.administrationRouter);
   }
-  if (contentRepository) app.use("/api/agent/inquiries", enquiriesRoutes({ pool: repository.pool, organisationId: repository.organisationId, auth: staffAuth }));
+  if (contentRepository && repository?.pool && repository?.organisationId && staffAuth) app.use("/api/agent/inquiries", enquiriesRoutes({ pool: repository.pool, organisationId: repository.organisationId, auth: staffAuth }));
   if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, publication: publicationRepository, auth: staffAuth }));
   if (mediaService) app.use("/api/agent/media", mediaRoutes({ service: mediaService, auth: staffAuth }));
 
