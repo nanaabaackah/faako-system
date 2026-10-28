@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "start:portal": "node src/portal/server.js",
     "preflight:hosted": "node scripts/check-hosted-readiness.mjs",
+    "railway:build": "pnpm --filter @faako/travel-with-ease-portal build && node --check src/server.js && node --check src/app.js && node --check src/portal/inline.js",
     "build": "node --check src/server.js && node --check src/app.js",
     "lint": "eslint src test scripts",
     "typecheck": "node --check src/server.js && node --check src/app.js",

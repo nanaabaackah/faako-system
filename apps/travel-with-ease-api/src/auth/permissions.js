@@ -2,8 +2,8 @@
 // from business access; never accept organisation or grants from request input.
 export const ROLE_PERMISSIONS = Object.freeze({
   platform_admin: Object.freeze(["system.read", "security.read", "staff.stage", "staff.revoke", "maintenance.revoke_sessions", "support.request"]),
-  owner: Object.freeze(["content.read", "content.write", "content.publish", "media.read", "media.write", "enquiries.read", "staff.manage", "support.approve"]),
-  editor: Object.freeze(["content.read", "content.write", "media.read", "media.write", "enquiries.read"]),
+  owner: Object.freeze(["content.read", "content.write", "content.publish", "media.read", "media.write", "enquiries.read", "enquiries.write", "staff.manage", "support.approve"]),
+  editor: Object.freeze(["content.read", "content.write", "media.read", "media.write", "enquiries.read", "enquiries.write"]),
 });
 
 export function hasPermission(actor, permission, organisationId) {

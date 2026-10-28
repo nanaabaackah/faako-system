@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
+import { access } from "node:fs/promises";
 import { createApp, createLimiter } from "./app.js";
 import { ExchangeRateApiProvider } from "./currency/provider.js";
 import { CurrencyService } from "./currency/service.js";
@@ -56,12 +57,15 @@ const repository = pool
   : new FileLeadRepository(process.env.TWE_LOCAL_DATA_FILE || path.join(directory, "data", "development.json"));
 if (pool) await repository.ready();
 const authSettings = readAccessConfig();
+const accessVerifier = authSettings ? createAccessVerifier(authSettings) : null;
+const portalDist = path.join(directory, "../travel-with-ease-portal/dist");
+if (deployed) await access(path.join(portalDist, "index.html"));
 if (authSettings && !pool) throw new Error("Staff authentication requires PostgreSQL.");
 if (authSettings && !allowedOrigins.includes(authSettings.portalOrigin)) throw new Error("The staff portal origin must be explicitly allowed.");
 const administration = pool && authSettings ? new Administration(pool, process.env.TWE_ORGANISATION_ID, authSettings, environment) : null;
 const staffAuth = createStaffAuth({
   administration,
-  settings: authSettings, provider: authSettings ? createAccessVerifier(authSettings) : null,
+  settings: authSettings, provider: accessVerifier,
   store: pool ? new PostgresAuthStore(pool, process.env.TWE_ORGANISATION_ID) : null,
   limiter: createLimiter({ limit: 10, windowMs: 300_000 }), logger,
 });
@@ -71,7 +75,9 @@ const publicationRepository = pool ? new PublicationRepository(pool, { organisat
 const mediaSettings = readR2Config();
 if (mediaSettings && !pool) throw new Error("Media storage requires PostgreSQL.");
 const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger) : null;
-const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger });
+const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
+  portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist } : null,
+});
 const server = app.listen(port, () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;

@@ -8,6 +8,8 @@ const routes = [
   ["GET", /^\/api\/auth\/(status|session)$/],
   ["POST", /^\/api\/auth\/(access-session|logout|logout-all)$/],
   ["GET", /^\/api\/agent\/leads$/],
+  ["GET", /^\/api\/agent\/inquiries(?:\/[a-fA-F0-9-]{36})?$/],
+  ["POST", /^\/api\/agent\/inquiries\/[a-fA-F0-9-]{36}\/status$/],
   ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff)$/],
   ["POST", /^\/api\/agent\/administration\/(staff|support-grants)$/],
   ["POST", new RegExp(`^/api/agent/administration/staff/${id}/(?:status|revoke-sessions)$`)],
@@ -17,6 +19,9 @@ const routes = [
   ["GET", new RegExp(`^/api/agent/media(?:/${id}/preview)?/?$`)],
   ["POST", new RegExp(`^/api/agent/media/(?:upload|${id}/(?:replace|archive))$`)],
 ];
+
+export const isAllowedPortalApiRoute = (method, pathname) =>
+  routes.some(([allowedMethod, pattern]) => allowedMethod === method && pattern.test(pathname));
 
 export function readPortalUpstream(value, environment) {
   let url;
@@ -57,7 +62,7 @@ export function createPortalApp({ settings, upstream, distDirectory, verifier, l
     if (!req.url.startsWith("/api")) return next();
     // Reject encoded/ambiguous paths before URL normalization; no caller-controlled host.
     const pathname = req.url.split("?")[0];
-    if (!routes.some(([method, pattern]) => method === req.method && pattern.test(pathname))) return fail(req, res, 404);
+    if (!isAllowedPortalApiRoute(req.method, pathname)) return fail(req, res, 404);
     if (req.url.length > 4096 || /[\\#]/.test(req.url)) return fail(req, res, 400);
     if (req.method === "POST" && req.headers.origin !== settings.portalOrigin) return fail(req, res, 403);
     const upload = /\/media\/(?:upload|[a-fA-F0-9-]{36}\/replace)$/.test(pathname);
