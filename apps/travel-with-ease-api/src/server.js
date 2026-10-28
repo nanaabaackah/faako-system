@@ -58,7 +58,7 @@ const repository = pool
 if (pool) await repository.ready();
 const authSettings = readAccessConfig();
 const accessVerifier = authSettings ? createAccessVerifier(authSettings) : null;
-const portalDist = path.join(directory, "../travel-with-ease-portal/dist");
+// The build packages the Vite CMS inside this API workspace for Railway runtime.\nconst portalDist = path.join(directory, "dist", "cms");
 if (deployed) await access(path.join(portalDist, "index.html"));
 if (authSettings && !pool) throw new Error("Staff authentication requires PostgreSQL.");
 if (authSettings && !allowedOrigins.includes(authSettings.portalOrigin)) throw new Error("The staff portal origin must be explicitly allowed.");
