@@ -17,7 +17,7 @@ One existing Railway service now serves the TWE API and the authenticated CMS UI
 
 1. Keep the service connected to the reviewed TWE GitHub branch and monorepo root. Keep its existing PostgreSQL service and environment-specific variables.
 2. Set the Railway config file to `apps/travel-with-ease-api/railway.json`, if using its explicit Nixpacks/Railway config path. This file configures the existing pre-deploy database hook and `/readyz` health check.
-3. Build: `pnpm --filter @faako/travel-with-ease-api railway:build`; start: `pnpm --filter @faako/travel-with-ease-api start`. The build now includes the Vite CMS frontend, which must produce `apps/travel-with-ease-portal/dist/index.html`.
+3. Build: `pnpm --filter @faako/travel-with-ease-api railway:build`; start: `pnpm --filter @faako/travel-with-ease-api start`. Both `build` and `railway:build` now build Vite **directly inside the API workspace** at `apps/travel-with-ease-api/dist/cms/index.html`, including its `assets/` directory. The sibling portal build output is not needed for API builds or runtime, so concurrent workspace builds cannot overwrite the API's generated CMS assets. Build logs must show `TWE CMS assets packaged inside API workspace`.
 4. If using the **root** Nixpacks launcher instead of an explicit build command, set `RAILWAY_WORKSPACE=@faako/travel-with-ease-api`; it will select `railway:build`. Do not select the portal workspace.
 5. Keep `APP_ENV=staging`, `NODE_ENV=production`, runtime/migration PostgreSQL credentials and `TWE_ORGANISATION_ID` as already reviewed, plus `TWE_AUTH_MODE=cloudflare_access`, `TWE_ACCESS_TEAM_DOMAIN`, **staging** `TWE_ACCESS_AUDIENCE`, exact HTTPS `TWE_PORTAL_ORIGIN`, and `ALLOWED_ORIGINS` containing the portal origin. Leave `VITE_API_BASE_URL` **unset or empty**.
 6. **Do not** set `TWE_PORTAL_API_ORIGIN` on the combined API service; that setting was only for the now-unused standalone portal HTTP proxy. The Google OAuth client secret remains in Cloudflare, not the application.
@@ -56,3 +56,12 @@ Do not imply publication success until the separately approved publication worke
 ## Rollback
 
 Keep the current verified Railway release and DNS records documented. If staging login fails, roll the API application back to the prior reviewed SHA and restore the prior CMS hostname route after checking DB migration compatibility. No database deletion, migration checksum edits or weakening of Access guards.
+
+
+## Railway build artifact regression — 2026-10-28
+
+The hosted deployment was observed repeatedly crashing with `ENOENT .../apps/travel-with-ease-portal/dist/index.html` **after** the pre-deploy migrations passed. This means the CMS build output wasn't available to the running image even though the source code expected it.
+
+The API now owns the build output directly in `apps/travel-with-ease-api/dist/cms`; build scripts fail if the portal HTML/assets are absent, and GitHub CI asserts this exact output. **A successful GitHub build does not prove Railway ran the same build command or packaged the result.**
+
+Check **Railway → TWE API → Settings → Build**: root directory `/` (monorepo root), build command `pnpm --filter @faako/travel-with-ease-api build` (or `railway:build`, now equivalent), and explicit config file `/apps/travel-with-ease-api/railway.json` if supported. Remove an outdated dashboard build override if it supersedes the checked-in config. Verify build logs contain `TWE CMS assets packaged inside API workspace`, then deploy the resulting image and confirm `API listening`, `/healthz`, and `/readyz`. Do not rerun migrations to fix this missing frontend artifact; normal approved pre-deploy migration safety still applies.
