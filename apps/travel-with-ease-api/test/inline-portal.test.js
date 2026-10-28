@@ -13,9 +13,14 @@ test("embedded CMS is host-scoped, Access-protected, and uses same-process API r
   await writeFile(path.join(directory, "index.html"), "<!doctype html><title>Private TWE CMS</title>");
   await writeFile(path.join(directory, "main.js"), "window.cms = true;");
   const settings = { portalOrigin: "https://cms.example.test", secure: true };
+  const diagnostics = [];
   const { guard, serve } = createInlinePortal({
     settings,
+    logger: { warn: (fields) => diagnostics.push(fields) },
     verifier: { async verify(assertion) {
+      if (assertion === "wrong-audience-secret") throw Object.assign(new Error("SECRET token payload"), {
+        code: "ERR_JWT_CLAIM_VALIDATION_FAILED", claim: "aud", payload: { email: "private@example.invalid" },
+      });
       if (assertion !== "synthetic-valid") throw new Error("Invalid synthetic assertion");
     } },
     distDirectory: directory,
@@ -58,9 +63,20 @@ test("embedded CMS is host-scoped, Access-protected, and uses same-process API r
     assert.equal((await request("/api/auth/status")).status, 401);
     assert.equal((await request("/api/auth/status", { assertion: "invalid" })).status, 401);
     assert.equal((await request("/api/auth/status", { assertion: ["synthetic-valid", "synthetic-valid"] })).status, 401);
+    const mismatch = await request("/", { assertion: "wrong-audience-secret" });
+    assert.equal(mismatch.status, 401);
+    assert.equal(JSON.parse(mismatch.body).error.message, "Cloudflare Access authentication is required.");
+    assert.ok(diagnostics.some(entry => entry.reason === "assertion_missing"));
+    assert.ok(diagnostics.some(entry => entry.reason === "assertion_header_invalid"));
+    assert.deepEqual(diagnostics.at(-1), {
+      eventName: "portal.access.rejected", requestId: "synthetic-request", reason: "aud_invalid",
+    });
+    assert.doesNotMatch(JSON.stringify(diagnostics), /SECRET|private@example|wrong-audience-secret/);
+    const diagnosticCount = diagnostics.length;
 
     const status = await request("/api/auth/status", { assertion: "synthetic-valid" });
     assert.equal(status.status, 200);
+    assert.equal(diagnostics.length, diagnosticCount);
     assert.equal(status.headers.location, undefined);
     assert.equal(JSON.parse(status.body).data.mode, "cloudflare_access");
     assert.equal(status.headers["cache-control"], "private, no-store");

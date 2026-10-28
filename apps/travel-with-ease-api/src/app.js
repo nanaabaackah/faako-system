@@ -58,7 +58,7 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
     next();
   });
   app.use(createSecurityHeaders({ allowedOrigins }));
-  const inlinePortal = portal ? createInlinePortal(portal) : null;
+  const inlinePortal = portal ? createInlinePortal({ ...portal, logger }) : null;
   if (inlinePortal) app.use(inlinePortal.guard);
   app.options("*splat", (_req, res) => res.sendStatus(204));
   app.use(express.json({ limit: "32kb" }));
