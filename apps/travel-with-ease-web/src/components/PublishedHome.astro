@@ -1,0 +1,18 @@
+---
+import ContentLink from "./ContentLink.astro";
+import TravelFootprint from "./TravelFootprint.astro";
+import ClosingCta from "./ClosingCta.astro";
+import { publishedPage } from "../lib/published.js";
+const { content } = Astro.props;
+---
+<section class="editorial-wrap editorial-hero">
+  <div><h1>{content.heading}</h1><p>{content.body}</p>{content.ctaLabel && <ContentLink button href={content.ctaPath}>{content.ctaLabel}</ContentLink>}
+  {content.entries.map((entry: {heading:string;text:string;attribution:string}) => <div><h2>{entry.heading}</h2><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</div>)}</div>
+  {content.image && <img src={content.image.src} alt={content.image.alt} width={content.image.width} height={content.image.height} fetchpriority="high" />}
+</section>
+{publishedPage("destinations") && <section class="editorial-wrap editorial-rule"><div class="editorial-heading"><h2>Explore journeys</h2><ContentLink href="/destinations">View packages</ContentLink></div><p>No published package collection is connected to this page yet.</p></section>}
+<section class="editorial-wrap editorial-rule"><TravelFootprint /></section>
+{publishedPage("contact") && <section class="editorial-wrap editorial-split editorial-rule"><div><h2>From an idea to an enquiry.</h2><p>Choose a package enquiry or share your own trip preferences.</p></div><ol class="editorial-process"><li><strong>Explore</strong>Review destination information.</li><li><strong>Share your plans</strong>Choose the enquiry journey that fits.</li><li><strong>Confirm the details</strong>An enquiry is not a confirmed booking.</li></ol></section>}
+{publishedPage("journal") && <section class="editorial-wrap editorial-rule" data-twe-reveal><div class="editorial-heading"><h2>Travel Journal</h2><ContentLink href="/journal">Explore the journal</ContentLink></div><p>Read available destination stories and travel information.</p></section>}
+{publishedPage("faqs") && <section class="editorial-wrap editorial-rule"><h2>Before your journey</h2><ContentLink href="/faqs">Frequently asked questions</ContentLink><p>Traveller testimonials will appear here only after approval.</p></section>}
+{publishedPage("contact") && <ClosingCta />}

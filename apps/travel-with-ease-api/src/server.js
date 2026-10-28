@@ -72,7 +72,7 @@ const mediaSettings = readR2Config();
 if (mediaSettings && !pool) throw new Error("Media storage requires PostgreSQL.");
 const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger) : null;
 const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger });
-const server = app.listen(port, () => logger.info({ port, environment }, "API listening"));
+const server = app.listen(port, ["staging", "production"].includes(environment) ? undefined : "127.0.0.1", () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;
 for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => {

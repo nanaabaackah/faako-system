@@ -1,0 +1,21 @@
+---
+import { IconsaxIcon } from "@faako/ui";
+interface Props { title: string; }
+const { title } = Astro.props;
+---
+<details class="twe-accordion">
+  <summary><span>{title}</span><IconsaxIcon name="Add" className="accordion-indicator" aria-hidden="true" focusable="false" /></summary>
+  <div class="accordion-answer"><slot /></div>
+</details>
+<style>
+  .twe-accordion { border-bottom: 1px solid #b6b1a9; color: #010c33; }
+  summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 56px; padding: 16px 0; cursor: pointer; font-weight: 600; line-height: 1.5; }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { color: #614716; }
+  summary:focus-visible { outline: 3px solid #010c33; outline-offset: 4px; border-radius: 3px; }
+  summary :global(.accordion-indicator) { width: 24px; height: 24px; flex: 0 0 24px; color: #614716; transition: transform 200ms ease; }
+  details[open] summary :global(.accordion-indicator) { transform: rotate(45deg); }
+  .accordion-answer { padding: 0 44px 20px 0; line-height: 1.75; overflow-wrap: anywhere; }
+  .accordion-answer :global(p) { margin: 0 0 12px; }
+  @media (prefers-reduced-motion: reduce) { summary :global(.accordion-indicator) { transition: none; } }
+</style>

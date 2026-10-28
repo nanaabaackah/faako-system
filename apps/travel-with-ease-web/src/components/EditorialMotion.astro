@@ -1,0 +1,22 @@
+<script>
+  // Native adaptation of Fade Content / staggered Animated Content.
+  // Astro content is visible before hydration and when scripting is unavailable.
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)");
+  const animations = new Set<Animation>();
+  if ("IntersectionObserver" in window && !reduce.matches) {
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) if (entry.isIntersecting) {
+        observer.unobserve(entry.target);
+        if (reduce.matches) continue;
+        const target = entry.target as HTMLElement;
+        const animation = target.animate([{opacity:.35,transform:"translateY(12px)"},{opacity:1,transform:"none"}],
+          {duration:420,delay:Math.min(160,Number(target.dataset.stagger || 0)*80),easing:"ease-out"});
+        animations.add(animation);
+        animation.finished.catch(() => {}).finally(() => animations.delete(animation));
+      }
+    }, {threshold:.15});
+    document.querySelectorAll("[data-twe-reveal]").forEach(target => observer.observe(target));
+    reduce.addEventListener("change", () => { if (reduce.matches) { observer.disconnect(); animations.forEach(animation => animation.cancel()); } });
+    window.addEventListener("pagehide", () => { observer.disconnect(); animations.forEach(animation => animation.cancel()); }, {once:true});
+  }
+</script>
