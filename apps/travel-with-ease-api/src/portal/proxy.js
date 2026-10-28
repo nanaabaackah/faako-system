@@ -8,6 +8,8 @@ const routes = [
   ["GET", /^\/api\/auth\/(status|session)$/],
   ["POST", /^\/api\/auth\/(access-session|logout|logout-all)$/],
   ["GET", /^\/api\/agent\/leads$/],
+  ["GET", /^\/api\/agent\/inquiries(?:\/[a-fA-F0-9-]{36})?$/],
+  ["POST", /^\/api\/agent\/inquiries\/[a-fA-F0-9-]{36}\/status$/],
   ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff)$/],
   ["POST", /^\/api\/agent\/administration\/(staff|support-grants)$/],
   ["POST", new RegExp(`^/api/agent/administration/staff/${id}/(?:status|revoke-sessions)$`)],
