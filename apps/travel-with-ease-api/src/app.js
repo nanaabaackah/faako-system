@@ -3,6 +3,7 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createErrorResponse, resolveRequestId, createSuccessResponse } from "@faako/api-contracts";
 import { createLogger } from "@faako/logger";
 import { assertApiStartup } from "./staging-startup.js";
+import { createInlinePortal } from "./portal/inline.js";
 import { contentRoutes } from "./content/routes.js";
 import { mediaRoutes } from "./media/routes.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
@@ -41,7 +42,7 @@ export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Da
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, contentRepository, publicationRepository, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, environment = "test", logger = createLogger("travel-with-ease-api") }) => {
+export const createApp = ({ repository, estimatorService, contentRepository, publicationRepository, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", logger = createLogger("travel-with-ease-api") }) => {
   assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt });
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
   if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
@@ -56,6 +57,8 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
     next();
   });
   app.use(createSecurityHeaders({ allowedOrigins }));
+  const inlinePortal = portal ? createInlinePortal(portal) : null;
+  if (inlinePortal) app.use(inlinePortal.guard);
   app.options("*splat", (_req, res) => res.sendStatus(204));
   app.use(express.json({ limit: "32kb" }));
   if (staffAuth) {
@@ -122,6 +125,7 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
     return res.json(createSuccessResponse({ items: await repository.listLeads() }, { requestId: req.requestId }));
   });
 
+  if (inlinePortal) app.use(inlinePortal.serve);
   app.use((req, res) => res.status(404).json(createErrorResponse({ code: "not_found", message: "Route not found." }, { requestId: req.requestId })));
   app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
