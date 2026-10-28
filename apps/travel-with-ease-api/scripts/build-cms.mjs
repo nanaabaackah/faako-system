@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdtemp, readFile, rename, rm, stat } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
