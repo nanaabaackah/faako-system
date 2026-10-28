@@ -1,5 +1,8 @@
 ---
+import Accordion from "./Accordion.astro";
+import ContentLink from "./ContentLink.astro";
 interface Props {
+  accordion?: boolean;
   content: {
     heading: string; body: string; ctaLabel: string; ctaPath: string;
     contactEmail: string; contactPhone: string;
@@ -7,17 +10,17 @@ interface Props {
     image: { src: string; alt: string; width: number; height: number } | null;
   } | null;
 }
-const { content } = Astro.props;
+const { content, accordion = false } = Astro.props;
 ---
 <section class="published-content">
   {content ? <>
     <h1>{content.heading}</h1>
     {content.image && <img src={content.image.src} alt={content.image.alt} width={content.image.width} height={content.image.height} />}
     <p class="body-copy">{content.body}</p>
-    {content.entries.map((entry) => <section><h2>{entry.heading}</h2><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</section>)}
+    {content.entries.map((entry) => accordion ? <Accordion title={entry.heading}><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</Accordion> : <section><h2>{entry.heading}</h2><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</section>)}
     {content.contactEmail && <p>{content.contactEmail}</p>}
     {content.contactPhone && <p>{content.contactPhone}</p>}
-    {content.ctaLabel && <a class="button" href={content.ctaPath}>{content.ctaLabel}</a>}
+    {content.ctaLabel && <ContentLink button href={content.ctaPath}>{content.ctaLabel}</ContentLink>}
   </> : <><h1>Content unavailable</h1><p>This page is not currently published.</p></>}
 </section>
 <style>

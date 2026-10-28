@@ -1,5 +1,6 @@
+import Button from "./ActionButton.jsx";
 import { useEffect, useRef, useState } from "react";
-import { Button, InlineNotice } from "@faako/ui";
+import { SelectField, TextField, TextareaField, InlineNotice } from "@faako/ui";
 import MediaLibrary from "./MediaLibrary.jsx";
 
 const pages = ["home", "about", "services", "faqs", "testimonials", "contact"];
@@ -83,42 +84,44 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
     } catch (error) { setState({ loading: false, error: error.message, message: "" }); }
   }
 
-  return <section className="content-editor" aria-labelledby="content-heading">
-    <h2 id="content-heading" tabIndex={-1} ref={heading}>Website content</h2>
-    <label>Section<select value={page} disabled={state.loading} onChange={(event) => {
+  return <section className="content-editor website-workspace" aria-labelledby="content-heading">
+    <h2 id="content-heading" tabIndex={-1} ref={heading}>Website content</h2><p className="workspace-caption">Prepare approved content, review saved drafts and track publication separately.</p>
+    <SelectField label="Section" value={page} disabled={state.loading} onChange={(event) => {
       if (!dirty || window.confirm("Discard unsaved changes?")) setPage(event.target.value);
-    }}>{pages.map((name) => <option key={name}>{name}</option>)}</select></label>
+    }}>{pages.map((name) => <option key={name} value={name}>{name}</option>)}</SelectField>
     {state.error && <InlineNotice tone="danger" title="Content unavailable" message={state.error} />}
     <p role="status">{state.loading ? "Working…" : state.message || (dirty ? "Unsaved changes" : `Draft version ${version}`)}</p>
     <form onSubmit={save}>
       <fieldset disabled={state.loading}>
         <legend>Selected website fields</legend>
-        <label>Heading<input value={body.heading} maxLength={120} required onChange={(e) => change("heading", e.target.value)} /></label>
-        <label>Body text<textarea value={body.body} maxLength={6000} rows={6} onChange={(e) => change("body", e.target.value)} /></label>
-        {page === "home" && <><label>CTA text<input value={body.ctaLabel} maxLength={60} onChange={(e) => change("ctaLabel", e.target.value)} /></label><label>CTA destination<select value={body.ctaPath} onChange={(e) => change("ctaPath", e.target.value)}><option value="/#plan">Plan a trip</option><option value="/about">About</option><option value="/services">Services</option><option value="/destinations">Destinations</option></select></label></>}
-        {page === "contact" && <><label>Official email<input type="email" value={body.contactEmail} onChange={(e) => change("contactEmail", e.target.value)} /></label><label>Official phone<input type="tel" value={body.contactPhone} maxLength={40} onChange={(e) => change("contactPhone", e.target.value)} /></label></>}
+        <TextField label="Heading" value={body.heading} maxLength={120} required onChange={(e) => change("heading", e.target.value)} />
+        <TextareaField label="Body text" value={body.body} maxLength={6000} rows={6} onChange={(e) => change("body", e.target.value)} />
+        {page === "home" && <><TextField label="CTA text" value={body.ctaLabel} maxLength={60} onChange={(e) => change("ctaLabel", e.target.value)} /><SelectField label="CTA destination" value={body.ctaPath} onChange={(e) => change("ctaPath", e.target.value)}><option value="/#plan">Plan a trip</option><option value="/about">About</option><option value="/services">Services</option><option value="/destinations">Destinations</option></SelectField></>}
+        {page === "contact" && <><TextField label="Official email" type="email" value={body.contactEmail} onChange={(e) => change("contactEmail", e.target.value)} /><TextField label="Official phone" type="tel" value={body.contactPhone} maxLength={40} onChange={(e) => change("contactPhone", e.target.value)} /></>}
         {body.entries.map((entry, index) => <fieldset key={index}><legend>Entry {index + 1}</legend>
-          {[["heading", "Title / question", 160], ["text", "Text / answer", 2000], ["attribution", "Attribution (where applicable)", 160]].map(([key, label, max]) => <label key={key}>{label}<textarea value={entry[key]} maxLength={max} required={key !== "attribution"} onChange={(event) => change("entries", body.entries.map((value, i) => i === index ? { ...value, [key]: event.target.value } : value))} /></label>)}
+          {[["heading", "Title / question", 160], ["text", "Text / answer", 2000], ["attribution", "Attribution (where applicable)", 160]].map(([key, label, max]) => <TextareaField key={key} label={label} value={entry[key]} maxLength={max} required={key !== "attribution"} onChange={(event) => change("entries", body.entries.map((value, i) => i === index ? { ...value, [key]: event.target.value } : value))} />)}
           <Button type="button" onClick={() => change("entries", body.entries.filter((_, i) => i !== index))}>Remove entry {index + 1}</Button>
         </fieldset>)}
         <Button type="button" disabled={body.entries.length >= 30} onClick={() => change("entries", [...body.entries, { heading: "", text: "", attribution: "" }])}>Add entry</Button>
         <p>Use approved facts, client permissions and licensed imagery only. Do not add unverified testimonials.</p>
-        <label>SEO title<input value={body.seoTitle} maxLength={70} required onChange={(e) => change("seoTitle", e.target.value)} /></label>
-        <label>SEO description<textarea value={body.seoDescription} maxLength={180} required onChange={(e) => change("seoDescription", e.target.value)} /></label>
-        <div className="editor-actions"><Button type="submit">Save draft</Button><Button type="button" disabled={!version || dirty} onClick={showPreview}>Preview saved content</Button></div>
+        <TextField label="SEO title" value={body.seoTitle} maxLength={70} required onChange={(e) => change("seoTitle", e.target.value)} />
+        <TextareaField label="SEO description" value={body.seoDescription} maxLength={180} required onChange={(e) => change("seoDescription", e.target.value)} />
+        <div className="editor-actions"><Button icon="save" variant="primary" type="submit">Save draft</Button><Button type="button" disabled={!version || dirty} onClick={showPreview}>Preview saved content</Button></div>
       </fieldset>
     </form>
     <p>{body.imageId ? `Selected image: ${body.imageId}` : "No image selected."} Image selection is saved with the draft.</p>
     <Button type="button" disabled={state.loading} onClick={() => setChooseImage((current) => !current)}>{chooseImage ? "Close image library" : "Choose image"}</Button>
     {body.imageId && <Button type="button" disabled={state.loading} onClick={() => change("imageId", null)}>Remove image from draft</Button>}
     {chooseImage && <MediaLibrary api={api} session={session} onSelect={(item) => { change("imageId", item.id); setChooseImage(false); heading.current?.focus(); }} />}
-    <h3>Publication</h3>
+    <section className="workspace-panel"><h3>Publication</h3>
     <p>Builds use saved revisions and require Baaba's reviewed deployment workflow. A pending or building request is not live.</p>
     {!canPublish && <p>Only an Owner can request publication, unpublishing or retries.</p>}
     <div className="editor-actions"><Button type="button" disabled={!canPublish || state.loading || dirty || !version} onClick={() => publication("publish")}>Request publication</Button><Button type="button" disabled={!canPublish || state.loading || dirty || !version} onClick={() => publication("unpublish")}>Request unpublish</Button><Button type="button" disabled={state.loading} onClick={() => publication("refresh")}>Refresh publication status</Button></div>
     <ul>{jobs.map((job, index) => <li key={job.id}>{job.status} — {new Date(job.created_at).toLocaleString("en-GH", { timeZone: "Africa/Accra" })}{job.status === "failed" && index === 0 && <Button type="button" disabled={!canPublish || state.loading} onClick={() => publication("retry", job.id)}>Retry failed publication</Button>}</li>)}</ul>
+    </section>
     {preview && <section aria-label="Saved content preview"><h3>{preview.heading}</h3><p className="preserve-lines">{preview.body}</p>{preview.entries.map((entry, index) => <div key={index}><h4>{entry.heading}</h4><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</div>)}<p>This content preview does not reproduce the final page layout.</p></section>}
-    <h3>Revision history</h3>
+    <section className="workspace-panel"><h3>Revision history</h3>
     {history.length ? <ol>{history.map((revision) => <li key={revision.id}>Version {revision.version} — {new Date(revision.created_at).toLocaleString("en-GH", { timeZone: "Africa/Accra" })} <Button type="button" disabled={state.loading} onClick={() => revert(revision.id)}>Restore version {revision.version}</Button></li>)}</ol> : <p>No saved revisions.</p>}
+    </section>
   </section>;
 }
