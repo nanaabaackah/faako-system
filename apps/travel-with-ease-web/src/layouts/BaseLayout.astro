@@ -41,6 +41,7 @@ const breadcrumbJson = breadcrumbs.length ? serializeJsonLd({
 }) : null;
 const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
 const review = !publicationSnapshotPath();
+const stagingReview = import.meta.env.PUBLIC_APP_ENV === "staging";
 const visible = (href: string) => demo || review || Boolean(publishedPage(href.slice(1)));
 const navigation = demo ? [["#demo-packages", "Destinations"], ["#demo-process", "How it works"], ["#demo-journal", "Journal"], ["#demo-footprint", "Travel footprint"]] : [["/destinations", "Destinations"], ["/services", "Services"], ["/about", "About"], ["/journal", "Journal"], ["/travel-footprint", "Travel footprint"]];
 ---
@@ -88,7 +89,7 @@ const navigation = demo ? [["#demo-packages", "Destinations"], ["#demo-process",
         {visible("/contact") && <ContentLink button class="nav-cta" href={demo ? "#demo-plan" : "/contact"}>Plan a trip</ContentLink>}
       </nav>
     </header>
-    {demo ? <p class="review-banner">Local demo · sample content · nothing is booked or sent. <a href="http://127.0.0.1:5188/?demo=1">Staff dashboard</a> · <a href="/">Exit demo</a></p> : review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
+    {demo ? <p class="review-banner">Local demo · sample content · nothing is booked or sent. <a href="http://127.0.0.1:5188/?demo=1">Staff dashboard</a> · <a href="/">Exit demo</a></p> : stagingReview ? <p class="review-banner">Staging design preview · placeholder sections are not live packages, bookings or enquiries.</p> : review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
     <main id="main-content"><slot /></main>
     <PublicFooter demo={demo} />
     <EditorialMotion />
