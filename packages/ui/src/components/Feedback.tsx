@@ -4,7 +4,6 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type PropsWithChildren,
   type ReactNode,
@@ -12,7 +11,6 @@ import {
 import { createPortal } from "react-dom";
 import type { FeedbackItem, FeedbackTone, SecurityStateId } from "@faako/types";
 import { Button } from "./Primitives";
-import { IconsaxIcon } from "./IconsaxIcon";
 
 const joinClasses = (...values: Array<string | false | null | undefined>) =>
   values.filter(Boolean).join(" ");
@@ -669,45 +667,18 @@ type ToastRecord = Required<Pick<FeedbackItem, "id" | "tone" | "title" | "messag
 const ToastContext = createContext<{
   pushToast: (item: FeedbackItem) => string;
   dismissToast: (id: string) => void;
-  updateToast: (id: string, item: Partial<FeedbackItem>) => void;
 }>({
   pushToast: () => "",
   dismissToast: () => {},
-  updateToast: () => {},
 });
-
-function TweToast({ toast, onDismiss, defaultDurationMs }: { toast: ToastRecord; onDismiss: (id: string) => void; defaultDurationMs: number }) {
-  const [hovered, setHovered] = useState(false);
-  const [focused, setFocused] = useState(false);
-  const remaining = useRef(toast.durationMs ?? defaultDurationMs);
-  useEffect(() => { remaining.current = toast.durationMs ?? defaultDurationMs; }, [toast, defaultDurationMs]);
-  useEffect(() => {
-    if (hovered || focused || toast.tone === "loading" || toast.tone === "error") return;
-    const started = Date.now();
-    const timer = window.setTimeout(() => onDismiss(toast.id), remaining.current);
-    return () => { window.clearTimeout(timer); remaining.current = Math.max(0, remaining.current - (Date.now() - started)); };
-  }, [toast, onDismiss, hovered, focused]);
-  const icon = toast.tone === "success" ? "TickCircle" : toast.tone === "loading" ? "Timer" : toast.tone === "error" || toast.tone === "warning" ? "Danger" : "InfoCircle";
-  return <div className={`ui-toast ui-toast--${toast.tone}`} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-    onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
-    <div className="ui-toast__capsule"><IconsaxIcon name={icon} /><strong>{toast.title || NOTICE_META[toast.tone].title}</strong>
-      <button type="button" className="ui-toast__dismiss" onClick={() => onDismiss(toast.id)} aria-label="Dismiss notification"><IconsaxIcon name="CloseCircle" /></button></div>
-    <div className="ui-toast__copy" role={toast.tone === "error" ? "alert" : "status"} aria-atomic="true"><span className="sr-only">{toast.title || NOTICE_META[toast.tone].title}. </span>{toast.message && <p>{toast.message}</p>}</div>
-  </div>;
-}
 
 export function ToastViewport({
   toasts,
   onDismiss,
-  presentation = "default",
-  defaultDurationMs = 4200,
 }: {
-  presentation?: "default" | "twe";
-  defaultDurationMs?: number;
   toasts: ToastRecord[];
   onDismiss: (id: string) => void;
 }) {
-  if (presentation === "twe") return <div className="ui-toast-viewport ui-toast-viewport--twe">{toasts.map(toast => <TweToast key={toast.id} toast={toast} onDismiss={onDismiss} defaultDurationMs={defaultDurationMs} />)}</div>;
   return (
     <div className="ui-toast-viewport" aria-live="polite" aria-atomic="false">
       {toasts.map((toast) => (
@@ -731,11 +702,8 @@ export function ToastViewport({
 export function ToastProvider({
   children,
   defaultDurationMs = 4200,
-  presentation = "default",
-}: PropsWithChildren<{ defaultDurationMs?: number; presentation?: "default" | "twe" }>) {
+}: PropsWithChildren<{ defaultDurationMs?: number }>) {
   const [toasts, setToasts] = useState<ToastRecord[]>([]);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
 
   const dismissToast = useCallback((id: string) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
@@ -751,17 +719,13 @@ export function ToastProvider({
         message: String(item.message || ""),
         durationMs: item.durationMs,
       };
-      setToasts((current) => presentation === "twe" ? [...current.filter(toast => toast.id !== id), nextToast] : [...current, nextToast]);
+      setToasts((current) => [...current, nextToast]);
       return id;
     },
-    [presentation],
+    [],
   );
-  const updateToast = useCallback((id: string, item: Partial<FeedbackItem>) => {
-    setToasts(current => current.map(toast => toast.id === id ? { ...toast, ...item, id } : toast));
-  }, []);
 
   useEffect(() => {
-    if (presentation === "twe") return undefined;
     if (!toasts.length) return undefined;
 
     const timers = toasts
@@ -776,22 +740,21 @@ export function ToastProvider({
     return () => {
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [defaultDurationMs, dismissToast, toasts, presentation]);
+  }, [defaultDurationMs, dismissToast, toasts]);
 
   const contextValue = useMemo(
     () => ({
       pushToast,
       dismissToast,
-      updateToast,
     }),
-    [dismissToast, pushToast, updateToast],
+    [dismissToast, pushToast],
   );
 
   return (
     <ToastContext.Provider value={contextValue}>
       {children}
-      {mounted
-        ? createPortal(<ToastViewport toasts={toasts} onDismiss={dismissToast} presentation={presentation} defaultDurationMs={defaultDurationMs} />, document.body)
+      {typeof document !== "undefined"
+        ? createPortal(<ToastViewport toasts={toasts} onDismiss={dismissToast} />, document.body)
         : null}
     </ToastContext.Provider>
   );

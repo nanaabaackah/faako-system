@@ -1,8 +1,7 @@
 ---
-import ContentLink from "../components/ContentLink.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PublishedContent from "../components/PublishedContent.astro";
 import { publishedPage } from "../lib/published.js";
 const content = publishedPage("destinations");
 ---
-<BaseLayout title={content?.seoTitle || "Destinations and packages | Travel With Ease"} description={content?.seoDescription || "No packages are currently published."} noIndex={!content}>{content === undefined ? <section class="editorial-wrap"><h1>Destinations and packages</h1><div class="review-empty"><p>No approved packages are available yet.</p><p>Destination photography, dates, inclusions and prices will appear after review. No illustrative destinations are offered for booking.</p></div><ContentLink href="/contact">Personalised trip enquiries</ContentLink></section> : <PublishedContent content={content} />}</BaseLayout>
+<BaseLayout title={content?.seoTitle || "Destinations and packages | Travel With Ease"} description={content?.seoDescription || "No packages are currently published."} noIndex={!content}>{content === undefined ? <section class="editorial-wrap"><h1>Destinations and packages</h1><div class="review-empty"><p>No approved packages are available yet.</p><p>Destination photography, dates, inclusions and prices will appear after review. No illustrative destinations are offered for booking.</p></div><a href="/contact">Personalised trip enquiries</a></section> : <PublishedContent content={content} />}</BaseLayout>

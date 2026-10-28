@@ -1,6 +1,5 @@
-import Button from "./ActionButton.jsx";
 import { useEffect, useState } from "react";
-import { InlineNotice } from "@faako/ui";
+import { Button, InlineNotice } from "@faako/ui";
 import StaffAccess from "./StaffAccess.jsx";
 
 export default function SystemAdministration({ api, session }) {
@@ -16,16 +15,16 @@ export default function SystemAdministration({ api, session }) {
     return()=>{current=false;};
   },[api,allowed]);
   if (!allowed) return <p role="alert">System Administration requires platform permission.</p>;
-  return <section className="system-workspace" aria-labelledby="system-heading"><h2 id="system-heading">System Administration</h2>
+  return <section aria-labelledby="system-heading"><h2 id="system-heading">System Administration</h2>
     <StaffAccess api={api} session={session}/>
     <p>Technical access only. Client records require a separate, Owner-approved support grant lasting at most 30 minutes.</p>
     {error && <InlineNotice tone="danger" title="Request unsuccessful" message={error}/>}
     {!data && !error && <p role="status">Loading system diagnostics…</p>}
-    {data && <><div className="workspace-panel"><h3>Environment health</h3><dl className="system-health"><dt>Environment</dt><dd>{data.diagnostics.environment}</dd><dt>Database</dt><dd>{data.diagnostics.database}</dd><dt>Authentication</dt><dd>{data.diagnostics.authentication}</dd><dt>Hosted security acceptance</dt><dd>{data.diagnostics.hostedAcceptance}</dd></dl></div>
-      <div className="system-job-grid"><section className="workspace-panel"><h3>Publication jobs</h3><ul>{data.diagnostics.publication.map(item=><li key={item.status}>{item.status}: {item.count}</li>)}</ul>
-      </section><section className="workspace-panel"><h3>Notification jobs</h3><ul>{data.diagnostics.notifications.map(item=><li key={item.status}>{item.status}: {item.count}</li>)}</ul>
-      </section></div><section className="workspace-panel"><h3>Recent security events</h3><ul>{data.events.items.map(event=><li key={event.id}>{event.action} — {new Date(event.created_at).toLocaleString()}</li>)}</ul>
-      </section><Button type="button" onClick={()=>{setData(null);setError("Use Check connection again to verify the current session before reopening this section.");}}>Clear displayed information</Button>
+    {data && <><dl><dt>Environment</dt><dd>{data.diagnostics.environment}</dd><dt>Database</dt><dd>{data.diagnostics.database}</dd><dt>Authentication</dt><dd>{data.diagnostics.authentication}</dd><dt>Hosted security acceptance</dt><dd>{data.diagnostics.hostedAcceptance}</dd></dl>
+      <h3>Publication jobs</h3><ul>{data.diagnostics.publication.map(item=><li key={item.status}>{item.status}: {item.count}</li>)}</ul>
+      <h3>Notification jobs</h3><ul>{data.diagnostics.notifications.map(item=><li key={item.status}>{item.status}: {item.count}</li>)}</ul>
+      <h3>Recent security events</h3><ul>{data.events.items.map(event=><li key={event.id}>{event.action} — {new Date(event.created_at).toLocaleString()}</li>)}</ul>
+      <Button type="button" onClick={()=>{setData(null);setError("Use Check connection again to verify the current session before reopening this section.");}}>Clear displayed information</Button>
     </>}
   </section>;
 }

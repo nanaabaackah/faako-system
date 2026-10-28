@@ -1,22 +1,16 @@
 ---
-import ContentLink from "../components/ContentLink.astro";
-import TravelFootprint from "../components/TravelFootprint.astro";
-import ClosingCta from "../components/ClosingCta.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import PublishedHome from "../components/PublishedHome.astro";
 import PublishedContent from "../components/PublishedContent.astro";
 import ApprovedPreviewPhoto from "../components/ApprovedPreviewPhoto.astro";
 import { publishedPage } from "../lib/published.js";
 const published = publishedPage("home");
 ---
-{published !== undefined ? <BaseLayout title={published?.seoTitle || "Content unavailable | Travel With Ease"} description={published?.seoDescription || "This page is not currently published."} noIndex={!published}>{published ? <PublishedHome content={published} /> : <PublishedContent content={published} />}</BaseLayout> :
+{published !== undefined ? <BaseLayout title={published?.seoTitle || "Content unavailable | Travel With Ease"} description={published?.seoDescription || "This page is not currently published."} noIndex={!published}><PublishedContent content={published} /></BaseLayout> :
 <BaseLayout title="Travel With Ease | Design preview" description="Local review of Travel With Ease. Business content awaits approval." noIndex>
-  <section class="editorial-wrap editorial-hero"><div><h1>A little further.<br />A little more you.</h1><p>Travel With Ease — journeys from Ghana, shaped around your plans.</p><small>Proposed headline and introduction for review.</small><div class="editorial-actions"><ContentLink button href="/contact">Plan a trip</ContentLink><ContentLink href="/destinations">Explore packages</ContentLink></div></div><ApprovedPreviewPhoto country="Kenya" eager /></section>
-  <section class="editorial-wrap editorial-rule"><div class="editorial-heading"><h2>Your next journey</h2><ContentLink href="/destinations">View packages</ContentLink></div><div class="review-empty"><p>Package collection awaiting approval.</p><p>Destinations, dates, inclusions and price disclosures will appear here. No offers are available to book.</p></div></section>
-  <section class="editorial-wrap editorial-rule"><TravelFootprint /></section>
+  <section class="editorial-wrap editorial-hero"><div><h1>A little further.<br />A little more you.</h1><p>Travel With Ease — journeys from Ghana, shaped around your plans.</p><small>Proposed headline and introduction for review.</small><div class="editorial-actions"><a class="button" href="/contact">Plan a trip</a><a href="/destinations">Explore packages</a></div></div><ApprovedPreviewPhoto country="Kenya" eager /></section>
+  <section class="editorial-wrap editorial-rule"><div class="editorial-heading"><h2>Your next journey</h2><a href="/destinations">View packages</a></div><div class="review-empty"><p>Package collection awaiting approval.</p><p>Destinations, dates, inclusions and price disclosures will appear here. No offers are available to book.</p></div></section>
+  <section class="editorial-wrap editorial-split editorial-rule"><ApprovedPreviewPhoto country="Zanzibar" /><div><h2>Make room for the journey.</h2><p>Space for the approved Travel With Ease story: who we are, how we work and what travellers can expect.</p><a href="/about">Meet Travel With Ease</a></div></section>
   <section class="editorial-wrap editorial-split editorial-rule"><div><h2>From an idea<br />to a plan.</h2><p>Proposed enquiry process for review. No booking or payment is taken on this preview.</p></div><ol class="editorial-process"><li><strong>Tell us what you have in mind</strong>Choose a package or share a personalised trip enquiry.</li><li><strong>Talk through the details</strong>Dates, preferences and practical questions.</li><li><strong>Review your options</strong>Confirm details directly with the agency.</li></ol></section>
-  <section class="editorial-wrap editorial-rule"><div class="editorial-heading"><h2>Travel Journal</h2><ContentLink href="/journal">Read the journal</ContentLink></div><p>Original travel stories and licensed photography will appear here once approved.</p></section>
-  <section class="editorial-wrap editorial-rule"><h2>Questions before you travel?</h2><p>FAQs and client testimonials will appear after content approval.</p><ContentLink href="/faqs">Read FAQs</ContentLink></section>
-  <ClosingCta />
-  <section id="plan" class="editorial-wrap editorial-rule"><h2>Where would you like to go?</h2><p>Enquiry forms are being connected. No personal information is collected by this preview.</p><ContentLink button href="/contact">Explore enquiry options</ContentLink></section>
+  <section class="editorial-wrap editorial-rule"><div class="editorial-heading"><h2>Travel Journal</h2><a href="/journal">Read the journal</a></div><p>Original travel stories and licensed photography will appear here once approved.</p></section>
+  <section id="plan" class="editorial-wrap editorial-rule"><h2>Where would you like to go?</h2><p>Enquiry forms are being connected. No personal information is collected by this preview.</p><a class="button" href="/contact">Explore enquiry options</a></section>
 </BaseLayout>}
