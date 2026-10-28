@@ -1,8 +1,9 @@
 ---
+import ContentLink from "../components/ContentLink.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PublishedContent from "../components/PublishedContent.astro";
 import { publishedPage } from "../lib/published.js";
 const published = publishedPage("about");
 ---
 {published !== undefined ? <BaseLayout title={published?.seoTitle || "Content unavailable | Travel With Ease"} description={published?.seoDescription || "This page is not currently published."} noIndex={!published}><PublishedContent content={published} /></BaseLayout> : <>
-<BaseLayout title="About | Travel With Ease" description="Agency story awaiting approval." noIndex><section class="editorial-wrap"><h1>About Travel With Ease</h1><div class="review-empty"><p>Placeholder for the approved agency story, approach and team introduction.</p><p>No founding dates, credentials or business achievements have been supplied.</p></div><a href="/contact">Plan a trip</a></section></BaseLayout></>}
+<BaseLayout title="About | Travel With Ease" description="Agency story awaiting approval." noIndex><section class="editorial-wrap"><h1>About Travel With Ease</h1><div class="review-empty"><p>Placeholder for the approved agency story, approach and team introduction.</p><p>No founding dates, credentials or business achievements have been supplied.</p></div><ContentLink href="/contact">Plan a trip</ContentLink></section></BaseLayout></>}

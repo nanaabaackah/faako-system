@@ -1,23 +1,23 @@
 ---
 import "../styles/global.css";
 import "../styles/editorial.css";
-import SharedFaakoFooter from "../components/SharedFaakoFooter.jsx";
+import PublicFooter from "../components/PublicFooter.astro";
+import ContentLink from "../components/ContentLink.astro";
+import EditorialMotion from "../components/EditorialMotion.astro";
 import {
   canonicalUrl,
   serializeJsonLd,
 } from "@faako/discovery";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import CookieNotice from "../components/CookieNotice.astro";
-import { ArrowRight4 } from "@faako/ui";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { sharingMetadata } from "../lib/sharing.js";
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
 
 const { title, description, path = Astro.url.pathname, type = "website", noIndex = false } = Astro.props;
+const demo = import.meta.env.DEV && Astro.props.demo === true;
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
-const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
+const pageContent = demo ? undefined : publishedPage(path.replace(/^\/|\/$/g, "") || "home");
 const sharing = sharingMetadata({ site: site.href, image: Astro.props.image || pageContent?.socialImage?.src || "/og/default.jpg", imageAlt: Astro.props.imageAlt || pageContent?.socialImage?.alt || "Travel With Ease — your guide to stress-free travel", type });
 const approvedForIndexing = import.meta.env.PUBLIC_APP_ENV === "production" && import.meta.env.PUBLIC_SITE_INDEXABLE === "true" && site.hostname !== "travelwithease.example";
 const shouldIndex = approvedForIndexing && !noIndex && Boolean(pageContent);
@@ -30,7 +30,6 @@ const schema = {
   description,
 };
 const jsonLd = serializeJsonLd(schema);
-const arrowRightMarkup = renderToStaticMarkup(createElement(ArrowRight4, { className: "link-arrow", "aria-hidden": true, focusable: "false" }));
 const breadcrumbs = Astro.props.breadcrumbs || [];
 if (!Array.isArray(breadcrumbs) || breadcrumbs.length > 10) throw new Error("Invalid breadcrumb list.");
 const breadcrumbJson = breadcrumbs.length ? serializeJsonLd({
@@ -42,8 +41,8 @@ const breadcrumbJson = breadcrumbs.length ? serializeJsonLd({
 }) : null;
 const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
 const review = !publicationSnapshotPath();
-const visible = (href: string) => review || Boolean(publishedPage(href.slice(1)));
-const navigation = [["/destinations", "Destinations"], ["/services", "Services"], ["/about", "About"], ["/journal", "Journal"], ["/travel-footprint", "Travel footprint"]];
+const visible = (href: string) => demo || review || Boolean(publishedPage(href.slice(1)));
+const navigation = demo ? [["#demo-packages", "Destinations"], ["#demo-process", "How it works"], ["#demo-journal", "Journal"], ["#demo-footprint", "Travel footprint"]] : [["/destinations", "Destinations"], ["/services", "Services"], ["/about", "About"], ["/journal", "Journal"], ["/travel-footprint", "Travel footprint"]];
 ---
 <!doctype html>
 <html lang="en-GH">
@@ -82,30 +81,21 @@ const navigation = [["/destinations", "Destinations"], ["/services", "Services"]
   <body id="top">
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" /></a>
+      <a class="brand" href={demo ? "/demo" : "/"} aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" /></a>
       <button type="button" class="menu-toggle" hidden aria-expanded="false" aria-controls="primary-navigation">Menu</button>
       <nav id="primary-navigation" aria-label="Primary navigation">
         {navigation.filter(([href]) => visible(href)).map(([href, label]) => <a href={href} aria-current={Astro.url.pathname.replace(/\/$/, "") === href ? "page" : undefined}>{label}</a>)}
-        {visible("/contact") && <a class="nav-cta" href="/contact">Plan a trip</a>}
+        {visible("/contact") && <ContentLink button class="nav-cta" href={demo ? "#demo-plan" : "/contact"}>Plan a trip</ContentLink>}
       </nav>
     </header>
-    {review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
+    {demo ? <p class="review-banner">Local demo · sample content · nothing is booked or sent. <a href="http://127.0.0.1:5188/?demo=1">Staff dashboard</a> · <a href="/">Exit demo</a></p> : review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
     <main id="main-content"><slot /></main>
-    <footer class="site-footer"><div class="footer-main"><div><a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" loading="lazy" /></a><p>Travel planning from Ghana.</p>{review && <small>Email, WhatsApp and social links awaiting approval.</small>}</div><nav aria-label="Footer navigation">{[["/faqs", "FAQs"], ["/contact", "Contact"], ["/privacy", "Privacy"], ["/terms", "Terms"]].filter(([href]) => visible(href)).map(([href, label]) => <a href={href}>{label}</a>)}<button class="footer-cookie-settings" type="button" data-cookie-settings>Cookie settings</button><a href="#top">Back to top</a></nav></div><SharedFaakoFooter /></footer>
-    <CookieNotice />
-    <AnalyticsConsent />
+    <PublicFooter demo={demo} />
+    <EditorialMotion />
+    {!demo && <CookieNotice />}
+    {!demo && <AnalyticsConsent />}
   </body>
 </html>
-<script define:vars={{ arrowRightMarkup }}>
-  const arrowTemplate = document.createElement("template");
-  arrowTemplate.innerHTML = arrowRightMarkup;
-  const arrow = arrowTemplate.content.firstElementChild;
-  if (arrow) {
-    document.querySelectorAll("a:not(.brand):not(.skip-link)").forEach((link) => {
-      link.append(arrow.cloneNode(true));
-    });
-  }
-</script>
 <script>
   const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
   const nav = document.querySelector<HTMLElement>("#primary-navigation");
