@@ -1,18 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { cp, mkdtemp, readFile, rm, stat } from "node:fs/promises";
-import os from "node:os";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// The CMS is an asset of the existing API Railway service, not a second runtime.
-// Copy it under this workspace so a runtime/image assembled from the API package
-// cannot drop the sibling portal's generated dist directory.
+// Build directly inside the API workspace. Railway needs this artifact in the
+// same runtime image as the API; no sibling app's dist directory is required.
+// Separate output also prevents parallel workspace builds from racing to clean
+// the same Vite dist directory.
 const apiDirectory = fileURLToPath(new URL("../", import.meta.url));
 const workspaceRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const input = path.join(workspaceRoot, "apps", "travel-with-ease-portal", "dist");
 const output = path.join(apiDirectory, "dist", "cms");
 
-const result = spawnSync("pnpm", ["--filter", "@faako/travel-with-ease-portal", "build"], {
+const result = spawnSync("pnpm", [
+  "--filter", "@faako/travel-with-ease-portal", "exec",
+  "vite", "build", "--outDir", output, "--emptyOutDir",
+], {
   cwd: workspaceRoot,
   env: process.env,
   stdio: "inherit",
@@ -20,23 +22,10 @@ const result = spawnSync("pnpm", ["--filter", "@faako/travel-with-ease-portal", 
 if (result.error || result.status !== 0) {
   throw new Error("TWE CMS build failed; refusing to package an incomplete API release.");
 }
-const sourceIndex = path.join(input, "index.html");
-const source = await readFile(sourceIndex, "utf8");
-if (!source.includes("<html") || !source.includes("</html>")) {
-  throw new Error("TWE CMS build did not create a valid index.html.");
+const html = await readFile(path.join(output, "index.html"), "utf8");
+if (!html.includes("<html") || !html.includes("</html>") || !html.includes("/assets/")) {
+  throw new Error("TWE CMS build did not create usable HTML and asset references.");
 }
-const assets = await stat(path.join(input, "assets")).catch(() => null);
+const assets = await stat(path.join(output, "assets")).catch(() => null);
 if (!assets?.isDirectory()) throw new Error("TWE CMS build did not create frontend assets.");
-
-// A generated folder under the API workspace survives runtime packaging.
-// Stage first, and publish only after the copy succeeds.
-const staging = await mkdtemp(path.join(os.tmpdir(), "twe-cms-build-"));
-try {
-  await cp(input, staging, { recursive: true, force: true });
-  await rm(output, { recursive: true, force: true });
-  await cp(staging, output, { recursive: true, force: true });
-} finally {
-  await rm(staging, { recursive: true, force: true });
-}
-await readFile(path.join(output, "index.html"), "utf8");
 console.info("TWE CMS assets packaged inside API workspace: apps/travel-with-ease-api/dist/cms");
