@@ -150,7 +150,7 @@ function StaffWorkspace() {
         </div>}
       </section>}
       {!state.loading && session?.user.permissions?.includes("content.read") && section === "content" && <WebsiteContent api={api} session={session} onDirtyChange={setDirty} />}
-      {!state.loading && session && section === "overview" && <Dashboard api={api} session={session} onNavigate={navigate} isDemo={isDemo} />}
+      {!state.loading && session && section === "overview" && <Dashboard api={api} session={session} onNavigate={navigate} isDemo={isDemo} demoWebsiteUrl={stagingDemoAllowed ? "https://staging.travelwitheasegh.com/demo" : "http://127.0.0.1:4328/demo"} />}
       {!state.loading && session?.user.permissions?.includes("media.read") && section === "media" && <MediaLibrary api={api} session={session} />}
       {!state.loading && session?.user.permissions?.includes("enquiries.read") && section === "enquiries" && <Enquiries api={api} session={session} />}
       {!state.loading && session && section === "system" && <SystemAdministration api={api} session={session} />}
