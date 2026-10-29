@@ -18,7 +18,14 @@ export function createAccessVerifier(settings, keyResolver) {
           code: "TWE_ACCESS_IDENTITY_INVALID", issue,
         });
       };
-      if (protectedHeader.typ !== "JWT") denyIdentity("jwt_type_invalid");
+      // RFC 7519 §5.1 makes "typ" optional. Cloudflare Access app tokens
+      // are identified here by validated signature, issuer, audience and
+      // signed payload.type="app", not by an optional JOSE media-type hint.
+      // If a type is present, reject non-JWT types to avoid cross-token confusion.
+      if (protectedHeader.typ !== undefined && (
+        typeof protectedHeader.typ !== "string" ||
+        !["jwt", "application/jwt"].includes(protectedHeader.typ.toLowerCase())
+      )) denyIdentity("jwt_type_invalid");
       if (!protectedHeader.kid) denyIdentity("signing_key_id_missing");
       if (payload.type !== "app") denyIdentity("app_type_invalid");
       if (!Array.isArray(payload.aud) || payload.aud.length !== 1 || payload.aud[0] !== settings.audience) denyIdentity("audience_shape_invalid");
