@@ -42,7 +42,14 @@ test("production build publishes approved content without preview copy or unpubl
   const home = readFileSync(path.join(output, "index.html"), "utf8");
   assert.match(home, /A little further/);
   assert.match(home, /name="robots" content="index, follow"/);
-  assert.doesNotMatch(home, /Design preview|placeholder|href="\/(contact|privacy|terms|services|destinations)"/i);
+  assert.doesNotMatch(home, /Design preview|placeholder/i);
+  const header = home.match(/<header[\s\S]*?<\/header>/)?.[0];
+  assert.ok(header);
+  assert.doesNotMatch(header, /href="\/(contact|privacy|terms|services|destinations)"/);
+  assert.match(home, /Make room for your next journey/);
+  assert.match(home, /Online enquiry details are not available yet/);
+  assert.match(home, /Enquiry availability/);
+  assert.equal((home.match(/TWE_mockup[1-5][^"\s]*\.webp/g) || []).length > 0, true);
   for (const slug of ["contact", "privacy", "destinations"]) {
     const page = readFileSync(path.join(output, slug, "index.html"), "utf8");
     assert.match(page, /Content unavailable/);
@@ -51,4 +58,43 @@ test("production build publishes approved content without preview copy or unpubl
   }
   const sitemap = readFileSync(path.join(output, "sitemap-0.xml"), "utf8");
   assert.doesNotMatch(sitemap, /\/(contact|privacy|terms|destinations)\/?</);
+});
+
+test("staging demo builds an interactive noindex page while the approved homepage remains separate", () => {
+  const cache = fileURLToPath(new URL("../node_modules/.cache/", import.meta.url));
+  mkdirSync(cache, { recursive: true });
+  const output = mkdtempSync(path.join(cache, "twe-staging-demo-build-"));
+  execFileSync("pnpm", ["run", "build"], {
+    cwd: new URL("../", import.meta.url),
+    env: {
+      ...process.env, PUBLIC_APP_ENV: "staging",
+      PUBLIC_SITE_URL: "https://staging.travelwitheasegh.com",
+      PUBLIC_SITE_INDEXABLE: "false", PUBLIC_STAGING_DEMO_ENABLED: "true",
+      PUBLIC_API_BASE_URL: "https://api-staging.travelwitheasegh.com",
+      TWE_CONTENT_SNAPSHOT: "", TWE_BUILD_OUT_DIR: output,
+    },
+    stdio: ["ignore", "pipe", "pipe"], timeout: 120000,
+  });
+  const demo = readFileSync(path.join(output, "demo", "index.html"), "utf8");
+  const home = readFileSync(path.join(output, "index.html"), "utf8");
+  assert.match(demo, /Staging website demo/);
+  assert.match(demo, /Sample package enquiry|Sample personalised enquiry|sample enquiry/i);
+  assert.match(demo, /staging test inbox/i);
+  assert.match(demo, /noindex, nofollow/);
+  assert.doesNotMatch(demo, /127\.0\.0\.1:5188|http-equiv="refresh"/);
+  assert.match(home, /A little further/);
+  assert.doesNotMatch(home, /Sample journey · Zanzibar/);
+  assert.match(readFileSync(path.join(output, "robots.txt"), "utf8"), /Disallow: \/$/m);
+});
+
+test("staging demo refuses a missing API origin and production never enables the route", () => {
+  const cache = fileURLToPath(new URL("../node_modules/.cache/", import.meta.url));
+  mkdirSync(cache, { recursive: true });
+  const output = mkdtempSync(path.join(cache, "twe-staging-no-api-"));
+  assert.throws(() => execFileSync("pnpm", ["run", "build"], {
+    cwd: new URL("../", import.meta.url),
+    env: { ...process.env, PUBLIC_APP_ENV: "staging", PUBLIC_SITE_URL: "https://staging.travelwitheasegh.com",
+      PUBLIC_STAGING_DEMO_ENABLED: "true", PUBLIC_API_BASE_URL: "", TWE_CONTENT_SNAPSHOT: "", TWE_BUILD_OUT_DIR: output },
+    stdio: ["ignore", "pipe", "pipe"], timeout: 120000,
+  }));
 });

@@ -1,0 +1,12 @@
+.published-content {
+  max-width: 70ch;
+  margin: 48px auto;
+  padding: 0 24px;
+}
+.published-content img {
+  max-width: 100%;
+  height: auto;
+}
+.body-copy {
+  white-space: pre-wrap;
+}

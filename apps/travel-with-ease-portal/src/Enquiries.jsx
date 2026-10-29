@@ -42,7 +42,7 @@ export default function Enquiries({ api, session }) {
     {selectedId ? <>
       <Button icon="back" type="button" disabled={saving} onClick={() => setSelectedId(null)}>Back to enquiries</Button>
       {selected && <article className="enquiry-detail">
-        <header className="enquiry-detail-heading"><div><p className="detail-type">{selected.kind.replaceAll("_", " ")} enquiry</p><h3>{selected.contact.name || "Traveller"}</h3><p className="detail-reference">Reference: {selected.id}</p></div><StatusPill tone={selected.status === "new" ? "warning" : selected.status === "contacted" ? "info" : "neutral"}>{selected.status}</StatusPill></header>
+        <header className="enquiry-detail-heading"><div><p className="detail-type">{selected.demo ? "STAGING DEMO · " : ""}{selected.kind.replaceAll("_", " ")} enquiry</p><h3>{selected.contact.name || "Traveller"}</h3><p className="detail-reference">Reference: {selected.id}</p></div><StatusPill tone={selected.status === "new" ? "warning" : selected.status === "contacted" ? "info" : "neutral"}>{selected.status}</StatusPill></header>
         <div className="detail-columns"><section className="workspace-panel" aria-label="Trip request"><h4>Trip request</h4><p className="workspace-caption">Details supplied by the traveller.</p>
         <dl className="detail-fields">{Object.entries(selected.details || {}).map(([key, value]) => <div key={key}>
           <dt>{key.replaceAll("_", " ")}</dt><dd className="preserve-lines">{typeof value === "object" ? JSON.stringify(value, null, 2) : String(value ?? "")}</dd>
@@ -62,7 +62,7 @@ export default function Enquiries({ api, session }) {
       {!busy && !error && <div className="workspace-kpis">{statuses.map(value => <KpiCard key={value} label={value[0].toUpperCase() + value.slice(1)} value={result.items.filter(item => item.status === value).length} detail="On this filtered page" />)}</div>}
       {!busy && !error && !result.items.length && <p>No enquiries match these filters.</p>}
       {!busy && !error && <ul className="enquiry-list">{result.items.map(item => <li key={item.id}>
-        <button type="button" onClick={() => setSelectedId(item.id)}>{item.contact.name || "Traveller"}</button>
+        <button type="button" onClick={() => setSelectedId(item.id)}>{item.demo ? "[STAGING DEMO] " : ""}{item.contact.name || "Traveller"}</button>
         <span className="enquiry-meta"><StatusPill tone={item.status === "new" ? "warning" : item.status === "contacted" ? "info" : "neutral"}>{item.status}</StatusPill><time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString("en-GH", { timeZone: "Africa/Accra" })}</time></span>
       </li>)}</ul>}
       <div className="editor-actions">

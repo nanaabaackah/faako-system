@@ -84,7 +84,7 @@ a:focus .link-arrow {
 }
 .editorial-hero {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: clamp(2rem, 5vw, 5rem);
   align-items: center;
 }
@@ -96,6 +96,18 @@ a:focus .link-arrow {
 }
 .editorial-hero p {
   max-width: 48ch;
+}
+.editorial-hero > * {
+  min-width: 0;
+}
+.editorial-hero > img,
+.editorial-hero > figure img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
 }
 .editorial-actions {
   display: flex;
@@ -144,6 +156,24 @@ a:focus .link-arrow {
 }
 .editorial-rule {
   border-top: 1px solid var(--brand-grey);
+}
+.editorial-faqs {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.4fr);
+  align-items: start;
+  gap: clamp(24px, 5vw, 72px);
+}
+.faq-introduction p {
+  max-width: 38ch;
+}
+.faq-questions {
+  min-width: 0;
+  border-top: 1px solid #d7cdbd;
+}
+@media (max-width: 760px) {
+  .editorial-faqs {
+    grid-template-columns: 1fr;
+  }
 }
 .review-empty {
   border-block: 1px solid var(--brand-grey);
@@ -246,8 +276,35 @@ a:focus .link-arrow {
     animation: none !important;
   }
 }
-.twe-content-link { display: inline-flex; align-items: center; gap: .55em; color: inherit; text-underline-offset: 4px; }
-.twe-content-link .link-arrow { display: inline-block; flex: 0 0 auto; width: 1em; height: 1em; }
-.twe-content-link.button { min-height: 44px; padding: 13px 20px; border-radius: 7px; background: #010c33; color: #f4ede3; border: 1px solid #010c33; text-decoration: none; font-size: 14px; font-weight: 600; justify-content: center; }
-.twe-content-link.button:hover { background: #1b294c; }
-.twe-content-link.button-secondary { background: transparent; color: #010c33; }
+.twe-content-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  color: inherit;
+  text-underline-offset: 4px;
+}
+.twe-content-link .link-arrow {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 1em;
+  height: 1em;
+}
+.twe-content-link.button {
+  min-height: 44px;
+  padding: 13px 20px;
+  border-radius: 7px;
+  background: #010c33;
+  color: #f4ede3;
+  border: 1px solid #010c33;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  justify-content: center;
+}
+.twe-content-link.button:hover {
+  background: #1b294c;
+}
+.twe-content-link.button-secondary {
+  background: transparent;
+  color: #010c33;
+}

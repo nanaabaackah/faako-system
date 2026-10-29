@@ -83,7 +83,9 @@ const mediaSettings = readR2Config();
 if (mediaSettings && !pool) throw new Error("Media storage requires PostgreSQL.");
 const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger) : null;
 const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
-  portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist } : null,
+  portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist,
+    stagingDemoEnabled: environment === "staging" && process.env.TWE_STAGING_PORTAL_DEMO_ENABLED === "true" } : null,
+  demoOrigin: process.env.TWE_DEMO_ORIGIN || "",
 });
 const server = app.listen(port, () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;

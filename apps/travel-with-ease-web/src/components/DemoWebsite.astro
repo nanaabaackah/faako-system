@@ -5,92 +5,168 @@ import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import DemoEnquiry from "./DemoEnquiry.jsx";
 import photos from "../lib/approved-preview-media.json";
-const kenya = photos.find(photo => photo.country === "Kenya")!;
-const zanzibar = photos.find(photo => photo.country === "Zanzibar")!;
+const kenya = photos.find((photo) => photo.country === "Kenya")!;
+const zanzibar = photos.find((photo) => photo.country === "Zanzibar")!;
+const { live = false, apiOrigin = "" } = Astro.props;
 ---
+
 <div class="travel-demo">
   <section class="demo-wrap demo-hero">
-    <div><p>From Ghana, with curiosity.</p><h1>A little further.<br />A little more you.</h1><p>Room for discovery. Time to slow down. Explore what your next journey could look like.</p>
-      <div class="demo-links"><ContentLink button href="#demo-packages">Explore sample journeys</ContentLink><ContentLink href="#demo-plan">Try planning a trip</ContentLink></div>
-      <small>Design demonstration · not bookable offers.</small></div>
-    <figure><img src={kenya.sources.at(-1)!.src} width={kenya.width} height={kenya.height} alt={kenya.alt} loading="eager" fetchpriority="high" /><figcaption>Kenya · TWE-supplied photography</figcaption></figure>
+    <div>
+      <p>From Ghana, with curiosity.</p><h1>
+        A little further.<br />A little more you.
+      </h1><p>
+        Room for discovery. Time to slow down. Explore what your next journey
+        could look like.
+      </p>
+      <div class="demo-links">
+        <ContentLink button href="#demo-packages"
+          >Explore sample journeys</ContentLink
+        ><ContentLink href="#demo-plan">Try planning a trip</ContentLink>
+      </div>
+      <small>Design demonstration · not bookable offers.</small>
+    </div>
+    <figure>
+      <img
+        src={kenya.sources.at(-1)!.src}
+        width={kenya.width}
+        height={kenya.height}
+        alt={kenya.alt}
+        loading="eager"
+        fetchpriority="high"
+      /><figcaption>Kenya · TWE-supplied photography</figcaption>
+    </figure>
   </section>
   <section id="demo-packages" class="demo-wrap demo-packages">
-    <div class="demo-heading"><h2>Find your kind<br />of getaway.</h2><p>Two sample itineraries to explore the design.<br />Dates, availability and prices await approval.</p></div>
+    <div class="demo-heading">
+      <h2>Find your kind<br />of getaway.</h2><p>
+        Two sample itineraries to explore the design.<br />Dates, availability
+        and prices await approval.
+      </p>
+    </div>
     <div class="demo-package-grid">
-      {[{ photo: zanzibar, name: "Zanzibar", title: "A slower rhythm in Zanzibar", copy: "A demonstration of a coast-focused journey. Inclusions and dates are not confirmed." },
-        { photo: kenya, name: "Kenya", title: "A different view of Kenya", copy: "A demonstration of a discovery-focused journey. This is not an advertised or priced offer." }].map(item =>
-        <article><img src={item.photo.sources.at(-1)!.src} width={item.photo.width} height={item.photo.height} alt={item.photo.alt} loading="lazy" />
-          <div><small>Sample journey · {item.name}</small><h3>{item.title}</h3><p>{item.copy}</p><ContentLink href="#demo-plan" data-demo-destination={item.name}>Explore this sample</ContentLink></div></article>)}
+      {
+        [
+          {
+            photo: zanzibar,
+            name: "Zanzibar",
+            title: "A slower rhythm in Zanzibar",
+            copy: "A demonstration of a coast-focused journey. Inclusions and dates are not confirmed.",
+          },
+          {
+            photo: kenya,
+            name: "Kenya",
+            title: "A different view of Kenya",
+            copy: "A demonstration of a discovery-focused journey. This is not an advertised or priced offer.",
+          },
+        ].map((item) => (
+          <article>
+            <img
+              src={item.photo.sources.at(-1)!.src}
+              width={item.photo.width}
+              height={item.photo.height}
+              alt={item.photo.alt}
+              loading="lazy"
+            />
+            <div>
+              <>
+                <small>Sample journey · {item.name}</small>
+                <h3>{item.title}</h3>
+                <p>{item.copy}</p>
+                <ContentLink
+                  href="#demo-plan"
+                  data-demo-destination={item.name}
+                >
+                  Explore this sample
+                </ContentLink>
+              </>
+            </div>
+          </article>
+        ))
+      }
     </div>
   </section>
-  <section id="demo-footprint" class="demo-wrap"><TravelFootprint demo /></section>
-  <section id="demo-process" class="demo-process"><div class="demo-wrap">
-    <div><h2>Less uncertainty.<br />More possibility.</h2><p>Preview the enquiry journey, from an initial idea to a conversation about the details.</p></div>
-    <ol><li><span>01</span><div><h3>Start with an idea</h3><p>Choose a sample journey or the kind of trip you have in mind.</p></div></li><li><span>02</span><div><h3>Shape the details</h3><p>Explore the dates, pace and preferences that matter to you.</p></div></li><li><span>03</span><div><h3>Make an informed choice</h3><p>In the live service, confirm the actual offer and terms with the agency.</p></div></li></ol>
-  </div></section>
-  <section id="demo-journal" class="demo-wrap demo-journal" data-twe-reveal>
-    <figure><img src={zanzibar.sources.at(-1)!.src} width={zanzibar.width} height={zanzibar.height} alt={zanzibar.alt} loading="lazy" /><figcaption>Zanzibar · TWE-supplied photography</figcaption></figure>
-    <div><small>Travel Journal · sample editorial</small><h2>The moments<br />between the plans.</h2><p>A quieter morning. A new view. A little time to notice where you are.</p><p>This sample introduces the journal layout. Approved stories will replace it before publication.</p><Accordion title="Read the sample story"><p>A journey is more than a list of stops. This demonstration shows where an original, approved travel story will appear, with destination context, licensed images and useful information.</p></Accordion></div>
+  <section id="demo-footprint" class="demo-wrap">
+    <TravelFootprint demo />
   </section>
-  <section id="demo-faqs" class="demo-wrap"><h2>A few things to know.</h2><Accordion title="Can I book these sample journeys?"><p>No. These demonstrate the website layout, not available offers.</p></Accordion><Accordion title="Will this form contact the team?"><p>No. The local demo does not send or save your choices.</p></Accordion><p>Client testimonials will appear only after approval and permission.</p></section>
+  <section id="demo-process" class="demo-process">
+    <div class="demo-wrap">
+      <div>
+        <h2>Less uncertainty.<br />More possibility.</h2><p>
+          Preview the enquiry journey, from an initial idea to a conversation
+          about the details.
+        </p>
+      </div>
+      <ol>
+        <li>
+          <span>01</span><div>
+            <h3>Start with an idea</h3><p>
+              Choose a sample journey or the kind of trip you have in mind.
+            </p>
+          </div>
+        </li><li>
+          <span>02</span><div>
+            <h3>Shape the details</h3><p>
+              Explore the dates, pace and preferences that matter to you.
+            </p>
+          </div>
+        </li><li>
+          <span>03</span><div>
+            <h3>Make an informed choice</h3><p>
+              In the live service, confirm the actual offer and terms with the
+              agency.
+            </p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+  <section id="demo-journal" class="demo-wrap demo-journal" data-twe-reveal>
+    <figure>
+      <img
+        src={zanzibar.sources.at(-1)!.src}
+        width={zanzibar.width}
+        height={zanzibar.height}
+        alt={zanzibar.alt}
+        loading="lazy"
+      /><figcaption>Zanzibar · TWE-supplied photography</figcaption>
+    </figure>
+    <div>
+      <small>Travel Journal · sample editorial</small><h2>
+        The moments<br />between the plans.
+      </h2><p>
+        A quieter morning. A new view. A little time to notice where you are.
+      </p><p>
+        This sample introduces the journal layout. Approved stories will replace
+        it before publication.
+      </p><Accordion title="Read the sample story"
+        ><p>
+          A journey is more than a list of stops. This demonstration shows where
+          an original, approved travel story will appear, with destination
+          context, licensed images and useful information.
+        </p></Accordion>
+    </div>
+  </section>
+  <section id="demo-faqs" class="demo-wrap">
+    <h2>A few things to know.</h2><Accordion
+      title="Can I book these sample journeys?"
+      ><p>
+        No. These demonstrate the website layout, not available offers.
+      </p></Accordion
+    ><Accordion title="Will this form contact the team?"
+      ><p>{live ? "Yes. This staging demo saves test enquiries for authorised staff to review, without booking or sending a confirmation." : "No. The local preview does not send or save your choices."}</p></Accordion
+    ><p>Client testimonials will appear only after approval and permission.</p>
+  </section>
   <ClosingCta demo />
   <section id="demo-plan" class="demo-wrap demo-plan">
-    <div><h2>Where would<br />you like to go?</h2><p>Try the enquiry experience. Use sample choices only—no personal details are collected, stored or sent.</p><ContentLink href="http://127.0.0.1:5188/?demo=1">Open the staff dashboard demo</ContentLink></div>
-    <DemoEnquiry client:load />
+    <div>
+      <h2>Where would<br />you like to go?</h2><p>
+        {live ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created." : "Try the local preview. Nothing is stored or submitted."}
+      </p>{live ? <p><ContentLink href="https://portal-staging.travelwitheasegh.com/demo">Explore the staging staff portal demo</ContentLink><small>Cloudflare Access required. The portal demo uses simulated records; real staging test enquiries are available only in the authenticated staff CMS.</small></p> : <p>Staff dashboard preview is available separately in local development.</p>}
+    </div>
+    <DemoEnquiry live={live} apiOrigin={apiOrigin} client:load />
   </section>
 </div>
 <style>
-  .travel-demo { color: var(--brand-navy, #010c33); }
-  .demo-wrap { width: min(1200px, 90%); margin-inline: auto; padding-block: 64px; }
-  .demo-hero { display: grid; grid-template-columns: 1fr 1.1fr; gap: 48px; align-items: center; }
-  .demo-hero h1 { font-size: clamp(2.8rem, 4.6vw, 4.6rem); line-height: 1.05; margin: 20px 0 24px; letter-spacing: -.04em; }
-  .demo-hero p { max-width: 40ch; font-size: 16px; }
-  .demo-links { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; margin: 28px 0 20px; font-size: 13px; }
-  small, figcaption { display: block; font-size: 11px; line-height: 1.6; }
-  figure { margin: 0; } img { display: block; width: 100%; object-fit: cover; }
-  .demo-hero img { height: 520px; border-radius: 8px; } figcaption { margin-top: 10px; }
-  .demo-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 32px; }
-  h2 { font-size: clamp(2rem, 3.2vw, 3.3rem); line-height: 1.12; margin: 0 0 20px; letter-spacing: -.025em; }
-  p { line-height: 1.7; } .demo-heading p { font-size: 13px; }
-  .demo-packages { border-top: 1px solid #b6b1a9; }
-  .demo-package-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 32px; align-items: start; }
-  .demo-package-grid article:nth-child(2) { padding-top: 60px; }
-  .demo-package-grid img { height: 320px; border-radius: 8px; }
-  .demo-package-grid article > div { padding: 20px 0; border-bottom: 1px solid #b6b1a9; }
-  h3 { font-size: 24px; margin: 12px 0; }
-  .demo-package-grid p { font-size: 14px; max-width: 48ch; }
-  .demo-package-grid a { display: inline-block; padding-block: 12px; }
-  .demo-process { background: #010c33; color: #f4ede3; }
-  .demo-process > div { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
-  .demo-process h2, .demo-process h3 { color: inherit; }
-  .demo-process p { max-width: 42ch; font-size: 14px; color: #d8dbe4; }
-  ol { list-style: none; padding: 0; margin: 0; }
-  ol li { display: flex; gap: 24px; padding: 20px 0; border-top: 1px solid #42506e; }
-  ol li > span { color: #d8b56a; font-size: 14px; padding-top: 4px; }
-  ol h3 { font-size: 18px; margin: 0 0 8px; } ol p { margin: 0; }
-  .demo-journal { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
-  .demo-journal img { height: 440px; } .demo-journal h2 { margin-top: 20px; }
-  details { border-top: 1px solid #b6b1a9; padding-top: 20px; margin-top: 24px; } summary { cursor: pointer; padding-block: 8px; }
-  .demo-footprint { border-block: 1px solid #b6b1a9; display: grid; grid-template-columns: 1.2fr 1fr; gap: 64px; }
-  .demo-footprint ul { list-style: none; padding: 0; }
-  .demo-footprint li { display: grid; gap: 8px; padding: 20px 0; border-bottom: 1px solid #b6b1a9; }
-  .demo-plan { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; } .demo-plan p { max-width: 42ch; }
-  form { background: #fffaf3; border: 1px solid #b6b1a9; padding: 32px; }
-  label { display: grid; gap: 10px; margin-bottom: 20px; font-size: 14px; }
-  select { width: 100%; min-height: 44px; padding: 10px; background: white; color: #010c33; border: 1px solid #89867f; border-radius: 3px; font: inherit; }
-  #demo-result { font-size: 12px; margin-bottom: 0; }
-  @media(max-width: 760px) {
-    .demo-wrap { padding-block: 40px; }
-    .demo-hero, .demo-journal, .demo-process > div, .demo-footprint, .demo-plan, .demo-package-grid { grid-template-columns: 1fr; gap: 28px; }
-    .demo-hero img, .demo-journal img { height: 340px; } .demo-heading { display: block; }
-    .demo-package-grid article:nth-child(2) { padding-top: 0; } .demo-package-grid img { height: 280px; } form { padding: 22px; }
-  }
-  .travel-demo :global(.button), .travel-demo :global(.ui-button) { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 14px 20px; min-height: 48px; border-radius: 7px; font-weight: 600; text-decoration: none; background: #010c33; color: #f4ede3; border: 1px solid #010c33; box-shadow: none; }
-  .travel-demo :global(.button:hover), .travel-demo :global(.ui-button:hover) { background: #14234b; }
-  .travel-demo :global(.demo-enquiry-form) { display: grid; gap: 20px; padding: 28px; border: 1px solid #d6d0c7; border-radius: 8px; background: white; }
-  .travel-demo :global(.demo-enquiry-form h3) { font-size: 22px; margin: 0; }
-  .travel-demo :global(.demo-enquiry-form .ui-field) { margin: 0; }
-  .travel-demo :global(.demo-enquiry-form .ui-button) { justify-self: start; }
-  .travel-demo :global(#demo-result) { margin: 0; font-size: 12px; color: #535966; }
+  @import "../styles/components/demo-website.css";
 </style>

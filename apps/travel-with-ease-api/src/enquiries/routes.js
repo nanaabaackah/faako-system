@@ -15,6 +15,7 @@ const update = z.object({
 function publicRecord(row, detailed = false) {
   const record = {
     id: row.id, kind: row.kind, status: row.status,
+    demo: row.source === "staging_demo" || row.details?.source === "staging_demo",
     contact: row.contact, created_at: row.created_at,
     ...(row.version !== undefined ? { version: Number(row.version) } : {}),
   };
@@ -51,7 +52,7 @@ export function enquiriesRoutes({ pool, organisationId, auth }) {
       if (kind) { values.push(kind); conditions.push(`kind = $${values.length}`); }
       values.push(offset);
       const result = await pool.query(
-        `SELECT id, kind, status, contact, created_at
+        `SELECT id, kind, status, contact, created_at, details->>'source' AS source
           FROM twe.enquiries WHERE ${conditions.join(" AND ")}
           ORDER BY created_at DESC, id DESC LIMIT 26 OFFSET $${values.length}`, values);
       const hasMore = result.rows.length > 25;

@@ -1,18 +1,42 @@
 ---
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
-const privacyAvailable = !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
+const privacyAvailable =
+  !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
 ---
-<aside class="cookie-notice" data-cookie-notice hidden aria-label="Cookie notice" aria-live="polite">
+
+<aside
+  class="cookie-notice"
+  data-cookie-notice
+  hidden
+  aria-label="Cookie notice"
+  aria-live="polite"
+>
   <div>
     <strong>Your privacy, your choice.</strong>
     <p>
-      Essential browser storage remembers your preference. Advertising cookies are not used.
-      {privacyAvailable && <>Optional Google Analytics helps us understand visits only when you allow it. <a href="/privacy">Privacy information</a></>}
+      Essential browser storage remembers your preference. Advertising cookies
+      are not used.
+      {
+        privacyAvailable && (
+          <>
+            Optional Google Analytics helps us understand visits only when you
+            allow it. <a href="/privacy">Privacy information</a>
+          </>
+        )
+      }
     </p>
   </div>
   <div class="cookie-notice__actions">
-    <button class="secondary" type="button" data-cookie-essential>Essential only</button>
-    {privacyAvailable && <button type="button" data-cookie-analytics>Allow analytics</button>}
+    <button class="secondary" type="button" data-cookie-essential
+      >Essential only</button
+    >
+    {
+      privacyAvailable && (
+        <button type="button" data-cookie-analytics>
+          Allow analytics
+        </button>
+      )
+    }
   </div>
 </aside>
 
@@ -28,7 +52,9 @@ const privacyAvailable = !publicationSnapshotPath() || Boolean(publishedPage("pr
     const hasValidChoice = () => {
       try {
         const saved = JSON.parse(localStorage.getItem(key) || "null");
-        return saved?.essential === true && typeof saved.analytics === "boolean";
+        return (
+          saved?.essential === true && typeof saved.analytics === "boolean"
+        );
       } catch {
         return false;
       }
@@ -37,15 +63,30 @@ const privacyAvailable = !publicationSnapshotPath() || Boolean(publishedPage("pr
     if (!hasValidChoice()) show();
 
     const save = (analytics) => {
-      const choice = { essential: true, analytics, updatedAt: new Date().toISOString() };
-      try { localStorage.setItem(key, JSON.stringify(choice)); } catch {}
-      document.dispatchEvent(new CustomEvent("twe:consent-changed", { detail: choice }));
+      const choice = {
+        essential: true,
+        analytics,
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(key, JSON.stringify(choice));
+      } catch {}
+      document.dispatchEvent(
+        new CustomEvent("twe:consent-changed", { detail: choice }),
+      );
       hide();
-      if (returnFocus instanceof HTMLElement) { returnFocus.focus(); returnFocus = null; }
+      if (returnFocus instanceof HTMLElement) {
+        returnFocus.focus();
+        returnFocus = null;
+      }
     };
 
-    notice.querySelector("[data-cookie-essential]")?.addEventListener("click", () => save(false));
-    notice.querySelector("[data-cookie-analytics]")?.addEventListener("click", () => save(true));
+    notice
+      .querySelector("[data-cookie-essential]")
+      ?.addEventListener("click", () => save(false));
+    notice
+      .querySelector("[data-cookie-analytics]")
+      ?.addEventListener("click", () => save(true));
     document.querySelectorAll("[data-cookie-settings]").forEach((button) => {
       button.addEventListener("click", () => {
         returnFocus = button;
@@ -57,11 +98,5 @@ const privacyAvailable = !publicationSnapshotPath() || Boolean(publishedPage("pr
 </script>
 
 <style>
-  .cookie-notice { position: fixed; z-index: 100; right: 1rem; bottom: 1rem; left: 1rem; display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; max-width: 72rem; margin: auto; padding: 1.2rem; border: 1px solid rgba(216, 181, 106, .5); border-radius: 1rem; color: white; background: #010c33; box-shadow: 0 20px 60px rgba(0, 10, 31, .35); }
-  .cookie-notice[hidden] { display: none; }
-  .cookie-notice strong { color: #d8b56a; }
-  .cookie-notice p { max-width: 48rem; margin: .25rem 0 0; color: #d6d9e5; font-size: .9rem; }
-  .cookie-notice__actions { display: flex; flex-shrink: 0; gap: .65rem; }
-  .cookie-notice__actions .secondary { border: 1px solid #d8b56a; color: #d8b56a; background: transparent; }
-  @media (max-width: 760px) { .cookie-notice { align-items: stretch; flex-direction: column; } .cookie-notice__actions { flex-wrap: wrap; } }
+  @import "../styles/components/cookie-notice.css";
 </style>

@@ -117,6 +117,29 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
 
   const repository = new PostgresLeadRepository(pool, options);
   await repository.ready();
+  // The staging demo uses the real tenant inbox, without queuing an automated
+  // notification, external email or booking.
+  const demoResult = await repository.createDemoEnquiry({
+    kind: "package", destination: "Zanzibar", travelStyle: "A slower pace",
+    travellers: "2", name: "Synthetic demo visitor",
+    email: "staging-demo@example.invalid", phone: "+233240000000",
+    notes: "Demo test, no payment", consent: true,
+  });
+  assert.equal(demoResult.demo, true);
+  const demoRow = (await pool.query(
+    "SELECT organisation_id, kind, contact, details, status FROM twe.enquiries WHERE id=$1",
+    [demoResult.inquiryId],
+  )).rows[0];
+  assert.equal(demoRow.organisation_id, organisationId);
+  assert.equal(demoRow.kind, "package");
+  assert.equal(demoRow.status, "new");
+  assert.equal(demoRow.details.source, "staging_demo");
+  assert.equal(demoRow.details.demo, true);
+  assert.equal(demoRow.contact.name, "Synthetic demo visitor");
+  assert.equal((await pool.query(
+    "SELECT count(*)::int AS count FROM twe.notification_outbox WHERE enquiry_id=$1",
+    [demoResult.inquiryId],
+  )).rows[0].count, 0);
   const id = randomUUID();
   const now = new Date().toISOString();
   const record = { id: randomUUID(), createdAt: now, contact: { name: "Synthetic traveller", email: "test@example.invalid" }, inquiry: { id, consentAt: now, destination: "Test destination" } };

@@ -11,6 +11,24 @@ test("demo requires development permission, loopback host and explicit opt-in", 
   assert.equal(demoEnabled({ allowed: true, hostname: "localhost", search: "" }), false);
 });
 
+test("staging portal demo accepts only the approved route, hostname, and explicit build permission", () => {
+  const origin = { hostname: "portal-staging.travelwitheasegh.com", pathname: "/demo" };
+  assert.equal(demoEnabled({ ...origin, stagingAllowed: true }), true);
+  assert.equal(demoEnabled({ ...origin, pathname: "/demo/", stagingAllowed: true }), true);
+  for (const options of [
+    { ...origin, stagingAllowed: false },
+    { ...origin, hostname: "portal.travelwitheasegh.com", stagingAllowed: true },
+    { ...origin, hostname: "staging-api.travelwitheasegh.com", stagingAllowed: true },
+    { ...origin, hostname: "portal-staging.travelwitheasegh.com.attacker.test", stagingAllowed: true },
+    { ...origin, pathname: "/", stagingAllowed: true, search: "?demo=1" },
+    { ...origin, pathname: "/admin/demo", stagingAllowed: true },
+    { ...origin, pathname: "/demo/access-session", stagingAllowed: true },
+  ]) assert.equal(demoEnabled(options), false);
+  // Hosted demo permission must not enable the local query-string route.
+  assert.equal(demoEnabled({ allowed: false, stagingAllowed: true,
+    hostname: "localhost", pathname: "/", search: "?demo=1" }), false);
+});
+
 test("demo mutations stay in memory and unsupported actions cannot report success", async () => {
   const api = createDemoClient();
   const list = await api.get("/api/agent/inquiries");

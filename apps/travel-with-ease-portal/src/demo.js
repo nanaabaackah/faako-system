@@ -1,7 +1,12 @@
 // Browser-only synthetic fixtures. This adapter never calls fetch or stores data.
-export function demoEnabled({ allowed, hostname, search }) {
-  return allowed === true && ["localhost", "127.0.0.1", "[::1]"].includes(hostname)
+export function demoEnabled({ allowed, hostname, search = "", pathname = "/", stagingAllowed = false }) {
+  const local = allowed === true && ["localhost", "127.0.0.1", "[::1]"].includes(hostname)
     && new URLSearchParams(search).get("demo") === "1";
+  // This is only a synthetic frontend session, never an application staff session.
+  // The server independently protects and gates /demo behind verified Access.
+  const staging = stagingAllowed === true && hostname === "portal-staging.travelwitheasegh.com"
+    && ["/demo", "/demo/"].includes(pathname);
+  return local || staging;
 }
 
 export function createDemoClient() {
