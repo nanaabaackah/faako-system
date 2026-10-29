@@ -14,7 +14,7 @@ import { sharingMetadata } from "../lib/sharing.js";
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
 
 const { title, description, path = Astro.url.pathname, type = "website", noIndex = false } = Astro.props;
-const demo = import.meta.env.DEV && Astro.props.demo === true;
+const demo = Astro.props.demo === true && (import.meta.env.DEV || (import.meta.env.PUBLIC_APP_ENV === "staging" && import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true"));
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
 const pageContent = demo ? undefined : publishedPage(path.replace(/^\/|\/$/g, "") || "home");
@@ -89,7 +89,7 @@ const navigation = demo ? [["#demo-packages", "Destinations"], ["#demo-process",
         {visible("/contact") && <ContentLink button class="nav-cta" href={demo ? "#demo-plan" : "/contact"}>Plan a trip</ContentLink>}
       </nav>
     </header>
-    {demo ? <p class="review-banner">Local demo · sample content · nothing is booked or sent. <a href="http://127.0.0.1:5188/?demo=1">Staff dashboard</a> · <a href="/">Exit demo</a></p> : stagingReview ? <p class="review-banner">Staging design preview · placeholder sections are not live packages, bookings or enquiries.</p> : review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
+    {demo ? <p class="review-banner">Website demo · sample packages are not available to book. {import.meta.env.PUBLIC_APP_ENV === "staging" ? "Enquiries are saved to the staging test inbox only." : "Local preview: enquiries are not submitted."} <a href="/">Exit demo</a></p> : stagingReview ? <p class="review-banner">Staging design preview · placeholder sections are not live packages, bookings or enquiries.</p> : review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
     <main id="main-content"><slot /></main>
     <PublicFooter demo={demo} />
     <EditorialMotion />
