@@ -30,6 +30,23 @@ export class PostgresLeadRepository {
     });
   }
 
+  // Staging demo submissions are visible in the protected traveller inbox.
+  // No notification outbox item or booking/payment is ever created here.
+  async createDemoEnquiry(data) {
+    if (!["staging", "test"].includes(this.environment)) throw new Error("Demo enquiries are restricted to staging.");
+    const id = randomUUID();
+    const now = new Date().toISOString();
+    await this.pool.query(`INSERT INTO twe.enquiries
+      (id, organisation_id, kind, contact, details, notice_at, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $6, $6)`,
+    [id, this.organisationId, data.kind,
+      { name: data.name, email: data.email, phone: data.phone },
+      { source: "staging_demo", demo: true, destination: data.destination,
+        travelStyle: data.travelStyle, travellers: data.travellers, notes: data.notes },
+      now]);
+    return { inquiryId: id, status: "received", demo: true };
+  }
+
   async listLeads() {
     const { rows } = await this.pool.query(`SELECT id, status, contact, details, created_at, updated_at
       FROM twe.enquiries WHERE organisation_id = $1 AND kind = 'legacy_estimator'
