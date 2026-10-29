@@ -1,56 +1,146 @@
 ---
 import world from "../lib/world-boundaries.json";
 import { footprintRows, footprintBand } from "../lib/footprint.js";
-interface Props { compact?: boolean; demo?: boolean; records?: { countryCode: string; total: number; status: "demo" | "verified" }[]; }
+interface Props {
+  compact?: boolean;
+  demo?: boolean;
+  records?: {
+    countryCode: string;
+    total: number;
+    status: "demo" | "verified";
+  }[];
+}
 const { compact = false, records = [] } = Astro.props;
 const demo = import.meta.env.DEV && Astro.props.demo === true;
-const rows: {countryCode: string; name: string; total: number; status: string}[] = footprintRows(demo ? [{countryCode:"KE",total:12,status:"demo"},{countryCode:"TZ",total:4,status:"demo"},{countryCode:"GH",total:2,status:"demo"}] : records, world.countries, demo);
-const byCode = new Map(rows.map(row => [row.countryCode, row]));
-const fills = ["#d9dde4","#f2e5c8","#d8b56a","#ae8433","#77551b"];
+const rows: {
+  countryCode: string;
+  name: string;
+  total: number;
+  status: string;
+}[] = footprintRows(
+  demo
+    ? [
+        { countryCode: "KE", total: 12, status: "demo" },
+        { countryCode: "TZ", total: 4, status: "demo" },
+        { countryCode: "GH", total: 2, status: "demo" },
+      ]
+    : records,
+  world.countries,
+  demo,
+);
+const byCode = new Map(rows.map((row) => [row.countryCode, row]));
+const fills = ["#d9dde4", "#f2e5c8", "#d8b56a", "#ae8433", "#77551b"];
 const id = compact ? "footer-footprint" : "travel-footprint";
 ---
-<section class:list={["travel-footprint", {compact}]} aria-labelledby={id + "-heading"}>
-  <div class="footprint-heading"><h2 id={id + "-heading"}>Our travel footprint</h2><p>{demo ? "Illustrative demo totals—not TWE trip records." : rows.length ? "Completed and confirmed upcoming trips, combined by country." : "Verified travel activity is not available yet."}</p></div>
-  <svg class="footprint-map" viewBox="0 0 720 300" role="group" aria-label="World travel footprint. Equivalent country details follow below.">
-    {world.countries.map((country, index) => {
-      const row = country.code ? byCode.get(country.code) : undefined;
-      const label = row ? `${country.name}: ${row.total} combined trips${demo ? " (demo)" : ""}` : country.name;
-      return <path d={country.path} fill={fills[footprintBand(row?.total || 0)]} stroke="#fff" stroke-width=".45"
-        tabindex={row ? "0" : undefined} role={row ? "button" : undefined} aria-label={row ? label : undefined}
-        data-country-detail={row ? label : undefined} data-country-code={country.code || undefined} data-map-index={index}><title>{label}</title></path>;
-    })}
+
+<section
+  class:list={["travel-footprint", { compact }]}
+  aria-labelledby={id + "-heading"}
+>
+  <div class="footprint-heading">
+    <h2 id={id + "-heading"}>Our travel footprint</h2><p>
+      {
+        demo
+          ? "Illustrative demo totals—not TWE trip records."
+          : rows.length
+            ? "Completed and confirmed upcoming trips, combined by country."
+            : "Verified travel activity is not available yet."
+      }
+    </p>
+  </div>
+  <svg
+    class="footprint-map"
+    viewBox="0 0 720 300"
+    role="group"
+    aria-label="World travel footprint. Equivalent country details follow below."
+  >
+    {
+      world.countries.map((country, index) => {
+        const row = country.code ? byCode.get(country.code) : undefined;
+        const label = row
+          ? `${country.name}: ${row.total} combined trips${demo ? " (demo)" : ""}`
+          : country.name;
+        return (
+          <path
+            d={country.path}
+            fill={fills[footprintBand(row?.total || 0)]}
+            stroke="#fff"
+            stroke-width=".45"
+            tabindex={row ? "0" : undefined}
+            role={row ? "button" : undefined}
+            aria-label={row ? label : undefined}
+            data-country-detail={row ? label : undefined}
+            data-country-code={country.code || undefined}
+            data-map-index={index}
+          >
+            <title>{label}</title>
+          </path>
+        );
+      })
+    }
   </svg>
-  <p class="footprint-detail" aria-live="polite">Select a highlighted country or use the country list.</p>
-  {rows.length > 0 && <><p class="footprint-legend">Combined trips · logarithmic scale: <span>1–9</span><span>10–99</span><span>100–999</span><span>1,000+</span></p>
-    <ul class="footprint-countries">{rows.map(row => <li><strong>{row.name}</strong><span>{row.total} {demo ? "demo trips" : "trips"}</span></li>)}</ul></>}
-  {!rows.length && <p class="footprint-empty">Uncoloured countries mean no verified data is displayed—not zero travel.</p>}
-  <small>Made with Natural Earth. Country-level overview; Zanzibar is included within Tanzania.</small>
+  <p class="footprint-detail" aria-live="polite">
+    Select a highlighted country or use the country list.
+  </p>
+  {
+    rows.length > 0 && (
+      <>
+        <p class="footprint-legend">
+          Combined trips · logarithmic scale:{" "}
+          <>
+            <span>1–9</span>
+            <span>10–99</span>
+            <span>100–999</span>
+            <span>1,000+</span>
+          </>
+        </p>
+        <ul class="footprint-countries">
+          {rows.map((row) => (
+            <li>
+              <strong>{row.name}</strong>
+              <span>
+                {row.total} {demo ? "demo trips" : "trips"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+  {
+    !rows.length && (
+      <p class="footprint-empty">
+        Uncoloured countries mean no verified data is displayed—not zero travel.
+      </p>
+    )
+  }
+  <small
+    >Made with Natural Earth. Country-level overview; Zanzibar is included
+    within Tanzania.</small
+  >
 </section>
 <script>
-  document.querySelectorAll<HTMLElement>(".travel-footprint").forEach(root => {
-    const output = root.querySelector<HTMLElement>(".footprint-detail");
-    root.querySelectorAll<SVGPathElement>("[data-country-detail]").forEach(path => {
-      const show = () => { if (output) output.textContent = path.dataset.countryDetail || ""; };
-      path.addEventListener("click", show); path.addEventListener("focus", show);
-      path.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); show(); } });
+  document
+    .querySelectorAll<HTMLElement>(".travel-footprint")
+    .forEach((root) => {
+      const output = root.querySelector<HTMLElement>(".footprint-detail");
+      root
+        .querySelectorAll<SVGPathElement>("[data-country-detail]")
+        .forEach((path) => {
+          const show = () => {
+            if (output) output.textContent = path.dataset.countryDetail || "";
+          };
+          path.addEventListener("click", show);
+          path.addEventListener("focus", show);
+          path.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              show();
+            }
+          });
+        });
     });
-  });
 </script>
 <style>
-  .travel-footprint { color: #010c33; min-width: 0; }
-  h2 { font-size: clamp(1.6rem,3vw,2.5rem); margin: 0 0 12px; letter-spacing: -.025em; }
-  p { font-size: 14px; line-height: 1.6; }
-  .footprint-map { display: block; width: 100%; height: auto; }
-  path[tabindex] { cursor: pointer; } path[tabindex]:focus, path[tabindex]:hover { stroke: #010c33; stroke-width: 2; outline: none; }
-  .footprint-detail { min-height: 2em; }
-  .footprint-countries { display: flex; flex-wrap: wrap; gap: 16px 32px; list-style: none; padding: 0; }
-  li { display: grid; gap: 6px; font-size: 13px; } li span, small { font-size: 12px; }
-  .footprint-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 12px; }
-  .footprint-legend span { padding: 4px 8px; background: #f2e5c8; }
-  .footprint-legend span:nth-child(2) { background: #d8b56a; }
-  .footprint-legend span:nth-child(3) { background: #ae8433; color: #000a1f; }
-  .footprint-legend span:nth-child(4) { background: #77551b; color: white; }
-  .compact { color: inherit; } .compact h2 { font-size: 20px; }
-  .compact p, .compact small { font-size: 12px; }
-  .compact .footprint-map { max-height: 190px; }
+  @import "../styles/components/travel-footprint.css";
 </style>

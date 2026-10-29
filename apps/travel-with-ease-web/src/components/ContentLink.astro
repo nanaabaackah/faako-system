@@ -1,7 +1,28 @@
 ---
 import { ArrowRight4 } from "@faako/ui";
 import type { HTMLAttributes } from "astro/types";
-interface Props extends HTMLAttributes<"a"> { button?: boolean; secondary?: boolean; }
-const { button = false, secondary = false, class: className, ...attributes } = Astro.props;
+interface Props extends HTMLAttributes<"a"> {
+  button?: boolean;
+  secondary?: boolean;
+}
+const {
+  button = false,
+  secondary = false,
+  class: className,
+  ...attributes
+} = Astro.props;
 ---
-<a {...attributes} class:list={["twe-content-link", { button, "button-secondary": secondary }, className]}><slot /><ArrowRight4 className="link-arrow" aria-hidden="true" focusable="false" /></a>
+
+<a
+  {...attributes}
+  class:list={[
+    "twe-content-link",
+    { button, "button-secondary": secondary },
+    className,
+  ]}
+  ><slot /><ArrowRight4
+    className="link-arrow"
+    aria-hidden="true"
+    focusable="false"
+  /></a
+>

@@ -1,0 +1,81 @@
+.travel-footprint {
+  color: #010c33;
+  min-width: 0;
+}
+h2 {
+  font-size: clamp(1.6rem, 3vw, 2.5rem);
+  margin: 0 0 12px;
+  letter-spacing: -0.025em;
+}
+p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.footprint-map {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+path[tabindex] {
+  cursor: pointer;
+}
+path[tabindex]:focus,
+path[tabindex]:hover {
+  stroke: #010c33;
+  stroke-width: 2;
+  outline: none;
+}
+.footprint-detail {
+  min-height: 2em;
+}
+.footprint-countries {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  list-style: none;
+  padding: 0;
+}
+li {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+li span,
+small {
+  font-size: 12px;
+}
+.footprint-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.footprint-legend span {
+  padding: 4px 8px;
+  background: #f2e5c8;
+}
+.footprint-legend span:nth-child(2) {
+  background: #d8b56a;
+}
+.footprint-legend span:nth-child(3) {
+  background: #ae8433;
+  color: #000a1f;
+}
+.footprint-legend span:nth-child(4) {
+  background: #77551b;
+  color: white;
+}
+.compact {
+  color: inherit;
+}
+.compact h2 {
+  font-size: 20px;
+}
+.compact p,
+.compact small {
+  font-size: 12px;
+}
+.compact .footprint-map {
+  max-height: 190px;
+}

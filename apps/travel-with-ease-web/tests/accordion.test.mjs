@@ -5,10 +5,13 @@ const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 test("disclosures use native keyboard and no-JavaScript semantics", () => {
   const component = read("../src/components/Accordion.astro");
   assert.match(component, /<details class="twe-accordion">/);
-  assert.match(component, /<summary><span>\{title\}<\/span><IconsaxIcon/);
+  assert.match(component, /<summary>/);
+  assert.match(component, /class="accordion-question">\{title\}<\/span>/);
   assert.match(component, /name="Add"/);
-  assert.match(component, /focus-visible/);
-  assert.match(component, /prefers-reduced-motion/);
+  const css = read("../src/styles/components/accordion.css");
+  assert.match(css, /focus-visible/);
+  assert.match(css, /prefers-reduced-motion/);
+  assert.match(css, /min-height: 76px/);
   assert.doesNotMatch(component, /<script|aria-expanded|role="button"|transition:.*height/);
 });
 test("FAQ entries opt in without converting other published content", () => {

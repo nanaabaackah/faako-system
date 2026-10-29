@@ -1,0 +1,57 @@
+.closing-cta {
+  overflow: clip;
+  text-align: center;
+  padding: 72px 0 32px;
+  color: #010c33;
+  background: #f4ede3;
+}
+.closing-copy {
+  max-width: 650px;
+  padding-inline: 24px;
+  margin: 0 auto 28px;
+}
+h2 {
+  font-size: clamp(2rem, 4vw, 3.3rem);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin: 0 0 20px;
+}
+p {
+  max-width: 46ch;
+  margin: 0 auto 24px;
+  line-height: 1.7;
+}
+.closing-photos {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 1.8fr 0.65fr 0.85fr;
+  align-items: center;
+  gap: 0;
+  width: min(98%, 1600px);
+  margin: 0 auto;
+  pointer-events: none;
+}
+.mockup,
+.mockup-reveal {
+  min-width: 0;
+}
+/* Use the transparent asset margins to tighten the row without cropping artwork. */
+.mockup :global(img) {
+  display: block;
+  width: 120%;
+  max-width: none;
+  margin-inline: -10%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+@media (max-width: 700px) {
+  .closing-cta {
+    padding: 44px 0 24px;
+  }
+  .closing-copy {
+    margin-bottom: 20px;
+  }
+}
