@@ -162,7 +162,7 @@ const { live = false, apiOrigin = "" } = Astro.props;
     <div>
       <h2>Where would<br />you like to go?</h2><p>
         {live ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created." : "Try the local preview. Nothing is stored or submitted."}
-      </p>{!live && <p>Staff dashboard preview is available separately in local development.</p>}
+      </p>{live ? <p><ContentLink href="https://portal-staging.travelwitheasegh.com/demo">Explore the staging staff portal demo</ContentLink><small>Cloudflare Access required. The portal demo uses simulated records; real staging test enquiries are available only in the authenticated staff CMS.</small></p> : <p>Staff dashboard preview is available separately in local development.</p>}
     </div>
     <DemoEnquiry live={live} apiOrigin={apiOrigin} client:load />
   </section>
