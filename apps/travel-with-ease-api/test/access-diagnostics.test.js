@@ -16,6 +16,13 @@ test("Access diagnostics use only fixed safe reason codes", () => {
     assert.equal(accessFailureReason({ code: "ERR_JWT_CLAIM_VALIDATION_FAILED", claim, reason: "missing" }), `${claim}_missing`);
   }
   assert.equal(accessFailureReason({ code: "ERR_JWT_CLAIM_VALIDATION_FAILED", claim: "SECRET" }), "claim_invalid");
+  for (const issue of [
+    "jwt_type_invalid", "signing_key_id_missing", "app_type_invalid",
+    "audience_shape_invalid", "subject_invalid", "identity_nonce_missing",
+    "service_identity_detected", "issued_in_future", "expiry_before_issue",
+  ]) assert.equal(accessFailureReason({ code: "TWE_ACCESS_IDENTITY_INVALID", issue }), issue);
+  assert.equal(accessFailureReason({ code: "TWE_ACCESS_IDENTITY_INVALID", issue: "PRIVATE_USER_CLAIM" }), "staff_identity_invalid");
+  assert.equal(accessFailureReason({ code: "TWE_ACCESS_IDENTITY_INVALID" }), "staff_identity_invalid");
   assert.equal(accessFailureReason({ code: "SECRET", message: "SECRET" }), "verification_failed");
   assert.equal(accessFailureReason(null), "verification_failed");
 });
