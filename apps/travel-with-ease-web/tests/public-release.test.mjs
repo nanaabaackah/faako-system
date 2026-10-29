@@ -59,3 +59,42 @@ test("production build publishes approved content without preview copy or unpubl
   const sitemap = readFileSync(path.join(output, "sitemap-0.xml"), "utf8");
   assert.doesNotMatch(sitemap, /\/(contact|privacy|terms|destinations)\/?</);
 });
+
+test("staging demo builds an interactive noindex page while the approved homepage remains separate", () => {
+  const cache = fileURLToPath(new URL("../node_modules/.cache/", import.meta.url));
+  mkdirSync(cache, { recursive: true });
+  const output = mkdtempSync(path.join(cache, "twe-staging-demo-build-"));
+  execFileSync("pnpm", ["run", "build"], {
+    cwd: new URL("../", import.meta.url),
+    env: {
+      ...process.env, PUBLIC_APP_ENV: "staging",
+      PUBLIC_SITE_URL: "https://staging.travelwitheasegh.com",
+      PUBLIC_SITE_INDEXABLE: "false", PUBLIC_STAGING_DEMO_ENABLED: "true",
+      PUBLIC_API_BASE_URL: "https://api-staging.travelwitheasegh.com",
+      TWE_CONTENT_SNAPSHOT: "", TWE_BUILD_OUT_DIR: output,
+    },
+    stdio: ["ignore", "pipe", "pipe"], timeout: 120000,
+  });
+  const demo = readFileSync(path.join(output, "demo", "index.html"), "utf8");
+  const home = readFileSync(path.join(output, "index.html"), "utf8");
+  assert.match(demo, /Staging website demo/);
+  assert.match(demo, /Sample package enquiry|Sample personalised enquiry|sample enquiry/i);
+  assert.match(demo, /staging test inbox/i);
+  assert.match(demo, /noindex, nofollow/);
+  assert.doesNotMatch(demo, /127\.0\.0\.1:5188|http-equiv="refresh"/);
+  assert.match(home, /A little further/);
+  assert.doesNotMatch(home, /Sample journey · Zanzibar/);
+  assert.match(readFileSync(path.join(output, "robots.txt"), "utf8"), /Disallow: \/$/m);
+});
+
+test("staging demo refuses a missing API origin and production never enables the route", () => {
+  const cache = fileURLToPath(new URL("../node_modules/.cache/", import.meta.url));
+  mkdirSync(cache, { recursive: true });
+  const output = mkdtempSync(path.join(cache, "twe-staging-no-api-"));
+  assert.throws(() => execFileSync("pnpm", ["run", "build"], {
+    cwd: new URL("../", import.meta.url),
+    env: { ...process.env, PUBLIC_APP_ENV: "staging", PUBLIC_SITE_URL: "https://staging.travelwitheasegh.com",
+      PUBLIC_STAGING_DEMO_ENABLED: "true", PUBLIC_API_BASE_URL: "", TWE_CONTENT_SNAPSHOT: "", TWE_BUILD_OUT_DIR: output },
+    stdio: ["ignore", "pipe", "pipe"], timeout: 120000,
+  }));
+});

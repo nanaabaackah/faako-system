@@ -52,7 +52,7 @@ const phone =
           visible("services") && (
             <a href={demo ? "#demo-process" : "/services"}>Services</a>
           )
-        }{visible("about") && <a href="/about">About TWE</a>}{
+        }{visible("about") && !demo && <a href="/about">About TWE</a>}{
           visible("journal") && (
             <a href={demo ? "#demo-journal" : "/journal"}>Travel journal</a>
           )
@@ -75,7 +75,7 @@ const phone =
   <div class="footer-legal">
     <span
       >{
-        demo ? "Local demonstration · no live offers" : "Travel With Ease"
+        demo ? "Website demonstration · sample offers not bookable" : "Travel With Ease"
       }</span
     ><nav aria-label="Legal and preferences">
       {

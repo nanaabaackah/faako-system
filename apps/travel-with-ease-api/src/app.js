@@ -8,7 +8,7 @@ import { contentRoutes } from "./content/routes.js";
 import { enquiriesRoutes } from "./enquiries/routes.js";
 import { mediaRoutes } from "./media/routes.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
-import { estimateSchema, inquirySchema } from "./validation.js";
+import { estimateSchema, inquirySchema, demoInquirySchema } from "./validation.js";
 
 const safeEqual = (left, right) => {
   const a = Buffer.from(String(left));
@@ -43,10 +43,19 @@ export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Da
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, contentRepository, publicationRepository, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", logger = createLogger("travel-with-ease-api") }) => {
+export const createApp = ({ repository, estimatorService, contentRepository, publicationRepository, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, demoOrigin = "", environment = "test", logger = createLogger("travel-with-ease-api") }) => {
   assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt });
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
   if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
+  // This route must never be enabled on production, even if copied env vars exist.
+  if (demoOrigin) {
+    let parsed;
+    try { parsed = new URL(demoOrigin); } catch { throw new Error("TWE_DEMO_ORIGIN must be an exact staging HTTPS origin."); }
+    if (environment !== "staging" || parsed.origin !== demoOrigin ||
+        parsed.protocol !== "https:" || !allowedOrigins.includes(demoOrigin)) {
+      throw new Error("Staging demo origin must be an explicitly allowed HTTPS origin and is forbidden in production.");
+    }
+  }
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", false);
@@ -118,6 +127,33 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
     } catch {
       logger.error?.({ requestId: req.requestId, eventName: "inquiry.failed" }, "Inquiry creation failed");
       return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "We could not save your inquiry. Please try again." }, { requestId: req.requestId }));
+    }
+  });
+
+  // Public staging-demo enquiry: explicitly labelled, persisted in the staging
+  // tenant inbox, without generating production bookings, quotes, or emails.
+  // Exact Origin and existing CORS, JSON, validation, anti-bot and IP limits apply.
+  app.post("/api/public/demo-inquiries", publicLimiter, async (req, res) => {
+    if (environment !== "staging" || !demoOrigin) return res.status(404).json(
+      createErrorResponse({ code: "not_found", message: "Route not found." }, { requestId: req.requestId }));
+    if (req.get("Origin") !== demoOrigin) return res.status(403).json(
+      createErrorResponse({ code: "permission_error", message: "This enquiry form is available only on the staging website." }, { requestId: req.requestId }));
+    const parsed = demoInquirySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(createErrorResponse(
+      { code: "validation_error", message: "Please check the demo enquiry details.", issues: issuesFor(parsed.error) },
+      { requestId: req.requestId }));
+    if (parsed.data.website) return res.status(202).json(createSuccessResponse(
+      { received: true, demo: true }, { requestId: req.requestId }));
+    if (typeof repository.createDemoEnquiry !== "function") return res.status(503).json(
+      createErrorResponse({ code: "service_unavailable", message: "Demo enquiries are not available." }, { requestId: req.requestId }));
+    try {
+      const result = await repository.createDemoEnquiry(parsed.data);
+      return res.status(201).json(createSuccessResponse(result, { requestId: req.requestId }));
+    } catch {
+      logger.error?.({ eventName: "demo.inquiry.failed", requestId: req.requestId }, "Staging demo enquiry could not be saved");
+      return res.status(503).json(createErrorResponse(
+        { code: "service_unavailable", message: "The test enquiry could not be saved. Please try again." },
+        { requestId: req.requestId }));
     }
   });
 
