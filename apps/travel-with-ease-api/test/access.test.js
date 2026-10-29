@@ -23,6 +23,17 @@ test("cryptographic Access validation rejects forged, expired, wrong-app and ser
   const claims={iss:env.TWE_ACCESS_TEAM_DOMAIN,aud:[env.TWE_ACCESS_AUDIENCE],sub:"stable-subject",email:"test@example.invalid",type:"app",identity_nonce:"synthetic",iat:now,nbf:now,exp:now+300};
   const sign=(changes={},header={},key=pair.privateKey)=>new SignJWT({...claims,...changes}).setProtectedHeader({alg:"RS256",kid:"test-key",typ:"JWT",...header}).sign(key);
   const valid=await verifier.verify(await sign());assert.equal(valid.subject,"stable-subject");assert.equal(valid.audience,env.TWE_ACCESS_AUDIENCE);
+  // Cloudflare may omit the optional RFC 7519 "typ" header. Its presence
+  // must not become an alternative to cryptographic identity validation.
+  for (const typ of [undefined, "jwt", "application/jwt", "APPLICATION/JWT"]) {
+    const identity = await verifier.verify(await sign({}, {typ}));
+    assert.equal(identity.subject, "stable-subject");
+    assert.equal(identity.audience, env.TWE_ACCESS_AUDIENCE);
+  }
+  // Even without "typ", a wrong issuer/audience or service identity is rejected.
+  await assert.rejects(verifier.verify(await sign({type:"org"}, {typ:undefined})));
+  await assert.rejects(verifier.verify(await sign({aud:["b".repeat(64)]}, {typ:undefined})));
+  await assert.rejects(verifier.verify(await sign({}, {typ:"at+jwt"})));
   for(const change of [{iss:"https://other.cloudflareaccess.com"},{aud:["b".repeat(64)]},{aud:[env.TWE_ACCESS_AUDIENCE,"extra"]},{exp:now-1},{nbf:now+60},{iat:now+60},{type:"org"},{sub:""},{identity_nonce:undefined},{service_token_id:"machine"},{common_name:"machine.access"},{exp:undefined}]) await assert.rejects(verifier.verify(await sign(change)));
   // Safe diagnostics identify which *verified* shape check rejected the JWT.
   for (const [change, expected] of [
