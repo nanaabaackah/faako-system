@@ -7,6 +7,7 @@ import DemoEnquiry from "./DemoEnquiry.jsx";
 import photos from "../lib/approved-preview-media.json";
 const kenya = photos.find((photo) => photo.country === "Kenya")!;
 const zanzibar = photos.find((photo) => photo.country === "Zanzibar")!;
+const { live = false, apiOrigin = "" } = Astro.props;
 ---
 
 <div class="travel-demo">
@@ -153,19 +154,17 @@ const zanzibar = photos.find((photo) => photo.country === "Zanzibar")!;
         No. These demonstrate the website layout, not available offers.
       </p></Accordion
     ><Accordion title="Will this form contact the team?"
-      ><p>No. The local demo does not send or save your choices.</p></Accordion
+      ><p>{live ? "Yes. This staging demo saves test enquiries for authorised staff to review, without booking or sending a confirmation." : "No. The local preview does not send or save your choices."}</p></Accordion
     ><p>Client testimonials will appear only after approval and permission.</p>
   </section>
   <ClosingCta demo />
   <section id="demo-plan" class="demo-wrap demo-plan">
     <div>
       <h2>Where would<br />you like to go?</h2><p>
-        Try the enquiry experience. Use sample choices only—no personal details
-        are collected, stored or sent.
-      </p><ContentLink href="http://127.0.0.1:5188/?demo=1"
-        >Open the staff dashboard demo</ContentLink>
+        {live ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created." : "Try the local preview. Nothing is stored or submitted."}
+      </p>{!live && <p>Staff dashboard preview is available separately in local development.</p>}
     </div>
-    <DemoEnquiry client:load />
+    <DemoEnquiry live={live} apiOrigin={apiOrigin} client:load />
   </section>
 </div>
 <style>
