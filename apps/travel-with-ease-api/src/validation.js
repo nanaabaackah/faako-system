@@ -25,3 +25,18 @@ export const inquirySchema = estimateSchema.extend({
   estimateLowMinor: z.string().regex(/^\d+$/).optional(),
   estimateHighMinor: z.string().regex(/^\d+$/).optional(),
 }).strip();
+
+// Public demo submissions are real staging test enquiries, never bookable offers.
+// Do not reuse the price estimator schema: these are exploratory questions.
+export const demoInquirySchema = z.object({
+  kind: z.enum(["personalised", "package"]),
+  destination: z.enum(["Kenya", "Zanzibar", "Help me choose"]),
+  travelStyle: z.enum(["A slower pace", "Discovery and culture", "A little of both"]),
+  travellers: z.enum(["1", "2", "3–5", "6 or more"]),
+  name: z.string().trim().min(2).max(160),
+  email: emailSchema,
+  phone: phoneSchema,
+  notes: z.string().trim().max(1500),
+  consent: z.literal(true),
+  website: z.string().max(200).optional().default(""),
+}).strict();
