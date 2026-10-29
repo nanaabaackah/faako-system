@@ -2,6 +2,7 @@
 import ContentLink from "./ContentLink.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
+import Accordion from "./Accordion.astro";
 import { publishedPage } from "../lib/published.js";
 const { content } = Astro.props;
 // Staging presents neutral unapproved modules for visual review only.
@@ -12,30 +13,139 @@ const contact = publishedPage("contact");
 const journal = publishedPage("journal");
 const faqs = publishedPage("faqs");
 ---
+
 <section class="editorial-wrap editorial-hero">
-  <div><h1>{content.heading}</h1><p>{content.body}</p>{content.ctaLabel && <ContentLink button href={content.ctaPath}>{content.ctaLabel}</ContentLink>}
-  {content.entries.map((entry: {heading:string;text:string;attribution:string}) => <div><h2>{entry.heading}</h2><p>{entry.text}</p>{entry.attribution && <p>{entry.attribution}</p>}</div>)}</div>
-  {content.image && <img src={content.image.src} alt={content.image.alt} width={content.image.width} height={content.image.height} fetchpriority="high" />}
+  <div>
+    <h1>{content.heading}</h1><p>{content.body}</p>{
+      content.ctaLabel && (
+        <ContentLink button href={content.ctaPath}>
+          {content.ctaLabel}
+        </ContentLink>
+      )
+    }
+    {
+      content.entries.map(
+        (entry: { heading: string; text: string; attribution: string }) => (
+          <div>
+            <p>{entry.text}</p>
+            {entry.attribution && <p>{entry.attribution}</p>}
+          </div>
+        ),
+      )
+    }
+  </div>
+  {
+    content.image && (
+      <img
+        src={content.image.src}
+        alt={content.image.alt}
+        width={content.image.width}
+        height={content.image.height}
+        fetchpriority="high"
+      />
+    )
+  }
 </section>
-{(destinations || stagingReview) && <section class="editorial-wrap editorial-rule">
-  <div class="editorial-heading"><h2>Your next journey</h2>{destinations && <ContentLink href="/destinations">View packages</ContentLink>}</div>
-  <div class="review-empty"><p>No published package collection is connected to this page yet.</p>
-  {stagingReview && <p>Placeholder — approved destinations, dates, inclusions and indicative starting prices will appear here. No offer can be booked.</p>}</div>
-</section>}
+{
+  (destinations || stagingReview) && (
+    <section class="editorial-wrap editorial-rule">
+      <div class="editorial-heading">
+        <h2>Your next journey</h2>
+        {destinations && (
+          <ContentLink href="/destinations">View packages</ContentLink>
+        )}
+      </div>
+      <div class="review-empty">
+        <p>No published package collection is connected to this page yet.</p>
+        {stagingReview && (
+          <p>
+            Placeholder — approved destinations, dates, inclusions and
+            indicative starting prices will appear here. No offer can be booked.
+          </p>
+        )}
+      </div>
+    </section>
+  )
+}
 <section class="editorial-wrap editorial-rule"><TravelFootprint /></section>
-{(contact || stagingReview) && <section class="editorial-wrap editorial-split editorial-rule">
-  <div><h2>From an idea<br />to a plan.</h2><p>{stagingReview && !contact ? "Preview of the proposed enquiry journey. Forms are not connected in this preview." : "Share your travel preferences and discuss the details directly with the agency."}</p></div>
-  <ol class="editorial-process"><li><strong>Tell us what you have in mind</strong>Explore the journey that fits your travel plans.</li><li><strong>Talk through the details</strong>Dates, preferences and practical questions.</li><li><strong>Review your options</strong>Confirm details directly with the agency. An enquiry is not a booking.</li></ol>
-</section>}
-{(journal || stagingReview) && <section class="editorial-wrap editorial-rule" data-twe-reveal>
-  <div class="editorial-heading"><h2>Travel Journal</h2>{journal && <ContentLink href="/journal">Explore the journal</ContentLink>}</div>
-  <p>{journal ? "Read available destination stories and travel information." : "Placeholder — original travel stories and approved photographs will be added here."}</p>
-</section>}
-{(faqs || stagingReview) && <section class="editorial-wrap editorial-rule">
-  <h2>Questions before you travel?</h2>
-  {faqs && <ContentLink href="/faqs">Frequently asked questions</ContentLink>}
-  <p>{faqs ? "Travel information and answers to common questions." : "Placeholder — FAQs and client testimonials will appear after approval."}</p>
-</section>}
-{contact ? <ClosingCta /> : stagingReview && <section class="editorial-wrap editorial-rule">
-  <h2>Where would you like to go?</h2><p>Enquiry forms are being connected. No personal information is collected by this preview.</p>
-</section>}
+{
+  (contact || stagingReview) && (
+    <section class="editorial-wrap editorial-split editorial-rule">
+      <div>
+        <>
+          <h2>
+            From an idea
+            <br />
+            to a plan.
+          </h2>
+          <p>
+            {stagingReview && !contact
+              ? "Preview of the proposed enquiry journey. Forms are not connected in this preview."
+              : "Share your travel preferences and discuss the details directly with the agency."}
+          </p>
+        </>
+      </div>
+      <ol class="editorial-process">
+        <>
+          <li>
+            <strong>Tell us what you have in mind</strong>Explore the journey
+            that fits your travel plans.
+          </li>
+          <li>
+            <strong>Talk through the details</strong>Dates, preferences and
+            practical questions.
+          </li>
+          <li>
+            <strong>Review your options</strong>Confirm details directly with
+            the agency. An enquiry is not a booking.
+          </li>
+        </>
+      </ol>
+    </section>
+  )
+}
+{
+  (journal || stagingReview) && (
+    <section class="editorial-wrap editorial-rule" data-twe-reveal>
+      <div class="editorial-heading">
+        <h2>Travel Journal</h2>
+        {journal && (
+          <ContentLink href="/journal">Explore the journal</ContentLink>
+        )}
+      </div>
+      <p>
+        {journal
+          ? "Read available destination stories and travel information."
+          : "Placeholder — original travel stories and approved photographs will be added here."}
+      </p>
+    </section>
+  )
+}
+{
+  (faqs || stagingReview) && (
+    <section class="editorial-wrap editorial-rule editorial-faqs">
+      <div class="faq-introduction">
+        <h2>Questions before you travel?</h2>
+        {faqs && (
+          <ContentLink href="/faqs">Frequently asked questions</ContentLink>
+        )}
+        <p>
+          {faqs
+            ? "Travel information and answers to common questions."
+            : "Placeholder — FAQs and client testimonials will appear after approval."}
+        </p>
+      </div>
+      {faqs && (
+        <div class="faq-questions">
+          {faqs.entries.map((entry: { heading: string; text: string }) => (
+            <Accordion title={entry.heading}>
+              <p>{entry.text}</p>
+            </Accordion>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+<!-- Brand CTA artwork is approved independently of business-content publication. -->
+<ClosingCta enquiryAvailable={Boolean(contact)} />

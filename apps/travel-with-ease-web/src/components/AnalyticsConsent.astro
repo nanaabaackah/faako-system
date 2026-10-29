@@ -1,7 +1,10 @@
 ---
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
-const privacyAvailable = !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
-const measurementId = privacyAvailable ? import.meta.env.PUBLIC_GA_MEASUREMENT_ID || "" : "";
+const privacyAvailable =
+  !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
+const measurementId = privacyAvailable
+  ? import.meta.env.PUBLIC_GA_MEASUREMENT_ID || ""
+  : "";
 ---
 
 <div data-analytics-config data-measurement-id={measurementId} hidden></div>
@@ -15,13 +18,16 @@ const measurementId = privacyAvailable ? import.meta.env.PUBLIC_GA_MEASUREMENT_I
 
   const storageKey = "twe-cookie-consent-v1";
   const config = document.querySelector("[data-analytics-config]");
-  const measurementId = config?.getAttribute("data-measurement-id")?.trim() || "";
+  const measurementId =
+    config?.getAttribute("data-measurement-id")?.trim() || "";
   let started = false;
 
   const readConsent = () => {
     try {
       const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
-      return saved?.essential === true && typeof saved.analytics === "boolean" ? saved : null;
+      return saved?.essential === true && typeof saved.analytics === "boolean"
+        ? saved
+        : null;
     } catch {
       return null;
     }
@@ -30,7 +36,10 @@ const measurementId = privacyAvailable ? import.meta.env.PUBLIC_GA_MEASUREMENT_I
   const applyConsent = (analytics: boolean) => {
     if (!measurementId) return;
     if (!analytics) {
-      setGoogleAnalyticsConsent(measurementId, { analytics: false, marketing: false });
+      setGoogleAnalyticsConsent(measurementId, {
+        analytics: false,
+        marketing: false,
+      });
       return;
     }
 
@@ -41,7 +50,10 @@ const measurementId = privacyAvailable ? import.meta.env.PUBLIC_GA_MEASUREMENT_I
         respectDoNotTrack: true,
       });
     } else {
-      setGoogleAnalyticsConsent(measurementId, { analytics: true, marketing: false });
+      setGoogleAnalyticsConsent(measurementId, {
+        analytics: true,
+        marketing: false,
+      });
     }
 
     if (started) trackGoogleAnalyticsPageView({ measurementId });

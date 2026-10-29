@@ -1,25 +1,69 @@
 ---
 import ContentLink from "./ContentLink.astro";
-import photos from "../lib/approved-preview-media.json";
-const { demo = false } = Astro.props;
-const selection = [photos.find(p => p.country === "Zanzibar")!, photos.find(p => p.country === "Kenya")!];
+import { Image } from "astro:assets";
+import phone from "../../public/media/Mockups/TWE_mockup1.png";
+import tablet from "../../public/media/Mockups/TWE_mockup2.png";
+import camera from "../../public/media/Mockups/TWE_mockup3.png";
+import headphones from "../../public/media/Mockups/TWE_mockup4.png";
+import laptop from "../../public/media/Mockups/TWE_mockup5.png";
+const { demo = false, enquiryAvailable = true } = Astro.props;
+const mockups = [
+  { image: headphones, name: "headphones" },
+  { image: tablet, name: "tablet" },
+  { image: laptop, name: "laptop" },
+  { image: phone, name: "phone" },
+  { image: camera, name: "camera" },
+];
 ---
+
 <section class="closing-cta" aria-labelledby="closing-cta-heading">
-  <div class="closing-copy"><h2 id="closing-cta-heading">Make room for your next journey.</h2>
-  <p>{demo ? "Explore a sample trip, then try the enquiry experience. Nothing is booked or sent." : "Start with an idea. Explore the enquiry options for your next trip."}</p>
-  <ContentLink button href={demo ? "#demo-plan" : "/contact"} data-demo-personalised={demo ? "" : undefined}>{demo ? "Try a personalised enquiry" : "Plan a trip"}</ContentLink></div>
-  <div class="closing-photos">{selection.map((photo, index) => <figure data-twe-reveal data-stagger={index}><img src={photo.sources[0].src} srcset={photo.sources.map(s => `${s.src} ${s.width}w`).join(", ")} sizes="(max-width: 700px) 45vw, 560px" width={photo.width} height={photo.height} alt={photo.alt} loading="lazy" decoding="async" /><figcaption>{photo.country} · TWE-supplied photography</figcaption></figure>)}</div>
-  {demo && <small>Composition preview using existing approved photos. Final images will be supplied by TWE.</small>}
+  <div class="closing-copy">
+    <h2 id="closing-cta-heading">Make room for your next journey.</h2>
+    <p>
+      {
+        demo
+          ? "Explore a sample trip, then try the enquiry experience. Nothing is booked or sent."
+          : enquiryAvailable
+            ? "Start with an idea. Explore the enquiry options for your next trip."
+            : "Make space for a new journey. Online enquiry details are not available yet."
+      }
+    </p>
+    <ContentLink
+      button
+      href={demo ? "#demo-plan" : "/contact"}
+      data-demo-personalised={demo ? "" : undefined}
+      >{
+        demo
+          ? "Try a personalised enquiry"
+          : enquiryAvailable
+            ? "Plan a trip"
+            : "Enquiry availability"
+      }</ContentLink
+    >
+  </div>
+  <div class="closing-artwork">
+    <div class="closing-photos" aria-hidden="true">
+      {
+        mockups.map((mockup, index) => (
+          <div class:list={["mockup", `mockup--${mockup.name}`]}>
+            <div class="mockup-reveal" data-twe-reveal data-stagger={index}>
+              <Image
+                src={mockup.image}
+                widths={[160, 320, 640, 960]}
+                sizes="(max-width: 1600px) 43vw, 680px"
+                format="webp"
+                quality={80}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
 </section>
 <style>
-  .closing-cta { overflow: clip; text-align: center; padding: 72px 5% 40px; color: #010c33; background: #f4ede3; }
-  .closing-copy { max-width: 650px; margin: 0 auto 40px; }
-  h2 { font-size: clamp(2rem,4vw,3.3rem); letter-spacing: -.04em; line-height: 1.1; margin: 0 0 20px; }
-  p { max-width: 46ch; margin: 0 auto 24px; line-height: 1.7; }
-  .closing-photos { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; max-width: 1100px; margin: auto; align-items: end; }
-  figure { margin: 0; } figure:first-child { padding-bottom: 36px; }
-  img { width: 100%; height: 390px; object-fit: cover; display: block; border-radius: 8px; }
-  figure:last-child img { height: 330px; }
-  figcaption, small { font-size: 11px; display: block; margin-top: 12px; }
-  @media(max-width:700px) { .closing-cta { padding-top: 44px; } .closing-photos { gap: 12px; } img { height: 230px; } figure:last-child img { height: 200px; } }
+  @import "../styles/components/closing-cta.css";
 </style>

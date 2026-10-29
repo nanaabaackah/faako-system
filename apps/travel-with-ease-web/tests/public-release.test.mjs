@@ -42,7 +42,14 @@ test("production build publishes approved content without preview copy or unpubl
   const home = readFileSync(path.join(output, "index.html"), "utf8");
   assert.match(home, /A little further/);
   assert.match(home, /name="robots" content="index, follow"/);
-  assert.doesNotMatch(home, /Design preview|placeholder|href="\/(contact|privacy|terms|services|destinations)"/i);
+  assert.doesNotMatch(home, /Design preview|placeholder/i);
+  const header = home.match(/<header[\s\S]*?<\/header>/)?.[0];
+  assert.ok(header);
+  assert.doesNotMatch(header, /href="\/(contact|privacy|terms|services|destinations)"/);
+  assert.match(home, /Make room for your next journey/);
+  assert.match(home, /Online enquiry details are not available yet/);
+  assert.match(home, /Enquiry availability/);
+  assert.equal((home.match(/TWE_mockup[1-5][^"\s]*\.webp/g) || []).length > 0, true);
   for (const slug of ["contact", "privacy", "destinations"]) {
     const page = readFileSync(path.join(output, slug, "index.html"), "utf8");
     assert.match(page, /Content unavailable/);
