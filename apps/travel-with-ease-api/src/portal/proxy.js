@@ -5,12 +5,17 @@ import { buildSecurityHeaders } from "@faako/security";
 const id = "[a-fA-F0-9-]{36}";
 const page = "(?:home|about|services|faqs|testimonials|contact)";
 const routes = [
+  ["GET", /^\/api\/auth\/(activation|invitations)$/],
+  ["POST", /^\/api\/auth\/(invitations|activation\/preview|activation\/claim|activation\/owner-invitation)$/],
+  ["POST", new RegExp(`^/api/auth/(?:invitations|activation/owner-invitation)/${id}/revoke$`)],
+  ["GET", /^\/api\/auth\/tutorials$/],
+  ["POST", /^\/api\/auth\/tutorials$/],
   ["GET", /^\/api\/auth\/(status|session)$/],
   ["POST", /^\/api\/auth\/(access-session|logout|logout-all)$/],
   ["GET", /^\/api\/agent\/leads$/],
   ["GET", /^\/api\/agent\/inquiries(?:\/[a-fA-F0-9-]{36})?$/],
   ["POST", /^\/api\/agent\/inquiries\/[a-fA-F0-9-]{36}\/status$/],
-  ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff)$/],
+  ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff|staff-events)$/],
   ["POST", /^\/api\/agent\/administration\/(staff|support-grants)$/],
   ["POST", new RegExp(`^/api/agent/administration/staff/${id}/(?:status|revoke-sessions)$`)],
   ["POST", new RegExp(`^/api/agent/administration/support-grants/${id}/revoke$`)],

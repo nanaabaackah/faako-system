@@ -15,6 +15,8 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Administration } from "../../src/auth/administration.js";
+import { TutorialService } from "../../src/onboarding/service.js";
+import { Invitations } from "../../src/onboarding/invitations.js";
 
 test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outbox writes", async (context) => {
   // Fail rather than silently skip: test:db is a required, explicit CI job.
@@ -50,6 +52,68 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await pool.query("SELECT to_regclass('twe.must_rollback') AS table_name")).rows[0].table_name, null);
   assert.deepEqual(await migrate(pool, options), []);
   await verifyDatabaseIdentity(pool, options);
+
+  await context.test("activation is identity-bound, atomic, single-use and audited; tutorials survive service recreation", async () => {
+    const issuer = "https://activation.example.invalid";
+    const settings = { issuer, audience: "a".repeat(64) };
+    const identity = subject => ({ ...settings, subject });
+    const invitations = new Invitations(pool, otherOrg, settings, "test", "installer-subject");
+    const input = { identity: identity("installer-subject"), subject: "new-owner", approvalReference: "TEST-1", requestId: "test-activation" };
+    await assert.rejects(invitations.issue({ ...input, identity: identity("attacker") }));
+    const invitation = await invitations.issue(input);
+    const competing = await invitations.issue({ ...input, subject: "competing-owner" });
+    await assert.rejects(invitations.claim(identity("wrong-subject"), invitation.code, "test-wrong"));
+    await assert.rejects(invitations.claim({ ...identity("new-owner"), audience: "wrong" }, invitation.code, "test-wrong-aud"));
+    const race = await Promise.allSettled([invitations.claim(identity("new-owner"), invitation.code, "test-claim-a"), invitations.claim(identity("new-owner"), invitation.code, "test-claim-b")]);
+    assert.equal(race.filter(result => result.status === "fulfilled").length, 1);
+    assert.equal((await invitations.identityStatus(identity("new-owner"))).status, "active");
+    await assert.rejects(invitations.claim(identity("competing-owner"), competing.code, "test-competing"));
+    await assert.rejects(invitations.issue({ ...input, subject: "second-owner" }));
+    const { rows: [owner] } = await pool.query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND subject='new-owner'", [otherOrg]);
+    const actor = { ...owner, organisationId: otherOrg };
+    const tutorials = new TutorialService(pool, otherOrg);
+    const first = await tutorials.run(actor);
+    assert.equal(first.progress.status, "new");
+    const started = await tutorials.run(actor, { type: "start", revision: 0 });
+    assert.equal(started.progress.status, "active");
+    const paused = await tutorials.run(actor, { type: "skip", revision: 1 });
+    assert.equal(paused.progress.status, "paused");
+    await assert.rejects(tutorials.run(actor, { type: "complete", revision: 1 }), /another tab/);
+    assert.deepEqual((await new TutorialService(pool, otherOrg).run(actor)).progress, paused.progress);
+    await assert.rejects(new TutorialService(pool, organisationId).run(actor));
+    // Exercise the restricted runtime grants, not just the migration owner.
+    const runtimeClient = await pool.connect();
+    let runtimeEditor;
+    try {
+      await runtimeClient.query("SET ROLE twe_test_runtime");
+      const query = (...args) => runtimeClient.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      assert.equal((await new TutorialService(runtimePool, otherOrg).run(actor)).progress.status, "paused");
+      const runtimeInvitations = new Invitations(runtimePool, otherOrg, settings, "test");
+      const invited = await runtimeInvitations.issue({ actor, subject: "runtime-editor", approvalReference: "TEST-RUNTIME", requestId: "test-runtime" });
+      assert.equal((await runtimeInvitations.preview(identity("runtime-editor"), invited.code)).role, "editor");
+      await runtimeInvitations.claim(identity("runtime-editor"), invited.code, "test-runtime-claim");
+      const { rows: [editor] } = await query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND subject='runtime-editor'", [otherOrg]);
+      runtimeEditor = { ...editor, organisationId: otherOrg };
+      const editorTours = await new TutorialService(runtimePool, otherOrg).run(runtimeEditor);
+      assert.equal(editorTours.catalogue.some(tour => ["staff", "publishing"].includes(tour.id)), false);
+      await assert.rejects(runtimeInvitations.issue({ actor: runtimeEditor, subject: "escalation", approvalReference: "TEST-DENIED" }));
+    } finally { await runtimeClient.query("RESET ROLE"); runtimeClient.release(); }
+    const admin = new Administration(pool, otherOrg, settings, "test");
+    await admin.revokeSessions(actor, runtimeEditor.id, "test-revoke-editor");
+    await assert.rejects(admin.revokeSessions(actor, actor.id, "test-deny-owner"));
+    await assert.rejects(admin.staffEvents(runtimeEditor));
+    const editorInvite = await invitations.issue({ actor, subject: "new-editor", approvalReference: "TEST-EDITOR", requestId: "test-editor" });
+    await invitations.revoke({ actor, id: editorInvite.id, requestId: "test-revoke" });
+    await assert.rejects(invitations.claim(identity("new-editor"), editorInvite.code, "test-revoked"));
+    const expired = await invitations.issue({ actor, subject: "expired-editor", approvalReference: "TEST-EXPIRED", requestId: "test-expired" });
+    await pool.query("UPDATE twe.staff_invitations SET created_at=now()-interval '2 days',expires_at=now()-interval '1 day' WHERE id=$1", [expired.id]);
+    await assert.rejects(invitations.claim(identity("expired-editor"), expired.code, "test-expired"));
+    await pool.query("UPDATE twe.staff_users SET active=false WHERE id=$1", [owner.id]);
+    await assert.rejects(tutorials.run(actor));
+    await assert.rejects(invitations.issue({ actor, subject: "disabled-owner-editor", approvalReference: "TEST-DISABLED" }));
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [otherOrg])).rows[0].n, 2);
+  });
 
   const repository = new PostgresLeadRepository(pool, options);
   await repository.ready();

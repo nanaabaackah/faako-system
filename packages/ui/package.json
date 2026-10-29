@@ -20,6 +20,8 @@
     "react-router-dom": "^7.18.0"
   },
   "exports": {
+    "./GuidedTour": "./src/GuidedTour.tsx",
+    "./guided-tour.css": "./src/guided-tour.css",
     ".": "./src/index.ts",
     "./useFrontFacingScrollReveal": "./src/useFrontFacingScrollReveal.ts",
     "./twe-feedback.css": "./src/twe-feedback.css",

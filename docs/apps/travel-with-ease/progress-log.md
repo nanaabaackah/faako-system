@@ -1,5 +1,18 @@
 # Travel With Ease progress log
 
+## 2026-10-29 — Activation invitations and guided workspace onboarding
+
+- Added reviewed-installer initial Owner invitations, Owner-issued Editor
+  invitations, same-origin activation confirmation, revocation and staff audit UI.
+- Added tenant/user-scoped PostgreSQL tutorial progress with optimistic revisions,
+  permission-filtered definitions, footer preferences and an opt-in shared guide.
+- Added account/session settings and real module targets without auto-editing,
+  publishing, customer-record mutations or frontend authorisation authority.
+- Added additive migrations, scoped runtime grants, API/DB/browser tests and
+  [setup/reuse/acceptance documentation](./workspace-onboarding.md).
+- Local verification is not hosted acceptance. Installer configuration and
+  staging Google/MFA/user acceptance remain operator-reviewed release gates.
+
 ## 2026-10-27 — Actionable pre-deploy configuration diagnostics
 
 - Replaced misleading generic configuration failures with allowlisted reason codes

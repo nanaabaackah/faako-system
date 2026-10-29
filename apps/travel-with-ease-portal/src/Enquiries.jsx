@@ -53,7 +53,7 @@ export default function Enquiries({ api, session }) {
         </div> : <p>You have read-only access to this enquiry.</p>}</section>
       </article>}
     </> : <>
-      <div className="workspace-filters"><SelectField label="Status" value={status} onChange={event => { setStatus(event.target.value); setOffset(0); }}>
+      <div className="workspace-filters" data-tour="enquiry-filters"><SelectField label="Status" value={status} onChange={event => { setStatus(event.target.value); setOffset(0); }}>
         <option value="">All statuses</option>{statuses.map(value => <option key={value} value={value}>{value}</option>)}
       </SelectField>
       <SelectField label="Enquiry type" value={kind} onChange={event => { setKind(event.target.value); setOffset(0); }}>

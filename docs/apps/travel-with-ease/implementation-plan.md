@@ -1,5 +1,15 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-29 — Account activation and Phase 11
+
+The current implementation slice adds identity-bound initial Owner/Editor
+invitations and user-specific guided onboarding. See the [architecture, setup,
+reuse, versioning and acceptance runbook](./workspace-onboarding.md).
+Work is isolated on `feat/twe-workspace-onboarding` for a PR into `develop`;
+no automatic merge, infrastructure ownership change or production deployment.
+Local tests and hosted acceptance are separate gates. No Trello completion state
+is changed by this phase. Earlier planning below is historical context.
+
 Date: 2026-10-11. Prepared under [TWE-016](https://trello.com/c/VGWgpkCy).
 Status: proposed execution plan for approval; no product implementation or infrastructure provisioning performed.
 Evidence: [repository audit](./repository-audit-2026-10-11.md). Rules: [design/engineering standard](./design-engineering-standard.md). Product scope: Prompt 02 and the [October roadmap](./Travel_With_Ease_Solution_Roadmap.md).
