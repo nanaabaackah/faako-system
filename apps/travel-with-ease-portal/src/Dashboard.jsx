@@ -3,7 +3,7 @@ import NavigationIcon from "./NavigationIcon.jsx";
 import { useEffect, useState } from "react";
 import { KpiCard, InlineNotice } from "@faako/ui";
 
-export default function Dashboard({ api, session, onNavigate, isDemo }) {
+export default function Dashboard({ api, session, onNavigate, isDemo, demoWebsiteUrl = "" }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const permissions = session.user.permissions || [];
@@ -50,7 +50,7 @@ export default function Dashboard({ api, session, onNavigate, isDemo }) {
         {permissions.includes("media.read") && <button onClick={() => onNavigate("media")}><strong>Media library</strong><span>Manage approved images and their usage rights.</span><NavigationIcon name="media" /></button>}
         {session.user.role === "owner" && <button onClick={() => onNavigate("staff")}><strong>Staff access</strong><span>Manage your team's access to this workspace.</span><NavigationIcon name="staff" /></button>}
         {permissions.includes("system.read") && <button onClick={() => onNavigate("system")}><strong>System administration</strong><span>Review technical health and security events.</span><NavigationIcon name="system" /></button>}
-        {isDemo && <a href="http://127.0.0.1:4328/demo" target="_blank" rel="noreferrer"><strong>Preview the website demo</strong><span>Explore the public-facing travel experience.</span><NavigationIcon name="preview" /></a>}
+        {isDemo && <a href={demoWebsiteUrl} target="_blank" rel="noopener noreferrer"><strong>Preview the website demo</strong><span>Explore the public-facing travel experience.</span><NavigationIcon name="preview" /></a>}
       </section>
     </div>
     {canEdit && <section className="dashboard-panel">
