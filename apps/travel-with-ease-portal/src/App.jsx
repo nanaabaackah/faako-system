@@ -19,7 +19,15 @@ import brandLogo from "../../travel-with-ease-web/public/brand/Primary gold.png"
 // Never embed an API origin that bypasses the Access-aware portal server.
 const baseUrl = "";
 const localDemoAllowed = import.meta.env.DEV && import.meta.env.TWE_LOCAL_DEMO_ALLOWED === true;
-const isDemo = localDemoAllowed && demoEnabled({ allowed: true, hostname: window.location.hostname, search: window.location.search });
+const stagingDemoAllowed = import.meta.env.TWE_STAGING_PORTAL_DEMO_ALLOWED === true;
+const isDemo = demoEnabled({
+  allowed: localDemoAllowed,
+  stagingAllowed: stagingDemoAllowed,
+  hostname: window.location.hostname,
+  pathname: window.location.pathname,
+  search: window.location.search,
+});
+const demoRestartUrl = stagingDemoAllowed ? "/demo" : "/?demo=1";
 const baseApi = isDemo ? createDemoClient() : createBrowserApiClient({ baseUrl, credentials: "include" });
 const loadSession = createSessionLoader(baseApi);
 
@@ -31,7 +39,7 @@ function StaffWorkspace() {
       const id = pushToast({ tone: "loading", title: isDemo ? "Updating demo" : "Working", message: "Please wait for confirmation." });
       try {
         const result = await baseApi.post(...args);
-        updateToast(id, { tone: "success", title: isDemo ? "Demo updated" : "Request completed", message: isDemo ? "Only this local demo changed. Nothing was sent or published." : "The server confirmed the action. Publication requests still require a successful deployment." });
+        updateToast(id, { tone: "success", title: isDemo ? "Demo updated" : "Request completed", message: isDemo ? "Only simulated demo data changed in this tab. No server change was made." : "The server confirmed the action. Publication requests still require a successful deployment." });
         return result;
       } catch (error) {
         updateToast(id, { tone: "error", title: "Action not completed", message: "Check the details shown in the workspace before retrying." });
@@ -102,20 +110,20 @@ function StaffWorkspace() {
       <nav aria-label="Staff navigation">{navigation.map(navButton)}</nav>
     </aside>
     <PageShell>
-      {isDemo ? <aside className="demo-notice" aria-label="Local demo">
-        <strong>Local demo — synthetic data only</strong>
-        <p>This is not a real login. Drafts and enquiry changes are held in memory and reset on reload. No database, email, uploads or live publishing.</p>
-        <a href="/">Exit demo</a>
+      {isDemo ? <aside className="demo-notice" aria-label="Synthetic portal demonstration">
+        <strong>{stagingDemoAllowed ? "Staging portal demo" : "Local portal demo"} — synthetic data only</strong>
+        <p>This is an interactive preview, not a real staff login. The sample enquiries and drafts reset on reload; no real customer records, database, emails, uploads or published website content are changed.</p>
+        <a href="/">Exit demo and open staff login</a>
       </aside> : localDemoAllowed && ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) && <aside className="demo-notice">
         <p>Preview the updated staff workspace using synthetic data.</p><a href="/?demo=1">Open local demo workspace</a>
       </aside>}
       <PageHeader title={session ? (section === "overview" ? "Dashboard" : ({ enquiries: "Enquiries", content: "Website content", media: "Media library", staff: "Staff access", system: "System administration" }[section])) : "Staff sign-in"} subtitle={session ? "Travel With Ease · Staff workspace" : "Your next journey starts here."} />
       {state.error && <InlineNotice tone="danger" title="Request unsuccessful" message={state.error} />}
       {state.loading ? <p role="status">Checking your session…</p> : session ? <div className="session-toolbar" aria-label="Your session">
-        <span>Signed in as <strong>{session.user.role.replaceAll("_", " ")}</strong></span>
-        <Button icon="logout" variant="ghost" type="button" onClick={() => logout()}>Sign out</Button>
-        <Button type="button" onClick={() => { if (window.confirm("Sign out all your Travel With Ease sessions?")) logout(true); }}>Sign out all devices</Button>
-      </div> : isDemo ? <section><h2>Demo session ended</h2><p>No real staff session was created.</p><a href="/?demo=1">Restart local demo</a></section> : state.configured && accountLinks.mode === "cloudflare_access" ? <section className="signin-panel" aria-labelledby="access-signin-heading">
+        <span>{isDemo ? "Simulating role " : "Signed in as "}<strong>{session.user.role.replaceAll("_", " ")}</strong></span>
+        <Button icon="logout" variant="ghost" type="button" onClick={() => logout()}>{isDemo ? "End demo session" : "Sign out"}</Button>
+        {!isDemo && <Button type="button" onClick={() => { if (window.confirm("Sign out all your Travel With Ease sessions?")) logout(true); }}>Sign out all devices</Button>}
+      </div> : isDemo ? <section><h2>Demo session ended</h2><p>No real staff session was created.</p><a href={demoRestartUrl}>Restart demo</a></section> : state.configured && accountLinks.mode === "cloudflare_access" ? <section className="signin-panel" aria-labelledby="access-signin-heading">
         <h2 id="access-signin-heading">Welcome to Travel With Ease</h2><p>Sign in with your approved staff identity through Cloudflare Access, including Google where enabled. Your workspace owner must grant staff access separately.</p>
         <a className="signin-link" href="/cdn-cgi/access/logout">Sign in again securely</a>
         <p>Need access or account recovery? Contact your workspace owner. Travel With Ease does not collect your Google password or recovery codes.</p>
