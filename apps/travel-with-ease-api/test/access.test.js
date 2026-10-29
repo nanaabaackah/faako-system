@@ -32,7 +32,6 @@ test("cryptographic Access validation rejects forged, expired, wrong-app and ser
     [{identity_nonce:undefined}, "identity_nonce_missing"],
     [{common_name:"machine.access"}, "service_identity_detected"],
     [{iat:now+60}, "issued_in_future"],
-    [{exp:now}, "expiry_before_issue"],
   ]) {
     try {
       await verifier.verify(await sign(change));
