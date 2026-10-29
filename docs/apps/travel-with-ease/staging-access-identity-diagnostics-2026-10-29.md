@@ -28,3 +28,11 @@ Standard JWT errors continue to use `aud_invalid`, `iss_invalid`, `token_expired
 6. After the assertion passes, verify the auth-status JSON `configured=true`, then verify local app session/staff provisioning independently.
 
 The staging diagnostics don't change authentication decisions or unlock any access.
+
+## Follow-up: optional JOSE `typ` on Cloudflare Access tokens
+
+Staging later logged `jwt_type_invalid` for a cryptographically verified assertion. The original `access.js` check rejected any token whose protected-header `typ` was not *exactly* uppercase `JWT`. This exceeds RFC 7519 §5.1: the field is optional, and media types are case-insensitive. Neither a missing `typ` nor mixed-case `JWT` is proof of an invalid assertion.
+
+The verifier now allows `typ` to be omitted or to be `JWT`/`application/jwt` (case-insensitive), but rejects other explicit types. **All** signature, RS256, issuer, single configured staging audience, temporal, subject, `type=app`, nonce, service-token rejection, active DB staff account, and local session constraints remain enforced.
+
+After review/CI, deploy to staging and retry a fresh Access session. If the reason advances to another fixed code, address that specific rejection without switching off the Access guard or using production credentials. If it stays `jwt_type_invalid`, the present token type may not be one of the recognized JWT types and needs further provider-specific validation; do not paste the token into tickets or chat.
