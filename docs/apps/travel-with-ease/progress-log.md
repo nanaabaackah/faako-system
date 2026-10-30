@@ -1,5 +1,16 @@
 # Travel With Ease progress log
 
+## 2026-10-30 — Correct Flyward reference interpretation
+
+- Restored the supplied mockup CTA; no captions or substitute travel-photo row.
+- Matched centred hero/navigation, photographic journey panels, staggered
+  cream process sections, journal/FAQ proportions and shared-image footer.
+- Footer stays 100% wide on entry; end-of-page scrolling reveals the light
+  gutter. No layout resizing, scroll hijacking or reduced-motion animation.
+- Six-width keyboard, touch, no-JavaScript, map/form and WCAG checks pass.
+- Kept unrelated dirty workspace edits, API publication fix and staff skeletons.
+- [Reference decisions, checks and rollback](./reference-correction-2026-10-30.md).
+
 ## 2026-10-30 — Editorial website redesign
 
 - Follow-up: shared Faako skeletons added to portal and website asynchronous states.

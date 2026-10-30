@@ -1,6 +1,7 @@
 # Travel With Ease documentation
 
-Latest visual work: [editorial redesign and release gates — 2026-10-30](./editorial-redesign-2026-10-30.md).
+Latest visual work: [Flyward reference correction — 2026-10-30](./reference-correction-2026-10-30.md).
+Earlier implementation/release gates: [editorial redesign](./editorial-redesign-2026-10-30.md).
 
 Current follow-up: [company content, enquiry email and demos](./content-and-email-followup.md).
 Company source: [public facts and outstanding approvals](./company-content-source.md).

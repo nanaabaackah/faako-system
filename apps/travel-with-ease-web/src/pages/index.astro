@@ -1,10 +1,12 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import CinematicEnquiry from "../components/CinematicEnquiry.astro";
 import PublishedHome from "../components/PublishedHome.astro";
 import PublishedContent from "../components/PublishedContent.astro";
 import { publishedPage } from "../lib/published.js";
 import approvedRelease from "../../content/approved-public-release.json";
 const published = publishedPage("home");
+const contact = publishedPage("contact");
 // Same reviewed content/components locally and hosted; never revive unpublished content.
 const content =
   published === undefined ? approvedRelease.pages.home : published;
@@ -24,4 +26,14 @@ const content =
       <PublishedContent content={null} />
     )
   }
+  <Fragment slot="closing">
+    {
+      content && (
+        <CinematicEnquiry
+          enquiryAvailable={Boolean(contact)}
+          image={contact?.image}
+        />
+      )
+    }
+  </Fragment>
 </BaseLayout>

@@ -30,6 +30,12 @@ body {
   gap: 1.2rem;
   flex-wrap: wrap;
 }
+.header-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.2rem;
+}
 .site-header nav a {
   display: inline-flex;
   align-items: center;
@@ -183,6 +189,29 @@ a:focus .link-arrow {
 .review-empty p:last-child {
   margin-bottom: 0;
 }
+.review-journey-images {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 2rem;
+}
+.review-journey-images figure {
+  margin: 0;
+}
+.review-journey-images img {
+  width: 100%;
+  height: clamp(280px, 40vw, 580px);
+  object-fit: cover;
+}
+.review-journey-images figcaption {
+  padding-top: 0.8rem;
+  font-size: 12px;
+}
+@media (max-width: 760px) {
+  .review-journey-images {
+    grid-template-columns: 1fr;
+  }
+}
 .editorial-process {
   padding-left: 1.5rem;
 }
@@ -328,6 +357,13 @@ a:focus .link-arrow {
     400 clamp(2.5rem, 4vw, 4rem)/1.08 Georgia,
     serif;
   letter-spacing: -0.04em;
+}
+.cinematic-page .editorial-wrap > h2,
+.cinematic-page .editorial-heading h2,
+.cinematic-page .faq-introduction h2 {
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: -0.035em;
 }
 .cream-footprint .footprint-map {
   grid-column: 2;

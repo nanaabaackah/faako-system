@@ -3,14 +3,12 @@ import Accordion from "./Accordion.astro";
 import ContentLink from "./ContentLink.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
-import DemoEnquiry from "./DemoEnquiry.jsx";
 import DemoEmailPreview from "./DemoEmailPreview.astro";
 import CinematicHero from "./CinematicHero.astro";
-import CinematicEnquiry from "./CinematicEnquiry.astro";
 import photos from "../lib/approved-preview-media.json";
 const kenya = photos.find((photo) => photo.country === "Kenya")!;
 const zanzibar = photos.find((photo) => photo.country === "Zanzibar")!;
-const { live = false, apiOrigin = "" } = Astro.props;
+const { live = false } = Astro.props;
 ---
 
 <div class="travel-demo">
@@ -80,26 +78,47 @@ const { live = false, apiOrigin = "" } = Astro.props;
         </p>
       </div>
       <ol>
-        <li>
-          <span>01</span><div>
-            <h3>Start with an idea</h3><p>
-              Choose a sample journey or the kind of trip you have in mind.
-            </p>
-          </div>
-        </li><li>
-          <span>02</span><div>
-            <h3>Shape the details</h3><p>
-              Explore the dates, pace and preferences that matter to you.
-            </p>
-          </div>
-        </li><li>
-          <span>03</span><div>
-            <h3>Make an informed choice</h3><p>
-              In the live service, confirm the actual offer and terms with the
-              agency.
-            </p>
-          </div>
-        </li>
+        {
+          [
+            {
+              number: "01",
+              photo: kenya,
+              title: "Start with an idea",
+              text: "Choose a sample journey or the kind of trip you have in mind.",
+            },
+            {
+              number: "02",
+              photo: zanzibar,
+              title: "Shape the details",
+              text: "Explore the dates, pace and preferences that matter to you.",
+            },
+            {
+              number: "03",
+              photo: kenya,
+              title: "Make an informed choice",
+              text: "In the live service, confirm the actual offer and terms with the agency.",
+            },
+          ].map((step) => (
+            <li>
+              <span>{step.number}</span>
+              <div>
+                <img
+                  src={step.photo.sources.at(-1)!.src}
+                  srcset={step.photo.sources
+                    .map((source) => `${source.src} ${source.width}w`)
+                    .join(", ")}
+                  sizes="(max-width: 760px) 85vw, 28vw"
+                  alt=""
+                  width={step.photo.width}
+                  height={step.photo.height}
+                  loading="lazy"
+                />
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </div>
+            </li>
+          ))
+        }
       </ol>
     </div>
   </section>
@@ -148,20 +167,25 @@ const { live = false, apiOrigin = "" } = Astro.props;
     </div>
   </section>
   <section id="demo-faqs" class="demo-wrap">
-    <h2>A few things to know.</h2><Accordion
-      title="Can I book these sample journeys?"
-      ><p>
-        No. These demonstrate the website layout, not available offers.
-      </p></Accordion
-    ><Accordion title="Will this form contact the team?"
-      ><p>
-        {
-          live
-            ? "Yes. This staging demo saves test enquiries for authorised staff to review, without booking or sending a confirmation."
-            : "No. The local preview does not send or save your choices."
-        }
-      </p></Accordion
-    ><p>Client testimonials will appear only after approval and permission.</p>
+    <div class="demo-faq-introduction">
+      <h2>A few things<br />to know.</h2>
+      <p>Client testimonials will appear only after approval and permission.</p>
+    </div>
+    <div class="demo-faq-questions">
+      <Accordion title="Can I book these sample journeys?"
+        ><p>
+          No. These demonstrate the website layout, not available offers.
+        </p></Accordion
+      ><Accordion title="Will this form contact the team?"
+        ><p>
+          {
+            live
+              ? "Yes. This staging demo saves test enquiries for authorised staff to review, without booking or sending a confirmation."
+              : "No. The local preview does not send or save your choices."
+          }
+        </p></Accordion
+      >
+    </div>
   </section>
   <DemoEmailPreview />
   <section id="demo-privacy" class="demo-wrap demo-policy-preview">
@@ -174,38 +198,6 @@ const { live = false, apiOrigin = "" } = Astro.props;
     >
   </section>
   <ClosingCta demo />
-  <CinematicEnquiry demo>
-    <div>
-      <h2>Try your enquiry.</h2><p>
-        {
-          live
-            ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created."
-            : "Try the local preview. Nothing is stored or submitted."
-        }
-      </p>{
-        live ? (
-          <p>
-            <>
-              <ContentLink href="https://portal-staging.travelwitheasegh.com/demo">
-                Explore the staging staff portal demo
-              </ContentLink>
-              <small>
-                Cloudflare Access required. The portal demo uses simulated
-                records; real staging test enquiries are available only in the
-                authenticated staff CMS.
-              </small>
-            </>
-          </p>
-        ) : (
-          <p>
-            Staff dashboard preview is available separately in local
-            development.
-          </p>
-        )
-      }
-    </div>
-    <DemoEnquiry live={live} apiOrigin={apiOrigin} client:load />
-  </CinematicEnquiry>
 </div>
 <style>
   @import "../styles/components/demo-website.css";

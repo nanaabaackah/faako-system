@@ -1,5 +1,6 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import DemoClosing from "../components/DemoClosing.astro";
 import DemoWebsite from "../components/DemoWebsite.astro";
 const local =
   import.meta.env.DEV &&
@@ -34,5 +35,11 @@ if (staging) {
   demo
   title="Travel With Ease | Staging website demo"
   description="Explore sample journeys and submit a marked staging test enquiry. No offers are bookable."
-  noIndex><DemoWebsite live={staging} apiOrigin={apiOrigin} /></BaseLayout
+  noIndex
+  ><DemoWebsite live={staging} />
+  <DemoClosing
+    slot="closing"
+    live={staging}
+    apiOrigin={apiOrigin}
+  /></BaseLayout
 >

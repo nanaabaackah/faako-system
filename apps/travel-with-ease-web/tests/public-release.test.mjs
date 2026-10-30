@@ -50,7 +50,7 @@ test("production build publishes approved content without preview copy or unpubl
   assert.match(home, /Online enquiry forms are not available yet/);
   assert.match(home, /Talk to us on WhatsApp/);
   assert.match(home, /closing-photos/);
-  assert.doesNotMatch(home, /TWE_mockup[1-5][^"\s]*\.webp/);
+  assert.match(home, /TWE_mockup[1-5][^"\s]*\.webp/);
   for (const slug of ["contact", "privacy", "destinations"]) {
     const page = readFileSync(path.join(output, slug, "index.html"), "utf8");
     assert.match(page, /Content unavailable/);

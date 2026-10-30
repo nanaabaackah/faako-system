@@ -1,5 +1,14 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-30 — Reference correction
+
+Restore the user's five-mockup CTA, align the full homepage's editorial treatment
+with the actual Flyward source, and share one photo through enquiry/footer.
+The footer remains full-width until the page-end gutter reveal.
+See [decisions and verification](./reference-correction-2026-10-30.md).
+This supersedes the photo-collage/light-footer description below; it does not
+complete unapproved content, hosted portal UAT or production API remediation.
+
 ## 2026-10-30 — Editorial website redesign
 
 Shared cinematic hero, cream interactive map, original photo CTA and light footer

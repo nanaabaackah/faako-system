@@ -1,89 +1,90 @@
-# TWE redesign visual QA — 2026-10-30
+# TWE reference correction — visual QA
 
 final result: passed
 
-Scope: visual fidelity and interactions of the implemented approved/empty and
-isolated demo states. This is **not** hosted production certification, native
-enquiry completion or approval of unpublished business/legal content.
+The refreshed six-width run and post-fix visual comparison passed. This report
+supersedes PR #120's visual report; it is not client design approval or deployment
+certification.
 
-## Sources, normalisation and evidence
+## Source and state
 
-- Primary truth: `docs/design-references/twe-redesign/02-twe-flyward-inspired-hero-direction.png`;
-  cream/map direction: `01-twe-latest-cream-map-footer-direction.png`; earlier
-  structure `03-twe-earlier-homepage-structure.png`. All opened and inspected.
-- Live Flyward and Flighty gallery captured with user-approved local Chrome;
-  desktop Flighty source 1208×550, mobile 600×879 inspected. References guide
-  composition, not literal colours, assets, copy, fictional offers or controls.
-- Hero comparison: 887×556 source crop normalised to 720×450 beside 1440×900
-  implementation normalised to 720×450. Both in one combined image:
-  [hero comparison](docs/apps/travel-with-ease/audits/2026-10-30/hero-comparison.png).
-- CTA comparison: source and implementation fitted into equal 720×450 regions:
-  [CTA comparison](docs/apps/travel-with-ease/audits/2026-10-30/cta-comparison.png).
-  Different image aspect ratios are expected: original TWE photographs replace
-  Flighty's proprietary devices. This is not a pixel-exact cloning exercise.
-- Implementation CSS viewport/density: 1440×900 and 390×900, deviceScaleFactor 1;
-  also tested 320/375/768/1024. Screenshot dimensions correspond to CSS pixels,
-  with taller element/full-page captures where required.
-- Current screenshots: [desktop hero](docs/apps/travel-with-ease/audits/2026-10-30/hero-desktop.png),
-  [mobile hero](docs/apps/travel-with-ease/audits/2026-10-30/hero-mobile.png),
-  [cream map](docs/apps/travel-with-ease/audits/2026-10-30/map-desktop.png),
-  [CTA](docs/apps/travel-with-ease/audits/2026-10-30/cta-desktop.png),
-  [enquiry/footer transition](docs/apps/travel-with-ease/audits/2026-10-30/enquiry-footer-transition.png),
-  [mobile footer](docs/apps/travel-with-ease/audits/2026-10-30/footer-mobile.png).
-  Detailed browser evidence: local `twe-redesign-p8NHT0` screenshot directory;
-  CI retains all six-width screenshots as artifacts, not public site assets.
+- User instruction: keep the supplied five mockups; match Flyward's full-bleed
+  closing photograph and footer; reveal the page gutter only at the page end.
+- Live source: https://www.flyward.com/ captured with user-approved Chrome.
+- Source evidence: docs/apps/travel-with-ease/audits/2026-10-30-reference-correction/source-flyward-footer.png
+  and source-flyward-hero.png.
+- Implementation: http://localhost:4328/demo and /, actual Astro components.
+- Matching footer viewport: source and implementation both 1440×900 CSS pixels,
+  deviceScaleFactor 1. Combined comparison fits each into a 720×450 region without
+  cropping; mobile captures use 390×900. The source is live business content,
+  while TWE's demo is explicitly labelled synthetic. No source assets are deployed.
+- Focused evidence: hero, journeys, process, journal, FAQs, restored CTA,
+  footer-entry and footer-end captures in the same evidence directory.
 
-## Comparison history
+## Comparison history and fixes
 
-1. First rendered comparison found P1 invisible footer CTA text (scoped colour
-   conflict); P2 demo selectors overriding rounded/gold primary actions; P2 narrow
-   footer email column; P2 scroll cue overlapping the floating WhatsApp control;
-   P2 sans-serif section headings inconsistent with editorial direction.
-2. Fixed specificity/contrast, rounded CTA overrides, full-width contact group,
-   raised scroll cue and Georgia section headings. Captured the corrected six-width
-   state again. Full-page and focused hero/CTA/map/footer captures show these issues
-   resolved. No remaining actionable P0/P1/P2 visual mismatch in the tested states.
-3. Follow-up adds the existing Faako skeleton only during asynchronous work.
-   Real component tests wait for hydration and hold mocked form responses to verify
-   the skeleton appears during submission, then disappears after success/error.
+1. User identified P1 mismatches in PR #120: replacement travel-photo CTA,
+   separate cream footer and wrong full-page composition. Restored the original
+   five mockups, centred the hero/navigation, used large square photographic
+   journey panels, cream staggered process content, and one shared closing photo.
+2. User clarified P1 footer timing: no inset on entry. Replaced the permanent
+   border with a hard-edged gutter reveal only in the final 180px of scrolling.
+   Reversal, reduced-motion static state and unchanged layout dimensions are tested.
+3. Focused captures exposed a P2 hover contrast conflict in the demo hero action,
+   insufficient footer wordmark width, and aligned last process items rather
+   than a sequential stagger. Fixed explicit hover/focus colours, enlarged the
+   wordmark and assigned the third process item its own staggered row.
+4. The closing layout was moved outside main to preserve a top-level contentinfo
+   landmark. Component-owned form CSS preserves the real enquiry presentation.
+   Refreshed focused process/footer captures and combined comparisons were opened
+   after step 3. Sequential staggering and the larger wordmark are now visible.
+   No actionable P0/P1/P2 issue remains within this TWE adaptation's scope.
 
-## Mandatory fidelity surfaces
+## Required fidelity surfaces
 
-- Typography: established Georgia editorial display, familiar sans-serif controls;
-  intentional approved-copy wrapping rather than the mockup's fictional headline.
-  Responsive hierarchy, readable body measure, no text truncation.
-- Layout: full viewport photo hero, deliberate gutters, staggered editorial photos,
-  cream functional map, separate centred CTA and cinematic enquiry/footer sequence.
-  No horizontal overflow at six widths. Mobile retains large tap controls.
-- Colours: actual navy/cream/gold; no reference teal palette, gradients, glow or
-  glass. Solid scrims protect image/text contrast. Zero automated WCAG violations
-  in tested states; not a substitute for comprehensive assistive-technology testing.
-- Images: existing permission-approved TWE Kenya/Zanzibar photographs, responsive
-  WebP sources, prioritised hero and lazy below-fold imagery. No stock reference
-  assets, fake map screenshot, div art or invented destinations. Kenya is repeated
-  deliberately because only two approved photos exist; additional approved wide
-  photographs would improve variety (P3).
-- Copy: approved CMS content or clearly-labelled demo/empty states. No invented
-  package prices, testimonials, trust metrics or business claims. Online forms
-  unavailable on the published page are identified honestly; WhatsApp remains useful.
-- Icons: genuine existing Iconsax through ContentLink/shared UI; arrows only inside
-  actionable content links/buttons, not ordinary navigation/legal links.
+- Typography: centred uppercase Georgia editorial display, smaller than the
+  earlier oversized left-aligned headline; actual TWE logo, not a text stand-in.
+  Flyward's proprietary wordmark is intentionally not copied. The longer TWE
+  name uses a responsive single-line signature with an accessible name.
+- Layout: grouped navigation / centred brand / outlined action; full-width photo
+  hero, equal image panels, cream choropleth, asymmetric journal and aligned FAQ
+  rows. The supplied CTA remains a separate centred composition and mockup row.
+- Colours: actual TWE navy/cream/gold, readable solid scrims and visible focus.
+  No gradients, glass or copied Flyward brown palette.
+- Assets: existing approved Kenya/Zanzibar photographs and exact five user
+  mockups, responsive formats, explicit dimensions and lazy lower-page loading.
+  Flyward's proprietary clipped-map transition and torn-edge art are not recreated
+  with fake shapes or copied assets. More varied licensed photography remains
+  a content-dependent future improvement, not invented material.
+- Copy: real approved homepage copy; synthetic journeys only in labelled demos.
+  No fabricated metrics, testimonials, package prices or business guarantees.
+  Production does not render unpublished modules to fill the reference layout.
+- Interactions: native FAQ keyboard/no-JS expansion, map country keyboard/tap
+  selection, mobile navigation, no-send local form, mocked staging failure,
+  loading and success, preserved inline validation and feedback dismissal.
+- Motion: one shared image and one passive animation-frame gutter update; no
+  scroll interception, layout reflow loop or dependency. Reduced motion/no-JS
+  leaves the full-width composition usable.
 
-## Interaction and accessibility evidence
+## Verification boundaries
 
-Chrome automated checks: desktop/mobile/touch emulation, keyboard menu/Escape/focus,
-native FAQ Enter toggles, map keyboard details/equivalent list, consent isolation,
-mocked staging submission failure/manual retry/success, reduced motion, no-JS
-content/disclosures and normal-motion footer scrolling. Browser console/page errors
-checked. Existing onboarding and CMS demo browser suites also passed before the
-skeleton follow-up; required CI reruns cover current source.
+Final six-width run passed 320/375/390/768/1024/1440, no horizontal overflow,
+zero tested WCAG A/AA violations, mocked form states and no-JS FAQs. Focused
+390/1440 local captures confirmed footer progress 0 on entry and 1 at the end,
+one footer outside main and no browser page errors. Web lint, typecheck (zero
+errors), build and all 23 tests passed on the final source. Conflict-marker and
+workspace-manifest checks passed. A separate fresh server also verified the
+non-home public footer at 320/390/768/1440, including its end-of-page reveal.
+Final browser evidence is in the local twe-redesign-qenA5r capture directory;
+durable focused evidence and the combined hero/footer comparisons are in the
+documented audit folder. No browser page errors were observed.
 
-## Remaining gates and follow-up
+Hosted staging remains subject to its queued deployment; no production merge or
+authenticated staff UAT is certified. API readiness and content approvals remain
+separate release gates. This is a TWE adaptation, not a pixel-identical clone
+of Flyward or an assertion that its business functionality has been implemented.
 
-Actual Safari/iPhone and screen-reader manual QA, signed-in hosted staff UAT,
-restricted-role publication CI, staging deployment/source verification and production
-health/release remain separate pending gates. See the release record; no live
-deployment or native general/package form completion is claimed by this visual pass.
+## Follow-up
 
-P3: provide additional approved landscape photography and more approved content
-to fill the editorial journey/journal modules without repetitive imagery.
+Review the local full-page composition against the supplied direction before
+promoting this corrective branch to develop/main.

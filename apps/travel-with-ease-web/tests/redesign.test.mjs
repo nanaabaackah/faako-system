@@ -4,16 +4,19 @@ import { readFileSync } from "node:fs";
 const source = (name) =>
   readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8");
 
-test("shared CTA uses original responsive TWE photographs, one action and no copied reference assets", () => {
+test("shared CTA preserves the five supplied mockups, one action and no copied reference assets", () => {
   const component = source("components/ClosingCta.astro");
-  assert.match(component, /approved-preview-media.json/);
-  assert.match(component, /srcset=/);
+  assert.match(component, /astro:assets/);
+  assert.match(component, /widths=\{\[160, 320, 640, 960\]\}/);
   assert.match(component, /loading="lazy"/);
   assert.match(component, /aria-hidden="true"/);
   assert.equal((component.match(/<ContentLink\b/g) || []).length, 1);
-  assert.doesNotMatch(
+  assert.doesNotMatch(component, /<figcaption|framerusercontent|flyward.com/);
+  for (let index = 1; index <= 5; index++)
+    assert.match(component, new RegExp(`TWE_mockup${index}\\.png`));
+  assert.match(
     component,
-    /<figcaption|framerusercontent|flyward.com|Mockups/,
+    /image: laptop, name: "laptop"[\s\S]*image: phone, name: "phone"/,
   );
   assert.match(
     source("styles/components/closing-cta.css"),
@@ -21,23 +24,44 @@ test("shared CTA uses original responsive TWE photographs, one action and no cop
   );
 });
 
+test("one continuous image covers the enquiry and footer, with gutters only at the page end", () => {
+  const component = source("components/CinematicEnquiry.astro");
+  assert.equal((component.match(/<img\b/g) || []).length, 1);
+  assert.match(component, /class="closing-scene__image"/);
+  assert.match(
+    component,
+    /<\/section>\s*<PublicFooter demo=\{demo\} cinematic/,
+  );
+  assert.match(
+    source("layouts/BaseLayout.astro"),
+    /!cinematic && <PublicFooter/,
+  );
+  const motion = source("components/EditorialMotion.astro");
+  assert.match(motion, /scrollHeight - innerHeight - scrollY/);
+  assert.match(motion, /distance \/ 180/);
+  assert.match(motion, /reduce.matches\s*\? 0/);
+  assert.match(motion, /passive: true/);
+  assert.match(
+    source("styles/components/public-footer.css"),
+    /var\(--footer-progress, 0\)/,
+  );
+});
+
 test("both website modes use the same hero, CTA, enquiry and footprint components", () => {
   for (const filename of ["PublishedHome", "DemoWebsite"]) {
     const component = source(`components/${filename}.astro`);
-    for (const name of [
-      "CinematicHero",
-      "ClosingCta",
-      "CinematicEnquiry",
-      "TravelFootprint",
-    ])
+    for (const name of ["CinematicHero", "ClosingCta", "TravelFootprint"])
       assert.match(component, new RegExp(`<${name}\\b`));
-    assert.ok(
-      component.indexOf("<ClosingCta") < component.indexOf("<CinematicEnquiry"),
-    );
   }
   assert.match(
     source("components/PublishedHome.astro"),
     /heading=\{content.heading\}/,
+  );
+  assert.match(source("pages/index.astro"), /slot="closing"/);
+  assert.match(source("pages/demo.astro"), /<DemoClosing\s+slot="closing"/);
+  assert.match(
+    source("components/DemoClosing.astro"),
+    /<CinematicEnquiry demo>/,
   );
   assert.match(
     source("components/PublishedHome.astro"),

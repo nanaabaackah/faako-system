@@ -14,6 +14,7 @@ import {
   AnimatedLoadingState,
 } from "@faako/ui";
 import "@faako/ui/twe-feedback.css";
+import "../styles/components/demo-enquiry.css";
 import appSystem from "../../appSystem.js";
 
 // eslint-disable-next-line no-unused-vars -- JSX component

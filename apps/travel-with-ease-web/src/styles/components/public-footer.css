@@ -7,9 +7,6 @@
   padding: clamp(3rem, 6vw, 6rem) 6%
     calc(5rem + env(safe-area-inset-bottom, 0px));
 }
-:global(.cinematic-page) .twe-public-footer {
-  margin-top: -3rem;
-}
 .twe-public-footer :global(div) {
   align-items: initial;
 }
@@ -117,9 +114,6 @@
 .footer-links nav:last-child {
   grid-column: 1 / -1;
 }
-.footer-clearing {
-  height: clamp(3rem, 14vw, 13rem);
-}
 .footer-signature {
   font:
     400 clamp(1.6rem, 7.6vw, 10rem)/1 Georgia,
@@ -128,6 +122,86 @@
   white-space: nowrap;
   margin: 0;
   text-align: center;
+}
+.twe-public-footer--cinematic {
+  --footer-gutter: clamp(8px, 1vw, 18px);
+  background: transparent;
+  color: var(--brand-cream);
+  border: 0 solid var(--brand-cream);
+  /* Inset an overlay rather than resizing the footer: no scroll-height feedback. */
+  box-shadow:
+    inset calc(var(--footer-gutter) * var(--footer-progress, 0)) 0
+      var(--brand-cream),
+    inset calc(-1 * var(--footer-gutter) * var(--footer-progress, 0)) 0
+      var(--brand-cream),
+    inset 0 calc(-1 * var(--footer-gutter) * var(--footer-progress, 0))
+      var(--brand-cream);
+  padding: clamp(3rem, 5vw, 5rem) clamp(20px, 3vw, 48px) 0;
+}
+.twe-public-footer--cinematic .footer-top {
+  grid-template-columns: 0.8fr 1.5fr 0.85fr;
+  align-items: start;
+  gap: clamp(24px, 4vw, 64px);
+}
+.twe-public-footer--standalone {
+  isolation: isolate;
+  background: var(--brand-ink);
+}
+.footer-scene-image {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.twe-public-footer--standalone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgb(0 10 31 / 65%);
+}
+.twe-public-footer--cinematic .footer-links {
+  grid-template-columns: 0.7fr 1fr;
+}
+.twe-public-footer--cinematic h2 {
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+}
+.twe-public-footer--cinematic .brand img {
+  padding: 0;
+  background: none;
+}
+.twe-public-footer--cinematic .footer-brand-block :global(a.button) {
+  background: var(--brand-cream);
+  color: var(--brand-navy);
+  border-color: var(--brand-cream);
+}
+.twe-public-footer--cinematic :global(.travel-footprint) {
+  padding: 16px;
+  background: var(--brand-cream);
+  color: var(--brand-navy);
+}
+.twe-public-footer--cinematic .footer-legal,
+.twe-public-footer--cinematic :global(.ui-app-bottom-bar) {
+  border-color: rgb(244 237 227 / 40%);
+  color: var(--brand-cream);
+}
+.twe-public-footer--cinematic .footer-signature {
+  margin: clamp(2rem, 4vw, 4rem) calc(-1 * clamp(20px, 3vw, 48px)) 0;
+  font-size: clamp(1rem, 10.6vw, 15rem);
+  line-height: 0.86;
+  letter-spacing: -0.06em;
+  padding-top: 0.12em;
+  overflow: clip;
+}
+@media (scripting: none), (prefers-reduced-motion: reduce) {
+  .twe-public-footer--cinematic {
+    --footer-progress: 0;
+  }
 }
 /* Static by default. Native scroll animation progressively enhances desktop only. */
 @supports (animation-timeline: view()) {
@@ -153,12 +227,16 @@
   .footer-top {
     grid-template-columns: 1fr 1.5fr;
   }
+  .twe-public-footer--cinematic .footer-top {
+    grid-template-columns: 1fr 1.5fr;
+  }
   .footer-top :global(.travel-footprint) {
     grid-column: 1 / -1;
   }
 }
 @media (max-width: 600px) {
-  .footer-top {
+  .footer-top,
+  .twe-public-footer--cinematic .footer-top {
     grid-template-columns: 1fr;
   }
   .footer-links {
@@ -166,5 +244,9 @@
   }
   .footer-signature {
     font-size: 7.2vw;
+  }
+  .twe-public-footer--cinematic .footer-signature {
+    font-size: 10.2vw;
+    line-height: 0.9;
   }
 }

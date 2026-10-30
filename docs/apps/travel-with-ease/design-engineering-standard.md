@@ -1,8 +1,8 @@
 # Travel With Ease design and engineering standard
 
 2026-10-30 refinement: [editorial redesign decisions](./editorial-redesign-2026-10-30.md).
-Use shared full-viewport hero, cream functional country map, centred single-action
-travel-photo CTA and light scrolling footer/signature. Preserve actual TWE tokens,
+Use shared full-viewport hero, cream functional country map, the supplied mockup
+CTA and full-bleed photographic footer with end-of-page gutters. Preserve actual TWE tokens,
 Georgia editorial type, Iconsax actions, approved imagery and static/reduced-motion
 fallbacks. References are directional, not authority to invent product data.
 
@@ -264,3 +264,12 @@ The trade-offs are deliberate: authentic imagery needs licensing/content ownersh
   homepage, dedicated map and compact footer from one approved publication.
 - Policy starter copy and company facts have distinct approval status. TIDS marks
   require the official recognition stamp and supporting registration evidence.
+
+## Reference correction: full-bleed closing composition
+
+The supplied five-device mockup CTA is intentional and must not be replaced by
+travel-photo collages. Preserve its single row, larger laptop, phone to the right
+and absence of captions. The photographic enquiry and footer share one background.
+Keep the footer full-width on entry; reveal the light side/bottom gutter only at
+the page end. Reduced-motion/no-JavaScript presentation remains static and usable.
+See [the correction decisions](reference-correction-2026-10-30.md).

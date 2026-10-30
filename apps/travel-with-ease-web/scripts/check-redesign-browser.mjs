@@ -233,6 +233,11 @@ try {
       .filter({ hasText: "Staging test enquiry received" })
       .waitFor();
     assert.equal(submissions, 2);
+    // Keep the lifecycle assertion above, then remove feedback before visual captures.
+    for (const dismiss of await page
+      .getByRole("button", { name: "Dismiss notification", exact: true })
+      .all())
+      await dismiss.click();
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -262,6 +267,12 @@ try {
       ["cta", ".closing-cta"],
       ["footer", ".twe-public-footer"],
     ]) {
+      if (name === "cta") {
+        assert.equal(await page.locator(".mockup img").count(), 5);
+        await page.locator(".mockup img").evaluateAll(async (images) => {
+          await Promise.all(images.map((image) => image.decode()));
+        });
+      }
       await page
         .locator(selector)
         .screenshot({ path: path.join(directory, `${name}-${width}.png`) });
@@ -275,6 +286,9 @@ try {
     );
     assert.equal(await page.locator(".cinematic-hero__image").count(), 1);
     assert.equal(await page.locator(".footprint-empty").count(), 2);
+    assert.equal(await page.locator(".closing-scene__image").count(), 1);
+    assert.equal(await page.locator("main .twe-public-footer").count(), 0);
+    assert.equal(await page.locator("footer.twe-public-footer").count(), 1);
     assert.equal(
       await page.locator(".footer-signature").textContent(),
       "TRAVEL WITH EASE",
@@ -317,11 +331,55 @@ try {
   await motionPage.screenshot({
     path: path.join(directory, "enquiry-footer-transition-1440.png"),
   });
+  assert.equal(
+    await motionPage
+      .locator(".twe-public-footer")
+      .evaluate((element) =>
+        getComputedStyle(element).getPropertyValue("--footer-progress").trim(),
+      ),
+    "0",
+    "Footer remains full bleed when it first enters the viewport",
+  );
   await motionPage.locator(".footer-signature").scrollIntoViewIfNeeded();
   assert.equal(await motionPage.locator(".footer-signature").isVisible(), true);
   await motionPage.screenshot({
     path: path.join(directory, "signature-motion-1440.png"),
   });
+  await motionPage.evaluate(() =>
+    scrollTo({
+      top: document.documentElement.scrollHeight,
+      behavior: "instant",
+    }),
+  );
+  await motionPage.waitForFunction(
+    () =>
+      Number(
+        getComputedStyle(
+          document.querySelector(".twe-public-footer"),
+        ).getPropertyValue("--footer-progress"),
+      ) > 0.99,
+  );
+  assert.equal(
+    await motionPage
+      .locator(".twe-public-footer")
+      .evaluate(
+        (element) => element.getBoundingClientRect().width === innerWidth,
+      ),
+    true,
+    "Inset reveal never changes layout width or scroll height",
+  );
+  await motionPage.evaluate(() =>
+    scrollTo({
+      top: document.documentElement.scrollHeight - innerHeight - 200,
+      behavior: "instant",
+    }),
+  );
+  await motionPage.waitForFunction(
+    () =>
+      getComputedStyle(document.querySelector(".twe-public-footer"))
+        .getPropertyValue("--footer-progress")
+        .trim() === "0",
+  );
   await motionContext.close();
   console.log(
     JSON.stringify({
