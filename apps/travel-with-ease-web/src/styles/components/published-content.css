@@ -10,3 +10,22 @@
 .body-copy {
   white-space: pre-wrap;
 }
+.journal-list {
+  display: grid;
+  gap: 0;
+}
+.journal-list article {
+  padding: 1.5rem 0;
+  border-top: 1px solid #b6b1a9;
+}
+.journal-list time,
+.journal-article time {
+  font-size: 0.875rem;
+}
+.journal-excerpt {
+  font-size: 1.125rem;
+  line-height: 1.6;
+}
+.journal-article .body-copy {
+  max-width: 68ch;
+}

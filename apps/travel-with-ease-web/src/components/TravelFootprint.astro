@@ -1,6 +1,7 @@
 ---
 import world from "../lib/world-boundaries.json";
 import { footprintRows, footprintBand } from "../lib/footprint.js";
+import { publishedPage } from "../lib/published.js";
 interface Props {
   compact?: boolean;
   demo?: boolean;
@@ -10,7 +11,7 @@ interface Props {
     status: "demo" | "verified";
   }[];
 }
-const { compact = false, records = [] } = Astro.props;
+const { compact = false, records = publishedPage("travel-footprint")?.footprint || [] } = Astro.props;
 const demo = Astro.props.demo === true && (import.meta.env.DEV || (import.meta.env.PUBLIC_APP_ENV === "staging" && import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true"));
 const rows: {
   countryCode: string;

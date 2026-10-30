@@ -274,8 +274,11 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
 
   const outbox = new NotificationOutbox(pool, organisationId);
   const payload = { from: "test@example.invalid", to: ["sink@example.invalid"], subject: "Synthetic", text: "Test" };
-  const claims = await Promise.all([outbox.claim(payload), outbox.claim(payload)]);
+  let built = 0;
+  const buildPayload = contact => { assert.equal(typeof contact.email, "string"); built++; return payload; };
+  const claims = await Promise.all([outbox.claim(buildPayload), outbox.claim(buildPayload)]);
   assert.equal(claims.filter(Boolean).length, 1, "Concurrent workers cannot own the same job");
+  assert.equal(built, 1, "Only the claimed tenant enquiry creates a payload");
   const claimed = claims.find(Boolean);
   assert.equal(await new NotificationOutbox(pool, otherOrg).claim(payload), undefined);
   await pool.query("UPDATE twe.notification_outbox SET lease_until = now() - interval '1 second' WHERE id = $1", [claimed.id]);
@@ -327,4 +330,21 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal(await content.get("home", true), null);
   assert.equal((await new PublicationRepository(pool, { ...options, organisationId: otherOrg }).list()).length, 0);
   await assert.rejects(publication.retry(retried.id, actor, "stale-retry"), { status: 409 });
+
+  // Journal and map reuse real revision/permission/publication boundaries.
+  for (const [slug, extension] of [["journal", { articles: [{ slug: "synthetic-guide", title: "Synthetic guide", excerpt: "Test only", body: "Literal <script> text", date: "2026-10-30" }] }], ["travel-footprint", { footprint: [{ countryCode: "TZ", total: 4, status: "verified" }] }]]) {
+    const draft = await content.save(slug, { ...body, imageId: null, ...extension }, 0, actor, `save-${slug}`);
+    assert.equal(await content.get(slug, true), null);
+    assert.equal(await new ContentRepository(pool, otherOrg).get(slug), null);
+    await assert.rejects(content.save(slug, draft.body, draft.version, { ...actor, organisationId: otherOrg }, "cross-tenant-save"), { status: 403 });
+    const queued = await publication.enqueue(slug, draft.version, false, actor, `publish-${slug}`);
+    const job = await publication.claim();
+    await publication.confirm(queued.id, job.build_token, "synthetic-content", manifestDigest(job.manifest));
+    const published = await content.get(slug, true);
+    assert.deepEqual(published.body[slug === "journal" ? "articles" : "footprint"], extension[slug === "journal" ? "articles" : "footprint"]);
+    await publication.enqueue(slug, draft.version, true, actor, `withdraw-${slug}`);
+    const withdrawn = await publication.claim();
+    await publication.confirm(withdrawn.id, withdrawn.build_token, "synthetic-withdrawal", manifestDigest(withdrawn.manifest));
+    assert.equal(await content.get(slug, true), null);
+  }
 });

@@ -1,5 +1,29 @@
 # Travel With Ease progress log
 
+## 2026-10-30 — Branded acknowledgement, content publication and demos
+
+- Reconciled company details against the supplied Faako onboarding intake.
+- Added Modern Concierge HTML/plain-text acknowledgement and corrected routing:
+  local/staging to testing only; production to customer with notifications CC.
+- Pinned payload construction uses the tenant-scoped saved enquiry. Preserved
+  durable retries; incompatible historic payloads fail closed.
+- Added social icons, the automatic-message footer, public WhatsApp/back-to-top
+  controls, cookie preferences, journal article routes and approved map projections.
+- Added portal article/country editors, company/policy starter drafts and the same
+  controls in demos. Demo cookie choices use separate storage; no analytics loads.
+- Lint/type checks, API/portal/web tests, content validation and isolated PostgreSQL
+  pass locally. The earlier ENOSPC failure was resolved after disk space became
+  available. Database publication tests cover journal/map save, publish, unpublish
+  and cross-tenant denial, plus restart and logical restore.
+- Chrome website/email and portal demo checks pass at 320/390/768/1440px, including
+  the expandable email preview, independent demo consent and no-JavaScript article
+  rendering. CI retains synthetic screenshots for review. No live template email sent.
+- Embedded CMS output is 371.96 kB JS / 112.99 kB gzip and 142.26 kB CSS /
+  21.98 kB gzip. Versus the onboarding baseline, JS grows about 8.43 kB gzip for
+  the content editors and starter copy; country geometry is excluded from its bundle.
+- Hosted verification, policy/legal approval, TIDS recognition-stamp evidence,
+  native intake recreation and automated invitation email remain outstanding.
+
 ## 2026-10-30 — Clarified notification To and CC
 
 - Supersedes the earlier recipient-redirection policy: preserve the intended To

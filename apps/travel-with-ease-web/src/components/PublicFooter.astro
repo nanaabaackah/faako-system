@@ -11,11 +11,11 @@ const email =
   contact?.contactEmail &&
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.contactEmail)
     ? contact.contactEmail
-    : null;
+    : "nana@travelwitheasegh.com";
 const phone =
   contact?.contactPhone && /^\+?[\d ()-]{7,30}$/.test(contact.contactPhone)
     ? contact.contactPhone
-    : null;
+    : "+233200209170";
 ---
 
 <footer class="twe-public-footer">
@@ -58,6 +58,16 @@ const phone =
           )
         }
       </nav>
+      <nav aria-label="Social media">
+        <h2>Follow our journeys</h2>
+        <a href="https://www.instagram.com/travelwitheasegh/" rel="noreferrer"
+          >Instagram</a
+        >
+        <a href="https://www.tiktok.com/@travelwitheaseghana" rel="noreferrer"
+          >TikTok</a
+        >
+        <a href="https://wa.me/233208387020" rel="noreferrer">WhatsApp</a>
+      </nav>
       <nav aria-label="Help and contact">
         <h2>Let’s talk</h2>{
           visible("faqs") && <a href={demo ? "#demo-faqs" : "/faqs"}>FAQs</a>
@@ -75,20 +85,23 @@ const phone =
   <div class="footer-legal">
     <span
       >{
-        demo ? "Website demonstration · sample offers not bookable" : "Travel With Ease"
+        demo
+          ? "Website demonstration · sample offers not bookable"
+          : "Travel With Ease"
       }</span
     ><nav aria-label="Legal and preferences">
+      <span>TWE Concierge · BN045370826 · Accra, Ghana</span>
       {
         !demo && (
           <>
             {visible("privacy") && <a href="/privacy">Privacy</a>}
             {visible("terms") && <a href="/terms">Terms</a>}
-            <button type="button" data-cookie-settings>
-              Cookie settings
-            </button>
+            {visible("cookies") && <a href="/cookies">Cookies</a>}
           </>
         )
-      }<a href="#top">Back to top</a>
+      }<button type="button" data-cookie-settings
+        >{demo ? "Demo cookie settings" : "Cookie settings"}</button
+      ><a href="#top">Back to top</a>
     </nav>
   </div>
   <SharedFaakoFooter />

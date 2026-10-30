@@ -10,6 +10,7 @@ import {
 } from "@faako/discovery";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import CookieNotice from "../components/CookieNotice.astro";
+import FloatingActions from "../components/FloatingActions.astro";
 import { sharingMetadata } from "../lib/sharing.js";
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
 
@@ -92,8 +93,9 @@ const navigation = demo ? [["#demo-packages", "Destinations"], ["#demo-process",
     {demo ? <p class="review-banner">Website demo · sample packages are not available to book. {import.meta.env.PUBLIC_APP_ENV === "staging" ? "Enquiries are saved to the staging test inbox only." : "Local preview: enquiries are not submitted."} <a href="/">Exit demo</a></p> : stagingReview ? <p class="review-banner">Staging design preview · placeholder sections are not live packages, bookings or enquiries.</p> : review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
     <main id="main-content"><slot /></main>
     <PublicFooter demo={demo} />
+    <FloatingActions />
     <EditorialMotion />
-    {!demo && <CookieNotice />}
+    <CookieNotice demo={demo} />
     {!demo && <AnalyticsConsent />}
   </body>
 </html>

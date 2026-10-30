@@ -2,7 +2,7 @@
   display: block;
   background: #000a1f;
   color: #f4ede3;
-  padding: 52px max(5%, calc((100% - 1280px) / 2)) 0;
+  padding: 52px max(5%, calc((100% - 1280px) / 2)) calc(4.5rem + env(safe-area-inset-bottom, 0px));
 }
 .twe-public-footer :global(div) {
   align-items: initial;

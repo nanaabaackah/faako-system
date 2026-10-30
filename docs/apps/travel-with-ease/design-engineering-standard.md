@@ -242,3 +242,19 @@ The standards above govern subsequent authorized work. The following decisions r
 11. client scope/legal acceptance and each production release.
 
 The trade-offs are deliberate: authentic imagery needs licensing/content ownership; minimal islands reduce JavaScript but limit effect choices; separate staging increases operational cost but protects production; shared operational UI improves maintainability without dictating the public editorial layout.
+
+## 2026-10-30 — Company communications and public controls
+
+- Modern Concierge is the selected transactional email design: real gold logo on
+  navy, white message body, restrained gold divider and cream company footer.
+  Use accessible text, plain-text alternatives, linked social icons and the
+  automatic-message notice. No tracking pixels or private enquiry details.
+- Public WhatsApp is bottom left and back-to-top bottom right, using local Iconsax
+  assets and minimum 44px targets. Text precedes icons where labels are shown.
+  Hide these controls while the cookie preference panel is open.
+- Demo cookie choices use separate storage and never enable Google Analytics.
+  Shared public components apply to demos; synthetic records remain labelled.
+- Journal articles are semantic Astro content. Verified footprint records feed the
+  homepage, dedicated map and compact footer from one approved publication.
+- Policy starter copy and company facts have distinct approval status. TIDS marks
+  require the official recognition stamp and supporting registration evidence.

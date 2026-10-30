@@ -118,6 +118,18 @@ const faqs = publishedPage("faqs");
           ? "Read available destination stories and travel information."
           : "Placeholder — original travel stories and approved photographs will be added here."}
       </p>
+      {journal?.articles
+        ?.slice(0, 2)
+        .map((article: { slug: string; title: string; excerpt: string }) => (
+          <article>
+            <h3>
+              <ContentLink href={`/journal/${article.slug}`}>
+                {article.title}
+              </ContentLink>
+            </h3>
+            <p>{article.excerpt}</p>
+          </article>
+        ))}
     </section>
   )
 }

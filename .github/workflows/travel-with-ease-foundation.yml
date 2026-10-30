@@ -68,11 +68,23 @@ jobs:
           pnpm --filter @faako/ui lint
           pnpm --filter @faako/ui typecheck
           pnpm --filter @faako/ui test
-      - name: Guided workspace browser acceptance (synthetic API only)
+      - name: Guided workspace, content demo, website and email browser acceptance
         run: |
           pnpm --filter @faako/stroane-web exec playwright install --with-deps chromium
           pnpm --filter @faako/travel-with-ease-portal exec vite --host 127.0.0.1 --port 5197 > "$RUNNER_TEMP/twe-onboarding-vite.log" 2>&1 &
           node apps/travel-with-ease-portal/scripts/check-onboarding-browser.mjs
+          node apps/travel-with-ease-portal/scripts/check-content-demo-browser.mjs
+          node apps/travel-with-ease-web/scripts/check-public-followup.mjs
+      - name: Retain synthetic design acceptance screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: twe-content-email-demo-screenshots
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            /tmp/twe-content-demo-*/*.png
+            /tmp/twe-public-followup-*/*.png
       - name: Required isolated PostgreSQL integration tests
         run: pnpm --filter @faako/travel-with-ease-api run test:db
         env:

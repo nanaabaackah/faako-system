@@ -1,5 +1,9 @@
 # Travel With Ease documentation
 
+Current follow-up: [company content, enquiry email and demos](./content-and-email-followup.md).
+Company source: [public facts and outstanding approvals](./company-content-source.md).
+Email configuration: [final test/production routing](./email-test-flow.md).
+
 Database deployment: [pre-deploy migrations and first-time setup](./predeploy-migrations-2026-10-27.md).
 
 Latest update: [approved initial public release and PostgreSQL compatibility](./public-release-2026-10-26.md).

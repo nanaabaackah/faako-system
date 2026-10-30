@@ -1,7 +1,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { transaction } from "../db/database.js";
 import { appendAudit } from "../audit.js";
-import { ContentError, contentBodySchema, pageSchema, pageNames } from "./schema.js";
+import { ContentError, contentForPage, pageSchema, pageNames } from "./schema.js";
 import { validateEnvironment } from "../config.js";
 
 export const manifestDigest = (manifest) => {
@@ -40,7 +40,7 @@ export class PublicationRepository {
         let body = null;
         if (revisionId) {
           const revision = await client.query("SELECT body FROM twe.content_revisions WHERE organisation_id = $1 AND content_id = $2 AND id = $3", [this.organisationId, item.id, revisionId]);
-          body = contentBodySchema.parse(revision.rows[0]?.body);
+          body = contentForPage(item.slug, revision.rows[0]?.body);
         }
         pages.push({ id: item.id, slug: item.slug, revisionId, body });
       }
