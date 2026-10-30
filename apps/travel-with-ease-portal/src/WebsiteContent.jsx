@@ -86,12 +86,12 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
 
   return <section className="content-editor website-workspace" aria-labelledby="content-heading">
     <h2 id="content-heading" tabIndex={-1} ref={heading}>Website content</h2><p className="workspace-caption">Prepare approved content, review saved drafts and track publication separately.</p>
-    <SelectField label="Section" value={page} disabled={state.loading} onChange={(event) => {
+    <div data-tour="content-pages"><SelectField label="Section" value={page} disabled={state.loading} onChange={(event) => {
       if (!dirty || window.confirm("Discard unsaved changes?")) setPage(event.target.value);
-    }}>{pages.map((name) => <option key={name} value={name}>{name}</option>)}</SelectField>
+    }}>{pages.map((name) => <option key={name} value={name}>{name}</option>)}</SelectField></div>
     {state.error && <InlineNotice tone="danger" title="Content unavailable" message={state.error} />}
     <p role="status">{state.loading ? "Working…" : state.message || (dirty ? "Unsaved changes" : `Draft version ${version}`)}</p>
-    <form onSubmit={save}>
+    <form data-tour="content-draft" onSubmit={save}>
       <fieldset disabled={state.loading}>
         <legend>Selected website fields</legend>
         <TextField label="Heading" value={body.heading} maxLength={120} required onChange={(e) => change("heading", e.target.value)} />
@@ -113,7 +113,7 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
     <Button type="button" disabled={state.loading} onClick={() => setChooseImage((current) => !current)}>{chooseImage ? "Close image library" : "Choose image"}</Button>
     {body.imageId && <Button type="button" disabled={state.loading} onClick={() => change("imageId", null)}>Remove image from draft</Button>}
     {chooseImage && <MediaLibrary api={api} session={session} onSelect={(item) => { change("imageId", item.id); setChooseImage(false); heading.current?.focus(); }} />}
-    <section className="workspace-panel"><h3>Publication</h3>
+    <section className="workspace-panel" data-tour="content-publication"><h3>Publication</h3>
     <p>Builds use saved revisions and require Baaba's reviewed deployment workflow. A pending or building request is not live.</p>
     {!canPublish && <p>Only an Owner can request publication, unpublishing or retries.</p>}
     <div className="editor-actions"><Button type="button" disabled={!canPublish || state.loading || dirty || !version} onClick={() => publication("publish")}>Request publication</Button><Button type="button" disabled={!canPublish || state.loading || dirty || !version} onClick={() => publication("unpublish")}>Request unpublish</Button><Button type="button" disabled={state.loading} onClick={() => publication("refresh")}>Refresh publication status</Button></div>

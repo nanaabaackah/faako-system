@@ -78,7 +78,9 @@ export function createInlinePortal({ settings, verifier, distDirectory, logger, 
   const serve = (req, res, next) => {
     if (req.headers.host !== portalHost || req.url.startsWith("/api")) return next();
     if (stagingDemoEnabled && ["/demo", "/demo/"].includes(req.path)) {
-      return res.sendFile("index.html", { root: distDirectory, dotfiles: "deny", cacheControl: false, lastModified: false }, next);
+      return res.sendFile("index.html", { root: distDirectory, dotfiles: "deny", cacheControl: false, lastModified: false }, error => {
+        if (error) next(error);
+      });
     }
     return staticFiles(req, res, next);
   };

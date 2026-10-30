@@ -87,12 +87,12 @@ export class Administration {
   }
   async revokeSessions(actor, userId, requestId) {
     return transaction(this.pool, async client => {
-      const current=await this.actor(client,actor,"maintenance.revoke_sessions");
-      const target=await client.query("SELECT id FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 FOR UPDATE",[this.organisationId,userId]);
-      if (!target.rowCount) denied();
+      const current=await this.actor(client,actor,actor.role === "owner" ? "staff.manage" : "maintenance.revoke_sessions");
+      const target=await client.query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 FOR UPDATE",[this.organisationId,userId]);
+      if (!target.rowCount || (current.role === "owner" && target.rows[0].role !== "editor")) denied();
       await client.query("UPDATE twe.staff_sessions SET revoked_at=now() WHERE organisation_id=$1 AND user_id=$2 AND revoked_at IS NULL",[this.organisationId,userId]);
       await client.query("UPDATE twe.support_grants SET revoked_at=now() WHERE organisation_id=$1 AND user_id=$2 AND revoked_at IS NULL",[this.organisationId,userId]);
-      await this.audit(client,current,"system.sessions_revoked",userId,requestId);
+      await this.audit(client,current,current.role === "owner" ? "staff.sessions_revoked" : "system.sessions_revoked",userId,requestId);
     });
   }
   async securityEvents(actor, requestId) {
@@ -100,5 +100,9 @@ export class Administration {
     const {rows}=await this.pool.query("SELECT id,action,actor_id,record_id,request_id,created_at FROM twe.audit_records WHERE organisation_id=$1 AND (action LIKE 'auth.%' OR action LIKE 'staff.%' OR action LIKE 'support.%' OR action LIKE 'system.%') ORDER BY created_at DESC LIMIT 100",[this.organisationId]);
     await this.audit(this.pool,actor,"system.security_read",null,requestId);
     return rows;
+  }
+  async staffEvents(actor) {
+    await this.actor(this.pool,actor,"staff.manage");
+    return (await this.pool.query("SELECT id,action,record_id,created_at FROM twe.audit_records WHERE organisation_id=$1 AND action LIKE 'staff.%' ORDER BY created_at DESC LIMIT 100",[this.organisationId])).rows;
   }
 }

@@ -70,7 +70,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
     <div ref={notice} tabIndex={-1}>{state.error && <InlineNotice tone="danger" title="Media request unsuccessful" message={state.error} />}</div>
     <p role="status">{state.loading ? "Working…" : state.message}</p>
     {!state.loading && !configured && <p>Private storage is not configured. Baaba must complete the environment-specific R2 setup before uploads or previews are available.</p>}
-    <form ref={form} onSubmit={upload}>
+    <form data-tour="media-upload" ref={form} onSubmit={upload}>
       <fieldset disabled={state.loading || !configured}>
         <legend>{replacement ? "Upload replacement as a new asset" : "Upload a licensed image"}</legend>
         <label className="file-picker">Image<input name="image" type="file" accept="image/jpeg,image/png,image/webp" required /></label>

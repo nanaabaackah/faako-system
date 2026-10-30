@@ -24,6 +24,7 @@ const pool=createDatabase(process.env,"TWE_MIGRATION_DATABASE_URL");
 try {
   await transaction(pool,async client=> {
     await verifyDatabaseIdentity(client,{environment,organisationId:process.env.TWE_ORGANISATION_ID});
+    await client.query("SELECT pg_advisory_xact_lock(hashtextextended('twe-invitations:' || $1, 0))",[process.env.TWE_ORGANISATION_ID]);
     await client.query("SELECT id FROM twe.organisations WHERE id=$1 FOR UPDATE",[process.env.TWE_ORGANISATION_ID]);
     const existing=await client.query("SELECT id FROM twe.staff_users WHERE organisation_id=$1 AND role=$2",[process.env.TWE_ORGANISATION_ID,role]);
     if (existing.rowCount) throw new Error("Initial role already exists; use a separately reviewed identity/recovery migration.");

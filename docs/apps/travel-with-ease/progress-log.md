@@ -1,5 +1,45 @@
 # Travel With Ease progress log
 
+## 2026-10-30 — Clarified notification To and CC
+
+- Supersedes the earlier recipient-redirection policy: preserve the intended To
+  recipient and add the environment mailbox as CC. Non-production To addresses
+  remain explicitly allowlisted. Delivery validates pinned To/CC and rejects BCC.
+- Added mocked tests and updated the email configuration runbook. No live email
+  was sent for this change. Invitation email automation remains unimplemented.
+
+## 2026-10-30 — Onboarding merge repair and notification routing
+
+- Pinned the foundation CI runner to Ubuntu 24.04: the installed Playwright
+  1.58.2 cannot install Chromium dependencies on Ubuntu 26.04. All browser
+  assertions and quality gates remain enabled; remote rerun is required.
+
+- Restored activation, installer invitations, Account settings, module tour targets
+  and tutorial footer removed by the develop merge in PR #117. Preserved the newer
+  staging-demo routing and messaging.
+- Enforced environment-specific Resend notification recipients, added routing tests
+  and an explicit non-production single-email test command.
+- Fixed staging demo file delivery falling through to a second HTTP response;
+  regression tests assert that the server records no response errors.
+- TWE lint, portal tests, 63 API tests and the four-width onboarding browser check
+  passed locally. Resend accepted one labelled testing-mailbox message; inbox
+  receipt remains user verification. PR checks must pass before merge.
+- See [email test flow](./email-test-flow.md). Live email receipt and hosted
+  Google/MFA onboarding acceptance remain separately verified release gates.
+
+## 2026-10-29 — Activation invitations and guided workspace onboarding
+
+- Added reviewed-installer initial Owner invitations, Owner-issued Editor
+  invitations, same-origin activation confirmation, revocation and staff audit UI.
+- Added tenant/user-scoped PostgreSQL tutorial progress with optimistic revisions,
+  permission-filtered definitions, footer preferences and an opt-in shared guide.
+- Added account/session settings and real module targets without auto-editing,
+  publishing, customer-record mutations or frontend authorisation authority.
+- Added additive migrations, scoped runtime grants, API/DB/browser tests and
+  [setup/reuse/acceptance documentation](./workspace-onboarding.md).
+- Local verification is not hosted acceptance. Installer configuration and
+  staging Google/MFA/user acceptance remain operator-reviewed release gates.
+
 ## 2026-10-27 — Actionable pre-deploy configuration diagnostics
 
 - Replaced misleading generic configuration failures with allowlisted reason codes

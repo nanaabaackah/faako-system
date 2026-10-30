@@ -52,6 +52,21 @@ export function createStaffAuth({ store, provider, settings, limiter, logger, ad
     next();
   }
 
+  async function requireAccessIdentity(req, res, next) {
+    if (!configured || !accessMode) return reject(req, res, 401, "authentication_error", "Access sign-in is required.");
+    if (req.get("Origin") && req.get("Origin") !== settings.portalOrigin) return reject(req, res, 403, "permission_error", "Use the workspace portal.");
+    try { req.accessIdentity = await verifiedAccess(req); }
+    catch { return reject(req, res, 401, "authentication_error", "Access identity could not be verified."); }
+    next();
+  }
+
+  function requireAccessMutation(req, res, next) {
+    // Pre-session activation has no ambient application cookie. Require a
+    // verified edge assertion plus same-origin custom-header POST (no CORS fallback).
+    if (req.get("Origin") !== settings?.portalOrigin || req.get("X-TWE-Session-Init") !== "1") return reject(req, res, 403, "permission_error", "Refresh the portal before activating your account.");
+    next();
+  }
+
   function requireMutation(req, res, next) {
     const supplied = req.get("X-CSRF-Token");
     if (!req.staffSession || req.get("Origin") !== settings?.portalOrigin || typeof supplied !== "string" || supplied.length > 100 ||
@@ -146,7 +161,7 @@ export function createStaffAuth({ store, provider, settings, limiter, logger, ad
     res.clearCookie(sessionName, cookie);
     res.json(createSuccessResponse({ signedOut: true }, { requestId: req.requestId }));
   });
-  const adapter = { router, requireStaff, requireMutation, requireOwner, requirePermission };
+  const adapter = { router, requireStaff, requireMutation, requireOwner, requirePermission, requireAccessIdentity, requireAccessMutation };
   if (configured && accessMode) accessAdapters.set(adapter, { store, settings });
   return adapter;
 }

@@ -15,6 +15,10 @@ import { readAccessConfig } from "./auth/access-config.js";
 import { createAccessVerifier } from "./auth/access.js";
 import { Administration } from "./auth/administration.js";
 import { administrationRoutes } from "./auth/administration-routes.js";
+import { TutorialService } from "./onboarding/service.js";
+import { tutorialRoutes } from "./onboarding/routes.js";
+import { Invitations } from "./onboarding/invitations.js";
+import { invitationRoutes } from "./onboarding/invitation-routes.js";
 import { PostgresAuthStore } from "./auth/store.js";
 import { createStaffAuth } from "./auth/routes.js";
 import { ContentRepository } from "./content/repository.js";
@@ -71,6 +75,8 @@ const staffAuth = createStaffAuth({
   limiter: createLimiter({ limit: 10, windowMs: 300_000 }), logger,
 });
 if (administration) staffAuth.administrationRouter = administrationRoutes(administration, staffAuth);
+if (pool && authSettings) staffAuth.router.use(tutorialRoutes(new TutorialService(pool, process.env.TWE_ORGANISATION_ID), staffAuth));
+if (pool && authSettings?.mode === "cloudflare_access") staffAuth.router.use(invitationRoutes(new Invitations(pool, process.env.TWE_ORGANISATION_ID, authSettings, environment, process.env.TWE_SETUP_OPERATOR_SUBJECT), staffAuth));
 const contentRepository = pool ? new ContentRepository(pool, process.env.TWE_ORGANISATION_ID) : null;
 const publicationRepository = pool ? new PublicationRepository(pool, { organisationId: process.env.TWE_ORGANISATION_ID, environment, sourceSha: process.env.TWE_RELEASE_SHA }) : null;
 const mediaSettings = readR2Config();

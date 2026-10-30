@@ -107,6 +107,7 @@ test("staging /demo requires signed Cloudflare Access but no provisioned staff s
   const directory = await mkdtemp(path.join(tmpdir(), "twe-portal-demo-"));
   await writeFile(path.join(directory, "index.html"), "<!doctype html><title>Staging demo frontend</title>");
   const settings = { portalOrigin: "https://portal-staging.travelwitheasegh.com", secure: true };
+  const serverErrors = [];
   const setup = enabled => {
     const { guard, serve } = createInlinePortal({
       settings, distDirectory: directory, stagingDemoEnabled: enabled,
@@ -118,6 +119,11 @@ test("staging /demo requires signed Cloudflare Access but no provisioned staff s
     app.get("/api/auth/session", (_req, res) => res.sendStatus(401));
     app.use(serve);
     app.use((_req, res) => res.sendStatus(404));
+    app.use((error, _req, res, _next) => {
+      serverErrors.push(error.code);
+      if (!res.headersSent) res.sendStatus(500);
+      else res.end();
+    });
     return app;
   };
   const requests = async enabled => {
@@ -125,6 +131,8 @@ test("staging /demo requires signed Cloudflare Access but no provisioned staff s
     await once(server, "listening");
     const send = (route, assertion, method = "GET") => new Promise((resolve, reject) => {
       const req = http.request({
+        // Each isolated server is closed between cases; never reuse its socket.
+        agent: false,
         host: "127.0.0.1", port: server.address().port, path: route, method,
         headers: { Host: "portal-staging.travelwitheasegh.com",
           ...(assertion ? { "Cf-Access-Jwt-Assertion": assertion } : {}) },
@@ -158,6 +166,6 @@ test("staging /demo requires signed Cloudflare Access but no provisioned staff s
       await new Promise(resolve => server.close(resolve));
     }
   };
-  try { await requests(false); await requests(true); }
+  try { await requests(false); await requests(true); assert.deepEqual(serverErrors, []); }
   finally { await rm(directory, { recursive: true, force: true }); }
 });
