@@ -103,8 +103,9 @@ Baseline production asset comparison (same dependency checkout): before redesign
 `_astro` JS 295,105 bytes / gzip 91,825; CSS 127,639 / gzip 21,008. Initial redesign
 JS unchanged; CSS 135,070 / gzip 22,864. Removing unused device derivatives removes
 1,614,664 generated WebP bytes; original supplied files remain preserved. The
-subsequent shared skeleton usage tree-shakes in its existing renderer, so final
-bundle figures must be recorded after that follow-up build, not assumed unchanged.
+subsequent shared skeleton follow-up final totals are JS 307,247 bytes / gzip
+93,105 and CSS 135,192 / gzip 22,897. Versus baseline: gzip JS +1,280 bytes;
+gzip CSS +1,889 bytes. No animation or skeleton dependency was installed.
 
 Normal local ports now run from the isolated branch, not the dirty main checkout:
 website `http://localhost:4328/`, demo `/demo`, portal demo
