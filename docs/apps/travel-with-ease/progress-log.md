@@ -7,6 +7,11 @@
   staging-demo routing and messaging.
 - Enforced environment-specific Resend notification recipients, added routing tests
   and an explicit non-production single-email test command.
+- Fixed staging demo file delivery falling through to a second HTTP response;
+  regression tests assert that the server records no response errors.
+- TWE lint, portal tests, 63 API tests and the four-width onboarding browser check
+  passed locally. Resend accepted one labelled testing-mailbox message; inbox
+  receipt remains user verification. PR checks must pass before merge.
 - See [email test flow](./email-test-flow.md). Live email receipt and hosted
   Google/MFA onboarding acceptance remain separately verified release gates.
 
