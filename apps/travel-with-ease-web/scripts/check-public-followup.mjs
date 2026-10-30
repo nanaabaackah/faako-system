@@ -71,9 +71,10 @@ const server = spawn(
     env: {
       ...process.env,
       ASTRO_TELEMETRY_DISABLED: "1",
-      PUBLIC_APP_ENV: "development",
+      PUBLIC_APP_ENV: "production",
+      PUBLIC_SITE_URL: "https://travelwitheasegh.com",
       TWE_CONTENT_SNAPSHOT: snapshot,
-      PUBLIC_GA_MEASUREMENT_ID: "G-TEST123456",
+      PUBLIC_GA_MEASUREMENT_ID: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
   },
@@ -158,6 +159,51 @@ try {
       ),
       true,
     );
+    await page.waitForFunction(() =>
+      document.querySelector(
+        'script[src="https://www.googletagmanager.com/gtag/js?id=G-GVJ2HGT6YN"]',
+      ),
+    );
+    assert.equal(
+      await page.locator('script[src*="googletagmanager.com/gtag/js"]').count(),
+      1,
+    );
+    const commands = await page.evaluate(() =>
+      window.dataLayer.map((command) => Array.from(command)),
+    );
+    assert.equal(
+      commands.filter(
+        (command) => command[0] === "config" && command[1] === "G-GVJ2HGT6YN",
+      ).length,
+      1,
+    );
+    assert.equal(
+      commands.filter(
+        (command) =>
+          command[0] === "event" &&
+          command[1] === "page_view" &&
+          command[2].send_to === "G-GVJ2HGT6YN",
+      ).length,
+      1,
+    );
+    await page.evaluate(() =>
+      document.dispatchEvent(
+        new CustomEvent("twe:consent-changed", { detail: { analytics: true } }),
+      ),
+    );
+    assert.equal(
+      await page.locator('script[src*="googletagmanager.com/gtag/js"]').count(),
+      1,
+    );
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.dataLayer.filter(
+            (command) => command[0] === "event" && command[1] === "page_view",
+          ).length,
+      ),
+      1,
+    );
     await page
       .getByRole("button", { name: "Cookie settings", exact: true })
       .click();
@@ -170,6 +216,10 @@ try {
           JSON.parse(localStorage.getItem("twe-cookie-consent-v1")).analytics,
       ),
       false,
+    );
+    assert.equal(
+      await page.evaluate(() => window["ga-disable-G-GVJ2HGT6YN"]),
+      true,
     );
     assert.equal(
       await page.evaluate(
@@ -295,6 +345,33 @@ try {
     1,
   );
   await noJs.close();
+  const dnt = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  await dnt.addInitScript(() =>
+    Object.defineProperty(navigator, "doNotTrack", { get: () => "1" }),
+  );
+  const dntPage = await dnt.newPage();
+  let dntGoogleRequests = 0;
+  await dntPage.route("**/*", (route) => {
+    const url = new URL(route.request().url());
+    if (url.origin === origin) return route.continue();
+    if (/google-analytics|googletagmanager/.test(url.hostname))
+      dntGoogleRequests++;
+    return route.abort();
+  });
+  await dntPage.goto(origin, { waitUntil: "networkidle" });
+  await dntPage
+    .getByRole("button", { name: "Allow analytics", exact: true })
+    .click();
+  assert.equal(
+    await dntPage
+      .locator('script[src*="googletagmanager.com/gtag/js"]')
+      .count(),
+    0,
+  );
+  assert.equal(dntGoogleRequests, 0);
+  await dnt.close();
   console.log(
     JSON.stringify({
       passed: true,
