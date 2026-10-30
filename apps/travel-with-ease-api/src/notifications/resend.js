@@ -2,13 +2,24 @@ import { z } from "zod";
 import { validateEnvironment } from "../config.js";
 
 const email = z.string().trim().email().max(254);
+function readSender(value) {
+  const sender = String(value).trim();
+  if (/[\r\n]/.test(sender)) throw new Error("Invalid notification sender.");
+  const named = sender.match(/^([^<>]{1,100}) <([^<>]+)>$/);
+  email.parse(named ? named[2] : sender);
+  return sender;
+}
 export function readNotificationConfig(env = process.env) {
   const names = ["TWE_RESEND_API_KEY", "TWE_EMAIL_FROM", "TWE_EMAIL_RECIPIENT", "TWE_PORTAL_ORIGIN"];
   if (!names.slice(0, 3).some((name) => env[name])) return null;
   if (names.some((name) => !env[name])) throw new Error("Notification configuration is incomplete.");
   const environment = validateEnvironment(env.APP_ENV || "development", env.NODE_ENV);
-  const from = email.parse(env.TWE_EMAIL_FROM);
+  const from = readSender(env.TWE_EMAIL_FROM);
   const to = email.parse(env.TWE_EMAIL_RECIPIENT);
+  const requiredRecipient = environment === "production"
+    ? "notifications@travelwitheasegh.com"
+    : "testing@travelwitheasegh.com";
+  if (to.toLowerCase() !== requiredRecipient) throw new Error("Notification recipient does not match the environment delivery policy.");
   const allowed = String(env.TWE_EMAIL_TEST_RECIPIENTS || "").split(",").filter(Boolean).map((value) => email.parse(value).toLowerCase());
   if (environment !== "production" && !allowed.includes(to.toLowerCase())) throw new Error("Non-production delivery requires an explicitly allowlisted test recipient.");
   const portal = new URL(env.TWE_PORTAL_ORIGIN);

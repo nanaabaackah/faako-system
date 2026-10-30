@@ -192,13 +192,13 @@ function StaffWorkspace() {
       </aside> : localDemoAllowed && ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname) && <aside className="demo-notice">
         <p>Preview the updated staff workspace using synthetic data.</p><a href="/?demo=1">Open local demo workspace</a>
       </aside>}
-      <PageHeader title={session ? (section === "overview" ? "Dashboard" : ({ enquiries: "Enquiries", content: "Website content", media: "Media library", staff: "Staff access", system: "System administration" }[section])) : "Staff sign-in"} subtitle={session ? "Travel With Ease · Staff workspace" : "Your next journey starts here."} />
+      <PageHeader title={session ? (section === "overview" ? "Dashboard" : ({ settings: "Account settings", enquiries: "Enquiries", content: "Website content", media: "Media library", staff: "Staff access", system: "System administration" }[section])) : "Staff sign-in"} subtitle={session ? "Travel With Ease · Staff workspace" : "Your next journey starts here."} />
       {state.error && <InlineNotice tone="danger" title="Request unsuccessful" message={state.error} />}
       {state.loading ? <p role="status">Checking your session…</p> : session ? <div className="session-toolbar" aria-label="Your session">
         <span>{isDemo ? "Simulating role " : "Signed in as "}<strong>{session.user.role.replaceAll("_", " ")}</strong></span>
         <Button icon="logout" variant="ghost" type="button" onClick={() => logout()}>{isDemo ? "End demo session" : "Sign out"}</Button>
         {!isDemo && <Button type="button" onClick={() => { if (window.confirm("Sign out all your Travel With Ease sessions?")) logout(true); }}>Sign out all devices</Button>}
-      </div> : isDemo ? <section><h2>Demo session ended</h2><p>No real staff session was created.</p><a href={demoRestartUrl}>Restart demo</a></section> : state.configured && accountLinks.mode === "cloudflare_access" ? <section className="signin-panel" aria-labelledby="access-signin-heading">
+      </div> : activation && activation.status !== "active" ? <Activation status={activation} api={baseApi} onActivated={load} /> : isDemo ? <section><h2>Demo session ended</h2><p>No real staff session was created.</p><a href={demoRestartUrl}>Restart demo</a></section> : state.configured && accountLinks.mode === "cloudflare_access" ? <section className="signin-panel" aria-labelledby="access-signin-heading">
         <h2 id="access-signin-heading">Welcome to Travel With Ease</h2><p>Sign in with your approved staff identity through Cloudflare Access, including Google where enabled. Your workspace owner must grant staff access separately.</p>
         <a className="signin-link" href="/cdn-cgi/access/logout">Sign in again securely</a>
         <p>Need access or account recovery? Contact your workspace owner. Travel With Ease does not collect your Google password or recovery codes.</p>
@@ -224,12 +224,17 @@ function StaffWorkspace() {
           <Button type="button" onClick={() => setAccountFlow("login")}>Back to sign-in</Button>
         </div>}
       </section>}
+      <div data-tour={section}>
+      {!state.loading && session && activation?.canIssueOwner && section === "overview" && <Invitations api={baseApi} installer />}
+      {!state.loading && session && section === "settings" && <AccountSettings session={session} onLogout={logout} />}
       {!state.loading && session?.user.permissions?.includes("content.read") && section === "content" && <WebsiteContent api={api} session={session} onDirtyChange={setDirty} />}
       {!state.loading && session && section === "overview" && <Dashboard api={api} session={session} onNavigate={navigate} isDemo={isDemo} demoWebsiteUrl={stagingDemoAllowed ? "https://staging.travelwitheasegh.com/demo" : "http://127.0.0.1:4328/demo"} />}
       {!state.loading && session?.user.permissions?.includes("media.read") && section === "media" && <MediaLibrary api={api} session={session} />}
       {!state.loading && session?.user.permissions?.includes("enquiries.read") && section === "enquiries" && <Enquiries api={api} session={session} />}
       {!state.loading && session && section === "system" && <SystemAdministration api={api} session={session} />}
       {!state.loading && session?.user.role === "owner" && section === "staff" && <StaffAccess api={api} session={session} />}
+      </div>
+      {!state.loading && session && !isDemo && <TutorialWorkspace key={session.user.id} api={baseApi} session={session} navigate={navigate} section={section} />}
       {!state.loading && !dirty && <Button icon="refresh" variant="ghost" type="button" onClick={load}>Check connection again</Button>}
     </PageShell>
     {session && <ErpMobileBottomNavFrame className="twe-bottom-nav">{navigation.map(navButton)}</ErpMobileBottomNavFrame>}

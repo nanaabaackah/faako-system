@@ -60,8 +60,8 @@ sessions through this business-management path.
 
 Codes contain 256 random bits and only SHA-256 hashes are stored. They are shown
 once, never placed in URLs, localStorage or telemetry. Resend/email delivery is not
-implicitly enabled: this phase uses approved private manual delivery, avoiding a
-new paid service or accidental outbound mail. Approval references, issuing identity
+implicitly enabled: this phase uses approved private manual delivery. Resend enquiry
+notifications are separate from invitation-code delivery. Approval references, issuing identity
 hashes and immutable audit events provide traceability without recording codes.
 
 Claim and preview requests are limited to ten attempts per verified identity per

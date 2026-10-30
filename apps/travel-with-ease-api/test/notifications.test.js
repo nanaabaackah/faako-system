@@ -3,7 +3,23 @@ import assert from "node:assert/strict";
 import { readNotificationConfig, ResendSender } from "../src/notifications/resend.js";
 import { deliverOne } from "../src/notifications/outbox.js";
 
-const env = { APP_ENV: "staging", TWE_RESEND_API_KEY: "synthetic-only", TWE_EMAIL_FROM: "sender@example.invalid", TWE_EMAIL_RECIPIENT: "test@example.invalid", TWE_EMAIL_TEST_RECIPIENTS: "test@example.invalid", TWE_PORTAL_ORIGIN: "https://portal.example.invalid" };
+const env = { APP_ENV: "staging", TWE_RESEND_API_KEY: "synthetic-only", TWE_EMAIL_FROM: "sender@example.invalid", TWE_EMAIL_RECIPIENT: "testing@travelwitheasegh.com", TWE_EMAIL_TEST_RECIPIENTS: "testing@travelwitheasegh.com", TWE_PORTAL_ORIGIN: "https://portal.example.invalid" };
+test("sender supports a display name but rejects malformed addresses and header injection", () => {
+  const from = "Travel With Ease <sender@example.invalid>";
+  assert.equal(readNotificationConfig({ ...env, TWE_EMAIL_FROM: from }).from, from);
+  for (const value of ["Brand <invalid>", "Brand <a@example.invalid> <b@example.invalid>", "Brand\r\nBcc: victim@example.invalid <sender@example.invalid>"]) {
+    assert.throws(() => readNotificationConfig({ ...env, TWE_EMAIL_FROM: value }));
+  }
+});
+test("environment delivery policy cannot be broadened by an allowlist", () => {
+  for (const APP_ENV of ["development", "staging"]) {
+    assert.equal(readNotificationConfig({ ...env, APP_ENV }).to, "testing@travelwitheasegh.com");
+    assert.throws(() => readNotificationConfig({ ...env, APP_ENV, TWE_EMAIL_RECIPIENT: "notifications@travelwitheasegh.com", TWE_EMAIL_TEST_RECIPIENTS: "notifications@travelwitheasegh.com" }));
+    assert.throws(() => readNotificationConfig({ ...env, APP_ENV, TWE_EMAIL_RECIPIENT: "customer@example.invalid", TWE_EMAIL_TEST_RECIPIENTS: "customer@example.invalid" }));
+  }
+  assert.throws(() => readNotificationConfig({ ...env, APP_ENV: "production" }));
+  assert.equal(readNotificationConfig({ ...env, APP_ENV: "production", TWE_EMAIL_RECIPIENT: "notifications@travelwitheasegh.com" }).to, "notifications@travelwitheasegh.com");
+});
 test("notification configuration requires exact test recipients outside production", () => {
   assert.equal(readNotificationConfig({}), null);
   assert.equal(readNotificationConfig(env).environment, "staging");

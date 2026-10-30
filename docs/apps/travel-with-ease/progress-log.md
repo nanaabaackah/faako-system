@@ -1,5 +1,15 @@
 # Travel With Ease progress log
 
+## 2026-10-30 — Onboarding merge repair and notification routing
+
+- Restored activation, installer invitations, Account settings, module tour targets
+  and tutorial footer removed by the develop merge in PR #117. Preserved the newer
+  staging-demo routing and messaging.
+- Enforced environment-specific Resend notification recipients, added routing tests
+  and an explicit non-production single-email test command.
+- See [email test flow](./email-test-flow.md). Live email receipt and hosted
+  Google/MFA onboarding acceptance remain separately verified release gates.
+
 ## 2026-10-29 — Activation invitations and guided workspace onboarding
 
 - Added reviewed-installer initial Owner invitations, Owner-issued Editor
