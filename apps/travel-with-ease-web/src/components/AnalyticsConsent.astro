@@ -1,10 +1,13 @@
 ---
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
+import { analyticsMeasurementId } from "../lib/analytics.js";
 const privacyAvailable =
   !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
-const measurementId = privacyAvailable
-  ? import.meta.env.PUBLIC_GA_MEASUREMENT_ID || ""
-  : "";
+const measurementId = analyticsMeasurementId({
+  environment: import.meta.env.PUBLIC_APP_ENV,
+  configuredId: import.meta.env.PUBLIC_GA_MEASUREMENT_ID || "",
+  privacyAvailable,
+});
 ---
 
 <div data-analytics-config data-measurement-id={measurementId} hidden></div>

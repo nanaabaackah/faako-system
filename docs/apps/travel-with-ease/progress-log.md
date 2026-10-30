@@ -1,5 +1,17 @@
 # Travel With Ease progress log
 
+## 2026-10-30 — Production Google tag configuration
+
+- Set the approved `G-GVJ2HGT6YN` stream as the production public-site default,
+  using the existing shared loader instead of adding a duplicate tag snippet.
+- Retained the published-privacy and consent gates, Do Not Track and no-analytics
+  demos/portal. Copied production IDs cannot track local/staging visits.
+- Added configuration tests and browser assertions for the actual tag URL, one
+  initialization/page view, withdrawal and Do Not Track. Google requests are
+  intercepted in testing; hosted receipt requires deployment and a published notice.
+- Verification: two stream-configuration tests, seven shared analytics tests,
+  web lint/type checks and Chrome acceptance at all four target widths pass.
+
 ## 2026-10-30 — Branded acknowledgement, content publication and demos
 
 - Reconciled company details against the supplied Faako onboarding intake.
