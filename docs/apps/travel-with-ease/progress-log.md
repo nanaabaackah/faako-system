@@ -2,6 +2,10 @@
 
 ## 2026-10-30 — Onboarding merge repair and notification routing
 
+- Pinned the foundation CI runner to Ubuntu 24.04: the installed Playwright
+  1.58.2 cannot install Chromium dependencies on Ubuntu 26.04. All browser
+  assertions and quality gates remain enabled; remote rerun is required.
+
 - Restored activation, installer invitations, Account settings, module tour targets
   and tutorial footer removed by the develop merge in PR #117. Preserved the newer
   staging-demo routing and messaging.
