@@ -1,69 +1,51 @@
 ---
 import ContentLink from "./ContentLink.astro";
-import { Image } from "astro:assets";
-import phone from "../../public/media/Mockups/TWE_mockup1.png";
-import tablet from "../../public/media/Mockups/TWE_mockup2.png";
-import camera from "../../public/media/Mockups/TWE_mockup3.png";
-import headphones from "../../public/media/Mockups/TWE_mockup4.png";
-import laptop from "../../public/media/Mockups/TWE_mockup5.png";
-const { demo = false, enquiryAvailable = true } = Astro.props;
-const mockups = [
-  { image: headphones, name: "headphones" },
-  { image: tablet, name: "tablet" },
-  { image: laptop, name: "laptop" },
-  { image: phone, name: "phone" },
-  { image: camera, name: "camera" },
-];
+import photos from "../lib/approved-preview-media.json";
+import "../styles/components/closing-cta.css";
+const { demo = false, enquiryAvailable = false } = Astro.props;
+// Original approved TWE photographs, not Flighty's devices or screenshots.
+const scenes = [photos[0], photos[1], photos[0]];
 ---
 
 <section class="closing-cta" aria-labelledby="closing-cta-heading">
   <div class="closing-copy">
-    <h2 id="closing-cta-heading">Make room for your next journey.</h2>
+    <h2 id="closing-cta-heading">Make room for<br />your next journey.</h2>
     <p>
       {
         demo
-          ? "Explore a sample trip, then try the enquiry experience. Sample offers cannot be booked; staging enquiries are labelled as tests."
-          : enquiryAvailable
-            ? "Start with an idea. Explore the enquiry options for your next trip."
-            : "Make space for a new journey. Online enquiry details are not available yet."
+          ? "Explore a sample trip, then try the enquiry experience. Sample offers cannot be booked."
+          : "A little further. A little more you. Start with an idea for your next trip."
       }
     </p>
     <ContentLink
       button
-      href={demo ? "#demo-plan" : "/contact"}
+      href={demo ? "#demo-plan" : enquiryAvailable ? "/contact" : "#plan"}
       data-demo-personalised={demo ? "" : undefined}
-      >{
-        demo
-          ? "Try a personalised enquiry"
-          : enquiryAvailable
-            ? "Plan a trip"
-            : "Enquiry availability"
-      }</ContentLink
+      >{demo ? "Try a personalised enquiry" : "Plan your trip"}</ContentLink
     >
   </div>
-  <div class="closing-artwork">
-    <div class="closing-photos" aria-hidden="true">
-      {
-        mockups.map((mockup, index) => (
-          <div class:list={["mockup", `mockup--${mockup.name}`]}>
-            <div class="mockup-reveal" data-twe-reveal data-stagger={index}>
-              <Image
-                src={mockup.image}
-                widths={[160, 320, 640, 960]}
-                sizes="(max-width: 1600px) 43vw, 680px"
-                format="webp"
-                quality={80}
-                alt=""
-                loading="lazy"
-                decoding="async"
-              />
-            </div>
-          </div>
-        ))
-      }
-    </div>
+  <div class="closing-photos" aria-hidden="true">
+    {
+      scenes.map((photo, index) => (
+        <div
+          class={`closing-photo closing-photo--${index + 1}`}
+          data-twe-reveal
+          data-stagger={index}
+        >
+          <img
+            src={photo.sources.at(-1)!.src}
+            srcset={photo.sources
+              .map((source) => `${source.src} ${source.width}w`)
+              .join(", ")}
+            sizes="(max-width: 600px) 62vw, 38vw"
+            alt=""
+            width={photo.width}
+            height={photo.height}
+            loading="lazy"
+            decoding="async"
+          />
+        </div>
+      ))
+    }
   </div>
 </section>
-<style>
-  @import "../styles/components/closing-cta.css";
-</style>

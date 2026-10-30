@@ -1,0 +1,137 @@
+.cinematic-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  padding: clamp(10rem, 19vh, 15rem) 7% 7rem;
+  color: var(--brand-cream);
+  background: var(--brand-ink);
+}
+.cinematic-hero__image {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 65% 60%;
+}
+/* A single solid scrim protects text contrast over any CMS-selected photograph. */
+.cinematic-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgb(0 10 31 / 62%);
+}
+.cinematic-hero__copy {
+  max-width: 760px;
+}
+.cinematic-hero h1 {
+  margin: 0 0 1.5rem;
+  font:
+    400 clamp(3.4rem, 7.4vw, 7.5rem)/1.01 Georgia,
+    serif;
+  letter-spacing: -0.045em;
+  max-width: 11ch;
+  text-wrap: balance;
+}
+.cinematic-hero__copy > p {
+  max-width: 43ch;
+  font-size: clamp(1rem, 1.35vw, 1.2rem);
+}
+.cinematic-hero__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  margin: 2rem 0 1rem;
+}
+.cinematic-page .cinematic-hero .twe-content-link.button {
+  border-radius: 99px;
+  background: var(--brand-gold);
+  color: var(--brand-ink);
+  border-color: var(--brand-gold);
+  min-height: 48px;
+}
+.cinematic-hero small {
+  color: var(--brand-cream);
+}
+.cinematic-hero__scroll {
+  position: absolute;
+  bottom: 5.5rem;
+  left: 7%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8rem;
+  text-underline-offset: 0.4em;
+}
+.cinematic-page .site-header {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 5;
+  background: transparent;
+  padding-inline: 7%;
+}
+.cinematic-page .review-banner {
+  position: relative;
+  z-index: 6;
+  font-size: 0.75rem;
+  padding-block: 0.4rem;
+}
+.cinematic-page:has(.review-banner) .site-header {
+  top: 3.5rem;
+}
+.cinematic-page .site-header .nav-cta {
+  background: var(--brand-gold);
+  color: var(--brand-ink);
+  border-color: var(--brand-gold);
+  border-radius: 99px;
+}
+@media (max-width: 900px) {
+  .cinematic-page .site-header {
+    gap: 0.5rem;
+  }
+  .cinematic-page .site-header nav {
+    padding: 1rem;
+    background: var(--brand-ink);
+    border: 1px solid var(--brand-grey);
+  }
+  .cinematic-page .site-header .menu-toggle {
+    background: var(--brand-cream);
+    color: var(--brand-navy);
+  }
+  .cinematic-page .brand img {
+    width: 140px;
+  }
+  .cinematic-hero {
+    padding-top: 13rem;
+  }
+}
+@media (max-width: 480px) {
+  .cinematic-hero {
+    padding-inline: 6%;
+    min-height: max(760px, 100svh);
+  }
+  .cinematic-hero h1 {
+    font-size: clamp(3rem, 13vw, 4.5rem);
+  }
+  .cinematic-hero__image {
+    object-position: 58% 60%;
+  }
+  .cinematic-page:has(.review-banner) .site-header {
+    top: 5.5rem;
+  }
+}
+@media (scripting: none) {
+  .cinematic-page .site-header {
+    position: relative;
+    inset: auto;
+    background: var(--brand-ink);
+  }
+  .cinematic-hero {
+    padding-top: 5rem;
+  }
+}

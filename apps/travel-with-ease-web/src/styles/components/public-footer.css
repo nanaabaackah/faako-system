@@ -1,8 +1,14 @@
 .twe-public-footer {
+  position: relative;
+  z-index: 1;
   display: block;
-  background: #000a1f;
-  color: #f4ede3;
-  padding: 52px max(5%, calc((100% - 1280px) / 2)) calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  background: var(--brand-cream);
+  color: var(--brand-navy);
+  padding: clamp(3rem, 6vw, 6rem) 6%
+    calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+:global(.cinematic-page) .twe-public-footer {
+  margin-top: -3rem;
 }
 .twe-public-footer :global(div) {
   align-items: initial;
@@ -13,9 +19,9 @@
   flex-wrap: wrap;
   gap: 20px;
   padding: 22px 0;
-  border-top: 1px solid #344057;
+  border-top: 1px solid var(--brand-grey);
   background: transparent;
-  color: #b6b1a9;
+  color: var(--brand-navy);
   font-size: 12px;
 }
 .twe-public-footer :global(.ui-app-bottom-bar__powered) {
@@ -27,62 +33,61 @@
   width: 20px;
   height: 20px;
 }
+.footer-top {
+  display: grid;
+  grid-template-columns: 0.9fr 1.6fr 1fr;
+  gap: clamp(24px, 4vw, 60px);
+}
 .footer-brand-block {
   display: block;
 }
-.footer-top {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1.4fr;
-  gap: 40px;
-}
-.brand img {
+.twe-public-footer .brand img {
   width: 190px;
   height: auto;
-  padding: 0;
+  padding: 12px;
+  background: var(--brand-navy);
 }
-p {
+.footer-brand-block p {
   font-size: 14px;
   line-height: 1.8;
   margin: 20px 0;
-  color: #c3c9d4;
+  max-width: 30ch;
 }
 .footer-links {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
 }
-nav {
+.twe-public-footer nav {
   display: flex;
   flex-direction: column;
   align-items: start;
-  gap: 12px;
+  gap: 2px;
 }
-h2 {
+.twe-public-footer h2 {
   font-size: 14px;
-  margin: 0 0 8px;
-  color: #d8b56a;
+  margin: 0 0 12px;
 }
-a,
-button {
+.twe-public-footer a,
+.twe-public-footer button {
   color: inherit;
   font-size: 13px;
   text-decoration: none;
 }
-nav a,
-nav button {
-  min-height: 28px;
+.twe-public-footer nav a,
+.twe-public-footer nav button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
-a:hover,
-button:hover {
+.twe-public-footer a:hover,
+.twe-public-footer button:hover {
   text-decoration: underline;
 }
-small {
-  font-size: 12px;
-  line-height: 1.6;
-  color: #b6b1a9;
-}
 .footer-legal {
-  border-top: 1px solid #344057;
+  border-top: 1px solid var(--brand-grey);
   margin-top: 36px;
   padding: 24px 0;
   display: flex;
@@ -94,23 +99,59 @@ small {
 .footer-legal nav {
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 20px;
+  gap: 8px 20px;
 }
-button {
+.twe-public-footer button {
   background: none;
   border: 0;
   padding: 0;
   cursor: pointer;
   font: inherit;
 }
-.footer-brand-block :global(.button) {
-  background: #d8b56a;
-  color: #010c33;
-  border-color: #d8b56a;
+.twe-public-footer .footer-brand-block :global(a.button) {
+  background: var(--brand-navy);
+  color: var(--brand-cream);
+  border-color: var(--brand-navy);
+  border-radius: 99px;
 }
-@media (max-width: 1000px) {
+.footer-links nav:last-child {
+  grid-column: 1 / -1;
+}
+.footer-clearing {
+  height: clamp(3rem, 14vw, 13rem);
+}
+.footer-signature {
+  font:
+    400 clamp(1.6rem, 7.6vw, 10rem)/1 Georgia,
+    serif;
+  letter-spacing: -0.055em;
+  white-space: nowrap;
+  margin: 0;
+  text-align: center;
+}
+/* Static by default. Native scroll animation progressively enhances desktop only. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) and (min-width: 761px) {
+    .footer-signature {
+      animation: footer-arrive linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
+    @keyframes footer-arrive {
+      from {
+        opacity: 0.45;
+        transform: translateY(24px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  }
+}
+@media (max-width: 1050px) {
   .footer-top {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1.5fr;
   }
   .footer-top :global(.travel-footprint) {
     grid-column: 1 / -1;
@@ -121,12 +162,9 @@ button {
     grid-template-columns: 1fr;
   }
   .footer-links {
-    gap: 28px;
+    gap: 24px;
   }
-  nav a,
-  nav button {
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
+  .footer-signature {
+    font-size: 7.2vw;
   }
 }

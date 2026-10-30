@@ -6,6 +6,22 @@
 .published-content img {
   max-width: 100%;
   height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  margin-block: 1.5rem;
+}
+.published-content h1,
+.journal-article h1 {
+  font:
+    400 clamp(2.5rem, 5vw, 4.8rem)/1.08 Georgia,
+    serif;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+.published-content h2,
+.journal-list h2 {
+  font-family: Georgia, serif;
+  font-weight: 400;
 }
 .body-copy {
   white-space: pre-wrap;

@@ -1,6 +1,12 @@
 import Button from "./ActionButton.jsx";
 import { useCallback, useEffect, useState } from "react";
-import { TextField, KpiCard, StatusPill, InlineNotice } from "@faako/ui";
+import {
+  TextField,
+  KpiCard,
+  StatusPill,
+  InlineNotice,
+  AnimatedLoadingState,
+} from "@faako/ui";
 import Invitations from "./Invitations.jsx";
 import "./activation.css";
 
@@ -9,7 +15,8 @@ export default function StaffAccess({ api, session }) {
     [subject, setSubject] = useState(""),
     [reason, setReason] = useState(""),
     [message, setMessage] = useState(""),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [loading, setLoading] = useState(true);
   const owner = session.user.role === "owner";
   const allowed = owner || session.user.role === "platform_admin";
   const load = useCallback(
@@ -20,10 +27,20 @@ export default function StaffAccess({ api, session }) {
     [api],
   );
   useEffect(() => {
-    if (allowed)
-      load().catch(() =>
-        setMessage("Staff information is unavailable. Check your session."),
-      );
+    let active = true;
+    if (allowed) {
+      setLoading(true);
+      load()
+        .catch(() =>
+          setMessage("Staff information is unavailable. Check your session."),
+        )
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }
+    return () => {
+      active = false;
+    };
   }, [load, allowed]);
   if (!allowed) return null;
   async function mutate(path, json) {
@@ -55,23 +72,31 @@ export default function StaffAccess({ api, session }) {
           Provision verified identities and review who can use this workspace.
         </p>
       </div>
-      <div className="workspace-kpis">
-        <KpiCard
-          label="Staff accounts"
-          value={staff.length}
-          detail="Accounts returned for this workspace"
+      {loading ? (
+        <AnimatedLoadingState
+          compact
+          title="Loading staff access"
+          message="Retrieving this workspace’s authorised team."
         />
-        <KpiCard
-          label="Active"
-          value={staff.filter((user) => user.active).length}
-          detail="Currently enabled"
-        />
-        <KpiCard
-          label="Editors"
-          value={staff.filter((user) => user.role === "editor").length}
-          detail="Business content role"
-        />
-      </div>
+      ) : (
+        <div className="workspace-kpis">
+          <KpiCard
+            label="Staff accounts"
+            value={staff.length}
+            detail="Accounts returned for this workspace"
+          />
+          <KpiCard
+            label="Active"
+            value={staff.filter((user) => user.active).length}
+            detail="Currently enabled"
+          />
+          <KpiCard
+            label="Editors"
+            value={staff.filter((user) => user.role === "editor").length}
+            detail="Business content role"
+          />
+        </div>
+      )}
       <p>
         Use the independently verified Cloudflare subject—not an email address.
         New accounts are Editors. Platform operators stage inactive accounts; an

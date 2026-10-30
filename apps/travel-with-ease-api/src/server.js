@@ -87,7 +87,7 @@ const app = createApp({ repository, estimatorService: new EstimatorService({ cur
     stagingDemoEnabled: environment === "staging" && process.env.TWE_STAGING_PORTAL_DEMO_ENABLED === "true" } : null,
   demoOrigin: process.env.TWE_DEMO_ORIGIN || "",
 });
-const server = app.listen(port, () => logger.info({ port, environment }, "API listening"));
+const server = app.listen(port, deployed ? undefined : "127.0.0.1", () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;
 for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => {

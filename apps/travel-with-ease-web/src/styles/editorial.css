@@ -308,3 +308,36 @@ a:focus .link-arrow {
   background: transparent;
   color: #010c33;
 }
+
+.cream-footprint {
+  background: var(--brand-cream);
+  border-block: 1px solid var(--brand-grey);
+}
+.cream-footprint .travel-footprint:not(.compact) {
+  display: grid;
+  grid-template-columns: 0.75fr 1.65fr;
+  align-items: start;
+  gap: 1rem 3rem;
+}
+.cream-footprint .footprint-heading {
+  grid-row: span 4;
+  padding-top: 1rem;
+}
+.cream-footprint .footprint-heading h2 {
+  font:
+    400 clamp(2.5rem, 4vw, 4rem)/1.08 Georgia,
+    serif;
+  letter-spacing: -0.04em;
+}
+.cream-footprint .footprint-map {
+  grid-column: 2;
+  background: var(--brand-cream);
+}
+.cream-footprint .travel-footprint > :not(.footprint-heading) {
+  grid-column: 2;
+}
+@media (max-width: 760px) {
+  .cream-footprint .travel-footprint:not(.compact) {
+    display: block;
+  }
+}

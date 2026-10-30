@@ -6,6 +6,7 @@ import {
   TextareaField,
   DateField,
   InlineNotice,
+  AnimatedLoadingState,
 } from "@faako/ui";
 import MediaLibrary from "./MediaLibrary.jsx";
 import reviewDrafts from "../../../docs/apps/travel-with-ease/content-review-drafts.json";
@@ -263,16 +264,24 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
       {state.error && (
         <InlineNotice
           tone="danger"
-          title="Content unavailable"
+          title="Content request unsuccessful"
           message={state.error}
         />
       )}
-      <p role="status">
-        {state.loading
-          ? "Working…"
-          : state.message ||
+      {state.loading ? (
+        <AnimatedLoadingState
+          compact
+          title="Loading website content"
+          message={
+            state.message || "Preparing saved content and publication status."
+          }
+        />
+      ) : (
+        <p role="status">
+          {state.message ||
             (dirty ? "Unsaved changes" : `Draft version ${version}`)}
-      </p>
+        </p>
+      )}
       {reviewDrafts[page] && (
         <section className="workspace-panel">
           <h3>Starter copy for review</h3>

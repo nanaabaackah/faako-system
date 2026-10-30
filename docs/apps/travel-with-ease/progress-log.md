@@ -1,5 +1,20 @@
 # Travel With Ease progress log
 
+## 2026-10-30 — Editorial website redesign
+
+- Follow-up: shared Faako skeletons added to portal and website asynchronous states.
+  Matching staging publication lock privilege defect corrected without expanded DB
+  grants; restricted-role integration is a required CI gate before staging release.
+
+- Isolated from develop after PR #119; preserved the dirty main workspace.
+- Shared cinematic hero/enquiry, cream functional map, original travel-photo CTA,
+  light footer/signature, responsive editorial styles and keyboard menu fixes.
+- Six-width Chrome/axe/no-JS + mocked staging submissions passed. API 64, portal 6,
+  web 22, shared UI 8 tests passed; isolated PostgreSQL integration passed.
+- Hosted redesign release not claimed: production API `/readyz` returned 502;
+  staff UAT/provider deployments and native enquiries remain open.
+- Details, configuration and rollback: [redesign release record](./editorial-redesign-2026-10-30.md).
+
 ## 2026-10-30 — Production Google tag configuration
 
 - Set the approved `G-GVJ2HGT6YN` stream as the production public-site default,
