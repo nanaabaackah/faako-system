@@ -3,6 +3,8 @@ import ContentLink from "./ContentLink.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import Accordion from "./Accordion.astro";
+import CinematicHero from "./CinematicHero.astro";
+import CinematicEnquiry from "./CinematicEnquiry.astro";
 import { publishedPage } from "../lib/published.js";
 const { content } = Astro.props;
 // Staging presents neutral unapproved modules for visual review only.
@@ -14,38 +16,31 @@ const journal = publishedPage("journal");
 const faqs = publishedPage("faqs");
 ---
 
-<section class="editorial-wrap editorial-hero">
-  <div>
-    <h1>{content.heading}</h1><p>{content.body}</p>{
-      content.ctaLabel && (
+<CinematicHero
+  heading={content.heading}
+  body={content.body}
+  image={content.image}
+/>
+{
+  content.entries.length > 0 && (
+    <section class="editorial-wrap editorial-rule">
+      {content.entries.map(
+        (entry: { heading: string; text: string; attribution: string }) => (
+          <article>
+            <h2>{entry.heading}</h2>
+            <p>{entry.text}</p>
+            {entry.attribution && <p>{entry.attribution}</p>}
+          </article>
+        ),
+      )}
+      {content.ctaLabel && (
         <ContentLink button href={content.ctaPath}>
           {content.ctaLabel}
         </ContentLink>
-      )
-    }
-    {
-      content.entries.map(
-        (entry: { heading: string; text: string; attribution: string }) => (
-          <div>
-            <p>{entry.text}</p>
-            {entry.attribution && <p>{entry.attribution}</p>}
-          </div>
-        ),
-      )
-    }
-  </div>
-  {
-    content.image && (
-      <img
-        src={content.image.src}
-        alt={content.image.alt}
-        width={content.image.width}
-        height={content.image.height}
-        fetchpriority="high"
-      />
-    )
-  }
-</section>
+      )}
+    </section>
+  )
+}
 {
   (destinations || stagingReview) && (
     <section class="editorial-wrap editorial-rule">
@@ -67,7 +62,9 @@ const faqs = publishedPage("faqs");
     </section>
   )
 }
-<section class="editorial-wrap editorial-rule"><TravelFootprint /></section>
+<section id="our-world" class="cream-footprint">
+  <div class="editorial-wrap"><TravelFootprint /></div>
+</section>
 {
   (contact || stagingReview) && (
     <section class="editorial-wrap editorial-split editorial-rule">
@@ -161,3 +158,4 @@ const faqs = publishedPage("faqs");
 }
 <!-- Brand CTA artwork is approved independently of business-content publication. -->
 <ClosingCta enquiryAvailable={Boolean(contact)} />
+<CinematicEnquiry enquiryAvailable={Boolean(contact)} image={contact?.image} />

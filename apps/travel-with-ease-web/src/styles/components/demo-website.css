@@ -59,6 +59,8 @@ figcaption {
   margin-bottom: 32px;
 }
 h2 {
+  font-family: Georgia, serif;
+  font-weight: 400;
   font-size: clamp(2rem, 3.2vw, 3.3rem);
   line-height: 1.12;
   margin: 0 0 20px;
@@ -329,7 +331,43 @@ select {
   position: absolute;
   left: -9999px;
 }
-.demo-company, .demo-policy-preview { padding-block: 3rem; }
-.demo-company > p, .demo-policy-preview > p { max-width: 65ch; }
-.demo-company > div { max-width: 65ch; border-top: 1px solid #b6b1a9; margin-top: 1.5rem; padding-top: 1rem; }
-.demo-policy-preview button { min-height: 44px; }
+.demo-company,
+.demo-policy-preview {
+  padding-block: 3rem;
+}
+.demo-company {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  column-gap: 4rem;
+}
+.demo-company > h2 {
+  grid-column: 1;
+}
+.demo-company > p {
+  grid-column: 1;
+}
+.demo-company > div {
+  grid-column: 2;
+  grid-row: 1 / 3;
+}
+@media (max-width: 760px) {
+  .demo-company {
+    display: block;
+  }
+}
+.demo-company > p,
+.demo-policy-preview > p {
+  max-width: 65ch;
+}
+.demo-company > div {
+  max-width: 65ch;
+  border-top: 1px solid #b6b1a9;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+}
+.demo-policy-preview button {
+  min-height: 44px;
+}
+@media (scripting: none) {
+  .travel-demo :global(.demo-enquiry-form .ui-animated-loading-state) { display: none; }
+}

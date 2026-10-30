@@ -1,17 +1,38 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import DemoWebsite from "../components/DemoWebsite.astro";
-const local = import.meta.env.DEV && ["localhost", "127.0.0.1", "[::1]"].includes(Astro.url.hostname);
-const staging = import.meta.env.PUBLIC_APP_ENV === "staging" && import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true";
+const local =
+  import.meta.env.DEV &&
+  ["localhost", "127.0.0.1", "[::1]"].includes(Astro.url.hostname);
+const staging =
+  import.meta.env.PUBLIC_APP_ENV === "staging" &&
+  import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true";
 const enabled = local || staging;
 if (!enabled) return Astro.redirect("/");
-const apiOrigin = staging ? (import.meta.env.PUBLIC_API_BASE_URL || "") : "";
+const apiOrigin = staging ? import.meta.env.PUBLIC_API_BASE_URL || "" : "";
 if (staging) {
   let url;
-  try { url = new URL(apiOrigin); } catch { throw new Error("Staging demo requires PUBLIC_API_BASE_URL."); }
-  if (url.origin !== apiOrigin || url.protocol !== "https:" || url.hostname === "api.travelwitheasegh.com") {
-    throw new Error("Staging demo requires an explicit HTTPS staging API origin, not production.");
+  try {
+    url = new URL(apiOrigin);
+  } catch {
+    throw new Error("Staging demo requires PUBLIC_API_BASE_URL.");
+  }
+  if (
+    url.origin !== apiOrigin ||
+    url.protocol !== "https:" ||
+    url.hostname === "api.travelwitheasegh.com"
+  ) {
+    throw new Error(
+      "Staging demo requires an explicit HTTPS staging API origin, not production.",
+    );
   }
 }
 ---
-<BaseLayout demo title="Travel With Ease | Staging website demo" description="Explore sample journeys and submit a marked staging test enquiry. No offers are bookable." noIndex><DemoWebsite live={staging} apiOrigin={apiOrigin} /></BaseLayout>
+
+<BaseLayout
+  cinematic
+  demo
+  title="Travel With Ease | Staging website demo"
+  description="Explore sample journeys and submit a marked staging test enquiry. No offers are bookable."
+  noIndex><DemoWebsite live={staging} apiOrigin={apiOrigin} /></BaseLayout
+>

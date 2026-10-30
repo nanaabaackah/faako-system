@@ -30,7 +30,7 @@ const rows: {
   demo,
 );
 const byCode = new Map(rows.map((row) => [row.countryCode, row]));
-const fills = ["#d9dde4", "#f2e5c8", "#d8b56a", "#ae8433", "#77551b"];
+const fills = ["#b6b1a9", "#f2e5c8", "#d8b56a", "#ae8433", "#77551b"];
 const id = compact ? "footer-footprint" : "travel-footprint";
 ---
 
@@ -65,7 +65,7 @@ const id = compact ? "footer-footprint" : "travel-footprint";
           <path
             d={country.path}
             fill={fills[footprintBand(row?.total || 0)]}
-            stroke="#fff"
+            stroke="#f4ede3"
             stroke-width=".45"
             tabindex={row ? "0" : undefined}
             role={row ? "button" : undefined}

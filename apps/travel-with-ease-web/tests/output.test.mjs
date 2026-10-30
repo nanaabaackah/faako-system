@@ -10,9 +10,11 @@ test("review home contains discovery, shared footer and honest placeholder bound
   assert.match(html, /data-analytics-config/);
   assert.match(html, /data-cookie-settings/);
   assert.match(html, /Design preview/);
-  assert.match(html, /Photograph supplied by Travel With Ease/);
+  assert.match(html, /cinematic-hero__image/);
   assert.match(html, /Blue and white boats moored beside a lake/);
-  assert.match(html, /No offers are available to book/);
+  assert.match(html, /Online enquiry forms are not available yet/);
+  assert.match(html, /TRAVEL WITH EASE/);
+  assert.match(html, /href="#plan"/);
   assert.match(html, /srcset="\/media\/kenya-/);
   assert.doesNotMatch(html, /drive\.google\.com/);
   assert.match(html, /ui-app-bottom-bar--footer/);

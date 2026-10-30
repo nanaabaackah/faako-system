@@ -294,7 +294,14 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
 
   // The raw SQL revision fixture above is deliberately not an approved page.
   // Its unpublished body must never enter a publication artifact.
-  const publication = new PublicationRepository(pool, { ...options, sourceSha: "a".repeat(40) });
+  // Exercise publishing with runtime grants, not the privileged migration owner.
+  const publicationClient = await pool.connect();
+  await publicationClient.query("SET ROLE twe_test_runtime");
+  const publicationQuery = (...args) => publicationClient.query(...args);
+  const publicationPool = { query: publicationQuery, connect: async () => ({query: publicationQuery, release() {}}) };
+  try {
+  assert.equal((await publicationQuery("SELECT has_table_privilege(current_user, 'twe.organisations', 'UPDATE') AS allowed")).rows[0].allowed, false);
+  const publication = new PublicationRepository(publicationPool, { ...options, sourceSha: "a".repeat(40) });
   const latestHome = await content.get("home");
   const queued = await publication.enqueue("home", latestHome.version, false, actor, "publish-home");
   assert.equal(queued.status, "pending");
@@ -347,4 +354,13 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     await publication.confirm(withdrawn.id, withdrawn.build_token, "synthetic-withdrawal", manifestDigest(withdrawn.manifest));
     assert.equal(await content.get(slug, true), null);
   }
+  const runtimeContent = new ContentRepository(publicationPool, organisationId);
+  const privacy = await runtimeContent.save("privacy", {...body, imageId: null, heading: "Synthetic privacy"}, 0, actor, "save-runtime-privacy");
+  const queuedPrivacy = await publication.enqueue("privacy", privacy.version, false, actor, "publish-runtime-privacy");
+  const privacyJob = await publication.claim();
+  await publication.confirm(queuedPrivacy.id, privacyJob.build_token, "synthetic-privacy", manifestDigest(privacyJob.manifest));
+  assert.equal((await runtimeContent.get("privacy", true)).body.heading, "Synthetic privacy");
+  assert.equal((await publicationQuery("SELECT count(*)::int AS n FROM twe.audit_records WHERE record_id=$1 AND action='content.publish_requested'", [queuedPrivacy.id])).rows[0].n, 1);
+  await assert.rejects(publication.enqueue("privacy", privacy.version, false, {...actor, organisationId: otherOrg}, "cross-tenant-runtime"), {status:403});
+  } finally { await publicationClient.query("RESET ROLE"); publicationClient.release(); }
 });

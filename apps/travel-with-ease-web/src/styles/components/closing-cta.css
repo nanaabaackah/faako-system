@@ -1,57 +1,79 @@
 .closing-cta {
   overflow: clip;
   text-align: center;
-  padding: 72px 0 32px;
-  color: #010c33;
-  background: #f4ede3;
+  padding: clamp(4rem, 8vw, 8rem) 0 0;
+  color: var(--brand-navy);
+  background: var(--brand-cream);
 }
 .closing-copy {
-  max-width: 650px;
+  max-width: 700px;
   padding-inline: 24px;
-  margin: 0 auto 28px;
+  margin: 0 auto 3.5rem;
 }
-h2 {
-  font-size: clamp(2rem, 4vw, 3.3rem);
-  letter-spacing: -0.04em;
-  line-height: 1.1;
-  margin: 0 0 20px;
+.closing-copy h2 {
+  font:
+    400 clamp(2.8rem, 5.5vw, 5.5rem)/1.04 Georgia,
+    serif;
+  letter-spacing: -0.045em;
+  margin: 0 0 24px;
 }
-p {
-  max-width: 46ch;
-  margin: 0 auto 24px;
+.closing-copy p {
+  max-width: 42ch;
+  margin: 0 auto 26px;
   line-height: 1.7;
+}
+.cinematic-page .closing-copy .twe-content-link.button {
+  border-radius: 99px;
+  padding: 16px 28px;
+  min-height: 52px;
 }
 .closing-photos {
   display: grid;
-  grid-template-columns: 0.8fr 1fr 1.8fr 0.65fr 0.85fr;
-  align-items: center;
-  gap: 0;
-  width: min(98%, 1600px);
+  grid-template-columns: 1fr 1.25fr 1fr;
+  align-items: end;
+  gap: clamp(10px, 2vw, 28px);
+  width: min(1100px, 96%);
   margin: 0 auto;
   pointer-events: none;
 }
-.mockup,
-.mockup-reveal {
+.closing-photo {
   min-width: 0;
+  overflow: hidden;
 }
-/* Use the transparent asset margins to tighten the row without cropping artwork. */
-.mockup :global(img) {
+.closing-photo img {
   display: block;
-  width: 120%;
-  max-width: none;
-  margin-inline: -10%;
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: contain;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  width: 100%;
+  height: clamp(240px, 36vw, 500px);
+  object-fit: cover;
 }
-@media (max-width: 700px) {
-  .closing-cta {
-    padding: 44px 0 24px;
-  }
+.closing-photo--1 {
+  transform: rotate(-7deg) translateY(3rem);
+  transform-origin: bottom right;
+}
+.closing-photo--2 img {
+  height: clamp(300px, 43vw, 610px);
+  object-position: 45% 70%;
+}
+.closing-photo--3 {
+  transform: rotate(7deg) translateY(3rem);
+  transform-origin: bottom left;
+}
+.closing-photo--3 img {
+  object-position: 90% 85%;
+}
+@media (max-width: 600px) {
   .closing-copy {
-    margin-bottom: 20px;
+    margin-bottom: 2rem;
+  }
+  .closing-photos {
+    width: 140%;
+    margin-left: -20%;
+    gap: 12px;
+  }
+  .closing-photo img {
+    height: 270px;
+  }
+  .closing-photo--2 img {
+    height: 350px;
   }
 }

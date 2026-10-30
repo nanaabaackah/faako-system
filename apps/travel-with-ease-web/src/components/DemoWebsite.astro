@@ -5,6 +5,8 @@ import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import DemoEnquiry from "./DemoEnquiry.jsx";
 import DemoEmailPreview from "./DemoEmailPreview.astro";
+import CinematicHero from "./CinematicHero.astro";
+import CinematicEnquiry from "./CinematicEnquiry.astro";
 import photos from "../lib/approved-preview-media.json";
 const kenya = photos.find((photo) => photo.country === "Kenya")!;
 const zanzibar = photos.find((photo) => photo.country === "Zanzibar")!;
@@ -12,32 +14,11 @@ const { live = false, apiOrigin = "" } = Astro.props;
 ---
 
 <div class="travel-demo">
-  <section class="demo-wrap demo-hero">
-    <div>
-      <p>From Ghana, with curiosity.</p><h1>
-        A little further.<br />A little more you.
-      </h1><p>
-        Room for discovery. Time to slow down. Explore what your next journey
-        could look like.
-      </p>
-      <div class="demo-links">
-        <ContentLink button href="#demo-packages"
-          >Explore sample journeys</ContentLink
-        ><ContentLink href="#demo-plan">Try planning a trip</ContentLink>
-      </div>
-      <small>Design demonstration · not bookable offers.</small>
-    </div>
-    <figure>
-      <img
-        src={kenya.sources.at(-1)!.src}
-        width={kenya.width}
-        height={kenya.height}
-        alt={kenya.alt}
-        loading="eager"
-        fetchpriority="high"
-      /><figcaption>Kenya · TWE-supplied photography</figcaption>
-    </figure>
-  </section>
+  <CinematicHero
+    demo
+    heading="A little further. A little more you."
+    body="Room for discovery. Time to slow down. Explore what your next journey could look like."
+  />
   <section id="demo-packages" class="demo-wrap demo-packages">
     <div class="demo-heading">
       <h2>Find your kind<br />of getaway.</h2><p>
@@ -87,8 +68,8 @@ const { live = false, apiOrigin = "" } = Astro.props;
       }
     </div>
   </section>
-  <section id="demo-footprint" class="demo-wrap">
-    <TravelFootprint demo />
+  <section id="demo-footprint" class="cream-footprint">
+    <div class="demo-wrap"><TravelFootprint demo /></div>
   </section>
   <section id="demo-process" class="demo-process">
     <div class="demo-wrap">
@@ -182,7 +163,6 @@ const { live = false, apiOrigin = "" } = Astro.props;
       </p></Accordion
     ><p>Client testimonials will appear only after approval and permission.</p>
   </section>
-  <ClosingCta demo />
   <DemoEmailPreview />
   <section id="demo-privacy" class="demo-wrap demo-policy-preview">
     <h2>Your privacy choices</h2><p>
@@ -193,9 +173,10 @@ const { live = false, apiOrigin = "" } = Astro.props;
       >Manage demo preferences</button
     >
   </section>
-  <section id="demo-plan" class="demo-wrap demo-plan">
+  <ClosingCta demo />
+  <CinematicEnquiry demo>
     <div>
-      <h2>Where would<br />you like to go?</h2><p>
+      <h2>Try your enquiry.</h2><p>
         {
           live
             ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created."
@@ -224,7 +205,7 @@ const { live = false, apiOrigin = "" } = Astro.props;
       }
     </div>
     <DemoEnquiry live={live} apiOrigin={apiOrigin} client:load />
-  </section>
+  </CinematicEnquiry>
 </div>
 <style>
   @import "../styles/components/demo-website.css";

@@ -46,10 +46,11 @@ test("production build publishes approved content without preview copy or unpubl
   const header = home.match(/<header[\s\S]*?<\/header>/)?.[0];
   assert.ok(header);
   assert.doesNotMatch(header, /href="\/(contact|privacy|terms|services|destinations)"/);
-  assert.match(home, /Make room for your next journey/);
-  assert.match(home, /Online enquiry details are not available yet/);
-  assert.match(home, /Enquiry availability/);
-  assert.equal((home.match(/TWE_mockup[1-5][^"\s]*\.webp/g) || []).length > 0, true);
+  assert.match(home, /Make room for(?:<br\s*\/?>|\s)+your next journey/);
+  assert.match(home, /Online enquiry forms are not available yet/);
+  assert.match(home, /Talk to us on WhatsApp/);
+  assert.match(home, /closing-photos/);
+  assert.doesNotMatch(home, /TWE_mockup[1-5][^"\s]*\.webp/);
   for (const slug of ["contact", "privacy", "destinations"]) {
     const page = readFileSync(path.join(output, slug, "index.html"), "utf8");
     assert.match(page, /Content unavailable/);

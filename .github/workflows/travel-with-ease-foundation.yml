@@ -75,6 +75,7 @@ jobs:
           node apps/travel-with-ease-portal/scripts/check-onboarding-browser.mjs
           node apps/travel-with-ease-portal/scripts/check-content-demo-browser.mjs
           node apps/travel-with-ease-web/scripts/check-public-followup.mjs
+          node apps/travel-with-ease-web/scripts/check-redesign-browser.mjs
       - name: Retain synthetic design acceptance screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -85,6 +86,7 @@ jobs:
           path: |
             /tmp/twe-content-demo-*/*.png
             /tmp/twe-public-followup-*/*.png
+            /tmp/twe-redesign-*/*.png
       - name: Required isolated PostgreSQL integration tests
         run: pnpm --filter @faako/travel-with-ease-api run test:db
         env:

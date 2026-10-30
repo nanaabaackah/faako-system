@@ -1,5 +1,11 @@
 # Travel With Ease design and engineering standard
 
+2026-10-30 refinement: [editorial redesign decisions](./editorial-redesign-2026-10-30.md).
+Use shared full-viewport hero, cream functional country map, centred single-action
+travel-photo CTA and light scrolling footer/signature. Preserve actual TWE tokens,
+Georgia editorial type, Iconsax actions, approved imagery and static/reduced-motion
+fallbacks. References are directional, not authority to invent product data.
+
 Status: Governing standards aligned; specific design, scope and release approvals remain open\
 Date: 2026-10-10; aligned 2026-10-11\
 Product baseline: [`Travel_With_Ease_Solution_Roadmap.md`](./Travel_With_Ease_Solution_Roadmap.md)

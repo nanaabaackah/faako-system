@@ -1,5 +1,12 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-30 — Editorial website redesign
+
+Shared cinematic hero, cream interactive map, original photo CTA and light footer
+implemented for public/demo modes. See [implementation, tests and release gates](./editorial-redesign-2026-10-30.md).
+Native general/package enquiry completion, approved collections/legal copy, hosted
+staff UAT and production API health remain open; do not mark the roadmap complete.
+
 ## 2026-10-30 — Company content, acknowledgements and publication follow-up
 
 The current branch completes the Modern Concierge acknowledgement, redirects all
