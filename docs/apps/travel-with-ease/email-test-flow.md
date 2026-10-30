@@ -1,38 +1,50 @@
-# TWE email test flow
+# TWE enquiry acknowledgement and email test flow
 
-Resend enquiry notifications contain no customer details or invitation codes.
-The intended staff recipient remains in **To**, configured by `TWE_EMAIL_RECIPIENT`.
-The server automatically adds **CC** `testing@travelwitheasegh.com` for
-development/staging and `notifications@travelwitheasegh.com` for production.
-There is no CC variable to set. Outside production, the intended To recipient must
-also be explicitly approved in `TWE_EMAIL_TEST_RECIPIENTS`. This prevents accidental
-test delivery to unapproved users without replacing the intended recipient.
-Previously pinned payloads lacking the required CC fail closed; do not rewrite
-already-attempted jobs under the same provider idempotency key. Review them manually.
+## Routing (supersedes the earlier To/CC instructions)
 
-Configure `TWE_RESEND_API_KEY`, a Resend-verified `TWE_EMAIL_FROM`,
-`TWE_EMAIL_RECIPIENT`, and the exact HTTPS `TWE_PORTAL_ORIGIN` on the API/worker.
-Outside production set `TWE_EMAIL_TEST_RECIPIENTS` to the approved To addresses
-(comma-separated). The environment CC is added independently.
-Store credentials only in local environment files or the hosting secret store.
+| Environment | To | CC |
+| --- | --- | --- |
+| Development/staging | testing@travelwitheasegh.com | None |
+| Production | Email from the saved, tenant-scoped enquiry | notifications@travelwitheasegh.com |
 
-From `apps/travel-with-ease-api`, run an explicitly authorised single test:
+The recipient entered in a local/staging form is never a delivery destination.
+The sender rechecks routing immediately before delivery, including pinned retries.
+`TWE_EMAIL_RECIPIENT` and `TWE_EMAIL_TEST_RECIPIENTS` are obsolete and ignored.
+Configure `APP_ENV`, `TWE_RESEND_API_KEY` and the Resend-verified `TWE_EMAIL_FROM`.
+Keep authentication's `TWE_PORTAL_ORIGIN` setting; email no longer depends on it.
+
+## Template and persistence
+
+Modern Concierge uses the real gold logo on navy, white message body and cream
+company footer. HTML and plain text include the company information from the
+2026-10-30 supplied Faako onboarding submission. Personal account email is excluded.
+Customer names are escaped; no private trip notes, tracking pixels, staff links,
+booking promises or payment confirmations appear. Social links are present;
+social icons use local PNG assets for email-client support. Chrome preview captures
+are part of local verification; Gmail/Outlook inbox rendering remains a hosted test.
+
+The enquiry and outbox are committed together. The worker looks up contact data
+under the job's organisation and pins the complete payload in the claim transaction.
+Retries preserve the original payload and idempotency key. Malformed legacy contact
+data marks delivery failed for review without deleting the enquiry. Previously
+attempted payloads incompatible with the new routing remain blocked; never rewrite
+their body under an existing provider idempotency key.
+
+## Testing
+
+From `apps/travel-with-ease-api`, run only with an authorised non-production config:
 
 ```sh
 node --env-file-if-exists=.env scripts/test-notification.mjs --send
 ```
 
-The command refuses production, creates no database records, and sends only a
-labelled test message to the configured, allowlisted recipient with the testing CC.
-Provider acceptance must be followed by a mailbox receipt
-check. Automated unit/CI tests use a mocked transport and never send mail.
+This sends a labelled template preview to testing only, creates no enquiry and
+refuses production. Provider acceptance is not proof of inbox delivery. CI uses
+mocked transport. No live preview has been sent for this template revision yet.
 
-For an end-to-end staging enquiry, use synthetic contact data and the real enquiry
-submission path, then run the existing `notifications:once` worker against that
-same staging database. It processes one queued notification; it does not create
-an enquiry. Verify the notification in the testing mailbox and the enquiry in the
-authorised portal. Do not use production enquiries as test fixtures.
-
-Invitation creation and claim are implemented separately. Codes are delivered
-privately by the operator/Owner; automatic invitation emails are not implemented.
-This transport currently sends staff enquiry alerts, not customer acknowledgements.
+Use synthetic data on the real staging enquiry path, then run `notifications:once`
+with that same staging database for the full flow. Demo paths remain no-send.
+Automatic staff invitation email is not implemented by this change.
+Continuous delivery requires the existing worker command to be scheduled or
+supervised in the approved environment. A Resend key alone does not drain the
+outbox. Worker/scheduler hosting configuration is not changed by this branch.

@@ -10,11 +10,7 @@ try {
   const sender = new ResendSender(config);
   await sender.send({
     id: randomUUID(),
-    delivery_payload: {
-      ...sender.payload(),
-      subject: "Travel With Ease — email delivery test",
-      text: "This is an authorised test of Travel With Ease email delivery. No enquiry, invitation, booking or publication was created.",
-    },
+    delivery_payload: sender.payload({}, { test: true }),
   });
   console.log("Test email accepted by the provider. Confirm receipt in the testing mailbox; acceptance is not proof of inbox delivery.");
 } catch {

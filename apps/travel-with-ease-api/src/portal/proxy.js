@@ -3,7 +3,7 @@ import { createErrorResponse, errorCodeForStatus, resolveRequestId } from "@faak
 import { buildSecurityHeaders } from "@faako/security";
 
 const id = "[a-fA-F0-9-]{36}";
-const page = "(?:home|about|services|faqs|testimonials|contact)";
+const page = "(?:home|about|services|how-it-works|faqs|testimonials|contact|journal|travel-footprint|privacy|terms|cookies)";
 const routes = [
   ["GET", /^\/api\/auth\/(activation|invitations)$/],
   ["POST", /^\/api\/auth\/(invitations|activation\/preview|activation\/claim|activation\/owner-invitation)$/],

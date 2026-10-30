@@ -1,23 +1,35 @@
 ---
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
+const { demo = false } = Astro.props;
 const privacyAvailable =
-  !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
+  demo || !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
 ---
 
 <aside
   class="cookie-notice"
   data-cookie-notice
+  data-cookie-storage={demo
+    ? "twe-demo-cookie-consent-v1"
+    : "twe-cookie-consent-v1"}
   hidden
   aria-label="Cookie notice"
   aria-live="polite"
 >
   <div>
     <strong>Your privacy, your choice.</strong>
+    {
+      demo && (
+        <p>
+          Demo preferences only. No analytics or advertising tracking runs in
+          this demo.
+        </p>
+      )
+    }
     <p>
       Essential browser storage remembers your preference. Advertising cookies
       are not used.
       {
-        privacyAvailable && (
+        privacyAvailable && !demo && (
           <>
             Optional Google Analytics helps us understand visits only when you
             allow it. <a href="/privacy">Privacy information</a>
@@ -27,6 +39,13 @@ const privacyAvailable =
     </p>
   </div>
   <div class="cookie-notice__actions">
+    <button
+      class="secondary"
+      type="button"
+      data-cookie-manage
+      aria-expanded="false"
+      aria-controls="cookie-preferences">Manage preferences</button
+    >
     <button class="secondary" type="button" data-cookie-essential
       >Essential only</button
     >
@@ -38,17 +57,56 @@ const privacyAvailable =
       )
     }
   </div>
+  <section
+    id="cookie-preferences"
+    data-cookie-preferences
+    hidden
+    aria-label="Cookie preferences"
+  >
+    <h2>Cookie preferences</h2>
+    <p>
+      Essential storage remembers this choice and supports security. It is
+      always enabled.
+    </p>
+    <label><input type="checkbox" checked disabled /> Essential</label>
+    <label
+      ><input
+        type="checkbox"
+        data-cookie-analytics-choice
+        disabled={!privacyAvailable}
+      /> Optional analytics</label
+    >
+    <p>
+      Google Analytics measures public website visits when enabled. Advertising
+      tracking is not used. You can change your choice here at any time.
+    </p>
+    <button type="button" data-cookie-save>Save preferences</button>
+  </section>
 </aside>
 
 <script is:inline>
   (() => {
-    const key = "twe-cookie-consent-v1";
     const notice = document.querySelector("[data-cookie-notice]");
     if (!notice) return;
+    const key = notice.getAttribute("data-cookie-storage");
     let returnFocus = null;
 
     const show = () => notice.removeAttribute("hidden");
     const hide = () => notice.setAttribute("hidden", "");
+    const preferences = notice.querySelector("[data-cookie-preferences]");
+    const manage = notice.querySelector("[data-cookie-manage]");
+    const choiceInput = notice.querySelector("[data-cookie-analytics-choice]");
+    const showPreferences = () => {
+      try {
+        choiceInput.checked =
+          JSON.parse(localStorage.getItem(key) || "null")?.analytics === true &&
+          !choiceInput.disabled;
+      } catch {
+        choiceInput.checked = false;
+      }
+      preferences.hidden = false;
+      manage.setAttribute("aria-expanded", "true");
+    };
     const hasValidChoice = () => {
       try {
         const saved = JSON.parse(localStorage.getItem(key) || "null");
@@ -75,12 +133,22 @@ const privacyAvailable =
         new CustomEvent("twe:consent-changed", { detail: choice }),
       );
       hide();
+      preferences.hidden = true;
+      manage.setAttribute("aria-expanded", "false");
       if (returnFocus instanceof HTMLElement) {
         returnFocus.focus();
         returnFocus = null;
       }
     };
 
+    notice
+      .querySelector("[data-cookie-manage]")
+      ?.addEventListener("click", showPreferences);
+    notice
+      .querySelector("[data-cookie-save]")
+      ?.addEventListener("click", () =>
+        save(choiceInput.checked && !choiceInput.disabled),
+      );
     notice
       .querySelector("[data-cookie-essential]")
       ?.addEventListener("click", () => save(false));
@@ -91,6 +159,7 @@ const privacyAvailable =
       button.addEventListener("click", () => {
         returnFocus = button;
         show();
+        showPreferences();
         notice.querySelector("[data-cookie-essential]")?.focus();
       });
     });

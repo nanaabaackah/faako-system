@@ -1,0 +1,43 @@
+.floating-action {
+  position: fixed;
+  z-index: 50;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.65rem;
+  border: 1px solid #d8b56a;
+  border-radius: 50%;
+  background: #f4ede3;
+  color: #010c33;
+  text-decoration: none;
+}
+.floating-whatsapp {
+  left: max(1rem, env(safe-area-inset-left, 0px));
+  border-radius: 2rem;
+}
+.floating-top {
+  right: max(1rem, env(safe-area-inset-right, 0px));
+}
+.floating-action:focus-visible {
+  outline: 3px solid #7ab8ff;
+  outline-offset: 4px;
+}
+.floating-action img {
+  flex: none;
+}
+body:has([data-cookie-notice]:not([hidden])) .floating-actions {
+  visibility: hidden;
+}
+@media (max-width: 390px) {
+  .floating-whatsapp span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}

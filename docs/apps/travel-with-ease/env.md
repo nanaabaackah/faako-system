@@ -80,8 +80,11 @@ Additional implemented names (values belong in provider secret stores):
   authentication contract and nonempty legacy values are rejected.
 - Media: `TWE_R2_ACCOUNT_ID`, `TWE_R2_PRIVATE_BUCKET`,
   `TWE_R2_ACCESS_KEY_ID`, `TWE_R2_SECRET_ACCESS_KEY` (credentials secret).
-- Notification worker: `TWE_RESEND_API_KEY` (secret), `TWE_EMAIL_FROM`,
-  `TWE_EMAIL_RECIPIENT`, `TWE_EMAIL_TEST_RECIPIENTS`, `TWE_PORTAL_ORIGIN`.
+- Notification worker: `TWE_RESEND_API_KEY` (secret), `TWE_EMAIL_FROM`, `APP_ENV`.
+  Development/staging sends only to testing@travelwitheasegh.com; production
+  acknowledges the saved customer and CCs notifications@travelwitheasegh.com.
+  `TWE_EMAIL_RECIPIENT` and `TWE_EMAIL_TEST_RECIPIENTS` are obsolete and ignored.
+  `TWE_PORTAL_ORIGIN` remains required for authentication, not acknowledgement mail.
 - Publication: `TWE_RELEASE_SHA`, `TWE_PUBLIC_SITE_ORIGIN`,
   `TWE_PUBLIC_API_ORIGIN`. Build CLI sets private local `TWE_CONTENT_SNAPSHOT`,
   `TWE_BUILD_PUBLIC_DIR`, `TWE_BUILD_OUT_DIR`; never accept these from public API input.

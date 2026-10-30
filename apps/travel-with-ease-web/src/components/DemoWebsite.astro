@@ -4,6 +4,7 @@ import ContentLink from "./ContentLink.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import DemoEnquiry from "./DemoEnquiry.jsx";
+import DemoEmailPreview from "./DemoEmailPreview.astro";
 import photos from "../lib/approved-preview-media.json";
 const kenya = photos.find((photo) => photo.country === "Kenya")!;
 const zanzibar = photos.find((photo) => photo.country === "Zanzibar")!;
@@ -121,6 +122,23 @@ const { live = false, apiOrigin = "" } = Astro.props;
       </ol>
     </div>
   </section>
+  <section id="demo-about" class="demo-wrap demo-company">
+    <h2>Travel planning from Ghana.</h2><p>
+      Travel With Ease is operated by TWE Concierge in Accra, offering travel
+      planning, travel packages and group trips.
+    </p>
+    <div>
+      <h3>Personalised travel planning</h3><p>
+        Start with your dates, destination ideas, budget and traveller count.
+      </p><h3>Destination packages</h3><p>
+        Enquire about a published package and tier. Sample demo packages are not
+        available to book.
+      </p><h3>Clear next steps</h3><p>
+        Service scope, quotations and payment instructions are agreed directly
+        with the team. There is no online checkout.
+      </p>
+    </div>
+  </section>
   <section id="demo-journal" class="demo-wrap demo-journal" data-twe-reveal>
     <figure>
       <img
@@ -144,7 +162,8 @@ const { live = false, apiOrigin = "" } = Astro.props;
           A journey is more than a list of stops. This demonstration shows where
           an original, approved travel story will appear, with destination
           context, licensed images and useful information.
-        </p></Accordion>
+        </p></Accordion
+      >
     </div>
   </section>
   <section id="demo-faqs" class="demo-wrap">
@@ -154,15 +173,55 @@ const { live = false, apiOrigin = "" } = Astro.props;
         No. These demonstrate the website layout, not available offers.
       </p></Accordion
     ><Accordion title="Will this form contact the team?"
-      ><p>{live ? "Yes. This staging demo saves test enquiries for authorised staff to review, without booking or sending a confirmation." : "No. The local preview does not send or save your choices."}</p></Accordion
+      ><p>
+        {
+          live
+            ? "Yes. This staging demo saves test enquiries for authorised staff to review, without booking or sending a confirmation."
+            : "No. The local preview does not send or save your choices."
+        }
+      </p></Accordion
     ><p>Client testimonials will appear only after approval and permission.</p>
   </section>
   <ClosingCta demo />
+  <DemoEmailPreview />
+  <section id="demo-privacy" class="demo-wrap demo-policy-preview">
+    <h2>Your privacy choices</h2><p>
+      Try the cookie preference controls. Choices here apply to this demo only;
+      analytics remains disabled. About, Services and policy drafts can be
+      reviewed in the staff portal demo.
+    </p><button type="button" data-cookie-settings
+      >Manage demo preferences</button
+    >
+  </section>
   <section id="demo-plan" class="demo-wrap demo-plan">
     <div>
       <h2>Where would<br />you like to go?</h2><p>
-        {live ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created." : "Try the local preview. Nothing is stored or submitted."}
-      </p>{live ? <p><ContentLink href="https://portal-staging.travelwitheasegh.com/demo">Explore the staging staff portal demo</ContentLink><small>Cloudflare Access required. The portal demo uses simulated records; real staging test enquiries are available only in the authenticated staff CMS.</small></p> : <p>Staff dashboard preview is available separately in local development.</p>}
+        {
+          live
+            ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created."
+            : "Try the local preview. Nothing is stored or submitted."
+        }
+      </p>{
+        live ? (
+          <p>
+            <>
+              <ContentLink href="https://portal-staging.travelwitheasegh.com/demo">
+                Explore the staging staff portal demo
+              </ContentLink>
+              <small>
+                Cloudflare Access required. The portal demo uses simulated
+                records; real staging test enquiries are available only in the
+                authenticated staff CMS.
+              </small>
+            </>
+          </p>
+        ) : (
+          <p>
+            Staff dashboard preview is available separately in local
+            development.
+          </p>
+        )
+      }
     </div>
     <DemoEnquiry live={live} apiOrigin={apiOrigin} client:load />
   </section>

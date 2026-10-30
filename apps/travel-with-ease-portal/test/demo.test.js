@@ -37,6 +37,12 @@ test("demo mutations stay in memory and unsupported actions cannot report succes
   assert.equal((await api.get(`/api/agent/inquiries/${item.id}`)).status, "closed");
   assert.equal((await createDemoClient().get(`/api/agent/inquiries/${item.id}`)).status, "new");
   const page = await api.get("/api/agent/content/home");
+  for (const slug of ["journal", "travel-footprint", "how-it-works", "privacy", "terms", "cookies"]) {
+    const draft = await api.get(`/api/agent/content/${slug}`);
+    await api.post(`/api/agent/content/${slug}/draft`, { json: { expectedVersion: draft.version, body: { ...draft.body, heading: "Changed synthetic section" } } });
+    assert.equal((await api.get(`/api/agent/content/${slug}`)).body.heading, "Changed synthetic section");
+    assert.notEqual((await createDemoClient().get(`/api/agent/content/${slug}`)).body.heading, "Changed synthetic section");
+  }
   await api.post("/api/agent/content/home/draft", { json: { expectedVersion: 1, body: { ...page.body, heading: "Changed fixture" } } });
   assert.equal((await api.get("/api/agent/content/home")).body.heading, "Changed fixture");
   for (const path of ["/api/agent/content/home/publish", "/api/agent/media/upload", "/api/agent/administration/staff"]) {

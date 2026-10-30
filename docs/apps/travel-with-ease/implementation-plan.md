@@ -1,5 +1,20 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-30 — Company content, acknowledgements and publication follow-up
+
+The current branch completes the Modern Concierge acknowledgement, redirects all
+development/staging mail to testing, and sends production acknowledgements to the
+saved customer with notifications CC. Journal collections and verified country
+totals reuse the existing immutable content revision and publication lifecycle.
+No new database migration or permission inheritance is required.
+
+About, Services, How it works, Privacy, Cookies and Terms starter copy is available
+in the portal for editing. Loading it does not persist or publish it. Owner/legal
+approval, actual provider/retention configuration and TIDS stamp evidence remain
+content gates. See `company-content-source.md`, `content-review-drafts.json` and
+`email-test-flow.md`. This follow-up does not complete the native intake rebuild,
+automated invitation email, online checkout or production acceptance.
+
 ## 2026-10-29 — Account activation and Phase 11
 
 The current implementation slice adds identity-bound initial Owner/Editor

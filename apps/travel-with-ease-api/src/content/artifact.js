@@ -2,7 +2,7 @@ import { mkdir, writeFile, cp } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { manifestDigest } from "./publication.js";
-import { contentBodySchema, pageSchema } from "./schema.js";
+import { contentForPage, pageSchema } from "./schema.js";
 import sharp from "sharp";
 
 export async function preparePublication(job, media, directory) {
@@ -13,7 +13,7 @@ export async function preparePublication(job, media, directory) {
   for (const item of job.manifest.pages) {
     pageSchema.parse(item.slug);
     if (!item.body) { pages[item.slug] = null; continue; }
-    const body = contentBodySchema.parse(item.body);
+    const body = contentForPage(item.slug, item.body);
     let image = null;
     let socialImage = null;
     if (body.imageId) {

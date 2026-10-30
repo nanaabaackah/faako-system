@@ -329,3 +329,7 @@ select {
   position: absolute;
   left: -9999px;
 }
+.demo-company, .demo-policy-preview { padding-block: 3rem; }
+.demo-company > p, .demo-policy-preview > p { max-width: 65ch; }
+.demo-company > div { max-width: 65ch; border-top: 1px solid #b6b1a9; margin-top: 1.5rem; padding-top: 1rem; }
+.demo-policy-preview button { min-height: 44px; }
