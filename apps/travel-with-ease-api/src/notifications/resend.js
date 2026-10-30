@@ -16,26 +16,26 @@ export function readNotificationConfig(env = process.env) {
   const environment = validateEnvironment(env.APP_ENV || "development", env.NODE_ENV);
   const from = readSender(env.TWE_EMAIL_FROM);
   const to = email.parse(env.TWE_EMAIL_RECIPIENT);
-  const requiredRecipient = environment === "production"
+  const cc = environment === "production"
     ? "notifications@travelwitheasegh.com"
     : "testing@travelwitheasegh.com";
-  if (to.toLowerCase() !== requiredRecipient) throw new Error("Notification recipient does not match the environment delivery policy.");
   const allowed = String(env.TWE_EMAIL_TEST_RECIPIENTS || "").split(",").filter(Boolean).map((value) => email.parse(value).toLowerCase());
   if (environment !== "production" && !allowed.includes(to.toLowerCase())) throw new Error("Non-production delivery requires an explicitly allowlisted test recipient.");
   const portal = new URL(env.TWE_PORTAL_ORIGIN);
   if (portal.origin !== env.TWE_PORTAL_ORIGIN || portal.protocol !== "https:") throw new Error("Notification portal origin must be exact HTTPS.");
-  return Object.freeze({ environment, apiKey: env.TWE_RESEND_API_KEY, from, to, portalOrigin: portal.origin, testRecipients: allowed });
+  return Object.freeze({ environment, apiKey: env.TWE_RESEND_API_KEY, from, to, cc, portalOrigin: portal.origin, testRecipients: allowed });
 }
 
 export class ResendSender {
   constructor(config, fetcher = fetch) { this.config = config; this.fetcher = fetcher; }
   payload() {
-    return { from: this.config.from, to: [this.config.to], subject: "Travel With Ease — enquiry received", text: `An enquiry is available in the staff workspace. Sign in to review it: ${this.config.portalOrigin}` };
+    return { from: this.config.from, to: [this.config.to], cc: [this.config.cc], subject: "Travel With Ease — enquiry received", text: `An enquiry is available in the staff workspace. Sign in to review it: ${this.config.portalOrigin}` };
   }
   async send(job) {
     const payload = job.delivery_payload;
     // Recheck pinned recipients at delivery time, including after configuration changes.
     if (!payload || payload.from !== this.config.from || payload.to?.length !== 1 || payload.to[0] !== this.config.to ||
+        payload.cc?.length !== 1 || payload.cc[0] !== this.config.cc || payload.bcc !== undefined ||
         (this.config.environment !== "production" && !this.config.testRecipients.includes(payload.to[0].toLowerCase()))) throw new Error("delivery_configuration_changed");
     const response = await this.fetcher("https://api.resend.com/emails", {
       method: "POST", redirect: "error", signal: AbortSignal.timeout(10_000),

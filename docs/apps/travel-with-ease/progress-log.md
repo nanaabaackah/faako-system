@@ -1,5 +1,13 @@
 # Travel With Ease progress log
 
+## 2026-10-30 — Clarified notification To and CC
+
+- Supersedes the earlier recipient-redirection policy: preserve the intended To
+  recipient and add the environment mailbox as CC. Non-production To addresses
+  remain explicitly allowlisted. Delivery validates pinned To/CC and rejects BCC.
+- Added mocked tests and updated the email configuration runbook. No live email
+  was sent for this change. Invitation email automation remains unimplemented.
+
 ## 2026-10-30 — Onboarding merge repair and notification routing
 
 - Pinned the foundation CI runner to Ubuntu 24.04: the installed Playwright

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readNotificationConfig, ResendSender } from "../src/notifications/resend.js";
 import { deliverOne } from "../src/notifications/outbox.js";
 
-const env = { APP_ENV: "staging", TWE_RESEND_API_KEY: "synthetic-only", TWE_EMAIL_FROM: "sender@example.invalid", TWE_EMAIL_RECIPIENT: "testing@travelwitheasegh.com", TWE_EMAIL_TEST_RECIPIENTS: "testing@travelwitheasegh.com", TWE_PORTAL_ORIGIN: "https://portal.example.invalid" };
+const env = { APP_ENV: "staging", TWE_RESEND_API_KEY: "synthetic-only", TWE_EMAIL_FROM: "sender@example.invalid", TWE_EMAIL_RECIPIENT: "staff@example.invalid", TWE_EMAIL_TEST_RECIPIENTS: "staff@example.invalid", TWE_PORTAL_ORIGIN: "https://portal.example.invalid" };
 test("sender supports a display name but rejects malformed addresses and header injection", () => {
   const from = "Travel With Ease <sender@example.invalid>";
   assert.equal(readNotificationConfig({ ...env, TWE_EMAIL_FROM: from }).from, from);
@@ -11,14 +11,15 @@ test("sender supports a display name but rejects malformed addresses and header 
     assert.throws(() => readNotificationConfig({ ...env, TWE_EMAIL_FROM: value }));
   }
 });
-test("environment delivery policy cannot be broadened by an allowlist", () => {
+test("intended recipient is preserved with an environment-specific CC", () => {
   for (const APP_ENV of ["development", "staging"]) {
-    assert.equal(readNotificationConfig({ ...env, APP_ENV }).to, "testing@travelwitheasegh.com");
-    assert.throws(() => readNotificationConfig({ ...env, APP_ENV, TWE_EMAIL_RECIPIENT: "notifications@travelwitheasegh.com", TWE_EMAIL_TEST_RECIPIENTS: "notifications@travelwitheasegh.com" }));
-    assert.throws(() => readNotificationConfig({ ...env, APP_ENV, TWE_EMAIL_RECIPIENT: "customer@example.invalid", TWE_EMAIL_TEST_RECIPIENTS: "customer@example.invalid" }));
+    assert.equal(readNotificationConfig({ ...env, APP_ENV }).to, "staff@example.invalid");
+    assert.equal(readNotificationConfig({ ...env, APP_ENV }).cc, "testing@travelwitheasegh.com");
+    assert.throws(() => readNotificationConfig({ ...env, APP_ENV, TWE_EMAIL_RECIPIENT: "unapproved@example.invalid" }));
   }
-  assert.throws(() => readNotificationConfig({ ...env, APP_ENV: "production" }));
-  assert.equal(readNotificationConfig({ ...env, APP_ENV: "production", TWE_EMAIL_RECIPIENT: "notifications@travelwitheasegh.com" }).to, "notifications@travelwitheasegh.com");
+  const production = readNotificationConfig({ ...env, APP_ENV: "production", TWE_EMAIL_TEST_RECIPIENTS: "" });
+  assert.equal(production.to, "staff@example.invalid");
+  assert.equal(production.cc, "notifications@travelwitheasegh.com");
 });
 test("notification configuration requires exact test recipients outside production", () => {
   assert.equal(readNotificationConfig({}), null);
@@ -35,7 +36,12 @@ test("Resend transport pins payload, uses stable idempotency and never includes 
   assert.equal(sent[0].options.redirect, "error");
   assert.equal(sent[0].options.headers["Idempotency-Key"], sent[1].options.headers["Idempotency-Key"]);
   assert.equal(sent[0].options.body, sent[1].options.body);
-  assert.deepEqual(Object.keys(JSON.parse(sent[0].options.body)).sort(), ["from", "subject", "text", "to"]);
+  assert.deepEqual(Object.keys(JSON.parse(sent[0].options.body)).sort(), ["cc", "from", "subject", "text", "to"]);
+  assert.deepEqual(JSON.parse(sent[0].options.body).to, ["staff@example.invalid"]);
+  assert.deepEqual(JSON.parse(sent[0].options.body).cc, ["testing@travelwitheasegh.com"]);
+  for (const override of [{ cc: undefined }, { cc: ["other@example.invalid"] }, { cc: ["testing@travelwitheasegh.com", "other@example.invalid"] }, { bcc: ["other@example.invalid"] }]) {
+    await assert.rejects(sender.send({ ...job, delivery_payload: { ...job.delivery_payload, ...override } }));
+  }
   await assert.rejects(sender.send({ ...job, delivery_payload: { ...job.delivery_payload, to: ["customer@example.invalid"] } }));
   assert.equal(sent.length, 2);
 });
