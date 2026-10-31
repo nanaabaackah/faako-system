@@ -68,12 +68,7 @@ try {
       ),
       true,
     );
-    assert.equal(
-      await page
-        .locator("footer .travel-footprint")
-        .evaluate((node) => getComputedStyle(node).backgroundColor),
-      "rgba(0, 0, 0, 0)",
-    );
+    assert.equal(await page.locator("footer .travel-footprint").count(), 0);
     assert.equal(await page.locator(".demo-email-preview").count(), 0);
     if (width > 600) {
       const groupTops = await page.locator("footer .footer-links > nav").evaluateAll(
@@ -87,7 +82,6 @@ try {
       .click();
     for (const selector of [
       "#demo-footprint .footprint-map",
-      "footer .footprint-map",
     ]) {
       const size = await page
         .locator(selector)

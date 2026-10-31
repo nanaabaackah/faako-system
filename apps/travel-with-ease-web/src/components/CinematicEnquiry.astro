@@ -1,25 +1,20 @@
 ---
 import ContentLink from "./ContentLink.astro";
 import PublicFooter from "./PublicFooter.astro";
-import photos from "../lib/approved-preview-media.json";
+import photography from "../lib/assigned-photography.json";
 import "../styles/components/cinematic-enquiry.css";
-const { demo = false, enquiryAvailable = false, image = null } = Astro.props;
-const approved = photos.find((photo) => photo.placement === "closing")!;
-const photo = image || { ...approved, src: approved.sources.at(-1)!.src };
-const sources = photos.find((item) =>
-  item.sources.some((source) => source.src === photo.src),
-);
+const { demo = false, enquiryAvailable = false } = Astro.props;
+// One continuous image covers the enquiry and transparent footer together.
+// Contact-page CMS imagery remains independent from footer art direction.
+const photo = photography.footer;
 ---
 
 <div class="closing-scene">
   <img
     class="closing-scene__image"
     src={photo.src}
-    srcset={(photo.sources || sources?.sources || [])
-      .map(
-        (source: { src: string; width: number }) =>
-          `${source.src} ${source.width}w`,
-      )
+    srcset={photo.sources
+      .map((source) => `${source.src} ${source.width}w`)
       .join(", ")}
     sizes="100vw"
     alt=""
@@ -34,51 +29,57 @@ const sources = photos.find((item) =>
     aria-labelledby="enquiry-heading"
   >
     <div class="cinematic-enquiry__scene">
-      <div class="cinematic-enquiry__copy">
-        <h2 id="enquiry-heading">Where would you<br />like to go?</h2>
-        <p>
-          {
-            demo
-              ? "Explore the enquiry experience. Sample journeys are not available to book."
-              : "Start a conversation about your next journey."
-          }
-        </p>
+      <div
+        class:list={[
+          "cinematic-enquiry__card",
+          { "cinematic-enquiry__card--with-form": Astro.slots.has("default") },
+        ]}
+        id={demo ? "demo-enquiry-form" : undefined}
+      >
+        <div class="cinematic-enquiry__copy">
+          <h2 id="enquiry-heading">Where would you<br />like to go?</h2>
+          <p>
+            {
+              demo
+                ? "Explore the enquiry experience. Sample journeys are not available to book."
+                : "Start a conversation about your next journey."
+            }
+          </p>
+          <slot name="intro" />
+        </div>
         {
           !demo && (
-            <ContentLink
-              button
-              href={
-                enquiryAvailable ? "/contact" : "https://wa.me/233208387020"
-              }
-            >
-              {enquiryAvailable ? "Plan your trip" : "Talk to us on WhatsApp"}
-            </ContentLink>
+            <div class="cinematic-enquiry__actions">
+              {!demo && (
+                <ContentLink
+                  button
+                  href={
+                    enquiryAvailable ? "/contact" : "https://wa.me/233208387020"
+                  }
+                >
+                  {enquiryAvailable
+                    ? "Plan your trip"
+                    : "Talk to us on WhatsApp"}
+                </ContentLink>
+              )}
+              {!demo && !enquiryAvailable && (
+                <p class="cinematic-enquiry__note">
+                  Online enquiry forms are not available yet. Contact the team
+                  directly; an enquiry is not a booking.
+                </p>
+              )}
+            </div>
           )
         }
         {
-          !demo && !enquiryAvailable && (
-            <p class="cinematic-enquiry__note">
-              Online enquiry forms are not available yet. Contact the team
-              directly; an enquiry is not a booking.
-            </p>
-          )
-        }
-        {
-          demo && (
-            <a href="#demo-enquiry-form" class="cinematic-enquiry__form-link">
-              Continue to the test form
-            </a>
+          Astro.slots.has("default") && (
+            <div class="cinematic-enquiry__form">
+              <slot />
+            </div>
           )
         }
       </div>
     </div>
-    {
-      Astro.slots.has("default") && (
-        <div id="demo-enquiry-form" class="cinematic-enquiry__form">
-          <slot />
-        </div>
-      )
-    }
   </section>
   <PublicFooter demo={demo} cinematic />
 </div>

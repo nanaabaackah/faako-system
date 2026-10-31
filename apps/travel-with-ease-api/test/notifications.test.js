@@ -106,8 +106,7 @@ test("template includes public company identity, escaped greeting and plaintext"
   assert.doesNotMatch(template.html, /<img src=x/);
   for (const output of [template.html, template.text]) {
     for (const value of [
-      "TWE Concierge",
-      "BN045370826",
+      "Travel With Ease",
       "nana@travelwitheasegh.com",
       "233208387020",
       "travelwitheaseghana",
@@ -115,6 +114,7 @@ test("template includes public company identity, escaped greeting and plaintext"
     ])
       assert.ok(output.includes(value));
     assert.doesNotMatch(output, /nana.oseiwusu@gmail.com|IATA|tracking.pixel/);
+    assert.doesNotMatch(output, /business registration|BN\d{6,}|House no\s+\d|TWE\s+Concierge/i);
   }
   assert.match(template.html, /Primary%20gold.png/);
   assert.match(

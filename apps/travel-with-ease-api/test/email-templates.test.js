@@ -9,9 +9,66 @@ import {
 import {
   defaultEnquiryCopy,
   enquiryTemplate,
+  defaultInvitationCopy,
+  invitationTemplate,
 } from "../src/notifications/enquiry-template.js";
 import { hasPermission } from "../src/auth/permissions.js";
 import { ResendSender } from "../src/notifications/resend.js";
+import { renderEmailTemplate } from "../src/notifications/template-catalogue.js";
+
+test("staff invitation uses branded, escaped copy and a fixed workspace link without issuing access", () => {
+  const invitation = invitationTemplate({
+    copy: { ...defaultInvitationCopy, heading: "<script>unsafe</script>" },
+  });
+  assert.match(invitation.html, /&lt;script&gt;unsafe/);
+  assert.match(
+    invitation.html,
+    /href="https:\/\/portal.travelwitheasegh.com\/"/,
+  );
+  assert.match(invitation.text, /does not grant workspace access/);
+  assert.match(invitation.text, /activation code separately/);
+  assert.doesNotMatch(
+    invitation.html,
+    /<script>|business registration|BN\d{6,}|TWE\s+Concierge|House no\s+\d/i,
+  );
+  assert.throws(() => renderEmailTemplate("unknown", defaultInvitationCopy));
+});
+
+test("template type is allowlisted before any database query and defaults remain compatible", async () => {
+  const calls = [];
+  const service = new EmailTemplates(
+    {
+      async query(sql, values) {
+        calls.push({ sql, values });
+        return { rows: [] };
+      },
+    },
+    "tenant-a",
+  );
+  const actor = { id: "staff", role: "owner", organisationId: "tenant-a" };
+  assert.deepEqual((await service.get(actor)).draft, defaultEnquiryCopy);
+  assert.deepEqual(
+    (await service.get(actor, "staff-invitation")).draft,
+    defaultInvitationCopy,
+  );
+  assert.deepEqual(
+    await service.activeCopy("staff-invitation"),
+    defaultInvitationCopy,
+  );
+  assert.deepEqual(
+    calls.map((call) => call.values),
+    [
+      ["tenant-a", "enquiry-acknowledgement"],
+      ["tenant-a", "staff-invitation"],
+      ["tenant-a", "staff-invitation"],
+    ],
+  );
+  await assert.rejects(service.get(actor, "other-tenant-template"));
+  await assert.rejects(
+    service.change(actor, "test", 0, defaultEnquiryCopy, false, "unknown"),
+  );
+  assert.equal(calls.length, 3);
+});
 
 test("template copy is bounded and escaped; delivery and mandatory footer are code-owned", () => {
   for (const copy of [
@@ -108,9 +165,33 @@ test("template HTTP preview requires owner permission, CSRF and strict input; ne
   assert.equal(preview.status, 200);
   assert.equal((await preview.json()).data.preview, true);
   assert.equal(saves, 0);
+  const invitation = await post(
+    "/staff-invitation/preview",
+    defaultInvitationCopy,
+  );
+  assert.equal(invitation.status, 200);
+  assert.match(
+    (await invitation.json()).data.html,
+    /This email does not grant workspace access/,
+  );
+  assert.equal(
+    (await post("/staff-invitation/preview", defaultInvitationCopy, false))
+      .status,
+    403,
+  );
+  assert.equal(
+    (await post("/unknown/preview", defaultInvitationCopy)).status,
+    400,
+  );
+  assert.equal(saves, 0);
   for (const denied of ["editor", "platform_admin"]) {
     role = denied;
     assert.equal((await fetch(origin)).status, 403);
+    assert.equal((await fetch(origin + "/staff-invitation")).status, 403);
+    assert.equal(
+      (await post("/staff-invitation/preview", defaultInvitationCopy)).status,
+      403,
+    );
     assert.equal(
       (await post("/draft", { expectedVersion: 0, copy: defaultEnquiryCopy }))
         .status,

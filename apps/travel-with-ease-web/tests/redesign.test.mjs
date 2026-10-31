@@ -75,7 +75,9 @@ test("cinematic layout retains a no-JS and reduced-motion fallback without fixed
   const footer = source("styles/components/public-footer.css");
   assert.match(hero, /100svh/);
   assert.match(hero, /scripting: none/);
-  assert.match(enquiry, /prefers-reduced-motion: reduce/);
+  // The card layout is now entirely static: there is no sticky or animated
+  // enquiry heading requiring a reduced-motion override.
+  assert.doesNotMatch(enquiry, /animation\s*:|transition\s*:|position:\s*sticky/);
   assert.match(footer, /animation-timeline: view\(\)/);
   assert.match(footer, /prefers-reduced-motion: no-preference/);
   assert.doesNotMatch(

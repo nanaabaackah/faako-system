@@ -1,5 +1,14 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-31 — Public identity and template options
+
+Publish the Travel With Ease brand without private business identifiers or a
+street address. Support selectable enquiry and staff-invitation copy in Templates
+with independent versions and migration 011, preserving manual invitation-code
+sharing and all authentication requirements. Hosted CMS copy and previously
+queued emails require separate review; do not rewrite them silently.
+See [implementation notes](./public-brand-and-template-options-2026-10-31.md).
+
 ## 2026-10-31 — Brand typography and email template management
 
 Self-host the requested fonts; refine full-card interactions and privacy popup;

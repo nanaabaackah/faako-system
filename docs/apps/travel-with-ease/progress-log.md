@@ -1,5 +1,60 @@
 # Travel With Ease progress log
 
+## 2026-10-31 — PR 125 browser image-loading regression
+
+- Fixed the redesign acceptance test to scroll each lazy-loaded How it works
+  image into view before decoding it, rather than decoding off-screen images
+  whose requests may not have started. Decode failures still fail the check and
+  now identify the image URL. No application behaviour or CI gates were changed.
+- Website lint/build and the complete six-width Chrome acceptance passed,
+  including accessibility, reduced-motion and no-JavaScript checks.
+
+## 2026-10-31 — Centred mobile Overview and themed Account module
+
+- Centred Overview between equal-width, permission-filtered navigation groups.
+  Its raised gold button and 32px icon are larger than other actions; all seven
+  Owner modules retain at least 44px touch targets at 320px. Desktop order stays
+  unchanged and keyboard order follows the visible mobile order.
+- Styled Account with navy/gold summary, shared role pill, responsive access and
+  security panels, and the shared text-then-icon sign-out action. Preserved the
+  existing sign-out confirmation, identity-provider boundaries and tutorial target.
+  No account editing, privileges or authentication behaviour was introduced.
+
+## 2026-10-31 — User-selected footer and How it works photographs
+
+- Assigned the supplied `b7e55…` antelope photo to footers and the enquiry
+  background. Contact-page CMS imagery remains independent;
+  the device-mockup CTA and existing hero/package/journal photos are unchanged.
+- Assigned `IMG_3328` and `12bacbf0…` to the first two How it works steps on
+  the homepage and demo. Removed the mistakenly added services/About gallery;
+  the Services page and its publication status are otherwise unchanged.
+- Added 480/960/1440px metadata-free portrait derivatives for responsive loading;
+  original full-resolution conversions and supplied JPEGs remain untouched.
+  CSS stays external. No offers, prices, captions or business claims were added.
+- Kept a single continuous photo behind the enquiry and transparent footer,
+  without restarting/cropping a second image at the footer boundary. Reduced
+  total scene height by removing the detached heading area and footer map.
+  No fixed/parallax background was introduced. The 716px
+  source cannot gain real detail through enlargement. The signature
+  shares the gutter colour without opacity fading, and the gutter has four edges.
+- Moved the enquiry heading and actions inside the cream enquiry card, above
+  the guidance in its left column, with the real demo form in the right column.
+  The card stacks on mobile. Kept the user's footer-footprint removal;
+  the main page map remains. Updated checks to assert these new requirements.
+- Verification: website build/lint/type checks and all 30 website tests passed;
+  Chrome checks passed at 320/375/390/768/1024/1440px with axe, reduced motion
+  and no-JavaScript coverage. Checked the two-column card, one shared background,
+  How it works photo placement and absent footer map. Security gates passed.
+
+## 2026-10-31 — Public brand cleanup and email-type selector
+
+- Removed private business identifiers and street address from public/demo copy,
+  review drafts, source summary and email branding; contact channels retained.
+- Added Faako email-type dropdown with independent enquiry and staff-invitation
+  drafts, previews and approval. Invitation delivery/activation remains unchanged.
+- Added additive migration 011, endpoint compatibility and type/tenant/permission
+  tests. See [scope, checks and operator caveats](./public-brand-and-template-options-2026-10-31.md).
+
 ## 2026-10-31 — Drive photographs, full-width maps and initial privacy popup
 
 - Reviewed additional Kenya/Zanzibar Drive images and incorporated four optimized,

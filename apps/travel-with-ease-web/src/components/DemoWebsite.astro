@@ -4,6 +4,7 @@ import ContentLink from "./ContentLink.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import CinematicHero from "./CinematicHero.astro";
+import photography from "../lib/assigned-photography.json";
 import photos from "../lib/approved-preview-media.json";
 const kenya = photos.find((photo) => photo.placement === "wildlife")!;
 const zanzibar = photos.find((photo) => photo.placement === "closing")!;
@@ -83,13 +84,13 @@ const { live = false } = Astro.props;
           [
             {
               number: "01",
-              photo: kenya,
+              photo: photography.howItWorks[0],
               title: "Start with an idea",
               text: "Choose a sample journey or the kind of trip you have in mind.",
             },
             {
               number: "02",
-              photo: zanzibar,
+              photo: photography.howItWorks[1],
               title: "Shape the details",
               text: "Explore the dates, pace and preferences that matter to you.",
             },
@@ -125,7 +126,7 @@ const { live = false } = Astro.props;
   </section>
   <section id="demo-about" class="demo-wrap demo-company">
     <h2>Travel planning from Ghana.</h2><p>
-      Travel With Ease is operated by TWE Concierge in Accra, offering travel
+      Travel With Ease offers travel
       planning, travel packages and group trips.
     </p>
     <div>

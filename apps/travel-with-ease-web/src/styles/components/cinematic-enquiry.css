@@ -11,7 +11,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: 50% 65%;
+  object-position: 50% 60%;
 }
 .closing-scene::before {
   content: "";
@@ -26,22 +26,17 @@
 }
 .cinematic-enquiry__scene {
   position: relative;
-  isolation: isolate;
-  min-height: 105svh;
-  padding: 7rem 7% 11rem;
+  min-height: 85svh;
+  padding: clamp(32px, 6vw, 88px) 7%;
   display: grid;
   align-items: center;
 }
 .cinematic-enquiry__copy {
-  max-width: 620px;
-  position: sticky;
-  top: 20vh;
-  align-self: start;
-  margin-top: 10vh;
+  max-width: 65ch;
 }
 .cinematic-enquiry__copy h2 {
   font:
-    400 clamp(2.8rem, 6vw, 6rem)/1.04 Georgia,
+    400 clamp(1.8rem, 3.5vw, 3.5rem) / 1.08 Georgia,
     serif;
   letter-spacing: -0.04em;
   margin-bottom: 1.5rem;
@@ -49,7 +44,7 @@
 .cinematic-enquiry__copy p {
   max-width: 42ch;
 }
-.cinematic-enquiry__copy .twe-content-link.button {
+.cinematic-enquiry__actions .twe-content-link.button {
   background: var(--brand-gold);
   color: var(--brand-ink);
   border-color: var(--brand-gold);
@@ -59,37 +54,29 @@
 .cinematic-enquiry__note {
   font-size: 0.85rem;
 }
-.cinematic-enquiry__form-link {
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  text-underline-offset: 0.4em;
-}
-.cinematic-enquiry__form {
+.cinematic-enquiry__card {
   position: relative;
-  padding: clamp(2rem, 6vw, 5rem);
-  margin: 0 auto clamp(5rem, 12vw, 12rem);
-  width: min(86%, 1100px);
+  padding: clamp(20px, 4vw, 48px);
+  margin: 0 auto;
+  width: min(100%, 1100px);
   background: var(--brand-cream);
   color: var(--brand-navy);
   display: grid;
-  grid-template-columns: 1fr 1.15fr;
-  gap: clamp(2rem, 6vw, 6rem);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: clamp(24px, 4vw, 48px);
+  align-items: start;
+}
+.cinematic-enquiry__card > * {
+  min-width: 0;
+}
+.cinematic-enquiry__form {
+  min-width: 0;
 }
 .cinematic-enquiry__form > * {
   min-width: 0;
 }
-@media (max-width: 760px), (prefers-reduced-motion: reduce) {
-  .cinematic-enquiry__copy {
-    position: static;
-    margin-top: 0;
-  }
-  .cinematic-enquiry__scene {
-    min-height: 75svh;
-  }
-}
 @media (max-width: 760px) {
-  .cinematic-enquiry__form {
-    grid-template-columns: 1fr;
+  .cinematic-enquiry__card {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

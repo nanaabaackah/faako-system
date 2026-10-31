@@ -37,14 +37,15 @@ test("review routes exist and do not present policies or offers as approved", as
   }
 });
 
-test("arrows are explicit and footer includes a neutral footprint without demo totals", async () => {
+test("arrows are explicit and only the page footprint remains, without demo totals", async () => {
   const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
   const anchors = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)];
   for (const [, attributes, body] of anchors) {
     if (/twe-content-link/.test(attributes)) assert.equal((body.match(/link-arrow/g) || []).length, 1);
     else assert.doesNotMatch(body, /link-arrow/);
   }
-  assert.equal((html.match(/class="footprint-map"/g) || []).length, 2);
+  assert.equal((html.match(/class="footprint-map"/g) || []).length, 1);
+  assert.doesNotMatch(html.match(/<footer[\s\S]*?<\/footer>/)?.[0] || "", /footprint-map/);
   assert.match(html, /Verified travel activity is not available yet/);
   assert.doesNotMatch(html, /Illustrative demo totals|12 demo trips|4 demo trips/);
   assert.doesNotMatch(html, /arrowTemplate|querySelectorAll\("a:not/);

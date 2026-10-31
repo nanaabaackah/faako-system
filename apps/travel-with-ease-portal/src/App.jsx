@@ -203,6 +203,10 @@ function StaffWorkspace() {
         session?.user.permissions?.includes("system.read"),
     ],
   ].filter(([, , visible]) => visible);
+  // Equal-width groups keep Overview physically centred even when a role has
+  // a different number of available modules. DOM and keyboard order agree.
+  const mobileModules = navigation.filter(([id]) => id !== "overview");
+  const mobileSplit = Math.ceil(mobileModules.length / 2);
   const navButton = ([id, label]) => (
     <button
       key={id}
@@ -501,7 +505,13 @@ function StaffWorkspace() {
       </PageShell>
       {session && (
         <ErpMobileBottomNavFrame className="twe-bottom-nav">
-          {navigation.map(navButton)}
+          <div className="twe-bottom-nav__group">
+            {mobileModules.slice(0, mobileSplit).map(navButton)}
+          </div>
+          {navButton(navigation.find(([id]) => id === "overview"))}
+          <div className="twe-bottom-nav__group">
+            {mobileModules.slice(mobileSplit).map(navButton)}
+          </div>
         </ErpMobileBottomNavFrame>
       )}
     </div>

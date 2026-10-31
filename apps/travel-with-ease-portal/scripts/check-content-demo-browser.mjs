@@ -30,6 +30,28 @@ try {
       return route.abort();
     });
     await page.goto(`${origin}/?demo=1`, { waitUntil: "domcontentloaded" });
+    if (width <= 800) {
+      const nav = page.locator(".twe-bottom-nav");
+      const overview = nav.getByRole("button", { name: "Overview", exact: true });
+      const overviewBox = await overview.boundingBox();
+      assert.ok(Math.abs(overviewBox.x + overviewBox.width / 2 - width / 2) <= 1, "Overview must be centred in the viewport");
+      const others = nav.locator("button:not(.nav-overview)");
+      for (const button of await others.all()) {
+        const box = await button.boundingBox();
+        assert.ok(box.width >= 44 && box.height >= 44, "Bottom navigation retains touch targets");
+        assert.ok(overviewBox.height >= box.height + 12, "Overview should be visibly larger");
+      }
+      assert.equal(await overview.locator("svg").evaluate(node => node.getBoundingClientRect().width), 32);
+    }
+    await page.getByRole("button", { name: "Account", exact: true }).first().click();
+    await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();
+    assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");
+    assert.equal(await page.locator(".account-details").getByText("Local demonstration", { exact: true }).isVisible(), true);
+    page.once("dialog", dialog => dialog.dismiss());
+    await page.getByRole("button", { name: "Sign out all devices", exact: true }).click();
+    assert.equal(await page.locator(".account-workspace").isVisible(), true, "Cancelling sign-out preserves the session");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: path.join(output, `account-${width}.png`), fullPage: true });
     await page
       .getByRole("button", { name: "Content", exact: true })
       .first()
@@ -171,6 +193,31 @@ try {
     page.once("dialog", dialog => dialog.accept());
     await page.getByRole("button", { name: "Activate saved template", exact: true }).click();
     await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
+    const emailType = page.getByRole("button", { name: "Email type", exact: true });
+    await emailType.focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("option", { name: "Staff invitation", exact: true }).click();
+    await page.getByRole("heading", { name: "Staff invitation", exact: true }).waitFor();
+    await page.getByLabel(/^Heading/).fill("Synthetic team invitation");
+    page.once("dialog", dialog => dialog.dismiss());
+    await emailType.click();
+    await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
+    assert.equal(await page.getByLabel(/^Heading/).inputValue(), "Synthetic team invitation", "Cancelling a type change retains unsaved copy");
+    await page.getByRole("button", { name: "Preview email", exact: true }).click();
+    const invitationPreview = page.frameLocator('iframe[title="Staff invitation preview"]');
+    await invitationPreview.getByRole("heading", { name: "Synthetic team invitation", exact: true }).waitFor();
+    assert.match(await invitationPreview.locator("body").innerText(), /does not grant workspace access/);
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    page.once("dialog", dialog => dialog.accept());
+    await page.getByRole("button", { name: "Approve saved template", exact: true }).click();
+    await page.getByText("Draft revision 2 · Approved revision 1", { exact: true }).waitFor();
+    while (await notifications.count()) await notifications.first().click();
+    await page.screenshot({ path: path.join(output, `invitation-template-${width}.png`), fullPage: true });
+    await emailType.click();
+    await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
+    await page.getByRole("heading", { name: "Enquiry acknowledgement", exact: true }).waitFor();
+    await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
+    assert.equal(await page.getByLabel(/^Heading/).inputValue(), "Synthetic acknowledgement");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     while (await notifications.count()) await notifications.first().click();
     await page.screenshot({ path: path.join(output, `templates-${width}.png`), fullPage: true });

@@ -6,9 +6,10 @@ commit the complete intake: it includes private account and operational informat
 ## Public company facts
 
 - Trading name: Travel with Ease (display brand: Travel With Ease).
-- Legal name: TWE Concierge; business registration: BN045370826.
-- Business address: House no 57, Behind Asantewa Gardens, Shiashie, Accra, Ghana.
-- Online business; do not describe the address as a walk-in office.
+- Online business; do not describe a walk-in office or publish a street address.
+- Publication instruction (2026-10-31): use the Travel With Ease brand only.
+  Omit the alternate legal name, business-registration identifier and street
+  address from website copy, metadata, demos and email branding.
 - Business email: nana@travelwitheasegh.com.
 - Main telephone: +233 20 020 9170; distinct WhatsApp Business: +233 20 838 7020.
 - Services: travel planning, travel packages and group trips.

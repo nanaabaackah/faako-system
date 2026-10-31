@@ -32,9 +32,53 @@
   .portal-shell > .ui-page-shell { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
   .portal-shell .portal-brand { display: flex; align-items: center; justify-content: space-between; }
   .portal-brand img { max-width: 138px; }
-  .portal-shell .twe-bottom-nav { display: flex; position: fixed; inset: auto 0 0; margin: 0; gap: 0; padding: 8px 4px calc(8px + env(safe-area-inset-bottom)); background: #010c33; color: #f4ede3; border-top: 1px solid #d8b56a; z-index: 40; justify-content: space-around; }
-  .portal-shell .twe-bottom-nav button { display: flex; flex: 1; min-width: 0; max-width: 95px; flex-direction: column; justify-content: center; gap: 5px; padding: 8px 2px; font-size: 10px; min-height: 58px; }
-  .portal-shell .twe-bottom-nav .nav-overview { background: #d8b56a; color: #010c33; border: 2px solid #d8b56a; font-weight: 700; }
+  .portal-shell .twe-bottom-nav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(56px, 16vw, 68px) minmax(0, 1fr);
+    position: fixed;
+    inset: auto 0 0;
+    margin: 0;
+    gap: 0;
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    background: #010c33;
+    color: #f4ede3;
+    border-top: 1px solid #d8b56a;
+    z-index: 40;
+    align-items: center;
+  }
+  .twe-bottom-nav__group {
+    display: flex;
+    min-width: 0;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .portal-shell .twe-bottom-nav button {
+    display: flex;
+    flex: 1;
+    min-width: 44px;
+    max-width: 76px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 2px;
+    font-size: 10px;
+    min-height: 58px;
+  }
+  .portal-shell .twe-bottom-nav > .nav-overview {
+    width: 100%;
+    min-height: 80px;
+    transform: translateY(-12px);
+    background: #d8b56a;
+    color: #010c33;
+    border: 2px solid #d8b56a;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .portal-shell .twe-bottom-nav > .nav-overview svg {
+    width: 32px;
+    height: 32px;
+  }
   .portal-shell .twe-bottom-nav button[aria-current] { outline: 2px solid #f4ede3; outline-offset: -3px; }
   .workspace-filters, .staff-provision { grid-template-columns: minmax(0,1fr); }
   .workspace-kpis { gap: 8px; }

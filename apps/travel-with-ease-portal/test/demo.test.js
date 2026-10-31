@@ -16,6 +16,23 @@ test("template demo separates drafts from activation and resets without sending"
   assert.equal((await createDemoClient().get("/api/agent/templates")).version, 0);
 });
 
+test("email type options keep invitation drafts and previews separate from traveller acknowledgements", async () => {
+  const api = createDemoClient();
+  const invitation = await api.get("/api/agent/templates/staff-invitation");
+  const enquiry = await api.get("/api/agent/templates/enquiry-acknowledgement");
+  assert.notEqual(invitation.draft.subject, enquiry.draft.subject);
+  const copy = { ...invitation.draft, heading: "Synthetic staff invitation" };
+  await api.post("/api/agent/templates/staff-invitation/draft", { json: { expectedVersion: 0, copy } });
+  const preview = await api.post("/api/agent/templates/staff-invitation/preview", { json: copy });
+  assert.match(preview.html, /Synthetic staff invitation/);
+  assert.match(preview.text, /does not grant workspace access/);
+  const approved = await api.post("/api/agent/templates/staff-invitation/activate", { json: { expectedVersion: 1 } });
+  assert.equal(approved.active.heading, copy.heading);
+  assert.deepEqual(await api.get("/api/agent/templates"), enquiry);
+  assert.equal((await createDemoClient().get("/api/agent/templates/staff-invitation")).version, 0);
+  await assert.rejects(api.get("/api/agent/templates/unknown"));
+});
+
 test("Drive demo imports once into an in-memory library and never connects to Google/R2", async () => {
   const api = createDemoClient();
   const folder = await api.get("/api/agent/media/drive");

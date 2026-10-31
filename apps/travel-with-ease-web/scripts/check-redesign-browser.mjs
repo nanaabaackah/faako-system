@@ -146,6 +146,36 @@ try {
     await page
       .getByRole("button", { name: "Essential only", exact: true })
       .click();
+    assert.match(await page.locator(".closing-scene__image").getAttribute("src"), /\/b7e55[^/]+\.webp$/);
+    assert.equal(await page.locator(".closing-scene > .closing-scene__image").count(), 1, "Enquiry and footer share one continuous image");
+    assert.equal(await page.locator(".closing-scene footer .footer-scene-image").count(), 0, "Do not restart the image inside the footer");
+    assert.equal(await page.locator(".closing-scene footer").evaluate(node => getComputedStyle(node).backgroundColor), "rgba(0, 0, 0, 0)");
+    assert.equal(await page.locator("footer .travel-footprint").count(), 0);
+    assert.equal(await page.locator(".cinematic-enquiry__card #enquiry-heading").count(), 1, "Enquiry heading belongs inside the card");
+    const cardColumns = await page.locator(".cinematic-enquiry__card--with-form").evaluate(node => getComputedStyle(node).gridTemplateColumns.split(" ").length);
+    assert.equal(cardColumns, width > 760 ? 2 : 1, "Enquiry card is two columns on desktop and stacked on mobile");
+    const serviceImages = page.locator("#demo-process li img");
+    assert.match(await page.locator("#demo-process li img").nth(0).getAttribute("src"), /IMG_3328/);
+    assert.match(await page.locator("#demo-process li img").nth(1).getAttribute("src"), /12bacbf0/);
+    assert.equal(await page.locator("#demo-about img").count(), 0);
+    // Each image is lazy-loaded: scrolling only the first into view does not
+    // start requests for the later images on narrow screens.
+    for (const image of await serviceImages.all()) {
+      await image.scrollIntoViewIfNeeded();
+      await image.evaluate(async node => {
+        try {
+          await node.decode();
+        } catch {
+          throw Error(`How it works image failed to decode: ${node.currentSrc || node.src}`);
+        }
+        if (!node.naturalWidth) throw Error(`How it works image did not load: ${node.currentSrc || node.src}`);
+      });
+    }
+    const footerStyle = await page.locator("footer.twe-public-footer").evaluate(node => ({ shadows: getComputedStyle(node).boxShadow, signature: getComputedStyle(node.querySelector(".footer-signature")).color, opacity: getComputedStyle(node.querySelector(".footer-signature")).opacity }));
+    assert.equal((footerStyle.shadows.match(/inset/g) || []).length, 4, "Footer gutter must include the top edge");
+    assert.ok(footerStyle.shadows.includes(footerStyle.signature), "Signature and gutter must share a colour");
+    assert.equal(footerStyle.opacity, "1");
+    await page.evaluate(() => scrollTo(0, 0));
     assert.equal(
       await page.locator('meta[name="robots"]').getAttribute("content"),
       "noindex, nofollow",
@@ -278,6 +308,7 @@ try {
         .screenshot({ path: path.join(directory, `${name}-${width}.png`) });
     }
     await page.goto(origin, { waitUntil: "networkidle" });
+    assert.equal(await page.locator(".cinematic-enquiry__card").evaluate(node => getComputedStyle(node).gridTemplateColumns.split(" ").length), width > 760 ? 2 : 1, "Public enquiry card also retains the responsive grid when the form is unavailable");
     assert.equal(
       await page
         .getByRole("heading", { name: "Local test journey", exact: true })
@@ -285,7 +316,7 @@ try {
       1,
     );
     assert.equal(await page.locator(".cinematic-hero__image").count(), 1);
-    assert.equal(await page.locator(".footprint-empty").count(), 2);
+    assert.equal(await page.locator(".footprint-empty").count(), 1);
     assert.equal(await page.locator(".closing-scene__image").count(), 1);
     assert.equal(await page.locator("main .twe-public-footer").count(), 0);
     assert.equal(await page.locator("footer.twe-public-footer").count(), 1);
@@ -325,8 +356,8 @@ try {
     .locator(".twe-public-footer")
     .evaluate((element) => element.getBoundingClientRect().top + scrollY);
   await motionPage.evaluate(
-    (top) => scrollTo({ top, behavior: "instant" }),
-    footerTop - 400,
+    (top) => scrollTo({ top: top - innerHeight + 100, behavior: "instant" }),
+    footerTop,
   );
   await motionPage.screenshot({
     path: path.join(directory, "enquiry-footer-transition-1440.png"),

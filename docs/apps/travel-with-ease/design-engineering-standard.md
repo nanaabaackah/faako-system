@@ -1,5 +1,10 @@
 # Travel With Ease design and engineering standard
 
+2026-10-31 latest refinement: enquiry heading/guidance and form share a responsive
+two-column card, stacked on mobile. Keep one continuous photograph behind the
+enquiry and footer. The signature matches the four-sided end-of-page gutter;
+the footer footprint is removed by user direction (main-page map remains).
+
 2026-10-31 follow-up: full-width footprint rows, compact grouped footer and one
 modal for both initial privacy choice and later preferences. Additional Drive
 photography keeps recorded provenance and unchanged mockup CTA assets. See
@@ -188,6 +193,13 @@ Reject additions whose value cannot be clearly explained. Prefer explicit implem
 
 ### Administration portal
 
+On mobile, place Overview in the physical centre of the bottom navigation,
+between balanced permission-filtered groups. Use a larger gold button and icon
+without reducing other targets below 44px. Keep desktop order unchanged.
+Account uses the same navy/gold summary, restrained shared panels and responsive
+detail layout as the rest of the portal; identity/session capabilities stay
+authoritative on the server and are never simulated by the visual treatment.
+
 Preserve React/Vite and reuse appropriate `@faako/ui`/`@faako/theme` operational primitives. Prioritise readable content/enquiry lists, editing forms, validation, save/publish feedback, loading, empty and failure states. No ornamental dashboards or metrics without an operational requirement. The existing workspace is the staff/admin portal; a customer-facing portal remains deferred. Frontend permission checks provide UX only.
 
 ### Backend and security
@@ -268,7 +280,7 @@ The trade-offs are deliberate: authentic imagery needs licensing/content ownersh
 - Demo cookie choices use separate storage and never enable Google Analytics.
   Shared public components apply to demos; synthetic records remain labelled.
 - Journal articles are semantic Astro content. Verified footprint records feed the
-  homepage, dedicated map and compact footer from one approved publication.
+  homepage and dedicated map from one approved publication, not the footer.
 - Policy starter copy and company facts have distinct approval status. TIDS marks
   require the official recognition stamp and supporting registration evidence.
 
@@ -277,6 +289,6 @@ The trade-offs are deliberate: authentic imagery needs licensing/content ownersh
 The supplied five-device mockup CTA is intentional and must not be replaced by
 travel-photo collages. Preserve its single row, larger laptop, phone to the right
 and absence of captions. The photographic enquiry and footer share one background.
-Keep the footer full-width on entry; reveal the light side/bottom gutter only at
+Keep the footer full-width on entry; reveal the light top/side/bottom gutter only at
 the page end. Reduced-motion/no-JavaScript presentation remains static and usable.
 See [the correction decisions](reference-correction-2026-10-30.md).
