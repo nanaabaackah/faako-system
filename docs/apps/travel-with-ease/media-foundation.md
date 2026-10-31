@@ -1,5 +1,9 @@
 # Media foundation — implementation in progress
 
+Current follow-up: [controlled Drive → R2 sync and Railway setup](drive-r2-sync.md)
+(2026-10-31). Historical pending items below describe the original foundation,
+not the current portal/publication implementation.
+
 Date: 2026-10-12. TWE-017/TWE-004. No R2 bucket has been provisioned or verified.
 
 Accept JPEG, PNG and WebP only, at most 8 MiB and 24 million decoded pixels.

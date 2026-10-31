@@ -17,6 +17,8 @@ import path from "node:path";
 import { Administration } from "../../src/auth/administration.js";
 import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
+import { EmailTemplates } from "../../src/notifications/templates.js";
+import { defaultEnquiryCopy } from "../../src/notifications/enquiry-template.js";
 
 test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outbox writes", async (context) => {
   // Fail rather than silently skip: test:db is a required, explicit CI job.
@@ -261,6 +263,80 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await content.get("home")).body.imageId, asset.id);
   await media.archive(replacement.id, actor, "archive-unused");
   assert.equal((await media.list()).items.some((item) => item.id === replacement.id), false);
+  await context.test("email template drafts, activation and audit survive recreation under runtime grants", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const templates = new EmailTemplates(runtimePool, organisationId);
+      const owner = { ...actor, role: "owner" };
+      assert.equal((await templates.get(owner)).version, 0);
+      const copy = { ...defaultEnquiryCopy, heading: "Reviewed acknowledgement" };
+      await templates.change(owner, "template-draft", 0, copy);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+      await assert.rejects(templates.change(owner, "template-stale", 0, copy), { status: 409 });
+      await templates.change(owner, "template-active", 1, null, true);
+      assert.deepEqual(await new EmailTemplates(runtimePool, organisationId).activeCopy(), copy);
+      assert.deepEqual(await new EmailTemplates(runtimePool, otherOrg).activeCopy(), defaultEnquiryCopy);
+      await assert.rejects(new EmailTemplates(runtimePool, otherOrg).get(owner), { status: 403 });
+      const audits = await query("SELECT action FROM twe.audit_records WHERE organisation_id=$1 AND action IN ('email_template.saved','email_template.activated')", [organisationId]);
+      assert.equal(audits.rows.length, 2);
+      await templates.change(owner, "template-rollback-draft", 2, defaultEnquiryCopy);
+      await templates.change(owner, "template-rollback-active", 3, null, true);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+    } finally { await client.query("RESET ROLE"); client.release(); }
+  });
+  await context.test("Drive sync uses runtime grants, keeps immutable revisions and isolates tenants", async () => {
+    const client = await pool.connect();
+    let version = "1", downloads = 0;
+    const drive = {
+      config: { folderId: "synthetic_folder_123" },
+      async metadata() { return { id: "synthetic_image_123", version, md5Checksum: "a".repeat(32), mimeType: "image/png" }; },
+      async download() { downloads++; return image; },
+      async list() { return { items: [{ id: "synthetic_image_123", version, name: "Synthetic fixture" }], nextPageToken: "" }; },
+    };
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const sync = new MediaService(runtimePool, organisationId, storage, null, drive);
+      const input = { fileId: "synthetic_image_123", version, alt: "Drive fixture", rights: "Generated test fixture" };
+      const first = await sync.importDrive(input, actor, "drive-first");
+      assert.equal(first.unchanged, false);
+      const repeat = await sync.importDrive(input, actor, "drive-repeat");
+      assert.equal(repeat.id, first.id);
+      assert.equal(repeat.unchanged, true);
+      assert.equal(downloads, 1);
+      assert.equal((await sync.listDrive()).items[0].importedId, first.id);
+      const current = await content.get("home");
+      await content.save("home", { ...body, imageId: first.id }, current.version, actor, "drive-selected");
+      version = "2";
+      const second = await sync.importDrive({ ...input, version }, actor, "drive-refresh");
+      assert.notEqual(second.id, first.id);
+      assert.equal((await content.get("home")).body.imageId, first.id, "Sync never rewrites a selected revision");
+      assert.equal((await new MediaService(runtimePool, otherOrg, storage, null, drive).listDrive()).items[0].importedId, null);
+      await assert.rejects(sync.importDrive(input, { ...actor, organisationId: otherOrg }, "drive-foreign"), { status: 403 });
+      const audit = await query("SELECT action FROM twe.audit_records WHERE organisation_id=$1 AND record_id=$2", [organisationId, first.id]);
+      assert.equal(audit.rows.some(row => row.action === "media.drive_imported"), true);
+      await sync.archive(second.id, actor, "drive-archive");
+      await assert.rejects(sync.importDrive({ ...input, version }, actor, "drive-archived"), { status: 409 });
+      version = "3";
+      const beforeRace = objects.size;
+      const replicas = [new MediaService(pool, organisationId, storage, null, drive),
+        new MediaService(pool, organisationId, storage, null, drive)];
+      const race = await Promise.all(replicas.map(replica =>
+        replica.importDrive({ ...input, version }, actor, "drive-race")));
+      assert.equal(race[0].id, race[1].id, "Replicas converge on one immutable source revision");
+      assert.equal(objects.size, beforeRace + 3, "Losing replica leaves no orphan R2 derivatives");
+      // Return to the fixture used by the publication assertions below.
+      const selected = await content.get("home");
+      await content.save("home", { ...body, imageId: asset.id }, selected.version, actor, "drive-restore-selection");
+    } finally {
+      await client.query("RESET ROLE");
+      client.release();
+    }
+  });
   const objectCount = objects.size;
   await assert.rejects(media.upload(image, "image/png", { alt: "Rejected fixture", rights: "Generated test fixture" }, { ...actor, id: randomUUID() }, "media-db-failure"));
   assert.equal(objects.size, objectCount, "Database failure removes all candidate storage objects");
@@ -323,6 +399,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal(snapshot.pages.home.heading, body.heading);
   assert.doesNotMatch(JSON.stringify(snapshot), /PRIVATE newer draft|object_key|Generated test fixture/);
   assert.equal(snapshot.pages.home.image.src, `/media/${asset.id}.webp`);
+  assert.equal(snapshot.pages.home.image.sources.length, 1, "Small fixtures do not emit duplicate srcset widths");
   assert.equal(snapshot.pages.home.socialImage.src, `/media/${asset.id}-social.jpg`);
   const social = await sharp(path.join(artifact.publicDirectory, `media/${asset.id}-social.jpg`)).metadata();
   assert.equal(social.width, 1200); assert.equal(social.height, 630);

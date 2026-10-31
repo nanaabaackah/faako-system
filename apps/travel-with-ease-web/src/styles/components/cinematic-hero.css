@@ -4,6 +4,7 @@
   min-height: 100svh;
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: clamp(10rem, 19vh, 15rem) 7% 7rem;
   color: var(--brand-cream);
   background: var(--brand-ink);
@@ -26,42 +27,53 @@
   background: rgb(0 10 31 / 62%);
 }
 .cinematic-hero__copy {
-  max-width: 760px;
+  max-width: 720px;
+  text-align: center;
 }
 .cinematic-hero h1 {
   margin: 0 0 1.5rem;
   font:
-    400 clamp(3.4rem, 7.4vw, 7.5rem)/1.01 Georgia,
+    400 clamp(2.6rem, 4.3vw, 4.4rem)/1.03 Georgia,
     serif;
-  letter-spacing: -0.045em;
-  max-width: 11ch;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+  max-width: 20ch;
   text-wrap: balance;
 }
 .cinematic-hero__copy > p {
   max-width: 43ch;
+  margin-inline: auto;
   font-size: clamp(1rem, 1.35vw, 1.2rem);
 }
 .cinematic-hero__actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 1rem 2rem;
   margin: 2rem 0 1rem;
 }
 .cinematic-page .cinematic-hero .twe-content-link.button {
   border-radius: 99px;
-  background: var(--brand-gold);
+  background: var(--brand-cream);
   color: var(--brand-ink);
-  border-color: var(--brand-gold);
+  border-color: var(--brand-cream);
   min-height: 48px;
 }
 .cinematic-hero small {
   color: var(--brand-cream);
 }
+.cinematic-page .cinematic-hero .twe-content-link.button:hover,
+.cinematic-page .cinematic-hero .twe-content-link.button:focus-visible {
+  background: var(--brand-gold);
+  color: var(--brand-ink);
+  border-color: var(--brand-gold);
+}
 .cinematic-hero__scroll {
   position: absolute;
   bottom: 5.5rem;
-  left: 7%;
+  left: 50%;
+  transform: translateX(-50%);
   min-height: 44px;
   display: inline-flex;
   align-items: center;
@@ -85,10 +97,40 @@
   top: 3.5rem;
 }
 .cinematic-page .site-header .nav-cta {
-  background: var(--brand-gold);
-  color: var(--brand-ink);
-  border-color: var(--brand-gold);
+  background: transparent;
+  color: var(--brand-cream);
+  border-color: var(--brand-cream);
   border-radius: 99px;
+  font-weight: 400;
+}
+@media (min-width: 901px) {
+  .cinematic-page .site-header {
+    min-height: 96px;
+    padding: 1rem 3%;
+    flex-wrap: nowrap;
+  }
+  .cinematic-page .site-header > .brand {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .cinematic-page .site-header .brand img {
+    width: 155px;
+  }
+  .cinematic-page .site-header nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .cinematic-page .header-links {
+    max-width: calc(50% - 110px);
+    gap: 0.2rem 1.1rem;
+  }
+  .cinematic-page .header-links a,
+  .cinematic-page .site-header .nav-cta {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
 }
 @media (max-width: 900px) {
   .cinematic-page .site-header {
@@ -116,7 +158,7 @@
     min-height: max(760px, 100svh);
   }
   .cinematic-hero h1 {
-    font-size: clamp(3rem, 13vw, 4.5rem);
+    font-size: clamp(2.35rem, 10vw, 3.5rem);
   }
   .cinematic-hero__image {
     object-position: 58% 60%;

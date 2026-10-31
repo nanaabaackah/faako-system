@@ -1,0 +1,81 @@
+.demo-enquiry-form {
+  display: grid;
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid #d6d0c7;
+  border-radius: 8px;
+  background: white;
+}
+.demo-enquiry-form h3 {
+  font-size: 22px;
+  margin: 0;
+}
+.demo-enquiry-form .ui-field {
+  margin: 0;
+}
+.demo-enquiry-form .ui-button {
+  justify-self: start;
+}
+#demo-result {
+  margin: 0;
+  font-size: 12px;
+  color: #535966;
+}
+
+/* The live staging enquiry form uses the same visual system as the demo preview. */
+.demo-form-note {
+  padding: 14px 16px;
+  margin: 0;
+  background: #edf2fa;
+  border-left: 3px solid #010c33;
+  color: #172545;
+  font-size: 13px;
+}
+.demo-enquiry-form input,
+.demo-enquiry-form textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #89867f;
+  border-radius: 4px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #010c33;
+  font: inherit;
+}
+.demo-enquiry-form input:focus-visible,
+.demo-enquiry-form textarea:focus-visible {
+  outline: 3px solid #7ab8ff;
+  outline-offset: 2px;
+}
+.demo-enquiry-form .demo-consent {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  font-size: 13px;
+  font-weight: 400;
+}
+.demo-enquiry-form .demo-consent input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  flex: 0 0 20px;
+}
+.demo-enquiry-form .honeypot {
+  position: absolute;
+  left: -9999px;
+}
+
+.demo-enquiry-form label {
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+}
+.demo-enquiry-form .ui-button {
+  min-height: 44px;
+  border-radius: 99px;
+}
+@media (scripting: none) {
+  .demo-enquiry-form .ui-animated-loading-state {
+    display: none;
+  }
+}

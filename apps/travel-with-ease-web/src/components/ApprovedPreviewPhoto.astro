@@ -5,7 +5,11 @@ interface Props {
   eager?: boolean;
 }
 const { country, eager = false } = Astro.props;
-const photo = photos.find((photo) => photo.country === country)!;
+const photo = photos.find(
+  (photo) =>
+    photo.country === country &&
+    photo.placement === (country === "Kenya" ? "hero" : "closing"),
+)!;
 ---
 
 <figure class="approved-photo">

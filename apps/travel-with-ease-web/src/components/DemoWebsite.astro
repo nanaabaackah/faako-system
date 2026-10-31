@@ -3,14 +3,12 @@ import Accordion from "./Accordion.astro";
 import ContentLink from "./ContentLink.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
-import DemoEnquiry from "./DemoEnquiry.jsx";
-import DemoEmailPreview from "./DemoEmailPreview.astro";
 import CinematicHero from "./CinematicHero.astro";
-import CinematicEnquiry from "./CinematicEnquiry.astro";
 import photos from "../lib/approved-preview-media.json";
-const kenya = photos.find((photo) => photo.country === "Kenya")!;
-const zanzibar = photos.find((photo) => photo.country === "Zanzibar")!;
-const { live = false, apiOrigin = "" } = Astro.props;
+const kenya = photos.find((photo) => photo.placement === "wildlife")!;
+const zanzibar = photos.find((photo) => photo.placement === "closing")!;
+const journalPhoto = photos.find((photo) => photo.placement === "journal")!;
+const { live = false } = Astro.props;
 ---
 
 <div class="travel-demo">
@@ -42,7 +40,7 @@ const { live = false, apiOrigin = "" } = Astro.props;
             copy: "A demonstration of a discovery-focused journey. This is not an advertised or priced offer.",
           },
         ].map((item) => (
-          <article>
+          <article class="journey-card">
             <img
               src={item.photo.sources.at(-1)!.src}
               width={item.photo.width}
@@ -56,7 +54,8 @@ const { live = false, apiOrigin = "" } = Astro.props;
                 <h3>{item.title}</h3>
                 <p>{item.copy}</p>
                 <ContentLink
-                  href="#demo-plan"
+                  class="journey-card__link"
+                  href="#demo-enquiry-form"
                   data-demo-destination={item.name}
                 >
                   Explore this sample
@@ -80,26 +79,47 @@ const { live = false, apiOrigin = "" } = Astro.props;
         </p>
       </div>
       <ol>
-        <li>
-          <span>01</span><div>
-            <h3>Start with an idea</h3><p>
-              Choose a sample journey or the kind of trip you have in mind.
-            </p>
-          </div>
-        </li><li>
-          <span>02</span><div>
-            <h3>Shape the details</h3><p>
-              Explore the dates, pace and preferences that matter to you.
-            </p>
-          </div>
-        </li><li>
-          <span>03</span><div>
-            <h3>Make an informed choice</h3><p>
-              In the live service, confirm the actual offer and terms with the
-              agency.
-            </p>
-          </div>
-        </li>
+        {
+          [
+            {
+              number: "01",
+              photo: kenya,
+              title: "Start with an idea",
+              text: "Choose a sample journey or the kind of trip you have in mind.",
+            },
+            {
+              number: "02",
+              photo: zanzibar,
+              title: "Shape the details",
+              text: "Explore the dates, pace and preferences that matter to you.",
+            },
+            {
+              number: "03",
+              photo: kenya,
+              title: "Make an informed choice",
+              text: "In the live service, confirm the actual offer and terms with the agency.",
+            },
+          ].map((step) => (
+            <li>
+              <span>{step.number}</span>
+              <div>
+                <img
+                  src={step.photo.sources.at(-1)!.src}
+                  srcset={step.photo.sources
+                    .map((source) => `${source.src} ${source.width}w`)
+                    .join(", ")}
+                  sizes="(max-width: 760px) 85vw, 28vw"
+                  alt=""
+                  width={step.photo.width}
+                  height={step.photo.height}
+                  loading="lazy"
+                />
+                <h3>{step.title}</h3>
+                <p>{step.text}</p>
+              </div>
+            </li>
+          ))
+        }
       </ol>
     </div>
   </section>
@@ -123,10 +143,10 @@ const { live = false, apiOrigin = "" } = Astro.props;
   <section id="demo-journal" class="demo-wrap demo-journal" data-twe-reveal>
     <figure>
       <img
-        src={zanzibar.sources.at(-1)!.src}
-        width={zanzibar.width}
-        height={zanzibar.height}
-        alt={zanzibar.alt}
+        src={journalPhoto.sources.at(-1)!.src}
+        width={journalPhoto.width}
+        height={journalPhoto.height}
+        alt={journalPhoto.alt}
         loading="lazy"
       /><figcaption>Zanzibar · TWE-supplied photography</figcaption>
     </figure>
@@ -148,22 +168,26 @@ const { live = false, apiOrigin = "" } = Astro.props;
     </div>
   </section>
   <section id="demo-faqs" class="demo-wrap">
-    <h2>A few things to know.</h2><Accordion
-      title="Can I book these sample journeys?"
-      ><p>
-        No. These demonstrate the website layout, not available offers.
-      </p></Accordion
-    ><Accordion title="Will this form contact the team?"
-      ><p>
-        {
-          live
-            ? "Yes. This staging demo saves test enquiries for authorised staff to review, without booking or sending a confirmation."
-            : "No. The local preview does not send or save your choices."
-        }
-      </p></Accordion
-    ><p>Client testimonials will appear only after approval and permission.</p>
+    <div class="demo-faq-introduction">
+      <h2>A few things<br />to know.</h2>
+      <p>Client testimonials will appear only after approval and permission.</p>
+    </div>
+    <div class="demo-faq-questions">
+      <Accordion title="Can I book these sample journeys?"
+        ><p>
+          No. These demonstrate the website layout, not available offers.
+        </p></Accordion
+      ><Accordion title="Will this form contact the team?"
+        ><p>
+          {
+            live
+              ? "Yes. This staging demo saves test enquiries for authorised staff to review, without booking or sending a confirmation."
+              : "No. The local preview does not send or save your choices."
+          }
+        </p></Accordion
+      >
+    </div>
   </section>
-  <DemoEmailPreview />
   <section id="demo-privacy" class="demo-wrap demo-policy-preview">
     <h2>Your privacy choices</h2><p>
       Try the cookie preference controls. Choices here apply to this demo only;
@@ -174,39 +198,29 @@ const { live = false, apiOrigin = "" } = Astro.props;
     >
   </section>
   <ClosingCta demo />
-  <CinematicEnquiry demo>
-    <div>
-      <h2>Try your enquiry.</h2><p>
-        {
-          live
-            ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created."
-            : "Try the local preview. Nothing is stored or submitted."
-        }
-      </p>{
-        live ? (
-          <p>
-            <>
-              <ContentLink href="https://portal-staging.travelwitheasegh.com/demo">
-                Explore the staging staff portal demo
-              </ContentLink>
-              <small>
-                Cloudflare Access required. The portal demo uses simulated
-                records; real staging test enquiries are available only in the
-                authenticated staff CMS.
-              </small>
-            </>
-          </p>
-        ) : (
-          <p>
-            Staff dashboard preview is available separately in local
-            development.
-          </p>
-        )
-      }
-    </div>
-    <DemoEnquiry live={live} apiOrigin={apiOrigin} client:load />
-  </CinematicEnquiry>
 </div>
+<script>
+  // Preserve a card choice made before the below-fold React form hydrates.
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest<HTMLElement>(
+        "[data-demo-destination], [data-demo-personalised]",
+      );
+      if (!link) return;
+      document.documentElement.dataset.demoEnquiryKind = link.hasAttribute(
+        "data-demo-destination",
+      )
+        ? "package"
+        : "personalised";
+      if (link.dataset.demoDestination)
+        document.documentElement.dataset.demoEnquiryDestination =
+          link.dataset.demoDestination;
+    },
+    { capture: true },
+  );
+</script>
 <style>
   @import "../styles/components/demo-website.css";
 </style>

@@ -207,9 +207,10 @@ try {
     await page
       .getByRole("button", { name: "Cookie settings", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Essential only", exact: true })
-      .click();
+    await page.getByRole("dialog", { name: "Cookie preferences", exact: true })
+      .getByLabel("Optional analytics").uncheck();
+    await page.getByRole("dialog", { name: "Cookie preferences", exact: true })
+      .getByRole("button", { name: "Save preferences", exact: true }).click();
     assert.equal(
       await page.evaluate(
         () =>
@@ -288,15 +289,8 @@ try {
       path: path.join(directory, `demo-${width}.png`),
       fullPage: true,
     });
-    await page
-      .getByText("Preview the acknowledgement email", { exact: true })
-      .click();
-    await page
-      .frameLocator(
-        'iframe[title="Travel With Ease acknowledgement email design"]',
-      )
-      .getByRole("heading", { name: "Email delivery preview", exact: true })
-      .waitFor();
+    assert.equal(await page.locator(".demo-email-preview, iframe").count(), 0,
+      "Editable email preview belongs in the protected portal, not the public demo");
     assert.deepEqual(errors, []);
     const email = await context.newPage();
     await email.route("https://travelwitheasegh.com/**", async (route) => {

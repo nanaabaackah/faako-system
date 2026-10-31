@@ -29,7 +29,7 @@
 .floating-action img {
   flex: none;
 }
-body:has([data-cookie-notice]:not([hidden])) .floating-actions {
+body:has(dialog[data-cookie-notice][open]) .floating-actions {
   visibility: hidden;
 }
 @media (max-width: 390px) {

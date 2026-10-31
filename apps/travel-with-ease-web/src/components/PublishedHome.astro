@@ -4,12 +4,13 @@ import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import Accordion from "./Accordion.astro";
 import CinematicHero from "./CinematicHero.astro";
-import CinematicEnquiry from "./CinematicEnquiry.astro";
 import { publishedPage } from "../lib/published.js";
+import photos from "../lib/approved-preview-media.json";
 const { content } = Astro.props;
 // Staging presents neutral unapproved modules for visual review only.
 // Production renders only modules with approved publication snapshots.
-const stagingReview = import.meta.env.PUBLIC_APP_ENV === "staging";
+const stagingReview =
+  import.meta.env.DEV || import.meta.env.PUBLIC_APP_ENV === "staging";
 const destinations = publishedPage("destinations");
 const contact = publishedPage("contact");
 const journal = publishedPage("journal");
@@ -59,6 +60,35 @@ const faqs = publishedPage("faqs");
           </p>
         )}
       </div>
+      {stagingReview && !destinations && (
+        <div
+          class="review-journey-images"
+          aria-label="Approved travel photography — not package offers"
+        >
+          {photos
+            .filter((photo) =>
+              ["wildlife", "closing"].includes(photo.placement),
+            )
+            .map((photo) => (
+              <figure>
+                <img
+                  src={photo.sources.at(-1)!.src}
+                  srcset={photo.sources
+                    .map((source) => `${source.src} ${source.width}w`)
+                    .join(", ")}
+                  sizes="(max-width: 760px) 90vw, 45vw"
+                  alt={photo.alt}
+                  width={photo.width}
+                  height={photo.height}
+                  loading="lazy"
+                />
+                <figcaption>
+                  {photo.country} · photography preview, not an offer
+                </figcaption>
+              </figure>
+            ))}
+        </div>
+      )}
     </section>
   )
 }
@@ -118,7 +148,7 @@ const faqs = publishedPage("faqs");
       {journal?.articles
         ?.slice(0, 2)
         .map((article: { slug: string; title: string; excerpt: string }) => (
-          <article>
+          <article class="twe-action-card">
             <h3>
               <ContentLink href={`/journal/${article.slug}`}>
                 {article.title}
@@ -158,4 +188,3 @@ const faqs = publishedPage("faqs");
 }
 <!-- Brand CTA artwork is approved independently of business-content publication. -->
 <ClosingCta enquiryAvailable={Boolean(contact)} />
-<CinematicEnquiry enquiryAvailable={Boolean(contact)} image={contact?.image} />

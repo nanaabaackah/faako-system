@@ -14,6 +14,7 @@ import "@faako/ui/twe-feedback.css";
 import appSystem from "../appSystem.js";
 import WebsiteContent from "./WebsiteContent.jsx";
 import MediaLibrary from "./MediaLibrary.jsx";
+import EmailTemplates from "./EmailTemplates.jsx";
 import SystemAdministration from "./SystemAdministration.jsx";
 import StaffAccess from "./StaffAccess.jsx";
 import Enquiries from "./Enquiries.jsx";
@@ -193,6 +194,7 @@ function StaffWorkspace() {
     ],
     ["content", "Content", session?.user.permissions?.includes("content.read")],
     ["media", "Media", session?.user.permissions?.includes("media.read")],
+    ["templates", "Templates", session?.user.permissions?.includes("templates.manage")],
     ["staff", "Staff", session?.user.role === "owner"],
     [
       "system",
@@ -261,6 +263,7 @@ function StaffWorkspace() {
                     enquiries: "Enquiries",
                     content: "Website content",
                     media: "Media library",
+                    templates: "Email templates",
                     staff: "Staff access",
                     system: "System administration",
                   }[section]
@@ -471,6 +474,9 @@ function StaffWorkspace() {
             section === "enquiries" && (
               <Enquiries api={api} session={session} />
             )}
+          {!state.loading && session?.user.permissions?.includes("templates.manage") && section === "templates" && (
+            <EmailTemplates api={api} session={session} onDirtyChange={setDirty} />
+          )}
           {!state.loading && session && section === "system" && (
             <SystemAdministration api={api} session={session} />
           )}

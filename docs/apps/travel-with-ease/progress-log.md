@@ -1,5 +1,51 @@
 # Travel With Ease progress log
 
+## 2026-10-31 — Drive photographs, full-width maps and initial privacy popup
+
+- Reviewed additional Kenya/Zanzibar Drive images and incorporated four optimized,
+  metadata-stripped photographs with source hashes; supplied mockup CTA retained.
+- Enlarged homepage, standalone and footer footprint maps into full-width rows.
+- Compacted footer brand/navigation/contact arrangement and spacing, preserving
+  touch targets, legal controls, photographic scene and final gutter.
+- Replaced the initial consent banner with the same accessible modal preferences
+  popup; close/Escape do not imply consent and analytics remains opt-in.
+- New release branch collects the existing unmerged TWE/required shared UI work.
+  [Scope, provenance, checks and rollback](./drive-images-map-consent-release-2026-10-31.md).
+
+## 2026-10-31 — Typography, consent and portal templates
+
+- Added self-hosted Bonheur Royale signature and Montserrat 800 headings, with licences.
+- Journey cards have one full-card link, restrained hover and reduced-motion support.
+- Privacy preferences use a native accessible dialog; footer map panel is transparent.
+- Moved the email preview out of the public demo into Owner-only Templates.
+- Added plain-text copy editing, unsent preview, draft save and explicit activation,
+  optimistic locking, audit events, additive migration 010 and restricted runtime grants.
+- Existing test-mail routing and queued delivery payloads remain unchanged.
+- Verification and operator notes: [template/brand handoff](./email-templates-and-brand-polish.md).
+
+## 2026-10-31 — Drive/R2 sync implementation
+
+- Mirrored TTNGH's configuration shape without copying its secrets or resources.
+- Added read-only configured-folder imports, immutable source revision reuse,
+  bounded downloads and re-encoding, media permission/CSRF enforcement and audit.
+- Added nullable provenance migration 009; existing media grants stay unchanged.
+- Connected CMS controls and an explicitly simulated no-network demo flow.
+- Published images now include large/responsive derivatives; contact imagery also
+  feeds the standalone footer. Original mockup CTA is unchanged.
+- Live Railway configuration/import verification remains pending; see
+  [Drive/R2 runbook](./drive-r2-sync.md).
+
+## 2026-10-30 — Correct Flyward reference interpretation
+
+- Restored the supplied mockup CTA; no captions or substitute travel-photo row.
+- Matched centred hero/navigation, photographic journey panels, staggered
+  cream process sections, journal/FAQ proportions and shared-image footer.
+- Footer stays 100% wide on entry; end-of-page scrolling reveals the light
+  gutter. No layout resizing, scroll hijacking or reduced-motion animation.
+- Six-width keyboard, touch, no-JavaScript, map/form and WCAG checks pass.
+- Kept unrelated dirty workspace edits, API publication fix and staff skeletons.
+- [Reference decisions, checks and rollback](./reference-correction-2026-10-30.md).
+
 ## 2026-10-30 — Editorial website redesign
 
 - Follow-up: shared Faako skeletons added to portal and website asynchronous states.

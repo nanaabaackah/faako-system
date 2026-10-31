@@ -1,15 +1,22 @@
 import Button from "./ActionButton.jsx";
+import "./media-library.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   InlineNotice,
   TextField,
   TextareaField,
+  SelectField,
   AnimatedLoadingState,
 } from "@faako/ui";
 
 export default function MediaLibrary({ api, session, onSelect }) {
   const [items, setItems] = useState([]);
   const [configured, setConfigured] = useState(false);
+  const [driveConfigured, setDriveConfigured] = useState(false);
+  const [driveItems, setDriveItems] = useState([]);
+  const [driveSelection, setDriveSelection] = useState("");
+  const [driveNext, setDriveNext] = useState("");
+  const [driveLoaded, setDriveLoaded] = useState(false);
   const [state, setState] = useState({ loading: true, error: "", message: "" });
   const [replacement, setReplacement] = useState("");
   const [preview, setPreview] = useState(null);
@@ -21,6 +28,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
       throw new Error("The media response was incomplete.");
     setItems(result.items);
     setConfigured(result.configured);
+    setDriveConfigured(result.driveConfigured === true);
   }, [api]);
   useEffect(() => {
     let active = true;
@@ -104,6 +112,88 @@ export default function MediaLibrary({ api, session, onSelect }) {
       setState({ loading: false, error: error.message, message: "" });
     }
   }
+  async function browseDrive(append = false) {
+    setState({ loading: true, error: "", message: "" });
+    try {
+      const token = append ? driveNext : "";
+      const result = await api.get(
+        "/api/agent/media/drive" +
+          (token ? "?pageToken=" + encodeURIComponent(token) : ""),
+        { responseMode: "data" },
+      );
+      if (!result.configured || !Array.isArray(result.items))
+        throw new Error(
+          "Google Drive import is not configured. Ask Faako to check the TWE media account and folder.",
+        );
+      setDriveItems((current) =>
+        append
+          ? [
+              ...new Map(
+                [...current, ...result.items].map((item) => [item.id, item]),
+              ).values(),
+            ]
+          : result.items,
+      );
+      setDriveNext(result.nextPageToken || "");
+      setDriveLoaded(true);
+      if (!append) setDriveSelection("");
+      setState({
+        loading: false,
+        error: "",
+        message: result.incomplete
+          ? "Drive returned an incomplete listing. Refresh before relying on missing files. Nothing was imported, deleted or published."
+          : "Drive folder refreshed. No images were imported or published.",
+      });
+    } catch (error) {
+      setState({ loading: false, error: error.message, message: "" });
+    }
+  }
+  async function importDrive(event) {
+    event.preventDefault();
+    const item = driveItems.find((value) => value.id === driveSelection);
+    if (!item) return;
+    const fields = new FormData(event.currentTarget);
+    setState({ loading: true, error: "", message: "" });
+    try {
+      const result = await api.post("/api/agent/media/drive/import", {
+        responseMode: "data",
+        headers: { "X-CSRF-Token": session.csrfToken },
+        json: {
+          fileId: item.id,
+          version: item.version,
+          alt: String(fields.get("alt")).trim(),
+          rights: String(fields.get("rights")).trim(),
+        },
+      });
+      setDriveItems((current) =>
+        current.map((value) =>
+          value.id === item.id ? { ...value, importedId: result.id } : value,
+        ),
+      );
+      try {
+        await load();
+      } catch {
+        setState({
+          loading: false,
+          error:
+            "Image imported, but the library could not refresh. Reload the library; do not import again.",
+          message: "",
+        });
+        return;
+      }
+      setState({
+        loading: false,
+        error: "",
+        message: result.demo
+          ? "Demo image selected in the simulated library. No Drive or R2 request was made; nothing was sent or published."
+          : result.unchanged
+            ? "This Drive revision is already in the private library. Select it in a draft to use it."
+            : "Drive image imported into private R2 storage. Select it in a draft, save and request publication. The live website has not changed.",
+      });
+    } catch (error) {
+      setState({ loading: false, error: error.message, message: "" });
+    }
+  }
   async function showPreview(item) {
     setState({ loading: true, error: "", message: "" });
     try {
@@ -181,13 +271,113 @@ export default function MediaLibrary({ api, session, onSelect }) {
       ) : (
         <p role="status">{state.message}</p>
       )}
-      {!state.loading && !configured && (
+      {session.demo && (
+        <p>
+          This is a simulated Drive library. No Google Drive, R2 or upload
+          connection is used in the demo.
+        </p>
+      )}
+      {!session.demo && !state.loading && !configured && (
         <p>
           Private storage is not configured. Baaba must complete the
           environment-specific R2 setup before uploads or previews are
           available.
         </p>
       )}
+      <section
+        className="workspace-panel"
+        aria-labelledby="drive-media-heading"
+      >
+        <h3 id="drive-media-heading">Google Drive → image library</h3>
+        <p>
+          Refresh the configured folder, then import a reviewed image. Updating
+          a file in Drive creates a new library revision on import; existing
+          website images stay unchanged until you select and publish the
+          replacement.
+        </p>
+        {!driveConfigured && !state.loading && (
+          <p>
+            Drive import is not configured for this environment. Direct uploads
+            remain available when R2 is configured.
+          </p>
+        )}
+        <Button
+          type="button"
+          disabled={state.loading || !driveConfigured}
+          onClick={() => browseDrive(false)}
+        >
+          Refresh Drive folder
+        </Button>
+        {driveLoaded && (
+          <form onSubmit={importDrive}>
+            <fieldset disabled={state.loading || !driveConfigured}>
+              <legend>Import from the approved folder</legend>
+              <SelectField
+                label="Drive image"
+                value={driveSelection}
+                onChange={(event) => setDriveSelection(event.target.value)}
+                options={[
+                  { value: "", label: "Choose an image" },
+                  ...driveItems.map((item) => ({
+                    value: item.id,
+                    label:
+                      item.name +
+                      (item.importedId
+                        ? " — already imported"
+                        : item.archived
+                          ? " — archived revision"
+                          : ""),
+                  })),
+                ]}
+                required
+              />
+              <TextField
+                label="Alternative text"
+                name="alt"
+                maxLength={500}
+                required
+              />
+              <TextareaField
+                label="Source and licence evidence"
+                name="rights"
+                maxLength={2000}
+                required
+              />
+              <p>
+                JPEG, PNG or WebP only, up to 8 MiB. Unsupported files and
+                subfolders are not imported. Nothing is deleted from Drive.
+                Already imported revisions retain their saved alternative text
+                and licence evidence.
+              </p>
+              <Button
+                type="submit"
+                disabled={
+                  !driveSelection ||
+                  driveItems.find((item) => item.id === driveSelection)
+                    ?.archived
+                }
+              >
+                Import selected image
+              </Button>
+            </fieldset>
+          </form>
+        )}
+        {driveLoaded && !driveItems.length && (
+          <p>
+            No supported, downloadable images were found directly inside this
+            folder.
+          </p>
+        )}
+        {driveNext && (
+          <Button
+            type="button"
+            disabled={state.loading}
+            onClick={() => browseDrive(true)}
+          >
+            Load more Drive images
+          </Button>
+        )}
+      </section>
       <form data-tour="media-upload" ref={form} onSubmit={upload}>
         <fieldset disabled={state.loading || !configured}>
           <legend>

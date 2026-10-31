@@ -5,11 +5,19 @@ import "../styles/components/cinematic-hero.css";
 interface Props {
   heading: string;
   body: string;
-  image?: { src: string; alt: string; width: number; height: number } | null;
+  image?: {
+    src: string;
+    alt: string;
+    width: number;
+    height: number;
+    sources?: { src: string; width: number }[];
+  } | null;
   demo?: boolean;
 }
 const { heading, body, image, demo = false } = Astro.props;
-const approved = photos.find((photo) => photo.country === "Kenya")!;
+const signature = /a little more you\.?/i;
+const parts = heading.split(signature);
+const approved = photos.find((photo) => photo.placement === "hero")!;
 const photo = image || { ...approved, src: approved.sources.at(-1)!.src };
 const variants = photos.find((item) =>
   item.sources.some((source) => source.src === photo.src),
@@ -25,7 +33,7 @@ const variants = photos.find((item) =>
       <img
         class="cinematic-hero__image"
         src={photo.src}
-        srcset={variants?.sources
+        srcset={(photo.sources || variants?.sources || [])
           .map((source) => `${source.src} ${source.width}w`)
           .join(", ")}
         sizes="100vw"
@@ -39,7 +47,19 @@ const variants = photos.find((item) =>
     )
   }
   <div class="cinematic-hero__copy">
-    <h1 id="hero-heading">{heading}</h1>
+    <h1 id="hero-heading">
+      {
+        signature.test(heading) ? (
+          <>
+            {parts[0]}
+            <span class="hero-signature">A Little More You</span>
+            {parts[1]}
+          </>
+        ) : (
+          heading
+        )
+      }
+    </h1>
     <p>{body}</p>
     <div class="cinematic-hero__actions">
       <ContentLink

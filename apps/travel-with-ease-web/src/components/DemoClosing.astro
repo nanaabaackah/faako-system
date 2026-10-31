@@ -1,0 +1,38 @@
+---
+import CinematicEnquiry from "./CinematicEnquiry.astro";
+import DemoEnquiry from "./DemoEnquiry.jsx";
+import ContentLink from "./ContentLink.astro";
+const { live = false, apiOrigin = "" } = Astro.props;
+---
+
+<CinematicEnquiry demo>
+  <div>
+    <h2>Try your enquiry.</h2><p>
+      {
+        live
+          ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created."
+          : "Try the local preview. Nothing is stored or submitted."
+      }
+    </p>{
+      live ? (
+        <p>
+          <>
+            <ContentLink href="https://portal-staging.travelwitheasegh.com/demo">
+              Explore the staging staff portal demo
+            </ContentLink>
+            <small>
+              Cloudflare Access required. The portal demo uses simulated
+              records; real staging test enquiries are available only in the
+              authenticated staff CMS.
+            </small>
+          </>
+        </p>
+      ) : (
+        <p>
+          Staff dashboard preview is available separately in local development.
+        </p>
+      )
+    }
+  </div>
+  <DemoEnquiry live={live} apiOrigin={apiOrigin} client:load />
+</CinematicEnquiry>

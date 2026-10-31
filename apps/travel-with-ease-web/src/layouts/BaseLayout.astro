@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import "../styles/editorial.css";
+import "../styles/typography.css";
 import PublicFooter from "../components/PublicFooter.astro";
 import ContentLink from "../components/ContentLink.astro";
 import EditorialMotion from "../components/EditorialMotion.astro";
@@ -109,7 +110,9 @@ const navigation = demo
       ["/journal", "Journal"],
       ["/travel-footprint", "Travel footprint"],
     ];
-if (cinematic && !demo) navigation.push(["#our-world", "Our world"]);
+if (cinematic && !demo) {
+  navigation.splice(4, 1, ["#our-world", "Our world"]);
+}
 ---
 
 <!doctype html>
@@ -190,22 +193,24 @@ if (cinematic && !demo) navigation.push(["#our-world", "Our world"]);
         aria-controls="primary-navigation">Menu</button
       >
       <nav id="primary-navigation" aria-label="Primary navigation">
-        {
-          navigation
-            .filter(([href]) => visible(href))
-            .map(([href, label]) => (
-              <a
-                href={href}
-                aria-current={
-                  Astro.url.pathname.replace(/\/$/, "") === href
-                    ? "page"
-                    : undefined
-                }
-              >
-                {label}
-              </a>
-            ))
-        }
+        <div class="header-links">
+          {
+            navigation
+              .filter(([href]) => visible(href))
+              .map(([href, label]) => (
+                <a
+                  href={href}
+                  aria-current={
+                    Astro.url.pathname.replace(/\/$/, "") === href
+                      ? "page"
+                      : undefined
+                  }
+                >
+                  {label}
+                </a>
+              ))
+          }
+        </div>
         {
           (cinematic || visible("/contact")) && (
             <ContentLink
@@ -243,7 +248,8 @@ if (cinematic && !demo) navigation.push(["#our-world", "Our world"]);
       )
     }
     <main id="main-content"><slot /></main>
-    <PublicFooter demo={demo} />
+    <slot name="closing" />
+    {!cinematic && <PublicFooter demo={demo} />}
     <FloatingActions />
     <EditorialMotion />
     <CookieNotice demo={demo} />

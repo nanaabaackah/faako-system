@@ -1,5 +1,30 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-31 — Brand typography and email template management
+
+Self-host the requested fonts; refine full-card interactions and privacy popup;
+remove the footer footprint panel; move email preview into Owner-only Templates
+with audited versioned draft/activation and migration 010. Preserve email routing,
+queued-payload immutability and local no-send demo behaviour. See
+[implementation and deployment notes](./email-templates-and-brand-polish.md).
+
+## 2026-10-31 — Controlled Drive/R2 media sync
+
+Add TTNGH-style server-only JSON configuration, bounded approved-folder browsing
+and on-demand immutable image imports, provenance migration 009, CMS selection,
+responsive publication assets and a no-network demo. Keep live activation pending
+authorised Railway credentials, folder sharing and staging verification.
+See [configuration, security decisions and rollback](./drive-r2-sync.md).
+
+## 2026-10-30 — Reference correction
+
+Restore the user's five-mockup CTA, align the full homepage's editorial treatment
+with the actual Flyward source, and share one photo through enquiry/footer.
+The footer remains full-width until the page-end gutter reveal.
+See [decisions and verification](./reference-correction-2026-10-30.md).
+This supersedes the photo-collage/light-footer description below; it does not
+complete unapproved content, hosted portal UAT or production API remediation.
+
 ## 2026-10-30 — Editorial website redesign
 
 Shared cinematic hero, cream interactive map, original photo CTA and light footer

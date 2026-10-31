@@ -3,10 +3,16 @@ import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
 import TravelFootprint from "./TravelFootprint.astro";
 import ContentLink from "./ContentLink.astro";
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
-const { demo = false } = Astro.props;
+import photos from "../lib/approved-preview-media.json";
+const { demo = false, cinematic = false } = Astro.props;
+const footerPhoto = photos.find((photo) => photo.placement === "closing")!;
 const visible = (slug: string) =>
   demo || !publicationSnapshotPath() || Boolean(publishedPage(slug));
 const contact = demo ? null : publishedPage("contact");
+const closingPhoto = contact?.image || {
+  ...footerPhoto,
+  src: footerPhoto.sources.at(-1)!.src,
+};
 const email =
   contact?.contactEmail &&
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.contactEmail)
@@ -18,7 +24,33 @@ const phone =
     : "+233200209170";
 ---
 
-<footer class="twe-public-footer">
+<footer
+  class:list={[
+    "twe-public-footer",
+    "twe-public-footer--cinematic",
+    { "twe-public-footer--standalone": !cinematic },
+  ]}
+>
+  {
+    !cinematic && (
+      <img
+        class="footer-scene-image"
+        src={closingPhoto.src}
+        srcset={(closingPhoto.sources || [])
+          .map(
+            (source: { src: string; width: number }) =>
+              `${source.src} ${source.width}w`,
+          )
+          .join(", ")}
+        sizes="100vw"
+        alt=""
+        width={closingPhoto.width}
+        height={closingPhoto.height}
+        loading="lazy"
+        decoding="async"
+      />
+    )
+  }
   <div class="footer-top">
     <div class="footer-brand-block">
       <a
@@ -105,7 +137,6 @@ const phone =
     </nav>
   </div>
   <SharedFaakoFooter />
-  <div class="footer-clearing" aria-hidden="true"></div>
   <p class="footer-signature" aria-label="Travel With Ease">TRAVEL WITH EASE</p>
 </footer>
 <style>

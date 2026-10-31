@@ -11,7 +11,7 @@ test("review home contains discovery, shared footer and honest placeholder bound
   assert.match(html, /data-cookie-settings/);
   assert.match(html, /Design preview/);
   assert.match(html, /cinematic-hero__image/);
-  assert.match(html, /Blue and white boats moored beside a lake/);
+  assert.match(html, /Pelicans lifting from the water of a lake in Kenya/);
   assert.match(html, /Online enquiry forms are not available yet/);
   assert.match(html, /TRAVEL WITH EASE/);
   assert.match(html, /href="#plan"/);

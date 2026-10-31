@@ -3,6 +3,45 @@
   // Astro content is visible before hydration and when scripting is unavailable.
   const reduce = matchMedia("(prefers-reduced-motion: reduce)");
   const animations = new Set<Animation>();
+  // The photograph stays full-bleed until its footer reaches the page end.
+  // This only reads scroll geometry; it never intercepts scrolling or focus.
+  const footer = document.querySelector<HTMLElement>(
+    ".twe-public-footer--cinematic",
+  );
+  if (footer) {
+    let frame = 0;
+    const updateGutter = () => {
+      frame = 0;
+      const distance = Math.max(
+        0,
+        document.documentElement.scrollHeight - innerHeight - scrollY,
+      );
+      const progress = reduce.matches
+        ? 0
+        : Math.max(0, Math.min(1, 1 - distance / 180));
+      footer.style.setProperty("--footer-progress", String(progress));
+    };
+    const scheduleGutter = () => {
+      if (!frame) frame = requestAnimationFrame(updateGutter);
+    };
+    updateGutter();
+    addEventListener("scroll", scheduleGutter, { passive: true });
+    addEventListener("resize", scheduleGutter);
+    reduce.addEventListener("change", scheduleGutter);
+    const resize = new ResizeObserver(scheduleGutter);
+    resize.observe(document.body);
+    addEventListener(
+      "pagehide",
+      () => {
+        removeEventListener("scroll", scheduleGutter);
+        removeEventListener("resize", scheduleGutter);
+        reduce.removeEventListener("change", scheduleGutter);
+        resize.disconnect();
+        cancelAnimationFrame(frame);
+      },
+      { once: true },
+    );
+  }
   if ("IntersectionObserver" in window && !reduce.matches) {
     const observer = new IntersectionObserver(
       (entries) => {
