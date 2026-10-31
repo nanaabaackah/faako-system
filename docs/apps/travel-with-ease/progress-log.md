@@ -1,5 +1,14 @@
 # Travel With Ease progress log
 
+## 2026-10-31 — Public brand cleanup and email-type selector
+
+- Removed private business identifiers and street address from public/demo copy,
+  review drafts, source summary and email branding; contact channels retained.
+- Added Faako email-type dropdown with independent enquiry and staff-invitation
+  drafts, previews and approval. Invitation delivery/activation remains unchanged.
+- Added additive migration 011, endpoint compatibility and type/tenant/permission
+  tests. See [scope, checks and operator caveats](./public-brand-and-template-options-2026-10-31.md).
+
 ## 2026-10-31 — Drive photographs, full-width maps and initial privacy popup
 
 - Reviewed additional Kenya/Zanzibar Drive images and incorporated four optimized,

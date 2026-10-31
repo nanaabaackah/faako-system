@@ -4,14 +4,20 @@ import {
   InlineNotice,
   TextField,
   TextareaField,
+  SelectField,
 } from "@faako/ui";
 import Button from "./ActionButton.jsx";
 import logo from "../../travel-with-ease-web/public/brand/Primary gold.png";
 import instagram from "../../travel-with-ease-web/public/brand/social/instagram.png";
 import tiktok from "../../travel-with-ease-web/public/brand/social/tiktok.png";
 import "./email-templates.css";
+import { emailTemplateOptions } from "../../travel-with-ease-api/src/notifications/template-catalogue.js";
 
 export default function EmailTemplates({ api, session, onDirtyChange }) {
+  const [slug, setSlug] = useState("enquiry-acknowledgement");
+  const definition = emailTemplateOptions.find(
+    (option) => option.slug === slug,
+  );
   const [record, setRecord] = useState(null);
   const [copy, setCopy] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -23,13 +29,18 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
   // absolute public asset URLs for email-client compatibility.
   const previewHtml = preview?.html
     .replaceAll("https://travelwitheasegh.com/brand/Primary%20gold.png", logo)
-    .replaceAll("https://travelwitheasegh.com/brand/social/instagram.png", instagram)
+    .replaceAll(
+      "https://travelwitheasegh.com/brand/social/instagram.png",
+      instagram,
+    )
     .replaceAll("https://travelwitheasegh.com/brand/social/tiktok.png", tiktok);
   const headers = { "X-CSRF-Token": session.csrfToken };
   useEffect(() => {
     let current = true;
+    setRecord(null);
+    setCopy(null);
     api
-      .get("/api/agent/templates", { responseMode: "data" })
+      .get(`/api/agent/templates/${slug}`, { responseMode: "data" })
       .then((result) => {
         if (current) {
           setRecord(result);
@@ -42,7 +53,16 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
     return () => {
       current = false;
     };
-  }, [api]);
+  }, [api, slug]);
+  function changeTemplate(event) {
+    if (dirty && !window.confirm("Discard unsaved template changes?")) return;
+    setDirty(false);
+    onDirtyChange(false);
+    setPreview(null);
+    setError("");
+    setNotice("");
+    setSlug(event.target.value);
+  }
   function edit(field, value) {
     setCopy((previous) => ({ ...previous, [field]: value }));
     setDirty(true);
@@ -55,7 +75,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
     setError("");
     setNotice("");
     try {
-      const result = await api.post(`/api/agent/templates/${kind}`, {
+      const result = await api.post(`/api/agent/templates/${slug}/${kind}`, {
         headers,
         responseMode: "data",
         json:
@@ -78,7 +98,9 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
             ? "Demo template updated in this tab only. Nothing was sent or activated on the server."
             : kind === "draft"
               ? "Draft saved. Outgoing emails have not changed."
-              : "Template activated for newly prepared enquiry emails. Existing queued email payloads are unchanged.",
+              : definition.automated
+                ? "Template activated for newly prepared enquiry emails. Existing queued email payloads are unchanged."
+                : "Invitation template approved and saved. No invitations were created or sent. Share activation codes through the existing Staff access process.",
         );
       }
     } catch (error) {
@@ -90,15 +112,28 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
   return (
     <div className="email-templates">
       <section className="template-intro">
-        <h2>Enquiry acknowledgement</h2>
+        <SelectField
+          label="Email type"
+          value={slug}
+          disabled={busy}
+          onChange={changeTemplate}
+        >
+          {emailTemplateOptions.map((option) => (
+            <option key={option.slug} value={option.slug}>
+              {option.label}
+            </option>
+          ))}
+        </SelectField>
+        <h2>{definition.label}</h2>
         <p>
-          Edit the message travellers receive after submitting an enquiry.
-          Preview and save a draft before making it active.
+          {definition.description}{" "}
+          {definition.automated
+            ? "Preview and save a draft before making it active."
+            : "Preview and save a draft before approving the copy."}
         </p>
         <p>
-          Company details, logo, social links, automatic-send notice and
-          delivery recipients remain protected. This module does not send test
-          emails.
+          Brand contacts, logo, social links, automatic-send notice and delivery
+          recipients remain protected. This module does not send test emails.
         </p>
       </section>
       {error && (
@@ -127,8 +162,10 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
             <p>
               Draft revision {record.version} ·{" "}
               {record.active_version == null
-                ? "Default template active"
-                : `Active revision ${record.active_version}`}
+                ? definition.automated
+                  ? "Default template active"
+                  : "Default invitation copy"
+                : `${definition.automated ? "Active" : "Approved"} revision ${record.active_version}`}
             </p>
             <TextField
               label="Subject"
@@ -178,13 +215,17 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
                 onClick={() => {
                   if (
                     window.confirm(
-                      "Activate this saved template for new enquiry emails? No email will be sent now.",
+                      definition.automated
+                        ? "Activate this saved template for new enquiry emails? No email will be sent now."
+                        : "Approve this saved invitation copy? No invitation will be created or sent, and activation requirements are unchanged.",
                     )
                   )
                     action("activate");
                 }}
               >
-                Activate saved template
+                {definition.automated
+                  ? "Activate saved template"
+                  : "Approve saved template"}
               </Button>
             </div>
           </form>
@@ -197,10 +238,10 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
               <>
                 <p>Subject: {preview.subject}</p>
                 <iframe
-                  title="Enquiry acknowledgement preview"
+                  title={`${definition.label} preview`}
                   sandbox=""
                   referrerPolicy="no-referrer"
-                srcDoc={previewHtml}
+                  srcDoc={previewHtml}
                 />
               </>
             ) : (

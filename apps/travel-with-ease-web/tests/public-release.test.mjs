@@ -41,6 +41,7 @@ test("production build publishes approved content without preview copy or unpubl
   });
   const home = readFileSync(path.join(output, "index.html"), "utf8");
   assert.match(home, /A little further/);
+  assert.doesNotMatch(home, /business registration|BN\d{6,}|House no\s+\d|TWE\s+Concierge/i);
   assert.match(home, /name="robots" content="index, follow"/);
   assert.doesNotMatch(home, /Design preview|placeholder/i);
   const header = home.match(/<header[\s\S]*?<\/header>/)?.[0];
@@ -79,6 +80,7 @@ test("staging demo builds an interactive noindex page while the approved homepag
   const demo = readFileSync(path.join(output, "demo", "index.html"), "utf8");
   const home = readFileSync(path.join(output, "index.html"), "utf8");
   assert.match(demo, /Staging website demo/);
+  assert.doesNotMatch(demo, /business registration|BN\d{6,}|House no\s+\d|TWE\s+Concierge/i);
   assert.match(demo, /Sample package enquiry|Sample personalised enquiry|sample enquiry/i);
   assert.match(demo, /staging test inbox/i);
   assert.match(demo, /noindex, nofollow/);

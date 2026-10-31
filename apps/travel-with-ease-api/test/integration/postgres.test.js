@@ -18,7 +18,7 @@ import { Administration } from "../../src/auth/administration.js";
 import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
-import { defaultEnquiryCopy } from "../../src/notifications/enquiry-template.js";
+import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
 
 test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outbox writes", async (context) => {
   // Fail rather than silently skip: test:db is a required, explicit CI job.
@@ -275,6 +275,16 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       const copy = { ...defaultEnquiryCopy, heading: "Reviewed acknowledgement" };
       await templates.change(owner, "template-draft", 0, copy);
       assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+      const invitationCopy = { ...defaultInvitationCopy, heading: "Reviewed staff invitation" };
+      await templates.change(owner, "invitation-template-draft", 0, invitationCopy, false, "staff-invitation");
+      assert.deepEqual(await templates.activeCopy("staff-invitation"), defaultInvitationCopy);
+      await templates.change(owner, "invitation-template-approved", 1, null, true, "staff-invitation");
+      assert.deepEqual(await new EmailTemplates(runtimePool, organisationId).activeCopy("staff-invitation"), invitationCopy);
+      assert.deepEqual(await new EmailTemplates(runtimePool, otherOrg).activeCopy("staff-invitation"), defaultInvitationCopy);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy, "Invitation approval must not change enquiry copy");
+      await assert.rejects(templates.change({ ...owner, role: "editor" }, "invitation-denied", 2, invitationCopy, false, "staff-invitation"), { status: 403 });
+      const invitationAudits = await query("SELECT action FROM twe.audit_records WHERE organisation_id=$1 AND action IN ('email_template.staff_invitation.saved','email_template.staff_invitation.approved')", [organisationId]);
+      assert.equal(invitationAudits.rows.length, 2);
       await assert.rejects(templates.change(owner, "template-stale", 0, copy), { status: 409 });
       await templates.change(owner, "template-active", 1, null, true);
       assert.deepEqual(await new EmailTemplates(runtimePool, organisationId).activeCopy(), copy);
