@@ -15,8 +15,11 @@ const sources = photos.find((item) =>
   <img
     class="closing-scene__image"
     src={photo.src}
-    srcset={sources?.sources
-      .map((source) => `${source.src} ${source.width}w`)
+    srcset={(photo.sources || sources?.sources || [])
+      .map(
+        (source: { src: string; width: number }) =>
+          `${source.src} ${source.width}w`,
+      )
       .join(", ")}
     sizes="100vw"
     alt=""

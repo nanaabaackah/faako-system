@@ -1,5 +1,13 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-31 — Controlled Drive/R2 media sync
+
+Add TTNGH-style server-only JSON configuration, bounded approved-folder browsing
+and on-demand immutable image imports, provenance migration 009, CMS selection,
+responsive publication assets and a no-network demo. Keep live activation pending
+authorised Railway credentials, folder sharing and staging verification.
+See [configuration, security decisions and rollback](./drive-r2-sync.md).
+
 ## 2026-10-30 — Reference correction
 
 Restore the user's five-mockup CTA, align the full homepage's editorial treatment

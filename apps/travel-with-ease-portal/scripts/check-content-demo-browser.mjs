@@ -87,6 +87,75 @@ try {
       path: path.join(output, `policy-${width}.png`),
       fullPage: true,
     });
+    page.once("dialog", async (dialog) => {
+      assert.equal(dialog.message(), "Discard unsaved changes?");
+      await dialog.accept();
+    });
+    await page
+      .getByRole("button", { name: "Media", exact: true })
+      .first()
+      .click();
+    await page
+      .getByRole("button", { name: "Refresh Drive folder", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Drive image", exact: true })
+      .click();
+    await page
+      .getByRole("option", {
+        name: "Demo photo — no Drive connection",
+        exact: true,
+      })
+      .click();
+    const driveForm = page.getByRole("group", {
+      name: "Import from the approved folder",
+      exact: true,
+    });
+    await driveForm
+      .getByLabel(/^Alternative text/)
+      .fill("Drive interface fixture");
+    await driveForm
+      .getByLabel(/^Source and licence evidence/)
+      .fill("Synthetic browser fixture");
+    await driveForm
+      .getByRole("button", { name: "Import selected image", exact: true })
+      .click();
+    await page
+      .getByText(
+        "Demo image selected in the simulated library. No Drive or R2 request was made; nothing was sent or published.",
+        { exact: true },
+      )
+      .waitFor();
+    const notifications = page.getByRole("button", {
+      name: "Dismiss notification",
+      exact: true,
+    });
+    while (await notifications.count()) await notifications.first().click();
+    await page.screenshot({
+      path: path.join(output, `drive-media-${width}.png`),
+      fullPage: true,
+    });
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+      true,
+    );
+    await page
+      .getByRole("button", { name: "Content", exact: true })
+      .first()
+      .click();
+    await select("home");
+    await page
+      .getByRole("button", { name: "Choose image", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Use Drive interface fixture", exact: true })
+      .click();
+    await page
+      .getByText(/Selected image: 20000000-0000-4000-8000-000000000001/)
+      .waitFor();
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
     assert.deepEqual(
       requests,
       [],

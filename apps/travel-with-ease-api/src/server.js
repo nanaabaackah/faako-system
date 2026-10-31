@@ -25,6 +25,7 @@ import { ContentRepository } from "./content/repository.js";
 import { PublicationRepository } from "./content/publication.js";
 import { MediaService } from "./media/service.js";
 import { readR2Config, R2Store } from "./media/r2.js";
+import { readDriveConfig, DriveReader } from "./media/drive.js";
 import { prepareHostedStartup } from "./staging-startup.js";
 import { readHostedPrerequisites, readinessFailureCode } from "./portal/readiness.js";
 
@@ -81,7 +82,15 @@ const contentRepository = pool ? new ContentRepository(pool, process.env.TWE_ORG
 const publicationRepository = pool ? new PublicationRepository(pool, { organisationId: process.env.TWE_ORGANISATION_ID, environment, sourceSha: process.env.TWE_RELEASE_SHA }) : null;
 const mediaSettings = readR2Config();
 if (mediaSettings && !pool) throw new Error("Media storage requires PostgreSQL.");
-const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger) : null;
+let driveReader = null;
+try {
+  const settings = readDriveConfig();
+  if (settings && pool && mediaSettings) driveReader = new DriveReader(settings);
+} catch {
+  // Optional media integration must not take staff login or enquiries offline.
+  logger.warn({ eventName: "media.drive_configuration_invalid" }, "Google Drive media import is unavailable; review its server-only configuration.");
+}
+const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger, driveReader) : null;
 const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
   portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist,
     stagingDemoEnabled: environment === "staging" && process.env.TWE_STAGING_PORTAL_DEMO_ENABLED === "true" } : null,

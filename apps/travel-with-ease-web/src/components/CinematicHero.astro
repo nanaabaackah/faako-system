@@ -5,7 +5,13 @@ import "../styles/components/cinematic-hero.css";
 interface Props {
   heading: string;
   body: string;
-  image?: { src: string; alt: string; width: number; height: number } | null;
+  image?: {
+    src: string;
+    alt: string;
+    width: number;
+    height: number;
+    sources?: { src: string; width: number }[];
+  } | null;
   demo?: boolean;
 }
 const { heading, body, image, demo = false } = Astro.props;
@@ -25,7 +31,7 @@ const variants = photos.find((item) =>
       <img
         class="cinematic-hero__image"
         src={photo.src}
-        srcset={variants?.sources
+        srcset={(photo.sources || variants?.sources || [])
           .map((source) => `${source.src} ${source.width}w`)
           .join(", ")}
         sizes="100vw"

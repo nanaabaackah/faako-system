@@ -1,5 +1,7 @@
 # Travel With Ease documentation
 
+Media configuration and image changes: [Drive → private R2 → publication](./drive-r2-sync.md).
+
 Latest visual work: [Flyward reference correction — 2026-10-30](./reference-correction-2026-10-30.md).
 Earlier implementation/release gates: [editorial redesign](./editorial-redesign-2026-10-30.md).
 

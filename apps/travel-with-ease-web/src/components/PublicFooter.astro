@@ -9,6 +9,10 @@ const footerPhoto = photos.find((photo) => photo.country === "Zanzibar")!;
 const visible = (slug: string) =>
   demo || !publicationSnapshotPath() || Boolean(publishedPage(slug));
 const contact = demo ? null : publishedPage("contact");
+const closingPhoto = contact?.image || {
+  ...footerPhoto,
+  src: footerPhoto.sources.at(-1)!.src,
+};
 const email =
   contact?.contactEmail &&
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.contactEmail)
@@ -31,14 +35,17 @@ const phone =
     !cinematic && (
       <img
         class="footer-scene-image"
-        src={footerPhoto.sources.at(-1)!.src}
-        srcset={footerPhoto.sources
-          .map((source) => `${source.src} ${source.width}w`)
+        src={closingPhoto.src}
+        srcset={(closingPhoto.sources || [])
+          .map(
+            (source: { src: string; width: number }) =>
+              `${source.src} ${source.width}w`,
+          )
           .join(", ")}
         sizes="100vw"
         alt=""
-        width={footerPhoto.width}
-        height={footerPhoto.height}
+        width={closingPhoto.width}
+        height={closingPhoto.height}
         loading="lazy"
         decoding="async"
       />

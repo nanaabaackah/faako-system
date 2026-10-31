@@ -1,5 +1,17 @@
 # Travel With Ease progress log
 
+## 2026-10-31 — Drive/R2 sync implementation
+
+- Mirrored TTNGH's configuration shape without copying its secrets or resources.
+- Added read-only configured-folder imports, immutable source revision reuse,
+  bounded downloads and re-encoding, media permission/CSRF enforcement and audit.
+- Added nullable provenance migration 009; existing media grants stay unchanged.
+- Connected CMS controls and an explicitly simulated no-network demo flow.
+- Published images now include large/responsive derivatives; contact imagery also
+  feeds the standalone footer. Original mockup CTA is unchanged.
+- Live Railway configuration/import verification remains pending; see
+  [Drive/R2 runbook](./drive-r2-sync.md).
+
 ## 2026-10-30 — Correct Flyward reference interpretation
 
 - Restored the supplied mockup CTA; no captions or substitute travel-photo row.

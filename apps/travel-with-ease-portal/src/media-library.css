@@ -1,0 +1,18 @@
+/* Long Drive filenames must shrink inside the existing mobile workspace. */
+.media-workspace form,
+.media-workspace .ui-field,
+.media-workspace .ui-dropdown-field,
+.media-workspace .ui-dropdown-field__shell {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.portal-shell .media-workspace fieldset {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.media-workspace .workspace-panel p,
+.media-workspace > p {
+  font-size: 14px;
+  line-height: 1.7;
+}

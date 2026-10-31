@@ -2,6 +2,21 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createDemoClient, demoEnabled } from "../src/demo.js";
 
+test("Drive demo imports once into an in-memory library and never connects to Google/R2", async () => {
+  const api = createDemoClient();
+  const folder = await api.get("/api/agent/media/drive");
+  assert.equal(folder.items.length, 1);
+  const input = { fileId: folder.items[0].id, version: "1", alt: "Synthetic photo", rights: "Generated demo fixture" };
+  const first = await api.post("/api/agent/media/drive/import", { json: input });
+  assert.equal(first.demo, true);
+  assert.equal(first.unchanged, false);
+  const repeat = await api.post("/api/agent/media/drive/import", { json: input });
+  assert.equal(repeat.id, first.id);
+  assert.equal(repeat.unchanged, true);
+  assert.equal((await api.get("/api/agent/media")).items.length, 1);
+  assert.equal((await createDemoClient().get("/api/agent/media")).items.length, 0);
+});
+
 test("demo requires development permission, loopback host and explicit opt-in", () => {
   assert.equal(demoEnabled({ allowed: true, hostname: "localhost", search: "?demo=1" }), true);
   for (const hostname of ["portal-staging.travelwitheasegh.com", "192.168.1.2", "localhost.attacker.invalid"]) {

@@ -11,7 +11,13 @@ interface Props {
     contactEmail: string;
     contactPhone: string;
     entries: { heading: string; text: string; attribution: string }[];
-    image: { src: string; alt: string; width: number; height: number } | null;
+    image: {
+      src: string;
+      alt: string;
+      width: number;
+      height: number;
+      sources?: { src: string; width: number }[];
+    } | null;
   } | null;
 }
 const { content, accordion = false } = Astro.props;
@@ -25,6 +31,13 @@ const { content, accordion = false } = Astro.props;
         {content.image && (
           <img
             src={content.image.src}
+            srcset={content.image.sources
+              ?.map(
+                (source: { src: string; width: number }) =>
+                  `${source.src} ${source.width}w`,
+              )
+              .join(", ")}
+            sizes="(max-width: 760px) 90vw, 1200px"
             alt={content.image.alt}
             width={content.image.width}
             height={content.image.height}

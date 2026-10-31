@@ -50,7 +50,7 @@ test("database identity refuses environment and organisation mismatch", async ()
 
 test("migration inventory is deterministic and excludes historical CRM SQL", async () => {
   const files = await readMigrations();
-  assert.deepEqual(files.map((file) => file.name), ["001_foundation.sql", "002_auth_flows.sql", "003_notification_delivery.sql", "004_publication_lifecycle.sql", "005_login_preference.sql", "006_access_roles.sql", "007_tutorial_progress.sql", "008_staff_invitations.sql"]);
+  assert.deepEqual(files.map((file) => file.name), ["001_foundation.sql", "002_auth_flows.sql", "003_notification_delivery.sql", "004_publication_lifecycle.sql", "005_login_preference.sql", "006_access_roles.sql", "007_tutorial_progress.sql", "008_staff_invitations.sql", "009_drive_media_source.sql"]);
   assert.match(files[0].checksum, /^[a-f0-9]{64}$/);
   assert.deepEqual(await readMigrations(), files);
 });

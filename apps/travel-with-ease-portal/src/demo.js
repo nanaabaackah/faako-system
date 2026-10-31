@@ -32,6 +32,7 @@ export function createDemoClient() {
     "support.approve",
   ];
   const session = {
+    demo: true,
     user: { id: "demo-owner", role: "owner", permissions },
     csrfToken: "synthetic-not-a-credential",
   };
@@ -69,6 +70,7 @@ export function createDemoClient() {
   ];
   const pages = new Map();
   const history = new Map();
+  const demoMedia = [];
   let signedIn = true;
   const fail = (status, message) => {
     throw Object.assign(new Error(message), { status });
@@ -135,7 +137,27 @@ export function createDemoClient() {
           ) || fail(404, "Demo enquiry not found.")
         );
       if (url.pathname === "/api/agent/media")
-        return { items: [], configured: false };
+        return copy({
+          items: demoMedia,
+          configured: false,
+          driveConfigured: true,
+        });
+      if (url.pathname === "/api/agent/media/drive")
+        return copy({
+          configured: true,
+          nextPageToken: "",
+          items: [
+            {
+              id: "synthetic_drive_photo",
+              name: "Demo photo — no Drive connection",
+              mimeType: "image/webp",
+              size: 1024,
+              version: "1",
+              importedId: demoMedia[0]?.id || null,
+              archived: false,
+            },
+          ],
+        });
       if (url.pathname === "/api/agent/administration/staff")
         return { items: [{ id: "demo-editor", role: "editor", active: true }] };
       if (url.pathname === "/api/agent/content/publication-jobs")
@@ -171,6 +193,30 @@ export function createDemoClient() {
         return { signedOut: true };
       }
       if (!signedIn) return fail(401, "Demo signed out.");
+      if (path === "/api/agent/media/drive/import") {
+        if (
+          json?.fileId !== "synthetic_drive_photo" ||
+          json?.version !== "1" ||
+          !json?.alt?.trim() ||
+          !json?.rights?.trim()
+        )
+          return fail(
+            400,
+            "Choose the synthetic image and complete its alt text and source details.",
+          );
+        const unchanged = demoMedia.length > 0;
+        if (!unchanged)
+          demoMedia.push({
+            id: "20000000-0000-4000-8000-000000000001",
+            alt_text: json.alt,
+            rights: json.rights,
+            width: 1280,
+            height: 720,
+            byte_size: 1024,
+            created_at: timestamp,
+          });
+        return { id: demoMedia[0].id, unchanged, demo: true };
+      }
       const enquiry = path.match(/^\/api\/agent\/inquiries\/([^/]+)\/status$/);
       if (enquiry) {
         const item = enquiries.find((value) => value.id === enquiry[1]);
