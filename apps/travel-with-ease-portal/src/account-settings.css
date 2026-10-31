@@ -1,0 +1,47 @@
+.account-workspace {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.account-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: clamp(20px, 3vw, 32px);
+  border-radius: 8px;
+  background: #010c33;
+  color: #f4ede3;
+}
+.account-summary__icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border: 1px solid #d8b56a;
+  border-radius: 8px;
+  color: #d8b56a;
+}
+.account-summary__icon svg { width: 28px; height: 28px; }
+.account-summary > div { flex: 1; min-width: 0; }
+.account-summary h3 { margin: 0 0 8px; font-size: 20px; }
+.account-summary p { margin: 0; color: #f4ede3; font-size: 13px; }
+.account-role { text-transform: capitalize; }
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.account-details { margin: 0; }
+.account-details > div { padding: 16px 0; border-bottom: 1px solid #e0e5ed; }
+.account-details > div:last-child { border-bottom: 0; }
+.account-details dt { margin-bottom: 8px; color: #606a7b; font-size: 13px; }
+.account-details dd { margin: 0; color: #010c33; overflow-wrap: anywhere; line-height: 1.6; }
+.account-security p, .account-guidance p { line-height: 1.7; }
+.account-security .ui-button { margin-top: 12px; }
+.account-guidance { border-top: 1px solid #d7d3cd; padding-top: 20px; }
+.account-guidance h3 { margin: 0 0 12px; font-size: 18px; }
+@media (max-width: 900px) {
+  .account-grid { grid-template-columns: minmax(0, 1fr); }
+}

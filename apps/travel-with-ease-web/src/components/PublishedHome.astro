@@ -4,6 +4,7 @@ import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import Accordion from "./Accordion.astro";
 import CinematicHero from "./CinematicHero.astro";
+import photography from "../lib/assigned-photography.json";
 import { publishedPage } from "../lib/published.js";
 import photos from "../lib/approved-preview-media.json";
 const { content } = Astro.props;
@@ -113,20 +114,43 @@ const faqs = publishedPage("faqs");
         </>
       </div>
       <ol class="editorial-process">
-        <>
+        {[
+          {
+            heading: "Tell us what you have in mind",
+            text: "Explore the journey that fits your travel plans.",
+            photo: photography.howItWorks[0],
+          },
+          {
+            heading: "Talk through the details",
+            text: "Dates, preferences and practical questions.",
+            photo: photography.howItWorks[1],
+          },
+          {
+            heading: "Review your options",
+            text: "Confirm details directly with the agency. An enquiry is not a booking.",
+            photo: null,
+          },
+        ].map((step) => (
           <li>
-            <strong>Tell us what you have in mind</strong>Explore the journey
-            that fits your travel plans.
+            {step.photo && (
+              <img
+                class="how-it-works-photo"
+                src={step.photo.src}
+                srcset={step.photo.sources
+                  .map((source) => `${source.src} ${source.width}w`)
+                  .join(", ")}
+                sizes="(max-width: 760px) 85vw, 43vw"
+                width={step.photo.width}
+                height={step.photo.height}
+                alt={step.photo.alt}
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+            <strong>{step.heading}</strong>
+            {step.text}
           </li>
-          <li>
-            <strong>Talk through the details</strong>Dates, preferences and
-            practical questions.
-          </li>
-          <li>
-            <strong>Review your options</strong>Confirm details directly with
-            the agency. An enquiry is not a booking.
-          </li>
-        </>
+        ))}
       </ol>
     </section>
   )

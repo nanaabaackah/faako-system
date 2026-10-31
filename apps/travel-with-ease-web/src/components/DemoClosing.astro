@@ -6,8 +6,8 @@ const { live = false, apiOrigin = "" } = Astro.props;
 ---
 
 <CinematicEnquiry demo>
-  <div>
-    <h2>Try your enquiry.</h2><p>
+  <div slot="intro">
+    <p>
       {
         live
           ? "Try a real staging test enquiry. Questions and contact details are saved to the staging Traveller inbox, but no booking, payment, or automatic notification is created."

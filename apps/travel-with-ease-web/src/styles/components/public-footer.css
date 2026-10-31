@@ -112,6 +112,8 @@
   border-radius: 99px;
 }
 .footer-signature {
+  color: var(--footer-gutter-color, var(--brand-cream));
+  opacity: 1;
   font:
     400 clamp(1.6rem, 7.6vw, 10rem) / 1 Georgia,
     serif;
@@ -121,24 +123,36 @@
   text-align: center;
 }
 .twe-public-footer--cinematic {
-  --footer-gutter: clamp(8px, 1vw, 18px);
+  --footer-gutter: clamp(10px, 2vw, 20px);
+  --footer-gutter-color: var(--brand-cream);
+  isolation: isolate;
   background: transparent;
   color: var(--brand-cream);
   border: 0 solid var(--brand-cream);
   /* Inset an overlay rather than resizing the footer: no scroll-height feedback. */
   box-shadow:
     inset calc(var(--footer-gutter) * var(--footer-progress, 0)) 0
-      var(--brand-cream),
+      var(--footer-gutter-color),
     inset calc(-1 * var(--footer-gutter) * var(--footer-progress, 0)) 0
-      var(--brand-cream),
+      var(--footer-gutter-color),
+    inset 0 calc(var(--footer-gutter) * var(--footer-progress, 0))
+      var(--footer-gutter-color),
     inset 0 calc(-1 * var(--footer-gutter) * var(--footer-progress, 0))
-      var(--brand-cream);
+      var(--footer-gutter-color);
   padding: clamp(2rem, 4vw, 3rem) clamp(16px, 3vw, 48px) 0;
 }
 .twe-public-footer--cinematic .footer-top {
   grid-template-columns: 0.8fr 2fr;
   align-items: start;
   gap: clamp(20px, 3vw, 40px);
+}
+.twe-public-footer--cinematic::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: inherit;
 }
 .twe-public-footer--standalone {
   isolation: isolate;
@@ -151,6 +165,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: 50% 60%;
 }
 .twe-public-footer--standalone::before {
   content: "";
@@ -176,13 +191,6 @@
   background: var(--brand-cream);
   color: var(--brand-navy);
   border-color: var(--brand-cream);
-}
-.twe-public-footer--cinematic :global(.travel-footprint) {
-  grid-column: 1 / -1;
-  width: 100%;
-  padding: 0;
-  background: transparent;
-  color: var(--brand-cream);
 }
 .twe-public-footer--cinematic .footer-legal,
 .twe-public-footer--cinematic :global(.ui-app-bottom-bar) {
@@ -212,11 +220,9 @@
     }
     @keyframes footer-arrive {
       from {
-        opacity: 0.45;
         transform: translateY(24px);
       }
       to {
-        opacity: 1;
         transform: none;
       }
     }
@@ -228,9 +234,6 @@
   }
   .twe-public-footer--cinematic .footer-top {
     grid-template-columns: 1fr 1.5fr;
-  }
-  .footer-top :global(.travel-footprint) {
-    grid-column: 1 / -1;
   }
 }
 @media (max-width: 600px) {

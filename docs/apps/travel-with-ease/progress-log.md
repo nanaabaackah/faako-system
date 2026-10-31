@@ -1,5 +1,42 @@
 # Travel With Ease progress log
 
+## 2026-10-31 — Centred mobile Overview and themed Account module
+
+- Centred Overview between equal-width, permission-filtered navigation groups.
+  Its raised gold button and 32px icon are larger than other actions; all seven
+  Owner modules retain at least 44px touch targets at 320px. Desktop order stays
+  unchanged and keyboard order follows the visible mobile order.
+- Styled Account with navy/gold summary, shared role pill, responsive access and
+  security panels, and the shared text-then-icon sign-out action. Preserved the
+  existing sign-out confirmation, identity-provider boundaries and tutorial target.
+  No account editing, privileges or authentication behaviour was introduced.
+
+## 2026-10-31 — User-selected footer and How it works photographs
+
+- Assigned the supplied `b7e55…` antelope photo to footers and the enquiry
+  background. Contact-page CMS imagery remains independent;
+  the device-mockup CTA and existing hero/package/journal photos are unchanged.
+- Assigned `IMG_3328` and `12bacbf0…` to the first two How it works steps on
+  the homepage and demo. Removed the mistakenly added services/About gallery;
+  the Services page and its publication status are otherwise unchanged.
+- Added 480/960/1440px metadata-free portrait derivatives for responsive loading;
+  original full-resolution conversions and supplied JPEGs remain untouched.
+  CSS stays external. No offers, prices, captions or business claims were added.
+- Kept a single continuous photo behind the enquiry and transparent footer,
+  without restarting/cropping a second image at the footer boundary. Reduced
+  total scene height by removing the detached heading area and footer map.
+  No fixed/parallax background was introduced. The 716px
+  source cannot gain real detail through enlargement. The signature
+  shares the gutter colour without opacity fading, and the gutter has four edges.
+- Moved the enquiry heading and actions inside the cream enquiry card, above
+  the guidance in its left column, with the real demo form in the right column.
+  The card stacks on mobile. Kept the user's footer-footprint removal;
+  the main page map remains. Updated checks to assert these new requirements.
+- Verification: website build/lint/type checks and all 30 website tests passed;
+  Chrome checks passed at 320/375/390/768/1024/1440px with axe, reduced motion
+  and no-JavaScript coverage. Checked the two-column card, one shared background,
+  How it works photo placement and absent footer map. Security gates passed.
+
 ## 2026-10-31 — Public brand cleanup and email-type selector
 
 - Removed private business identifiers and street address from public/demo copy,

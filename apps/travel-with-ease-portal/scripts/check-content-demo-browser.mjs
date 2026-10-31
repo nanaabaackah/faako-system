@@ -30,6 +30,28 @@ try {
       return route.abort();
     });
     await page.goto(`${origin}/?demo=1`, { waitUntil: "domcontentloaded" });
+    if (width <= 800) {
+      const nav = page.locator(".twe-bottom-nav");
+      const overview = nav.getByRole("button", { name: "Overview", exact: true });
+      const overviewBox = await overview.boundingBox();
+      assert.ok(Math.abs(overviewBox.x + overviewBox.width / 2 - width / 2) <= 1, "Overview must be centred in the viewport");
+      const others = nav.locator("button:not(.nav-overview)");
+      for (const button of await others.all()) {
+        const box = await button.boundingBox();
+        assert.ok(box.width >= 44 && box.height >= 44, "Bottom navigation retains touch targets");
+        assert.ok(overviewBox.height >= box.height + 12, "Overview should be visibly larger");
+      }
+      assert.equal(await overview.locator("svg").evaluate(node => node.getBoundingClientRect().width), 32);
+    }
+    await page.getByRole("button", { name: "Account", exact: true }).first().click();
+    await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();
+    assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");
+    assert.equal(await page.locator(".account-details").getByText("Local demonstration", { exact: true }).isVisible(), true);
+    page.once("dialog", dialog => dialog.dismiss());
+    await page.getByRole("button", { name: "Sign out all devices", exact: true }).click();
+    assert.equal(await page.locator(".account-workspace").isVisible(), true, "Cancelling sign-out preserves the session");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: path.join(output, `account-${width}.png`), fullPage: true });
     await page
       .getByRole("button", { name: "Content", exact: true })
       .first()

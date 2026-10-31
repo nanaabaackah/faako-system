@@ -41,6 +41,7 @@ test("production build publishes approved content without preview copy or unpubl
   });
   const home = readFileSync(path.join(output, "index.html"), "utf8");
   assert.match(home, /A little further/);
+  assert.match(home, /closing-scene__image[^>]*src="\/media\/b7e55[^"\s]+\.webp"/);
   assert.doesNotMatch(home, /business registration|BN\d{6,}|House no\s+\d|TWE\s+Concierge/i);
   assert.match(home, /name="robots" content="index, follow"/);
   assert.doesNotMatch(home, /Design preview|placeholder/i);
@@ -80,6 +81,10 @@ test("staging demo builds an interactive noindex page while the approved homepag
   const demo = readFileSync(path.join(output, "demo", "index.html"), "utf8");
   const home = readFileSync(path.join(output, "index.html"), "utf8");
   assert.match(demo, /Staging website demo/);
+  assert.doesNotMatch(demo, /service-photography/);
+  assert.match(demo, /\/media\/IMG_3328-1440\.webp/);
+  assert.match(demo, /\/media\/12bacbf0[^"\s]+\.webp/);
+  assert.match(demo, /closing-scene__image[^>]*src="\/media\/b7e55[^"\s]+\.webp"/);
   assert.doesNotMatch(demo, /business registration|BN\d{6,}|House no\s+\d|TWE\s+Concierge/i);
   assert.match(demo, /Sample package enquiry|Sample personalised enquiry|sample enquiry/i);
   assert.match(demo, /staging test inbox/i);

@@ -35,5 +35,5 @@ test("privacy preferences use native modal semantics, Escape support and distinc
   assert.doesNotMatch(notice, /<aside/);
   assert.match(notice, /Close without saving/);
   assert.match(notice, /twe-demo-cookie-consent-v1/);
-  assert.match(read("../src/styles/components/public-footer.css"), /:global\(\.travel-footprint\)\s*\{[^}]*background: transparent/s);
+  assert.doesNotMatch(read("../src/components/PublicFooter.astro"), /<TravelFootprint/);
 });
