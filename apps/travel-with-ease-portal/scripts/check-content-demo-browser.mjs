@@ -161,6 +161,20 @@ try {
       [],
       "Demo content controls must never call the API",
     );
+    await page.getByRole("button", { name: "Templates", exact: true }).first().click();
+    await page.getByLabel(/^Heading/).fill("Synthetic acknowledgement");
+    await page.getByRole("button", { name: "Preview email", exact: true }).click();
+    await page.frameLocator('iframe[title="Enquiry acknowledgement preview"]')
+      .getByRole("heading", { name: "Synthetic acknowledgement", exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Activate saved template", exact: true }).isDisabled(), true);
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    page.once("dialog", dialog => dialog.accept());
+    await page.getByRole("button", { name: "Activate saved template", exact: true }).click();
+    await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    while (await notifications.count()) await notifications.first().click();
+    await page.screenshot({ path: path.join(output, `templates-${width}.png`), fullPage: true });
+    assert.deepEqual(requests, [], "Template demo must not send emails or call the API");
     await context.close();
   }
   console.log(

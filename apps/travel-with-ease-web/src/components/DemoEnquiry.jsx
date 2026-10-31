@@ -46,6 +46,9 @@ function EnquiryFields({ live = false, apiOrigin = "" }) {
   );
   useEffect(() => {
     setReady(true);
+    const choice = document.documentElement.dataset;
+    if (["package", "personalised"].includes(choice.demoEnquiryKind)) setKind(choice.demoEnquiryKind);
+    if (["Kenya", "Zanzibar"].includes(choice.demoEnquiryDestination)) setDestination(choice.demoEnquiryDestination);
     const choose = (event) => {
       const link = event.target.closest?.("[data-demo-destination]");
       if (link) {

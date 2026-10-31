@@ -1,4 +1,5 @@
 // Browser-only synthetic fixtures. This adapter never calls fetch or stores data.
+import { defaultEnquiryCopy, enquiryTemplate } from "../../travel-with-ease-api/src/notifications/enquiry-template.js";
 export function demoEnabled({
   allowed,
   hostname,
@@ -20,6 +21,7 @@ export function demoEnabled({
 }
 
 export function createDemoClient() {
+  let template = { version: 0, draft: { ...defaultEnquiryCopy }, active: { ...defaultEnquiryCopy }, active_version: null };
   const permissions = [
     "content.read",
     "content.write",
@@ -30,6 +32,7 @@ export function createDemoClient() {
     "enquiries.write",
     "staff.manage",
     "support.approve",
+    "templates.manage",
   ];
   const session = {
     demo: true,
@@ -136,6 +139,7 @@ export function createDemoClient() {
             ),
           ) || fail(404, "Demo enquiry not found.")
         );
+      if (url.pathname === "/api/agent/templates") return copy(template);
       if (url.pathname === "/api/agent/media")
         return copy({
           items: demoMedia,
@@ -193,6 +197,13 @@ export function createDemoClient() {
         return { signedOut: true };
       }
       if (!signedIn) return fail(401, "Demo signed out.");
+      if (path === "/api/agent/templates/preview") return { ...enquiryTemplate({ name: "Sample traveller", copy: json }), preview: true, demo: true };
+      if (["/api/agent/templates/draft", "/api/agent/templates/activate"].includes(path)) {
+        if (json.expectedVersion !== template.version) return fail(409, "Reload the changed demo template.");
+        const activate = path.endsWith("/activate");
+        template = { ...template, ...(activate ? { active: copy(template.draft), active_version: template.version } : { draft: copy(json.copy) }), version: template.version + 1 };
+        return copy(template);
+      }
       if (path === "/api/agent/media/drive/import") {
         if (
           json?.fileId !== "synthetic_drive_photo" ||

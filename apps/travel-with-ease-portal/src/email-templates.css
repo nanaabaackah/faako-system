@@ -1,0 +1,43 @@
+.template-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+}
+.template-workspace > * {
+  min-width: 0;
+  padding: clamp(16px, 3vw, 28px);
+  background: var(--sys-surface);
+  border: 1px solid var(--sys-border);
+  border-radius: 8px;
+}
+.template-intro {
+  max-width: 70ch;
+}
+.template-workspace form {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+}
+.template-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.template-preview iframe {
+  display: block;
+  width: 100%;
+  min-height: 760px;
+  border: 1px solid var(--sys-border);
+  background: white;
+}
+.email-templates p {
+  line-height: 1.65;
+}
+.email-templates h2 {
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+}
+@media (max-width: 1000px) {
+  .template-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

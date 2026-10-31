@@ -5,7 +5,7 @@ import ContentLink from "./ContentLink.astro";
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
 import photos from "../lib/approved-preview-media.json";
 const { demo = false, cinematic = false } = Astro.props;
-const footerPhoto = photos.find((photo) => photo.country === "Zanzibar")!;
+const footerPhoto = photos.find((photo) => photo.placement === "closing")!;
 const visible = (slug: string) =>
   demo || !publicationSnapshotPath() || Boolean(publishedPage(slug));
 const contact = demo ? null : publishedPage("contact");

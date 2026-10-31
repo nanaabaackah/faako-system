@@ -17,6 +17,8 @@ import path from "node:path";
 import { Administration } from "../../src/auth/administration.js";
 import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
+import { EmailTemplates } from "../../src/notifications/templates.js";
+import { defaultEnquiryCopy } from "../../src/notifications/enquiry-template.js";
 
 test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outbox writes", async (context) => {
   // Fail rather than silently skip: test:db is a required, explicit CI job.
@@ -261,6 +263,30 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await content.get("home")).body.imageId, asset.id);
   await media.archive(replacement.id, actor, "archive-unused");
   assert.equal((await media.list()).items.some((item) => item.id === replacement.id), false);
+  await context.test("email template drafts, activation and audit survive recreation under runtime grants", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const templates = new EmailTemplates(runtimePool, organisationId);
+      const owner = { ...actor, role: "owner" };
+      assert.equal((await templates.get(owner)).version, 0);
+      const copy = { ...defaultEnquiryCopy, heading: "Reviewed acknowledgement" };
+      await templates.change(owner, "template-draft", 0, copy);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+      await assert.rejects(templates.change(owner, "template-stale", 0, copy), { status: 409 });
+      await templates.change(owner, "template-active", 1, null, true);
+      assert.deepEqual(await new EmailTemplates(runtimePool, organisationId).activeCopy(), copy);
+      assert.deepEqual(await new EmailTemplates(runtimePool, otherOrg).activeCopy(), defaultEnquiryCopy);
+      await assert.rejects(new EmailTemplates(runtimePool, otherOrg).get(owner), { status: 403 });
+      const audits = await query("SELECT action FROM twe.audit_records WHERE organisation_id=$1 AND action IN ('email_template.saved','email_template.activated')", [organisationId]);
+      assert.equal(audits.rows.length, 2);
+      await templates.change(owner, "template-rollback-draft", 2, defaultEnquiryCopy);
+      await templates.change(owner, "template-rollback-active", 3, null, true);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+    } finally { await client.query("RESET ROLE"); client.release(); }
+  });
   await context.test("Drive sync uses runtime grants, keeps immutable revisions and isolates tenants", async () => {
     const client = await pool.connect();
     let version = "1", downloads = 0;

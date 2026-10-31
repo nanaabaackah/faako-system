@@ -54,6 +54,7 @@ small {
 .footprint-legend span {
   padding: 4px 8px;
   background: #f2e5c8;
+  color: #010c33;
 }
 .footprint-legend span:nth-child(2) {
   background: #d8b56a;
@@ -77,5 +78,11 @@ small {
   font-size: 12px;
 }
 .compact .footprint-map {
-  max-height: 190px;
+  width: 100%;
+  max-height: none;
+}
+.compact path[tabindex]:focus,
+.compact path[tabindex]:hover {
+  stroke: #7ab8ff;
+  stroke-width: 2;
 }

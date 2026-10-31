@@ -5,48 +5,40 @@ const privacyAvailable =
   demo || !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
 ---
 
-<aside
-  class="cookie-notice"
+<dialog
+  class="cookie-notice cookie-preferences-dialog"
   data-cookie-notice
   data-cookie-storage={demo
     ? "twe-demo-cookie-consent-v1"
     : "twe-cookie-consent-v1"}
-  hidden
-  aria-label="Cookie notice"
-  aria-live="polite"
+  aria-labelledby="cookie-preferences-title"
+  aria-describedby="cookie-purpose"
 >
-  <div>
-    <strong>Your privacy, your choice.</strong>
+  <h2 id="cookie-preferences-title">Cookie preferences</h2>
+  <p class="cookie-notice__introduction">Your privacy, your choice.</p>
+  {
+    demo && (
+      <p>
+        Demo preferences only. No analytics or advertising tracking runs in this
+        demo.
+      </p>
+    )
+  }
+  <p id="cookie-purpose">
+    Essential browser storage remembers your preference. Advertising cookies are
+    not used.
     {
-      demo && (
-        <p>
-          Demo preferences only. No analytics or advertising tracking runs in
-          this demo.
-        </p>
+      privacyAvailable && !demo && (
+        <>
+          {" "}
+          Optional Google Analytics helps us understand visits only when you
+          allow it. <a href="/privacy">Privacy information</a>
+        </>
       )
     }
-    <p>
-      Essential browser storage remembers your preference. Advertising cookies
-      are not used.
-      {
-        privacyAvailable && !demo && (
-          <>
-            Optional Google Analytics helps us understand visits only when you
-            allow it. <a href="/privacy">Privacy information</a>
-          </>
-        )
-      }
-    </p>
-  </div>
+  </p>
   <div class="cookie-notice__actions">
-    <button
-      class="secondary"
-      type="button"
-      data-cookie-manage
-      aria-expanded="false"
-      aria-controls="cookie-preferences">Manage preferences</button
-    >
-    <button class="secondary" type="button" data-cookie-essential
+    <button class="secondary" type="button" data-cookie-essential autofocus
       >Essential only</button
     >
     {
@@ -56,16 +48,22 @@ const privacyAvailable =
         </button>
       )
     }
+    <button
+      class="secondary"
+      type="button"
+      data-cookie-manage
+      aria-expanded="false"
+      aria-controls="cookie-preferences">Manage preferences</button
+    >
   </div>
   <section
     id="cookie-preferences"
     data-cookie-preferences
     hidden
-    aria-label="Cookie preferences"
+    aria-label="Optional cookie preferences"
   >
-    <h2>Cookie preferences</h2>
     <p>
-      Essential storage remembers this choice and supports security. It is
+      Essential storage supports security and remembers your choice. It is
       always enabled.
     </p>
     <label><input type="checkbox" checked disabled /> Essential</label>
@@ -77,49 +75,45 @@ const privacyAvailable =
       /> Optional analytics</label
     >
     <p>
-      Google Analytics measures public website visits when enabled. Advertising
-      tracking is not used. You can change your choice here at any time.
+      You can change or withdraw this choice at any time using Cookie settings
+      in the footer.
     </p>
     <button type="button" data-cookie-save>Save preferences</button>
   </section>
-</aside>
+  <button class="cookie-notice__close secondary" type="button" data-cookie-close
+    >Close without saving</button
+  >
+</dialog>
 
 <script is:inline>
   (() => {
     const notice = document.querySelector("[data-cookie-notice]");
-    if (!notice) return;
+    if (!(notice instanceof HTMLDialogElement)) return;
     const key = notice.getAttribute("data-cookie-storage");
-    let returnFocus = null;
-
-    const show = () => notice.removeAttribute("hidden");
-    const hide = () => notice.setAttribute("hidden", "");
     const preferences = notice.querySelector("[data-cookie-preferences]");
     const manage = notice.querySelector("[data-cookie-manage]");
     const choiceInput = notice.querySelector("[data-cookie-analytics-choice]");
-    const showPreferences = () => {
+    let returnFocus = null;
+    const savedChoice = () => {
       try {
-        choiceInput.checked =
-          JSON.parse(localStorage.getItem(key) || "null")?.analytics === true &&
-          !choiceInput.disabled;
+        const choice = JSON.parse(localStorage.getItem(key) || "null");
+        return choice?.essential === true &&
+          typeof choice.analytics === "boolean"
+          ? choice
+          : null;
       } catch {
-        choiceInput.checked = false;
+        return null;
       }
+    };
+    const show = () => {
+      if (!notice.open) notice.showModal();
+    };
+    const showPreferences = () => {
+      choiceInput.checked =
+        savedChoice()?.analytics === true && !choiceInput.disabled;
       preferences.hidden = false;
       manage.setAttribute("aria-expanded", "true");
     };
-    const hasValidChoice = () => {
-      try {
-        const saved = JSON.parse(localStorage.getItem(key) || "null");
-        return (
-          saved?.essential === true && typeof saved.analytics === "boolean"
-        );
-      } catch {
-        return false;
-      }
-    };
-
-    if (!hasValidChoice()) show();
-
     const save = (analytics) => {
       const choice = {
         essential: true,
@@ -132,40 +126,42 @@ const privacyAvailable =
       document.dispatchEvent(
         new CustomEvent("twe:consent-changed", { detail: choice }),
       );
-      hide();
-      preferences.hidden = true;
-      manage.setAttribute("aria-expanded", "false");
-      if (returnFocus instanceof HTMLElement) {
-        returnFocus.focus();
-        returnFocus = null;
-      }
+      notice.close();
     };
-
-    notice
-      .querySelector("[data-cookie-manage]")
-      ?.addEventListener("click", showPreferences);
-    notice
-      .querySelector("[data-cookie-save]")
-      ?.addEventListener("click", () =>
-        save(choiceInput.checked && !choiceInput.disabled),
-      );
+    manage.addEventListener("click", showPreferences);
     notice
       .querySelector("[data-cookie-essential]")
-      ?.addEventListener("click", () => save(false));
+      .addEventListener("click", () => save(false));
     notice
       .querySelector("[data-cookie-analytics]")
       ?.addEventListener("click", () => save(true));
+    notice
+      .querySelector("[data-cookie-save]")
+      .addEventListener("click", () =>
+        save(choiceInput.checked && !choiceInput.disabled),
+      );
+    notice
+      .querySelector("[data-cookie-close]")
+      .addEventListener("click", () => notice.close());
+    notice.addEventListener("close", () => {
+      preferences.hidden = true;
+      manage.setAttribute("aria-expanded", "false");
+      if (returnFocus instanceof HTMLElement && returnFocus.isConnected)
+        returnFocus.focus();
+      returnFocus = null;
+    });
     document.querySelectorAll("[data-cookie-settings]").forEach((button) => {
       button.addEventListener("click", () => {
         returnFocus = button;
-        show();
         showPreferences();
-        notice.querySelector("[data-cookie-essential]")?.focus();
+        show();
       });
     });
+    // First visit is the same native popup, not an in-page or bottom banner.
+    // Escape/Close never implies consent; absent consent keeps analytics disabled.
+    if (!savedChoice()) show();
   })();
 </script>
-
 <style>
   @import "../styles/components/cookie-notice.css";
 </style>

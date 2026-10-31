@@ -16,7 +16,8 @@ test("official favicon sizes and sharing cards have correct dimensions and no pr
 test("approved preview photos match the source inventory and contain no private metadata", async () => {
   const photos = JSON.parse(await readFile(new URL("../../travel-with-ease-web/src/lib/approved-preview-media.json", import.meta.url), "utf8"));
   const inventory = JSON.parse(await readFile(new URL("../../../docs/apps/travel-with-ease/media-source-inventory.json", import.meta.url), "utf8"));
-  assert.equal(photos.length, 2);
+  assert.equal(photos.length, 6);
+  assert.equal(new Set(photos.map(photo => photo.driveId)).size, photos.length);
   for (const photo of photos) {
     const source = inventory.files.find(file => file.driveId === photo.driveId);
     assert.equal(source.sha256, photo.sourceSha256);

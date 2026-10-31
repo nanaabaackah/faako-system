@@ -3,11 +3,11 @@ import Accordion from "./Accordion.astro";
 import ContentLink from "./ContentLink.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
-import DemoEmailPreview from "./DemoEmailPreview.astro";
 import CinematicHero from "./CinematicHero.astro";
 import photos from "../lib/approved-preview-media.json";
-const kenya = photos.find((photo) => photo.country === "Kenya")!;
-const zanzibar = photos.find((photo) => photo.country === "Zanzibar")!;
+const kenya = photos.find((photo) => photo.placement === "wildlife")!;
+const zanzibar = photos.find((photo) => photo.placement === "closing")!;
+const journalPhoto = photos.find((photo) => photo.placement === "journal")!;
 const { live = false } = Astro.props;
 ---
 
@@ -40,7 +40,7 @@ const { live = false } = Astro.props;
             copy: "A demonstration of a discovery-focused journey. This is not an advertised or priced offer.",
           },
         ].map((item) => (
-          <article>
+          <article class="journey-card">
             <img
               src={item.photo.sources.at(-1)!.src}
               width={item.photo.width}
@@ -54,7 +54,8 @@ const { live = false } = Astro.props;
                 <h3>{item.title}</h3>
                 <p>{item.copy}</p>
                 <ContentLink
-                  href="#demo-plan"
+                  class="journey-card__link"
+                  href="#demo-enquiry-form"
                   data-demo-destination={item.name}
                 >
                   Explore this sample
@@ -142,10 +143,10 @@ const { live = false } = Astro.props;
   <section id="demo-journal" class="demo-wrap demo-journal" data-twe-reveal>
     <figure>
       <img
-        src={zanzibar.sources.at(-1)!.src}
-        width={zanzibar.width}
-        height={zanzibar.height}
-        alt={zanzibar.alt}
+        src={journalPhoto.sources.at(-1)!.src}
+        width={journalPhoto.width}
+        height={journalPhoto.height}
+        alt={journalPhoto.alt}
         loading="lazy"
       /><figcaption>Zanzibar · TWE-supplied photography</figcaption>
     </figure>
@@ -187,7 +188,6 @@ const { live = false } = Astro.props;
       >
     </div>
   </section>
-  <DemoEmailPreview />
   <section id="demo-privacy" class="demo-wrap demo-policy-preview">
     <h2>Your privacy choices</h2><p>
       Try the cookie preference controls. Choices here apply to this demo only;
@@ -199,6 +199,28 @@ const { live = false } = Astro.props;
   </section>
   <ClosingCta demo />
 </div>
+<script>
+  // Preserve a card choice made before the below-fold React form hydrates.
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (!(event.target instanceof Element)) return;
+      const link = event.target.closest<HTMLElement>(
+        "[data-demo-destination], [data-demo-personalised]",
+      );
+      if (!link) return;
+      document.documentElement.dataset.demoEnquiryKind = link.hasAttribute(
+        "data-demo-destination",
+      )
+        ? "package"
+        : "personalised";
+      if (link.dataset.demoDestination)
+        document.documentElement.dataset.demoEnquiryDestination =
+          link.dataset.demoDestination;
+    },
+    { capture: true },
+  );
+</script>
 <style>
   @import "../styles/components/demo-website.css";
 </style>

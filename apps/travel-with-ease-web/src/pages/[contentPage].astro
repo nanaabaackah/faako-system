@@ -70,7 +70,7 @@ const label = labels[Astro.params.contentPage as keyof typeof labels];
   }
   {
     Astro.params.contentPage === "travel-footprint" && (
-      <section class="editorial-wrap">
+      <section class="editorial-wrap footprint-full-width">
         <TravelFootprint />
       </section>
     )
@@ -89,7 +89,7 @@ const label = labels[Astro.params.contentPage as keyof typeof labels];
               excerpt: string;
               date: string;
             }) => (
-              <article>
+              <article class="twe-action-card">
                 <time datetime={article.date}>{article.date}</time>
                 <h2>
                   <ContentLink href={`/journal/${article.slug}`}>

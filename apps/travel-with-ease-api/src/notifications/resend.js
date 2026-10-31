@@ -24,9 +24,10 @@ export function readNotificationConfig(env = process.env) {
 }
 
 export class ResendSender {
-  constructor(config, fetcher = fetch) {
+  constructor(config, fetcher = fetch, templateCopy) {
     this.config = config;
     this.fetcher = fetcher;
+    this.templateCopy = templateCopy;
   }
   payload(contact = {}, { test = false } = {}) {
     const production = this.config.environment === "production";
@@ -41,6 +42,7 @@ export class ResendSender {
       ...enquiryTemplate({
         name: typeof contact.name === "string" ? contact.name : "",
         test,
+        copy: this.templateCopy,
       }),
     };
   }

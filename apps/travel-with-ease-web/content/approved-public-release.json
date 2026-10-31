@@ -2,7 +2,11 @@
   "version": 1,
   "approval": {
     "date": "2026-10-26",
-    "scope": "Existing homepage copy and previously permission-approved photography; missing business details remain unpublished."
+    "scope": "Existing homepage copy and previously permission-approved photography; missing business details remain unpublished.",
+    "mediaRefresh": {
+      "date": "2026-10-31",
+      "scope": "User requested incorporation of additional photographs from the previously approved Kenya/Zanzibar Drive folders. Business copy and unpublished sections unchanged."
+    }
   },
   "pages": {
     "home": {
@@ -16,10 +20,20 @@
       "contactPhone": "",
       "entries": [],
       "image": {
-        "src": "/media/kenya-09d34a112ab0-1199.webp",
-        "alt": "Blue and white boats moored beside a lake — Kenya.",
-        "width": 1199,
-        "height": 1600
+        "src": "/media/kenya-pelicans-9944212dcee2-1280.webp",
+        "alt": "Pelicans lifting from the water of a lake in Kenya.",
+        "width": 1280,
+        "height": 860,
+        "sources": [
+          {
+            "src": "/media/kenya-pelicans-9944212dcee2-640.webp",
+            "width": 640
+          },
+          {
+            "src": "/media/kenya-pelicans-9944212dcee2-1280.webp",
+            "width": 1280
+          }
+        ]
       },
       "socialImage": {
         "src": "/og/kenya.jpg",

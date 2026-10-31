@@ -2,6 +2,20 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createDemoClient, demoEnabled } from "../src/demo.js";
 
+test("template demo separates drafts from activation and resets without sending", async () => {
+  const api = createDemoClient();
+  const initial = await api.get("/api/agent/templates");
+  const copy = { ...initial.draft, heading: "Synthetic heading" };
+  const draft = await api.post("/api/agent/templates/draft", { json: { expectedVersion: 0, copy } });
+  assert.notEqual(draft.active.heading, copy.heading);
+  const preview = await api.post("/api/agent/templates/preview", { json: copy });
+  assert.equal(preview.preview, true);
+  assert.match(preview.html, /Synthetic heading/);
+  const active = await api.post("/api/agent/templates/activate", { json: { expectedVersion: 1 } });
+  assert.equal(active.active.heading, copy.heading);
+  assert.equal((await createDemoClient().get("/api/agent/templates")).version, 0);
+});
+
 test("Drive demo imports once into an in-memory library and never connects to Google/R2", async () => {
   const api = createDemoClient();
   const folder = await api.get("/api/agent/media/drive");

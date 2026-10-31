@@ -1,10 +1,17 @@
 # Travel With Ease design and engineering standard
 
+2026-10-31 follow-up: full-width footprint rows, compact grouped footer and one
+modal for both initial privacy choice and later preferences. Additional Drive
+photography keeps recorded provenance and unchanged mockup CTA assets. See
+[release decisions](./drive-images-map-consent-release-2026-10-31.md).
+
 2026-10-30 refinement: [editorial redesign decisions](./editorial-redesign-2026-10-30.md).
 Use shared full-viewport hero, cream functional country map, the supplied mockup
 CTA and full-bleed photographic footer with end-of-page gutters. Preserve actual TWE tokens,
-Georgia editorial type, Iconsax actions, approved imagery and static/reduced-motion
+Montserrat Extra Bold headings, Bonheur Royale for “A Little More You”, Iconsax actions, approved imagery and static/reduced-motion
 fallbacks. References are directional, not authority to invent product data.
+
+2026-10-31: [typography, full-card interactions, consent popup and portal templates](./email-templates-and-brand-polish.md).
 
 Status: Governing standards aligned; specific design, scope and release approvals remain open\
 Date: 2026-10-10; aligned 2026-10-11\

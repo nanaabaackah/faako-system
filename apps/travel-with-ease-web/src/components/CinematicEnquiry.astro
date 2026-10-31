@@ -4,7 +4,7 @@ import PublicFooter from "./PublicFooter.astro";
 import photos from "../lib/approved-preview-media.json";
 import "../styles/components/cinematic-enquiry.css";
 const { demo = false, enquiryAvailable = false, image = null } = Astro.props;
-const approved = photos.find((photo) => photo.country === "Zanzibar")!;
+const approved = photos.find((photo) => photo.placement === "closing")!;
 const photo = image || { ...approved, src: approved.sources.at(-1)!.src };
 const sources = photos.find((item) =>
   item.sources.some((source) => source.src === photo.src),

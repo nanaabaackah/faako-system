@@ -7,6 +7,7 @@ import { createInlinePortal } from "./portal/inline.js";
 import { contentRoutes } from "./content/routes.js";
 import { enquiriesRoutes } from "./enquiries/routes.js";
 import { mediaRoutes } from "./media/routes.js";
+import { EmailTemplates, emailTemplateRoutes } from "./notifications/templates.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
 import { estimateSchema, inquirySchema, demoInquirySchema } from "./validation.js";
 
@@ -80,6 +81,7 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
   if (contentRepository && repository?.pool && repository?.organisationId && staffAuth) app.use("/api/agent/inquiries", enquiriesRoutes({ pool: repository.pool, organisationId: repository.organisationId, auth: staffAuth }));
   if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, publication: publicationRepository, auth: staffAuth }));
   if (mediaService) app.use("/api/agent/media", mediaRoutes({ service: mediaService, auth: staffAuth }));
+  if (repository?.pool && staffAuth) app.use("/api/agent/templates", emailTemplateRoutes(new EmailTemplates(repository.pool, repository.organisationId), staffAuth));
 
   app.get("/healthz", (_req, res) => res.json({ ok: true, service: "travel-with-ease-api" }));
   app.get("/readyz", async (req, res) => {

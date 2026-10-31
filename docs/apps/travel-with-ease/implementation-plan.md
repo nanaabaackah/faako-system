@@ -1,5 +1,13 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-31 — Brand typography and email template management
+
+Self-host the requested fonts; refine full-card interactions and privacy popup;
+remove the footer footprint panel; move email preview into Owner-only Templates
+with audited versioned draft/activation and migration 010. Preserve email routing,
+queued-payload immutability and local no-send demo behaviour. See
+[implementation and deployment notes](./email-templates-and-brand-polish.md).
+
 ## 2026-10-31 — Controlled Drive/R2 media sync
 
 Add TTNGH-style server-only JSON configuration, bounded approved-folder browsing

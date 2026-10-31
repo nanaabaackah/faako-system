@@ -92,6 +92,7 @@ p {
   display: flex;
   align-items: end;
   color: var(--brand-cream);
+  overflow: clip;
 }
 .demo-package-grid article::before {
   content: "";
@@ -106,6 +107,26 @@ p {
   z-index: -2;
   height: 100%;
   border-radius: 0;
+  transition: transform 220ms ease-out;
+}
+.journey-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.journey-card:focus-within {
+  outline: 3px solid var(--brand-sky);
+  outline-offset: 4px;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .journey-card:hover img,
+  .journey-card:focus-within img {
+    transform: scale(1.035);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey-card img { transition: none; }
 }
 .demo-package-grid article > div {
   padding: clamp(24px, 4vw, 56px);

@@ -65,24 +65,28 @@ const faqs = publishedPage("faqs");
           class="review-journey-images"
           aria-label="Approved travel photography — not package offers"
         >
-          {photos.map((photo) => (
-            <figure>
-              <img
-                src={photo.sources.at(-1)!.src}
-                srcset={photo.sources
-                  .map((source) => `${source.src} ${source.width}w`)
-                  .join(", ")}
-                sizes="(max-width: 760px) 90vw, 45vw"
-                alt={photo.alt}
-                width={photo.width}
-                height={photo.height}
-                loading="lazy"
-              />
-              <figcaption>
-                {photo.country} · photography preview, not an offer
-              </figcaption>
-            </figure>
-          ))}
+          {photos
+            .filter((photo) =>
+              ["wildlife", "closing"].includes(photo.placement),
+            )
+            .map((photo) => (
+              <figure>
+                <img
+                  src={photo.sources.at(-1)!.src}
+                  srcset={photo.sources
+                    .map((source) => `${source.src} ${source.width}w`)
+                    .join(", ")}
+                  sizes="(max-width: 760px) 90vw, 45vw"
+                  alt={photo.alt}
+                  width={photo.width}
+                  height={photo.height}
+                  loading="lazy"
+                />
+                <figcaption>
+                  {photo.country} · photography preview, not an offer
+                </figcaption>
+              </figure>
+            ))}
         </div>
       )}
     </section>
@@ -144,7 +148,7 @@ const faqs = publishedPage("faqs");
       {journal?.articles
         ?.slice(0, 2)
         .map((article: { slug: string; title: string; excerpt: string }) => (
-          <article>
+          <article class="twe-action-card">
             <h3>
               <ContentLink href={`/journal/${article.slug}`}>
                 {article.title}

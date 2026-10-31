@@ -6,6 +6,7 @@ import { MAX_UPLOAD_BYTES } from "./images.js";
 
 const tokenEndpoint = "https://oauth2.googleapis.com/token";
 const scope = "https://www.googleapis.com/auth/drive.readonly";
+const pkcs8Header = "-----BEGIN PRIVATE KEY-----"; // security-scan-ok: PEM format marker only, not key material.
 export const driveId = z.string().regex(/^[A-Za-z0-9_-]{10,200}$/);
 const mime = z.enum(["image/jpeg", "image/png", "image/webp"]);
 const fileSchema = z.object({
@@ -45,7 +46,7 @@ export function readDriveConfig(env = process.env) {
         account.client_email,
       ) ||
       typeof account.private_key !== "string" ||
-      !account.private_key.startsWith("-----BEGIN PRIVATE KEY-----") ||
+      !account.private_key.startsWith(pkcs8Header) ||
       (account.token_uri && account.token_uri !== tokenEndpoint)
     )
       throw new Error();

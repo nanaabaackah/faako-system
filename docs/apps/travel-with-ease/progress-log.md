@@ -1,5 +1,28 @@
 # Travel With Ease progress log
 
+## 2026-10-31 — Drive photographs, full-width maps and initial privacy popup
+
+- Reviewed additional Kenya/Zanzibar Drive images and incorporated four optimized,
+  metadata-stripped photographs with source hashes; supplied mockup CTA retained.
+- Enlarged homepage, standalone and footer footprint maps into full-width rows.
+- Compacted footer brand/navigation/contact arrangement and spacing, preserving
+  touch targets, legal controls, photographic scene and final gutter.
+- Replaced the initial consent banner with the same accessible modal preferences
+  popup; close/Escape do not imply consent and analytics remains opt-in.
+- New release branch collects the existing unmerged TWE/required shared UI work.
+  [Scope, provenance, checks and rollback](./drive-images-map-consent-release-2026-10-31.md).
+
+## 2026-10-31 — Typography, consent and portal templates
+
+- Added self-hosted Bonheur Royale signature and Montserrat 800 headings, with licences.
+- Journey cards have one full-card link, restrained hover and reduced-motion support.
+- Privacy preferences use a native accessible dialog; footer map panel is transparent.
+- Moved the email preview out of the public demo into Owner-only Templates.
+- Added plain-text copy editing, unsent preview, draft save and explicit activation,
+  optimistic locking, audit events, additive migration 010 and restricted runtime grants.
+- Existing test-mail routing and queued delivery payloads remain unchanged.
+- Verification and operator notes: [template/brand handoff](./email-templates-and-brand-polish.md).
+
 ## 2026-10-31 — Drive/R2 sync implementation
 
 - Mirrored TTNGH's configuration shape without copying its secrets or resources.
