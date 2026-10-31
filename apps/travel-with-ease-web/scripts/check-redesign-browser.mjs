@@ -158,11 +158,19 @@ try {
     assert.match(await page.locator("#demo-process li img").nth(0).getAttribute("src"), /IMG_3328/);
     assert.match(await page.locator("#demo-process li img").nth(1).getAttribute("src"), /12bacbf0/);
     assert.equal(await page.locator("#demo-about img").count(), 0);
-    await serviceImages.first().scrollIntoViewIfNeeded();
-    await serviceImages.evaluateAll(async images => {
-      await Promise.all(images.map(image => image.decode()));
-      if (images.some(image => !image.naturalWidth)) throw Error("A service image did not load");
-    });
+    // Each image is lazy-loaded: scrolling only the first into view does not
+    // start requests for the later images on narrow screens.
+    for (const image of await serviceImages.all()) {
+      await image.scrollIntoViewIfNeeded();
+      await image.evaluate(async node => {
+        try {
+          await node.decode();
+        } catch {
+          throw Error(`How it works image failed to decode: ${node.currentSrc || node.src}`);
+        }
+        if (!node.naturalWidth) throw Error(`How it works image did not load: ${node.currentSrc || node.src}`);
+      });
+    }
     const footerStyle = await page.locator("footer.twe-public-footer").evaluate(node => ({ shadows: getComputedStyle(node).boxShadow, signature: getComputedStyle(node.querySelector(".footer-signature")).color, opacity: getComputedStyle(node.querySelector(".footer-signature")).opacity }));
     assert.equal((footerStyle.shadows.match(/inset/g) || []).length, 4, "Footer gutter must include the top edge");
     assert.ok(footerStyle.shadows.includes(footerStyle.signature), "Signature and gutter must share a colour");

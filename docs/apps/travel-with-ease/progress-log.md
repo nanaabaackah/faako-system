@@ -1,5 +1,14 @@
 # Travel With Ease progress log
 
+## 2026-10-31 — PR 125 browser image-loading regression
+
+- Fixed the redesign acceptance test to scroll each lazy-loaded How it works
+  image into view before decoding it, rather than decoding off-screen images
+  whose requests may not have started. Decode failures still fail the check and
+  now identify the image URL. No application behaviour or CI gates were changed.
+- Website lint/build and the complete six-width Chrome acceptance passed,
+  including accessibility, reduced-motion and no-JavaScript checks.
+
 ## 2026-10-31 — Centred mobile Overview and themed Account module
 
 - Centred Overview between equal-width, permission-filtered navigation groups.
