@@ -123,12 +123,26 @@ check, not something this branch changes.
 - Retain the previous verified API/site versions for rollback. Blank calendar ID
   disables only the live schedule; static Sanity listings remain available.
 
-## Future enrichment
+## Editorial enrichment — 1 November 2026
 
-A separately approved Sanity field such as `googleCalendarUid` can associate reviewed
-editorial content with the returned UID. For per-occurrence editorial overrides,
-also retain the recurrence identity. Google stays scheduling truth; Sanity supplies
-presentation and registration. Do not infer associations from title or date.
+The optional Sanity event field `calendarUid` now associates a published editorial
+record with an exact Google ICS UID. Existing records need no migration. The build
+rejects duplicate UIDs among published records; drafts/releases remain excluded.
+Editors should copy the UID, not the event URL or title. One UID maps to one public
+editorial page, including all occurrences of a recurring series. Per-occurrence
+editorial overrides would require an additional recurrence identifier in future.
+
+The Events page passes only validated UID/local-route pairs to the existing inline
+selected-day agenda. A matching event gains a keyboard-accessible “View full event”
+link; calendar-only entries keep their safe schedule details without a broken link.
+No modal or fuzzy title/date matching is introduced. Google remains scheduling truth;
+Sanity remains reviewed editorial content, imagery and registration metadata.
+
+Descriptions remain excluded from the API allowlist: existing tests explicitly
+protect private notes and meeting links in that field. Public feed visibility alone
+is not approval to republish descriptions. The agenda renders normalized title,
+time, location and tentative status as plain text. Enabling descriptions needs a
+separate approved public-content policy; this redesign does not widen that boundary.
 
 ## Validation results — 21 October 2026
 

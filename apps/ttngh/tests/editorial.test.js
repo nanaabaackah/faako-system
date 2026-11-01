@@ -3,6 +3,19 @@ import test from "node:test";
 import { readFileSync, readdirSync } from "node:fs";
 import { verifiedImpact } from "../src/lib/verified-impact.js";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
+test("events lifecycle layout keeps the calendar before recurring context and handles absent highlights", () => {
+  const source = read("../src/pages/events.astro");
+  const order = ["<PageHero", "event={highlights.next}", "selectedEvents={highlights.upcoming}", "event={highlights.previous}", "<EventCalendar", '<section class="events-recurring', "<EventGalleryRail", "<FaqList", "<ScrollExpandSection"];
+  const positions = order.map(marker=>source.indexOf(marker));
+  assert.ok(positions.every((position,index)=>position>=0 && (!index || position>positions[index-1])));
+  assert.match(source,/highlights\.upcoming\.length > 0/);
+  assert.match(source,/highlights\.next \? \[\["Next up"/);
+  assert.match(source,/No event dates have been published yet/);
+  assert.doesNotMatch(source,/<FeaturedEvent|<EventListings[^>]*excludeFeatured/);
+  const detail = read("../src/pages/events/[slug].astro");
+  assert.match(detail,/!isPast && <>/);
+  assert.match(detail,/See more TTNGH events/);
+});
 test("all ScrollExpand CTAs prioritise Donate and avoid a support-page self-link", () => {
   const component = read("../src/components/ScrollExpandSection.astro");
   assert.match(component, /href = "\/support-us"/);

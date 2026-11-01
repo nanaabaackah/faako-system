@@ -1,0 +1,14 @@
+.event-spotlight { scroll-margin-top: 7rem; }
+.event-spotlight header { border-bottom: 1px solid var(--line); margin-bottom: 2rem; }
+.event-spotlight__layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: center; gap: clamp(1.5rem, 4vw, 4rem); }
+.event-spotlight__image { display: block; overflow: hidden; }
+.event-spotlight__image img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; transition: transform var(--motion-image) var(--ease-out); }
+.event-spotlight__layout:focus-within img { transform: scale(1.015); }
+@media (hover: hover) { .event-spotlight__image:hover img { transform: scale(1.015); } }
+.event-spotlight__copy { min-width: 0; overflow-wrap: anywhere; }
+.event-spotlight__copy h3 { font-family: var(--font-editorial); font-size: clamp(2rem, 4vw, 3.5rem); line-height: 1.1; }
+.event-spotlight__state { font-weight: 600; }
+.event-spotlight--previous .event-spotlight__layout { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+.event-spotlight--previous .event-spotlight__copy h3 { font-size: clamp(1.75rem, 3vw, 2.75rem); }
+@media (max-width: 780px) { .event-spotlight__layout, .event-spotlight--previous .event-spotlight__layout { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .event-spotlight__image img { transition: none; transform: none !important; } }

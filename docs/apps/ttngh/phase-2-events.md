@@ -1,5 +1,56 @@
 # Phase 2: event delivery foundation
 
+## Events lifecycle redesign — 1 November 2026
+
+Implementation branch: `feat/ttngh-events-page-redesign`, based on refreshed
+`origin/develop` at `7cb2716b7`. This section supersedes the historical listing
+layout below; deployment and staging acceptance are not implied.
+
+- `/events` selects published Sanity events once through `getPublishedEvents()`.
+  `selectEventHighlights()` reuses `groupEvents()`: an event ending at or after
+  build time remains upcoming/current; completed events remain accessible.
+- Next Up is the earliest upcoming start. Upcoming shows at most three subsequent
+  records, without duplicating Next Up. Previous Event shows only the first past
+  record (newest start first). Equal starts use slug order for deterministic results.
+- Page order: hero, Next Up, Upcoming, Previous Event, live calendar, recurring
+  programmes, gallery, FAQ, existing Donate ScrollExpand. Hero anchors only target
+  present sections. Empty groups are omitted; no upcoming events gets an honest
+  calendar/contact empty state. No archive route or invented events were added.
+- A shared event spotlight provides strong next-event imagery and a quieter previous
+  event composition. Existing grouped reveals, typography and motion tokens remain.
+  Homepage FeaturedEvent is unchanged.
+- Completed-event labels override stale registration metadata. Existing detail
+  pages retain descriptions, dates, accessibility, related programme and structured
+  data while hiding registration and calendar-add/download actions after completion.
+- Google supplies the live schedule; Sanity supplies rich published editorial
+  records. Exact optional `calendarUid` linking and the description privacy boundary
+  are documented in [calendar operations](calendar-data-source.md).
+- Static editorial date classification requires the existing scheduled rebuild.
+  Live calendar updates do not rewrite the static Sanity detail dates.
+
+Local verification: 48 website tests and 9 Studio tests pass, as do the
+published-content Astro build (15 pages), fixture build (22 pages), built-site
+metadata/link/schema checks for both builds and focused ESLint. Calendar
+loading/error/retry/keyboard checks pass at 320, 375, 390, 430, 768, 1024 and 1440px.
+The isolated populated fixture build generates seven event detail and ICS routes.
+Browser checks at the same seven widths pass with normal and reduced motion:
+highlight ordering, three-card limit, completed-event action suppression, exact UID
+linking, calendar-only entries, keyboard navigation, no horizontal overflow and
+no-JS visibility. No Sanity records or calendar entries were created for testing.
+
+Fixture build: set `TTNGH_EVENTS_QA=true`, `SANITY_PROJECT_ID=fixture`,
+`SANITY_DATASET=test`, empty `SANITY_READ_TOKEN`, `PUBLIC_SITE_INDEXABLE=false`,
+preview `PUBLIC_SITE_URL`, and a dummy `PUBLIC_TTNGH_API_ORIGIN`. Use Node's
+`--import` option with the absolute path to `tests/fixtures/events-build.mjs` in
+`NODE_OPTIONS` for the build command only. Then run
+`node apps/ttngh/scripts/check-events-browser.mjs`; the runner rejects a non-fixture
+build and mocks all external traffic. Optional `TTNGH_EVENTS_SCREENSHOTS` saves
+captures; `TTNGH_EVENTS_QA_WIDTHS` narrows a repeat run. Rebuild without the fixture
+preload afterwards. **Never deploy fixture or dummy-API QA artifacts.**
+
+Hosted staging acceptance, Safari/manual assistive-technology checks and production
+promotion have not occurred. Drive/R2 synchronization is a separate branch/task.
+
 > Historical record. Status reconciled 19 October 2026: use the
 > [18 October production evidence](production-status-2026-10-18.md) for current
 > service readiness. Branch/worktree, deployment, image-placement, typography and
