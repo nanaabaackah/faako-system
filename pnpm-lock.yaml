@@ -1408,6 +1408,9 @@ importers:
 
   services/ttngh-api:
     dependencies:
+      '@aws-sdk/client-s3':
+        specifier: 3.1149.0
+        version: 3.1149.0
       '@faako/api-contracts':
         specifier: workspace:*
         version: link:../../packages/api-contracts
@@ -1432,6 +1435,9 @@ importers:
       node-ical:
         specifier: 0.27.3
         version: 0.27.3
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
       zod:
         specifier: ^3.24.0
         version: 3.25.76

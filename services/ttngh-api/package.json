@@ -9,9 +9,11 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "media:sync": "node --env-file-if-exists=.env.media-sync scripts/sync-drive-media.mjs",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1149.0",
     "@faako/api-contracts": "workspace:*",
     "@faako/logger": "workspace:*",
     "@faako/security": "workspace:*",
@@ -20,6 +22,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "8.7.1",
     "node-ical": "0.27.3",
+    "sharp": "0.34.5",
     "zod": "^3.24.0"
   }
 }

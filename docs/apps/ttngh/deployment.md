@@ -13,6 +13,11 @@ complete configuration matrix and disabled-feature prerequisites.
 
 ## Application boundary
 
+Drive/R2 image copying is a separate operator-run CLI, with no website placement
+changes or automatic deployment. See [media sync setup and acceptance gates](drive-r2-media-sync.md).
+It requires a private read-only Drive service-account credential and bucket-scoped R2
+credentials; the service-account email alone is insufficient.
+
 - `apps/ttngh`: Astro static public site, no visitor authentication.
 - `apps/ttngh/studio`: separate Sanity Studio; managed editor authentication.
 - `services/ttngh-api`: Express on Railway; enquiry delivery and signed publish hook. No contact-message database.
