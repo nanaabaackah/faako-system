@@ -1,11 +1,43 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fixtureEvent } from "./tests/fixtures/event.js";
-import { validateEvents, groupEvents, googleCalendarUrl, eventCalendarFile, eventStructuredData } from "./src/lib/events.js";
+import { validateEvents, groupEvents, selectEventHighlights, eventRegistrationLabel, googleCalendarUrl, eventCalendarFile, eventStructuredData } from "./src/lib/events.js";
 import { fetchPublishedEvents } from "./src/lib/event-source.js";
 import { eventSchema } from "./src/lib/page-schema.js";
 const event = validateEvents([fixtureEvent])[0];
 const site = "https://thethrivingnetworkgh.org";
+
+test("highlights select current/nearest, three additional dates and latest past without duplicates", () => {
+  const now = new Date("2099-10-20T11:00:00Z");
+  const dated = (day, slug) => ({...event, slug, start:`2099-10-${day}T10:00:00Z`, end:`2099-10-${day}T12:00:00Z`});
+  const current = dated("20", "current");
+  const future = [dated("21", "one"), dated("22", "two"), dated("23", "three"), dated("24", "four")];
+  const past = [dated("19", "previous"), dated("18", "older"), dated("17", "oldest")];
+  const result = selectEventHighlights([...past, ...future.reverse(), current], now);
+  assert.equal(result.next.slug, "current");
+  assert.deepEqual(result.upcoming.map(e=>e.slug), ["one", "two", "three"]);
+  assert.equal(result.previous.slug, "previous");
+  assert.deepEqual(selectEventHighlights([], now), {next:null, upcoming:[], previous:null});
+  assert.deepEqual(selectEventHighlights([current], now), {next:current, upcoming:[], previous:null});
+  assert.deepEqual(selectEventHighlights(past, now), {next:null, upcoming:[], previous:past[0]});
+  assert.equal(selectEventHighlights(future, now).previous, null);
+  assert.equal(groupEvents([current], new Date(current.end)).upcoming.length, 1);
+  const tied = [{...current, slug:"b"}, {...current, slug:"a"}];
+  assert.deepEqual(groupEvents(tied, now).upcoming.map(e=>e.slug), ["a", "b"]);
+});
+
+test("past registration state overrides stale open metadata", () => {
+  assert.equal(eventRegistrationLabel({...event, registrationState:"open"}, new Date("2100-01-01")), "Event completed");
+  assert.equal(eventRegistrationLabel({...event, registrationState:"open"}, new Date("2099-01-01")), "Registration open");
+});
+
+test("Calendar UID is optional, exact and unique among published records", () => {
+  assert.equal(event.calendarUid, "");
+  assert.equal(validateEvents([{...fixtureEvent, calendarUid:"abc@google.com"}])[0].calendarUid, "abc@google.com");
+  assert.throws(()=>validateEvents([{...fixtureEvent, calendarUid:"bad uid"}]));
+  assert.throws(()=>validateEvents([{...fixtureEvent, calendarUid:"same"}, {...fixtureEvent, _id:"other", slug:"other", calendarUid:"same"}]));
+  assert.equal(validateEvents([{...fixtureEvent, calendarUid:"same"}, {...fixtureEvent, _id:"drafts.other", calendarUid:"same"}]).length, 1);
+});
 
 test("only explicitly published events cross the boundary", () => {
   assert.equal(validateEvents([fixtureEvent, {...fixtureEvent, _id: "drafts.x"}, {...fixtureEvent, _id: "versions.release.x"}, {...fixtureEvent, publishState: "draft"}]).length, 1);

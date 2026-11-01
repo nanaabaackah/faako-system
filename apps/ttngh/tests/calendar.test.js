@@ -3,6 +3,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dateKey, monthRange, eventsOnDay, eventTime, validateCalendarResponse } from "../src/lib/calendar.js";
 const event = { id: "fixture", uid: "fixture", title: "Community event", start: "2026-10-20", end: "2026-10-22", allDay: true, location: "", timezone: "Africa/Accra", status: "confirmed" };
+test("calendar enrichment uses exact UID and safe local routes without HTML rendering", () => {
+  const source = readFileSync(new URL("../src/scripts/month-calendar.ts", import.meta.url), "utf8");
+  assert.match(source, /eventLinks\.get\(event\.uid\)/);
+  assert.match(source, /link\.textContent = "View full event"/);
+  assert.doesNotMatch(source, /innerHTML|eventLinks\.get\(event\.title\)/);
+});
 test("initial loading retains placeholders instead of rendering dates early", () => {
   const script = readFileSync(new URL("../src/scripts/month-calendar.ts", import.meta.url), "utf8");
   assert.match(script, /if \(!loaded\) renderLoading\(\)/);

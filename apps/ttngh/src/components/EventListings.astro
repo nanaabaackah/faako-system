@@ -1,22 +1,21 @@
 ---
 import Icon from "./Icon.jsx";
 import { getPublishedEvents } from "../lib/event-source.js";
-import { groupEvents, eventPath, formatEventDate } from "../lib/events.js";
+import { groupEvents, eventPath, formatEventDate, eventRegistrationLabel } from "../lib/events.js";
 import "../styles/components/event-listings.css";
-const { compact = false, featuredEventId, showEmpty = true, excludeFeatured = false } = Astro.props;
-const { upcoming, past } = groupEvents(await getPublishedEvents());
+const { compact = false, featuredEventId, showEmpty = true, excludeFeatured = false, selectedEvents, id } = Astro.props;
+const { upcoming, past } = groupEvents(selectedEvents ?? await getPublishedEvents());
 const selection=compact&&featuredEventId?[...upcoming.filter(event=>event.id===featuredEventId),...upcoming.filter(event=>event.id!==featuredEventId)]:upcoming;
-const groups = [{ title: "Upcoming events", events: compact ? selection.slice(0, 3) : excludeFeatured ? upcoming.slice(1) : upcoming }, ...(!compact && past.length ? [{ title: "Past events", events: past }] : [])];
+const groups = [{ title: "Upcoming events", events: selectedEvents ?? (compact ? selection.slice(0, 3) : excludeFeatured ? upcoming.slice(1) : upcoming) }, ...(!selectedEvents && !compact && past.length ? [{ title: "Past events", events: past }] : [])];
 const day = event => new Intl.DateTimeFormat("en-GH",{day:"2-digit",timeZone:event.timezone}).format(new Date(event.start));
 const month = event => new Intl.DateTimeFormat("en-GH",{month:"short",timeZone:event.timezone}).format(new Date(event.start));
-const states = { open:"Registration open", closed:"Registration closed", "not-open":"Registration not yet open", "not-required":"No registration required" };
 ---
-<div class="event-listings">
+<div class="event-listings" id={id} data-reveal>
   {groups.filter(group => showEmpty || group.events.length).map(group => <section class="event-listing-group">
     <h2>{group.title}</h2>
     {group.events.length ? <div class="event-card-grid">{group.events.map(event => <a class="event-card" href={eventPath(event)}>
       <div class="event-card-visual"><img src={`${event.image.url}?w=800&auto=format`} alt={event.image.alt} width={event.image.width} height={event.image.height} loading="lazy" decoding="async" /><span class="event-date-badge" aria-hidden="true"><strong>{day(event)}</strong>{month(event)}</span></div>
-      <div><p class="event-date"><time datetime={event.start}>{formatEventDate(event)}</time></p><h3>{event.title}</h3><p class="event-card-summary">{event.summary}</p><p>{event.format === "online" ? "Online" : event.venue} · {states[event.registrationState]}</p><span class="text-link">Event details <Icon name="arrow-right" /></span></div>
+      <div><p class="event-date"><time datetime={event.start}>{formatEventDate(event)}</time></p><h3>{event.title}</h3><p class="event-card-summary">{event.summary}</p><p>{event.format === "online" ? "Online" : event.venue} · {eventRegistrationLabel(event)}</p><span class="text-link">View event details <Icon name="arrow-right" /></span></div>
     </a>)}</div> : <p>New dates have not been published yet. <a href="/contact?topic=events">Ask the team about upcoming events.</a></p>}
   </section>)}
 </div>
