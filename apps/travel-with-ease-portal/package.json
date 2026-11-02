@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5188",
+    "dev": "vite --host 127.0.0.1 --port 5188",
     "build": "vite build",
     "railway:build": "vite build",
     "railway:start": "pnpm --filter @faako/travel-with-ease-api run start:portal",

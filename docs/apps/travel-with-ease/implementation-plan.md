@@ -1,5 +1,71 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-10-31 — Public identity and template options
+
+Publish the Travel With Ease brand without private business identifiers or a
+street address. Support selectable enquiry and staff-invitation copy in Templates
+with independent versions and migration 011, preserving manual invitation-code
+sharing and all authentication requirements. Hosted CMS copy and previously
+queued emails require separate review; do not rewrite them silently.
+See [implementation notes](./public-brand-and-template-options-2026-10-31.md).
+
+## 2026-10-31 — Brand typography and email template management
+
+Self-host the requested fonts; refine full-card interactions and privacy popup;
+remove the footer footprint panel; move email preview into Owner-only Templates
+with audited versioned draft/activation and migration 010. Preserve email routing,
+queued-payload immutability and local no-send demo behaviour. See
+[implementation and deployment notes](./email-templates-and-brand-polish.md).
+
+## 2026-10-31 — Controlled Drive/R2 media sync
+
+Add TTNGH-style server-only JSON configuration, bounded approved-folder browsing
+and on-demand immutable image imports, provenance migration 009, CMS selection,
+responsive publication assets and a no-network demo. Keep live activation pending
+authorised Railway credentials, folder sharing and staging verification.
+See [configuration, security decisions and rollback](./drive-r2-sync.md).
+
+## 2026-10-30 — Reference correction
+
+Restore the user's five-mockup CTA, align the full homepage's editorial treatment
+with the actual Flyward source, and share one photo through enquiry/footer.
+The footer remains full-width until the page-end gutter reveal.
+See [decisions and verification](./reference-correction-2026-10-30.md).
+This supersedes the photo-collage/light-footer description below; it does not
+complete unapproved content, hosted portal UAT or production API remediation.
+
+## 2026-10-30 — Editorial website redesign
+
+Shared cinematic hero, cream interactive map, original photo CTA and light footer
+implemented for public/demo modes. See [implementation, tests and release gates](./editorial-redesign-2026-10-30.md).
+Native general/package enquiry completion, approved collections/legal copy, hosted
+staff UAT and production API health remain open; do not mark the roadmap complete.
+
+## 2026-10-30 — Company content, acknowledgements and publication follow-up
+
+The current branch completes the Modern Concierge acknowledgement, redirects all
+development/staging mail to testing, and sends production acknowledgements to the
+saved customer with notifications CC. Journal collections and verified country
+totals reuse the existing immutable content revision and publication lifecycle.
+No new database migration or permission inheritance is required.
+
+About, Services, How it works, Privacy, Cookies and Terms starter copy is available
+in the portal for editing. Loading it does not persist or publish it. Owner/legal
+approval, actual provider/retention configuration and TIDS stamp evidence remain
+content gates. See `company-content-source.md`, `content-review-drafts.json` and
+`email-test-flow.md`. This follow-up does not complete the native intake rebuild,
+automated invitation email, online checkout or production acceptance.
+
+## 2026-10-29 — Account activation and Phase 11
+
+The current implementation slice adds identity-bound initial Owner/Editor
+invitations and user-specific guided onboarding. See the [architecture, setup,
+reuse, versioning and acceptance runbook](./workspace-onboarding.md).
+Work is isolated on `feat/twe-workspace-onboarding` for a PR into `develop`;
+no automatic merge, infrastructure ownership change or production deployment.
+Local tests and hosted acceptance are separate gates. No Trello completion state
+is changed by this phase. Earlier planning below is historical context.
+
 Date: 2026-10-11. Prepared under [TWE-016](https://trello.com/c/VGWgpkCy).
 Status: proposed execution plan for approval; no product implementation or infrastructure provisioning performed.
 Evidence: [repository audit](./repository-audit-2026-10-11.md). Rules: [design/engineering standard](./design-engineering-standard.md). Product scope: Prompt 02 and the [October roadmap](./Travel_With_Ease_Solution_Roadmap.md).

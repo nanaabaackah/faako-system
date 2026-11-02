@@ -1,5 +1,14 @@
 # Travel With Ease documentation
 
+Media configuration and image changes: [Drive → private R2 → publication](./drive-r2-sync.md).
+
+Latest visual work: [Flyward reference correction — 2026-10-30](./reference-correction-2026-10-30.md).
+Earlier implementation/release gates: [editorial redesign](./editorial-redesign-2026-10-30.md).
+
+Current follow-up: [company content, enquiry email and demos](./content-and-email-followup.md).
+Company source: [public facts and outstanding approvals](./company-content-source.md).
+Email configuration: [final test/production routing](./email-test-flow.md).
+
 Database deployment: [pre-deploy migrations and first-time setup](./predeploy-migrations-2026-10-27.md).
 
 Latest update: [approved initial public release and PostgreSQL compatibility](./public-release-2026-10-26.md).
@@ -33,4 +42,16 @@ Staff login deployment: [portal hosting preparation](./portal-hosting-preparatio
 
 Current verified status: local implementation/tests and conditional staging API startup guard; no complete hosted staging acceptance or production certification. Production API and background workers remain blocked pending a separate release review. Do not confuse readiness preflight, DNS/Access redirects or local tests with observed MFA/UAT/backup verification. Use [the readiness check](./readiness-check.md) for active gates and [Prompt 03 handoff](./implementation-plan.md#prompt-03-handoff-scope) for remaining acceptance.
 
-The public website uses the shared consent-controlled GA4 integration. The user-supplied TWE stream is configured locally through `PUBLIC_GA_MEASUREMENT_ID` and was verified in the local build on 2026-10-23. Do not add a second inline Google tag: the existing loader loads it after analytics consent and respects Do Not Track. Set the same variable in the **public website's build environment**, then rebuild/deploy the approved site and complete `docs/architecture/google-analytics-architecture.md`'s hosted verification checklist. Production analytics receipt has not been verified. Do not configure tracking on the staff portal or reuse another Faako site's measurement ID.
+The public website uses the shared consent-controlled GA4 integration. Production
+defaults to the user-approved stream `G-GVJ2HGT6YN`; `PUBLIC_GA_MEASUREMENT_ID` is
+an optional public build override. Set `PUBLIC_APP_ENV=production` on the production
+public website. The production stream is blocked in local/staging builds even if
+copied into their environment; a separate test stream can be configured explicitly.
+Do not add a second inline Google tag. The existing loader initializes once after
+analytics consent, respects Do Not Track and sends sanitized page views. A published
+privacy notice remains required; the bundled release currently has no published
+privacy page, so live analytics stays off until the Owner publishes that notice.
+Rebuild/deploy after configuration/publication, then follow
+`docs/architecture/google-analytics-architecture.md`'s hosted verification checklist.
+Local browser checks intercept Google requests; production receipt in GA4 is not
+verified by those checks. Staff portals and demos do not load analytics.

@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
+import { access } from "node:fs/promises";
 import { createApp, createLimiter } from "./app.js";
 import { ExchangeRateApiProvider } from "./currency/provider.js";
 import { CurrencyService } from "./currency/service.js";
@@ -14,12 +15,17 @@ import { readAccessConfig } from "./auth/access-config.js";
 import { createAccessVerifier } from "./auth/access.js";
 import { Administration } from "./auth/administration.js";
 import { administrationRoutes } from "./auth/administration-routes.js";
+import { TutorialService } from "./onboarding/service.js";
+import { tutorialRoutes } from "./onboarding/routes.js";
+import { Invitations } from "./onboarding/invitations.js";
+import { invitationRoutes } from "./onboarding/invitation-routes.js";
 import { PostgresAuthStore } from "./auth/store.js";
 import { createStaffAuth } from "./auth/routes.js";
 import { ContentRepository } from "./content/repository.js";
 import { PublicationRepository } from "./content/publication.js";
 import { MediaService } from "./media/service.js";
 import { readR2Config, R2Store } from "./media/r2.js";
+import { readDriveConfig, DriveReader } from "./media/drive.js";
 import { prepareHostedStartup } from "./staging-startup.js";
 import { readHostedPrerequisites, readinessFailureCode } from "./portal/readiness.js";
 
@@ -56,23 +62,41 @@ const repository = pool
   : new FileLeadRepository(process.env.TWE_LOCAL_DATA_FILE || path.join(directory, "data", "development.json"));
 if (pool) await repository.ready();
 const authSettings = readAccessConfig();
+const accessVerifier = authSettings ? createAccessVerifier(authSettings) : null;
+// The build packages the Vite CMS inside this API workspace for Railway runtime.
+const portalDist = path.join(directory, "dist", "cms");
+if (deployed) await access(path.join(portalDist, "index.html"));
 if (authSettings && !pool) throw new Error("Staff authentication requires PostgreSQL.");
 if (authSettings && !allowedOrigins.includes(authSettings.portalOrigin)) throw new Error("The staff portal origin must be explicitly allowed.");
 const administration = pool && authSettings ? new Administration(pool, process.env.TWE_ORGANISATION_ID, authSettings, environment) : null;
 const staffAuth = createStaffAuth({
   administration,
-  settings: authSettings, provider: authSettings ? createAccessVerifier(authSettings) : null,
+  settings: authSettings, provider: accessVerifier,
   store: pool ? new PostgresAuthStore(pool, process.env.TWE_ORGANISATION_ID) : null,
   limiter: createLimiter({ limit: 10, windowMs: 300_000 }), logger,
 });
 if (administration) staffAuth.administrationRouter = administrationRoutes(administration, staffAuth);
+if (pool && authSettings) staffAuth.router.use(tutorialRoutes(new TutorialService(pool, process.env.TWE_ORGANISATION_ID), staffAuth));
+if (pool && authSettings?.mode === "cloudflare_access") staffAuth.router.use(invitationRoutes(new Invitations(pool, process.env.TWE_ORGANISATION_ID, authSettings, environment, process.env.TWE_SETUP_OPERATOR_SUBJECT), staffAuth));
 const contentRepository = pool ? new ContentRepository(pool, process.env.TWE_ORGANISATION_ID) : null;
 const publicationRepository = pool ? new PublicationRepository(pool, { organisationId: process.env.TWE_ORGANISATION_ID, environment, sourceSha: process.env.TWE_RELEASE_SHA }) : null;
 const mediaSettings = readR2Config();
 if (mediaSettings && !pool) throw new Error("Media storage requires PostgreSQL.");
-const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger) : null;
-const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger });
-const server = app.listen(port, () => logger.info({ port, environment }, "API listening"));
+let driveReader = null;
+try {
+  const settings = readDriveConfig();
+  if (settings && pool && mediaSettings) driveReader = new DriveReader(settings);
+} catch {
+  // Optional media integration must not take staff login or enquiries offline.
+  logger.warn({ eventName: "media.drive_configuration_invalid" }, "Google Drive media import is unavailable; review its server-only configuration.");
+}
+const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger, driveReader) : null;
+const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
+  portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist,
+    stagingDemoEnabled: environment === "staging" && process.env.TWE_STAGING_PORTAL_DEMO_ENABLED === "true" } : null,
+  demoOrigin: process.env.TWE_DEMO_ORIGIN || "",
+});
+const server = app.listen(port, deployed ? undefined : "127.0.0.1", () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;
 for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => {

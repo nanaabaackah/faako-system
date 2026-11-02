@@ -3,12 +3,19 @@ import { createErrorResponse, errorCodeForStatus, resolveRequestId } from "@faak
 import { buildSecurityHeaders } from "@faako/security";
 
 const id = "[a-fA-F0-9-]{36}";
-const page = "(?:home|about|services|faqs|testimonials|contact)";
+const page = "(?:home|about|services|how-it-works|faqs|testimonials|contact|journal|travel-footprint|privacy|terms|cookies)";
 const routes = [
+  ["GET", /^\/api\/auth\/(activation|invitations)$/],
+  ["POST", /^\/api\/auth\/(invitations|activation\/preview|activation\/claim|activation\/owner-invitation)$/],
+  ["POST", new RegExp(`^/api/auth/(?:invitations|activation/owner-invitation)/${id}/revoke$`)],
+  ["GET", /^\/api\/auth\/tutorials$/],
+  ["POST", /^\/api\/auth\/tutorials$/],
   ["GET", /^\/api\/auth\/(status|session)$/],
   ["POST", /^\/api\/auth\/(access-session|logout|logout-all)$/],
   ["GET", /^\/api\/agent\/leads$/],
-  ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff)$/],
+  ["GET", /^\/api\/agent\/inquiries(?:\/[a-fA-F0-9-]{36})?$/],
+  ["POST", /^\/api\/agent\/inquiries\/[a-fA-F0-9-]{36}\/status$/],
+  ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff|staff-events)$/],
   ["POST", /^\/api\/agent\/administration\/(staff|support-grants)$/],
   ["POST", new RegExp(`^/api/agent/administration/staff/${id}/(?:status|revoke-sessions)$`)],
   ["POST", new RegExp(`^/api/agent/administration/support-grants/${id}/revoke$`)],
@@ -17,6 +24,9 @@ const routes = [
   ["GET", new RegExp(`^/api/agent/media(?:/${id}/preview)?/?$`)],
   ["POST", new RegExp(`^/api/agent/media/(?:upload|${id}/(?:replace|archive))$`)],
 ];
+
+export const isAllowedPortalApiRoute = (method, pathname) =>
+  routes.some(([allowedMethod, pattern]) => allowedMethod === method && pattern.test(pathname));
 
 export function readPortalUpstream(value, environment) {
   let url;
@@ -57,7 +67,7 @@ export function createPortalApp({ settings, upstream, distDirectory, verifier, l
     if (!req.url.startsWith("/api")) return next();
     // Reject encoded/ambiguous paths before URL normalization; no caller-controlled host.
     const pathname = req.url.split("?")[0];
-    if (!routes.some(([method, pattern]) => method === req.method && pattern.test(pathname))) return fail(req, res, 404);
+    if (!isAllowedPortalApiRoute(req.method, pathname)) return fail(req, res, 404);
     if (req.url.length > 4096 || /[\\#]/.test(req.url)) return fail(req, res, 400);
     if (req.method === "POST" && req.headers.origin !== settings.portalOrigin) return fail(req, res, 403);
     const upload = /\/media\/(?:upload|[a-fA-F0-9-]{36}\/replace)$/.test(pathname);

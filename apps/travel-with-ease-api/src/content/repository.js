@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { transaction } from "../db/database.js";
-import { ContentError, contentBodySchema, pageSchema } from "./schema.js";
+import { ContentError, contentForPage, pageSchema } from "./schema.js";
 import { appendAudit } from "../audit.js";
 
 export class ContentRepository {
@@ -33,7 +33,7 @@ export class ContentRepository {
 
   async save(page, body, expectedVersion, actor, requestId) {
     pageSchema.parse(page);
-    const validated = contentBodySchema.parse(body);
+    const validated = contentForPage(page, body);
     if (actor.organisationId !== this.organisationId) throw new ContentError(403, "permission_error", "Organisation access denied.");
     return transaction(this.pool, async (client) => {
       if (expectedVersion === 0) await client.query("INSERT INTO twe.content_items (id, organisation_id, kind, slug) VALUES ($1, $2, 'page', $3) ON CONFLICT (organisation_id, kind, slug) DO NOTHING", [randomUUID(), this.organisationId, page]);

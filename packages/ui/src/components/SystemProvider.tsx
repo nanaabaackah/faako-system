@@ -49,7 +49,8 @@ const ensureThemeMeta = (color: string) => {
 export function UiSystemProvider({
   appSystem,
   children,
-}: PropsWithChildren<{ appSystem: AppSystemConfig }>) {
+  toastPresentation = "default",
+}: PropsWithChildren<{ appSystem: AppSystemConfig; toastPresentation?: "default" | "twe" }>) {
   const safeAppSystem = appSystem || FALLBACK_SYSTEM;
   const preset = useMemo(
     () => resolveSystemThemePreset(safeAppSystem?.theme?.presetId),
@@ -135,7 +136,7 @@ export function UiSystemProvider({
 
   return (
     <UiSystemContext.Provider value={contextValue}>
-      <ToastProvider>{children}</ToastProvider>
+      <ToastProvider presentation={toastPresentation}>{children}</ToastProvider>
     </UiSystemContext.Provider>
   );
 }

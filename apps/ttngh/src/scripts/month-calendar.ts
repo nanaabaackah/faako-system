@@ -15,6 +15,14 @@ class MonthCalendar extends HTMLElement {
   connectedCallback() {
     if (this.dataset.ready) return;
     this.dataset.ready = "true";
+    // Build-produced published event links only; never guess from a title or date.
+    const eventLinks = new Map<string, string>();
+    try {
+      const links = JSON.parse(this.dataset.eventLinks || "[]");
+      if (Array.isArray(links)) for (const link of links) {
+        if (typeof link.uid === "string" && typeof link.path === "string" && /^\/events\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(link.path)) eventLinks.set(link.uid, link.path);
+      }
+    } catch { /* The live schedule remains usable if editorial links are unavailable. */ }
     const today = dateKey(new Date());
     let year = Number(today.slice(0, 4)), month = Number(today.slice(5, 7)) - 1;
     let selected = today, events: CalendarEvent[] = [], loaded = false, busy = false;
@@ -39,6 +47,15 @@ class MonthCalendar extends HTMLElement {
         article.append(node("h5", event.title), node("p", eventTime(event)));
         if (event.location) article.append(node("p", event.location));
         if (event.status === "tentative") article.append(node("p", "Tentative — date or time may change.", "month-tentative"));
+        const path = eventLinks.get(event.uid);
+        if (path) {
+          const link = document.createElement("a");
+          link.href = path;
+          link.className = "text-link";
+          link.textContent = "View full event";
+          link.setAttribute("aria-label", `View full event: ${event.title}`);
+          article.append(link);
+        }
         container.append(article);
       }
     };

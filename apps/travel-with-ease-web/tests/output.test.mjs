@@ -10,9 +10,11 @@ test("review home contains discovery, shared footer and honest placeholder bound
   assert.match(html, /data-analytics-config/);
   assert.match(html, /data-cookie-settings/);
   assert.match(html, /Design preview/);
-  assert.match(html, /Photograph supplied by Travel With Ease/);
-  assert.match(html, /Blue and white boats moored beside a lake/);
-  assert.match(html, /No offers are available to book/);
+  assert.match(html, /cinematic-hero__image/);
+  assert.match(html, /Pelicans lifting from the water of a lake in Kenya/);
+  assert.match(html, /Online enquiry forms are not available yet/);
+  assert.match(html, /TRAVEL WITH EASE/);
+  assert.match(html, /href="#plan"/);
   assert.match(html, /srcset="\/media\/kenya-/);
   assert.doesNotMatch(html, /drive\.google\.com/);
   assert.match(html, /ui-app-bottom-bar--footer/);
@@ -33,6 +35,20 @@ test("review routes exist and do not present policies or offers as approved", as
     assert.match(html, /Placeholder for review/);
     assert.match(html, /noindex, nofollow/);
   }
+});
+
+test("arrows are explicit and only the page footprint remains, without demo totals", async () => {
+  const html = await readFile(new URL("../dist/index.html", import.meta.url), "utf8");
+  const anchors = [...html.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)];
+  for (const [, attributes, body] of anchors) {
+    if (/twe-content-link/.test(attributes)) assert.equal((body.match(/link-arrow/g) || []).length, 1);
+    else assert.doesNotMatch(body, /link-arrow/);
+  }
+  assert.equal((html.match(/class="footprint-map"/g) || []).length, 1);
+  assert.doesNotMatch(html.match(/<footer[\s\S]*?<\/footer>/)?.[0] || "", /footprint-map/);
+  assert.match(html, /Verified travel activity is not available yet/);
+  assert.doesNotMatch(html, /Illustrative demo totals|12 demo trips|4 demo trips/);
+  assert.doesNotMatch(html, /arrowTemplate|querySelectorAll\("a:not/);
 });
 
 test("unapproved foundation builds fail closed for indexing", async () => {

@@ -1,0 +1,29 @@
+{
+  "footer": {
+    "src": "/media/b7e55aec-f09f-41a5-8476-b846a9e925d4.webp",
+    "width": 716,
+    "height": 828,
+    "alt": "Antelopes standing together in a grassy landscape.",
+    "sources": [{ "src": "/media/b7e55aec-f09f-41a5-8476-b846a9e925d4.webp", "width": 716 }]
+  },
+  "howItWorks": [
+    {
+      "src": "/media/IMG_3328-1440.webp",
+      "width": 1440,
+      "height": 1920,
+      "alt": "A traveller standing beside safari vehicles.",
+      "sources": [
+        { "src": "/media/IMG_3328-480.webp", "width": 480 },
+        { "src": "/media/IMG_3328-960.webp", "width": 960 },
+        { "src": "/media/IMG_3328-1440.webp", "width": 1440 }
+      ]
+    },
+    {
+      "src": "/media/12bacbf0-6d0f-40e2-8388-009f39df26c9.webp",
+      "width": 720,
+      "height": 474,
+      "alt": "Two antelopes with curved horns in dry grass.",
+      "sources": [{ "src": "/media/12bacbf0-6d0f-40e2-8388-009f39df26c9.webp", "width": 720 }]
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+---
+import Accordion from "./Accordion.astro";
+import "../styles/components/demo-email-preview.css";
+// Build-only pure renderer: no API configuration, credentials or database code.
+import { enquiryTemplate } from "../../../travel-with-ease-api/src/notifications/enquiry-template.js";
+const preview = enquiryTemplate({
+  name: "Demo traveller",
+  test: true,
+}).html.replaceAll("https://travelwitheasegh.com/brand/", "/brand/");
+---
+
+<section class="demo-wrap demo-email-preview">
+  <h2>A clear acknowledgement</h2>
+  <p>
+    Preview the selected email design. Opening this preview sends nothing. Real
+    local/staging delivery goes only to the testing mailbox.
+  </p>
+  <Accordion title="Preview the acknowledgement email">
+    <iframe
+      title="Travel With Ease acknowledgement email design"
+      srcdoc={preview}
+      sandbox=""
+      loading="lazy"></iframe>
+  </Accordion>
+</section>

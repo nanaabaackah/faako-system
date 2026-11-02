@@ -1,13 +1,13 @@
 ---
 import MonthCalendar from "./MonthCalendar.astro";
 import EventListings from "./EventListings.astro";
-const { showListings = false, featuredEventId } = Astro.props;
+const { showListings = false, featuredEventId, editorialEvents = [] } = Astro.props;
 ---
 <section class="event-calendar-section" aria-labelledby="calendar-title">
   <div class="section-heading">
     <h2 id="calendar-title">Plan around confirmed dates.</h2>
     <p>Explore the live schedule in Ghana time. Select a date to see its events.</p>
   </div>
-  <div class="event-calendar"><MonthCalendar /></div>
+  <div class="event-calendar"><MonthCalendar editorialEvents={editorialEvents} /></div>
   {showListings && <div class="calendar-event-listings"><EventListings compact featuredEventId={featuredEventId} /></div>}
 </section>

@@ -5,10 +5,19 @@ import FaqList from "../components/FaqList.astro";
 import ScrollExpandSection from "../components/ScrollExpandSection.astro";
 import EventCalendar from "../components/EventCalendar.astro";
 import EventListings from "../components/EventListings.astro";
-import FeaturedEvent from "../components/FeaturedEvent.astro";
+import EventSpotlight from "../components/EventSpotlight.astro";
+import { getPublishedEvents } from "../lib/event-source.js";
+import { selectEventHighlights } from "../lib/events.js";
 import EventGalleryRail from "../components/EventGalleryRail.astro";
 import { organization } from "../content/home.js";
 import eventStyles from "../styles/pages/events.css?url";
+const events = await getPublishedEvents();
+const highlights = selectEventHighlights(events);
+const heroLinks = [
+  ...(highlights.next ? [["Next up", "#next-up"]] : []),
+  ...(highlights.upcoming.length ? [["Upcoming", "#upcoming-events"]] : []),
+  ["Calendar", "#calendar-title"], ["Recurring events", "#event-types-title"],
+];
 
 const faqItems = [
   { question: "What events does TTNGH run?", answer: "TTNGH runs monthly virtual and in-person support group sessions, the annual Vision with Clarity programme, and mental health outreach for schools, workplaces, faith groups, and communities." },
@@ -18,11 +27,17 @@ const faqItems = [
 
 <BaseLayout path="/events" pageStyles={[eventStyles]} title={`Events | ${organization.name}`} description="Discover The Thriving Network GH community sessions, outreach activities, and annual programmes." image="/images/home/vision-gathering.jpg" imageAlt="Participants gathered for TTNGH's Vision with Clarity programme" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Events", path: "/events" }]} faqItems={faqItems}>
   <main id="main-content" class="editorial-main events-page">
-    <PageHero variant="immersive" links={[["Recurring events","#event-types-title"],["Calendar","#calendar-title"]]} title="Events that bring" accent="us together." intro="Our events create welcoming spaces for mental health education, connection, reflection, and community action." images={[
+    <PageHero variant="immersive" links={heroLinks} title="Events that bring" accent="us together." intro="Our events create welcoming spaces for mental health education, connection, reflection, and community action." images={[
       { src: "/images/refresh/vision-facilitator-1600.webp", alt: "A speaker addressing people seated around a table", caption: "Vision with Clarity · TTNGH" },
     ]} />
-    <FeaturedEvent />
-    <EventListings showEmpty={false} excludeFeatured />
+    {highlights.next ? <EventSpotlight event={highlights.next} /> : <section class="events-empty" aria-labelledby="events-empty-title">
+      <h2 id="events-empty-title">{highlights.previous ? "No new dates have been published yet." : "No event dates have been published yet."}</h2>
+      <p>TTNGH runs recurring support, education and community programmes throughout the year. Explore the live calendar or ask the team about upcoming events.</p>
+      <div class="hero-actions"><a class="text-link" href="#calendar-title">View calendar</a><a class="text-link" href="/contact?topic=events">Ask about upcoming events</a></div>
+    </section>}
+    {highlights.upcoming.length > 0 && <EventListings selectedEvents={highlights.upcoming} id="upcoming-events" showEmpty={false} />}
+    {highlights.previous && <EventSpotlight event={highlights.previous} previous />}
+    <EventCalendar editorialEvents={events} />
     <section class="events-recurring " aria-labelledby="event-types-title">
       <header class="events-recurring-intro">
         <div><h2 id="event-types-title">Recurring spaces for support, reflection, and learning.</h2></div>
@@ -57,7 +72,6 @@ const faqItems = [
         </article>
       </div>
     </section>
-    <EventCalendar />
     <EventGalleryRail />
     <FaqList items={faqItems} />
     <div id="upcoming"><ScrollExpandSection image="/images/refresh/vision-community-1600.webp" alt="Participants gathered for TTNGH's Vision with Clarity programme" title="Help bring people together." text="Donate to support TTNGH community programmes and mental health education." frameTitle="Come as you are." id="dates-title" /></div>

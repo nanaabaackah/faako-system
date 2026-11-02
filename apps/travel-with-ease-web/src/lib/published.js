@@ -17,5 +17,6 @@ export function publishedPage(slug) {
   const snapshot = process.env.TWE_CONTENT_SNAPSHOT
     ? JSON.parse(readFileSync(filename, "utf8")) : approvedRelease;
   if (snapshot.version !== 1 || !snapshot.pages || typeof snapshot.pages !== "object") throw new Error("Invalid publication snapshot.");
+  if (slug.startsWith("journal/")) return snapshot.pages.journal?.articles?.find(article => article.slug === slug.slice(8)) || null;
   return snapshot.pages[slug] || null; // Explicitly unpublished; never fall back to old copy.
 }

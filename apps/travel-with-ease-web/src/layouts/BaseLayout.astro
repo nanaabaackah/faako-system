@@ -1,25 +1,49 @@
 ---
 import "../styles/global.css";
 import "../styles/editorial.css";
-import SharedFaakoFooter from "../components/SharedFaakoFooter.jsx";
-import {
-  canonicalUrl,
-  serializeJsonLd,
-} from "@faako/discovery";
+import "../styles/typography.css";
+import PublicFooter from "../components/PublicFooter.astro";
+import ContentLink from "../components/ContentLink.astro";
+import EditorialMotion from "../components/EditorialMotion.astro";
+import { canonicalUrl, serializeJsonLd } from "@faako/discovery";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import CookieNotice from "../components/CookieNotice.astro";
-import { ArrowRight4 } from "@faako/ui";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import FloatingActions from "../components/FloatingActions.astro";
 import { sharingMetadata } from "../lib/sharing.js";
 import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
 
-const { title, description, path = Astro.url.pathname, type = "website", noIndex = false } = Astro.props;
+const {
+  title,
+  description,
+  path = Astro.url.pathname,
+  type = "website",
+  noIndex = false,
+} = Astro.props;
+const demo =
+  Astro.props.demo === true &&
+  (import.meta.env.DEV ||
+    (import.meta.env.PUBLIC_APP_ENV === "staging" &&
+      import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true"));
+const cinematic = Astro.props.cinematic === true;
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
-const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
-const sharing = sharingMetadata({ site: site.href, image: Astro.props.image || pageContent?.socialImage?.src || "/og/default.jpg", imageAlt: Astro.props.imageAlt || pageContent?.socialImage?.alt || "Travel With Ease — your guide to stress-free travel", type });
-const approvedForIndexing = import.meta.env.PUBLIC_APP_ENV === "production" && import.meta.env.PUBLIC_SITE_INDEXABLE === "true" && site.hostname !== "travelwithease.example";
+const pageContent = demo
+  ? undefined
+  : publishedPage(path.replace(/^\/|\/$/g, "") || "home");
+const sharing = sharingMetadata({
+  site: site.href,
+  image:
+    Astro.props.image || pageContent?.socialImage?.src || "/og/default.jpg",
+  imageAlt:
+    Astro.props.imageAlt ||
+    pageContent?.socialImage?.alt ||
+    "Travel With Ease — your guide to stress-free travel",
+  type,
+});
+const approvedForIndexing =
+  import.meta.env.PUBLIC_APP_ENV === "production" &&
+  import.meta.env.PUBLIC_SITE_INDEXABLE === "true" &&
+  site.hostname !== "travelwithease.example";
 const shouldIndex = approvedForIndexing && !noIndex && Boolean(pageContent);
 const schema = {
   "@context": "https://schema.org",
@@ -30,35 +54,95 @@ const schema = {
   description,
 };
 const jsonLd = serializeJsonLd(schema);
-const arrowRightMarkup = renderToStaticMarkup(createElement(ArrowRight4, { className: "link-arrow", "aria-hidden": true, focusable: "false" }));
 const breadcrumbs = Astro.props.breadcrumbs || [];
-if (!Array.isArray(breadcrumbs) || breadcrumbs.length > 10) throw new Error("Invalid breadcrumb list.");
-const breadcrumbJson = breadcrumbs.length ? serializeJsonLd({
-  "@context": "https://schema.org", "@type": "BreadcrumbList",
-  itemListElement: breadcrumbs.map((item: { name: string; path: string }, index: number) => {
-    if (typeof item.name !== "string" || !item.name.trim() || item.name.length > 120 || typeof item.path !== "string" || !/^\/(?!\/)[a-z0-9/_-]*$/i.test(item.path)) throw new Error("Invalid public breadcrumb.");
-    return { "@type": "ListItem", position: index + 1, name: item.name, item: canonicalUrl(item.path, site) };
-  }),
-}) : null;
-const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
+if (!Array.isArray(breadcrumbs) || breadcrumbs.length > 10)
+  throw new Error("Invalid breadcrumb list.");
+const breadcrumbJson = breadcrumbs.length
+  ? serializeJsonLd({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: breadcrumbs.map(
+        (item: { name: string; path: string }, index: number) => {
+          if (
+            typeof item.name !== "string" ||
+            !item.name.trim() ||
+            item.name.length > 120 ||
+            typeof item.path !== "string" ||
+            !/^\/(?!\/)[a-z0-9/_-]*$/i.test(item.path)
+          )
+            throw new Error("Invalid public breadcrumb.");
+          return {
+            "@type": "ListItem",
+            position: index + 1,
+            name: item.name,
+            item: canonicalUrl(item.path, site),
+          };
+        },
+      ),
+    })
+  : null;
+const googleSiteVerification =
+  import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
 const review = !publicationSnapshotPath();
-const visible = (href: string) => review || Boolean(publishedPage(href.slice(1)));
-const navigation = [["/destinations", "Destinations"], ["/services", "Services"], ["/about", "About"], ["/journal", "Journal"], ["/travel-footprint", "Travel footprint"]];
+const stagingReview = import.meta.env.PUBLIC_APP_ENV === "staging";
+// Public source identifier only; never emit arbitrary environment values.
+const releaseSha = [
+  process.env.CF_PAGES_COMMIT_SHA,
+  process.env.GITHUB_SHA,
+  process.env.TWE_RELEASE_SHA,
+].find((value) => typeof value === "string" && /^[a-f0-9]{40}$/i.test(value));
+const visible = (href: string) =>
+  demo ||
+  review ||
+  (cinematic && href.startsWith("#")) ||
+  Boolean(publishedPage(href.slice(1)));
+const navigation = demo
+  ? [
+      ["#demo-packages", "Destinations"],
+      ["#demo-process", "How it works"],
+      ["#demo-journal", "Journal"],
+      ["#demo-footprint", "Travel footprint"],
+    ]
+  : [
+      ["/destinations", "Destinations"],
+      ["/services", "Services"],
+      ["/about", "About"],
+      ["/journal", "Journal"],
+      ["/travel-footprint", "Travel footprint"],
+    ];
+if (cinematic && !demo) {
+  navigation.splice(4, 1, ["#our-world", "Our world"]);
+}
 ---
+
 <!doctype html>
 <html lang="en-GH">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <meta name="theme-color" content="#010c33" />
+    {releaseSha && <meta name="twe-release" content={releaseSha} />}
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="/site.webmanifest" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
-    <meta name="robots" content={shouldIndex ? "index, follow" : "noindex, nofollow"} />
+    {
+      googleSiteVerification && (
+        <meta
+          name="google-site-verification"
+          content={googleSiteVerification}
+        />
+      )
+    }
+    <meta
+      name="robots"
+      content={shouldIndex ? "index, follow" : "noindex, nofollow"}
+    />
     <link rel="canonical" href={canonical} />
     <link rel="alternate" hreflang="en-GH" href={canonical} />
     <meta property="og:site_name" content="Travel With Ease" />
@@ -76,36 +160,102 @@ const navigation = [["/destinations", "Destinations"], ["/services", "Services"]
     <meta name="twitter:image:alt" content={sharing.imageAlt} />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <script is:inline type="application/ld+json" set:html={jsonLd}></script>
-    {breadcrumbJson && <script is:inline type="application/ld+json" set:html={breadcrumbJson}></script>}
+    <script is:inline type="application/ld+json" set:html={jsonLd} />
+    {
+      breadcrumbJson && (
+        <script
+          is:inline
+          type="application/ld+json"
+          set:html={breadcrumbJson}
+        />
+      )
+    }
   </head>
-  <body id="top">
+  <body id="top" class:list={{ "cinematic-page": cinematic }}>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header">
-      <a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" /></a>
-      <button type="button" class="menu-toggle" hidden aria-expanded="false" aria-controls="primary-navigation">Menu</button>
+      <a
+        class="brand"
+        href={demo ? "/demo" : "/"}
+        aria-label="Travel With Ease home"
+        ><img
+          src="/brand/Primary gold.png"
+          width="640"
+          height="248"
+          alt="Travel With Ease"
+        /></a
+      >
+      <button
+        type="button"
+        class="menu-toggle"
+        hidden
+        aria-expanded="false"
+        aria-controls="primary-navigation">Menu</button
+      >
       <nav id="primary-navigation" aria-label="Primary navigation">
-        {navigation.filter(([href]) => visible(href)).map(([href, label]) => <a href={href} aria-current={Astro.url.pathname.replace(/\/$/, "") === href ? "page" : undefined}>{label}</a>)}
-        {visible("/contact") && <a class="nav-cta" href="/contact">Plan a trip</a>}
+        <div class="header-links">
+          {
+            navigation
+              .filter(([href]) => visible(href))
+              .map(([href, label]) => (
+                <a
+                  href={href}
+                  aria-current={
+                    Astro.url.pathname.replace(/\/$/, "") === href
+                      ? "page"
+                      : undefined
+                  }
+                >
+                  {label}
+                </a>
+              ))
+          }
+        </div>
+        {
+          (cinematic || visible("/contact")) && (
+            <ContentLink
+              button
+              class="nav-cta"
+              href={demo ? "#demo-plan" : cinematic ? "#plan" : "/contact"}
+            >
+              Plan a trip
+            </ContentLink>
+          )
+        }
       </nav>
     </header>
-    {review && <p class="review-banner">Design preview · placeholder content · enquiries and offers are not live.</p>}
+    {
+      demo ? (
+        <p class="review-banner">
+          Website demo · sample packages are not available to book.{" "}
+          {import.meta.env.PUBLIC_APP_ENV === "staging"
+            ? "Enquiries are saved to the staging test inbox only."
+            : "Local preview: enquiries are not submitted."}{" "}
+          <a href="/">Exit demo</a>
+        </p>
+      ) : stagingReview ? (
+        <p class="review-banner">
+          Staging design preview · placeholder sections are not live packages,
+          bookings or enquiries.
+        </p>
+      ) : (
+        review && (
+          <p class="review-banner">
+            Design preview · placeholder content · enquiries and offers are not
+            live.
+          </p>
+        )
+      )
+    }
     <main id="main-content"><slot /></main>
-    <footer class="site-footer"><div class="footer-main"><div><a class="brand" href="/" aria-label="Travel With Ease home"><img src="/brand/Primary gold.png" width="640" height="248" alt="Travel With Ease" loading="lazy" /></a><p>Travel planning from Ghana.</p>{review && <small>Email, WhatsApp and social links awaiting approval.</small>}</div><nav aria-label="Footer navigation">{[["/faqs", "FAQs"], ["/contact", "Contact"], ["/privacy", "Privacy"], ["/terms", "Terms"]].filter(([href]) => visible(href)).map(([href, label]) => <a href={href}>{label}</a>)}<button class="footer-cookie-settings" type="button" data-cookie-settings>Cookie settings</button><a href="#top">Back to top</a></nav></div><SharedFaakoFooter /></footer>
-    <CookieNotice />
-    <AnalyticsConsent />
+    <slot name="closing" />
+    {!cinematic && <PublicFooter demo={demo} />}
+    <FloatingActions />
+    <EditorialMotion />
+    <CookieNotice demo={demo} />
+    {!demo && <AnalyticsConsent />}
   </body>
 </html>
-<script define:vars={{ arrowRightMarkup }}>
-  const arrowTemplate = document.createElement("template");
-  arrowTemplate.innerHTML = arrowRightMarkup;
-  const arrow = arrowTemplate.content.firstElementChild;
-  if (arrow) {
-    document.querySelectorAll("a:not(.brand):not(.skip-link)").forEach((link) => {
-      link.append(arrow.cloneNode(true));
-    });
-  }
-</script>
 <script>
   const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
   const nav = document.querySelector<HTMLElement>("#primary-navigation");
@@ -117,11 +267,22 @@ const navigation = [["/destinations", "Destinations"], ["/services", "Services"]
     };
     toggle.hidden = false;
     setOpen(false);
-    toggle.addEventListener("click", () => setOpen(toggle.getAttribute("aria-expanded") !== "true"));
+    toggle.addEventListener("click", () =>
+      setOpen(toggle.getAttribute("aria-expanded") !== "true"),
+    );
     nav.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && mobile.matches) { setOpen(false); toggle.focus(); }
+      if (event.key === "Escape" && mobile.matches) {
+        setOpen(false);
+        toggle.focus();
+      }
     });
-    toggle.addEventListener("keydown", (event) => { if (event.key === "Escape") setOpen(false); });
+    nav.addEventListener("click", (event) => {
+      if ((event.target as Element).closest("a") && mobile.matches)
+        setOpen(false);
+    });
+    toggle.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setOpen(false);
+    });
     mobile.addEventListener("change", () => setOpen(false));
   }
 </script>

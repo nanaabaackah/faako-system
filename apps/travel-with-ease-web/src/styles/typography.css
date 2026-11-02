@@ -1,0 +1,34 @@
+@font-face {
+  font-family: "Bonheur Royale";
+  src: url("/fonts/bonheur-royale-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("/fonts/montserrat-latin-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+/* Unlayered brand rules override component-specific historical serif headings. */
+body :is(h1, h2, h3, h4, h5, h6) {
+  font-family: "Montserrat", Arial, sans-serif !important;
+  font-weight: 800 !important;
+}
+body .cinematic-hero h1 {
+  max-width: 23ch;
+  font-size: clamp(2rem, 4.3vw, 4.4rem);
+  text-transform: none;
+}
+body .cinematic-hero .hero-signature {
+  display: block;
+  margin-top: 0.15em;
+  font-family: "Bonheur Royale", cursive;
+  font-size: clamp(3.1rem, 8vw, 7rem);
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-transform: none;
+}

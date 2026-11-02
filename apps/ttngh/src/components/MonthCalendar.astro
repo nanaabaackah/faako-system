@@ -2,8 +2,10 @@
 import Icon from "./Icon.jsx";
 import "../styles/components/month-calendar.css";
 const api = import.meta.env.PUBLIC_TTNGH_API_ORIGIN?.trim() || "";
+const { editorialEvents = [] } = Astro.props;
+const eventLinks = editorialEvents.filter(event => event.calendarUid).map(event => ({ uid: event.calendarUid, path: `/events/${event.slug}` }));
 ---
-<month-calendar data-api={api}>
+<month-calendar data-api={api} data-event-links={JSON.stringify(eventLinks)}>
   <div class="month-toolbar">
     <button type="button" data-month-prev aria-label="Previous month"><Icon name="arrow-left" /></button>
     <h3 data-month-label aria-live="polite">Event calendar</h3>

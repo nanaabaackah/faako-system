@@ -10,7 +10,8 @@ export function administrationRoutes(service, auth) {
   router.get("/diagnostics",auth.requirePermission("system.read"),async(req,res)=>send(req,res,await service.diagnostics(req.staff,req.requestId)));
   router.get("/security-events",auth.requirePermission("security.read"),async(req,res)=>send(req,res,{items:await service.securityEvents(req.staff,req.requestId)}));
   router.get("/staff",async(req,res)=>send(req,res,{items:await service.staff(req.staff)}));
-  router.post("/staff/:id/revoke-sessions",auth.requireMutation,auth.requirePermission("maintenance.revoke_sessions"),async(req,res)=> {
+  router.get("/staff-events",auth.requirePermission("staff.manage"),async(req,res)=>send(req,res,{items:await service.staffEvents(req.staff)}));
+  router.post("/staff/:id/revoke-sessions",auth.requireMutation,async(req,res)=> {
     await service.revokeSessions(req.staff,id(req.params.id),req.requestId);send(req,res,{revoked:true});
   });
   router.post("/staff",auth.requireMutation,async(req,res)=> {

@@ -1,5 +1,197 @@
 # Travel With Ease progress log
 
+## 2026-10-31 — PR 125 browser image-loading regression
+
+- Fixed the redesign acceptance test to scroll each lazy-loaded How it works
+  image into view before decoding it, rather than decoding off-screen images
+  whose requests may not have started. Decode failures still fail the check and
+  now identify the image URL. No application behaviour or CI gates were changed.
+- Website lint/build and the complete six-width Chrome acceptance passed,
+  including accessibility, reduced-motion and no-JavaScript checks.
+
+## 2026-10-31 — Centred mobile Overview and themed Account module
+
+- Centred Overview between equal-width, permission-filtered navigation groups.
+  Its raised gold button and 32px icon are larger than other actions; all seven
+  Owner modules retain at least 44px touch targets at 320px. Desktop order stays
+  unchanged and keyboard order follows the visible mobile order.
+- Styled Account with navy/gold summary, shared role pill, responsive access and
+  security panels, and the shared text-then-icon sign-out action. Preserved the
+  existing sign-out confirmation, identity-provider boundaries and tutorial target.
+  No account editing, privileges or authentication behaviour was introduced.
+
+## 2026-10-31 — User-selected footer and How it works photographs
+
+- Assigned the supplied `b7e55…` antelope photo to footers and the enquiry
+  background. Contact-page CMS imagery remains independent;
+  the device-mockup CTA and existing hero/package/journal photos are unchanged.
+- Assigned `IMG_3328` and `12bacbf0…` to the first two How it works steps on
+  the homepage and demo. Removed the mistakenly added services/About gallery;
+  the Services page and its publication status are otherwise unchanged.
+- Added 480/960/1440px metadata-free portrait derivatives for responsive loading;
+  original full-resolution conversions and supplied JPEGs remain untouched.
+  CSS stays external. No offers, prices, captions or business claims were added.
+- Kept a single continuous photo behind the enquiry and transparent footer,
+  without restarting/cropping a second image at the footer boundary. Reduced
+  total scene height by removing the detached heading area and footer map.
+  No fixed/parallax background was introduced. The 716px
+  source cannot gain real detail through enlargement. The signature
+  shares the gutter colour without opacity fading, and the gutter has four edges.
+- Moved the enquiry heading and actions inside the cream enquiry card, above
+  the guidance in its left column, with the real demo form in the right column.
+  The card stacks on mobile. Kept the user's footer-footprint removal;
+  the main page map remains. Updated checks to assert these new requirements.
+- Verification: website build/lint/type checks and all 30 website tests passed;
+  Chrome checks passed at 320/375/390/768/1024/1440px with axe, reduced motion
+  and no-JavaScript coverage. Checked the two-column card, one shared background,
+  How it works photo placement and absent footer map. Security gates passed.
+
+## 2026-10-31 — Public brand cleanup and email-type selector
+
+- Removed private business identifiers and street address from public/demo copy,
+  review drafts, source summary and email branding; contact channels retained.
+- Added Faako email-type dropdown with independent enquiry and staff-invitation
+  drafts, previews and approval. Invitation delivery/activation remains unchanged.
+- Added additive migration 011, endpoint compatibility and type/tenant/permission
+  tests. See [scope, checks and operator caveats](./public-brand-and-template-options-2026-10-31.md).
+
+## 2026-10-31 — Drive photographs, full-width maps and initial privacy popup
+
+- Reviewed additional Kenya/Zanzibar Drive images and incorporated four optimized,
+  metadata-stripped photographs with source hashes; supplied mockup CTA retained.
+- Enlarged homepage, standalone and footer footprint maps into full-width rows.
+- Compacted footer brand/navigation/contact arrangement and spacing, preserving
+  touch targets, legal controls, photographic scene and final gutter.
+- Replaced the initial consent banner with the same accessible modal preferences
+  popup; close/Escape do not imply consent and analytics remains opt-in.
+- New release branch collects the existing unmerged TWE/required shared UI work.
+  [Scope, provenance, checks and rollback](./drive-images-map-consent-release-2026-10-31.md).
+
+## 2026-10-31 — Typography, consent and portal templates
+
+- Added self-hosted Bonheur Royale signature and Montserrat 800 headings, with licences.
+- Journey cards have one full-card link, restrained hover and reduced-motion support.
+- Privacy preferences use a native accessible dialog; footer map panel is transparent.
+- Moved the email preview out of the public demo into Owner-only Templates.
+- Added plain-text copy editing, unsent preview, draft save and explicit activation,
+  optimistic locking, audit events, additive migration 010 and restricted runtime grants.
+- Existing test-mail routing and queued delivery payloads remain unchanged.
+- Verification and operator notes: [template/brand handoff](./email-templates-and-brand-polish.md).
+
+## 2026-10-31 — Drive/R2 sync implementation
+
+- Mirrored TTNGH's configuration shape without copying its secrets or resources.
+- Added read-only configured-folder imports, immutable source revision reuse,
+  bounded downloads and re-encoding, media permission/CSRF enforcement and audit.
+- Added nullable provenance migration 009; existing media grants stay unchanged.
+- Connected CMS controls and an explicitly simulated no-network demo flow.
+- Published images now include large/responsive derivatives; contact imagery also
+  feeds the standalone footer. Original mockup CTA is unchanged.
+- Live Railway configuration/import verification remains pending; see
+  [Drive/R2 runbook](./drive-r2-sync.md).
+
+## 2026-10-30 — Correct Flyward reference interpretation
+
+- Restored the supplied mockup CTA; no captions or substitute travel-photo row.
+- Matched centred hero/navigation, photographic journey panels, staggered
+  cream process sections, journal/FAQ proportions and shared-image footer.
+- Footer stays 100% wide on entry; end-of-page scrolling reveals the light
+  gutter. No layout resizing, scroll hijacking or reduced-motion animation.
+- Six-width keyboard, touch, no-JavaScript, map/form and WCAG checks pass.
+- Kept unrelated dirty workspace edits, API publication fix and staff skeletons.
+- [Reference decisions, checks and rollback](./reference-correction-2026-10-30.md).
+
+## 2026-10-30 — Editorial website redesign
+
+- Follow-up: shared Faako skeletons added to portal and website asynchronous states.
+  Matching staging publication lock privilege defect corrected without expanded DB
+  grants; restricted-role integration is a required CI gate before staging release.
+
+- Isolated from develop after PR #119; preserved the dirty main workspace.
+- Shared cinematic hero/enquiry, cream functional map, original travel-photo CTA,
+  light footer/signature, responsive editorial styles and keyboard menu fixes.
+- Six-width Chrome/axe/no-JS + mocked staging submissions passed. API 64, portal 6,
+  web 22, shared UI 8 tests passed; isolated PostgreSQL integration passed.
+- Hosted redesign release not claimed: production API `/readyz` returned 502;
+  staff UAT/provider deployments and native enquiries remain open.
+- Details, configuration and rollback: [redesign release record](./editorial-redesign-2026-10-30.md).
+
+## 2026-10-30 — Production Google tag configuration
+
+- Set the approved `G-GVJ2HGT6YN` stream as the production public-site default,
+  using the existing shared loader instead of adding a duplicate tag snippet.
+- Retained the published-privacy and consent gates, Do Not Track and no-analytics
+  demos/portal. Copied production IDs cannot track local/staging visits.
+- Added configuration tests and browser assertions for the actual tag URL, one
+  initialization/page view, withdrawal and Do Not Track. Google requests are
+  intercepted in testing; hosted receipt requires deployment and a published notice.
+- Verification: two stream-configuration tests, seven shared analytics tests,
+  web lint/type checks and Chrome acceptance at all four target widths pass.
+
+## 2026-10-30 — Branded acknowledgement, content publication and demos
+
+- Reconciled company details against the supplied Faako onboarding intake.
+- Added Modern Concierge HTML/plain-text acknowledgement and corrected routing:
+  local/staging to testing only; production to customer with notifications CC.
+- Pinned payload construction uses the tenant-scoped saved enquiry. Preserved
+  durable retries; incompatible historic payloads fail closed.
+- Added social icons, the automatic-message footer, public WhatsApp/back-to-top
+  controls, cookie preferences, journal article routes and approved map projections.
+- Added portal article/country editors, company/policy starter drafts and the same
+  controls in demos. Demo cookie choices use separate storage; no analytics loads.
+- Lint/type checks, API/portal/web tests, content validation and isolated PostgreSQL
+  pass locally. The earlier ENOSPC failure was resolved after disk space became
+  available. Database publication tests cover journal/map save, publish, unpublish
+  and cross-tenant denial, plus restart and logical restore.
+- Chrome website/email and portal demo checks pass at 320/390/768/1440px, including
+  the expandable email preview, independent demo consent and no-JavaScript article
+  rendering. CI retains synthetic screenshots for review. No live template email sent.
+- Embedded CMS output is 371.96 kB JS / 112.99 kB gzip and 142.26 kB CSS /
+  21.98 kB gzip. Versus the onboarding baseline, JS grows about 8.43 kB gzip for
+  the content editors and starter copy; country geometry is excluded from its bundle.
+- Hosted verification, policy/legal approval, TIDS recognition-stamp evidence,
+  native intake recreation and automated invitation email remain outstanding.
+
+## 2026-10-30 — Clarified notification To and CC
+
+- Supersedes the earlier recipient-redirection policy: preserve the intended To
+  recipient and add the environment mailbox as CC. Non-production To addresses
+  remain explicitly allowlisted. Delivery validates pinned To/CC and rejects BCC.
+- Added mocked tests and updated the email configuration runbook. No live email
+  was sent for this change. Invitation email automation remains unimplemented.
+
+## 2026-10-30 — Onboarding merge repair and notification routing
+
+- Pinned the foundation CI runner to Ubuntu 24.04: the installed Playwright
+  1.58.2 cannot install Chromium dependencies on Ubuntu 26.04. All browser
+  assertions and quality gates remain enabled; remote rerun is required.
+
+- Restored activation, installer invitations, Account settings, module tour targets
+  and tutorial footer removed by the develop merge in PR #117. Preserved the newer
+  staging-demo routing and messaging.
+- Enforced environment-specific Resend notification recipients, added routing tests
+  and an explicit non-production single-email test command.
+- Fixed staging demo file delivery falling through to a second HTTP response;
+  regression tests assert that the server records no response errors.
+- TWE lint, portal tests, 63 API tests and the four-width onboarding browser check
+  passed locally. Resend accepted one labelled testing-mailbox message; inbox
+  receipt remains user verification. PR checks must pass before merge.
+- See [email test flow](./email-test-flow.md). Live email receipt and hosted
+  Google/MFA onboarding acceptance remain separately verified release gates.
+
+## 2026-10-29 — Activation invitations and guided workspace onboarding
+
+- Added reviewed-installer initial Owner invitations, Owner-issued Editor
+  invitations, same-origin activation confirmation, revocation and staff audit UI.
+- Added tenant/user-scoped PostgreSQL tutorial progress with optimistic revisions,
+  permission-filtered definitions, footer preferences and an opt-in shared guide.
+- Added account/session settings and real module targets without auto-editing,
+  publishing, customer-record mutations or frontend authorisation authority.
+- Added additive migrations, scoped runtime grants, API/DB/browser tests and
+  [setup/reuse/acceptance documentation](./workspace-onboarding.md).
+- Local verification is not hosted acceptance. Installer configuration and
+  staging Google/MFA/user acceptance remain operator-reviewed release gates.
+
 ## 2026-10-27 — Actionable pre-deploy configuration diagnostics
 
 - Replaced misleading generic configuration failures with allowlisted reason codes

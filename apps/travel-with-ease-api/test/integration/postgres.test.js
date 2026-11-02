@@ -15,6 +15,10 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Administration } from "../../src/auth/administration.js";
+import { TutorialService } from "../../src/onboarding/service.js";
+import { Invitations } from "../../src/onboarding/invitations.js";
+import { EmailTemplates } from "../../src/notifications/templates.js";
+import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
 
 test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outbox writes", async (context) => {
   // Fail rather than silently skip: test:db is a required, explicit CI job.
@@ -51,8 +55,93 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.deepEqual(await migrate(pool, options), []);
   await verifyDatabaseIdentity(pool, options);
 
+  await context.test("activation is identity-bound, atomic, single-use and audited; tutorials survive service recreation", async () => {
+    const issuer = "https://activation.example.invalid";
+    const settings = { issuer, audience: "a".repeat(64) };
+    const identity = subject => ({ ...settings, subject });
+    const invitations = new Invitations(pool, otherOrg, settings, "test", "installer-subject");
+    const input = { identity: identity("installer-subject"), subject: "new-owner", approvalReference: "TEST-1", requestId: "test-activation" };
+    await assert.rejects(invitations.issue({ ...input, identity: identity("attacker") }));
+    const invitation = await invitations.issue(input);
+    const competing = await invitations.issue({ ...input, subject: "competing-owner" });
+    await assert.rejects(invitations.claim(identity("wrong-subject"), invitation.code, "test-wrong"));
+    await assert.rejects(invitations.claim({ ...identity("new-owner"), audience: "wrong" }, invitation.code, "test-wrong-aud"));
+    const race = await Promise.allSettled([invitations.claim(identity("new-owner"), invitation.code, "test-claim-a"), invitations.claim(identity("new-owner"), invitation.code, "test-claim-b")]);
+    assert.equal(race.filter(result => result.status === "fulfilled").length, 1);
+    assert.equal((await invitations.identityStatus(identity("new-owner"))).status, "active");
+    await assert.rejects(invitations.claim(identity("competing-owner"), competing.code, "test-competing"));
+    await assert.rejects(invitations.issue({ ...input, subject: "second-owner" }));
+    const { rows: [owner] } = await pool.query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND subject='new-owner'", [otherOrg]);
+    const actor = { ...owner, organisationId: otherOrg };
+    const tutorials = new TutorialService(pool, otherOrg);
+    const first = await tutorials.run(actor);
+    assert.equal(first.progress.status, "new");
+    const started = await tutorials.run(actor, { type: "start", revision: 0 });
+    assert.equal(started.progress.status, "active");
+    const paused = await tutorials.run(actor, { type: "skip", revision: 1 });
+    assert.equal(paused.progress.status, "paused");
+    await assert.rejects(tutorials.run(actor, { type: "complete", revision: 1 }), /another tab/);
+    assert.deepEqual((await new TutorialService(pool, otherOrg).run(actor)).progress, paused.progress);
+    await assert.rejects(new TutorialService(pool, organisationId).run(actor));
+    // Exercise the restricted runtime grants, not just the migration owner.
+    const runtimeClient = await pool.connect();
+    let runtimeEditor;
+    try {
+      await runtimeClient.query("SET ROLE twe_test_runtime");
+      const query = (...args) => runtimeClient.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      assert.equal((await new TutorialService(runtimePool, otherOrg).run(actor)).progress.status, "paused");
+      const runtimeInvitations = new Invitations(runtimePool, otherOrg, settings, "test");
+      const invited = await runtimeInvitations.issue({ actor, subject: "runtime-editor", approvalReference: "TEST-RUNTIME", requestId: "test-runtime" });
+      assert.equal((await runtimeInvitations.preview(identity("runtime-editor"), invited.code)).role, "editor");
+      await runtimeInvitations.claim(identity("runtime-editor"), invited.code, "test-runtime-claim");
+      const { rows: [editor] } = await query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND subject='runtime-editor'", [otherOrg]);
+      runtimeEditor = { ...editor, organisationId: otherOrg };
+      const editorTours = await new TutorialService(runtimePool, otherOrg).run(runtimeEditor);
+      assert.equal(editorTours.catalogue.some(tour => ["staff", "publishing"].includes(tour.id)), false);
+      await assert.rejects(runtimeInvitations.issue({ actor: runtimeEditor, subject: "escalation", approvalReference: "TEST-DENIED" }));
+    } finally { await runtimeClient.query("RESET ROLE"); runtimeClient.release(); }
+    const admin = new Administration(pool, otherOrg, settings, "test");
+    await admin.revokeSessions(actor, runtimeEditor.id, "test-revoke-editor");
+    await assert.rejects(admin.revokeSessions(actor, actor.id, "test-deny-owner"));
+    await assert.rejects(admin.staffEvents(runtimeEditor));
+    const editorInvite = await invitations.issue({ actor, subject: "new-editor", approvalReference: "TEST-EDITOR", requestId: "test-editor" });
+    await invitations.revoke({ actor, id: editorInvite.id, requestId: "test-revoke" });
+    await assert.rejects(invitations.claim(identity("new-editor"), editorInvite.code, "test-revoked"));
+    const expired = await invitations.issue({ actor, subject: "expired-editor", approvalReference: "TEST-EXPIRED", requestId: "test-expired" });
+    await pool.query("UPDATE twe.staff_invitations SET created_at=now()-interval '2 days',expires_at=now()-interval '1 day' WHERE id=$1", [expired.id]);
+    await assert.rejects(invitations.claim(identity("expired-editor"), expired.code, "test-expired"));
+    await pool.query("UPDATE twe.staff_users SET active=false WHERE id=$1", [owner.id]);
+    await assert.rejects(tutorials.run(actor));
+    await assert.rejects(invitations.issue({ actor, subject: "disabled-owner-editor", approvalReference: "TEST-DISABLED" }));
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [otherOrg])).rows[0].n, 2);
+  });
+
   const repository = new PostgresLeadRepository(pool, options);
   await repository.ready();
+  // The staging demo uses the real tenant inbox, without queuing an automated
+  // notification, external email or booking.
+  const demoResult = await repository.createDemoEnquiry({
+    kind: "package", destination: "Zanzibar", travelStyle: "A slower pace",
+    travellers: "2", name: "Synthetic demo visitor",
+    email: "staging-demo@example.invalid", phone: "+233240000000",
+    notes: "Demo test, no payment", consent: true,
+  });
+  assert.equal(demoResult.demo, true);
+  const demoRow = (await pool.query(
+    "SELECT organisation_id, kind, contact, details, status FROM twe.enquiries WHERE id=$1",
+    [demoResult.inquiryId],
+  )).rows[0];
+  assert.equal(demoRow.organisation_id, organisationId);
+  assert.equal(demoRow.kind, "package");
+  assert.equal(demoRow.status, "new");
+  assert.equal(demoRow.details.source, "staging_demo");
+  assert.equal(demoRow.details.demo, true);
+  assert.equal(demoRow.contact.name, "Synthetic demo visitor");
+  assert.equal((await pool.query(
+    "SELECT count(*)::int AS count FROM twe.notification_outbox WHERE enquiry_id=$1",
+    [demoResult.inquiryId],
+  )).rows[0].count, 0);
   const id = randomUUID();
   const now = new Date().toISOString();
   const record = { id: randomUUID(), createdAt: now, contact: { name: "Synthetic traveller", email: "test@example.invalid" }, inquiry: { id, consentAt: now, destination: "Test destination" } };
@@ -174,6 +263,90 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await content.get("home")).body.imageId, asset.id);
   await media.archive(replacement.id, actor, "archive-unused");
   assert.equal((await media.list()).items.some((item) => item.id === replacement.id), false);
+  await context.test("email template drafts, activation and audit survive recreation under runtime grants", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const templates = new EmailTemplates(runtimePool, organisationId);
+      const owner = { ...actor, role: "owner" };
+      assert.equal((await templates.get(owner)).version, 0);
+      const copy = { ...defaultEnquiryCopy, heading: "Reviewed acknowledgement" };
+      await templates.change(owner, "template-draft", 0, copy);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+      const invitationCopy = { ...defaultInvitationCopy, heading: "Reviewed staff invitation" };
+      await templates.change(owner, "invitation-template-draft", 0, invitationCopy, false, "staff-invitation");
+      assert.deepEqual(await templates.activeCopy("staff-invitation"), defaultInvitationCopy);
+      await templates.change(owner, "invitation-template-approved", 1, null, true, "staff-invitation");
+      assert.deepEqual(await new EmailTemplates(runtimePool, organisationId).activeCopy("staff-invitation"), invitationCopy);
+      assert.deepEqual(await new EmailTemplates(runtimePool, otherOrg).activeCopy("staff-invitation"), defaultInvitationCopy);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy, "Invitation approval must not change enquiry copy");
+      await assert.rejects(templates.change({ ...owner, role: "editor" }, "invitation-denied", 2, invitationCopy, false, "staff-invitation"), { status: 403 });
+      const invitationAudits = await query("SELECT action FROM twe.audit_records WHERE organisation_id=$1 AND action IN ('email_template.staff_invitation.saved','email_template.staff_invitation.approved')", [organisationId]);
+      assert.equal(invitationAudits.rows.length, 2);
+      await assert.rejects(templates.change(owner, "template-stale", 0, copy), { status: 409 });
+      await templates.change(owner, "template-active", 1, null, true);
+      assert.deepEqual(await new EmailTemplates(runtimePool, organisationId).activeCopy(), copy);
+      assert.deepEqual(await new EmailTemplates(runtimePool, otherOrg).activeCopy(), defaultEnquiryCopy);
+      await assert.rejects(new EmailTemplates(runtimePool, otherOrg).get(owner), { status: 403 });
+      const audits = await query("SELECT action FROM twe.audit_records WHERE organisation_id=$1 AND action IN ('email_template.saved','email_template.activated')", [organisationId]);
+      assert.equal(audits.rows.length, 2);
+      await templates.change(owner, "template-rollback-draft", 2, defaultEnquiryCopy);
+      await templates.change(owner, "template-rollback-active", 3, null, true);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+    } finally { await client.query("RESET ROLE"); client.release(); }
+  });
+  await context.test("Drive sync uses runtime grants, keeps immutable revisions and isolates tenants", async () => {
+    const client = await pool.connect();
+    let version = "1", downloads = 0;
+    const drive = {
+      config: { folderId: "synthetic_folder_123" },
+      async metadata() { return { id: "synthetic_image_123", version, md5Checksum: "a".repeat(32), mimeType: "image/png" }; },
+      async download() { downloads++; return image; },
+      async list() { return { items: [{ id: "synthetic_image_123", version, name: "Synthetic fixture" }], nextPageToken: "" }; },
+    };
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const sync = new MediaService(runtimePool, organisationId, storage, null, drive);
+      const input = { fileId: "synthetic_image_123", version, alt: "Drive fixture", rights: "Generated test fixture" };
+      const first = await sync.importDrive(input, actor, "drive-first");
+      assert.equal(first.unchanged, false);
+      const repeat = await sync.importDrive(input, actor, "drive-repeat");
+      assert.equal(repeat.id, first.id);
+      assert.equal(repeat.unchanged, true);
+      assert.equal(downloads, 1);
+      assert.equal((await sync.listDrive()).items[0].importedId, first.id);
+      const current = await content.get("home");
+      await content.save("home", { ...body, imageId: first.id }, current.version, actor, "drive-selected");
+      version = "2";
+      const second = await sync.importDrive({ ...input, version }, actor, "drive-refresh");
+      assert.notEqual(second.id, first.id);
+      assert.equal((await content.get("home")).body.imageId, first.id, "Sync never rewrites a selected revision");
+      assert.equal((await new MediaService(runtimePool, otherOrg, storage, null, drive).listDrive()).items[0].importedId, null);
+      await assert.rejects(sync.importDrive(input, { ...actor, organisationId: otherOrg }, "drive-foreign"), { status: 403 });
+      const audit = await query("SELECT action FROM twe.audit_records WHERE organisation_id=$1 AND record_id=$2", [organisationId, first.id]);
+      assert.equal(audit.rows.some(row => row.action === "media.drive_imported"), true);
+      await sync.archive(second.id, actor, "drive-archive");
+      await assert.rejects(sync.importDrive({ ...input, version }, actor, "drive-archived"), { status: 409 });
+      version = "3";
+      const beforeRace = objects.size;
+      const replicas = [new MediaService(pool, organisationId, storage, null, drive),
+        new MediaService(pool, organisationId, storage, null, drive)];
+      const race = await Promise.all(replicas.map(replica =>
+        replica.importDrive({ ...input, version }, actor, "drive-race")));
+      assert.equal(race[0].id, race[1].id, "Replicas converge on one immutable source revision");
+      assert.equal(objects.size, beforeRace + 3, "Losing replica leaves no orphan R2 derivatives");
+      // Return to the fixture used by the publication assertions below.
+      const selected = await content.get("home");
+      await content.save("home", { ...body, imageId: asset.id }, selected.version, actor, "drive-restore-selection");
+    } finally {
+      await client.query("RESET ROLE");
+      client.release();
+    }
+  });
   const objectCount = objects.size;
   await assert.rejects(media.upload(image, "image/png", { alt: "Rejected fixture", rights: "Generated test fixture" }, { ...actor, id: randomUUID() }, "media-db-failure"));
   assert.equal(objects.size, objectCount, "Database failure removes all candidate storage objects");
@@ -187,8 +360,11 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
 
   const outbox = new NotificationOutbox(pool, organisationId);
   const payload = { from: "test@example.invalid", to: ["sink@example.invalid"], subject: "Synthetic", text: "Test" };
-  const claims = await Promise.all([outbox.claim(payload), outbox.claim(payload)]);
+  let built = 0;
+  const buildPayload = contact => { assert.equal(typeof contact.email, "string"); built++; return payload; };
+  const claims = await Promise.all([outbox.claim(buildPayload), outbox.claim(buildPayload)]);
   assert.equal(claims.filter(Boolean).length, 1, "Concurrent workers cannot own the same job");
+  assert.equal(built, 1, "Only the claimed tenant enquiry creates a payload");
   const claimed = claims.find(Boolean);
   assert.equal(await new NotificationOutbox(pool, otherOrg).claim(payload), undefined);
   await pool.query("UPDATE twe.notification_outbox SET lease_until = now() - interval '1 second' WHERE id = $1", [claimed.id]);
@@ -204,7 +380,14 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
 
   // The raw SQL revision fixture above is deliberately not an approved page.
   // Its unpublished body must never enter a publication artifact.
-  const publication = new PublicationRepository(pool, { ...options, sourceSha: "a".repeat(40) });
+  // Exercise publishing with runtime grants, not the privileged migration owner.
+  const publicationClient = await pool.connect();
+  await publicationClient.query("SET ROLE twe_test_runtime");
+  const publicationQuery = (...args) => publicationClient.query(...args);
+  const publicationPool = { query: publicationQuery, connect: async () => ({query: publicationQuery, release() {}}) };
+  try {
+  assert.equal((await publicationQuery("SELECT has_table_privilege(current_user, 'twe.organisations', 'UPDATE') AS allowed")).rows[0].allowed, false);
+  const publication = new PublicationRepository(publicationPool, { ...options, sourceSha: "a".repeat(40) });
   const latestHome = await content.get("home");
   const queued = await publication.enqueue("home", latestHome.version, false, actor, "publish-home");
   assert.equal(queued.status, "pending");
@@ -226,6 +409,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal(snapshot.pages.home.heading, body.heading);
   assert.doesNotMatch(JSON.stringify(snapshot), /PRIVATE newer draft|object_key|Generated test fixture/);
   assert.equal(snapshot.pages.home.image.src, `/media/${asset.id}.webp`);
+  assert.equal(snapshot.pages.home.image.sources.length, 1, "Small fixtures do not emit duplicate srcset widths");
   assert.equal(snapshot.pages.home.socialImage.src, `/media/${asset.id}-social.jpg`);
   const social = await sharp(path.join(artifact.publicDirectory, `media/${asset.id}-social.jpg`)).metadata();
   assert.equal(social.width, 1200); assert.equal(social.height, 630);
@@ -240,4 +424,30 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal(await content.get("home", true), null);
   assert.equal((await new PublicationRepository(pool, { ...options, organisationId: otherOrg }).list()).length, 0);
   await assert.rejects(publication.retry(retried.id, actor, "stale-retry"), { status: 409 });
+
+  // Journal and map reuse real revision/permission/publication boundaries.
+  for (const [slug, extension] of [["journal", { articles: [{ slug: "synthetic-guide", title: "Synthetic guide", excerpt: "Test only", body: "Literal <script> text", date: "2026-10-30" }] }], ["travel-footprint", { footprint: [{ countryCode: "TZ", total: 4, status: "verified" }] }]]) {
+    const draft = await content.save(slug, { ...body, imageId: null, ...extension }, 0, actor, `save-${slug}`);
+    assert.equal(await content.get(slug, true), null);
+    assert.equal(await new ContentRepository(pool, otherOrg).get(slug), null);
+    await assert.rejects(content.save(slug, draft.body, draft.version, { ...actor, organisationId: otherOrg }, "cross-tenant-save"), { status: 403 });
+    const queued = await publication.enqueue(slug, draft.version, false, actor, `publish-${slug}`);
+    const job = await publication.claim();
+    await publication.confirm(queued.id, job.build_token, "synthetic-content", manifestDigest(job.manifest));
+    const published = await content.get(slug, true);
+    assert.deepEqual(published.body[slug === "journal" ? "articles" : "footprint"], extension[slug === "journal" ? "articles" : "footprint"]);
+    await publication.enqueue(slug, draft.version, true, actor, `withdraw-${slug}`);
+    const withdrawn = await publication.claim();
+    await publication.confirm(withdrawn.id, withdrawn.build_token, "synthetic-withdrawal", manifestDigest(withdrawn.manifest));
+    assert.equal(await content.get(slug, true), null);
+  }
+  const runtimeContent = new ContentRepository(publicationPool, organisationId);
+  const privacy = await runtimeContent.save("privacy", {...body, imageId: null, heading: "Synthetic privacy"}, 0, actor, "save-runtime-privacy");
+  const queuedPrivacy = await publication.enqueue("privacy", privacy.version, false, actor, "publish-runtime-privacy");
+  const privacyJob = await publication.claim();
+  await publication.confirm(queuedPrivacy.id, privacyJob.build_token, "synthetic-privacy", manifestDigest(privacyJob.manifest));
+  assert.equal((await runtimeContent.get("privacy", true)).body.heading, "Synthetic privacy");
+  assert.equal((await publicationQuery("SELECT count(*)::int AS n FROM twe.audit_records WHERE record_id=$1 AND action='content.publish_requested'", [queuedPrivacy.id])).rows[0].n, 1);
+  await assert.rejects(publication.enqueue("privacy", privacy.version, false, {...actor, organisationId: otherOrg}, "cross-tenant-runtime"), {status:403});
+  } finally { await publicationClient.query("RESET ROLE"); publicationClient.release(); }
 });

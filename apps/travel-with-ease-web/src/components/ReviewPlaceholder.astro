@@ -1,6 +1,9 @@
 ---
 const { label = "Travel photography", portrait = false } = Astro.props;
 ---
+
 <figure class:list={["review-image", { portrait }]}>
-  <figcaption><span>{label}</span><small>Placeholder · approved image pending</small></figcaption>
+  <figcaption>
+    <span>{label}</span><small>Placeholder · approved image pending</small>
+  </figcaption>
 </figure>

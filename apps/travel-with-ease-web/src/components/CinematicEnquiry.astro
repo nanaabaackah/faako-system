@@ -1,0 +1,85 @@
+---
+import ContentLink from "./ContentLink.astro";
+import PublicFooter from "./PublicFooter.astro";
+import photography from "../lib/assigned-photography.json";
+import "../styles/components/cinematic-enquiry.css";
+const { demo = false, enquiryAvailable = false } = Astro.props;
+// One continuous image covers the enquiry and transparent footer together.
+// Contact-page CMS imagery remains independent from footer art direction.
+const photo = photography.footer;
+---
+
+<div class="closing-scene">
+  <img
+    class="closing-scene__image"
+    src={photo.src}
+    srcset={photo.sources
+      .map((source) => `${source.src} ${source.width}w`)
+      .join(", ")}
+    sizes="100vw"
+    alt=""
+    width={photo.width}
+    height={photo.height}
+    loading="lazy"
+    decoding="async"
+  />
+  <section
+    id={demo ? "demo-plan" : "plan"}
+    class="cinematic-enquiry"
+    aria-labelledby="enquiry-heading"
+  >
+    <div class="cinematic-enquiry__scene">
+      <div
+        class:list={[
+          "cinematic-enquiry__card",
+          { "cinematic-enquiry__card--with-form": Astro.slots.has("default") },
+        ]}
+        id={demo ? "demo-enquiry-form" : undefined}
+      >
+        <div class="cinematic-enquiry__copy">
+          <h2 id="enquiry-heading">Where would you<br />like to go?</h2>
+          <p>
+            {
+              demo
+                ? "Explore the enquiry experience. Sample journeys are not available to book."
+                : "Start a conversation about your next journey."
+            }
+          </p>
+          <slot name="intro" />
+        </div>
+        {
+          !demo && (
+            <div class="cinematic-enquiry__actions">
+              {!demo && (
+                <ContentLink
+                  button
+                  href={
+                    enquiryAvailable ? "/contact" : "https://wa.me/233208387020"
+                  }
+                >
+                  {enquiryAvailable
+                    ? "Plan your trip"
+                    : "Talk to us on WhatsApp"}
+                </ContentLink>
+              )}
+              {!demo && !enquiryAvailable && (
+                <p class="cinematic-enquiry__note">
+                  Online enquiry forms are not available yet. Contact the team
+                  directly; an enquiry is not a booking.
+                </p>
+              )}
+            </div>
+          )
+        }
+        {
+          Astro.slots.has("default") && (
+            <div class="cinematic-enquiry__form">
+              <slot />
+            </div>
+          )
+        }
+      </div>
+    </div>
+  </section>
+  <PublicFooter demo={demo} cinematic />
+</div>

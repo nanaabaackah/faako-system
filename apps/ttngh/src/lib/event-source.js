@@ -1,7 +1,7 @@
 import { validateEvents } from "./events.js";
 
 const query = `*[_type == "event" && publishState == "published" && !(_id in path("drafts.**")) && !(_id in path("versions.**"))]{
-  _id, title, slug, summary, description, start, end, timezone, format, venue, address,
+  _id, title, slug, summary, description, start, end, timezone, calendarUid, format, venue, address,
   seo{...,"socialImage":select(defined(socialImage.asset)=>socialImage{"url":asset->url,"width":asset->metadata.dimensions.width,"height":asset->metadata.dimensions.height,alt})}, capacity, capacityApproved,
   onlineUrl, registrationState, registrationUrl, accessibility, owner, publishState,
   "relatedProgramme": select(relatedProgramme->publishState == "published" => relatedProgramme->title),

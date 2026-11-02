@@ -1,0 +1,147 @@
+---
+import world from "../lib/world-boundaries.json";
+import { footprintRows, footprintBand } from "../lib/footprint.js";
+import { publishedPage } from "../lib/published.js";
+interface Props {
+  compact?: boolean;
+  demo?: boolean;
+  records?: {
+    countryCode: string;
+    total: number;
+    status: "demo" | "verified";
+  }[];
+}
+const { compact = false, records = publishedPage("travel-footprint")?.footprint || [] } = Astro.props;
+const demo = Astro.props.demo === true && (import.meta.env.DEV || (import.meta.env.PUBLIC_APP_ENV === "staging" && import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true"));
+const rows: {
+  countryCode: string;
+  name: string;
+  total: number;
+  status: string;
+}[] = footprintRows(
+  demo
+    ? [
+        { countryCode: "KE", total: 12, status: "demo" },
+        { countryCode: "TZ", total: 4, status: "demo" },
+        { countryCode: "GH", total: 2, status: "demo" },
+      ]
+    : records,
+  world.countries,
+  demo,
+);
+const byCode = new Map(rows.map((row) => [row.countryCode, row]));
+const fills = ["#b6b1a9", "#f2e5c8", "#d8b56a", "#ae8433", "#77551b"];
+const id = compact ? "footer-footprint" : "travel-footprint";
+---
+
+<section
+  class:list={["travel-footprint", { compact }]}
+  aria-labelledby={id + "-heading"}
+>
+  <div class="footprint-heading">
+    <h2 id={id + "-heading"}>Our travel footprint</h2><p>
+      {
+        demo
+          ? "Illustrative demo totals—not TWE trip records."
+          : rows.length
+            ? "Completed and confirmed upcoming trips, combined by country."
+            : "Verified travel activity is not available yet."
+      }
+    </p>
+  </div>
+  <svg
+    class="footprint-map"
+    viewBox="0 0 720 300"
+    role="group"
+    aria-label="World travel footprint. Equivalent country details follow below."
+  >
+    {
+      world.countries.map((country, index) => {
+        const row = country.code ? byCode.get(country.code) : undefined;
+        const label = row
+          ? `${country.name}: ${row.total} combined trips${demo ? " (demo)" : ""}`
+          : country.name;
+        return (
+          <path
+            d={country.path}
+            fill={fills[footprintBand(row?.total || 0)]}
+            stroke="#f4ede3"
+            stroke-width=".45"
+            tabindex={row ? "0" : undefined}
+            role={row ? "button" : undefined}
+            aria-label={row ? label : undefined}
+            data-country-detail={row ? label : undefined}
+            data-country-code={country.code || undefined}
+            data-map-index={index}
+          >
+            <title>{label}</title>
+          </path>
+        );
+      })
+    }
+  </svg>
+  <p class="footprint-detail" aria-live="polite">
+    Select a highlighted country or use the country list.
+  </p>
+  {
+    rows.length > 0 && (
+      <>
+        <p class="footprint-legend">
+          Combined trips · logarithmic scale:{" "}
+          <>
+            <span>1–9</span>
+            <span>10–99</span>
+            <span>100–999</span>
+            <span>1,000+</span>
+          </>
+        </p>
+        <ul class="footprint-countries">
+          {rows.map((row) => (
+            <li>
+              <strong>{row.name}</strong>
+              <span>
+                {row.total} {demo ? "demo trips" : "trips"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
+  {
+    !rows.length && (
+      <p class="footprint-empty">
+        Uncoloured countries mean no verified data is displayed—not zero travel.
+      </p>
+    )
+  }
+  <small
+    >Made with Natural Earth. Country-level overview; Zanzibar is included
+    within Tanzania.</small
+  >
+</section>
+<script>
+  document
+    .querySelectorAll<HTMLElement>(".travel-footprint")
+    .forEach((root) => {
+      const output = root.querySelector<HTMLElement>(".footprint-detail");
+      root
+        .querySelectorAll<SVGPathElement>("[data-country-detail]")
+        .forEach((path) => {
+          const show = () => {
+            if (output) output.textContent = path.dataset.countryDetail || "";
+          };
+          path.addEventListener("click", show);
+          path.addEventListener("focus", show);
+          path.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              show();
+            }
+          });
+        });
+    });
+</script>
+<style>
+  @import "../styles/components/travel-footprint.css";
+</style>

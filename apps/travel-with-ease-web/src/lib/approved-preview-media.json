@@ -19,7 +19,9 @@
         "bytes": 268362,
         "reviewFile": "09d34a112ab0e7d155946e3e9e5deef30d6f3e4c45df0b19494950a65a537cda-1280.webp"
       }
-    ]
+    ],
+    "key": "kenya-original",
+    "placement": "archive"
   },
   {
     "country": "Zanzibar",
@@ -40,6 +42,104 @@
         "width": 1280,
         "bytes": 147196,
         "reviewFile": "387e34e68a079df5cf5bfcdc9d5e73e7cfc0af47d38786e42be06e092cc47e49-1280.webp"
+      }
+    ],
+    "key": "zanzibar-original",
+    "placement": "archive"
+  },
+  {
+    "key": "kenya-giraffe",
+    "country": "Kenya",
+    "placement": "wildlife",
+    "driveId": "1srai16o0GXawJ0-4lefpzX1QUb0nVEZS",
+    "alt": "A giraffe beside a feeding platform in Kenya.",
+    "sourceSha256": "067893b7a1b1ef0a54cad528c421fec73d90513e4a27c921b14a5e2be4b0dacd",
+    "width": 1200,
+    "height": 1600,
+    "sources": [
+      {
+        "src": "/media/kenya-giraffe-067893b7a1b1-640.webp",
+        "width": 640,
+        "bytes": 60534,
+        "reviewFile": "kenya-giraffe-067893b7a1b1-640.webp"
+      },
+      {
+        "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
+        "width": 1200,
+        "bytes": 125574,
+        "reviewFile": "kenya-giraffe-067893b7a1b1-1200.webp"
+      }
+    ]
+  },
+  {
+    "key": "kenya-pelicans",
+    "country": "Kenya",
+    "placement": "hero",
+    "driveId": "17MLVc2kvd7f4xkqcE9iPCq23s1yyav-G",
+    "alt": "Pelicans lifting from the water of a lake in Kenya.",
+    "sourceSha256": "9944212dcee25ea1d37bada1a8de18ccdc05c9e2a7a3a0381b95d0eb1f17dd64",
+    "width": 1280,
+    "height": 860,
+    "sources": [
+      {
+        "src": "/media/kenya-pelicans-9944212dcee2-640.webp",
+        "width": 640,
+        "bytes": 66286,
+        "reviewFile": "kenya-pelicans-9944212dcee2-640.webp"
+      },
+      {
+        "src": "/media/kenya-pelicans-9944212dcee2-1280.webp",
+        "width": 1280,
+        "bytes": 220550,
+        "reviewFile": "kenya-pelicans-9944212dcee2-1280.webp"
+      }
+    ]
+  },
+  {
+    "key": "zanzibar-sunset",
+    "country": "Zanzibar",
+    "placement": "journal",
+    "driveId": "1TGX0GrhbvNXkghKOBd-DAS-ckuDxWcMG",
+    "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
+    "sourceSha256": "bfb2dad00137178715b8761888f2735a99ee8c12b21b2e836b8ba385cb784761",
+    "width": 1206,
+    "height": 2119,
+    "sources": [
+      {
+        "src": "/media/zanzibar-sunset-bfb2dad00137-640.webp",
+        "width": 640,
+        "bytes": 30064,
+        "reviewFile": "zanzibar-sunset-bfb2dad00137-640.webp"
+      },
+      {
+        "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+        "width": 1206,
+        "bytes": 72090,
+        "reviewFile": "zanzibar-sunset-bfb2dad00137-1206.webp"
+      }
+    ]
+  },
+  {
+    "key": "zanzibar-pool",
+    "country": "Zanzibar",
+    "placement": "closing",
+    "driveId": "13Yn0mjCvvANlHgDB_OsF2BQ9dn1Wa3ON",
+    "alt": "A poolside view towards the ocean in Zanzibar.",
+    "sourceSha256": "da78a29486080caadd67b8acd0a616536e4c26dcc854c095ee0e5dcbdd78dd3c",
+    "width": 1242,
+    "height": 2208,
+    "sources": [
+      {
+        "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+        "width": 640,
+        "bytes": 78808,
+        "reviewFile": "zanzibar-pool-da78a2948608-640.webp"
+      },
+      {
+        "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+        "width": 1242,
+        "bytes": 191316,
+        "reviewFile": "zanzibar-pool-da78a2948608-1242.webp"
       }
     ]
   }

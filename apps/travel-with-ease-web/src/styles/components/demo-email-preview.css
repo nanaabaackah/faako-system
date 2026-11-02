@@ -1,0 +1,15 @@
+.demo-email-preview {
+  padding-block: 3rem;
+}
+.demo-email-preview iframe {
+  display: block;
+  width: 100%;
+  height: 1200px;
+  border: 1px solid #b6b1a9;
+  background: #f4ede3;
+}
+@media (max-width: 600px) {
+  .demo-email-preview iframe {
+    height: 1600px;
+  }
+}

@@ -1,0 +1,135 @@
+---
+import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
+import ContentLink from "./ContentLink.astro";
+import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
+import photography from "../lib/assigned-photography.json";
+const { demo = false, cinematic = false } = Astro.props;
+const visible = (slug: string) =>
+  demo || !publicationSnapshotPath() || Boolean(publishedPage(slug));
+const contact = demo ? null : publishedPage("contact");
+const closingPhoto = photography.footer;
+const email =
+  contact?.contactEmail &&
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.contactEmail)
+    ? contact.contactEmail
+    : "nana@travelwitheasegh.com";
+const phone =
+  contact?.contactPhone && /^\+?[\d ()-]{7,30}$/.test(contact.contactPhone)
+    ? contact.contactPhone
+    : "+233200209170";
+---
+
+<footer
+  class:list={[
+    "twe-public-footer",
+    "twe-public-footer--cinematic",
+    { "twe-public-footer--standalone": !cinematic },
+  ]}
+>
+  {
+    !cinematic && (
+      <img
+        class="footer-scene-image"
+        src={closingPhoto.src}
+        srcset={(closingPhoto.sources || [])
+          .map(
+            (source: { src: string; width: number }) =>
+              `${source.src} ${source.width}w`,
+          )
+          .join(", ")}
+        sizes="100vw"
+        alt=""
+        width={closingPhoto.width}
+        height={closingPhoto.height}
+        loading="lazy"
+        decoding="async"
+      />
+    )
+  }
+  <div class="footer-top">
+    <div class="footer-brand-block">
+      <a
+        class="brand"
+        href={demo ? "/demo" : "/"}
+        aria-label="Travel With Ease home"
+        ><img
+          src="/brand/Primary gold.png"
+          width="640"
+          height="248"
+          alt="Travel With Ease"
+          loading="lazy"
+        /></a
+      >{
+        visible("contact") && (
+          <ContentLink button href={demo ? "#demo-plan" : "/contact"}>
+            {demo ? "Try the enquiry demo" : "Plan a trip"}
+          </ContentLink>
+        )
+      }
+    </div>
+    <div class="footer-links">
+      <nav aria-label="Explore">
+        <h2>Explore</h2>{
+          visible("destinations") && (
+            <a href={demo ? "#demo-packages" : "/destinations"}>Destinations</a>
+          )
+        }{
+          visible("services") && (
+            <a href={demo ? "#demo-process" : "/services"}>Services</a>
+          )
+        }{visible("about") && !demo && <a href="/about">About TWE</a>}{
+          visible("journal") && (
+            <a href={demo ? "#demo-journal" : "/journal"}>Travel journal</a>
+          )
+        }
+      </nav>
+      <nav aria-label="Social media">
+        <h2>Follow our journeys</h2>
+        <a href="https://www.instagram.com/travelwitheasegh/" rel="noreferrer"
+          >Instagram</a
+        >
+        <a href="https://www.tiktok.com/@travelwitheaseghana" rel="noreferrer"
+          >TikTok</a
+        >
+        <a href="https://wa.me/233208387020" rel="noreferrer">WhatsApp</a>
+      </nav>
+      <nav aria-label="Help and contact">
+        <h2>Let’s talk</h2>{
+          visible("faqs") && <a href={demo ? "#demo-faqs" : "/faqs"}>FAQs</a>
+        }{
+          visible("contact") && (
+            <a href={demo ? "#demo-plan" : "/contact"}>Contact</a>
+          )
+        }{email && <a href={"mailto:" + email}>{email}</a>}{
+          phone && <a href={"tel:" + phone.replace(/[^+\d]/g, "")}>{phone}</a>
+        }{!email && !phone && <small>Contact details awaiting approval.</small>}
+      </nav>
+    </div>
+  </div>
+  <div class="footer-legal">
+    <span
+      >{
+        demo
+          ? "Website demonstration · sample offers not bookable"
+          : "Travel With Ease"
+      }</span
+    ><nav aria-label="Legal and preferences">
+      {
+        !demo && (
+          <>
+            {visible("privacy") && <a href="/privacy">Privacy</a>}
+            {visible("terms") && <a href="/terms">Terms</a>}
+            {visible("cookies") && <a href="/cookies">Cookies</a>}
+          </>
+        )
+      }<button type="button" data-cookie-settings
+        >{demo ? "Demo cookie settings" : "Cookie settings"}</button
+      ><a href="#top">Back to top</a>
+    </nav>
+  </div>
+  <SharedFaakoFooter />
+  <p class="footer-signature" aria-label="Travel With Ease">TRAVEL WITH EASE</p>
+</footer>
+<style>
+  @import "../styles/components/public-footer.css";
+</style>

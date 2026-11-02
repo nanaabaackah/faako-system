@@ -1,0 +1,46 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ContentLink from "../../components/ContentLink.astro";
+import { publishedPage } from "../../lib/published.js";
+import "../../styles/components/published-content.css";
+interface Props {
+  article: {
+    slug: string;
+    title: string;
+    excerpt: string;
+    body: string;
+    date: string;
+  };
+}
+export function getStaticPaths() {
+  return (publishedPage("journal")?.articles || []).map(
+    (article: {
+      slug: string;
+      title: string;
+      excerpt: string;
+      body: string;
+      date: string;
+    }) => ({ params: { slug: article.slug }, props: { article } }),
+  );
+}
+const { article } = Astro.props;
+---
+
+<BaseLayout
+  title={`${article.title} | Travel With Ease`}
+  description={article.excerpt}
+  type="article"
+>
+  <article class="published-content journal-article">
+    <ContentLink href="/journal">Travel journal</ContentLink>
+    <h1>{article.title}</h1><time datetime={article.date}>{article.date}</time>
+    <p class="journal-excerpt">{article.excerpt}</p>
+    <div class="body-copy">
+      {
+        article.body
+          .split(/\n\s*\n/)
+          .map((paragraph: string) => <p>{paragraph}</p>)
+      }
+    </div>
+  </article>
+</BaseLayout>

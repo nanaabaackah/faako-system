@@ -1,0 +1,76 @@
+.faako-tour-target {
+  outline: 3px solid var(--tour-accent, #d8b56a);
+  outline-offset: 5px;
+  scroll-margin-block: 6rem;
+}
+.faako-guided-tour {
+  position: fixed;
+  inset: auto 1.25rem 1.25rem auto;
+  z-index: 60;
+  width: min(25rem, calc(100vw - 2rem));
+  max-height: 55dvh;
+  overflow-y: auto;
+  padding: 1.25rem;
+  border: 2px solid var(--tour-accent, #d8b56a);
+  border-radius: 8px;
+  background: var(--tour-background, #f4ede3);
+  color: var(--tour-text, #010c33);
+  box-sizing: border-box;
+}
+.faako-guided-tour h2 {
+  font-size: 1.2rem;
+  line-height: 1.35;
+  margin: 0 0 0.75rem;
+}
+.faako-guided-tour p {
+  line-height: 1.5;
+  margin: 0 0 0.75rem;
+}
+.faako-tour-position {
+  font-size: 0.85rem;
+}
+.faako-tour-unavailable {
+  font-size: 0.9rem;
+}
+.faako-tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.faako-tour-actions button {
+  min-height: 44px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.faako-tour-actions button:last-child {
+  background: #010c33;
+  color: #f4ede3;
+}
+.faako-tour-actions button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.faako-guided-tour:focus-visible,
+.faako-tour-actions button:focus-visible {
+  outline: 3px solid #2770b9;
+  outline-offset: 3px;
+}
+@media (max-width: 767px) {
+  .faako-guided-tour {
+    inset: auto 1rem calc(5.5rem + env(safe-area-inset-bottom)) 1rem;
+    max-height: 42dvh;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .faako-tour-target,
+  .faako-guided-tour {
+    animation: none;
+    transition: none;
+    scroll-behavior: auto;
+  }
+}

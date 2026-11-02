@@ -97,10 +97,11 @@ separation is mandatory, not just different subdomains.
     Railway proxy/headers and rate limits; never enable blind trust proxy.
 11. In Faako Resend, create a narrowly scoped stage sending credential. Baaba
     installs Resend's actual sender-verification DNS records in TWE Cloudflare
-    after sender-domain approval. Configure `TWE_EMAIL_FROM`,
-    `TWE_EMAIL_RECIPIENT`, `TWE_EMAIL_TEST_RECIPIENTS`, `TWE_RESEND_API_KEY` and
-    HTTPS `TWE_PORTAL_ORIGIN`. Non-production recipients must match the exact
-    allowlist. Test only an approved mailbox; no live message was sent here.
+    after sender-domain approval. Configure `TWE_EMAIL_FROM`, `TWE_RESEND_API_KEY`
+    and the correct `APP_ENV`. Development/staging mail is redirected exclusively
+    to testing@travelwitheasegh.com; production acknowledges the saved customer
+    with notifications@travelwitheasegh.com in CC. Remove obsolete recipient
+    overrides. Authentication still needs HTTPS `TWE_PORTAL_ORIGIN`.
 12. After approved staging configuration, run the read-only
     `pnpm --filter @faako/travel-with-ease-api preflight:hosted` in the hosting
     environment, then `pnpm --filter @faako/travel-with-ease-api start`.
@@ -158,9 +159,11 @@ restore needs a separately reviewed recovery decision.
 
 ## Notifications and operations
 
-`notifications:once` claims one PostgreSQL job, sends a minimal staff notice and
-records the provider reference. It does not send customer data, enquiry notes or
-attachments. Retry payloads are pinned; configuration changes cannot silently
+`notifications:once` claims one PostgreSQL job, sends the customer-safe branded
+acknowledgement and records the provider reference. Local/staging routes only to
+the testing mailbox; production routes to the saved customer with notifications
+CC. It includes the greeting name, not private trip notes or attachments.
+Retry payloads are pinned; configuration changes cannot silently
 redirect them. Five attempts maximum with exponential backoff. Jobs beyond 23
 hours since first attempt fail for operator reconciliation instead of automatic
 resend beyond Resend's 24-hour idempotency retention. A provider timeout may mean
@@ -170,7 +173,9 @@ Sources: [Resend send API](https://resend.com/docs/api-reference/emails/send-ema
 and [idempotency retention](https://resend.com/docs/dashboard/emails/idempotency-keys).
 Native server fetch avoids another SDK; shared `notifications` offers draft/link
 helpers, not delivery. Existing pg transactions/logger are reused. This adds no
-browser dependency and no automatic customer communication.
+browser dependency. The command must be run by the approved worker/scheduler for
+queued acknowledgements to be delivered; configuring a Resend key alone does not
+start a worker. No hosting scheduler or production worker was enabled by this change.
 
 Configure Faako monitoring only with verified URLs: API liveness/readiness,
 oldest pending/processing notification, failed notifications/publications, stuck

@@ -1,0 +1,46 @@
+.activation-panel {
+  max-width: 54rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  border-top: 4px solid #d8b56a;
+  background: #fff;
+  color: #010c33;
+}
+.activation-panel p {
+  max-width: 65ch;
+  line-height: 1.6;
+}
+.activation-panel dl {
+  padding-block: 1rem;
+  border-block: 1px solid #b6b1a9;
+}
+.activation-panel dt {
+  font-weight: 600;
+}
+.activation-panel dd {
+  margin: 0.25rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+.activation-panel form,
+.staff-invitations form {
+  display: grid;
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.staff-invitations {
+  margin-block: 2rem;
+  padding-block: 1.5rem;
+  border-top: 1px solid #b6b1a9;
+}
+.invitation-secret {
+  border-left: 4px solid #d8b56a;
+  padding: 1rem;
+  background: #f4ede3;
+  color: #010c33;
+}
+.account-details dd {
+  margin: 0.25rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+.account-details dt {
+  font-weight: 600;
+}

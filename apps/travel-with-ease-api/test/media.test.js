@@ -66,6 +66,8 @@ test("media requires staff sessions and upload CORS retains exact origin checks"
   await once(server, "listening"); context.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}/api/agent/media`;
   assert.equal((await fetch(base)).status, 401);
+  assert.equal((await fetch(base + "/drive")).status, 401);
+  assert.equal((await fetch(base + "/drive/import", { method: "POST", body: "{}" })).status, 401);
   assert.equal((await fetch(base + "/upload", { method: "POST", body: "invalid" })).status, 401);
   const preflight = await fetch(base + "/upload", { method: "OPTIONS", headers: { origin: "http://localhost:5188" } });
   assert.equal(preflight.status, 204);

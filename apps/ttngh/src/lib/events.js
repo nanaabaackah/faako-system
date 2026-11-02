@@ -23,12 +23,17 @@ function httpsUrl(value, field) {
 export function validateEvents(documents) {
   if (!Array.isArray(documents)) throw new Error("Invalid event response");
   const slugs = new Set();
+  const calendarUids = new Set();
   return documents.filter(doc => doc && !doc._id?.startsWith("drafts.") && !doc._id?.startsWith("versions.") && doc.publishState === "published").map(doc => {
     const issues=contentIssues({...doc,_type:"event"});
     if(issues.length)throw new Error(`Event publication blocked: ${issues.join(" ")}`);
     const slug = text(doc.slug?.current ?? doc.slug, "slug", 96);
     if (!slugPattern.test(slug) || slugs.has(slug)) throw new Error("Invalid or duplicate event slug");
     slugs.add(slug);
+    const calendarUid = text(doc.calendarUid, "calendar UID", 512, false);
+    if (doc.calendarUid != null && calendarUid !== doc.calendarUid) throw new Error("Calendar UID must be exact");
+    if (calendarUid && (/[\s<>]/.test(calendarUid) || calendarUids.has(calendarUid))) throw new Error("Invalid or duplicate event calendar UID");
+    if (calendarUid) calendarUids.add(calendarUid);
     const start = text(doc.start, "start", 40), end = text(doc.end, "end", 40);
     if (![start, end].every(validTimestamp) || Date.parse(end) <= Date.parse(start)) throw new Error("Invalid event dates");
     const timezone = text(doc.timezone, "timezone", 80);
@@ -43,7 +48,7 @@ export function validateEvents(documents) {
     const description = text(doc.description, "description", 20000);
     return {
       id:doc._id, slug, title: text(doc.title, "title", 120), summary: text(doc.summary, "summary", 320), description,
-      start, end, timezone, format: doc.format,
+      start, end, timezone, calendarUid, format: doc.format,
       venue: text(doc.venue, "venue", 180, doc.format === "in-person"),
       address: text(doc.address, "public address", 400, false),
       onlineUrl: doc.format === "online" ? httpsUrl(doc.onlineUrl, "public online information URL") : "",
@@ -62,9 +67,19 @@ export function validateEvents(documents) {
 
 export function groupEvents(events, now = new Date()) {
   return {
-    upcoming: events.filter(event => Date.parse(event.end) >= +now).sort((a, b) => Date.parse(a.start) - Date.parse(b.start)),
-    past: events.filter(event => Date.parse(event.end) < +now).sort((a, b) => Date.parse(b.start) - Date.parse(a.start)),
+    upcoming: events.filter(event => Date.parse(event.end) >= +now).sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.slug.localeCompare(b.slug)),
+    past: events.filter(event => Date.parse(event.end) < +now).sort((a, b) => Date.parse(b.start) - Date.parse(a.start) || a.slug.localeCompare(b.slug)),
   };
+}
+
+export function selectEventHighlights(events, now = new Date()) {
+  const { upcoming, past } = groupEvents(events, now);
+  return { next: upcoming[0] ?? null, upcoming: upcoming.slice(1, 4), previous: past[0] ?? null };
+}
+
+export function eventRegistrationLabel(event, now = new Date()) {
+  if (Date.parse(event.end) < +now) return "Event completed";
+  return { open: "Registration open", closed: "Registration closed", "not-open": "Registration not yet open", "not-required": "No registration required" }[event.registrationState];
 }
 
 export const eventPath = event => `/events/${event.slug}`;
