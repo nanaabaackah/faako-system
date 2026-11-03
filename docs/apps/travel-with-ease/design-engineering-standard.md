@@ -1,5 +1,14 @@
 # Travel With Ease design and engineering standard
 
+2026-11-02 client-approved refinement:
+[Journey Chapters decisions](journey-chapters-2026-11-02.md).
+Use the third selected concept below the unchanged hero, real additional Drive
+photography, smaller Journal overlay cards and 14px content-image/card corners
+with a soft shadow. This specific later approval supersedes the earlier default
+of square imagery/no elevation for these surfaces. Preserve the CTA artwork and
+continuous footer. Public controls have one light boundary and solid cream
+dropdowns; the scroll navigation is centred with 25px corners and the real pin.
+
 2026-10-31 latest refinement: enquiry heading/guidance and form share a responsive
 two-column card, stacked on mobile. Keep one continuous photograph behind the
 enquiry and footer. The signature matches the four-sided end-of-page gutter;

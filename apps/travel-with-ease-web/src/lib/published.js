@@ -3,10 +3,9 @@ import approvedRelease from "../../content/approved-public-release.json" with { 
 
 export function publicationSnapshotPath(env = process.env) {
   if (env.TWE_CONTENT_SNAPSHOT) return env.TWE_CONTENT_SNAPSHOT;
-  if (["production", "staging"].includes(env.PUBLIC_APP_ENV)) {
-    return new URL("../../content/approved-public-release.json", import.meta.url);
-  }
-  return null;
+  // Local development uses the same approved content as hosted builds.
+  // Explicit snapshots remain authoritative and never fall back to bundled copy.
+  return new URL("../../content/approved-public-release.json", import.meta.url);
 }
 
 // Build-only import. Never hydrate this module or fetch staff drafts publicly.
@@ -18,5 +17,7 @@ export function publishedPage(slug) {
     ? JSON.parse(readFileSync(filename, "utf8")) : approvedRelease;
   if (snapshot.version !== 1 || !snapshot.pages || typeof snapshot.pages !== "object") throw new Error("Invalid publication snapshot.");
   if (slug.startsWith("journal/")) return snapshot.pages.journal?.articles?.find(article => article.slug === slug.slice(8)) || null;
+  if (slug.startsWith("travel-tips/")) return snapshot.pages["travel-tips"]?.tips?.find(tip => tip.slug === slug.slice(12)) || null;
+  if (slug.startsWith("packages/")) return snapshot.pages.packages?.packages?.find(item => item.slug === slug.slice(9)) || null;
   return snapshot.pages[slug] || null; // Explicitly unpublished; never fall back to old copy.
 }

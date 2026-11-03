@@ -1,6 +1,10 @@
 ---
 import Accordion from "./Accordion.astro";
 import ContentLink from "./ContentLink.astro";
+import ServicePanels from "./ServicePanels.astro";
+import EditorialPhoto from "./EditorialPhoto.astro";
+import photography from "../lib/journey-photography.json";
+import "../styles/components/published-content.css";
 interface Props {
   accordion?: boolean;
   content: {
@@ -21,14 +25,26 @@ interface Props {
   } | null;
 }
 const { content, accordion = false } = Astro.props;
+const page = Astro.url.pathname.replace(/\/$/, "");
+const services = page === "/services";
+const story = page === "/about";
 ---
 
-<section class="published-content">
+<section class:list={["published-content", {
+  "published-content--editorial": Boolean(content?.image),
+  "published-content--faq": accordion,
+  "published-content--services": services,
+  "published-content--story": story,
+}]}>
   {
     content ? (
       <>
-        <h1>{content.heading}</h1>
-        {content.image && (
+        <header class="published-content__header">
+          <div>
+            <h1>{content.heading}</h1>
+            <p class="body-copy">{content.body}</p>
+          </div>
+        {content.image && !services && !story && (
           <img
             src={content.image.src}
             srcset={content.image.sources
@@ -43,7 +59,10 @@ const { content, accordion = false } = Astro.props;
             height={content.image.height}
           />
         )}
-        <p class="body-copy">{content.body}</p>
+        </header>
+        {story && <EditorialPhoto image={photography.coast} class="published-content__story-photo" sizes="90vw" />}
+        {services ? <ServicePanels entries={content.entries} all /> : (
+        <div class="published-content__sections">
         {content.entries.map((entry) =>
           accordion ? (
             <Accordion title={entry.heading}>
@@ -57,6 +76,8 @@ const { content, accordion = false } = Astro.props;
               {entry.attribution && <p>{entry.attribution}</p>}
             </section>
           ),
+        )}
+        </div>
         )}
         {content.contactEmail && <p>{content.contactEmail}</p>}
         {content.contactPhone && <p>{content.contactPhone}</p>}
@@ -76,6 +97,3 @@ const { content, accordion = false } = Astro.props;
     )
   }
 </section>
-<style>
-  @import "../styles/components/published-content.css";
-</style>

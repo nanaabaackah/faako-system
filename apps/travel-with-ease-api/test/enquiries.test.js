@@ -13,10 +13,10 @@ const sample = { id: enquiry, kind: "personalised", status: "new",
   contact: { name: "Synthetic traveller" }, details: { destination: "Synthetic place" },
   created_at: new Date("2026-10-27T00:00:00Z"), updated_at: new Date("2026-10-27T00:00:00Z"), version: "10" };
 
-test("owner/editor may update enquiries; platform admin has no business write permission", () => {
+test("Owner, Editor and approved Superadmin may update tenant-scoped enquiries", () => {
   assert.ok(ROLE_PERMISSIONS.owner.includes("enquiries.write"));
   assert.ok(ROLE_PERMISSIONS.editor.includes("enquiries.write"));
-  assert.equal(ROLE_PERMISSIONS.platform_admin.includes("enquiries.write"), false);
+  assert.equal(ROLE_PERMISSIONS.platform_admin.includes("enquiries.write"), true);
 });
 
 test("enquiry inbox uses scoped queries, CSRF, version matching and an atomic audit", async () => {

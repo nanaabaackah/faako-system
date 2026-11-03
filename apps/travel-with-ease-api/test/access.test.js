@@ -64,13 +64,14 @@ test("cryptographic Access validation rejects forged, expired, wrong-app and ser
   const rotating=createAccessVerifier(readAccessConfig(env),createLocalJWKSet({keys:[jwk,rotated]}));
   assert.equal((await rotating.verify(await sign({}, {kid:"rotated-key"},other.privateKey))).subject,"stable-subject");
 });
-test("permission matrix has no technical-to-business inheritance or cross-tenant authority",()=>{
+test("approved Superadmin application matrix preserves Owner/Editor boundaries and tenant isolation",()=>{
   for(const role of Object.keys(ROLE_PERMISSIONS)) {
     const actor={id:"actor",role,organisationId:"tenant-a"};
     for(const permission of ROLE_PERMISSIONS[role]) {assert.equal(hasPermission(actor,permission,"tenant-a"),true);assert.equal(hasPermission(actor,permission,"tenant-b"),false);}
   }
   const actor={id:"actor",role:"platform_admin",organisationId:"tenant-a"};
-  for(const permission of ["content.read","content.publish","enquiries.read","staff.manage","support.approve"])assert.equal(hasPermission(actor,permission,"tenant-a"),false);
+  for(const permission of ["content.read","content.publish","enquiries.read","staff.manage"])assert.equal(hasPermission(actor,permission,"tenant-a"),true);
+  for(const permission of ["support.approve", "cloudflare.owner", "database.credentials", "railway.billing"])assert.equal(hasPermission(actor,permission,"tenant-a"),false);
   assert.equal(hasPermission({...actor,role:"owner"},"system.read","tenant-a"),false);
   assert.equal(hasPermission({...actor,role:"editor"},"content.publish","tenant-a"),false);
   assert.equal(hasPermission({...actor,role:"__proto__"},"anything","tenant-a"),false);
@@ -92,7 +93,7 @@ test("private HTTP endpoints require both verified Access and a bound local sess
   const store={organisationId:"tenant-a",async createSession(identity,hash,csrf){if(used.has(identity.assertionHash))throw new Error("replayed");used.add(identity.assertionHash);sessions.set(hash,{id:"platform",role:"platform_admin",issuer:identity.issuer,subject:identity.subject,access_audience:identity.audience,access_assertion_hash:identity.assertionHash,csrf_hash:csrf,expires_at:identity.expiresAt});return {id:"platform"};},async getSession(hash){return sessions.get(hash);},async revoke(hash){sessions.delete(hash);},async recordDenied(){denials++;}};
   const auth=createStaffAuth({store,provider:verifier,settings,limiter:createLimiter({limit:100,windowMs:60000})});
   auth.router.get("/system-test",auth.requireStaff,auth.requirePermission("system.read"),(_req,res)=>res.sendStatus(204));
-  const server=createApp({staffAuth:auth,contentRepository:{list:async()=>[]},publicationRepository:{enqueue(){throw new Error("Editor must not publish");}},repository:{listLeads(){throw new Error("Private records must not be read");}}}).listen(0,"127.0.0.1");
+  const server=createApp({staffAuth:auth,contentRepository:{list:async()=>[]},publicationRepository:{enqueue(){throw new Error("Editor must not publish");}},repository:{listLeads:async()=>[]}}).listen(0,"127.0.0.1");
   await once(server,"listening");context.after(()=>server.close());
   const base=`http://127.0.0.1:${server.address().port}`;
   const exchange=()=>fetch(base+"/api/auth/access-session",{method:"POST",headers:{origin:settings.portalOrigin,"X-TWE-Session-Init":"1","Cf-Access-Jwt-Assertion":jwt}});
@@ -104,8 +105,8 @@ test("private HTTP endpoints require both verified Access and a bound local sess
   const response=await fetch(base+"/api/auth/session",{headers});assert.equal(response.status,200);
   const session=(await response.json()).data;
   assert.equal((await fetch(base+"/api/auth/system-test",{headers})).status,204);
-  assert.equal((await fetch(base+"/api/agent/leads",{headers})).status,403);
-  assert.equal((await fetch(base+"/api/agent/content",{headers})).status,403);
+  assert.equal((await fetch(base+"/api/agent/leads",{headers})).status,200);
+  assert.equal((await fetch(base+"/api/agent/content",{headers})).status,200);
   const stored=[...sessions.values()][0];stored.role="owner";
   assert.equal((await fetch(base+"/api/auth/system-test",{headers})).status,403);
   stored.role="editor";

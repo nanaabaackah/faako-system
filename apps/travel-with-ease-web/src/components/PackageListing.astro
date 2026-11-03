@@ -1,0 +1,107 @@
+---
+import ContentLink from "./ContentLink.astro";
+import CollectionFilters from "./CollectionFilters.jsx";
+import { packageStartingPrice } from "../lib/package-pricing.js";
+import { packageOccasions } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
+import type { TravelPackage } from "../lib/collections";
+import "../styles/components/collections.css";
+interface Props {
+  items: TravelPackage[];
+  demo?: boolean;
+  prefix?: string;
+  heading?: string;
+}
+const {
+  items,
+  demo = false,
+  prefix = "/packages",
+  heading = "Find your next journey.",
+} = Astro.props;
+---
+
+<section class="editorial-wrap collection-page" id="package-collection">
+  <header class="collection-introduction">
+    <h1>{heading}</h1><p>
+      Explore the journeys available to enquire about, or talk to us about a
+      personalised trip.
+    </p>
+  </header>
+  {
+    demo && (
+      <p class="collection-demo-notice">
+        Demonstration packages only — no prices, dates, availability or bookings
+        are confirmed.
+      </p>
+    )
+  }
+  {
+    items.length > 0 ? (
+      <>
+        <CollectionFilters
+          client:load
+          scope="package-collection"
+          options={[...new Set(items.map((item) => item.destination))]}
+          label="Destination"
+          occasions={packageOccasions}
+        />
+        <noscript>
+          <p>
+            All packages are listed below. Search and filters require
+            JavaScript.
+          </p>
+        </noscript>
+        <div class="package-collection-grid">
+          {items.map((item) => (
+            <article
+              class="journey-card"
+              data-collection-item
+              data-category={item.destination}
+              data-occasions={(item.occasions || []).join(" ")}
+              data-group-friendly={item.groupFriendly ? "true" : "false"}
+              data-search={`${item.title} ${item.destination} ${item.category || ""}`.toLocaleLowerCase()}
+            >
+              {item.image && (
+                <img
+                  src={item.image.src}
+                  srcset={item.image.sources
+                    ?.map((source) => `${source.src} ${source.width}w`)
+                    .join(", ")}
+                  sizes="(max-width: 760px) 90vw, 44vw"
+                  width={item.image.width}
+                  height={item.image.height}
+                  alt={item.image.alt}
+                  loading="lazy"
+                />
+              )}
+              <div>
+                <h2>
+                  <ContentLink
+                    class="journey-card__link"
+                    href={`${prefix}/${item.slug}`}
+                  >
+                    {item.title}
+                  </ContentLink>
+                </h2>
+                <p class="journey-card__summary">{item.tagline || item.overview.slice(0, 160)}</p>
+                <p class="package-price">{packageStartingPrice(item)}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </>
+    ) : (
+      <div class="review-empty">
+        <>
+          <h2>No packages are currently published.</h2>
+          <p>
+            Approved destinations, dates and package details will appear here.
+            We do not display illustrative offers as real packages.
+          </p>
+          <ContentLink href="/contact">
+            Personalised travel enquiries
+          </ContentLink>
+        </>
+      </div>
+    )
+  }
+</section>

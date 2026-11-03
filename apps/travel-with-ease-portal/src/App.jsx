@@ -54,6 +54,10 @@ function StaffWorkspace() {
     () => ({
       ...baseApi,
       post: async (...args) => {
+        if (args[1]?.silent === true) {
+          const options = { ...args[1] }; delete options.silent;
+          return baseApi.post(args[0], options);
+        }
         const id = pushToast({
           tone: "loading",
           title: isDemo ? "Updating demo" : "Working",
@@ -195,7 +199,7 @@ function StaffWorkspace() {
     ["content", "Content", session?.user.permissions?.includes("content.read")],
     ["media", "Media", session?.user.permissions?.includes("media.read")],
     ["templates", "Templates", session?.user.permissions?.includes("templates.manage")],
-    ["staff", "Staff", session?.user.role === "owner"],
+    ["staff", "Staff", session?.user.permissions?.includes("staff.manage")],
     [
       "system",
       "System",
@@ -296,7 +300,7 @@ function StaffWorkspace() {
           <div className="session-toolbar" aria-label="Your session">
             <span>
               {isDemo ? "Simulating role " : "Signed in as "}
-              <strong>{session.user.role.replaceAll("_", " ")}</strong>
+              <strong>{session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ")}</strong>
             </span>
             <Button
               icon="logout"
@@ -485,7 +489,7 @@ function StaffWorkspace() {
             <SystemAdministration api={api} session={session} />
           )}
           {!state.loading &&
-            session?.user.role === "owner" &&
+            session?.user.permissions?.includes("staff.manage") &&
             section === "staff" && <StaffAccess api={api} session={session} />}
         </div>
         {!state.loading && session && !isDemo && (

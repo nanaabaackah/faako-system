@@ -99,14 +99,14 @@ export default function StaffAccess({ api, session }) {
       )}
       <p>
         Use the independently verified Cloudflare subject—not an email address.
-        New accounts are Editors. Platform operators stage inactive accounts; an
-        Owner activates them. Owner and platform role assignment requires a
+        New accounts are Editors. Owners and Superadmins can provision them.
+        Owner and Superadmin role assignment requires a
         reviewed administrative procedure.
       </p>
       {message && (
         <InlineNotice title="Staff access result" message={message} />
       )}
-      {owner && <Invitations api={api} session={session} />}
+      {allowed && <Invitations api={api} session={session} />}
       {!owner && (
         <form
           className="staff-provision"
@@ -124,7 +124,7 @@ export default function StaffAccess({ api, session }) {
             onChange={(event) => setSubject(event.target.value)}
           />
           <Button icon="plus" variant="primary" type="submit" disabled={busy}>
-            {owner ? "Provision Editor" : "Stage Editor for Owner approval"}
+            Provision Editor
           </Button>
         </form>
       )}
@@ -141,13 +141,13 @@ export default function StaffAccess({ api, session }) {
         {staff.map((user) => (
           <li key={user.id}>
             <div className="staff-identity">
-              <strong>{user.role.replaceAll("_", " ")}</strong>
+              <strong>{user.role === "platform_admin" ? "Superadmin" : user.role.replaceAll("_", " ")}</strong>
               <code>{user.id}</code>
             </div>
             <StatusPill tone={user.active ? "success" : "neutral"}>
               {user.active ? "Active" : "Inactive"}
             </StatusPill>
-            {user.role === "editor" && (user.active || owner) && (
+            {user.role === "editor" && allowed && (
               <Button
                 variant={user.active ? "danger" : "primary"}
                 type="button"

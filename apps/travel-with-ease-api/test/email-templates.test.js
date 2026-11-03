@@ -99,7 +99,7 @@ test("template copy is bounded and escaped; delivery and mandatory footer are co
   assert.match(staging.html, /&lt;script&gt;/);
 });
 
-test("template service refuses editors, platform administrators and cross-tenant owners before querying", async () => {
+test("template service refuses editors and cross-tenant administrators before querying", async () => {
   const service = new EmailTemplates(
     {
       query() {
@@ -110,7 +110,7 @@ test("template service refuses editors, platform administrators and cross-tenant
   );
   for (const actor of [
     { id: "staff", role: "editor", organisationId: "tenant-a" },
-    { id: "staff", role: "platform_admin", organisationId: "tenant-a" },
+    { id: "staff", role: "platform_admin", organisationId: "tenant-b" },
     { id: "staff", role: "owner", organisationId: "tenant-b" },
   ]) {
     await assert.rejects(service.get(actor), { status: 403 });
@@ -184,7 +184,9 @@ test("template HTTP preview requires owner permission, CSRF and strict input; ne
     400,
   );
   assert.equal(saves, 0);
-  for (const denied of ["editor", "platform_admin"]) {
+  role = "platform_admin";
+  assert.equal((await post("/staff-invitation/preview", defaultInvitationCopy)).status, 200);
+  for (const denied of ["editor"]) {
     role = denied;
     assert.equal((await fetch(origin)).status, 403);
     assert.equal((await fetch(origin + "/staff-invitation")).status, 403);

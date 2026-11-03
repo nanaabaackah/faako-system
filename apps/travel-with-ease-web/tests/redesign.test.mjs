@@ -4,6 +4,12 @@ import { readFileSync } from "node:fs";
 const source = (name) =>
   readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8");
 
+test("the brand links home without a redundant Home menu entry", () => {
+  const layout = source("layouts/BaseLayout.astro");
+  assert.match(layout, /aria-label="Travel With Ease home"/);
+  assert.doesNotMatch(layout, /\["\/", "Home"\]/);
+});
+
 test("shared CTA preserves the five supplied mockups, one action and no copied reference assets", () => {
   const component = source("components/ClosingCta.astro");
   assert.match(component, /astro:assets/);
@@ -34,8 +40,12 @@ test("one continuous image covers the enquiry and footer, with gutters only at t
   );
   assert.match(
     source("layouts/BaseLayout.astro"),
-    /!cinematic && <PublicFooter/,
+    /!Astro\.slots\.has\("closing"\) && \(\s*<CinematicEnquiry/,
   );
+  assert.doesNotMatch(source("layouts/BaseLayout.astro"), /<PublicFooter/);
+  assert.match(source("styles/components/cinematic-enquiry.css"),
+    /@media \(max-width: 760px\)[\s\S]*object-fit: cover/);
+  assert.match(component, /media="\(max-width: 760px\)"[\s\S]*zanzibar-beach-club-b60ec1e6297a-1920\.webp/);
   const motion = source("components/EditorialMotion.astro");
   assert.match(motion, /scrollHeight - innerHeight - scrollY/);
   assert.match(motion, /distance \/ 180/);

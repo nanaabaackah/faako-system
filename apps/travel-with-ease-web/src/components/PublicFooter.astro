@@ -61,7 +61,7 @@ const phone =
         /></a
       >{
         visible("contact") && (
-          <ContentLink button href={demo ? "#demo-plan" : "/contact"}>
+          <ContentLink button href={demo ? "/demo#demo-plan" : "/contact"}>
             {demo ? "Try the enquiry demo" : "Plan a trip"}
           </ContentLink>
         )
@@ -70,16 +70,16 @@ const phone =
     <div class="footer-links">
       <nav aria-label="Explore">
         <h2>Explore</h2>{
-          visible("destinations") && (
-            <a href={demo ? "#demo-packages" : "/destinations"}>Destinations</a>
+          (visible("packages") || visible("destinations")) && (
+            <a href={demo ? "/demo/packages" : "/packages"}>Packages</a>
           )
         }{
           visible("services") && (
-            <a href={demo ? "#demo-process" : "/services"}>Services</a>
+            <a href={demo ? "/demo#demo-process" : "/services"}>Services</a>
           )
         }{visible("about") && !demo && <a href="/about">About TWE</a>}{
           visible("journal") && (
-            <a href={demo ? "#demo-journal" : "/journal"}>Travel journal</a>
+            <a href={demo ? "/demo/journal" : "/journal"}>Travel journal</a>
           )
         }
       </nav>
@@ -107,6 +107,11 @@ const phone =
     </div>
   </div>
   <div class="footer-legal">
+    <p class="footer-company-details">
+      Travel with Ease is a trading name of TWE Concierge, registration
+      BN045370826. IATA TIDS 96245096. Certified Group Travel Specialist,
+      The Travel Institute. Accra, Ghana.
+    </p>
     <span
       >{
         demo

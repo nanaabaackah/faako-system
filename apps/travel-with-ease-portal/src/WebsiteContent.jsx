@@ -9,7 +9,13 @@ import {
   AnimatedLoadingState,
 } from "@faako/ui";
 import MediaLibrary from "./MediaLibrary.jsx";
+import PackageEditor from "./PackageEditor.jsx";
+import ExperienceEditor from "./ExperienceEditor.jsx";
 import reviewDrafts from "../../../docs/apps/travel-with-ease/content-review-drafts.json";
+import { createDraftAutosave } from "./draft-autosave.js";
+import VisualPreview from "./VisualPreview.jsx";
+import approvedRelease from "../../travel-with-ease-web/content/approved-public-release.json";
+import { approvedEditorCopy } from "./approved-copy.js";
 
 import countryOptions from "../../travel-with-ease-web/src/lib/footprint-countries.json";
 const countries = [...countryOptions].sort((a, b) =>
@@ -24,6 +30,8 @@ const pages = [
   "testimonials",
   "contact",
   "journal",
+  "packages",
+  "travel-tips",
   "travel-footprint",
   "privacy",
   "terms",
@@ -41,22 +49,43 @@ const emptyBody = () => ({
   contactEmail: "",
   contactPhone: "",
   articles: [],
+  tips: [],
+  packages: [],
   footprint: [],
+  experienceCountries: [],
 });
 
-export default function WebsiteContent({ api, session, onDirtyChange }) {
+export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
-  const [page, setPage] = useState("home");
+  const [page, setPage] = useState(initialPage);
+  const [recordSlug, setRecordSlug] = useState("");
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
   const [history, setHistory] = useState([]);
   const [jobs, setJobs] = useState([]);
   const [dirty, setDirty] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [visualPreview, setVisualPreview] = useState(null);
+  const [editorView, setEditorView] = useState("editor");
   const [chooseImage, setChooseImage] = useState(false);
+  const [tipImage, setTipImage] = useState(null);
+  const [collectionImage, setCollectionImage] = useState(null);
   const [state, setState] = useState({ loading: true, error: "", message: "" });
+  const [saveState, setSaveState] = useState({ status: "saved", dirty: false, error: "" });
+  const writer = useRef(null);
+  const bodyRef = useRef(body);
   const heading = useRef(null);
+  useEffect(() => {
+    if (!jobs.some(job => ["pending", "building", "deploying", "verifying"].includes(job.status))) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      void api.get("/api/agent/content/publication-jobs", { responseMode: "data" })
+        .then(result => { if (active) setJobs(result.items); })
+        .catch(() => { if (active) setState(current => ({ ...current, error: "Publication status could not be refreshed. Use Refresh publication status; do not submit another request." })); });
+    }, 3000);
+    return () => { active = false; clearTimeout(timer); };
+  }, [api, jobs]);
   useEffect(() => {
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
@@ -71,9 +100,36 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
   }, [dirty]);
   useEffect(() => {
     let active = true;
+    const autosave = createDraftAutosave({
+      save: (draft, expectedVersion) => api.post(`/api/agent/content/${page}/draft`, {
+        responseMode: "data", silent: true, json: { body: draft, expectedVersion },
+        headers: { "X-CSRF-Token": session.csrfToken },
+      }),
+      read: async () => {
+        try { return await api.get(`/api/agent/content/${page}`, { responseMode: "data" }); }
+        catch (error) { if (error.status === 404) return { body: emptyBody(), version: 0 }; throw error; }
+      },
+      onState: result => { if (active) { setSaveState(result); setDirty(result.dirty); } },
+      onSaved: (result, replace) => {
+        if (!active) return;
+        if (replace) { bodyRef.current = result.body; setBody(result.body); }
+        setVersion(result.version);
+        // A history refresh failure must not turn an acknowledged save into a
+        // failed mutation or cause the same draft to be written again.
+        void api.get(`/api/agent/content/${page}/revisions`, { responseMode: "data" })
+          .then(value => { if (active) setHistory(value.items); }).catch(() => {});
+      },
+    });
+    writer.current = autosave;
     async function load() {
       setState({ loading: true, error: "", message: "" });
       setPreview(null);
+      setVisualPreview(null);
+      setRecordSlug("");
+      setEditorView("editor");
+      setChooseImage(false);
+      setTipImage(null);
+      setCollectionImage(null);
       try {
         let item;
         try {
@@ -92,8 +148,11 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
           { responseMode: "data" },
         );
         if (!active) return;
-        setBody({ ...emptyBody(), ...item?.body });
+        const draft = { ...emptyBody(), ...item?.body };
+        bodyRef.current = draft;
+        setBody(draft);
         setVersion(item?.version || 0);
+        autosave.reset(draft, item?.version || 0);
         setHistory(revisions.items);
         setJobs(publications.items);
         setDirty(false);
@@ -107,37 +166,26 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
     load();
     return () => {
       active = false;
+      autosave.dispose();
+      if (writer.current === autosave) writer.current = null;
     };
-  }, [api, page]);
+  }, [api, page, session.csrfToken]);
   const change = (key, value) => {
-    setBody((current) => ({ ...current, [key]: value }));
-    setDirty(true);
+    if (["packages", "articles"].includes(key)) {
+      setChooseImage(false);
+      setCollectionImage(null);
+    }
+    const next = { ...bodyRef.current, [key]: value };
+    bodyRef.current = next;
+    setBody(next);
+    writer.current?.edit(next);
     setPreview(null);
+    setVisualPreview(null);
+    setEditorView("editor");
   };
   async function save(event) {
     event.preventDefault();
-    setState({ loading: true, error: "", message: "Saving draft…" });
-    try {
-      const result = await api.post(`/api/agent/content/${page}/draft`, {
-        responseMode: "data",
-        json: { body, expectedVersion: version },
-        headers: { "X-CSRF-Token": session.csrfToken },
-      });
-      setBody(result.body);
-      setVersion(result.version);
-      setDirty(false);
-      const revisions = await api.get(`/api/agent/content/${page}/revisions`, {
-        responseMode: "data",
-      });
-      setHistory(revisions.items);
-      setState({
-        loading: false,
-        error: "",
-        message: "Draft saved. The public website has not changed.",
-      });
-    } catch (error) {
-      setState({ loading: false, error: error.message, message: "" });
-    }
+    await writer.current?.flush();
   }
   async function showPreview() {
     setState({ loading: true, error: "", message: "" });
@@ -146,6 +194,11 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
         responseMode: "data",
       });
       setPreview(item.body);
+      if (!session.demo) setVisualPreview(await api.post(`/api/agent/content/${page}/visual-preview`, {
+        responseMode: "data", json: { expectedVersion: version },
+        headers: { "X-CSRF-Token": session.csrfToken },
+      }));
+      if (!session.demo) setEditorView("preview");
       setState({
         loading: false,
         error: "",
@@ -171,6 +224,8 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
         headers: { "X-CSRF-Token": session.csrfToken },
       });
       setBody(result.body);
+      bodyRef.current = result.body;
+      writer.current?.reset(result.body, result.version);
       setVersion(result.version);
       setDirty(false);
       setPreview(null);
@@ -211,7 +266,7 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
             : `/api/agent/content/${page}/${action}`,
           {
             responseMode: "data",
-            ...(id ? {} : { json: { expectedVersion: version } }),
+            ...(id ? {} : { json: { expectedVersion: version, ...(recordSlug ? { recordSlug } : {}) } }),
             headers: { "X-CSRF-Token": session.csrfToken },
           },
         );
@@ -244,6 +299,12 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
         Prepare approved content, review saved drafts and track publication
         separately.
       </p>
+      {visualPreview && <div className="cms-editor-view-switch" aria-label="Editing view">
+        <Button type="button" aria-pressed={editorView === "editor"} onClick={() => setEditorView("editor")}>Editor</Button>
+        <Button type="button" aria-pressed={editorView === "preview"} onClick={() => setEditorView("preview")}>Website preview</Button>
+      </div>}
+      <div className={`cms-editing-layout${visualPreview ? " cms-editing-layout--with-preview" : ""}`} data-view={editorView}>
+      <div className="cms-editing-layout__fields">
       <div data-tour="content-pages">
         <SelectField
           label="Section"
@@ -268,6 +329,11 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
           message={state.error}
         />
       )}
+      {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error} />}
+      <p role="status" aria-live="polite" className="draft-save-status">
+        {saveState.status === "saving" ? "Saving…" : saveState.status === "error" ? "Error — unsaved edits retained" : dirty ? "Unsaved" : `Saved · version ${version}`}
+        {" · Drafts are never published automatically by autosave."}
+      </p>
       {state.loading ? (
         <AnimatedLoadingState
           compact
@@ -282,12 +348,11 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
             (dirty ? "Unsaved changes" : `Draft version ${version}`)}
         </p>
       )}
-      {reviewDrafts[page] && (
+      {(approvedRelease.pages[page] || reviewDrafts[page]) && (
         <section className="workspace-panel">
-          <h3>Starter copy for review</h3>
+          <h3>{approvedRelease.pages[page] ? "Approved company copy" : "Starter copy for review"}</h3>
           <p>
-            Load the company-based draft to edit it here. Policy drafts contain
-            review requirements; resolve them before requesting publication.
+            {approvedRelease.pages[page] ? "Load the approved November 1 company content into this draft. This replaces selected text, not the public website. Re-select any managed R2 images before publication." : "Load the company-based draft to edit it here. Resolve its review requirements before publication."}
           </p>
           <Button
             type="button"
@@ -298,17 +363,19 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
                 !window.confirm("Replace unsaved edits with the review draft?")
               )
                 return;
-              setBody(structuredClone(reviewDrafts[page]));
-              setDirty(true);
+              const draft = { ...emptyBody(), ...(approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : structuredClone(reviewDrafts[page])) };
+              bodyRef.current = draft;
+              setBody(draft);
+              writer.current?.edit(draft);
               setPreview(null);
             }}
           >
-            Load review draft
+            {approvedRelease.pages[page] ? "Load approved copy" : "Load review draft"}
           </Button>
         </section>
       )}
       <form data-tour="content-draft" onSubmit={save}>
-        <fieldset disabled={state.loading}>
+        <fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}>
           <legend>Selected website fields</legend>
           <TextField
             label="Heading"
@@ -341,6 +408,12 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
                 <option value="/about">About</option>
                 <option value="/services">Services</option>
                 <option value="/destinations">Destinations</option>
+                <option value="/packages">Packages</option>
+                <option value="/journal">Journal</option>
+                <option value="/travel-tips">Travel tips</option>
+                <option value="/contact">Contact</option>
+                <option value="/how-it-works">How it works</option>
+                <option value="/travel-footprint">Travel footprint</option>
               </SelectField>
             </>
           )}
@@ -360,6 +433,20 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
                 onChange={(e) => change("contactPhone", e.target.value)}
               />
             </>
+          )}
+          {page === "packages" && (
+            <PackageEditor
+              items={body.packages}
+              onChange={(items) => {
+                change("packages", items);
+                setChooseImage(false);
+              }}
+              onChooseImage={(index, gallery) => {
+                setTipImage(null);
+                setCollectionImage({ collection: "packages", index, gallery });
+                setChooseImage(true);
+              }}
+            />
           )}
           {page === "journal" && (
             <section aria-label="Journal articles">
@@ -415,6 +502,99 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
                       )
                     }
                   />
+                  <TextField
+                    label="Article category"
+                    value={article.category || ""}
+                    maxLength={80}
+                    onChange={(event) =>
+                      change(
+                        "articles",
+                        body.articles.map((item, i) =>
+                          i === index
+                            ? { ...item, category: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                  <TextField
+                    label="Approved author (optional)"
+                    value={article.author || ""}
+                    maxLength={120}
+                    onChange={(event) =>
+                      change(
+                        "articles",
+                        body.articles.map((item, i) =>
+                          i === index
+                            ? { ...item, author: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setTipImage(null);
+                      setCollectionImage({
+                        collection: "articles",
+                        index,
+                        gallery: false,
+                      });
+                      setChooseImage(true);
+                    }}
+                  >
+                    Choose article image
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setTipImage(null);
+                      setCollectionImage({
+                        collection: "articles",
+                        index,
+                        gallery: true,
+                      });
+                      setChooseImage(true);
+                    }}
+                  >
+                    Add article gallery image
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      change(
+                        "articles",
+                        body.articles.map((item, i) =>
+                          i === index
+                            ? { ...item, imageId: null, galleryImageIds: [] }
+                            : item,
+                        ),
+                      )
+                    }
+                  >
+                    Clear article images
+                  </Button>
+                  <TextareaField
+                    label="Related package URL names — one per line"
+                    value={(article.relatedPackageSlugs || []).join("\n")}
+                    onChange={(event) =>
+                      change(
+                        "articles",
+                        body.articles.map((item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                relatedPackageSlugs:
+                                  event.target.value === ""
+                                    ? []
+                                    : event.target.value.split("\n"),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
                   <Button
                     type="button"
                     onClick={() =>
@@ -434,13 +614,205 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
                 onClick={() =>
                   change("articles", [
                     ...(body.articles || []),
-                    { title: "", slug: "", excerpt: "", body: "", date: "" },
+                    {
+                      title: "",
+                      slug: "",
+                      excerpt: "",
+                      body: "",
+                      date: "",
+                      category: "Travel stories",
+                      author: "",
+                      imageId: null,
+                      galleryImageIds: [],
+                      relatedPackageSlugs: [],
+                    },
                   ])
                 }
               >
                 Add article
               </Button>
             </section>
+          )}
+          {page === "travel-tips" && (
+            <section aria-label="Travel tips">
+              <h3>Travel tips</h3>
+              <p>
+                Save and preview this collection before requesting publication.
+                All tips in the saved collection are published together.
+                Removing a tip and publishing withdraws it.
+              </p>
+              {body.tips.map((tip, index) => (
+                <fieldset key={index}>
+                  <legend>Tip {index + 1}</legend>
+                  {[
+                    ["title", "Tip title", 120],
+                    ["slug", "Tip URL name", 80],
+                    ["excerpt", "Tip summary", 240],
+                    ["body", "Tip text", 6000],
+                    [
+                      "relatedArticle",
+                      "Related published Journal URL name (optional)",
+                      80,
+                    ],
+                  ].map(([key, label, max]) => (
+                    <TextareaField
+                      key={key}
+                      label={label}
+                      value={tip[key]}
+                      maxLength={max}
+                      required={key !== "relatedArticle"}
+                      onChange={(event) =>
+                        change(
+                          "tips",
+                          body.tips.map((item, i) =>
+                            i === index
+                              ? { ...item, [key]: event.target.value }
+                              : item,
+                          ),
+                        )
+                      }
+                    />
+                  ))}
+                  <SelectField
+                    label="Tip category"
+                    value={tip.category}
+                    onChange={(event) =>
+                      change(
+                        "tips",
+                        body.tips.map((item, i) =>
+                          i === index
+                            ? { ...item, category: event.target.value }
+                            : item,
+                        ),
+                      )
+                    }
+                  >
+                    {[
+                      "Before You Go",
+                      "Packing Smart",
+                      "Airport Guides",
+                      "Travel Documents",
+                      "Destination Preparation",
+                      "Safety and Practical Advice",
+                    ].map((category) => (
+                      <option key={category}>{category}</option>
+                    ))}
+                  </SelectField>
+                  <SelectField
+                    label="Homepage placement"
+                    value={String(tip.featured)}
+                    onChange={(event) =>
+                      change(
+                        "tips",
+                        body.tips.map((item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                featured: event.target.value === "true",
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  >
+                    <option value="true">Featured candidate</option>
+                    <option value="false">Supporting tip</option>
+                  </SelectField>
+                  <TextField
+                    label="Tip display order"
+                    type="number"
+                    min="0"
+                    max="999"
+                    step="1"
+                    required
+                    value={tip.order}
+                    onChange={(event) =>
+                      change(
+                        "tips",
+                        body.tips.map((item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                order:
+                                  event.target.value === ""
+                                    ? ""
+                                    : Number(event.target.value),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                  <p>
+                    {tip.imageId
+                      ? "Approved library image selected."
+                      : "No image selected."}
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setTipImage(index);
+                      setCollectionImage(null);
+                      setChooseImage(true);
+                    }}
+                  >
+                    Choose tip image
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      change(
+                        "tips",
+                        body.tips.map((item, i) =>
+                          i === index ? { ...item, imageId: null } : item,
+                        ),
+                      )
+                    }
+                  >
+                    Remove tip image
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setChooseImage(false);
+                      setTipImage(null);
+                      change(
+                        "tips",
+                        body.tips.filter((_, i) => i !== index),
+                      );
+                    }}
+                  >
+                    Remove tip {index + 1}
+                  </Button>
+                </fieldset>
+              ))}
+              <Button
+                type="button"
+                disabled={body.tips.length >= 30}
+                onClick={() =>
+                  change("tips", [
+                    ...body.tips,
+                    {
+                      title: "",
+                      slug: "",
+                      excerpt: "",
+                      body: "",
+                      category: "Before You Go",
+                      featured: false,
+                      order: body.tips.length,
+                      imageId: null,
+                      relatedArticle: "",
+                    },
+                  ])
+                }
+              >
+                Add tip
+              </Button>
+            </section>
+          )}
+          {page === "travel-footprint" && (
+            <ExperienceEditor items={body.experienceCountries || []}
+              onChange={items => change("experienceCountries", items)} />
           )}
           {page === "travel-footprint" && (
             <section aria-label="Verified travel footprint">
@@ -527,7 +899,9 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
               </Button>
             </section>
           )}
-          {!["journal", "travel-footprint"].includes(page) && (
+          {!["packages", "journal", "travel-tips", "travel-footprint"].includes(
+            page,
+          ) && (
             <>
               {body.entries.map((entry, index) => (
                 <fieldset key={index}>
@@ -623,7 +997,11 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
       <Button
         type="button"
         disabled={state.loading}
-        onClick={() => setChooseImage((current) => !current)}
+        onClick={() => {
+          setTipImage(null);
+          setCollectionImage(null);
+          setChooseImage((current) => !current);
+        }}
       >
         {chooseImage ? "Close image library" : "Choose image"}
       </Button>
@@ -641,7 +1019,38 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
           api={api}
           session={session}
           onSelect={(item) => {
-            change("imageId", item.id);
+            if (collectionImage) {
+              const { collection, index, gallery } = collectionImage;
+              change(
+                collection,
+                body[collection].map((record, i) =>
+                  i === index
+                    ? {
+                        ...record,
+                        ...(gallery
+                          ? {
+                              galleryImageIds: [
+                                ...new Set([
+                                  ...(record.galleryImageIds || []),
+                                  item.id,
+                                ]),
+                              ],
+                            }
+                          : { imageId: item.id }),
+                      }
+                    : record,
+                ),
+              );
+            } else if (tipImage === null) change("imageId", item.id);
+            else
+              change(
+                "tips",
+                body.tips.map((tip, i) =>
+                  i === tipImage ? { ...tip, imageId: item.id } : tip,
+                ),
+              );
+            setTipImage(null);
+            setCollectionImage(null);
             setChooseImage(false);
             heading.current?.focus();
           }}
@@ -650,19 +1059,25 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
       <section className="workspace-panel" data-tour="content-publication">
         <h3>Publication</h3>
         <p>
-          Builds use saved revisions and require Baaba's reviewed deployment
-          workflow. A pending or building request is not live.
+          Publishing uses saved revisions and the environment's reviewed source.
+          Pending, building, deploying and verifying requests are not live.
         </p>
         {!canPublish && (
-          <p>Only an Owner can request publication, unpublishing or retries.</p>
+          <p>Only an Owner or Superadmin can publish, unpublish or retry.</p>
         )}
+        {["packages", "journal", "travel-tips"].includes(page) && <SelectField
+          label="Publication scope" value={recordSlug} disabled={state.loading || dirty}
+          onChange={event => setRecordSlug(event.target.value)}>
+          <option value="">Whole collection (all saved records)</option>
+          {(page === "packages" ? body.packages : page === "journal" ? body.articles : body.tips).map(record => <option key={record.slug} value={record.slug}>{record.title} only</option>)}
+        </SelectField>}
         <div className="editor-actions">
           <Button
             type="button"
             disabled={!canPublish || state.loading || dirty || !version}
             onClick={() => publication("publish")}
           >
-            Request publication
+            {import.meta.env.MODE === "staging" ? "Publish to staging" : "Publish saved changes"}
           </Button>
           <Button
             type="button"
@@ -683,9 +1098,12 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
           {jobs.map((job, index) => (
             <li key={job.id}>
               {job.status} —{" "}
+              {job.environment && `${job.environment} · `}
+              {job.target && `${job.target.page}${job.target.recordSlug ? "/" + job.target.recordSlug : ""} · version ${job.target.version} · `}
               {new Date(job.created_at).toLocaleString("en-GH", {
                 timeZone: "Africa/Accra",
               })}
+              {job.deployment_id && <span> · Deployment {job.deployment_id}</span>}
               {job.status === "failed" && index === 0 && (
                 <Button
                   type="button"
@@ -699,7 +1117,7 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
           ))}
         </ul>
       </section>
-      {preview && (
+      {preview && !visualPreview && (
         <section aria-label="Saved content preview">
           <h3>{preview.heading}</h3>
           <p className="preserve-lines">{preview.body}</p>
@@ -718,6 +1136,25 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
               </p>
               <p>{article.excerpt}</p>
               <p className="preserve-lines">{article.body}</p>
+            </article>
+          ))}
+          {(preview.packages || []).map((item) => (
+            <article key={item.id}>
+              <h4>{item.title}</h4>
+              <p>
+                {item.destination} · /packages/{item.slug}
+              </p>
+              <p>{item.overview}</p>
+            </article>
+          ))}
+          {(preview.tips || []).map((tip) => (
+            <article key={tip.slug}>
+              <h4>{tip.title}</h4>
+              <p>
+                {tip.category} · /travel-tips/{tip.slug}
+              </p>
+              <p>{tip.excerpt}</p>
+              <p className="preserve-lines">{tip.body}</p>
             </article>
           ))}
           {(preview.footprint || []).length > 0 && (
@@ -761,6 +1198,9 @@ export default function WebsiteContent({ api, session, onDirtyChange }) {
           <p>No saved revisions.</p>
         )}
       </section>
+      </div>
+      {visualPreview && preview && <VisualPreview key={visualPreview.id} job={visualPreview} api={api} body={preview} />}
+      </div>
     </section>
   );
 }

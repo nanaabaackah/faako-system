@@ -1,0 +1,29 @@
+---
+import ContentLink from "./ContentLink.astro";
+import EditorialPhoto from "./EditorialPhoto.astro";
+import photography from "../lib/journey-photography.json";
+import "../styles/components/journey-editorial.css";
+interface Props {
+  entries: { heading: string; text: string; attribution?: string }[];
+  all?: boolean;
+}
+const { entries, all = false } = Astro.props;
+const selected = all ? entries.map((entry, index) => ({ entry, index })) : [1, 2].filter(index => entries[index]).map(index => ({ entry: entries[index], index }));
+const images = [photography.hippos, photography.coast, photography.garden, photography.elephants];
+---
+
+<div class:list={["service-panels", { "service-panels--all": all }]}>
+  {selected.map(({ entry, index }) => {
+    const [title, price] = entry.heading.split(" · ");
+    return (
+      <article class="service-panel" id={all ? `service-${index + 1}` : undefined}>
+        <EditorialPhoto image={images[index % images.length]} class={`service-panel__photo service-panel__photo--${index}`} />
+        <div class="service-panel__label">
+          <h2><ContentLink href={all ? "#plan" : `/services#service-${index + 1}`}>{title}</ContentLink></h2>
+          {price && <p>{price}</p>}
+        </div>
+        {all && <p class="service-panel__description">{entry.text}</p>}
+      </article>
+    );
+  })}
+</div>

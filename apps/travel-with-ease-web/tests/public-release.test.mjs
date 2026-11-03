@@ -11,15 +11,18 @@ const readPage = (env, slug = "home") => execFileSync(process.execPath, ["--inpu
   env: { PATH: process.env.PATH, ...env }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
 });
 
-test("hosted builds use the approved release; local design preview remains separate", () => {
-  assert.equal(publicationSnapshotPath({}), null);
-  for (const PUBLIC_APP_ENV of ["production", "staging"]) {
+test("local and hosted builds use the same approved release", () => {
+  assert.ok(publicationSnapshotPath({}) instanceof URL);
+  for (const PUBLIC_APP_ENV of ["development", "production", "staging"]) {
     const home = JSON.parse(readPage({ PUBLIC_APP_ENV }));
     assert.equal(home.heading, "A little further. A little more you.");
     assert.equal(home.contactEmail, "");
     assert.doesNotMatch(JSON.stringify(home), /placeholder|awaiting approval|Design preview/i);
-    for (const page of ["about", "services", "contact", "privacy", "terms", "destinations"]) {
+    for (const page of ["testimonials", "destinations"]) {
       assert.equal(JSON.parse(readPage({ PUBLIC_APP_ENV }, page)), null);
+    }
+    for (const page of ["about", "services", "terms", "packages", "contact", "privacy", "faqs", "cookies", "journal", "travel-tips"]) {
+      assert.ok(JSON.parse(readPage({ PUBLIC_APP_ENV }, page)));
     }
   }
 });
@@ -42,25 +45,40 @@ test("production build publishes approved content without preview copy or unpubl
   const home = readFileSync(path.join(output, "index.html"), "utf8");
   assert.match(home, /A little further/);
   assert.match(home, /closing-scene__image[^>]*src="\/media\/b7e55[^"\s]+\.webp"/);
-  assert.doesNotMatch(home, /business registration|BN\d{6,}|House no\s+\d|TWE\s+Concierge/i);
+  assert.match(home, /BN045370826/);
+  assert.match(home, /TWE Concierge/);
+  assert.match(home, /96245096/);
+  assert.doesNotMatch(home, /House no\s+\d/i);
   assert.match(home, /name="robots" content="index, follow"/);
-  assert.doesNotMatch(home, /Design preview|placeholder/i);
+  const visibleText = home.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "").replace(/<[^>]+>/g, " ");
+  assert.doesNotMatch(visibleText, /Design preview|placeholder/i);
+  assert.doesNotMatch(home, /Demonstration travel tips|demo-checklist|demo-packing/);
   const header = home.match(/<header[\s\S]*?<\/header>/)?.[0];
   assert.ok(header);
-  assert.doesNotMatch(header, /href="\/(contact|privacy|terms|services|destinations)"/);
+  assert.doesNotMatch(header, /href="\/(contact|privacy|terms|destinations)"/);
+  assert.match(header, /href="\/packages"/);
+  assert.match(header, /href="\/services"/);
   assert.match(home, /Make room for(?:<br\s*\/?>|\s)+your next journey/);
-  assert.match(home, /Online enquiry forms are not available yet/);
-  assert.match(home, /Talk to us on WhatsApp/);
+  assert.doesNotMatch(home, /Online enquiry forms are not available yet|Enquiry availability/);
+  assert.match(home, /public-enquiry-form/);
+  assert.match(home, /Send enquiry/);
   assert.match(home, /closing-photos/);
   assert.match(home, /TWE_mockup[1-5][^"\s]*\.webp/);
-  for (const slug of ["contact", "privacy", "destinations"]) {
+  for (const slug of ["testimonials", "destinations"]) {
     const page = readFileSync(path.join(output, slug, "index.html"), "utf8");
-    assert.match(page, /Content unavailable/);
-    assert.match(page, /noindex, nofollow/);
+    assert.match(page, slug === "destinations" ? /Our packages have a new home/ : /Content unavailable/);
+    if (slug !== "destinations") assert.match(page, /noindex, nofollow/);
     assert.doesNotMatch(page, /Placeholder for review/);
   }
+  const contact = readFileSync(path.join(output, "contact", "index.html"), "utf8");
+  assert.match(contact, /public-enquiry-form/);
+  assert.doesNotMatch(contact, /Content unavailable|Online enquiry forms are not available/);
   const sitemap = readFileSync(path.join(output, "sitemap-0.xml"), "utf8");
-  assert.doesNotMatch(sitemap, /\/(contact|privacy|terms|destinations)\/?</);
+  assert.doesNotMatch(sitemap, /\/(testimonials|destinations)\/?</);
+  assert.match(sitemap, /\/journal\/how-travel-with-ease-began/);
+  assert.match(sitemap, /\/privacy</);
+  assert.match(sitemap, /\/contact</);
+  assert.match(sitemap, /\/packages\/zanzibar/);
 });
 
 test("staging demo builds an interactive noindex page while the approved homepage remains separate", () => {
@@ -81,11 +99,15 @@ test("staging demo builds an interactive noindex page while the approved homepag
   const demo = readFileSync(path.join(output, "demo", "index.html"), "utf8");
   const home = readFileSync(path.join(output, "index.html"), "utf8");
   assert.match(demo, /Staging website demo/);
+  assert.match(demo, /Demonstration content only/);
+  assert.ok(demo.indexOf('id="demo-process"') < demo.indexOf('aria-label="Demonstration travel tips"'));
+  assert.ok(demo.indexOf('aria-label="Demonstration travel tips"') < demo.indexOf('id="demo-journal"'));
   assert.doesNotMatch(demo, /service-photography/);
   assert.match(demo, /\/media\/IMG_3328-1440\.webp/);
   assert.match(demo, /\/media\/12bacbf0[^"\s]+\.webp/);
   assert.match(demo, /closing-scene__image[^>]*src="\/media\/b7e55[^"\s]+\.webp"/);
-  assert.doesNotMatch(demo, /business registration|BN\d{6,}|House no\s+\d|TWE\s+Concierge/i);
+  assert.match(demo, /BN045370826/);
+  assert.doesNotMatch(demo, /House no\s+\d/i);
   assert.match(demo, /Sample package enquiry|Sample personalised enquiry|sample enquiry/i);
   assert.match(demo, /staging test inbox/i);
   assert.match(demo, /noindex, nofollow/);

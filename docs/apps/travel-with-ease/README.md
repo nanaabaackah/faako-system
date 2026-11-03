@@ -1,5 +1,27 @@
 # Travel With Ease documentation
 
+## Current status — 2026-11-01
+
+Start with the [implementation status and hosted evidence](./completion-status-2026-11-01.md),
+[release readiness gates](./readiness-check.md) and
+[incremental completion sequence](./implementation-plan.md#feature-completion-sequence--2026-11-01).
+The [root monorepo README](../../../README.md#travel-with-ease) now describes the
+actual workspace inventory, TWE architecture, commands, environments and gaps.
+
+The broader completion brief is not finished. Packages/detail pages, Travel Tips,
+advanced Journal, autosave, actual Astro draft previews and automatic deployment
+remain implementation work. Current manual CMS/revisions/media/onboarding and
+publication preparation are not evidence of those missing features. The new
+Superadmin policy also differs from the current restricted platform_admin matrix.
+
+Staging website/API health was observed over HTTPS; portal roots redirect to
+sign-in. Production API health timed out and deployed website SHAs could not be
+verified from publication markers. See the dated evidence rather than inferring
+authenticated acceptance, email receipt or production readiness.
+
+The links below retain the historical decisions and operating detail; date-specific
+claims are superseded by this status review where they conflict.
+
 Media configuration and image changes: [Drive → private R2 → publication](./drive-r2-sync.md).
 
 Latest visual work: [Flyward reference correction — 2026-10-30](./reference-correction-2026-10-30.md).
@@ -11,10 +33,10 @@ Email configuration: [final test/production routing](./email-test-flow.md).
 
 Database deployment: [pre-deploy migrations and first-time setup](./predeploy-migrations-2026-10-27.md).
 
-Latest update: [approved initial public release and PostgreSQL compatibility](./public-release-2026-10-26.md).
+Initial public release: [approved initial release and PostgreSQL compatibility](./public-release-2026-10-26.md).
 
-Current release source of truth: [readiness check — reviewed 2026-10-25](./readiness-check.md).
-Latest implementation: [hosted API startup — 2026-10-25](./hosted-startup-2026-10-25.md).
+Current release source of truth: [readiness check — reviewed 2026-11-01](./readiness-check.md).
+Historical startup decision: [hosted API startup — 2026-10-25](./hosted-startup-2026-10-25.md).
 
 Staff login deployment: [portal hosting preparation](./portal-hosting-preparation-2026-10-23.md).
 
@@ -40,7 +62,12 @@ Staff login deployment: [portal hosting preparation](./portal-hosting-preparatio
 - [Visual audit — 2026-10-10](./audits/2026-10-10/visual-audit.md) — original screenshot-supported design audit, preserved as dated evidence.
 - [Progress/change log](./progress-log.md) — dated work and actual verification results.
 
-Current verified status: local implementation/tests and conditional staging API startup guard; no complete hosted staging acceptance or production certification. Production API and background workers remain blocked pending a separate release review. Do not confuse readiness preflight, DNS/Access redirects or local tests with observed MFA/UAT/backup verification. Use [the readiness check](./readiness-check.md) for active gates and [Prompt 03 handoff](./implementation-plan.md#prompt-03-handoff-scope) for remaining acceptance.
+Current verified status: both hosted API environments support validated startup;
+publication/notification worker executables remain separately gated. Staging
+health and public HTTPS are observed, not full authenticated acceptance or
+production certification. Do not confuse readiness preflight, DNS/Access redirects
+or synthetic tests with observed MFA/UAT/email/backup verification. Use
+[the readiness check](./readiness-check.md) for active gates.
 
 The public website uses the shared consent-controlled GA4 integration. Production
 defaults to the user-approved stream `G-GVJ2HGT6YN`; `PUBLIC_GA_MEASUREMENT_ID` is

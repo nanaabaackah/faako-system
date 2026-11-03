@@ -3,6 +3,7 @@ import TravelFootprint from "../components/TravelFootprint.astro";
 import ContentLink from "../components/ContentLink.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PublishedContent from "../components/PublishedContent.astro";
+import JourneyProcess from "../components/JourneyProcess.astro";
 import { publishedPage } from "../lib/published.js";
 import "../styles/components/published-content.css";
 export function getStaticPaths() {
@@ -10,7 +11,6 @@ export function getStaticPaths() {
     "faqs",
     "testimonials",
     "contact",
-    "journal",
     "travel-footprint",
     "privacy",
     "terms",
@@ -61,6 +61,8 @@ const label = labels[Astro.params.contentPage as keyof typeof labels];
           <ContentLink href="/">Back to home</ContentLink>
         </>
       </section>
+    ) : content && Astro.params.contentPage === "how-it-works" ? (
+      <JourneyProcess content={content} page />
     ) : (
       <PublishedContent
         content={content}

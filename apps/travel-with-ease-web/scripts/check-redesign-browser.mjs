@@ -143,11 +143,17 @@ try {
       throw Error(`Unexpected external request blocked: ${url.origin}`);
     });
     await page.goto(`${origin}/demo`, { waitUntil: "networkidle" });
+    const tips = page.getByRole("region", { name: "Demonstration travel tips" });
+    assert.equal(await tips.locator("article").count(), 3);
+    assert.equal(await tips.locator("img").count(), 3);
+    assert.equal(await tips.getByRole("link").count(), 3);
+    assert.equal(await tips.evaluate(node => Boolean(document.querySelector("#demo-process").compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+    assert.equal(await tips.evaluate(node => Boolean(node.compareDocumentPosition(document.querySelector("#demo-journal")) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
     await page
       .getByRole("button", { name: "Essential only", exact: true })
       .click();
     assert.match(await page.locator(".closing-scene__image").getAttribute("src"), /\/b7e55[^/]+\.webp$/);
-    assert.equal(await page.locator(".closing-scene > .closing-scene__image").count(), 1, "Enquiry and footer share one continuous image");
+    assert.equal(await page.locator(".closing-scene > picture > .closing-scene__image").count(), 1, "Enquiry and footer share one continuous responsive image");
     assert.equal(await page.locator(".closing-scene footer .footer-scene-image").count(), 0, "Do not restart the image inside the footer");
     assert.equal(await page.locator(".closing-scene footer").evaluate(node => getComputedStyle(node).backgroundColor), "rgba(0, 0, 0, 0)");
     assert.equal(await page.locator("footer .travel-footprint").count(), 0);
@@ -264,10 +270,10 @@ try {
       .waitFor();
     assert.equal(submissions, 2);
     // Keep the lifecycle assertion above, then remove feedback before visual captures.
-    for (const dismiss of await page
-      .getByRole("button", { name: "Dismiss notification", exact: true })
-      .all())
-      await dismiss.click();
+    // Clear the current controls synchronously: success notifications may expire
+    // between an async locator snapshot and a later click on a slow runner.
+    await page.getByRole("button", { name: "Dismiss notification", exact: true })
+      .evaluateAll(buttons => buttons.forEach(button => { if (button instanceof HTMLButtonElement) button.click(); }));
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

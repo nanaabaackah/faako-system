@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --concurrency=20",
     "dev:portfolio": "pnpm --filter @faako/bynana-portfolio run dev",
     "dev:ttngh": "pnpm --filter @faako/ttngh run dev",
     "dev:faako": "pnpm run predeploy:faako-api && node ./scripts/dev-faako.mjs",

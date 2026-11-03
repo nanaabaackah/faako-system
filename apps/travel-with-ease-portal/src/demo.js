@@ -10,7 +10,7 @@ export function demoEnabled({
   const local =
     allowed === true &&
     ["localhost", "127.0.0.1", "[::1]"].includes(hostname) &&
-    new URLSearchParams(search).get("demo") === "1";
+    (new URLSearchParams(search).get("demo") === "1" || ["/demo", "/demo/"].includes(pathname));
   // This is only a synthetic frontend session, never an application staff session.
   // The server independently protects and gates /demo behind verified Access.
   const staging =
@@ -102,6 +102,16 @@ export function createDemoClient() {
             },
           ]
         : [],
+    tips: page === "travel-tips" ? [{
+      slug: "demo-preparation-checklist",
+      title: "Demo preparation checklist",
+      excerpt: "Synthetic advice for exploring the editor, not approved travel guidance.",
+      body: "Use this sample to try editing, image selection and draft preview. Changes stay in this tab; nothing is published.",
+      category: "Before You Go", featured: true, order: 0, imageId: null, relatedArticle: "sample-travel-guide",
+    }] : [],
+    packages: page === "packages" ? [{
+      id: "30000000-0000-4000-8000-000000000001", slug: "sample-journey", title: "Sample journey", destination: "Example destination", overview: "Synthetic package for editing practice. Not a real offer.", availability: "enquiry", category: "", duration: "", dates: "", priceFrom: "", priceDisclosure: "", imageId: null, galleryImageIds: [], highlights: [], inclusions: [], exclusions: [], transport: "", accommodation: "", important: "", itinerary: [], relatedArticles: [], relatedPackageSlugs: [],
+    }] : [],
     footprint:
       page === "travel-footprint"
         ? [

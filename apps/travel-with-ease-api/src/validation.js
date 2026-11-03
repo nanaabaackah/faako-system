@@ -1,5 +1,25 @@
 import { z } from "zod";
 import { emailSchema, phoneSchema, isoDateSchema } from "@faako/validation";
+import { enquiryTypes } from "./content/catalogue-constants.js";
+
+// A short first-contact intake, independent of the deferred price estimator.
+// Never collect passport numbers, document uploads or payment data here.
+export const nativeInquirySchema = z.object({
+  submissionId: z.string().uuid(),
+  turnstileToken: z.string().max(2048).default(""),
+  enquiryType: z.enum(enquiryTypes.map(item => item.value)),
+  service: z.enum(["not_sure", "readiness", "full_planning", "premium", "group"]),
+  destination: z.string().trim().min(2).max(120),
+  travelTimeframe: z.string().trim().min(2).max(160),
+  travellers: z.number().int().min(1).max(100),
+  budget: z.string().trim().max(160).default(""),
+  name: z.string().trim().min(2).max(160),
+  email: emailSchema,
+  phone: phoneSchema,
+  notes: z.string().trim().max(1500).default(""),
+  consent: z.literal(true),
+  website: z.string().max(200).default(""),
+}).strict();
 
 export const estimateSchema = z.object({
   destination: z.string().trim().min(2).max(120),
@@ -16,6 +36,7 @@ export const estimateSchema = z.object({
 }).strip();
 
 export const inquirySchema = estimateSchema.extend({
+  turnstileToken: z.string().max(2048).default(""),
   name: z.string().trim().min(2).max(160),
   email: emailSchema,
   phone: phoneSchema,

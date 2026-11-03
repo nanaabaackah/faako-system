@@ -265,3 +265,9 @@
     line-height: 0.9;
   }
 }
+.footer-company-details {
+  flex-basis: 100%;
+  max-width: 65ch;
+  font-size: .8rem;
+  line-height: 1.6;
+}

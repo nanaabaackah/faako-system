@@ -1,0 +1,13 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import PackageListing from "../../../components/PackageListing.astro";
+import {
+  demoPackages,
+  demoCollectionRequest,
+} from "../../../lib/demo-collections.js";
+if (!demoCollectionRequest(Astro.url)) return Astro.redirect("/");
+---
+
+<BaseLayout demo title="Sample packages | Travel With Ease" noIndex>
+  <PackageListing items={demoPackages} demo prefix="/demo/packages" />
+</BaseLayout>

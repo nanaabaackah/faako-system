@@ -55,6 +55,40 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.deepEqual(await migrate(pool, options), []);
   await verifyDatabaseIdentity(pool, options);
 
+  await context.test("native intake and outbox are atomic, idempotent and tenant-scoped", async () => {
+    const repository = new PostgresLeadRepository(pool, options);
+    const data = {
+      submissionId: randomUUID(), enquiryType: "gift", service: "full_planning",
+      destination: "Synthetic destination", travelTimeframe: "Flexible",
+      travellers: 2, budget: "", name: "Synthetic Traveller",
+      email: "synthetic@example.invalid", phone: "+233200000000",
+      notes: "", consent: true, website: "",
+    };
+    const [first, replay] = await Promise.all([
+      repository.createNativeEnquiry(data), repository.createNativeEnquiry(data),
+    ]);
+    assert.equal(first.inquiryId, replay.inquiryId);
+    const rows = await pool.query(
+      "SELECT details, kind FROM twe.enquiries WHERE organisation_id = $1 AND id = $2",
+      [organisationId, first.inquiryId]);
+    assert.equal(rows.rows[0].details.enquiryType, "gift");
+    assert.equal(rows.rows[0].kind, "personalised");
+    assert.equal((await pool.query(
+      "SELECT count(*)::int AS n FROM twe.notification_outbox WHERE organisation_id = $1 AND enquiry_id = $2",
+      [organisationId, first.inquiryId])).rows[0].n, 1);
+    await assert.rejects(repository.createNativeEnquiry({ ...data, notes: "Changed" }),
+      error => error.code === "enquiry_submission_conflict");
+    const other = new PostgresLeadRepository(pool, { ...options, organisationId: otherOrg });
+    const otherReceipt = await other.createNativeEnquiry(data);
+    assert.notEqual(otherReceipt.inquiryId, first.inquiryId);
+    // Remove only this synthetic subtest's rows; later outbox lease tests
+    // intentionally start with exactly one independently created job.
+    for (const id of [first.inquiryId, otherReceipt.inquiryId]) {
+      await pool.query("DELETE FROM twe.notification_outbox WHERE enquiry_id = $1", [id]);
+      await pool.query("DELETE FROM twe.enquiries WHERE id = $1", [id]);
+    }
+  });
+
   await context.test("activation is identity-bound, atomic, single-use and audited; tutorials survive service recreation", async () => {
     const issuer = "https://activation.example.invalid";
     const settings = { issuer, audience: "a".repeat(64) };
@@ -183,8 +217,8 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   const owner={id:userId,role:"owner",organisationId};
   const admin=new Administration(pool,organisationId,accessSettings,"test");
   const staged=await admin.provision(platform,{subject:"staged-editor"},"test-staff-stage");
-  assert.equal(staged.active,false);
-  await assert.rejects(admin.changeStaff(platform,staged.id,true,"test-escalation"),{status:403});
+  assert.equal(staged.active,true);
+  assert.equal((await admin.changeStaff(platform,staged.id,true,"test-superadmin-activate")).active,true);
   await assert.rejects(admin.changeStaff(owner,platformId,false,"test-platform-change"),{status:403});
   await assert.rejects(admin.provision({...platform,organisationId:otherOrg},{subject:"other"},"test-cross-tenant"),{status:403});
   assert.equal((await admin.changeStaff(owner,staged.id,true,"test-owner-activate")).active,true);
@@ -254,6 +288,11 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal(objects.size, 3);
   assert.equal((await media.list()).items.some((item) => item.id === asset.id), true);
   assert.equal((await sharp(await media.preview(asset.id)).metadata()).format, "webp");
+  const tipBody = { ...body, tips: [{ slug: "fixture-tip", title: "Fixture tip", excerpt: "Synthetic only", body: "Test advice", category: "Before You Go", imageId: asset.id }] };
+  const tipDraft = await content.save("travel-tips", tipBody, 0, actor, "tip-save");
+  assert.equal((await content.get("travel-tips")).body.tips[0].imageId, asset.id);
+  assert.equal((await pool.query("SELECT media_id FROM twe.content_media WHERE organisation_id=$1 AND revision_id=$2", [organisationId, tipDraft.revisionId])).rows[0].media_id, asset.id);
+  await assert.rejects(content.save("travel-tips", { ...tipBody, tips: [{ ...tipBody.tips[0], imageId: randomUUID() }] }, tipDraft.version, actor, "tip-missing-media"), /available image/);
   await assert.rejects(new MediaService(pool, otherOrg, storage).preview(asset.id), { status: 404 });
   const home = await content.get("home");
   await content.save("home", { ...body, imageId: asset.id }, home.version, actor, "image-selected");
@@ -394,6 +433,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal(await content.get("home", true), null);
   await assert.rejects(publication.enqueue("home", latestHome.version, false, actor, "duplicate-publish"), { status: 409 });
   const build = await publication.claim();
+  assert.equal(build.manifest.pages.some(item => item.slug === "travel-tips"), false, "Never-published sibling drafts must not withdraw the approved baseline");
   assert.equal(await publication.claim(), undefined);
   await assert.rejects(pool.query("UPDATE twe.publication_jobs SET manifest = '{}' WHERE id = $1", [build.id]), /immutable/);
   await assert.rejects(publication.confirm(build.id, randomUUID(), "synthetic-deployment", manifestDigest(build.manifest)));
@@ -435,7 +475,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     const job = await publication.claim();
     await publication.confirm(queued.id, job.build_token, "synthetic-content", manifestDigest(job.manifest));
     const published = await content.get(slug, true);
-    assert.deepEqual(published.body[slug === "journal" ? "articles" : "footprint"], extension[slug === "journal" ? "articles" : "footprint"]);
+    assert.deepEqual(published.body[slug === "journal" ? "articles" : "footprint"], draft.body[slug === "journal" ? "articles" : "footprint"]);
     await publication.enqueue(slug, draft.version, true, actor, `withdraw-${slug}`);
     const withdrawn = await publication.claim();
     await publication.confirm(withdrawn.id, withdrawn.build_token, "synthetic-withdrawal", manifestDigest(withdrawn.manifest));
@@ -449,5 +489,42 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await runtimeContent.get("privacy", true)).body.heading, "Synthetic privacy");
   assert.equal((await publicationQuery("SELECT count(*)::int AS n FROM twe.audit_records WHERE record_id=$1 AND action='content.publish_requested'", [queuedPrivacy.id])).rows[0].n, 1);
   await assert.rejects(publication.enqueue("privacy", privacy.version, false, {...actor, organisationId: otherOrg}, "cross-tenant-runtime"), {status:403});
+  await context.test("individual collection publication isolates siblings and persists exact live bodies across service recreation", async () => {
+    const cases = [
+      ["packages", "packages", slug => ({ id: randomUUID(), slug, title: slug, destination: "Synthetic", overview: "Test only" })],
+      ["journal", "articles", slug => ({ slug, title: slug, excerpt: "Test only", body: "Synthetic", date: "2026-11-02" })],
+      ["travel-tips", "tips", slug => ({ slug, title: slug, excerpt: "Test only", body: "Synthetic", category: "Before You Go" })],
+    ];
+    for (const [page, key, record] of cases) {
+      const previous = await runtimeContent.get(page);
+      const draft = await runtimeContent.save(page, { ...body, imageId: null, [key]: [record("record-one"), record("record-two")] }, previous?.version || 0, actor, "individual-draft");
+      const item = (await runtimeContent.list()).find(value => value.slug === page);
+      if (!item.publication_initialized) await assert.rejects(publication.enqueue(page, draft.version, false, actor, "missing-collection-baseline", "record-one"), { status: 409 });
+      await publication.enqueue(page, draft.version, false, actor, "accept-approved-collection-baseline");
+      const baseline = await publication.claim();
+      await publication.confirm(baseline.id, baseline.build_token, "synthetic-baseline", manifestDigest(baseline.manifest));
+      await publication.enqueue(page, draft.version, false, actor, "publish-record-one", "record-one");
+      const first = await publication.claim();
+      assert.deepEqual(first.manifest.pages.find(item => item.slug === page).body[key].map(item => item.slug).sort(), ["record-one", "record-two"]);
+      await publication.transition(first.id, first.build_token, "building", "deploying");
+      await assert.rejects(publication.enqueue(page, draft.version, false, actor, "blocked-while-deploying"), { status: 409 });
+      await publication.transition(first.id, first.build_token, "deploying", "verifying");
+      await publication.confirm(first.id, first.build_token, "synthetic-one", manifestDigest(first.manifest));
+      const saved = await runtimeContent.save(page, { ...draft.body, [key]: draft.body[key].map(item => ({ ...item, title: "Unpublished " + item.slug })) }, draft.version, actor, "unrelated-edits");
+      await publication.enqueue(page, saved.version, false, actor, "publish-record-two", "record-two");
+      const second = await publication.claim();
+      const exact = second.manifest.pages.find(item => item.slug === page).body[key];
+      assert.equal(exact.find(item => item.slug === "record-one").title, "record-one");
+      assert.equal(exact.find(item => item.slug === "record-two").title, "Unpublished record-two");
+      await publication.confirm(second.id, second.build_token, "synthetic-two", manifestDigest(second.manifest));
+      const recreated = new ContentRepository(publicationPool, organisationId);
+      assert.deepEqual((await recreated.get(page, true)).body[key], exact);
+      assert.equal((await recreated.get(page)).body[key][0].title, "Unpublished record-one");
+      await publication.enqueue(page, saved.version, true, actor, "unpublish-record-two", "record-two");
+      const removal = await publication.claim();
+      await publication.confirm(removal.id, removal.build_token, "synthetic-record-removal", manifestDigest(removal.manifest));
+      assert.deepEqual((await recreated.get(page, true)).body[key].map(item => item.slug), ["record-one"]);
+    }
+  });
   } finally { await publicationClient.query("RESET ROLE"); publicationClient.release(); }
 });

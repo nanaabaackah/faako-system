@@ -5,11 +5,14 @@ import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import CinematicHero from "./CinematicHero.astro";
 import photography from "../lib/assigned-photography.json";
+import TravelTips from "./TravelTips.astro";
 import photos from "../lib/approved-preview-media.json";
-const kenya = photos.find((photo) => photo.placement === "wildlife")!;
+import additionalPhotos from "../lib/journey-photography.json";
+const kenya = additionalPhotos.elephants;
 const zanzibar = photos.find((photo) => photo.placement === "closing")!;
 const journalPhoto = photos.find((photo) => photo.placement === "journal")!;
 const { live = false } = Astro.props;
+import { demoTips } from "../lib/demo-travel-tips.js";
 ---
 
 <div class="travel-demo">
@@ -56,10 +59,15 @@ const { live = false } = Astro.props;
                 <p>{item.copy}</p>
                 <ContentLink
                   class="journey-card__link"
+                  href={`/demo/packages/${item.name === "Zanzibar" ? "zanzibar" : "kenya"}-sample-journey`}
+                >
+                  Explore this sample
+                </ContentLink>
+                <ContentLink
                   href="#demo-enquiry-form"
                   data-demo-destination={item.name}
                 >
-                  Explore this sample
+                  Try a sample enquiry
                 </ContentLink>
               </>
             </div>
@@ -126,8 +134,7 @@ const { live = false } = Astro.props;
   </section>
   <section id="demo-about" class="demo-wrap demo-company">
     <h2>Travel planning from Ghana.</h2><p>
-      Travel With Ease offers travel
-      planning, travel packages and group trips.
+      Travel With Ease offers travel planning, travel packages and group trips.
     </p>
     <div>
       <h3>Personalised travel planning</h3><p>
@@ -141,6 +148,7 @@ const { live = false } = Astro.props;
       </p>
     </div>
   </section>
+  <TravelTips tips={demoTips} preview />
   <section id="demo-journal" class="demo-wrap demo-journal" data-twe-reveal>
     <figure>
       <img
@@ -159,13 +167,10 @@ const { live = false } = Astro.props;
       </p><p>
         This sample introduces the journal layout. Approved stories will replace
         it before publication.
-      </p><Accordion title="Read the sample story"
-        ><p>
-          A journey is more than a list of stops. This demonstration shows where
-          an original, approved travel story will appear, with destination
-          context, licensed images and useful information.
-        </p></Accordion
+      </p><ContentLink href="/demo/journal/planning-a-coastal-escape"
+        >Read the sample story</ContentLink
       >
+      <ContentLink href="/demo/journal">Explore the Journal</ContentLink>
     </div>
   </section>
   <section id="demo-faqs" class="demo-wrap">

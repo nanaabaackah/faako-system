@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { transaction } from "../db/database.js";
-import { ContentError, contentForPage, pageSchema } from "./schema.js";
+import { ContentError, contentForPage, pageSchema, contentMediaIds } from "./schema.js";
 import { appendAudit } from "../audit.js";
 
 export class ContentRepository {
   constructor(pool, organisationId) { this.pool = pool; this.organisationId = organisationId; }
 
   async list() {
-    const { rows } = await this.pool.query(`SELECT c.id, c.slug, c.version, c.draft_revision_id, c.published_revision_id,
+    const { rows } = await this.pool.query(`SELECT c.id, c.slug, c.version, c.draft_revision_id, c.published_revision_id, c.publication_initialized,
       c.updated_at, r.body FROM twe.content_items c LEFT JOIN twe.content_revisions r
       ON r.id = c.draft_revision_id AND r.organisation_id = c.organisation_id
       WHERE c.organisation_id = $1 AND c.kind = 'page' ORDER BY c.slug`, [this.organisationId]);
@@ -18,7 +18,7 @@ export class ContentRepository {
     pageSchema.parse(page);
     const revisionColumn = published ? "published_revision_id" : "draft_revision_id";
     const { rows } = await this.pool.query(`SELECT c.id, c.slug, c.version, c.draft_revision_id, c.published_revision_id,
-      r.body, r.id AS revision_id, r.created_at, r.editor_id
+      ${published ? "COALESCE(c.published_body, r.body)" : "r.body"} AS body, r.id AS revision_id, r.created_at, r.editor_id
       FROM twe.content_items c JOIN twe.content_revisions r ON r.id = c.${revisionColumn}
       AND r.organisation_id = c.organisation_id WHERE c.organisation_id = $1 AND c.kind = 'page' AND c.slug = $2`, [this.organisationId, page]);
     return rows[0] || null;
@@ -40,13 +40,14 @@ export class ContentRepository {
       const { rows } = await client.query("SELECT id, version FROM twe.content_items WHERE organisation_id = $1 AND kind = 'page' AND slug = $2 FOR UPDATE", [this.organisationId, page]);
       const item = rows[0];
       if (!item || item.version !== expectedVersion) throw new ContentError(409, "conflict", "This page changed. Reload before saving.");
-      if (validated.imageId) {
-        const media = await client.query("SELECT id FROM twe.media WHERE organisation_id = $1 AND id = $2 AND archived_at IS NULL FOR SHARE", [this.organisationId, validated.imageId]);
+      const imageIds = contentMediaIds(validated);
+      for (const imageId of imageIds) {
+        const media = await client.query("SELECT id FROM twe.media WHERE organisation_id = $1 AND id = $2 AND archived_at IS NULL FOR SHARE", [this.organisationId, imageId]);
         if (!media.rowCount) throw new ContentError(400, "validation_error", "Choose an available image from this organisation.");
       }
       const revisionId = randomUUID();
       await client.query("INSERT INTO twe.content_revisions (id, organisation_id, content_id, version, body, editor_id) VALUES ($1, $2, $3, $4, $5, $6)", [revisionId, this.organisationId, item.id, item.version + 1, validated, actor.id]);
-      if (validated.imageId) await client.query("INSERT INTO twe.content_media (organisation_id, content_id, revision_id, media_id) VALUES ($1, $2, $3, $4)", [this.organisationId, item.id, revisionId, validated.imageId]);
+      for (const imageId of imageIds) await client.query("INSERT INTO twe.content_media (organisation_id, content_id, revision_id, media_id) VALUES ($1, $2, $3, $4)", [this.organisationId, item.id, revisionId, imageId]);
       await client.query("UPDATE twe.content_items SET draft_revision_id = $1, version = version + 1, updated_at = now() WHERE organisation_id = $2 AND id = $3", [revisionId, this.organisationId, item.id]);
       await this.audit(client, actor.id, "content.saved", item.id, requestId);
       return { id: item.id, slug: page, version: item.version + 1, revisionId, body: validated };

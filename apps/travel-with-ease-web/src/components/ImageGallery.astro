@@ -1,0 +1,118 @@
+---
+import type { PublicImage } from "../lib/collections";
+import "../styles/components/collections.css";
+interface Props {
+  images: PublicImage[];
+}
+const { images } = Astro.props;
+---
+
+{
+  images.length > 0 && (
+    <section
+      class="gallery-panel"
+      data-image-gallery
+      aria-label="Travel photographs"
+    >
+      <div class="collection-gallery">
+        {images.map((image, index) => (
+          <a
+            href={image.src}
+            target="_blank"
+            rel="noreferrer"
+            data-gallery-index={index}
+            aria-label={`View larger image: ${image.alt}`}
+          >
+            <img
+              src={image.src}
+              width={image.width}
+              height={image.height}
+              alt={image.alt}
+              loading="lazy"
+            />
+          </a>
+        ))}
+      </div>
+      <dialog class="collection-lightbox" aria-label="Photo gallery">
+        <div class="collection-lightbox__controls">
+          <>
+            <button type="button" data-gallery-close>
+              Close gallery
+            </button>
+            <p role="status" aria-live="polite" data-gallery-count />
+          </>
+        </div>
+        <img alt="" data-gallery-image />
+        {images.length > 1 && (
+          <div class="collection-lightbox__controls">
+            <button type="button" data-gallery-previous>
+              Previous photo
+            </button>
+            <button type="button" data-gallery-next>
+              Next photo
+            </button>
+          </div>
+        )}
+      </dialog>
+    </section>
+  )
+}
+<script>
+  document
+    .querySelectorAll<HTMLElement>("[data-image-gallery]")
+    .forEach((root) => {
+      const links = [
+        ...root.querySelectorAll<HTMLAnchorElement>("[data-gallery-index]"),
+      ];
+      const dialog = root.querySelector<HTMLDialogElement>("dialog");
+      const image = root.querySelector<HTMLImageElement>(
+        "[data-gallery-image]",
+      );
+      const count = root.querySelector<HTMLElement>("[data-gallery-count]");
+      if (!dialog || !image || !count || !dialog.showModal) return;
+      let index = 0;
+      let trigger: HTMLElement | null = null;
+      const render = () => {
+        const source = links[index].querySelector("img");
+        if (!source) return;
+        image.src = links[index].href;
+        image.alt = source.alt;
+        count.textContent = `Photo ${index + 1} of ${links.length}`;
+      };
+      const move = (delta: number) => {
+        index = (index + delta + links.length) % links.length;
+        render();
+      };
+      links.forEach((link, i) =>
+        link.addEventListener("click", (event) => {
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
+            return;
+          event.preventDefault();
+          index = i;
+          trigger = link;
+          render();
+          dialog.showModal();
+        }),
+      );
+      root
+        .querySelector("[data-gallery-close]")
+        ?.addEventListener("click", () => dialog.close());
+      root
+        .querySelector("[data-gallery-previous]")
+        ?.addEventListener("click", () => move(-1));
+      root
+        .querySelector("[data-gallery-next]")
+        ?.addEventListener("click", () => move(1));
+      dialog.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+          event.preventDefault();
+          move(event.key === "ArrowRight" ? 1 : -1);
+        }
+      });
+      dialog.addEventListener("close", () => {
+        image.removeAttribute("src");
+        trigger?.focus();
+      });
+      root.dataset.galleryReady = "true";
+    });
+</script>

@@ -1,5 +1,19 @@
 # Travel With Ease environment contract
 
+## 2026-11-01 — Native enquiry verification
+
+Cloudflare Pages builds use PUBLIC_TURNSTILE_SITE_KEY; the matching Railway API
+uses server-only TWE_TURNSTILE_SECRET_KEY. Use separate staging/production widget
+pairs. Hosted enquiries fail closed if verification is missing; staff login and
+health remain independent. Local dev uses the loopback proxy and does not load
+hosted widgets. See [configuration and contract](./turnstile-and-enquiry-intake.md).
+
+> Reviewed 2026-11-01 against executable configuration and example files. See
+> [current implementation and hosted evidence](./completion-status-2026-11-01.md).
+> Demo is a route/feature flag, not a fifth APP_ENV. The ordinary local API
+> launcher ignores hosted .env credentials; configure actual integration tests
+> only against isolated resources. Never document secret values.
+
 > Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
 > supersedes the production API blanket block and startup release-SHA requirement
 > below. Both hosted API environments require verified persistence and Access;
@@ -7,8 +21,9 @@
 
 Current startup and environment decisions: [readiness check](./readiness-check.md),
 [staging activation](./staging-activation-2026-10-24.md) and [portal hosting](./portal-hosting-preparation-2026-10-23.md).
-The hosted Express portal uses server-only `TWE_PORTAL_API_ORIGIN` alongside
-Access settings. Hosted `VITE_API_BASE_URL` must be **empty**.
+The hosted default is the embedded CMS on the API's protected portal hostname.
+`TWE_PORTAL_API_ORIGIN` applies only to the optional separate portal proxy process;
+it is not required for inline hosting. Hosted `VITE_API_BASE_URL` must be **empty**.
 
 Placeholders only; never commit values.
 
@@ -33,7 +48,7 @@ The historical OIDC inventory below is not an active deployment contract.
 
 Never copy production customer records into local or staging. Staging identities must not be able to read production databases, objects or secrets. A different URL alone is not isolation. Robots directives are discovery controls, not access control. Verify the deployed HTML/headers and build-time frontend API origins independently in each environment.
 
-**Current implementation (reviewed 2026-10-25):** runtime configuration validates development/test/staging/production and rejects unknown modes. The API now permits **staging only** with verified PostgreSQL 17/Access settings and a preflight-bound persistent adapter receipt. **Production API and background workers remain gated.** Web indexing requires both `PUBLIC_APP_ENV=production` and `PUBLIC_SITE_INDEXABLE=true`; default/staging builds are noindex with no sitemap. See the [current readiness check](./readiness-check.md) and [operations](./staging-operations.md).
+**Current implementation (reviewed 2026-11-01):** runtime configuration validates development/test/staging/production and rejects unknown modes. Both hosted API environments require verified persistence, tenant identity, migration inventory and Access settings. PostgreSQL's detected major version is diagnostic, not an exact version gate. Publication/notification worker executables remain locally gated. Web indexing requires both `PUBLIC_APP_ENV=production` and `PUBLIC_SITE_INDEXABLE=true`; default/staging builds are noindex with no sitemap. See the [current readiness check](./readiness-check.md) and [operations](./staging-operations.md).
 
 Production readiness additionally requires monitoring/alert ownership, encrypted backups with restore evidence, approved migrations, recorded previous artifacts and rollback/forward-fix instructions. The branch-to-environment recommendation and release gates are in [design-engineering-standard.md](./design-engineering-standard.md#environments-git-and-deployment). No hosted resources or external deployment hooks were verified or changed by this alignment.
 
@@ -47,7 +62,7 @@ The table records current/future variable names, not implemented capabilities. P
 | `PUBLIC_API_BASE_URL` | Web browser | Production | No | Public API origin |
 | `VITE_API_BASE_URL` | Portal browser | Local optional; hosted must be empty | No | Local dev API only; hosted portal uses same-origin proxy |
 | `PORT` | API | No | No | Listen port |
-| `APP_ENV` | API | Yes | No | Validated modes; staging requires verified startup preflight; production API remains blocked |
+| `APP_ENV` | API | Yes | No | Validated modes; both hosted environments require verified startup preflight |
 | `ALLOWED_ORIGINS` | API | Hosted | No | Comma-separated exact HTTPS allowed origins; include the configured portal origin |
 | `DATABASE_URL` | API | Production | Yes | PostgreSQL connection URL |
 | `TWE_MIGRATION_DATABASE_URL` | Migration CLI | PostgreSQL setup | Yes | Separate migration-role connection URL |
@@ -56,7 +71,7 @@ The table records current/future variable names, not implemented capabilities. P
 | `TWE_DATABASE_CA` | API / migrations | Provider-dependent | Yes | Trusted provider CA, not a TLS-verification bypass |
 | `TWE_TEST_DATABASE_URL` | Integration tests only | test:db | Yes | Disposable loopback twe_test_* database |
 | `TWE_LOCAL_DATA_FILE` | API | Development only | No | Local Phase 1 repository file |
-| `TWE_TEST_PG_BIN` | Isolated test runner | test:db:isolated | No | Absolute PostgreSQL 17 bin directory; runner never consumes an application DB URL |
+| `TWE_TEST_PG_BIN` | Isolated test runner | test:db:isolated | No | Absolute supported local PostgreSQL bin directory; runner never consumes an application DB URL |
 | `EXCHANGE_RATE_API_BASE_URL` | API | No | No | Provider endpoint override |
 | `EXCHANGE_RATE_API_KEY` | API | Provider-dependent | Yes | Server-only provider credential |
 | `EXCHANGE_RATE_CACHE_TTL_SECONDS` | API | No | No | Fresh cache duration |
@@ -80,6 +95,15 @@ Additional implemented names (values belong in provider secret stores):
   authentication contract and nonempty legacy values are rejected.
 - Media: `TWE_R2_ACCOUNT_ID`, `TWE_R2_PRIVATE_BUCKET`,
   `TWE_R2_ACCESS_KEY_ID`, `TWE_R2_SECRET_ACCESS_KEY` (credentials secret).
+  Approved Drive import uses independent server-only
+  `TWE_GOOGLE_SERVICE_ACCOUNT_JSON` (secret) and
+  `TWE_GOOGLE_DRIVE_MEDIA_FOLDER_ID`; see [Drive/R2 setup](./drive-r2-sync.md).
+- Migration predeploy: `TWE_MIGRATION_APPROVED_ENV` must match `APP_ENV`;
+  `TWE_DB_INITIALISE` is for reviewed first-time setup only, with
+  `TWE_ORGANISATION_NAME`. Keep runtime and migration identities separate.
+- Activation: optional exact verified `TWE_SETUP_OPERATOR_SUBJECT` authorises
+  initial setup within the configured Access issuer/audience, not an email match.
+  Remove it after initial Owner activation; see [onboarding](./workspace-onboarding.md).
 - Notification worker: `TWE_RESEND_API_KEY` (secret), `TWE_EMAIL_FROM`, `APP_ENV`.
   Development/staging sends only to testing@travelwitheasegh.com; production
   acknowledges the saved customer and CCs notifications@travelwitheasegh.com.

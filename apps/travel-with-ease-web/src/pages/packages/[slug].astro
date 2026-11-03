@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PackageDetail from "../../components/PackageDetail.astro";
+import type { TravelPackage } from "../../lib/collections";
+import { publishedPage } from "../../lib/published.js";
+interface Props {
+  item: TravelPackage;
+}
+export function getStaticPaths() {
+  return (publishedPage("packages")?.packages || []).map((item: TravelPackage) => ({
+    params: { slug: item.slug },
+    props: { item },
+  }));
+}
+const { item } = Astro.props;
+const packages = publishedPage("packages")?.packages || [];
+const articles = publishedPage("journal")?.articles || [];
+---
+
+<BaseLayout
+  title={`${item.title} | Travel With Ease`}
+  description={item.overview.slice(0, 180)}
+>
+  <PackageDetail
+    item={item}
+    relatedPackages={packages.filter(
+      (other: TravelPackage) =>
+        other.id !== item.id && item.relatedPackageSlugs?.includes(other.slug),
+    )}
+    stories={articles.filter((article: { slug: string }) =>
+      item.relatedArticles?.includes(article.slug),
+    )}
+  />
+</BaseLayout>

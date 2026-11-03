@@ -54,7 +54,7 @@ test("permissions and disabled features exclude inaccessible modules", () => {
   );
   assert.deepEqual(
     allowedTutorials(ROLE_PERMISSIONS.platform_admin).map((tour) => tour.id),
-    ["welcome", "account"],
+    ["welcome", "content", "media", "enquiries", "publishing", "staff", "account"],
   );
   assert.equal(
     allowedTutorials(ROLE_PERMISSIONS.owner, ["media"]).some(

@@ -22,10 +22,10 @@ export class Administration {
   }
   async provision(actor, input, requestId) {
     return transaction(this.pool, async client => {
-      // Platform operators can stage identities, but cannot activate business
-      // access and then use a new Owner identity to approve their own elevation.
+      // Superadmin may provision ordinary business staff under the approved
+      // launch policy. Verified issuer/subject and tenant binding still apply.
       const current = await this.actor(client, actor, actor.role === "platform_admin" ? "staff.stage" : "staff.manage");
-      const active = current.role === "owner";
+      const active = ["owner", "platform_admin"].includes(current.role);
       const id = randomUUID();
       await client.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role,active) VALUES($1,$2,$3,$4,$5,'editor',$6)", [id,this.organisationId,this.settings.issuer,input.subject,this.settings.audience,active]);
       await this.audit(client, current, active ? "staff.provisioned" : "staff.staged", id, requestId);
@@ -35,7 +35,6 @@ export class Administration {
   async changeStaff(actor, id, active, requestId) {
     return transaction(this.pool, async client => {
       const current = await this.actor(client, actor, actor.role === "platform_admin" ? "staff.revoke" : "staff.manage");
-      if (current.role === "platform_admin" && active) denied();
       // Owner/Platform Admin bootstrap and role changes are offline reviewed
       // operations. Normal management may only activate/revoke Editors.
       const result = await client.query("UPDATE twe.staff_users SET active=$3 WHERE organisation_id=$1 AND id=$2 AND role='editor' RETURNING id,role,active", [this.organisationId,id,active]);

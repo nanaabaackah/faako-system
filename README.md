@@ -1,18 +1,25 @@
 # Faako System Monorepo
 
-Faako System is a PNPM + Turborepo workspace for the active Faako, Reebs, Dev ERP, ByNana, and support apps. The monorepo is organized around real running products plus shared shell, UI, theme, security, logging, and backend packages.
+Faako System is a PNPM + Turborepo workspace for Faako, REEBS, Dev ERP, ByNana, Stroane, TTNGH, Travel With Ease, and support apps. The monorepo is organized around real running products plus shared shell, UI, theme, security, logging, and backend packages.
 
 ## Current Workspace
 
-This repo currently contains 25 workspace packages:
+Manifest inventory reviewed 2026-11-01: 38 workspace members (excluding the root):
 
-- 10 deployable apps in `apps/`
-- 15 shared packages in `packages/`
+- 15 application workspaces in `apps/` (including starter/workbench)
+- 21 shared packages in `packages/`
+- TTNGH Studio in `apps/ttngh/studio`
+- TTNGH API in `services/ttngh-api`
+
+`pnpm-workspace.yaml` is authoritative. The Python shared analytics service at
+`services/reebs-analytics` is not a PNPM workspace; its path is a compatibility
+location, not permission to create separate application analytics services.
 
 Main directories:
 
 - `apps/`: deployable frontends, APIs, and full-stack app shells
 - `packages/`: shared UI, theme, config, utils, types, core, security, logger, and email helpers
+- `services/`: independently deployed TTNGH API and Python shared analytics runtime
 - `scripts/`: stack runners, workspace graph helpers, database refresh tools, and security checks
 - `docs/`: platform notes, local database refresh guidance, monorepo notes, and security reports
 
@@ -29,12 +36,23 @@ Main directories:
 | `@faako/bynana-portfolio` | `apps/bynana-portfolio` | ByNana public portfolio and contact entry points | `pnpm --filter @faako/bynana-portfolio run dev` |
 | `@faako/stroane-web` | `apps/stroane-web` | Full-stack Stroane commerce app | `pnpm --filter @faako/stroane-web run dev:with-backend` |
 | `@faako/system-starter` | `apps/system-starter` | Minimal starter app for the current shared shell system | `pnpm --filter @faako/system-starter run dev` |
+| `@faako/reebs-water` | `apps/reebs-water` | REEBS water operations application | `pnpm run dev:reebs-water` |
+| `@faako/ttngh` | `apps/ttngh` | TTNGH Astro public website | `pnpm run dev:ttngh` |
+| `@faako/travel-with-ease-web` | `apps/travel-with-ease-web` | Astro public website and isolated design demo | `pnpm --filter @faako/travel-with-ease-web run dev` |
+| `@faako/travel-with-ease-portal` | `apps/travel-with-ease-portal` | React/Vite staff CMS; hosted bundle embedded in the TWE API | `pnpm --filter @faako/travel-with-ease-portal run dev` |
+| `@faako/travel-with-ease-api` | `apps/travel-with-ease-api` | Express authentication, CMS, enquiries, media and job boundaries | `pnpm --filter @faako/travel-with-ease-api run dev` |
 | `@faako/ui-workbench` | `apps/ui-workbench` | Local playground for the shared UI system | `pnpm --filter @faako/ui-workbench run dev` |
 
 ## Shared Packages
 
 | Package | Purpose |
 | --- | --- |
+| `@faako/api-client` | Shared browser API transport and normalized errors |
+| `@faako/api-contracts` | Framework-neutral response/error contracts |
+| `@faako/auth` | Shared authentication foundations; application policy remains app-owned |
+| `@faako/discovery` | Public discovery, metadata and consent-aware analytics foundations |
+| `@faako/validation` | Shared boundary-validation primitives |
+| `@faako/water-domain` | Framework-neutral REEBS water domain contracts and helpers |
 | `@faako/audit` | Shared audit event constants, safe metadata helpers, and display formatting foundations |
 | `@faako/config` | App-local ERP and shell configuration builders, shared ERP module registry helpers, app-mode helpers, and monorepo app monitoring metadata |
 | `@faako/core` | Shared auth, organization, and template-config helpers |
@@ -68,20 +86,26 @@ Main directories:
 - Shared ERP modal/action conventions now include presentation-only modal, drawer, confirm-dialog, action bar, button group, primary/secondary/danger actions, and icon action wrappers in `@faako/ui`. Apps still own open/close state, destructive-action policy, save/delete/submit handlers, API calls, auth/permission checks, and workflow side effects.
 - Shared alert conventions now include presentation-only notices, alerts, banners, sync/offline notices, toast helpers, and ERP/generic maintenance/read-only/degraded-mode wrappers in `@faako/ui`. Generic app-mode wrappers use neutral `ui-app-mode-*` classes so public/client sites can keep their own branding through theme tokens and `className` overrides. These components do not enforce backend maintenance mode, read-only restrictions, degraded-mode behavior, permissions, or data-write rules.
 - REEBS Portal and Dev ERP now have documentation-only workflow reviews for order, payment, receipt, invoice, rent-payment, and balance behavior. Use those reviews before creating shared payment/receipt/order runtime packages or expanding `@faako/finance` beyond constants, helpers, and presentation utilities; no shared finance runtime behavior has been implemented yet.
-- The shared Payment and Receipt architecture plan lives in [docs/platform/shared-payment-receipt-architecture.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/shared-payment-receipt-architecture.md). It is planning-only and sets the safety path for future payment/receipt constants, types, wrappers, gateways, offline support, and app-by-app migration.
+- The shared Payment and Receipt architecture plan lives in [docs/platform/shared-payment-receipt-architecture.md](docs/platform/shared-payment-receipt-architecture.md). It is planning-only and sets the safety path for future payment/receipt constants, types, wrappers, gateways, offline support, and app-by-app migration.
 - `@faako/finance` now contains shared payment/receipt constants, documented type-shape descriptors, pure formatting/normalization helpers, balance display helpers, metadata normalization helpers, and receipt presentation helpers. It does not implement payment recording, receipt generation, invoice persistence, gateway integrations, schema changes, API changes, or app workflow changes.
 - `@faako/notifications` now contains shared notification channel/type/status constants, customer-safe message templates, channel availability helpers, and user-triggered `mailto:`/WhatsApp draft link helpers. REEBS uses it for receipt summary copy/email/WhatsApp drafts, and Dev ERP uses it for the appointment link email draft. It does not send automated WhatsApp messages, emails, SMS, or in-app notifications, and it does not change Resend/email behavior, receipt/payment/order behavior, schema, or customer data handling.
 - `@faako/offline-sync` now contains shared offline queue constants, local draft storage helpers, IndexedDB queue storage helpers, retry metadata helpers, queue summary/review helpers, online/offline status hooks, and passive sync UI components. REEBS Portal uses local draft storage for Store Mode POS/manual order payment drafts, queues offline Store Mode POS orders, queues offline manual order payments, queues offline inventory stock adjustments, and queues offline booking create/edit/status actions through existing server endpoints when online returns; Dev ERP queues new offline rent payments, keeps rent payment edits and booking/calendar settings online-only, and has no inventory adjustment surface wired for offline sync. REEBS Admin Workspace and Dev ERP Settings now expose local Sync Review panels for pending, failed, conflict, and needs-review queue visibility plus retry/cancel/mark-resolved controls. The server remains the source of truth for auth, permissions, stock validation, booking availability, rental/variant checks, payment persistence, receipt creation, accounting effects, balances, and final order/payment/inventory/booking status.
 
 ## Common Commands
 
+Use Node.js 22 and the PNPM version pinned in `package.json` (`pnpm@10.33.0`).
 Install dependencies from the repo root:
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 ```
 
 Helpful stack shortcuts:
+
+For Travel With Ease, run `pnpm run dev:twe` from the repository root.
+The general `pnpm run dev` starts every application's dev task; its concurrency
+limit is 20 to accommodate the current 17 persistent tasks. Use a stack shortcut
+on a laptop to avoid starting unrelated applications.
 
 ```bash
 pnpm dev
@@ -90,6 +114,8 @@ pnpm dev:reebs
 pnpm dev:dev-erp
 pnpm dev:workbench
 pnpm dev:starter
+pnpm dev:ttngh
+pnpm dev:twe
 ```
 
 Prisma-backed dev commands run their local predeploy migration checks first.
@@ -112,22 +138,121 @@ pnpm db:refresh:local:biweekly
 pnpm security:all
 ```
 
+## Travel With Ease
+
+The approved cinematic homepage, five-mockup CTA and enquiry/footer styling are
+preserved. **The broader feature-completion brief is not complete or certified
+production-ready.** See the [current implementation and hosted evidence](docs/apps/travel-with-ease/completion-status-2026-11-01.md).
+
+| Area | Code-backed status |
+| --- | --- |
+| Public website | Astro multi-page site with supplied company/services copy, FAQs/legal information, photo-led package cards, article/Tips routes, 21-country experience map and shared enquiry/footer. Local and hosted builds read the same approved baseline; new hosted deployment is not verified. Existing demos remain pending retirement. |
+| Packages | Dedicated `/packages` and detail routes, search/destination/occasion/group-friendly filters, itineraries/galleries and independently publishable records. Approved Zanzibar/Nairobi tiers include reference months/disclaimers; Singapore/combined-trip pricing remains coming soon. Native package enquiry context and hosted acceptance remain incomplete. |
+| Travel Tips / Journal | Three source-derived Tips and two articles using supplied founder/itinerary copy; CMS collections, images, categories, listing/detail pages and independent record publication. Rich article blocks and hosted acceptance remain incomplete. |
+| Enquiries | Shared first-contact form, required Trip/Gift/Group/Celebration classification, validated API, exact-Origin/rate/honeypot checks, transactional PostgreSQL + notification-outbox persistence and duplicate protection. Turnstile integration requires per-environment keys. Full Google Form branches and authoritative package/tier context remain incomplete. |
+| CMS | Structured editors, approved-copy loading, debounced version-safe autosave, immutable revisions/restoration, authenticated short-lived actual Astro previews and viewport modes implemented locally. Single-process preview limitation and hosted UAT remain. |
+| Publishing | Immutable snapshots, pinned source, exact Pages artifact deployment worker, verification-before-Live, individual-record isolation and private R2 staging recovery implemented. Initial baseline, worker/provider configuration and actual staged deployment/rollback acceptance are pending; queued does not mean live. |
+| Staff | Cloudflare Access verification, server sessions, identity-bound activation/invitations, per-user tutorials, Account and role-filtered modules implemented. Hosted authenticated acceptance must be recorded separately. |
+
+TWE roles use `platform_admin` (displayed **Superadmin**), `owner`, `editor`.
+The final launch brief's explicit Superadmin application matrix is implemented
+with content/media/enquiry/publication/staff/template and technical permissions.
+Owner manages business content/publishing/staff; Editor drafts/previews/media
+and has authorised enquiry access, as retained by the final launch brief.
+Application roles never grant provider-account ownership or infrastructure credentials.
+
+See [CMS runtime, worker configuration and initial recovery acceptance](docs/apps/travel-with-ease/cms-runtime-2026-11-03.md)
+and the [client editing guide](docs/apps/travel-with-ease/client-cms-guide.md).
+Website project `twe-concierge` uses develop previews for staging and main for
+production; the separate `twe-portal` project is not a content-publication target.
+Run `publication:once` / `notifications:once` in the configured backend workspace
+only after the documented migration/provider acceptance; these are not part of
+the credential-isolated local `dev:twe` launcher.
+
+See the [approved content and decisions](docs/apps/travel-with-ease/approved-launch-content-2026-11-01.md),
+[client editing guide](docs/apps/travel-with-ease/client-cms-guide.md) and
+[Turnstile configuration](docs/apps/travel-with-ease/turnstile-and-enquiry-intake.md).
+
+Architecture: Astro public content → Express public endpoints; React/Vite CMS →
+same-origin protected Express routes → tenant-scoped PostgreSQL. Cloudflare
+provides Pages/Access, Railway hosts the API with embedded CMS, private R2 stores
+media, Google Drive supplies approved media imports, Resend handles queued mail,
+and GA4 loads only after eligible consent. No Next.js or Prisma migration
+conversion is part of TWE. Read the [architecture](docs/apps/travel-with-ease/architecture.md),
+[environment contract](docs/apps/travel-with-ease/env.md) and
+[Drive/R2 runbook](docs/apps/travel-with-ease/drive-r2-sync.md).
+
+### TWE development and verification
+
+```bash
+pnpm run dev:twe
+pnpm --filter '@faako/travel-with-ease-*' run lint
+pnpm --filter '@faako/travel-with-ease-*' run typecheck
+pnpm --filter '@faako/travel-with-ease-*' run build
+pnpm --filter '@faako/travel-with-ease-*' run test
+pnpm --filter @faako/ui test
+pnpm --filter @faako/travel-with-ease-api run test:db:isolated
+```
+
+Local ports: website 4328, portal 5188, API 3090. Use `/demo` on the website and
+portal for synthetic interactive data. The standard API development launcher
+deliberately does not load hosted `.env` credentials or enable real staff login.
+Never point isolated tests at a shared database. Direct `test:db` requires the
+documented disposable test database; it is mandatory in TWE foundation CI.
+
+### TWE environments and releases
+
+| Surface | Staging | Production |
+| --- | --- | --- |
+| Website | https://staging.travelwitheasegh.com | https://travelwitheasegh.com |
+| Protected staff CMS | https://portal-staging.travelwitheasegh.com | https://portal.travelwitheasegh.com |
+| API | https://staging-api.travelwitheasegh.com | https://api.travelwitheasegh.com |
+
+Website demo: https://staging.travelwitheasegh.com/demo.
+Protected portal demo: https://portal-staging.travelwitheasegh.com/demo.
+Hosted demo flags are explicit; production must not expose synthetic offers or
+demo mutations. Portal Access protection still applies to its staging demo.
+
+Pages branch configuration was confirmed by the user: staging tracks `develop`,
+production tracks `main`; repository-root build command
+`pnpm --filter @faako/travel-with-ease-web build`, output
+`apps/travel-with-ease-web/dist`. This is configuration evidence, not proof that
+the latest branch SHA is deployed. Record the provider deployment SHA and content
+marker independently. [2026-11-01 checks](docs/apps/travel-with-ease/completion-status-2026-11-01.md#hosted-observations)
+found staging healthy, portal login redirects and website HTTP 200; production
+API health timed out and publication markers were absent. Authenticated UAT,
+email receipt, restore drills and production acceptance remain unverified.
+
+TWE foundation CI runs lint/type/build/unit tests, shared UI checks, synthetic
+browser/accessibility tests and isolated PostgreSQL integration. Monorepo CI runs
+affected-surface gates. These workflows do not deploy CMS content automatically.
+Release: reviewed branch → green PR into `develop` → verified staging UAT →
+separately reviewed `develop` → `main` promotion → non-destructive production
+smoke. Preserve the previous verified artifact, source SHA and publication
+manifest; rollback to that artifact before confirming it live. Never reset the
+database or silently weaken a gate. See the [release and recovery guide](docs/apps/travel-with-ease/completion-status-2026-11-01.md#release-gates-and-recovery)
+and [migration runbook](docs/apps/travel-with-ease/predeploy-migrations-2026-10-27.md).
+
+Deferred: Travel Readiness PDF, Travel Plans staff module, client My Trips,
+customer trip management, booking/payment engine, full CRM and AI itinerary
+generation. Their historical roadmap descriptions are not implemented features.
+
 ## Environment And Data Safety
 
 - Use each app's `.env.example` file as the source of truth for local setup.
 - `VITE_*` values are browser-visible and must stay non-secret.
 - REEBS Portal and Dev ERP are both live systems with real data. Any change affecting auth, API permissions, customer/user data, payments, receipts, inventory, bookings, orders, rent, reports, email workflows, AI/productivity endpoints, or database schema must be treated as production-sensitive.
-- Local database refresh flows live in [docs/local-db-refresh.md](/Users/Nana/Desktop/Developer/faako-system/docs/local-db-refresh.md).
+- Local database refresh flows live in [docs/local-db-refresh.md](docs/local-db-refresh.md).
 - Pre-commit and manual security scripts help catch secrets before they enter git history.
 
 ## Deployment
 
-- Static frontends deploy through Cloudflare Pages. Every Vite/static app keeps `public/_headers` and `public/_redirects` checked in for security headers and SPA fallback routing.
-- API/backend services deploy through Railway using the root [nixpacks.toml](/Users/Nana/Desktop/Developer/faako-system/nixpacks.toml), which delegates to [scripts/railway-service.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/railway-service.mjs).
+- Public/static frontends deploy through Cloudflare Pages; TWE's protected hosted CMS is served by its Railway API, not as a public Pages application. Static deployment conventions include `public/_headers` and `public/_redirects` checked in for security headers and SPA fallback routing.
+- API/backend services deploy through Railway using the root [nixpacks.toml](nixpacks.toml), which delegates to [scripts/railway-service.mjs](scripts/railway-service.mjs).
 - Set `RAILWAY_WORKSPACE` on each Railway service to the workspace package, app key, or `apps/<app>` path it should run, for example `@faako/dev-erp`, `@faako/reebs-portal`, `@faako/stroane-web`, or `@faako/faako-api`.
 - Use `pnpm run hosting:check` after adding or moving apps to confirm static apps have Cloudflare files, API apps have Railway start paths, and legacy hosting artifacts are absent.
 - `faako-website` calls the dedicated Faako API through `VITE_API_BASE_URL` or the local Vite `/api` proxy during development.
-- Workspace impact checks are driven by [scripts/workspace-graph.mjs](/Users/Nana/Desktop/Developer/faako-system/scripts/workspace-graph.mjs).
+- Workspace impact checks are driven by [scripts/workspace-graph.mjs](scripts/workspace-graph.mjs).
 
 ## Docs
 
@@ -140,23 +265,26 @@ README update rule:
 
 Platform docs:
 
-- [docs/app-platform.md](/Users/Nana/Desktop/Developer/faako-system/docs/app-platform.md)
-- [docs/local-db-refresh.md](/Users/Nana/Desktop/Developer/faako-system/docs/local-db-refresh.md)
-- [docs/monorepo-restructure.md](/Users/Nana/Desktop/Developer/faako-system/docs/monorepo-restructure.md)
-- [docs/platform/codex-handoff-verification.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/codex-handoff-verification.md)
-- [docs/platform/operations-manual.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/operations-manual.md)
-- [docs/platform/shared-payment-receipt-architecture.md](/Users/Nana/Desktop/Developer/faako-system/docs/platform/shared-payment-receipt-architecture.md)
-- [docs/security_best_practices_report.md](/Users/Nana/Desktop/Developer/faako-system/docs/security_best_practices_report.md)
+- [docs/app-platform.md](docs/app-platform.md)
+- [docs/local-db-refresh.md](docs/local-db-refresh.md)
+- [docs/monorepo-restructure.md](docs/monorepo-restructure.md)
+- [docs/platform/codex-handoff-verification.md](docs/platform/codex-handoff-verification.md)
+- [docs/platform/operations-manual.md](docs/platform/operations-manual.md)
+- [docs/platform/shared-payment-receipt-architecture.md](docs/platform/shared-payment-receipt-architecture.md)
+- [docs/security_best_practices_report.md](docs/security_best_practices_report.md)
 
 App docs:
 
-- [apps/faako-api/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-api/README.md)
-- [apps/faako-website/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-website/README.md)
-- [apps/faako-erp/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/faako-erp/README.md)
-- [apps/reebs-portal/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-portal/README.md)
-- [apps/reebs-website/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/reebs-website/README.md)
-- [apps/dev-erp/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/dev-erp/README.md)
-- [apps/bynana-portfolio/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/bynana-portfolio/README.md)
-- [apps/stroane-web/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/stroane-web/README.md)
-- [apps/system-starter/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/system-starter/README.md)
-- [apps/ui-workbench/README.md](/Users/Nana/Desktop/Developer/faako-system/apps/ui-workbench/README.md)
+- [Travel With Ease documentation index](docs/apps/travel-with-ease/README.md)
+- [TWE implementation status and completion gates](docs/apps/travel-with-ease/completion-status-2026-11-01.md)
+
+- [apps/faako-api/README.md](apps/faako-api/README.md)
+- [apps/faako-website/README.md](apps/faako-website/README.md)
+- [apps/faako-erp/README.md](apps/faako-erp/README.md)
+- [apps/reebs-portal/README.md](apps/reebs-portal/README.md)
+- [apps/reebs-website/README.md](apps/reebs-website/README.md)
+- [apps/dev-erp/README.md](apps/dev-erp/README.md)
+- [apps/bynana-portfolio/README.md](apps/bynana-portfolio/README.md)
+- [apps/stroane-web/README.md](apps/stroane-web/README.md)
+- [apps/system-starter/README.md](apps/system-starter/README.md)
+- [apps/ui-workbench/README.md](apps/ui-workbench/README.md)

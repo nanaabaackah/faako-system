@@ -5,10 +5,51 @@ import {
   contentForPage,
   footprintCountryCodes,
   pageSchema,
+  pageNames,
+  contentMediaIds,
   saveContentSchema,
 } from "../src/content/schema.js";
 import { readFileSync } from "node:fs";
 import { createApp } from "../src/app.js";
+import { isAllowedPortalApiRoute } from "../src/portal/proxy.js";
+
+test("all code-owned CMS sections are allowed through protected portal routing", () => {
+  for (const page of pageNames) {
+    assert.equal(isAllowedPortalApiRoute("GET", `/api/agent/content/${page}`), true);
+    assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/content/${page}/draft`), true);
+  }
+  assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/content/../../private/draft"), false);
+});
+
+test("Travel Tips are bounded, page-specific records with unique stable URLs", () => {
+  const base = { heading: "Tips", body: "", seoTitle: "Tips", seoDescription: "Approved advice" };
+  const tip = { slug: "packing", title: "Packing", excerpt: "Summary", body: "Body", category: "Packing Smart" };
+  const parsed = contentForPage("travel-tips", { ...base, tips: [tip] });
+  assert.equal(parsed.tips[0].featured, false);
+  assert.equal(parsed.tips[0].order, 0);
+  assert.equal(parsed.tips[0].imageId, null);
+  assert.throws(() => contentForPage("home", { ...base, tips: [tip] }));
+  assert.throws(() => contentForPage("travel-tips", { ...base, tips: [tip, tip] }));
+  for (const invalid of [{ slug: "../private" }, { category: "Unsafe category" }, { order: -1 }, { order: 1.5 }, { imageId: "remote-url" }, { relatedArticle: "javascript:alert(1)" }, { featured: "true" }]) {
+    assert.throws(() => contentForPage("travel-tips", { ...base, tips: [{ ...tip, ...invalid }] }));
+  }
+});
+
+test("packages and enhanced Journal retain strict validation and all nested media references", () => {
+  const base = { heading: "Fixture", body: "", seoTitle: "Fixture", seoDescription: "Synthetic only" };
+  const imageId = "40000000-0000-4000-8000-000000000001";
+  const galleryId = "40000000-0000-4000-8000-000000000002";
+  const pkg = { id: "30000000-0000-4000-8000-000000000001", slug: "fixture-journey", title: "Fixture", destination: "Synthetic", overview: "Not an offer", imageId, galleryImageIds: [galleryId], itinerary: [{ day: 1, title: "Test day", text: "Test" }] };
+  const parsed = contentForPage("packages", { ...base, packages: [pkg] });
+  assert.deepEqual(contentMediaIds(parsed).sort(), [imageId, galleryId].sort());
+  assert.throws(() => contentForPage("home", { ...base, packages: [pkg] }));
+  assert.throws(() => contentForPage("packages", { ...base, packages: [pkg, pkg] }));
+  for (const invalid of [{ slug: "../private" }, { id: "not-uuid" }, { availability: "booked" }, { galleryImageIds: ["https://evil.invalid/x"] }, { itinerary: [{ day: -1, title: "X", text: "Y" }] }, { itinerary: [pkg.itinerary[0], pkg.itinerary[0]] }, { relatedArticles: ["javascript:alert(1)"] }]) {
+    assert.throws(() => contentForPage("packages", { ...base, packages: [{ ...pkg, ...invalid }] }));
+  }
+  const article = { slug: "fixture-story", title: "Story", excerpt: "Synthetic", body: "Test", date: "2026-11-01", imageId, galleryImageIds: [galleryId], category: "Travel guides" };
+  assert.deepEqual(contentMediaIds(contentForPage("journal", { ...base, articles: [article] })).sort(), [imageId, galleryId].sort());
+});
 
 test("CMS uses fixed page names, bounded fields and code-owned CTA destinations", () => {
   const body = {

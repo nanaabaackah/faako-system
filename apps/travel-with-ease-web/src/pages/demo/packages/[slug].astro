@@ -1,0 +1,37 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import PackageDetail from "../../../components/PackageDetail.astro";
+import type { TravelPackage as Item } from "../../../lib/collections";
+import {
+  demoPackages,
+  demoArticles,
+  demoCollectionsEnabled,
+  demoCollectionRequest,
+} from "../../../lib/demo-collections.js";
+interface Props {
+  item: Item;
+}
+export function getStaticPaths() {
+  return (demoCollectionsEnabled() ? demoPackages : []).map((item) => ({
+    params: { slug: item.slug },
+    props: { item },
+  }));
+}
+if (!demoCollectionRequest(Astro.url)) return Astro.redirect("/");
+const { item } = Astro.props;
+---
+
+<BaseLayout demo title={`${item.title} | Travel With Ease demo`} noIndex>
+  <PackageDetail
+    item={item}
+    demo
+    prefix="/demo/packages"
+    relatedPackages={demoPackages.filter((other) =>
+      item.relatedPackageSlugs?.includes(other.slug),
+    )}
+    stories={demoArticles.filter((other) =>
+      item.relatedArticles?.includes(other.slug),
+    )}
+    journalPrefix="/demo/journal"
+  />
+</BaseLayout>

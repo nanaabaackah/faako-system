@@ -1,6 +1,78 @@
 # Travel With Ease — MVP implementation plan
 
-## 2026-10-31 — Public identity and template options
+## CMS runtime update — 2026-11-03
+
+Autosave, actual protected Astro previews, viewport modes, collection navigation,
+approved-copy loading, per-record publication, extended publication lifecycle,
+private artifact recovery and the approved Superadmin matrix have local code.
+See [CMS runtime and operating gates](./cms-runtime-2026-11-03.md). This supersedes
+the historical manual-save/text-preview/policy gaps below, not the remaining
+enquiry, hosted-demo, provider or release-acceptance gates. No deploy is claimed.
+
+## Feature-completion sequence — 2026-11-01
+
+Status: **public collection and approved-content implementation in progress;
+product implementation incomplete**. The final launch brief extends the October
+baseline; it does not authorise another homepage redesign or certify deployment.
+See [current feature matrix and hosted observations](./completion-status-2026-11-01.md).
+
+| Phase | Required implementation/evidence | Current gate |
+| --- | --- | --- |
+| 1. Audit | Latest develop, dirty worktrees, actual routes/schemas/permissions/jobs, CI and hosted status | Baseline `65bc1634f`; PR #125 CI passed; production API and deployed SHAs unverified |
+| 2. Public extensions | CMS-backed Travel Tips after How it works; packages/detail/enquiry context; enhanced Journal and valid published relationships | Missing features recorded individually; preserve approved homepage and map |
+| 3. CMS | Fixed structured editors, debounced safe autosave, actual protected Astro preview with viewport modes, independent content records/publication | Current editor is manual-save and text-preview; collection articles share page publication |
+| 4. Publication | Keep PublicationRepository/manifests/source SHA; hosted worker, exact artifact deploy/verify, explicit deploying/verifying states, recovery/history | Operator build/confirm exists; worker activation and automatic hosting adapter incomplete |
+| 5. Permissions/security/tests | Superadmin display/internal platform_admin; new authoritative role matrix, tenant isolation, session/MFA/CSRF, lifecycle/error/failure coverage | Existing restricted platform policy differs from new requested policy; no silent grant changes |
+| 6. Staging acceptance | Real staff login/invitations, reversible draft/media operations, successful/failed publish and rollback, enquiries and test-recipient email receipt | Unauthenticated health is observed; authenticated/provider acceptance pending |
+| 7. Production readiness | Content/legal approval, deployed SHAs, production API health, secrets/grants, monitoring/backup restore, rollback/UAT | Not certified; outstanding evidence is not a passed check |
+| 8. Controlled release | Reviewed full diff, green checks, explicit release instruction, migration-first deployment and non-destructive smoke | Not executed by this documentation change |
+
+For each vertical slice update code, focused tests, this status index, root README
+and client-facing guide together. Distinguish implemented, tested, deployed and
+accepted. Never mark completed Trello items differently or imply a provider key
+enables a gated worker. Client publishing must eventually need no GitHub/Railway
+interaction; current operator commands are not that finished experience.
+
+### Planned content and CMS contracts
+
+- Packages need stable identity/slug, approved destination/date/departure/duration,
+  minor-unit indicative prices and disclosures, rights-approved hero/gallery,
+  variable itinerary/accommodation/transport, availability and published relations.
+- Journal needs structured safe article blocks, category/author/date/imagery,
+  optional destination information and approved related packages/stories.
+- Tips need category, featured/order, publication state, approved text/imagery and
+  optional published Journal relation. No hardcoded final homepage tips.
+- Validate links and package/departure references server-side. Unpublished/private
+  content must not leak through previews, SEO, public snapshots or enquiries.
+- Independent publication must reuse immutable revisions and tenant/environment
+  scope rather than publishing other drafts accidentally.
+- Autosave must not publish; conflicts must preserve input; do not retry uncertain
+  mutations blindly or create duplicate revisions.
+- Actual previews must render Astro components/styles behind authenticated,
+  noindex, time-limited access—not a React imitation or public draft webhook.
+
+### Explicit post-launch exclusions
+
+Travel Readiness PDF, Travel Plans staff module, client My Trips/customer trip
+management, online booking/payments, full CRM and AI itinerary generation remain
+deferred. Historical Phase 0/1 module descriptions below do not expand launch scope.
+
+## 2026-11-01 — Approved launch copy and public collections
+
+The supplied final PDF and explicit user approval restore the legal trading-name,
+registration and TIDS footer, and approve the price disclaimer and booking terms.
+This supersedes the October 31 public-identifier removal below. Implemented:
+strict collection schema/editors, package/Journal/Tips Astro routes, filters,
+itinerary disclosures, galleries, structured prices and the approved homepage
+section order. Published local copy is shared with hosted builds; explicit
+snapshots still fail closed. See [source decisions and open work](./approved-launch-content-2026-11-01.md).
+
+Still required: native intake based on the inspected router and two linked Google
+Forms; required enquiry classification; independent content records; protected
+Astro preview/autosave; expanded Superadmin policy; hosted publication automation;
+full demo retirement and real-account staging acceptance. Do not certify launch.
+
+## 2026-10-31 — Public identity and template options (superseded footer wording)
 
 Publish the Travel With Ease brand without private business identifiers or a
 street address. Support selectable enquiry and staff-invitation copy in Templates
