@@ -49,6 +49,7 @@ try {
     await page.getByRole("status").filter({ hasText: "2 entries shown" }).waitFor();
     await page.screenshot({ path: path.join(output, `packages-${width}.png`), fullPage: true });
     await page.getByRole("link", { name: "A slower rhythm in Zanzibar", exact: true }).click();
+    await page.waitForURL("**/demo/packages/zanzibar-sample-journey");
     await page.getByRole("heading", { name: "A slower rhythm in Zanzibar", exact: true }).waitFor();
     assert.match(page.url(), /\/demo\/packages\/zanzibar-sample-journey$/);
     const itinerary = page.locator("details").first();
@@ -56,6 +57,7 @@ try {
     await page.keyboard.press("Enter");
     assert.equal(await itinerary.getAttribute("open"), "");
     const firstPhoto = page.locator("[data-gallery-index]").first();
+    await page.locator('[data-image-gallery][data-gallery-ready="true"]').waitFor();
     await firstPhoto.click();
     await page.getByRole("dialog", { name: "Photo gallery", exact: true }).waitFor();
     await page.keyboard.press("ArrowRight");
