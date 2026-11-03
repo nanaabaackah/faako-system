@@ -115,6 +115,10 @@ p {
   inset: 0;
   z-index: 2;
 }
+.journey-card [data-demo-destination] {
+  position: relative;
+  z-index: 3;
+}
 .journey-card:focus-within {
   outline: 3px solid var(--brand-sky);
   outline-offset: 4px;
