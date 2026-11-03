@@ -153,7 +153,7 @@ try {
       .getByRole("button", { name: "Essential only", exact: true })
       .click();
     assert.match(await page.locator(".closing-scene__image").getAttribute("src"), /\/b7e55[^/]+\.webp$/);
-    assert.equal(await page.locator(".closing-scene > .closing-scene__image").count(), 1, "Enquiry and footer share one continuous image");
+    assert.equal(await page.locator(".closing-scene > picture > .closing-scene__image").count(), 1, "Enquiry and footer share one continuous responsive image");
     assert.equal(await page.locator(".closing-scene footer .footer-scene-image").count(), 0, "Do not restart the image inside the footer");
     assert.equal(await page.locator(".closing-scene footer").evaluate(node => getComputedStyle(node).backgroundColor), "rgba(0, 0, 0, 0)");
     assert.equal(await page.locator("footer .travel-footprint").count(), 0);
