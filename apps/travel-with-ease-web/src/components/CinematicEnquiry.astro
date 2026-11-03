@@ -1,15 +1,23 @@
 ---
-import ContentLink from "./ContentLink.astro";
 import PublicFooter from "./PublicFooter.astro";
+import EnquiryForm from "./EnquiryForm.jsx";
 import photography from "../lib/assigned-photography.json";
 import "../styles/components/cinematic-enquiry.css";
-const { demo = false, enquiryAvailable = false } = Astro.props;
+const { demo = false } = Astro.props;
 // One continuous image covers the enquiry and transparent footer together.
 // Contact-page CMS imagery remains independent from footer art direction.
 const photo = photography.footer;
 ---
 
 <div class="closing-scene">
+  <picture>
+    <!-- Height-driven cover needs a tall, high-resolution source, not a 100vw thumbnail. -->
+    <source
+      media="(max-width: 760px)"
+      srcset="/media/zanzibar-beach-club-b60ec1e6297a-1920.webp"
+      width="1920"
+      height="3413"
+    />
   <img
     class="closing-scene__image"
     src={photo.src}
@@ -23,6 +31,7 @@ const photo = photography.footer;
     loading="lazy"
     decoding="async"
   />
+  </picture>
   <section
     id={demo ? "demo-plan" : "plan"}
     class="cinematic-enquiry"
@@ -32,7 +41,7 @@ const photo = photography.footer;
       <div
         class:list={[
           "cinematic-enquiry__card",
-          { "cinematic-enquiry__card--with-form": Astro.slots.has("default") },
+          { "cinematic-enquiry__card--with-form": !demo || Astro.slots.has("default") },
         ]}
         id={demo ? "demo-enquiry-form" : undefined}
       >
@@ -49,25 +58,8 @@ const photo = photography.footer;
         </div>
         {
           !demo && (
-            <div class="cinematic-enquiry__actions">
-              {!demo && (
-                <ContentLink
-                  button
-                  href={
-                    enquiryAvailable ? "/contact" : "https://wa.me/233208387020"
-                  }
-                >
-                  {enquiryAvailable
-                    ? "Plan your trip"
-                    : "Talk to us on WhatsApp"}
-                </ContentLink>
-              )}
-              {!demo && !enquiryAvailable && (
-                <p class="cinematic-enquiry__note">
-                  Online enquiry forms are not available yet. Contact the team
-                  directly; an enquiry is not a booking.
-                </p>
-              )}
+            <div class="cinematic-enquiry__form">
+              <EnquiryForm client:load />
             </div>
           )
         }

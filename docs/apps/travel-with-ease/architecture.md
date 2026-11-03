@@ -1,5 +1,20 @@
 # Travel With Ease system architecture
 
+> Current review, 2026-11-01: [code-backed status and completion gates](./completion-status-2026-11-01.md)
+> supersedes older current-status claims below. The hosted default is one Railway
+> Express API process serving the built React CMS on its Access-protected hostname;
+> Astro remains the public Pages site. Both API environments support verified
+> startup; worker commands remain locally gated. PostgreSQL major version is not
+> a hardcoded runtime requirement. Manual structured editing/revisions and text
+> previews exist; autosave, actual Astro draft preview, package/tip management and
+> automatic hosted publication remain incomplete. The new Superadmin policy is
+> requested, not yet implemented by the current restricted platform_admin matrix.
+>
+> The rest of this document preserves dated architectural decisions and future
+> domain models. It is not a list of completed or deployed modules. Follow the
+> current status index for implementation evidence and [the completion sequence](./implementation-plan.md#feature-completion-sequence--2026-11-01)
+> before implementing the incremental brief. No homepage redesign is authorised.
+
 > Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
 > supersedes the production API blanket block and startup release-SHA requirement
 > below. Both hosted API environments require verified persistence and Access;

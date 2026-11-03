@@ -55,6 +55,8 @@ test("demo requires development permission, loopback host and explicit opt-in", 
   }
   assert.equal(demoEnabled({ allowed: false, hostname: "localhost", search: "?demo=1" }), false);
   assert.equal(demoEnabled({ allowed: true, hostname: "localhost", search: "" }), false);
+  assert.equal(demoEnabled({ allowed: true, hostname: "localhost", pathname: "/demo" }), true);
+  assert.equal(demoEnabled({ allowed: false, hostname: "localhost", pathname: "/demo" }), false);
 });
 
 test("staging portal demo accepts only the approved route, hostname, and explicit build permission", () => {
@@ -83,7 +85,7 @@ test("demo mutations stay in memory and unsupported actions cannot report succes
   assert.equal((await api.get(`/api/agent/inquiries/${item.id}`)).status, "closed");
   assert.equal((await createDemoClient().get(`/api/agent/inquiries/${item.id}`)).status, "new");
   const page = await api.get("/api/agent/content/home");
-  for (const slug of ["journal", "travel-footprint", "how-it-works", "privacy", "terms", "cookies"]) {
+  for (const slug of ["journal", "travel-tips", "travel-footprint", "how-it-works", "privacy", "terms", "cookies"]) {
     const draft = await api.get(`/api/agent/content/${slug}`);
     await api.post(`/api/agent/content/${slug}/draft`, { json: { expectedVersion: draft.version, body: { ...draft.body, heading: "Changed synthetic section" } } });
     assert.equal((await api.get(`/api/agent/content/${slug}`)).body.heading, "Changed synthetic section");

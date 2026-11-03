@@ -17,6 +17,8 @@
     "test:db:isolated": "node scripts/test-isolated-postgres.mjs",
     "notifications:once": "node --env-file-if-exists=.env src/notifications/worker.js",
     "publication": "node --env-file-if-exists=.env src/content/publication-command.js",
+    "publication:once": "node scripts/run-publication-worker.mjs",
+    "publication:baseline": "node scripts/accept-publication-baseline.mjs",
     "db:migrate": "node --env-file-if-exists=.env src/db/migrate.js",
     "db:deploy": "node scripts/deploy-database.mjs"
   },
@@ -28,10 +30,11 @@
     "@faako/security": "workspace:*",
     "@faako/validation": "workspace:*",
     "express": "^5.2.1",
-    "openid-client": "6.8.8",
     "jose": "6.2.12",
+    "openid-client": "6.8.8",
     "pg": "8.20.0",
     "sharp": "0.34.5",
+    "wrangler": "4.156.1",
     "zod": "^3.24.0"
   },
   "devDependencies": {

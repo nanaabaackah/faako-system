@@ -47,6 +47,11 @@ function EnquiryFields({ live = false, apiOrigin = "" }) {
   useEffect(() => {
     setReady(true);
     const choice = document.documentElement.dataset;
+    const selectedDestination = new URLSearchParams(window.location.search).get("destination");
+    if (["Kenya", "Zanzibar"].includes(selectedDestination)) {
+      setKind("package");
+      setDestination(selectedDestination);
+    }
     if (["package", "personalised"].includes(choice.demoEnquiryKind)) setKind(choice.demoEnquiryKind);
     if (["Kenya", "Zanzibar"].includes(choice.demoEnquiryDestination)) setDestination(choice.demoEnquiryDestination);
     const choose = (event) => {

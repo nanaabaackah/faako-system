@@ -1,0 +1,14 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import JournalListing from "../../components/JournalListing.astro";
+import { publishedPage } from "../../lib/published.js";
+const content = publishedPage("journal");
+---
+
+<BaseLayout
+  title={content?.seoTitle || "Travel Journal | Travel With Ease"}
+  description={content?.seoDescription || "Stories, perspectives and practical travel guides."}
+  noIndex={!content}
+>
+  <JournalListing items={content?.articles || []} />
+</BaseLayout>

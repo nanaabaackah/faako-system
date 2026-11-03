@@ -143,6 +143,12 @@ try {
       throw Error(`Unexpected external request blocked: ${url.origin}`);
     });
     await page.goto(`${origin}/demo`, { waitUntil: "networkidle" });
+    const tips = page.getByRole("region", { name: "Demonstration travel tips" });
+    assert.equal(await tips.locator("article").count(), 3);
+    assert.equal(await tips.locator("img").count(), 3);
+    assert.equal(await tips.getByRole("link").count(), 3);
+    assert.equal(await tips.evaluate(node => Boolean(document.querySelector("#demo-process").compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+    assert.equal(await tips.evaluate(node => Boolean(node.compareDocumentPosition(document.querySelector("#demo-journal")) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
     await page
       .getByRole("button", { name: "Essential only", exact: true })
       .click();
@@ -264,10 +270,10 @@ try {
       .waitFor();
     assert.equal(submissions, 2);
     // Keep the lifecycle assertion above, then remove feedback before visual captures.
-    for (const dismiss of await page
-      .getByRole("button", { name: "Dismiss notification", exact: true })
-      .all())
-      await dismiss.click();
+    // Clear the current controls synchronously: success notifications may expire
+    // between an async locator snapshot and a later click on a slow runner.
+    await page.getByRole("button", { name: "Dismiss notification", exact: true })
+      .evaluateAll(buttons => buttons.forEach(button => { if (button instanceof HTMLButtonElement) button.click(); }));
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

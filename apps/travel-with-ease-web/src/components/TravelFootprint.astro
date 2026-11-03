@@ -1,8 +1,11 @@
 ---
 import world from "../lib/world-boundaries.json";
-import { footprintRows, footprintBand } from "../lib/footprint.js";
+import { footprintRows, footprintBand, experienceRows } from "../lib/footprint.js";
+import smallCountries from "../lib/footprint-small-countries.json";
 import { publishedPage } from "../lib/published.js";
 interface Props {
+  heading?: string;
+  description?: string;
   compact?: boolean;
   demo?: boolean;
   records?: {
@@ -11,7 +14,7 @@ interface Props {
     status: "demo" | "verified";
   }[];
 }
-const { compact = false, records = publishedPage("travel-footprint")?.footprint || [] } = Astro.props;
+const { compact = false, heading = "Our travel footprint", description, records = publishedPage("travel-footprint")?.footprint || [] } = Astro.props;
 const demo = Astro.props.demo === true && (import.meta.env.DEV || (import.meta.env.PUBLIC_APP_ENV === "staging" && import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true"));
 const rows: {
   countryCode: string;
@@ -30,6 +33,12 @@ const rows: {
   demo,
 );
 const byCode = new Map(rows.map((row) => [row.countryCode, row]));
+const experience: { countryCode: string; name: string; label: string; band: number }[] = demo ? [] : experienceRows(
+  publishedPage("travel-footprint")?.experienceCountries || [],
+  [...world.countries, ...smallCountries.countries],
+);
+const experiences = new Map(experience.map(row => [row.countryCode, row]));
+const showingExperience = experience.length > 0;
 const fills = ["#b6b1a9", "#f2e5c8", "#d8b56a", "#ae8433", "#77551b"];
 const id = compact ? "footer-footprint" : "travel-footprint";
 ---
@@ -39,16 +48,19 @@ const id = compact ? "footer-footprint" : "travel-footprint";
   aria-labelledby={id + "-heading"}
 >
   <div class="footprint-heading">
-    <h2 id={id + "-heading"}>Our travel footprint</h2><p>
+    <h2 id={id + "-heading"}>{heading}</h2><p>
       {
-        demo
+        description || (demo
           ? "Illustrative demo totals—not TWE trip records."
+          : showingExperience
+            ? "Countries explored, near and far. Select a country to discover more."
           : rows.length
             ? "Completed and confirmed upcoming trips, combined by country."
-            : "Verified travel activity is not available yet."
+            : "Verified travel activity is not available yet.")
       }
     </p>
   </div>
+  <slot />
   <svg
     class="footprint-map"
     viewBox="0 0 720 300"
@@ -58,19 +70,21 @@ const id = compact ? "footer-footprint" : "travel-footprint";
     {
       world.countries.map((country, index) => {
         const row = country.code ? byCode.get(country.code) : undefined;
-        const label = row
+        const visited = country.code ? experiences.get(country.code) : undefined;
+        const selectable = Boolean(visited || row);
+        const label = visited ? `${country.name}: ${visited.label}` : row
           ? `${country.name}: ${row.total} combined trips${demo ? " (demo)" : ""}`
           : country.name;
         return (
           <path
             d={country.path}
-            fill={fills[footprintBand(row?.total || 0)]}
+            fill={fills[visited ? visited.band : footprintBand(row?.total || 0)]}
             stroke="#f4ede3"
             stroke-width=".45"
-            tabindex={row ? "0" : undefined}
-            role={row ? "button" : undefined}
-            aria-label={row ? label : undefined}
-            data-country-detail={row ? label : undefined}
+            tabindex={selectable ? "0" : undefined}
+            role={selectable ? "button" : undefined}
+            aria-label={selectable ? label : undefined}
+            data-country-detail={selectable ? label : undefined}
             data-country-code={country.code || undefined}
             data-map-index={index}
           >
@@ -79,15 +93,51 @@ const id = compact ? "footer-footprint" : "travel-footprint";
         );
       })
     }
+    {
+      smallCountries.countries.map(country => {
+        const visited = experiences.get(country.code);
+        if (!visited) return null;
+        const label = `${country.name}: ${visited.label}`;
+        return <circle
+          cx={(country.longitude + 180) * 2}
+          cy={(90 - country.latitude) * 2}
+          r="2.5" fill={fills[visited.band]} stroke="#010c33" stroke-width=".6"
+          tabindex="0" role="button" aria-label={label}
+          data-country-detail={label} data-country-code={country.code}>
+          <title>{label}</title>
+        </circle>;
+      })
+    }
   </svg>
   <p class="footprint-detail" aria-live="polite">
     Select a highlighted country or use the country list.
   </p>
   {
+    showingExperience && (
+      <>
+        <p class="footprint-legend">
+          <span>Visited</span><span>1–9 visits</span><span>10+ visits</span>
+        </p>
+        <details class="footprint-country-disclosure">
+          <summary>Explore all {experience.length} countries</summary>
+        <ul class="footprint-countries">
+          {experience.map(row => (
+            <li>
+              <button type="button" data-country-detail={`${row.name}: ${row.label}`}>
+                <strong>{row.name}</strong><span>{row.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        </details>
+      </>
+    )
+  }
+  {
     rows.length > 0 && (
       <>
         <p class="footprint-legend">
-          Combined trips · logarithmic scale:{" "}
+          Trips · {" "}
           <>
             <span>1–9</span>
             <span>10–99</span>
@@ -109,15 +159,14 @@ const id = compact ? "footer-footprint" : "travel-footprint";
     )
   }
   {
-    !rows.length && (
+    !rows.length && !showingExperience && (
       <p class="footprint-empty">
         Uncoloured countries mean no verified data is displayed—not zero travel.
       </p>
     )
   }
   <small
-    >Made with Natural Earth. Country-level overview; Zanzibar is included
-    within Tanzania.</small
+    >Made with Natural Earth. </small
   >
 </section>
 <script>
@@ -126,14 +175,16 @@ const id = compact ? "footer-footprint" : "travel-footprint";
     .forEach((root) => {
       const output = root.querySelector<HTMLElement>(".footprint-detail");
       root
-        .querySelectorAll<SVGPathElement>("[data-country-detail]")
+        .querySelectorAll<HTMLElement | SVGElement>("[data-country-detail]")
         .forEach((path) => {
           const show = () => {
             if (output) output.textContent = path.dataset.countryDetail || "";
           };
           path.addEventListener("click", show);
+          path.addEventListener("pointerenter", show);
           path.addEventListener("focus", show);
           path.addEventListener("keydown", (event) => {
+            if (!(event instanceof KeyboardEvent)) return;
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               show();

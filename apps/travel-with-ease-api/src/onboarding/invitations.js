@@ -101,7 +101,7 @@ export class Invitations {
   async checkOwner(client, actor) {
     if (actor?.organisationId !== this.organisationId) deny();
     const { rowCount } = await client.query(
-      "SELECT 1 FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 AND role='owner' AND active=true FOR SHARE",
+      "SELECT 1 FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 AND role IN ('owner','platform_admin') AND active=true FOR SHARE",
       [this.organisationId, actor.id],
     );
     if (!rowCount) deny();

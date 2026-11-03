@@ -1,0 +1,77 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ContentLink from "../../components/ContentLink.astro";
+import { publishedPage } from "../../lib/published.js";
+import "../../styles/components/published-content.css";
+import "../../styles/components/travel-tips.css";
+interface Props {
+  tip: {
+    slug: string;
+    title: string;
+    excerpt: string;
+    body: string;
+    category: string;
+    relatedArticle?: string;
+    image?: {
+      src: string;
+      alt: string;
+      width: number;
+      height: number;
+      sources?: { src: string; width: number }[];
+    } | null;
+  };
+}
+export function getStaticPaths() {
+  return (publishedPage("travel-tips")?.tips || []).map(
+    (tip: { slug: string }) => ({ params: { slug: tip.slug }, props: { tip } }),
+  );
+}
+const { tip } = Astro.props;
+const related = tip.relatedArticle
+  ? publishedPage(`journal/${tip.relatedArticle}`)
+  : null;
+---
+
+<BaseLayout
+  title={`${tip.title} | Travel With Ease`}
+  description={tip.excerpt}
+  type="article"
+>
+  <article class="published-content">
+    <ContentLink href="/travel-tips">Travel tips</ContentLink>
+    <p>{tip.category}</p><h1>{tip.title}</h1>
+    {
+      tip.image && (
+        <img
+          src={tip.image.src}
+          srcset={tip.image.sources
+            ?.map(
+              (source: { src: string; width: number }) =>
+                `${source.src} ${source.width}w`,
+            )
+            .join(", ")}
+          sizes="(max-width: 760px) 90vw, 1200px"
+          width={tip.image.width}
+          height={tip.image.height}
+          alt={tip.image.alt}
+        />
+      )
+    }
+    <p class="journal-excerpt">{tip.excerpt}</p>
+    <div class="travel-tip-body">
+      {tip.body.split(/\n\s*\n/).map((paragraph: string) => <p>{paragraph}</p>)}
+    </div>
+    {
+      related && (
+        <aside>
+          <>
+            <h2>Keep reading</h2>
+            <ContentLink href={`/journal/${related.slug}`}>
+              {related.title}
+            </ContentLink>
+          </>
+        </aside>
+      )
+    }
+  </article>
+</BaseLayout>

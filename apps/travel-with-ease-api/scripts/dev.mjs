@@ -23,7 +23,7 @@ const env = {
 console.info(
   "TWE local public preview: hosted .env files are not loaded; staff sign-in is unavailable.",
 );
-const child = spawn(process.execPath, ["src/server.js"], {
+const child = spawn(process.execPath, ["--watch", "src/server.js"], {
   cwd: fileURLToPath(new URL("../", import.meta.url)),
   env,
   stdio: "inherit",

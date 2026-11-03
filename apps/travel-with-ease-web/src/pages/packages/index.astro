@@ -1,0 +1,14 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PackageListing from "../../components/PackageListing.astro";
+import { publishedPage } from "../../lib/published.js";
+const content = publishedPage("packages");
+---
+
+<BaseLayout
+  title={content?.seoTitle || "Packages | Travel With Ease"}
+  description={content?.seoDescription || "Explore journeys and travel package details."}
+  noIndex={!content}
+>
+  <PackageListing items={content?.packages || []} />
+</BaseLayout>

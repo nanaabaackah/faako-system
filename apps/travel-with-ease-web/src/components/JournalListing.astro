@@ -1,0 +1,103 @@
+---
+import ContentLink from "./ContentLink.astro";
+import CollectionFilters from "./CollectionFilters.jsx";
+import type { JournalArticle } from "../lib/collections";
+import "../styles/components/collections.css";
+interface Props {
+  items: JournalArticle[];
+  demo?: boolean;
+  prefix?: string;
+}
+const { items, demo = false, prefix = "/journal" } = Astro.props;
+---
+
+<section class="editorial-wrap collection-page" id="journal-collection">
+  <header class:list={["collection-introduction", "journal-introduction"]}>
+    <div>
+    <h1>Stories for the journey.</h1>
+    </div>
+    <p>
+      Places, perspectives and a little practical advice for the way ahead.
+    </p>
+  </header>
+  {
+    demo && (
+      <p class="collection-demo-notice">
+        Demonstration editorial only — these are not published TWE stories or
+        travel claims.
+      </p>
+    )
+  }
+  {
+    items.length ? (
+      <>
+        <CollectionFilters
+          client:load
+          scope="journal-collection"
+          options={[
+            ...new Set(items.map((item) => item.category || "Travel stories")),
+          ]}
+          label="Category"
+        />
+        <noscript>
+          <p>
+            All stories are listed below. Search and filters require JavaScript.
+          </p>
+        </noscript>
+        <div class="journal-collection-grid">
+          {items.map((item, index) => (
+            <article
+              class:list={[
+                "twe-action-card journal-card",
+                { "journal-featured": index === 0 },
+              ]}
+              data-collection-item
+              data-category={item.category || "Travel stories"}
+              data-search={`${item.title} ${item.excerpt} ${item.category || ""}`.toLocaleLowerCase()}
+            >
+              {item.image && (
+                <img
+                  src={item.image.src}
+                  srcset={item.image.sources
+                    ?.map((source) => `${source.src} ${source.width}w`)
+                    .join(", ")}
+                  sizes={
+                    index === 0
+                      ? "(max-width: 760px) 90vw, 55vw"
+                      : "(max-width: 760px) 90vw, 32vw"
+                  }
+                  width={item.image.width}
+                  height={item.image.height}
+                  alt={item.image.alt}
+                  loading={index === 0 ? "eager" : "lazy"}
+                />
+              )}
+              <div class="journal-card__content">
+              <p class="journal-card__metadata">
+                {item.category || "Travel stories"} ·{" "}
+                <time datetime={item.date}>{item.date}</time>
+              </p>
+              <h2>
+                <ContentLink href={`${prefix}/${item.slug}`}>
+                  {item.title}
+                </ContentLink>
+              </h2>
+              <p class="journal-card__excerpt">{item.excerpt}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </>
+    ) : (
+      <div class="review-empty">
+        <>
+          <h2>The Journal is taking shape.</h2>
+          <p>
+            Original stories and approved photography will appear here when
+            published.
+          </p>
+        </>
+      </div>
+    )
+  }
+</section>

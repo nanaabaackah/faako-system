@@ -3,7 +3,7 @@ import { IconsaxIcon, StatusPill } from "@faako/ui";
 import "./account-settings.css";
 
 export default function AccountSettings({ session, onLogout }) {
-  const role = session.user.role.replaceAll("_", " ");
+  const role = session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ");
   const expires = session.expiresAt ? new Date(session.expiresAt) : null;
   const expiresLabel = expires && !Number.isNaN(expires.getTime())
     ? expires.toLocaleString()

@@ -6,6 +6,12 @@
     "mediaRefresh": {
       "date": "2026-10-31",
       "scope": "User requested incorporation of additional photographs from the previously approved Kenya/Zanzibar Drive folders. Business copy and unpublished sections unchanged."
+    },
+    "launchContent": {
+      "date": "2026-11-01",
+      "source": "Travel with Ease Website Content for Designer.pdf",
+      "scope": "User supplied final website content; user explicitly approved restored legal footer wording and reviewed price/booking terms. No independent accreditation or legal certification implied.",
+      "followup": "User requested supplied company content to be public without pending-approval filler, temporary Kenya/Zanzibar imagery across packages without captions, compact title/subtitle/price cards, shared enquiry form, visible Journal and neutral footprint totals. Source provenance retained internally."
     }
   },
   "pages": {
@@ -40,15 +46,1280 @@
         "alt": "Blue and white boats moored beside a lake — Kenya."
       }
     },
-    "about": null,
-    "services": null,
+    "about": {
+      "heading": "Travel, with a little more you.",
+      "body": "Travel with Ease is Accra's boutique travel planning agency for people who want to travel well without the burden of planning. Whether it's your first trip abroad or your fifteenth, we handle the flights, hotels, itineraries and support, so you don't have to. First-timers get a patient guide. Busy travellers get their time back.",
+      "entries": [
+        {
+          "heading": "Founded in 2026 by Nana Osei-Wusu",
+          "text": "I grew up travelling every year, thanks to my parents. As I got older, the roles reversed: I was the one filling in passport and visa forms, booking flights and hotels, and planning trips for my parents and me. Then I started exploring on my own. Without realising it, I was always researching and planning great trips, and I never thought of it as a business. I love planning, and I love structure. I wanted to build something alongside my career, and when I put my ideas down, everything came back to travel.",
+          "attribution": "Nana Osei-Wusu, founder"
+        }
+      ],
+      "seoTitle": "Travel, with a little more you. | Travel With Ease",
+      "seoDescription": "Travel with Ease is Accra's boutique travel planning agency for people who want to travel well without the burden of planning. Whether it's your first trip abroad or your fifteenth",
+      "image": {
+        "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+        "width": 1280,
+        "height": 2276,
+        "alt": "Palm trees and poolside seating at a beach club in Zanzibar at dusk.",
+        "sources": [
+          {
+            "src": "/media/zanzibar-beach-club-b60ec1e6297a-640.webp",
+            "width": 640
+          },
+          {
+            "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+            "width": 1280
+          }
+        ]
+      }
+    },
+    "services": {
+      "heading": "A plan that fits you.",
+      "body": "From a first conversation to a fully planned journey, choose the support you need.",
+      "entries": [
+        {
+          "heading": "Travel Readiness Session · GHS 400",
+          "text": "A 40-minute call covering destination advice, flight routing, a visa overview and a realistic budget. Advice only, without bookings; ideal for first-time travellers.",
+          "attribution": ""
+        },
+        {
+          "heading": "Full Trip Planning · GHS 2,000",
+          "text": "A day-by-day itinerary, flight and hotel booking, budget breakdown, cultural and safety briefing, a 17-page travel pack and one revision.",
+          "attribution": ""
+        },
+        {
+          "heading": "Premium Concierge · GHS 3,000",
+          "text": "Everything in Full Trip Planning, plus priority handling, unlimited minor revisions, WhatsApp support from five days before your trip to travel day, an emergency plan and an hourly travel-day checklist.",
+          "attribution": ""
+        },
+        {
+          "heading": "Group Trip Planning · From GHS 2,500",
+          "text": "For groups of four or more. The planning fee covers up to eight travellers; each additional traveller is GHS 250.",
+          "attribution": ""
+        }
+      ],
+      "seoTitle": "A plan that fits you. | Travel With Ease",
+      "seoDescription": "From a first conversation to a fully planned journey, choose the support you need.",
+      "image": {
+        "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+        "width": 1280,
+        "height": 1707,
+        "alt": "A garden swimming pool surrounded by trees, parasols and outdoor seating in Kenya.",
+        "sources": [
+          {
+            "src": "/media/kenya-garden-pool-2c7744e25798-640.webp",
+            "width": 640
+          },
+          {
+            "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+            "width": 1280
+          }
+        ]
+      }
+    },
     "destinations": null,
-    "contact": null,
-    "faqs": null,
+    "contact": {
+      "heading": "Let’s plan your next journey.",
+      "body": "Tell us about your destination, timeframe and the support you need using the enquiry form below. An enquiry starts a conversation; it is not a booking.",
+      "entries": [],
+      "seoTitle": "Plan my trip | Travel With Ease",
+      "seoDescription": "Tell Travel With Ease about your next journey and the planning support you need.",
+      "image": {
+        "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+        "alt": "A poolside view towards the ocean in Zanzibar.",
+        "width": 1242,
+        "height": 2208,
+        "sources": [
+          {
+            "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+            "width": 640
+          },
+          {
+            "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+            "width": 1242
+          }
+        ]
+      },
+      "contactEmail": "nana@travelwitheasegh.com",
+      "contactPhone": "+233200209170"
+    },
+    "faqs": {
+      "heading": "A few things worth knowing.",
+      "body": "Clear answers before you start planning.",
+      "entries": [
+        {
+          "heading": "How do I start planning a trip?",
+          "text": "Use the enquiry form to share your destination ideas, dates, traveller count and budget. We discuss your plans and confirm the appropriate service or a live package quote.",
+          "attribution": ""
+        },
+        {
+          "heading": "Do package prices include flights?",
+          "text": "Published starting prices are per person sharing a room and include return flights from Accra. Your dates, hotel availability, live airfare and exchange rate determine the final quote.",
+          "attribution": ""
+        },
+        {
+          "heading": "What is included in a Travel Readiness Session?",
+          "text": "A 40-minute advisory call covering destination advice, flight routing, a visa overview and a realistic budget. The GHS 400 session is advice only and does not include bookings.",
+          "attribution": ""
+        },
+        {
+          "heading": "How do package deposits work?",
+          "text": "A GHS 5,000 deposit per person confirms a package booking. It is non-refundable if you withdraw. The balance is due on the date in your quote, normally 45–70 days before departure.",
+          "attribution": ""
+        },
+        {
+          "heading": "Can I travel without sharing a room?",
+          "text": "Yes. A single supplement applies when you do not share a room. Message us for your exact price.",
+          "attribution": ""
+        },
+        {
+          "heading": "Does sending an enquiry confirm a booking?",
+          "text": "No. An enquiry starts a conversation. Your live quote, agreed terms and cleared payment are separate steps. There is no online checkout on this website.",
+          "attribution": ""
+        }
+      ],
+      "seoTitle": "A few things worth knowing. | Travel With Ease",
+      "seoDescription": "Clear answers before you start planning.",
+      "image": {
+        "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
+        "alt": "A giraffe beside a feeding platform in Kenya.",
+        "width": 1200,
+        "height": 1600,
+        "sources": [
+          {
+            "src": "/media/kenya-giraffe-067893b7a1b1-640.webp",
+            "width": 640
+          },
+          {
+            "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
+            "width": 1200
+          }
+        ]
+      }
+    },
     "testimonials": null,
-    "journal": null,
-    "travel-footprint": null,
-    "privacy": null,
-    "terms": null
+    "journal": {
+      "heading": "Stories for the journey.",
+      "body": "Places, perspectives and practical planning notes from Travel With Ease.",
+      "entries": [],
+      "seoTitle": "Stories for the journey. | Travel With Ease",
+      "seoDescription": "Places, perspectives and practical planning notes from Travel With Ease.",
+      "image": {
+        "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+        "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
+        "width": 1206,
+        "height": 2119,
+        "sources": [
+          {
+            "src": "/media/zanzibar-sunset-bfb2dad00137-640.webp",
+            "width": 640
+          },
+          {
+            "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+            "width": 1206
+          }
+        ]
+      },
+      "articles": [
+        {
+          "slug": "how-travel-with-ease-began",
+          "title": "How Travel With Ease began",
+          "excerpt": "A love of planning, a lifetime of travel and the story behind Travel With Ease.",
+          "body": "I grew up travelling every year, thanks to my parents. As I got older, the roles reversed: I was the one filling in passport and visa forms, booking flights and hotels, and planning trips for my parents and me. Then I started exploring on my own. Without realising it, I was always researching and planning great trips, and I never thought of it as a business. I love planning, and I love structure. I wanted to build something alongside my career, and when I put my ideas down, everything came back to travel.",
+          "date": "2026-11-01",
+          "category": "Stories",
+          "author": "Nana Osei-Wusu",
+          "image": {
+            "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+            "width": 1280,
+            "height": 1707,
+            "alt": "A garden swimming pool surrounded by trees, parasols and outdoor seating in Kenya.",
+            "sources": [
+              {
+                "src": "/media/kenya-garden-pool-2c7744e25798-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "gallery": [
+            {
+              "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+              "width": 1280,
+              "height": 853,
+              "alt": "Elephants beside a waterhole and green vegetation in Kenya.",
+              "sources": [
+                {
+                  "src": "/media/kenya-elephants-8947b7727ddb-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+                  "width": 1280
+                }
+              ]
+            },
+            {
+              "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
+              "width": 1280,
+              "height": 720,
+              "alt": "Hippopotamuses resting beside a wooded lakeshore in Kenya.",
+              "sources": [
+                {
+                  "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
+                  "width": 1280
+                }
+              ]
+            },
+            {
+              "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+              "alt": "A poolside view towards the ocean in Zanzibar.",
+              "width": 1242,
+              "height": 2208,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+                  "width": 1242
+                }
+              ]
+            },
+            {
+              "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
+              "alt": "A giraffe beside a feeding platform in Kenya.",
+              "width": 1200,
+              "height": 1600,
+              "sources": [
+                {
+                  "src": "/media/kenya-giraffe-067893b7a1b1-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
+                  "width": 1200
+                }
+              ]
+            }
+          ],
+          "relatedPackageSlugs": []
+        },
+        {
+          "slug": "six-days-on-zanzibars-north-coast",
+          "title": "Six days on Zanzibar’s north coast",
+          "excerpt": "Dolphins by morning, dhow at sunset, a lively north coast in between.",
+          "body": "Five nights on Zanzibar's north coast with return flights, transfers, three signature tours and both insurances taken care of. Pick your dates and your level of comfort, and we plan the rest.\n\nDay 1 — Arrive on the north coast\nMeet your airport transfer and settle into your north coast beach hotel.\n\nDay 2 — Mnemba Island\nSnorkel the reef, look out for dolphins, visit the sandbank and enjoy lunch.\n\nDay 3 — Prison Island and Stone Town\nSee the giant tortoises and explore Stone Town's alleys and markets with a guide.\n\nDay 4 — Beach time and a dhow sunset\nA free beach day followed by a sunset dhow trip.\n\nDay 5 — Your own pace\nEnjoy a free day, with an optional spice farm visit at extra cost.\n\nDay 6 — Homeward\nBreakfast, your airport transfer and the flight home.\n\nA single supplement applies when you do not share a room. Message us for your exact price.",
+          "date": "2026-11-01",
+          "category": "Destination Guides",
+          "author": "Travel With Ease",
+          "image": {
+            "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+            "width": 1280,
+            "height": 2276,
+            "alt": "Palm trees and poolside seating at a beach club in Zanzibar at dusk.",
+            "sources": [
+              {
+                "src": "/media/zanzibar-beach-club-b60ec1e6297a-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "gallery": [
+            {
+              "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+              "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
+              "width": 1206,
+              "height": 2119,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-sunset-bfb2dad00137-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+                  "width": 1206
+                }
+              ]
+            },
+            {
+              "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+              "alt": "A poolside view towards the ocean in Zanzibar.",
+              "width": 1242,
+              "height": 2208,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+                  "width": 1242
+                }
+              ]
+            }
+          ],
+          "relatedPackageSlugs": [
+            "zanzibar"
+          ]
+        }
+      ]
+    },
+    "travel-footprint": {
+      "heading": "Our travel footprint",
+      "body": "Honeymoons, milestone birthdays, group getaways, wedding travel and corporate trips. Flights, hotels and trains booked for clients across China, Europe and Africa.",
+      "seoTitle": "Our travel footprint | Travel With Ease",
+      "seoDescription": "Travel With Ease business travel-planning footprint.",
+      "entries": [
+        {
+          "heading": "8",
+          "text": "Trips planned",
+          "attribution": ""
+        },
+        {
+          "heading": "21",
+          "text": "Countries explored",
+          "attribution": ""
+        },
+        {
+          "heading": "25+",
+          "text": "Travellers",
+          "attribution": ""
+        }
+      ],
+      "footprint": [],
+      "experienceCountries": [
+        {
+          "countryCode": "GB",
+          "source": "founder",
+          "visitCount": 25,
+          "countQualifier": "at_least"
+        },
+        {
+          "countryCode": "US",
+          "source": "founder",
+          "visitCount": 5,
+          "countQualifier": "approximate"
+        },
+        {
+          "countryCode": "IT",
+          "source": "founder",
+          "visitCount": 6,
+          "countQualifier": "approximate"
+        },
+        {
+          "countryCode": "AE",
+          "source": "founder",
+          "visitCount": 3,
+          "countQualifier": "approximate"
+        },
+        {
+          "countryCode": "NL",
+          "source": "founder",
+          "visitCount": 3,
+          "countQualifier": "approximate"
+        },
+        {
+          "countryCode": "FR",
+          "source": "founder",
+          "visitCount": 3,
+          "countQualifier": "approximate"
+        },
+        {
+          "countryCode": "ZA",
+          "source": "founder",
+          "visitCount": 3,
+          "countQualifier": "exact"
+        },
+        {
+          "countryCode": "GR",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "EG",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "JP",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "MY",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "MC",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "PT",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "DE",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "MT",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "SC",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "MU",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "MA",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "AL",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "KE",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        },
+        {
+          "countryCode": "TZ",
+          "source": "founder",
+          "visitCount": null,
+          "countQualifier": "unspecified"
+        }
+      ]
+    },
+    "privacy": {
+      "heading": "Privacy notice",
+      "body": "Travel With Ease uses your information to respond to enquiries, provide the travel services you request and operate this website.",
+      "entries": [
+        {
+          "heading": "Who handles your information",
+          "text": "Travel With Ease, a trading name of TWE Concierge, is based in Accra, Ghana. Contact nana@travelwitheasegh.com or +233 20 020 9170 with questions about your information.",
+          "attribution": ""
+        },
+        {
+          "heading": "Information you provide",
+          "text": "The enquiry form collects your name, email, WhatsApp number, enquiry type, requested service, destination, travel timeframe, number of travellers, optional budget and notes, and your permission to respond. Do not enter passport numbers, payment details, medical records or other unnecessary sensitive information.",
+          "attribution": ""
+        },
+        {
+          "heading": "Operational and security information",
+          "text": "We store your enquiry reference, submission and notice timestamps, source, delivery status and the staff actions needed to manage your request. Hosting and security providers can process IP addresses, browser/request metadata and security events. Cookie preferences are stored in your browser.",
+          "attribution": ""
+        },
+        {
+          "heading": "Why we use it",
+          "text": "We use your details to assess your request, contact you, prepare agreed travel services and protect the service. Enquiry consent is not marketing consent. Where processing relies on consent, you can withdraw it by contacting us; withdrawal does not undo processing already carried out.",
+          "attribution": ""
+        },
+        {
+          "heading": "Analytics and search",
+          "text": "Optional Google Analytics is blocked until you allow analytics cookies and remains subject to browser privacy signals. It measures public website usage, not enquiry answers or private staff activity. Google Search Console provides search-performance information separately from the analytics tag.",
+          "attribution": ""
+        },
+        {
+          "heading": "Providers and communications",
+          "text": "Cloudflare and Railway provide hosting, storage or security; Resend handles operational email; Google supports optional analytics, search reporting and approved media-source operations. Production enquiry acknowledgements copy notifications@travelwitheasegh.com so the team can respond. WhatsApp, Instagram and TikTok links open third-party services with their own terms. Provider processing can take place outside Ghana.",
+          "attribution": ""
+        },
+        {
+          "heading": "Retention and access",
+          "text": "We keep information for handling your enquiry, agreed services and applicable legal or dispute requirements. Authorised staff access is restricted by role. Contact us about retention or deletion; some records may need to be kept where an applicable obligation requires it.",
+          "attribution": ""
+        },
+        {
+          "heading": "Your choices and rights",
+          "text": "You can contact us to request access, correction, deletion where applicable, raise an objection or withdraw consent. We may need proportionate identity verification. You can also contact Ghana’s Data Protection Commission at https://dpc.gov.gh about your rights under the Data Protection Act, 2012 (Act 843).",
+          "attribution": ""
+        },
+        {
+          "heading": "Effective date",
+          "text": "1 November 2026. Material changes to this notice will be reflected here.",
+          "attribution": ""
+        }
+      ],
+      "seoTitle": "Privacy notice | Travel With Ease",
+      "seoDescription": "Travel With Ease uses your information to respond to enquiries, provide the travel services you request and operate this website."
+    },
+    "terms": {
+      "heading": "Booking and planning terms",
+      "body": "Read these terms alongside your live quote before making a payment.",
+      "entries": [
+        {
+          "heading": "Planning services and payment",
+          "text": "Complete the intake and pay 50% of the planning fee, or 60% for group planning, to begin. We confirm the start date by WhatsApp. The balance is due before the final travel pack is delivered.",
+          "attribution": ""
+        },
+        {
+          "heading": "Your Travel Fund",
+          "text": "Travel costs are separate from the planning fee. We send a Travel Fund Request for the exact booking costs and book only when funds have cleared. We do not advance booking costs. Foreign-currency estimates include a 5% buffer; any unused buffer is refunded.",
+          "attribution": ""
+        },
+        {
+          "heading": "Revisions and scope",
+          "text": "Full Trip Planning includes one minor revision; further minor revisions cost GHS 150 each. Premium includes unlimited minor revisions. A new destination or full itinerary restructure is a new scope. Planning fees are fixed.",
+          "attribution": ""
+        },
+        {
+          "heading": "Group changes",
+          "text": "Group changes cost GHS 100–150; date changes cost GHS 150. Supplier cancellation terms and actual cancellation costs also apply.",
+          "attribution": ""
+        },
+        {
+          "heading": "Package prices",
+          "text": "Published \"from\" prices are indicative, per person sharing a room, and include return flights from Accra. They are based on our reference month. Your final price depends on your travel dates, hotel availability, live airfare and the exchange rate. We send you a live quote before you pay a deposit. If your balance is due months after booking, it is recalculated at the exchange rate on your final payment date.",
+          "attribution": ""
+        },
+        {
+          "heading": "Package deposits and balances",
+          "text": "A GHS 5,000 deposit per person confirms your package booking and locks the quoted rate, subject to the exchange-rate provision above for a later balance. This deposit is non-refundable if you withdraw. The balance is due on the date in your quote, normally 45–70 days before departure depending on the hotel. Bookings are made only after funds have cleared. Payment is available through Telecel Cash or MTN MoMo; payment instructions are provided privately.",
+          "attribution": ""
+        },
+        {
+          "heading": "Insurance and travel documents",
+          "text": "Packages include the insurance specified in their inclusions. You remain responsible for your passport, visas and entry requirements; advice is not a visa guarantee. For planning-only services, travel insurance is recommended. Entry and insurance rules can change, so confirm the current requirements before travel.",
+          "attribution": ""
+        },
+        {
+          "heading": "Room sharing",
+          "text": "A single supplement applies when you do not share a room. Message us for your exact price.",
+          "attribution": ""
+        }
+      ],
+      "seoTitle": "Booking and planning terms | Travel With Ease",
+      "seoDescription": "Read these terms alongside your live quote before making a payment."
+    },
+    "packages": {
+      "heading": "Packages",
+      "body": "Choose your journey, dates and level of comfort. Every booking starts with a live quote.",
+      "entries": [],
+      "seoTitle": "Packages | Travel With Ease",
+      "seoDescription": "Choose your journey, dates and level of comfort. Every booking starts with a live quote.",
+      "packages": [
+        {
+          "id": "4740cb7b-fded-4c68-a12d-aa9a73a2ba01",
+          "slug": "zanzibar",
+          "title": "Zanzibar",
+          "destination": "Zanzibar, Tanzania",
+          "nights": 5,
+          "days": 6,
+          "duration": "5 nights · 6 days",
+          "overview": "Five nights on Zanzibar's north coast with return flights, transfers, three signature tours and both insurances taken care of. Pick your dates and your level of comfort, and we plan the rest.",
+          "occasions": [],
+          "groupFriendly": false,
+          "availability": "enquiry",
+          "pricingStatus": "indicative",
+          "referenceMonth": "2027-06",
+          "priceDisclaimer": "Published \"from\" prices are indicative, per person sharing a room, and include return flights from Accra. They are based on our reference month. Your final price depends on your travel dates, hotel availability, live airfare and the exchange rate. We send you a live quote before you pay a deposit. If your balance is due months after booking, it is recalculated at the exchange rate on your final payment date.",
+          "tiers": [
+            {
+              "id": "standard",
+              "label": "Standard",
+              "amountMinor": 2500000,
+              "currency": "GHS",
+              "description": "Comfortable north coast beach hotel, with breakfast."
+            },
+            {
+              "id": "mid-boutique",
+              "label": "Mid · Boutique",
+              "amountMinor": 3200000,
+              "currency": "GHS",
+              "description": "Adults-only, design-led boutique, with breakfast."
+            },
+            {
+              "id": "mid-all-inclusive",
+              "label": "Mid · All-inclusive",
+              "amountMinor": 3400000,
+              "currency": "GHS",
+              "description": "Family-friendly beach resort, with all meals and drinks."
+            },
+            {
+              "id": "luxury",
+              "label": "Luxury",
+              "amountMinor": 3800000,
+              "currency": "GHS",
+              "description": "Adults-only luxury beachfront stay, all-inclusive, with an upgraded suite."
+            }
+          ],
+          "inclusions": [
+            "Return flights from Accra",
+            "Five nights in your chosen accommodation tier; meals as described for that tier",
+            "Return airport transfers",
+            "Mnemba Island, Prison Island and Stone Town, and a sunset dhow trip, with entrance fees, guides and water",
+            "Comprehensive travel insurance and Zanzibar mandatory inbound insurance, arranged for you",
+            "Travel With Ease concierge support and branded travel pack"
+          ],
+          "exclusions": [
+            "The Rock Experience and optional spice farm visit",
+            "Meals not listed for your tier",
+            "Personal expenses and tips",
+            "Visa fees, if required",
+            "Single supplement"
+          ],
+          "itinerary": [
+            {
+              "day": 1,
+              "title": "Arrive on the north coast",
+              "text": "Meet your airport transfer and settle into your north coast beach hotel."
+            },
+            {
+              "day": 2,
+              "title": "Mnemba Island",
+              "text": "Snorkel the reef, look out for dolphins, visit the sandbank and enjoy lunch."
+            },
+            {
+              "day": 3,
+              "title": "Prison Island and Stone Town",
+              "text": "See the giant tortoises and explore Stone Town's alleys and markets with a guide."
+            },
+            {
+              "day": 4,
+              "title": "Beach time and a dhow sunset",
+              "text": "A free beach day followed by a sunset dhow trip."
+            },
+            {
+              "day": 5,
+              "title": "Your own pace",
+              "text": "Enjoy a free day, with an optional spice farm visit at extra cost."
+            },
+            {
+              "day": 6,
+              "title": "Homeward",
+              "text": "Breakfast, your airport transfer and the flight home."
+            }
+          ],
+          "relatedArticles": [
+            "six-days-on-zanzibars-north-coast"
+          ],
+          "relatedPackageSlugs": [],
+          "tagline": "Dolphins by morning, dhow at sunset, a lively north coast in between.",
+          "important": "A single supplement applies when you do not share a room. Message us for your exact price.",
+          "image": {
+            "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+            "width": 1280,
+            "height": 2276,
+            "alt": "Palm trees and poolside seating at a beach club in Zanzibar at dusk.",
+            "sources": [
+              {
+                "src": "/media/zanzibar-beach-club-b60ec1e6297a-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "gallery": [
+            {
+              "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+              "width": 1280,
+              "height": 2276,
+              "alt": "Palm trees and poolside seating at a beach club in Zanzibar at dusk.",
+              "sources": [
+                {
+                  "src": "/media/zanzibar-beach-club-b60ec1e6297a-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+                  "width": 1280
+                }
+              ]
+            },
+            {
+              "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+              "alt": "A poolside view towards the ocean in Zanzibar.",
+              "width": 1242,
+              "height": 2208,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+                  "width": 1242
+                }
+              ]
+            },
+            {
+              "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+              "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
+              "width": 1206,
+              "height": 2119,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-sunset-bfb2dad00137-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+                  "width": 1206
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "4740cb7b-fded-4c68-a12d-aa9a73a2ba02",
+          "slug": "nairobi",
+          "title": "Nairobi",
+          "destination": "Nairobi, Kenya",
+          "nights": 3,
+          "days": 4,
+          "duration": "3 nights · 4 days",
+          "overview": "Three nights in Kenya's capital with return flights, a handpicked hotel, a full wildlife day, an adventure day at Hell's Gate and dinner at Carnivore. Choose your own dates and we handle everything else.",
+          "occasions": [],
+          "groupFriendly": false,
+          "availability": "enquiry",
+          "pricingStatus": "indicative",
+          "referenceMonth": "2027-01",
+          "priceDisclaimer": "Published \"from\" prices are indicative, per person sharing a room, and include return flights from Accra. They are based on our reference month. Your final price depends on your travel dates, hotel availability, live airfare and the exchange rate. We send you a live quote before you pay a deposit. If your balance is due months after booking, it is recalculated at the exchange rate on your final payment date.",
+          "tiers": [
+            {
+              "id": "classic",
+              "label": "Classic",
+              "amountMinor": 2100000,
+              "currency": "GHS",
+              "description": "Comfortable hotel near Nairobi National Park, with breakfast."
+            },
+            {
+              "id": "premier",
+              "label": "Premier",
+              "amountMinor": 2210000,
+              "currency": "GHS",
+              "description": "Upscale hotel with superior rooms and breakfast."
+            }
+          ],
+          "inclusions": [
+            "Return flights from Accra",
+            "Three nights in your chosen tier, with breakfast",
+            "Return airport transfers",
+            "Guided wildlife day: Nairobi National Park, elephant orphanage and Giraffe Centre, with entrance fees",
+            "Hell's Gate cycling and Lake Naivasha boat trip, with entrance fees, bikes and guide",
+            "Dinner at Carnivore",
+            "Comprehensive travel insurance and Kenya mandatory inbound travel health insurance",
+            "Travel With Ease concierge support and branded travel pack"
+          ],
+          "exclusions": [
+            "Lunches and drinks not listed",
+            "Tips and personal expenses",
+            "Optional early check-in",
+            "Single supplement"
+          ],
+          "itinerary": [
+            {
+              "day": 1,
+              "title": "Arrive in Nairobi",
+              "text": "Transfer to your hotel, settle in and enjoy dinner at Carnivore."
+            },
+            {
+              "day": 2,
+              "title": "A wildlife day",
+              "text": "A guided day at Nairobi National Park, the elephant orphanage and Giraffe Centre."
+            },
+            {
+              "day": 3,
+              "title": "Hell's Gate and Lake Naivasha",
+              "text": "Cycle at Hell's Gate and take a boat trip on Lake Naivasha."
+            },
+            {
+              "day": 4,
+              "title": "Homeward",
+              "text": "Breakfast, your airport transfer and the flight home."
+            }
+          ],
+          "relatedArticles": [],
+          "relatedPackageSlugs": [],
+          "tagline": "Nairobi in three nights. Wildlife, adventure and a legendary dinner, all sorted from Accra.",
+          "important": "This is a Nairobi city and wildlife trip, not a Masai Mara safari. A single supplement applies when you do not share a room. Message us for your exact price.",
+          "image": {
+            "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+            "width": 1280,
+            "height": 853,
+            "alt": "Elephants beside a waterhole and green vegetation in Kenya.",
+            "sources": [
+              {
+                "src": "/media/kenya-elephants-8947b7727ddb-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "gallery": [
+            {
+              "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
+              "width": 1280,
+              "height": 720,
+              "alt": "Hippopotamuses resting beside a wooded lakeshore in Kenya.",
+              "sources": [
+                {
+                  "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
+                  "width": 1280
+                }
+              ]
+            },
+            {
+              "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
+              "width": 1280,
+              "height": 1707,
+              "alt": "A safari vehicle at the East Gate entrance to Nairobi National Park.",
+              "sources": [
+                {
+                  "src": "/media/kenya-park-gate-fe3d52a1e6c6-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
+                  "width": 1280
+                }
+              ]
+            },
+            {
+              "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+              "width": 1280,
+              "height": 1707,
+              "alt": "A garden swimming pool surrounded by trees, parasols and outdoor seating in Kenya.",
+              "sources": [
+                {
+                  "src": "/media/kenya-garden-pool-2c7744e25798-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+                  "width": 1280
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "4740cb7b-fded-4c68-a12d-aa9a73a2ba03",
+          "slug": "singapore",
+          "title": "Singapore",
+          "destination": "Singapore",
+          "nights": 4,
+          "days": 5,
+          "duration": "4 nights · 5 days",
+          "overview": "Four nights of city sights, wildlife and theme parks, with flights, airport transfers and insurance. Shared guided tours are included; private upgrades can be discussed.",
+          "occasions": [],
+          "groupFriendly": false,
+          "availability": "enquiry",
+          "pricingStatus": "coming_soon",
+          "referenceMonth": "",
+          "priceDisclaimer": "",
+          "tiers": [
+            {
+              "id": "standard",
+              "label": "Standard",
+              "amountMinor": null,
+              "currency": "GHS",
+              "description": "Central hotel with breakfast."
+            },
+            {
+              "id": "mid",
+              "label": "Mid",
+              "amountMinor": null,
+              "currency": "GHS",
+              "description": "Orchard-area stay with breakfast."
+            },
+            {
+              "id": "luxury",
+              "label": "Luxury",
+              "amountMinor": null,
+              "currency": "GHS",
+              "description": "Boutique stay with a Gardens by the Bay city tour."
+            }
+          ],
+          "inclusions": [
+            "Return flights from Accra",
+            "Four nights with breakfast",
+            "Shared return airport transfers",
+            "Shared guided city tour, Night Safari, Universal Studios and Sentosa",
+            "Comprehensive travel insurance",
+            "Travel With Ease concierge support, branded travel pack and SG Arrival Card guidance"
+          ],
+          "exclusions": [
+            "Optional Gardens by the Bay visit unless included in your tier",
+            "Meals not listed",
+            "Personal expenses and tips",
+            "Extra nights and private tour upgrades",
+            "Single supplement"
+          ],
+          "itinerary": [],
+          "relatedArticles": [],
+          "relatedPackageSlugs": [],
+          "tagline": "Singapore, planned so you can just arrive.",
+          "image": {
+            "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+            "width": 1280,
+            "height": 1707,
+            "alt": "A garden swimming pool surrounded by trees, parasols and outdoor seating in Kenya.",
+            "sources": [
+              {
+                "src": "/media/kenya-garden-pool-2c7744e25798-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "gallery": [
+            {
+              "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+              "width": 1280,
+              "height": 1707,
+              "alt": "A garden swimming pool surrounded by trees, parasols and outdoor seating in Kenya.",
+              "sources": [
+                {
+                  "src": "/media/kenya-garden-pool-2c7744e25798-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+                  "width": 1280
+                }
+              ]
+            },
+            {
+              "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+              "alt": "A poolside view towards the ocean in Zanzibar.",
+              "width": 1242,
+              "height": 2208,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+                  "width": 1242
+                }
+              ]
+            },
+            {
+              "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+              "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
+              "width": 1206,
+              "height": 2119,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-sunset-bfb2dad00137-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+                  "width": 1206
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "4740cb7b-fded-4c68-a12d-aa9a73a2ba04",
+          "slug": "singapore-kuala-lumpur",
+          "title": "Singapore + Kuala Lumpur",
+          "destination": "Singapore and Kuala Lumpur, Malaysia",
+          "nights": 7,
+          "days": 8,
+          "duration": "7 nights · 8 days",
+          "overview": "Three nights in Singapore and four in Kuala Lumpur, with a short flight between the cities. Fly from Accra to Singapore and return home from Kuala Lumpur.",
+          "occasions": [],
+          "groupFriendly": false,
+          "availability": "enquiry",
+          "pricingStatus": "coming_soon",
+          "referenceMonth": "",
+          "priceDisclaimer": "",
+          "tiers": [],
+          "inclusions": [
+            "Flights from Accra to Singapore, Singapore to Kuala Lumpur, and Kuala Lumpur to Accra",
+            "Three nights in Singapore with breakfast, shared airport transfers, a city tour, Night Safari and Sentosa",
+            "Four nights in Kuala Lumpur with breakfast and airport transfers",
+            "Kuala Lumpur city tour, Batu Caves and Genting Highlands with cable car",
+            "Comprehensive travel insurance",
+            "Malaysia eVisa and SG Arrival Card guidance",
+            "Travel With Ease concierge support and branded travel pack"
+          ],
+          "exclusions": [
+            "Meals not listed",
+            "Optional Petronas Towers and theme park tickets",
+            "Malaysian tourism tax, payable at the hotel",
+            "Personal expenses and tips",
+            "Single supplement"
+          ],
+          "itinerary": [],
+          "relatedArticles": [],
+          "relatedPackageSlugs": [],
+          "tagline": "Two cities, one trip, one team handling it.",
+          "image": {
+            "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+            "alt": "A poolside view towards the ocean in Zanzibar.",
+            "width": 1242,
+            "height": 2208,
+            "sources": [
+              {
+                "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+                "width": 1242
+              }
+            ]
+          },
+          "gallery": [
+            {
+              "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+              "alt": "A poolside view towards the ocean in Zanzibar.",
+              "width": 1242,
+              "height": 2208,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+                  "width": 1242
+                }
+              ]
+            },
+            {
+              "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+              "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
+              "width": 1206,
+              "height": 2119,
+              "sources": [
+                {
+                  "src": "/media/zanzibar-sunset-bfb2dad00137-640.webp",
+                  "width": 640
+                },
+                {
+                  "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+                  "width": 1206
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "how-it-works": {
+      "heading": "How it works",
+      "body": "A clear plan, a live quote and no bookings until your funds have cleared.",
+      "entries": [
+        {
+          "heading": "Tell us about your journey",
+          "text": "Choose a package, tier and dates, or complete the personalised planning enquiry.",
+          "attribution": ""
+        },
+        {
+          "heading": "Review your live quote",
+          "text": "We confirm the details and send a live quote held for 14 days.",
+          "attribution": ""
+        },
+        {
+          "heading": "Confirm your booking",
+          "text": "For packages, a GHS 5,000 deposit per person confirms your booking. The final balance date is quoted, normally 45–70 days before departure.",
+          "attribution": ""
+        },
+        {
+          "heading": "Travel with your plan in hand",
+          "text": "Receive the agreed itinerary and travel information. Your service or package determines the support included.",
+          "attribution": ""
+        }
+      ],
+      "seoTitle": "How it works | Travel With Ease",
+      "seoDescription": "A clear plan, a live quote and no bookings until your funds have cleared.",
+      "image": {
+        "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
+        "width": 1280,
+        "height": 1707,
+        "alt": "A safari vehicle at the East Gate entrance to Nairobi National Park.",
+        "sources": [
+          {
+            "src": "/media/kenya-park-gate-fe3d52a1e6c6-640.webp",
+            "width": 640
+          },
+          {
+            "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
+            "width": 1280
+          }
+        ]
+      }
+    },
+    "travel-tips": {
+      "heading": "A little advice goes a long way.",
+      "body": "A few practical notes before you plan your next journey.",
+      "entries": [],
+      "seoTitle": "A little advice goes a long way. | Travel With Ease",
+      "seoDescription": "A few practical notes before you plan your next journey.",
+      "tips": [
+        {
+          "slug": "get-a-live-quote-before-you-pay",
+          "title": "Get a live quote before you pay",
+          "excerpt": "Your travel dates, airfare and exchange rate shape the final package price.",
+          "body": "Published \"from\" prices are indicative, per person sharing a room, and include return flights from Accra. They are based on our reference month. Your final price depends on your travel dates, hotel availability, live airfare and the exchange rate. We send you a live quote before you pay a deposit. If your balance is due months after booking, it is recalculated at the exchange rate on your final payment date.",
+          "category": "Before You Go",
+          "featured": true,
+          "order": 0,
+          "image": {
+            "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+            "width": 1280,
+            "height": 1707,
+            "alt": "A garden swimming pool surrounded by trees, parasols and outdoor seating in Kenya.",
+            "sources": [
+              {
+                "src": "/media/kenya-garden-pool-2c7744e25798-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "relatedArticle": "six-days-on-zanzibars-north-coast"
+        },
+        {
+          "slug": "know-your-deposit-and-balance-dates",
+          "title": "Know your deposit and balance dates",
+          "excerpt": "Understand the deposit and final payment date before confirming a package.",
+          "body": "A GHS 5,000 deposit per person confirms your package booking and locks the quoted rate, subject to the exchange-rate provision above for a later balance. This deposit is non-refundable if you withdraw. The balance is due on the date in your quote, normally 45–70 days before departure depending on the hotel. Bookings are made only after funds have cleared. Payment is available through Telecel Cash or MTN MoMo; payment instructions are provided privately.",
+          "category": "Before You Go",
+          "featured": false,
+          "order": 1,
+          "image": {
+            "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
+            "width": 1280,
+            "height": 1707,
+            "alt": "A safari vehicle at the East Gate entrance to Nairobi National Park.",
+            "sources": [
+              {
+                "src": "/media/kenya-park-gate-fe3d52a1e6c6-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "relatedArticle": ""
+        },
+        {
+          "slug": "travelling-without-a-room-share",
+          "title": "Travelling without a room share?",
+          "excerpt": "Package starting prices are per person sharing. Ask for your own room quote.",
+          "body": "A single supplement applies when you do not share a room. Message us for your exact price.",
+          "category": "Before You Go",
+          "featured": false,
+          "order": 2,
+          "image": {
+            "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+            "width": 1280,
+            "height": 2276,
+            "alt": "Palm trees and poolside seating at a beach club in Zanzibar at dusk.",
+            "sources": [
+              {
+                "src": "/media/zanzibar-beach-club-b60ec1e6297a-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "relatedArticle": ""
+        }
+      ]
+    },
+    "cookies": {
+      "heading": "Cookies and preferences",
+      "body": "Choose whether to allow optional analytics. Essential security and preference storage remain available without analytics consent.",
+      "entries": [
+        {
+          "heading": "Essential storage",
+          "text": "The public website stores your preference under twe-cookie-consent-v1 in your browser. Separate protected cookies support staff sign-in and security. These are not public marketing preferences.",
+          "attribution": ""
+        },
+        {
+          "heading": "Optional analytics",
+          "text": "If you choose analytics, the configured Google Analytics tag can measure public website usage and set identifiers such as _ga. It is not loaded before consent. Cookie names and expiry behaviour depend on the active Google configuration.",
+          "attribution": ""
+        },
+        {
+          "heading": "Change your choice",
+          "text": "Use Cookie settings in the footer to review your preference at any time. Essential only does not grant analytics consent. Changing preferences stops future optional measurement; it does not remove information already processed.",
+          "attribution": ""
+        },
+        {
+          "heading": "Other services",
+          "text": "Google Search Console is separate search reporting, not a cookie category enabled by this popup. Following an external WhatsApp or social-media link takes you to that service’s own privacy and cookie rules.",
+          "attribution": ""
+        },
+        {
+          "heading": "Questions",
+          "text": "Contact nana@travelwitheasegh.com about cookies or personal information.",
+          "attribution": ""
+        }
+      ],
+      "seoTitle": "Cookies and preferences | Travel With Ease",
+      "seoDescription": "Choose whether to allow optional analytics. Essential security and preference storage remain available without analytics consent."
+    }
   }
 }

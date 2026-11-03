@@ -284,7 +284,7 @@ button {
 label {
   display: grid;
   gap: 0.4rem;
-  font-size: 0.82rem;
+  font-size: 1rem;
   font-weight: 700;
   margin-bottom: 1rem;
 }
@@ -292,12 +292,35 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #cbc4b8;
+  border: 1px solid #687386;
   border-radius: 0.7rem;
   background: #fbf9f5;
   padding: 0.82rem;
   font: inherit;
   color: var(--text);
+}
+/* Faako inputs and portalled listboxes retain the public site's body size.
+   The visible control, not its wrapper, owns the contrast boundary. */
+body .ui-field__input,
+body .ui-dropdown-field__trigger,
+body .ui-combobox-field__input,
+body .ui-dropdown-field__option,
+body .ui-field__label,
+body .ui-dropdown-field__value {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+body .ui-field__input,
+body .ui-dropdown-field__trigger,
+body .ui-combobox-field__input {
+  border: 1px solid #687386;
+  min-height: 48px;
+  background: #fffdfa;
+  color: #010c33;
+}
+body .ui-dropdown-field__popover,
+body .ui-combobox-field__popover {
+  border: 1px solid #687386;
 }
 input:focus,
 select:focus,

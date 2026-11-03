@@ -1,5 +1,169 @@
 # Travel With Ease progress log
 
+## 2026-11-03 — Develop release preparation
+
+- Created `feat/twe-cms-website-release-2026-11-03` from refreshed
+  `origin/develop` (`65bc1634fb913fbf1ba02d06a374792dd0653470`) in an isolated
+  worktree; regular-worktree edits and unrelated applications remain untouched.
+- Included the approved public content/design and CMS changes described below.
+  Preserved develop's shared UI, authentication, hosting and dependency baseline;
+  the lockfile adds only the pinned publication-worker dependency graph.
+- Release checks: TWE lint/type/build passed; API 107, portal 15, website 39,
+  shared UI 8 and isolated PostgreSQL 6 tests passed. Frozen installation,
+  registry/manifests and workspace secret scan passed. Browser acceptance and
+  remote CI are release gates, not implied by these unit-test results.
+- Migration 012 must precede the hosted runtime. Actual provider publication,
+  initial recovery baseline, authenticated staging UAT and production acceptance
+  remain pending as documented in the CMS runtime runbook. This PR targets
+  develop only; no main promotion or production certification is implied.
+
+## 2026-11-03 — CMS implementation and portal control correction
+
+- Added serialized 1.2-second autosave with expected-version conflict protection,
+  lost-response reconciliation, explicit Save Draft and durable save states.
+- Added actual private Astro preview jobs and protected assets, ten-minute expiry,
+  read-only/noindex policy, viewport controls and desktop/mobile editing layouts.
+- Added approved-company-copy loading, per-record collection publication and
+  exact live-body persistence. Never-published drafts no longer withdraw the
+  approved baseline; individual publication requires an accepted whole-collection
+  baseline before it can safely preserve siblings.
+- Added migration 012, deploy/verify publication states, pinned official Wrangler
+  worker, private R2 artifact archive, shared-project staging recovery and an
+  initial acceptance command. Enabled hosted notification executable only behind
+  its explicit gate and full database preflight. No real provider mutation ran.
+- Implemented the final brief's explicit Superadmin application permissions,
+  retaining MFA/session/CSRF/audit/tenant isolation and provider-secret boundaries.
+- Client requested collections stay under Content: removed newly added separate
+  Packages/Journal/Tips/Footprint sidebar entries. Fixed nested borders on inputs,
+  comboboxes and hidden native selects; one visible field boundary and keyboard
+  focus remain. No unrelated shared-control behaviour was changed.
+- Final API suite: 107 passed, zero failed after baseline-preservation changes.
+  Isolated PostgreSQL migration/runtime/restore tests also pass (six tests,
+  evidence twe-isolated-pg17-MiY2UR). Portal suite: 15 passed, zero failed,
+  including menu grouping and autosave regressions. API/portal lint/type checks,
+  portal production build and scoped whitespace checks pass.
+- Actual Astro private-preview Chrome check passed 320/390/768/1440, screenshots
+  twe-private-preview-browser-MShejP. Current portal Chrome checks pass at all four
+  widths, including autosave, Content navigation, single borders and focus;
+  screenshots twe-content-demo-058NF4. These are local/synthetic checks, not UAT.
+- Portal JS bundle is 465.94 kB / 137.26 kB gzip; CSS 147.51 kB / 23.11 kB gzip.
+  The approved-copy loader accounts for additional public copy in the staff-only
+  bundle; provider tooling is backend-only, not shipped to the public website.
+- Root README, editing guide, implementation/status indices and
+  cms-runtime-2026-11-03.md updated. Historical observations remain dated evidence.
+- User confirmed twe-concierge: develop staging preview/main production;
+  twe-portal is not a content-publication target. Remote-history fetch approval
+  was declined: no branch switch, commit, push, merge or deployment performed.
+  Local edits are in the regular worktree. The broader launch brief is incomplete;
+  remaining implementation/provider acceptance is explicit in the runtime guide.
+
+## 2026-11-02 — Continuous mobile closing photograph
+
+- Restored cover sizing across the single shared enquiry/footer wrapper. Mobile
+  uses the approved 1920×3413 Zanzibar portrait; desktop retains its assigned image.
+- Retrieved two further approved Kenya Drive images (elephants and lakeside
+  hippos), converted to metadata-free responsive WebP, and assigned them to
+  service imagery, Kenya package/gallery, founder article gallery and local demo.
+- Current checks pass: 39 website tests, lint, 89-file Astro type check, build,
+  and Chrome checks across eight routes at 320/390/768/1440px. See design-qa.md.
+- Changes are present in the regular local worktree and mirrored to the focused
+  worktree. Not pushed or deployed. CMS autosave, actual-layout draft previews
+  and publishing automation remain a separate outstanding implementation scope.
+
+## 2026-11-02 — Selected Journey Chapters and public controls
+
+- Implemented selected concept 3 below the original hero: agency introduction,
+  real photographic service links and concise process. Refined Services, About,
+  Packages, Journal and Tips, preserving the supplied device CTA/footer scene.
+- Added approved Drive photography as responsive metadata-free WebPs, with
+  provenance and byte totals in journey-chapters-2026-11-02.md.
+- Incorporated later steering for smaller Journal cards with overlay metadata,
+  rounded photos/cards, soft elevation and fewer decorative dividers.
+- Fixed duplicated field borders/padding, widened search, shortened filters and
+  made dropdown panels solid cream. Borders are lighter, not darker.
+- Added persistent all-page navigation with centred 25px rounded scroll state
+  and supplied pin; preserved mobile Menu, keyboard and no-JavaScript paths.
+- Checks are recorded in the website design-qa.md; no hosted release or broader
+  product completion is claimed. Standard dev ports are reserved for the user;
+  agent-only visual verification uses the isolated worktree on port 4339.
+
+## 2026-11-01 — Local startup and next design review
+
+- Reproduced the root generic dev failure: 17 persistent tasks exceed Turbo's
+  default concurrency of 10. Raised the root command limit to 20, without
+  changing individual app startup contracts. Recommend the TWE-only dev shortcut
+  on a laptop; the whole-repository command starts unrelated applications.
+- Confirmed the normal worktree TWE website and portal respond with HTTP 200 and
+  the local API health endpoint responds successfully. Sandbox port/watcher
+  restrictions are not reported as application failures.
+- Removed the redundant Home menu entry; the labelled brand link still returns
+  home. The current hero and supplied mockup CTA remain unchanged.
+- Reviewing below-hero and inner-page design against fresh Flyward captures and
+  additional approved Drive photographs. Visual alternatives are not yet an
+  implemented redesign, deployment or completed accessibility audit.
+
+## 2026-11-01 — Supplied-content integration and shared native enquiry
+
+- Re-read the complete final launch prompt and all eight PDF pages. Recorded
+  explicit approvals restoring legal footer identifiers and reviewed price/
+  booking terms; originals and credentials are not committed.
+- Added four CMS package records and dedicated listing/details; integer GHS tiers,
+  reference months, unique slugs, occasion/group filters, itinerary disclosures,
+  galleries and published relationships. User steering limits image-overlay
+  cards to title, subtitle and price; full terms stay on details.
+- Replaced public filler with supplied About, service fees, process, FAQ and
+  commercial copy; added factual privacy/cookie information. Journal exposes the
+  supplied founder story and Zanzibar itinerary; three Tips derive from approved
+  booking copy. No invented clients, testimonials, hotel names or prices.
+- Added 21 supplied countries with exact/approximate/lower-bound visit wording,
+  Natural Earth small-country points and neutral public totals. Source
+  classifications remain separate; no 29-country sum or fabricated agency trips.
+  Preserved the user's existing 80% map width and shortened attribution.
+- All public pages share the enquiry/footer scene without duplicating the home
+  slot. Mobile alone contains the portrait background to avoid the heavy crop.
+  Added page photography/editorial layouts and 16px bordered Faako controls.
+  Approved mockups, hero and footer reveal are retained.
+- Implemented short first-contact intake, classification/consent, exact-Origin/
+  rate/honeypot checks, idempotent local/SQL persistence and transactional outbox.
+  Added hosted Turnstile verification, client widget and CSP support. Real keys
+  and actual provider receipt remain pending, not bypassed.
+- All three builds/lint and Astro type check passed; website 36 tests, API 90
+  tests and portal 9 tests passed before the final Turnstile addition. Its six
+  focused endpoint/verification tests passed. Isolated PostgreSQL passed five
+  tests plus restart/restore (20 tables, 148 synthetic rows). Final browser and
+  post-integration regression results must be appended, not assumed.
+- Updated root README, source decisions, completion status, client guide and
+  Turnstile setup. Source changes are mirrored into the regular worktree;
+  unrelated applications/private env files are preserved.
+- Full intake branches, package/tier context, autosave, protected Astro previews,
+  independent publication, expanded Superadmin policy, hosted automation, demo
+  retirement and real staging acceptance remain open. No push/deployment claimed.
+
+## 2026-11-01 — README synchronisation and completion audit
+
+- Audited the new incremental completion brief against latest develop, preserving
+  the approved homepage and unrelated uncommitted work. Root README now lists
+  38 workspace members, TWE responsibilities, commands, environments, status and
+  release/recovery links; existing unrelated application documentation is retained.
+- Added a feature-by-feature implementation/acceptance matrix and recorded gaps
+  in Packages, Tips, advanced Journal, native enquiries, autosave, actual Astro
+  previews, independent records, Superadmin policy and hosted automation. No
+  unimplemented feature is labelled complete and no permission grant was changed.
+- Updated documentation index, architecture precedence, environment contract,
+  readiness checklist and phased completion plan to remove stale active claims
+  about mandatory separate portal hosting, PostgreSQL 17 and blocked production
+  API startup. Worker activation remains separately gated in executable code.
+- Recorded non-mutating hosted HTTPS checks: staging website/API health 200,
+  both portal roots 302, production website 200, production API timeout and both
+  publication markers 404. No authenticated/provider delivery/restore/UAT or
+  deployed-SHA acceptance is claimed. Latest TWE develop CI evidence is linked.
+- This is the audit/documentation slice, not completion of the feature brief;
+  no deployment, database mutation, enquiry, email, Trello change or production
+  promotion was performed.
+- Added three automated documentation checks for manifest inventory, repository
+  links/heading anchors and documented PNPM scripts; all passed. The new test
+  lint, workspace manifest validation and whitespace checks passed.
+
 ## 2026-10-31 — PR 125 browser image-loading regression
 
 - Fixed the redesign acceptance test to scroll each lazy-loaded How it works

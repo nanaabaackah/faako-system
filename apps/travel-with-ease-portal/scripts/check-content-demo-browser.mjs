@@ -56,10 +56,25 @@ try {
       .getByRole("button", { name: "Content", exact: true })
       .first()
       .click();
+    for (const label of ["Packages", "Journal", "Travel Tips", "Footprint"]) {
+      assert.equal(await page.locator(".portal-shell > aside nav").getByRole("button", { name: label, exact: true }).count(), 0, "Collections stay inside Content");
+    }
+    const headingInput = page.getByLabel(/^Heading/);
+    assert.equal(await headingInput.evaluate(element => getComputedStyle(element).borderTopWidth), "0px", "No nested input border");
+    await headingInput.focus();
+    assert.equal(await headingInput.evaluate(element => getComputedStyle(element.closest(".ui-field__control")).outlineWidth), "3px", "Wrapper keeps visible focus");
     const select = async (value) => {
       await page.getByRole("button", { name: "Section", exact: true }).click();
       await page.getByRole("option", { name: value, exact: true }).click();
     };
+    await select("travel-tips");
+    await page.getByLabel(/^Tip title/).fill("Changed demo tip");
+    await page.waitForFunction(() => document.querySelector(".draft-save-status")?.textContent.includes("Saved · version 2"));
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await page.getByRole("button", { name: "Preview saved content", exact: true }).click();
+    await page.getByRole("heading", { name: "Changed demo tip", exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: path.join(output, `tips-${width}.png`), fullPage: true });
     await select("journal");
     await page.getByLabel(/^Title/).fill("Changed demo article");
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
@@ -93,25 +108,17 @@ try {
     });
     await select("privacy");
     await page
-      .getByRole("button", { name: "Load review draft", exact: true })
+      .getByRole("button", { name: "Load approved copy", exact: true })
       .click();
     assert.equal(
       await page.getByLabel(/^Heading/).inputValue(),
       "Privacy notice",
     );
-    assert.equal(
-      await page
-        .getByRole("button", { name: "Request publication", exact: true })
-        .isEnabled(),
-      false,
-    );
+    await page.waitForFunction(() => document.querySelector(".draft-save-status")?.textContent.includes("Saved · version 2"));
+    assert.equal(await page.getByRole("button", { name: "Publish saved changes", exact: true }).isEnabled(), true);
     await page.screenshot({
       path: path.join(output, `policy-${width}.png`),
       fullPage: true,
-    });
-    page.once("dialog", async (dialog) => {
-      assert.equal(dialog.message(), "Discard unsaved changes?");
-      await dialog.accept();
     });
     await page
       .getByRole("button", { name: "Media", exact: true })

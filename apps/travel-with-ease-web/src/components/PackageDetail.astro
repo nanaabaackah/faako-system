@@ -1,0 +1,224 @@
+---
+import ContentLink from "./ContentLink.astro";
+import Accordion from "./Accordion.astro";
+import ClosingCta from "./ClosingCta.astro";
+import { publishedPage } from "../lib/published.js";
+import ImageGallery from "./ImageGallery.astro";
+import PackagePrices from "./PackagePrices.astro";
+import { packageStartingPrice } from "../lib/package-pricing.js";
+import type { TravelPackage, JournalArticle } from "../lib/collections";
+import "../styles/components/collections.css";
+interface Props {
+  item: TravelPackage;
+  relatedPackages?: TravelPackage[];
+  stories?: JournalArticle[];
+  demo?: boolean;
+  prefix?: string;
+  journalPrefix?: string;
+}
+const {
+  item,
+  relatedPackages = [],
+  stories = [],
+  demo = false,
+  prefix = "/packages",
+  journalPrefix = "/journal",
+} = Astro.props;
+const canEnquire = !["closed", "sold_out"].includes(item.availability || "");
+const enquiry = demo
+  ? `/demo?destination=${encodeURIComponent(item.destination)}#demo-enquiry-form`
+  : "#plan";
+---
+
+<article class="collection-detail">
+  <div class="editorial-wrap">
+    <ContentLink href={prefix}>All packages</ContentLink>{
+      demo && (
+        <p class="collection-demo-notice">
+          Sample package — not an offer or confirmed booking.
+        </p>
+      )
+    }
+    <header class="collection-detail-heading">
+      <p>{item.destination}</p><h1>{item.title}</h1><p>
+        {[item.duration, item.dates].filter(Boolean).join(" · ")}
+      </p>
+    </header>
+    {
+      item.image && (
+        <img
+          class="collection-hero"
+          src={item.image.src}
+          srcset={item.image.sources
+            ?.map((source) => `${source.src} ${source.width}w`)
+            .join(", ")}
+          sizes="90vw"
+          width={item.image.width}
+          height={item.image.height}
+          alt={item.image.alt}
+          fetchpriority="high"
+        />
+      )
+    }
+    <div class="package-detail-grid">
+      <div class="collection-reading">
+        <section>
+          <h2>The journey</h2><p class="preserve-lines">{item.overview}</p>
+        </section>
+        {
+          (item.highlights?.length || 0) > 0 && (
+            <section>
+              <>
+                <h2>Trip highlights</h2>
+                <ul>
+                  {(item.highlights || []).map((text) => (
+                    <li>{text}</li>
+                  ))}
+                </ul>
+              </>
+            </section>
+          )
+        }
+        <PackagePrices item={item} />
+        {
+          (item.inclusions?.length || 0) > 0 && (
+            <section>
+              <>
+                <h2>What is included</h2>
+                <ul>
+                  {(item.inclusions || []).map((text) => (
+                    <li>{text}</li>
+                  ))}
+                </ul>
+              </>
+            </section>
+          )
+        }
+        {
+          (item.exclusions?.length || 0) > 0 && (
+            <section>
+              <>
+                <h2>Not included</h2>
+                <ul>
+                  {(item.exclusions || []).map((text) => (
+                    <li>{text}</li>
+                  ))}
+                </ul>
+              </>
+            </section>
+          )
+        }
+        {
+          item.transport && (
+            <section>
+              <>
+                <h2>Flights and transport</h2>
+                <p>{item.transport}</p>
+              </>
+            </section>
+          )
+        }
+        {
+          item.accommodation && (
+            <section>
+              <>
+                <h2>Where you stay</h2>
+                <p>{item.accommodation}</p>
+              </>
+            </section>
+          )
+        }
+        {
+          (item.itinerary?.length || 0) > 0 && (
+            <section>
+              <h2>Your itinerary</h2>
+              {[...(item.itinerary || [])]
+                .sort((a, b) => a.day - b.day)
+                .map((day) => (
+                  <Accordion title={`Day ${day.day} · ${day.title}`}>
+                    <p>{day.text}</p>
+                  </Accordion>
+                ))}
+            </section>
+          )
+        }
+        {
+          (item.gallery?.length || 0) > 0 && (
+            <section>
+              <>
+                <h2>A closer look</h2>
+                <ImageGallery images={item.gallery || []} />
+              </>
+            </section>
+          )
+        }
+        {
+          item.important && (
+            <section>
+              <>
+                <h2>Before you enquire</h2>
+                <p>{item.important}</p>
+              </>
+            </section>
+          )
+        }
+      </div><aside class="package-enquiry-panel">
+        <h2>Interested in this trip?</h2>{
+          <p class="package-price">{packageStartingPrice(item)}</p>
+        }<p>
+          An enquiry is not a booking. Confirm the offer, dates, price and terms
+          directly with the agency.
+        </p>{
+          canEnquire ? (
+            <ContentLink button href={enquiry}>
+              Check dates &amp; get a quote
+            </ContentLink>
+          ) : (
+            <p>Enquiries for this trip are currently closed.</p>
+          )
+        }{
+          !demo && (
+            <p>
+              Mention “{item.title}” in your enquiry. Your final dates,
+              arrangements and price are confirmed in a live quote.
+            </p>
+          )
+        }
+      </aside>
+    </div>
+    {
+      relatedPackages.length > 0 && (
+        <section class="collection-related">
+          <h2>Other journeys to consider</h2>
+          {relatedPackages.map((other) => (
+            <ContentLink href={`${prefix}/${other.slug}`}>
+              {other.title}
+            </ContentLink>
+          ))}
+        </section>
+      )
+    }
+    {
+      stories.length > 0 && (
+        <section class="collection-related">
+          <h2>From the Journal</h2>
+          {stories.map((story) => (
+            <ContentLink href={`${journalPrefix}/${story.slug}`}>
+              {story.title}
+            </ContentLink>
+          ))}
+        </section>
+      )
+    }
+  </div>
+  {
+    canEnquire && (
+      <div class="package-mobile-enquiry">
+        <ContentLink button href={enquiry}>
+          Check dates &amp; get a quote
+        </ContentLink>
+      </div>
+    )
+  }
+</article>
+<ClosingCta demo={demo} standalone enquiryAvailable={Boolean(publishedPage("contact"))} />

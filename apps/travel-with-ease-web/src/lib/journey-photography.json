@@ -1,0 +1,82 @@
+{
+  "garden": {
+    "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+    "width": 1280,
+    "height": 1707,
+    "alt": "A garden swimming pool surrounded by trees, parasols and outdoor seating in Kenya.",
+    "sources": [
+      {
+        "src": "/media/kenya-garden-pool-2c7744e25798-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
+        "width": 1280
+      }
+    ]
+  },
+  "coast": {
+    "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+    "width": 1280,
+    "height": 2276,
+    "alt": "Palm trees and poolside seating at a beach club in Zanzibar at dusk.",
+    "sources": [
+      {
+        "src": "/media/zanzibar-beach-club-b60ec1e6297a-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
+        "width": 1280
+      }
+    ]
+  },
+  "park": {
+    "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
+    "width": 1280,
+    "height": 1707,
+    "alt": "A safari vehicle at the East Gate entrance to Nairobi National Park.",
+    "sources": [
+      {
+        "src": "/media/kenya-park-gate-fe3d52a1e6c6-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
+        "width": 1280
+      }
+    ]
+  },
+  "elephants": {
+    "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+    "width": 1280,
+    "height": 853,
+    "alt": "Elephants beside a waterhole and green vegetation in Kenya.",
+    "sources": [
+      {
+        "src": "/media/kenya-elephants-8947b7727ddb-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+        "width": 1280
+      }
+    ]
+  },
+  "hippos": {
+    "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
+    "width": 1280,
+    "height": 720,
+    "alt": "Hippopotamuses resting beside a wooded lakeshore in Kenya.",
+    "sources": [
+      {
+        "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-640.webp",
+        "width": 640
+      },
+      {
+        "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
+        "width": 1280
+      }
+    ]
+  }
+}

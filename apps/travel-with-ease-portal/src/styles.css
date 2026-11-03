@@ -102,7 +102,7 @@ body { margin: 0; color: var(--sys-text); font-family: var(--sys-font-body); }
 .portal-shell nav button { color: inherit; background: none; border: 0; text-align: left; padding: 12px 0; font: inherit; cursor: pointer; }
 .portal-shell nav button[aria-current] { text-decoration: underline; text-underline-offset: 4px; }
 .content-editor label { display: grid; gap: 8px; margin: 16px 0; }
-.content-editor input:not(.ui-field__input), .content-editor select, .content-editor textarea:not(.ui-field__input) { padding: 10px; width: 100%; color: var(--sys-text); background: var(--sys-surface); border: 1px solid var(--sys-border-strong); border-radius: 4px; font: inherit; }
+.content-editor input:not(.ui-field__input), .content-editor select:not(.ui-dropdown-field__native), .content-editor textarea:not(.ui-field__input) { padding: 10px; width: 100%; color: var(--sys-text); background: var(--sys-surface); border: 1px solid var(--sys-border-strong); border-radius: 4px; font: inherit; }
 .content-editor fieldset { border: 1px solid var(--sys-border); padding: 16px; min-width: 0; }
 .editor-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
 .preserve-lines { white-space: pre-wrap; }
@@ -281,4 +281,37 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
   .enquiry-detail-heading { align-items: flex-start; flex-direction: column; }
   .portal-shell .media-list, .system-job-grid { grid-template-columns: 1fr; }
   .system-health { grid-template-columns: 1fr; }.system-health dd { margin-bottom: 12px; }
+}
+.portal-shell .ui-field__control,
+.portal-shell .ui-dropdown-field__trigger,
+.portal-shell .ui-combobox-field__control {
+  border: 1px solid #858a94;
+  border-radius: 7px;
+  min-height: 48px;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.portal-shell .ui-field__control { padding: 0 14px; }
+.portal-shell .ui-field__control > .ui-field__input,
+.portal-shell .ui-combobox-field__control > .ui-combobox-field__input {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  min-height: 46px;
+  padding: 10px 0;
+  margin: 0;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.portal-shell .ui-field__control > .ui-field__textarea { min-height: 128px; }
+.portal-shell .ui-field__control:focus-within,
+.portal-shell .ui-dropdown-field__trigger:focus-visible,
+.portal-shell .ui-combobox-field__control:focus-within { outline: 3px solid #7ab8ff; outline-offset: 2px; }
+.portal-shell .ui-field.is-error .ui-field__control { border-color: #982c28; }
+.portal-shell .ui-field__label,
+.ui-dropdown-field__option {
+  font-size: 1rem;
 }
