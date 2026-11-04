@@ -77,6 +77,19 @@ test("staging portal demo accepts only the approved route, hostname, and explici
     hostname: "localhost", pathname: "/", search: "?demo=1" }), false);
 });
 
+test("role demos expose the approved matrix and keep role changes synthetic",async()=>{
+  const owner=createDemoClient(),admin=createDemoClient({role:'platform_admin'}),editor=createDemoClient({role:'editor'});
+  assert.equal((await owner.get('/api/auth/session')).user.permissions.includes('staff.roles.manage'),false);
+  assert.equal((await admin.get('/api/auth/session')).user.permissions.includes('staff.roles.manage'),true);
+  assert.equal((await editor.get('/api/auth/session')).user.permissions.includes('audit.business.read'),false);
+  const path='/api/agent/administration/staff/demo-editor/role',json={role:'owner',expectedRole:'editor',approvalReference:'DEMO-TEST'};
+  await assert.rejects(owner.post(path,{json}),{status:403});
+  await admin.post(path,{json});
+  assert.equal((await admin.get('/api/agent/administration/staff')).items[0].role,'owner');
+  assert.equal((await createDemoClient().get('/api/agent/administration/staff')).items[0].role,'editor');
+  assert.equal((await admin.get('/api/agent/administration/activity')).items[0].approval_reference,'DEMO-TEST');
+});
+
 test("demo mutations stay in memory and unsupported actions cannot report success", async () => {
   const api = createDemoClient();
   const list = await api.get("/api/agent/inquiries");

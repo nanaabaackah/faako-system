@@ -1,12 +1,14 @@
 ---
 import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
+import { imagePlacement } from '../lib/image-placements.js';
 import "../styles/components/journey-editorial.css";
 interface Props {
-  content: { heading: string; body: string; entries: { heading: string; text: string }[] };
+  content: { heading: string; body: string; entries: { heading: string; text: string }[];imagePlacements?:Record<string,import('../lib/collections').ImagePlacement> };
   page?: boolean;
 }
 const { content, page = false } = Astro.props;
+const photo=imagePlacement(content,'feature',photography.park);
 // Short homepage summaries; the dedicated page retains complete approved terms.
 const summaries = [
   "Share your destination, dates and who is travelling.",
@@ -16,8 +18,8 @@ const summaries = [
 ];
 ---
 
-<section class="journey-process editorial-wrap" id="how-it-works">
-  <EditorialPhoto image={photography.park} class="journey-process__photo" />
+<section class="journey-process editorial-wrap" id="how-it-works" data-image-layout={photo.layout}>
+  <EditorialPhoto image={photography.park} placement={photo} class="journey-process__photo" />
   <div>
     {page ? <h1>{content.heading}</h1> : <h2>{content.heading}</h2>}
     {page && <p class="journey-process__introduction">{content.body}</p>}

@@ -34,6 +34,7 @@ export class ContentRepository {
   async save(page, body, expectedVersion, actor, requestId) {
     pageSchema.parse(page);
     const validated = contentForPage(page, body);
+    validated.entries=validated.entries.map(entry=>({...entry,id:entry.id||randomUUID()}));
     if (actor.organisationId !== this.organisationId) throw new ContentError(403, "permission_error", "Organisation access denied.");
     return transaction(this.pool, async (client) => {
       if (expectedVersion === 0) await client.query("INSERT INTO twe.content_items (id, organisation_id, kind, slug) VALUES ($1, $2, 'page', $3) ON CONFLICT (organisation_id, kind, slug) DO NOTHING", [randomUUID(), this.organisationId, page]);

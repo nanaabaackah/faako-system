@@ -1,4 +1,5 @@
 ---
+import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
 import CollectionFilters from "./CollectionFilters.jsx";
 import { packageStartingPrice } from "../lib/package-pricing.js";
@@ -10,12 +11,14 @@ interface Props {
   demo?: boolean;
   prefix?: string;
   heading?: string;
+  headerPlacement?:import('../lib/collections').ImagePlacement;
 }
 const {
   items,
   demo = false,
   prefix = "/packages",
   heading = "Find your next journey.",
+  headerPlacement,
 } = Astro.props;
 ---
 
@@ -26,6 +29,7 @@ const {
       personalised trip.
     </p>
   </header>
+  <PlacedImage placement={headerPlacement} class="collection-header-photo" sizes="90vw"/>
   {
     demo && (
       <p class="collection-demo-notice">
@@ -61,7 +65,7 @@ const {
               data-search={`${item.title} ${item.destination} ${item.category || ""}`.toLocaleLowerCase()}
             >
               {item.image && (
-                <img
+                <PlacedImage image={item.image} placement={item.imagePlacement}
                   src={item.image.src}
                   srcset={item.image.sources
                     ?.map((source) => `${source.src} ${source.width}w`)

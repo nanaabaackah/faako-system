@@ -98,13 +98,14 @@ export class Invitations {
         this.installer(identity) && !(await this.ownerExists(this.pool)),
     };
   }
-  async checkOwner(client, actor) {
+  async checkOwner(client, actor, role = 'editor') {
     if (actor?.organisationId !== this.organisationId) deny();
-    const { rowCount } = await client.query(
-      "SELECT 1 FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 AND role IN ('owner','platform_admin') AND active=true FOR SHARE",
+    const { rows } = await client.query(
+      "SELECT role FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 AND role IN ('owner','platform_admin') AND active=true FOR SHARE",
       [this.organisationId, actor.id],
     );
-    if (!rowCount) deny();
+    if (!rows.length || (role === 'owner' && rows[0].role !== 'platform_admin')) deny();
+    return rows[0];
   }
   audit(client, actorId, action, recordId, requestId) {
     return appendAudit(client, {
@@ -115,11 +116,12 @@ export class Invitations {
       requestId,
     });
   }
-  async issue({ actor, identity, subject, approvalReference, requestId }) {
+  async issue({ actor, identity, subject, approvalReference, requestId, role: requestedRole = 'editor' }) {
     return transaction(this.pool, async (client) => {
       await this.lock(client);
-      const role = actor ? "editor" : "owner";
-      if (actor) await this.checkOwner(client, actor);
+      const role = actor ? requestedRole : "owner";
+      if (!['owner','editor'].includes(role)) deny();
+      if (actor) await this.checkOwner(client, actor,role);
       else if (!this.installer(identity) || (await this.ownerExists(client)))
         deny();
       const existing = await client.query(
@@ -142,7 +144,7 @@ export class Invitations {
           : `${identity.issuer}\n${identity.subject}\n${identity.audience}`,
       );
       await client.query(
-        "INSERT INTO twe.staff_invitations(id,organisation_id,environment,issuer,audience,subject,role,token_hash,approval_reference,created_by,expires_at,issued_by_identity_hash) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
+        "INSERT INTO twe.staff_invitations(id,organisation_id,environment,issuer,audience,subject,role,token_hash,approval_reference,created_by,expires_at,issued_by_identity_hash,purpose) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
         [
           id,
           this.organisationId,
@@ -156,6 +158,7 @@ export class Invitations {
           actor?.id || null,
           expiresAt,
           issuerHash,
+          actor ? 'staff' : 'initial_owner',
         ],
       );
       await this.audit(
@@ -184,12 +187,13 @@ export class Invitations {
   async revoke({ actor, identity, id, requestId }) {
     return transaction(this.pool, async (client) => {
       await this.lock(client);
-      if (actor) await this.checkOwner(client, actor);
+      let allowedRole = 'owner';
+      if (actor) { const current = await this.checkOwner(client, actor); allowedRole = current.role === 'platform_admin' ? null : 'editor'; }
       else if (!this.installer(identity) || (await this.ownerExists(client)))
         deny();
       const result = await client.query(
-        "UPDATE twe.staff_invitations SET revoked_at=now() WHERE organisation_id=$1 AND id=$2 AND role=$3 AND accepted_at IS NULL AND revoked_at IS NULL RETURNING id",
-        [this.organisationId, id, actor ? "editor" : "owner"],
+        "UPDATE twe.staff_invitations SET revoked_at=now() WHERE organisation_id=$1 AND id=$2 AND ($3::text IS NULL OR role=$3) AND purpose=$4 AND accepted_at IS NULL AND revoked_at IS NULL RETURNING id",
+        [this.organisationId, id, allowedRole,actor ? 'staff' : 'initial_owner'],
       );
       if (!result.rowCount) deny();
       await this.audit(
@@ -227,7 +231,7 @@ export class Invitations {
       const {
         rows: [invite],
       } = await client.query(
-        "SELECT role,created_by,expires_at FROM twe.staff_invitations WHERE organisation_id=$1 AND environment=$2 AND issuer=$3 AND audience=$4 AND subject=$5 AND token_hash=$6 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now()",
+        "SELECT role,purpose,created_by,expires_at FROM twe.staff_invitations WHERE organisation_id=$1 AND environment=$2 AND issuer=$3 AND audience=$4 AND subject=$5 AND token_hash=$6 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now()",
         [
           this.organisationId,
           this.environment,
@@ -238,13 +242,13 @@ export class Invitations {
         ],
       );
       if (!invite) deny();
-      if (invite.role === "owner") {
+      if (invite.purpose === 'initial_owner') {
         if (await this.ownerExists(client)) deny();
       } else
         await this.checkOwner(client, {
           id: invite.created_by,
           organisationId: this.organisationId,
-        });
+        },invite.role);
       return { role: invite.role, expiresAt: invite.expires_at };
     });
   }
@@ -270,13 +274,13 @@ export class Invitations {
           new Date(invite.expires_at) <= new Date()
         )
           deny();
-        if (invite.role === "owner") {
+        if (invite.purpose === 'initial_owner') {
           if (await this.ownerExists(client)) deny();
         } else
           await this.checkOwner(client, {
             id: invite.created_by,
             organisationId: this.organisationId,
-          });
+          },invite.role);
         const existing = await client.query(
           "SELECT 1 FROM twe.staff_users WHERE issuer=$1 AND subject=$2",
           [identity.issuer, identity.subject],

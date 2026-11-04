@@ -1,4 +1,5 @@
 ---
+import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
 import Accordion from "./Accordion.astro";
 import ClosingCta from "./ClosingCta.astro";
@@ -46,7 +47,7 @@ const enquiry = demo
     </header>
     {
       item.image && (
-        <img
+        <PlacedImage image={item.image} placement={item.imagePlacement}
           class="collection-hero"
           src={item.image.src}
           srcset={item.image.sources

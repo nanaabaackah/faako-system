@@ -81,7 +81,7 @@ try {
     if (await publicConsent.isVisible()) await publicConsent.click();
     await page.getByRole("status").filter({ hasText: "4 entries shown" }).waitFor();
     assert.equal(await page.locator("[data-collection-item]").count(), 4);
-    assert.equal(await page.locator("[data-collection-item] > img").count(), 4);
+    assert.equal(await page.locator("[data-collection-item] > .placed-image > img").count(), 4);
     const fieldStyle = await page.getByRole("button", { name: "Destination", exact: true }).evaluate(element => {
       const style = getComputedStyle(element);
       return { border: parseFloat(style.borderTopWidth), font: parseFloat(style.fontSize) };
@@ -93,6 +93,7 @@ try {
     assert.equal(await page.locator("footer.twe-public-footer").count(), 1);
     assert.equal(await page.locator(".closing-scene__image").evaluate(element => getComputedStyle(element).objectFit),
       "cover");
+    assert.equal(await page.locator(".closing-scene__image").evaluate(element=>getComputedStyle(element).objectPosition),width<=760?'50% 50%':'50% 60%','Approved responsive footer crop remains the default');
     await page.getByRole("button", { name: "Occasion", exact: true }).click();
     await page.getByRole("option", { name: "Family", exact: true }).click();
     await page.getByText("No entries match. Clear the filters to see everything.", { exact: true }).waitFor();

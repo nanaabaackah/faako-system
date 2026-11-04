@@ -1,4 +1,5 @@
 import Button from "./ActionButton.jsx";
+import GalleryOrder from './GalleryOrder.jsx';
 import { TextField, TextareaField, SelectField } from "@faako/ui";
 import { packageOccasions } from "../../travel-with-ease-api/src/content/catalogue-constants.js";
 
@@ -168,6 +169,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
             Remove package image
           </Button>
           <p>{(item.galleryImageIds || []).length} gallery images selected.</p>
+          <GalleryOrder ids={item.galleryImageIds} onChange={ids=>update(index,"galleryImageIds",ids)}/>
           <Button
             type="button"
             disabled={(item.galleryImageIds || []).length >= 12}

@@ -4,12 +4,14 @@ import ContentLink from "./ContentLink.astro";
 import ServicePanels from "./ServicePanels.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
+import PlacedImage from './PlacedImage.astro';
 import "../styles/components/published-content.css";
 interface Props {
   accordion?: boolean;
   content: {
     heading: string;
     body: string;
+    imagePlacements?: Record<string,import('../lib/collections').ImagePlacement>;
     ctaLabel: string;
     ctaPath: string;
     contactEmail: string;
@@ -35,7 +37,7 @@ const story = page === "/about";
   "published-content--faq": accordion,
   "published-content--services": services,
   "published-content--story": story,
-}]}>
+}]} data-image-layout={story ? content?.imagePlacements?.story?.layout : undefined}>
   {
     content ? (
       <>
@@ -44,23 +46,13 @@ const story = page === "/about";
             <h1>{content.heading}</h1>
             <p class="body-copy">{content.body}</p>
           </div>
-        {content.image && !services && !story && (
-          <img
-            src={content.image.src}
-            srcset={content.image.sources
-              ?.map(
-                (source: { src: string; width: number }) =>
-                  `${source.src} ${source.width}w`,
-              )
-              .join(", ")}
+        {(content.image || content.imagePlacements?.header?.image || content.imagePlacements?.header?.mobileImage) && !story && (
+          <PlacedImage image={content.image} placement={content.imagePlacements?.header}
             sizes="(max-width: 760px) 90vw, 1200px"
-            alt={content.image.alt}
-            width={content.image.width}
-            height={content.image.height}
           />
         )}
         </header>
-        {story && <EditorialPhoto image={photography.coast} class="published-content__story-photo" sizes="90vw" />}
+        {story && <EditorialPhoto image={photography.coast} placement={content.imagePlacements?.story || content.imagePlacements?.header} class="published-content__story-photo" sizes="90vw" />}
         {services ? <ServicePanels entries={content.entries} all /> : (
         <div class="published-content__sections">
         {content.entries.map((entry) =>

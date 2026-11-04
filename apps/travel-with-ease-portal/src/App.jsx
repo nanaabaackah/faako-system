@@ -2,7 +2,6 @@ import Button from "./ActionButton.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
 import {
-  ErpMobileBottomNavFrame,
   useToast,
   InlineNotice,
   PageHeader,
@@ -21,12 +20,12 @@ import Enquiries from "./Enquiries.jsx";
 import { createSessionLoader } from "./session.js";
 import { createDemoClient, demoEnabled } from "./demo.js";
 import Dashboard from "./Dashboard.jsx";
-import NavigationIcon from "./NavigationIcon.jsx";
+import PortalNavigation from './PortalNavigation.jsx';
+import ActivityView from './ActivityView.jsx';
 import TutorialWorkspace from "./TutorialWorkspace.jsx";
 import Activation from "./Activation.jsx";
 import AccountSettings from "./AccountSettings.jsx";
 import Invitations from "./Invitations.jsx";
-import brandLogo from "../../travel-with-ease-web/public/brand/Primary gold.png";
 
 // Staff authentication is same-origin in both Vite development and hosted mode.
 // Never embed an API origin that bypasses the Access-aware portal server.
@@ -44,7 +43,7 @@ const isDemo = demoEnabled({
 });
 const demoRestartUrl = stagingDemoAllowed ? "/demo" : "/?demo=1";
 const baseApi = isDemo
-  ? createDemoClient()
+  ? createDemoClient({role:new URLSearchParams(location.search).get('demoRole')||'owner'})
   : createBrowserApiClient({ baseUrl, credentials: "include" });
 const loadSession = createSessionLoader(baseApi);
 
@@ -200,6 +199,7 @@ function StaffWorkspace() {
     ["media", "Media", session?.user.permissions?.includes("media.read")],
     ["templates", "Templates", session?.user.permissions?.includes("templates.manage")],
     ["staff", "Staff", session?.user.permissions?.includes("staff.manage")],
+    ['activity','Activity',session?.user.permissions?.includes('audit.business.read')],
     [
       "system",
       "System",
@@ -207,31 +207,9 @@ function StaffWorkspace() {
         session?.user.permissions?.includes("system.read"),
     ],
   ].filter(([, , visible]) => visible);
-  // Equal-width groups keep Overview physically centred even when a role has
-  // a different number of available modules. DOM and keyboard order agree.
-  const mobileModules = navigation.filter(([id]) => id !== "overview");
-  const mobileSplit = Math.ceil(mobileModules.length / 2);
-  const navButton = ([id, label]) => (
-    <button
-      key={id}
-      type="button"
-      className={id === "overview" ? "nav-overview" : ""}
-      aria-current={section === id ? "page" : undefined}
-      onClick={() => navigate(id)}
-    >
-      <NavigationIcon name={id} />
-      <span>{label}</span>
-    </button>
-  );
   return (
     <div className="portal-shell">
-      <aside>
-        <div className="portal-brand">
-          <img src={brandLogo} alt="Travel With Ease" width="184" height="72" />
-          <small>Staff workspace</small>
-        </div>
-        <nav aria-label="Staff navigation">{navigation.map(navButton)}</nav>
-      </aside>
+      <PortalNavigation navigation={navigation} section={section} navigate={navigate} session={session}/>
       <PageShell>
         {isDemo ? (
           <aside
@@ -273,6 +251,7 @@ function StaffWorkspace() {
                     media: "Media library",
                     templates: "Email templates",
                     staff: "Staff access",
+                    activity: 'Workspace activity',
                     system: "System administration",
                   }[section]
               : "Staff sign-in"
@@ -488,6 +467,7 @@ function StaffWorkspace() {
           {!state.loading && session && section === "system" && (
             <SystemAdministration api={api} session={session} />
           )}
+          {!state.loading&&session?.user.permissions?.includes('audit.business.read')&&section==='activity'&&<ActivityView api={api}/>}
           {!state.loading &&
             session?.user.permissions?.includes("staff.manage") &&
             section === "staff" && <StaffAccess api={api} session={session} />}
@@ -507,17 +487,6 @@ function StaffWorkspace() {
           </Button>
         )}
       </PageShell>
-      {session && (
-        <ErpMobileBottomNavFrame className="twe-bottom-nav">
-          <div className="twe-bottom-nav__group">
-            {mobileModules.slice(0, mobileSplit).map(navButton)}
-          </div>
-          {navButton(navigation.find(([id]) => id === "overview"))}
-          <div className="twe-bottom-nav__group">
-            {mobileModules.slice(mobileSplit).map(navButton)}
-          </div>
-        </ErpMobileBottomNavFrame>
-      )}
     </div>
   );
 }

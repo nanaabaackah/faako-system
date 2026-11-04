@@ -15,6 +15,8 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Administration } from "../../src/auth/administration.js";
+import { handoverDeveloper } from "../../src/auth/handover.js";
+import { readActivity } from "../../src/auth/activity.js";
 import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
@@ -212,10 +214,78 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   const auth = new PostgresAuthStore(pool, organisationId);
   const accessSettings={issuer:"https://synthetic.cloudflareaccess.com",audience:"a".repeat(64)};
   const platformId=randomUUID();
+  await context.test("reviewed handover binds existing verified subjects atomically, preserves IDs and refuses replay",async()=>{
+    const developerId=randomUUID(),clientId=randomUUID();
+    for(const [id,subject,role] of [[developerId,'handover-developer','owner'],[clientId,'handover-client','editor']])
+      await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,$4,$5,$6)",[id,organisationId,accessSettings.issuer,subject,accessSettings.audience,role]);
+    const args={...options,settings:accessSettings,developer:{...accessSettings,subject:'handover-developer',email:'dev.nanaabaackah@gmail.com'},client:{...accessSettings,subject:'handover-client'},approvalReference:'HANDOVER-TEST',requestId:'handover-test'};
+    await assert.rejects(handoverDeveloper(pool,{...args,developer:{...args.developer,subject:'email-only-attacker'}}));
+    assert.equal((await handoverDeveloper(pool,args)).completed,true);
+    const roles=(await pool.query("SELECT id,role FROM twe.staff_users WHERE id=ANY($1::uuid[])",[[developerId,clientId]])).rows;
+    assert.equal(roles.find(row=>row.id===developerId).role,'platform_admin');
+    assert.equal(roles.find(row=>row.id===clientId).role,'owner');
+    await assert.rejects(handoverDeveloper(pool,args));
+    await assert.rejects(pool.query("DELETE FROM twe.staff_role_changes WHERE user_id=$1",[developerId]),/append-only/);
+  });
   await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,'platform',$4,'platform_admin')",[platformId,organisationId,accessSettings.issuer,accessSettings.audience]);
   const platform={id:platformId,role:"platform_admin",organisationId};
   const owner={id:userId,role:"owner",organisationId};
   const admin=new Administration(pool,organisationId,accessSettings,"test");
+  await context.test("roles, ordinary Owner invitations, stale writes and last-Owner concurrency are enforced",async()=>{
+    const scope=randomUUID();
+    await pool.query("INSERT INTO twe.organisations(id,name) VALUES($1,'Role test')",[scope]);
+    const scoped=new Administration(pool,scope,accessSettings,'test');
+    const ids=[randomUUID(),randomUUID(),randomUUID(),randomUUID()];
+    for(const [index,role] of ['platform_admin','owner','owner','editor'].entries())
+      await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,$4,$5,$6)",[ids[index],scope,accessSettings.issuer,'role-'+index,accessSettings.audience,role]);
+    const superadmin={id:ids[0],organisationId:scope,role:'platform_admin'},businessOwner={id:ids[1],organisationId:scope,role:'owner'};
+    const input={role:'editor',expectedRole:'owner',approvalReference:'ROLE-TEST'};
+    await assert.rejects(scoped.changeRole(businessOwner,ids[2],input,'forged'),{status:403});
+    await assert.rejects(scoped.changeRole({...superadmin,organisationId:otherOrg},ids[2],input,'cross'),{status:403});
+    await assert.rejects(scoped.changeRole(superadmin,ids[3],input,'stale'),{status:409});
+    await assert.rejects(scoped.changeRole(superadmin,ids[3],{...input,role:'platform_admin'},'escalation'),{status:403});
+    const invitations=new Invitations(pool,scope,accessSettings,'test');
+    const scopedAuth=new PostgresAuthStore(pool,scope);
+    for(const index of [1,2]){
+      await scopedAuth.createSession({...accessSettings,subject:'role-'+index,expiresAt:new Date(Date.now()+60000),assertionHash:String(index).repeat(64)},String(index+3).repeat(64),'a'.repeat(64),'session-before-role');
+      await invitations.issue({actor:{id:ids[index],role:'owner',organisationId:scope},subject:'pending-'+index,approvalReference:'ROLE-PENDING',requestId:'pending-role'});
+      await scoped.grantSupport({id:ids[index],role:'owner',organisationId:scope},{userId:ids[0],minutes:5,reasonReference:'SUP-ROLE'},'support-before-role');
+    }
+    await assert.rejects(scoped.changeRole(superadmin,ids[1],{...input,approvalReference:null},'rollback-role'));
+    assert.equal((await scopedAuth.getSession('4'.repeat(64))).role,'owner','Failed ledger write rolls back role and revocation');
+    await assert.rejects(invitations.issue({actor:businessOwner,role:'owner',subject:'denied-owner',approvalReference:'ROLE-TEST',requestId:'denied-owner'}));
+    const invitation=await invitations.issue({actor:superadmin,role:'owner',subject:'invited-owner',approvalReference:'ROLE-TEST',requestId:'owner-invite'});
+    assert.equal((await invitations.preview({...accessSettings,subject:'invited-owner'},invitation.code)).role,'owner');
+    await invitations.claim({...accessSettings,subject:'invited-owner'},invitation.code,'owner-claim');
+    const invited=(await pool.query("SELECT id FROM twe.staff_users WHERE organisation_id=$1 AND subject='invited-owner'",[scope])).rows[0];
+    await scoped.changeStaff(superadmin,invited.id,false,'revoke-invited-owner');
+    const results=await Promise.allSettled([scoped.changeRole(superadmin,ids[1],input,'demote-owner'),scoped.changeStaff(superadmin,ids[2],false,'disable-owner')]);
+    assert.equal(results.filter(result=>result.status==='fulfilled').length,1);
+    assert.equal(results.find(result=>result.status==='rejected').reason.status,409);
+    const lostIndex=results[0].status==='fulfilled'?1:2;
+    assert.equal(await scopedAuth.getSession(String(lostIndex+3).repeat(64)),undefined);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.staff_invitations WHERE created_by=$1 AND revoked_at IS NOT NULL",[ids[lostIndex]])).rows[0].n,1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.support_grants WHERE approved_by=$1 AND revoked_at IS NOT NULL",[ids[lostIndex]])).rows[0].n,1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.staff_users WHERE organisation_id=$1 AND active AND role='owner'",[scope])).rows[0].n,1);
+    await pool.query("UPDATE twe.staff_users SET active=false WHERE id=$1",[ids[0]]);
+    await assert.rejects(scoped.changeRole(superadmin,ids[3],{...input,expectedRole:'editor',role:'owner'},'inactive'),{status:403});
+  });
+  await context.test("business activity is paginated, tenant scoped, filtered and separated from security",async()=>{
+    for(let i=0;i<55;i++)await pool.query("INSERT INTO twe.audit_records(id,organisation_id,actor_id,action,request_id) VALUES($1,$2,$3,'content.saved',$4)",[randomUUID(),organisationId,userId,'activity-'+i]);
+    await pool.query("INSERT INTO twe.audit_records(id,organisation_id,actor_id,action,request_id) VALUES($1,$2,$3,'auth.synthetic','private-event')",[randomUUID(),organisationId,userId]);
+    const page=await readActivity(admin,owner,{});
+    assert.equal(page.items.length,50);assert.ok(page.nextCursor);
+    const next=await readActivity(admin,owner,{cursor:page.nextCursor});
+    assert.ok(next.items.length);assert.equal(next.items.some(row=>page.items.some(first=>first.id===row.id)),false);
+    assert.equal([...page.items,...next.items].some(row=>row.action.startsWith('auth.')||row.action.startsWith('staff.bootstrap.')),false);
+    assert.equal((await admin.staffEvents(owner)).some(row=>row.action.startsWith('staff.bootstrap.')),false);
+    await assert.rejects(readActivity(admin,owner,{},true),{status:403});
+    await assert.rejects(readActivity(admin,{...owner,organisationId:otherOrg},{}),{status:403});
+    await assert.rejects(readActivity(admin,owner,{category:'auth'}),{status:400});
+    await assert.rejects(readActivity(admin,owner,{cursor:'forged'}),{status:400});
+    assert.equal((await readActivity(admin,owner,{from:'2099-01-01'})).items.length,0);
+    assert.ok((await readActivity(admin,platform,{category:'auth'},true)).items.some(row=>row.action==='auth.synthetic'));
+  });
   const staged=await admin.provision(platform,{subject:"staged-editor"},"test-staff-stage");
   assert.equal(staged.active,true);
   assert.equal((await admin.changeStaff(platform,staged.id,true,"test-superadmin-activate")).active,true);
@@ -302,6 +372,26 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await content.get("home")).body.imageId, asset.id);
   await media.archive(replacement.id, actor, "archive-unused");
   assert.equal((await media.list()).items.some((item) => item.id === replacement.id), false);
+  await context.test("placement references survive revisions and public artifacts, reject archived and foreign media",async()=>{
+    const entryId=randomUUID();
+    const input={...body,entries:[{id:entryId,heading:'Service fixture',text:'Test',imagePlacement:{imageId:asset.id,mobileImageId:asset.id}}]};
+    const saved=await content.save('services',input,0,actor,'placement-save');
+    const changed=await content.save('services',{...input,entries:[{...input.entries[0],heading:'Changed title'}]},saved.version,actor,'placement-title');
+    assert.equal(changed.body.entries[0].id,entryId);
+    const reverted=await content.revert('services',saved.revisionId,changed.version,actor,'placement-revert');
+    assert.equal(reverted.body.entries[0].imagePlacement.imageId,asset.id);
+    await assert.rejects(content.save('services',{...input,entries:[{...input.entries[0],imagePlacement:{imageId:replacement.id}}]},reverted.version,actor,'archived-placement'),/available image/);
+    const foreignActor={id:(await pool.query("SELECT id FROM twe.staff_users WHERE organisation_id=$1 LIMIT 1",[otherOrg])).rows[0].id,organisationId:otherOrg};
+    await assert.rejects(new ContentRepository(pool,otherOrg).save('site-appearance',{...body,imagePlacements:{'footer-background':{imageId:asset.id}}},0,foreignActor,'foreign-placement'),/available image/);
+    const globals=await content.save('site-appearance',{...body,imagePlacements:{'footer-background':{imageId:asset.id,mobileImageId:asset.id,focalY:20},'cta-laptop':{imageId:asset.id}}},0,actor,'shared-images');
+    const directory=await mkdtemp(path.join(tmpdir(),'twe-image-placement-'));
+    const artifact=await preparePublication({id:randomUUID(),source_sha:'1'.repeat(40),manifest:{version:1,pages:[{slug:'services',body:reverted.body},{slug:'site-appearance',body:globals.body}]}},media,directory);
+    const snapshot=JSON.parse(await readFile(artifact.snapshot,'utf8'));
+    assert.equal(snapshot.pages.services.entries[0].imagePlacement.image.src,`/media/${asset.id}.webp`);
+    assert.equal(snapshot.pages['site-appearance'].imagePlacements['footer-background'].focalY,20);
+    assert.ok(snapshot.pages['site-appearance'].imagePlacements['cta-laptop'].image);
+    await assert.rejects(media.archive(asset.id,actor,'protected-placement'),{status:409});
+  });
   await context.test("email template drafts, activation and audit survive recreation under runtime grants", async () => {
     const client = await pool.connect();
     try {

@@ -2,6 +2,13 @@
 
 This describes the current workspace, not features still under construction.
 
+For section photographs, responsive crops, shared footer/CTA imagery, ordered
+galleries, Workspace Activity and navigation, see the
+[CMS extension guide](./cms-access-imagery-activity-2026-11-04.md).
+Superadmin changes Owner/Editor roles with an approval reference; Owners manage
+Editors. At least one active Owner must remain. No portal control assigns
+Superadmin.
+
 1. Open your staff portal and sign in with the Google account invited to the
    workspace. Complete Cloudflare verification/MFA and account activation.
 2. Open Website Content and choose the page or collection to edit.

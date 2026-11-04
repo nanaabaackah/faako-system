@@ -1,5 +1,9 @@
 # Travel With Ease documentation
 
+Latest CMS extension: [roles, imagery, activity and responsive navigation](./cms-access-imagery-activity-2026-11-04.md).
+Migration 013, real handover and authenticated staging acceptance are explicit
+rollout steps, not implied by local tests.
+
 ## Current status — 2026-11-01
 
 Start with the [implementation status and hosted evidence](./completion-status-2026-11-01.md),

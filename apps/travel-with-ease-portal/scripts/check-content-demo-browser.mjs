@@ -25,6 +25,7 @@ try {
     });
     const page = await context.newPage();
     const requests = [];
+    const navigate=async(name)=>{let button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();if(!await button.count()){await page.getByRole('button',{name:/^Menu/}).click();button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();}await button.click();};
     await page.route("**/api/**", (route) => {
       requests.push(route.request().url());
       return route.abort();
@@ -43,7 +44,7 @@ try {
       }
       assert.equal(await overview.locator("svg").evaluate(node => node.getBoundingClientRect().width), 32);
     }
-    await page.getByRole("button", { name: "Account", exact: true }).first().click();
+    await navigate("Account");
     await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();
     assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");
     assert.equal(await page.locator(".account-details").getByText("Local demonstration", { exact: true }).isVisible(), true);
@@ -52,10 +53,7 @@ try {
     assert.equal(await page.locator(".account-workspace").isVisible(), true, "Cancelling sign-out preserves the session");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `account-${width}.png`), fullPage: true });
-    await page
-      .getByRole("button", { name: "Content", exact: true })
-      .first()
-      .click();
+    await navigate("Content");
     for (const label of ["Packages", "Journal", "Travel Tips", "Footprint"]) {
       assert.equal(await page.locator(".portal-shell > aside nav").getByRole("button", { name: label, exact: true }).count(), 0, "Collections stay inside Content");
     }
@@ -65,7 +63,7 @@ try {
     assert.equal(await headingInput.evaluate(element => getComputedStyle(element.closest(".ui-field__control")).outlineWidth), "3px", "Wrapper keeps visible focus");
     const select = async (value) => {
       await page.getByRole("button", { name: "Section", exact: true }).click();
-      await page.getByRole("option", { name: value, exact: true }).click();
+      await page.getByRole("option", { name: value.replaceAll('-',' '), exact: true }).click();
     };
     await select("travel-tips");
     await page.getByLabel(/^Tip title/).fill("Changed demo tip");
@@ -120,10 +118,7 @@ try {
       path: path.join(output, `policy-${width}.png`),
       fullPage: true,
     });
-    await page
-      .getByRole("button", { name: "Media", exact: true })
-      .first()
-      .click();
+    await navigate("Media");
     await page
       .getByRole("button", { name: "Refresh Drive folder", exact: true })
       .click();
@@ -143,9 +138,6 @@ try {
     await driveForm
       .getByLabel(/^Alternative text/)
       .fill("Drive interface fixture");
-    await driveForm
-      .getByLabel(/^Source and licence evidence/)
-      .fill("Synthetic browser fixture");
     await driveForm
       .getByRole("button", { name: "Import selected image", exact: true })
       .click();
@@ -170,10 +162,7 @@ try {
       ),
       true,
     );
-    await page
-      .getByRole("button", { name: "Content", exact: true })
-      .first()
-      .click();
+    await navigate("Content");
     await select("home");
     await page
       .getByRole("button", { name: "Choose image", exact: true })
@@ -190,7 +179,7 @@ try {
       [],
       "Demo content controls must never call the API",
     );
-    await page.getByRole("button", { name: "Templates", exact: true }).first().click();
+    await navigate("Templates");
     await page.getByLabel(/^Heading/).fill("Synthetic acknowledgement");
     await page.getByRole("button", { name: "Preview email", exact: true }).click();
     await page.frameLocator('iframe[title="Enquiry acknowledgement preview"]')

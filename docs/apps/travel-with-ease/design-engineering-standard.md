@@ -1,5 +1,12 @@
 # Travel With Ease design and engineering standard
 
+2026-11-04 CMS refinement:
+[roles, image placement, activity views and navigation](./cms-access-imagery-activity-2026-11-04.md).
+Use Faako controls/tables/dialogs, desktop tables and compact mobile event cards.
+Five mobile shortcuts keep Overview centred; complete navigation lives in the
+accessible drawer. Image overrides use reviewed slots/crops, not arbitrary CSS
+or page restructuring. Preserve the approved continuous footer and mockup row.
+
 2026-11-02 client-approved refinement:
 [Journey Chapters decisions](journey-chapters-2026-11-02.md).
 Use the third selected concept below the unchanged hero, real additional Drive

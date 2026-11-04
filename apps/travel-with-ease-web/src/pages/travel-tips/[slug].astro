@@ -1,4 +1,5 @@
 ---
+import PlacedImage from '../../components/PlacedImage.astro';
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ContentLink from "../../components/ContentLink.astro";
 import { publishedPage } from "../../lib/published.js";
@@ -12,7 +13,8 @@ interface Props {
     body: string;
     category: string;
     relatedArticle?: string;
-    image?: {
+    imagePlacement?: import('../../lib/collections').ImagePlacement;
+  image?: {
       src: string;
       alt: string;
       width: number;
@@ -42,7 +44,7 @@ const related = tip.relatedArticle
     <p>{tip.category}</p><h1>{tip.title}</h1>
     {
       tip.image && (
-        <img
+        <PlacedImage image={tip.image} placement={tip.imagePlacement}
           src={tip.image.src}
           srcset={tip.image.sources
             ?.map(

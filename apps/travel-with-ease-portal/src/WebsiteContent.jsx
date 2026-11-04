@@ -14,6 +14,9 @@ import ExperienceEditor from "./ExperienceEditor.jsx";
 import reviewDrafts from "../../../docs/apps/travel-with-ease/content-review-drafts.json";
 import { createDraftAutosave } from "./draft-autosave.js";
 import VisualPreview from "./VisualPreview.jsx";
+import ImagePlacements from './ImagePlacements.jsx';
+import { ActivityList } from './ActivityView.jsx';
+import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "./approved-copy.js";
 
@@ -36,6 +39,7 @@ const pages = [
   "privacy",
   "terms",
   "cookies",
+  'site-appearance',
 ];
 const emptyBody = () => ({
   heading: "",
@@ -53,6 +57,7 @@ const emptyBody = () => ({
   packages: [],
   footprint: [],
   experienceCountries: [],
+  imagePlacements:{},
 });
 
 export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
@@ -149,6 +154,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         );
         if (!active) return;
         const draft = { ...emptyBody(), ...item?.body };
+        draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID()}));
+        if(page==='site-appearance'&&!item){draft.heading='Shared website imagery';draft.seoTitle='Website appearance';draft.seoDescription='Internal shared imagery settings.';}
         bodyRef.current = draft;
         setBody(draft);
         setVersion(item?.version || 0);
@@ -171,6 +178,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     };
   }, [api, page, session.csrfToken]);
   const change = (key, value) => {
+    if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID()}));
     if (["packages", "articles"].includes(key)) {
       setChooseImage(false);
       setCollectionImage(null);
@@ -317,7 +325,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         >
           {pages.map((name) => (
             <option key={name} value={name}>
-              {name}
+              {name==='site-appearance'?'Shared website imagery':name.replaceAll('-',' ')}
             </option>
           ))}
         </SelectField>
@@ -374,7 +382,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           </Button>
         </section>
       )}
-      <form data-tour="content-draft" onSubmit={save}>
+      {!state.loading&&<ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/>}
+      {page==='site-appearance'&&<div className="editor-actions"><Button icon="save" onClick={save}>Save draft</Button><Button icon="preview" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div>}
+      {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
         <fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}>
           <legend>Selected website fields</legend>
           <TextField
@@ -560,6 +570,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                   >
                     Add article gallery image
                   </Button>
+                  <GalleryOrder ids={article.galleryImageIds} onChange={ids=>change("articles",body.articles.map((item,i)=>i===index?{...item,galleryImageIds:ids}:item))}/>
                   <Button
                     type="button"
                     onClick={() =>
@@ -695,7 +706,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       "Destination Preparation",
                       "Safety and Practical Advice",
                     ].map((category) => (
-                      <option key={category}>{category}</option>
+                      <option key={category} value={category}>{category}</option>
                     ))}
                   </SelectField>
                   <SelectField
@@ -987,7 +998,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             </Button>
           </div>
         </fieldset>
-      </form>
+      </form>}
       <p>
         {body.imageId
           ? `Selected image: ${body.imageId}`
@@ -1094,28 +1105,12 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             Refresh publication status
           </Button>
         </div>
-        <ul>
-          {jobs.map((job, index) => (
-            <li key={job.id}>
-              {job.status} —{" "}
-              {job.environment && `${job.environment} · `}
-              {job.target && `${job.target.page}${job.target.recordSlug ? "/" + job.target.recordSlug : ""} · version ${job.target.version} · `}
-              {new Date(job.created_at).toLocaleString("en-GH", {
-                timeZone: "Africa/Accra",
-              })}
-              {job.deployment_id && <span> · Deployment {job.deployment_id}</span>}
-              {job.status === "failed" && index === 0 && (
-                <Button
-                  type="button"
-                  disabled={!canPublish || state.loading}
-                  onClick={() => publication("retry", job.id)}
-                >
-                  Retry failed publication
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
+          renderAction={job=><>
+            {job.environment&&<p>Environment: {job.environment}</p>}
+            {job.target&&<p>Saved version: {job.target.version}{job.target.recordSlug&&` · ${job.target.recordSlug}`}</p>}
+            {job.status==='failed'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading} onClick={()=>publication('retry',job.id)}>Retry failed publication</Button>}
+          </>}/>
       </section>
       {preview && !visualPreview && (
         <section aria-label="Saved content preview">
@@ -1176,27 +1171,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       )}
       <section className="workspace-panel">
         <h3>Revision history</h3>
-        {history.length ? (
-          <ol>
-            {history.map((revision) => (
-              <li key={revision.id}>
-                Version {revision.version} —{" "}
-                {new Date(revision.created_at).toLocaleString("en-GH", {
-                  timeZone: "Africa/Accra",
-                })}{" "}
-                <Button
-                  type="button"
-                  disabled={state.loading}
-                  onClick={() => revert(revision.id)}
-                >
-                  Restore version {revision.version}
-                </Button>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p>No saved revisions.</p>
-        )}
+        <ActivityList title="Content revision history" items={history.map(revision=>({...revision,action:`Saved revision ${revision.version}`,actor_id:revision.editor_id,record_id:revision.id}))}
+          renderAction={revision=><Button type="button" disabled={state.loading} onClick={()=>revert(revision.id)}>Restore version {revision.version}</Button>}/>
       </section>
       </div>
       {visualPreview && preview && <VisualPreview key={visualPreview.id} job={visualPreview} api={api} body={preview} />}

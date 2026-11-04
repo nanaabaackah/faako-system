@@ -39,7 +39,8 @@ main .service-panels--all { padding-inline: 0; gap: 28px; }
   color: var(--brand-cream);
   border: 0;
 }
-.journal-collection-grid .journal-card > img {
+.journal-collection-grid .journal-card > img,
+.journal-collection-grid .journal-card > .placed-image > img {
   position: absolute;
   inset: 0;
   z-index: -1;

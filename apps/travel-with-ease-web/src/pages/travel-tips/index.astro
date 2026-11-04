@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import TravelTips from "../../components/TravelTips.astro";
+import PlacedImage from '../../components/PlacedImage.astro';
 import { publishedPage } from "../../lib/published.js";
 const content = publishedPage("travel-tips");
 ---
@@ -15,6 +16,7 @@ const content = publishedPage("travel-tips");
     <h1>{content?.heading || "Travel tips"}</h1><p>
       {content?.body || "Approved travel advice is not available yet."}
     </p>
+    <PlacedImage placement={content?.imagePlacements?.header} class="collection-header-photo" sizes="90vw"/>
   </section>
   <TravelTips tips={content?.tips || []} homepage={false} />
 </BaseLayout>

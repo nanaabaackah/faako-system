@@ -74,6 +74,7 @@ jobs:
           pnpm --filter @faako/travel-with-ease-portal exec vite --host 127.0.0.1 --port 5197 > "$RUNNER_TEMP/twe-onboarding-vite.log" 2>&1 &
           node apps/travel-with-ease-portal/scripts/check-onboarding-browser.mjs
           node apps/travel-with-ease-portal/scripts/check-content-demo-browser.mjs
+          node apps/travel-with-ease-portal/scripts/check-cms-management-browser.mjs
           node apps/travel-with-ease-web/scripts/check-public-followup.mjs
           node apps/travel-with-ease-web/scripts/check-redesign-browser.mjs
           node apps/travel-with-ease-web/scripts/check-collections-browser.mjs
@@ -87,6 +88,7 @@ jobs:
           if-no-files-found: ignore
           path: |
             /tmp/twe-content-demo-*/*.png
+            /tmp/twe-cms-management-*/*.png
             /tmp/twe-public-followup-*/*.png
             /tmp/twe-redesign-*/*.png
             /tmp/twe-collections-*/*.png

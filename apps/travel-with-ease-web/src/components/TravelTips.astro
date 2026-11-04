@@ -1,4 +1,5 @@
 ---
+import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
 import "../styles/components/travel-tips.css";
 interface Tip {
@@ -8,6 +9,7 @@ interface Tip {
   category: string;
   featured?: boolean;
   order?: number;
+  imagePlacement?: import('../lib/collections').ImagePlacement;
   image?: {
     src: string;
     alt: string;
@@ -63,7 +65,7 @@ const items = homepage ? ordered.slice(0, 3) : ordered;
             ]}
           >
             {tip.image && (
-              <img
+              <PlacedImage image={tip.image} placement={tip.imagePlacement}
                 src={tip.image.src}
                 srcset={tip.image.sources
                   ?.map((source) => `${source.src} ${source.width}w`)

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   InlineNotice,
   TextField,
-  TextareaField,
   SelectField,
   AnimatedLoadingState,
 } from "@faako/ui";
@@ -83,9 +82,6 @@ export default function MediaLibrary({ api, session, onSelect }) {
           "Content-Type": file.type,
           "X-CSRF-Token": session.csrfToken,
           "X-Media-Alt": encodeURIComponent(String(fields.get("alt")).trim()),
-          "X-Media-Rights": encodeURIComponent(
-            String(fields.get("rights")).trim(),
-          ),
         },
       });
       form.current.reset();
@@ -162,7 +158,6 @@ export default function MediaLibrary({ api, session, onSelect }) {
           fileId: item.id,
           version: item.version,
           alt: String(fields.get("alt")).trim(),
-          rights: String(fields.get("rights")).trim(),
         },
       });
       setDriveItems((current) =>
@@ -250,7 +245,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
     >
       <h2 id="media-heading">Media library</h2>
       <p className="workspace-caption">
-        Manage licensed photography and descriptive text. Assets remain private
+        Manage TWE photography and descriptive text. Assets remain private
         until published through a content revision.
       </p>
       <div ref={notice} tabIndex={-1}>
@@ -337,17 +332,11 @@ export default function MediaLibrary({ api, session, onSelect }) {
                 maxLength={500}
                 required
               />
-              <TextareaField
-                label="Source and licence evidence"
-                name="rights"
-                maxLength={2000}
-                required
-              />
               <p>
                 JPEG, PNG or WebP only, up to 8 MiB. Unsupported files and
                 subfolders are not imported. Nothing is deleted from Drive.
-                Already imported revisions retain their saved alternative text
-                and licence evidence.
+                Photographs in the approved Drive folder are TWE-owned. Alternative
+                text is for accessibility, not a visible caption.
               </p>
               <Button
                 type="submit"
@@ -383,7 +372,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
           <legend>
             {replacement
               ? "Upload replacement as a new asset"
-              : "Upload a licensed image"}
+              : "Upload a TWE image"}
           </legend>
           <label className="file-picker">
             Image
@@ -398,12 +387,6 @@ export default function MediaLibrary({ api, session, onSelect }) {
             label="Alternative text"
             name="alt"
             maxLength={500}
-            required
-          />
-          <TextareaField
-            label="Source and licence evidence"
-            name="rights"
-            maxLength={2000}
             required
           />
           <p>
@@ -430,7 +413,6 @@ export default function MediaLibrary({ api, session, onSelect }) {
             <p>
               {item.width} × {item.height} pixels
             </p>
-            <p>{item.rights}</p>
             <div className="editor-actions">
               <Button
                 type="button"
@@ -473,7 +455,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         <div className="workspace-empty">
           <h4>Your library is empty</h4>
           <p>
-            Add licensed images when private storage is available. No
+            Add TWE images when private storage is available. No
             placeholder assets will be published.
           </p>
         </div>

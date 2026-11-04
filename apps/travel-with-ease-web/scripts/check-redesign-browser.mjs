@@ -143,6 +143,7 @@ try {
       throw Error(`Unexpected external request blocked: ${url.origin}`);
     });
     await page.goto(`${origin}/demo`, { waitUntil: "networkidle" });
+    assert.equal(await page.locator('.cinematic-hero__image').evaluate(node=>getComputedStyle(node).objectPosition),width<=480?'58% 60%':'65% 60%','No CMS crop override changes the approved hero focal point');
     const tips = page.getByRole("region", { name: "Demonstration travel tips" });
     assert.equal(await tips.locator("article").count(), 3);
     assert.equal(await tips.locator("img").count(), 3);

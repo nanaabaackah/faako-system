@@ -10,5 +10,5 @@ const content = publishedPage("packages");
   description={content?.seoDescription || "Explore journeys and travel package details."}
   noIndex={!content}
 >
-  <PackageListing items={content?.packages || []} />
+  <PackageListing items={content?.packages || []} headerPlacement={content?.imagePlacements?.header}/>
 </BaseLayout>

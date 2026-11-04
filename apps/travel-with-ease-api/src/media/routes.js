@@ -66,7 +66,7 @@ export function mediaRoutes({ service, auth }) {
     try {
       metadata = {
         alt: decodeURIComponent(req.get("X-Media-Alt") || ""),
-        rights: decodeURIComponent(req.get("X-Media-Rights") || ""),
+        rights: req.get('X-Media-Rights') ? decodeURIComponent(req.get('X-Media-Rights')) : undefined,
       };
     } catch {
       throw new ContentError(

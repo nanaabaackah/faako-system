@@ -10,5 +10,5 @@ const content = publishedPage("journal");
   description={content?.seoDescription || "Stories, perspectives and practical travel guides."}
   noIndex={!content}
 >
-  <JournalListing items={content?.articles || []} />
+  <JournalListing items={content?.articles || []} headerPlacement={content?.imagePlacements?.header}/>
 </BaseLayout>

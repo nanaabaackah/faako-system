@@ -18,7 +18,7 @@ const tips = publishedPage("travel-tips");
 const footprint = publishedPage("travel-footprint");
 ---
 
-<CinematicHero heading={content.heading} body={content.body} image={content.image} />
+<CinematicHero heading={content.heading} body={content.body} image={content.image} placement={content.imagePlacements?.hero} />
 <div class="home-journey-chapters">
   {about && (
     <section id="about" class="journey-introduction">

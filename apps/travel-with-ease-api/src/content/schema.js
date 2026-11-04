@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { packageOccasions } from "./catalogue-constants.js";
+import { placementSlots } from './placement-catalogue.js';
 
 export const pageNames = [
   "home",
@@ -16,10 +17,17 @@ export const pageNames = [
   "privacy",
   "terms",
   "cookies",
+  'site-appearance',
 ];
 export const pageSchema = z.enum(pageNames);
 const text = (max) => z.string().trim().max(max);
 const slug = text(80).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+export const imagePlacementSchema=z.object({
+  imageId:z.string().uuid().nullable().default(null),mobileImageId:z.string().uuid().nullable().default(null),
+  focalX:z.number().min(0).max(100).default(50),focalY:z.number().min(0).max(100).default(50),
+  mobileFocalX:z.number().min(0).max(100).default(50),mobileFocalY:z.number().min(0).max(100).default(50),
+  layout:z.enum(['default','left','right']).default('default'),alt:text(500).default(''),
+}).strict();
 const packageSchema = z
   .object({
     id: z.string().uuid(),
@@ -49,6 +57,7 @@ const packageSchema = z
       .enum(["enquiry", "available", "sold_out", "closed"])
       .default("enquiry"),
     imageId: z.string().uuid().nullable().default(null),
+    imagePlacement:imagePlacementSchema.optional(),
     galleryImageIds: z.array(z.string().uuid()).max(12).default([]),
     highlights: z.array(text(300).min(1)).max(20).default([]),
     inclusions: z.array(text(300).min(1)).max(20).default([]),
@@ -96,6 +105,7 @@ const tipSchema = z
     body: text(6000).min(1),
     category: z.enum(tipCategories),
     featured: z.boolean().default(false),
+    imagePlacement:imagePlacementSchema.optional(),
     order: z.number().int().min(0).max(999).default(0),
     imageId: z.string().uuid().nullable().default(null),
     relatedArticle: z
@@ -124,6 +134,7 @@ const articleSchema = z
       ),
     category: text(80).default("Travel stories"),
     author: text(120).default(""),
+    imagePlacement:imagePlacementSchema.optional(),
     imageId: z.string().uuid().nullable().default(null),
     galleryImageIds: z.array(z.string().uuid()).max(12).default([]),
     relatedPackageSlugs: z.array(slug).max(8).default([]),
@@ -144,6 +155,8 @@ export const contentBodySchema = z
       .array(
         z
           .object({
+            id:z.string().uuid().optional(),
+            imagePlacement:imagePlacementSchema.optional(),
             heading: text(160).min(1),
             text: text(2000).min(1),
             attribution: text(160).default(""),
@@ -155,6 +168,7 @@ export const contentBodySchema = z
     contactEmail: z
       .union([z.literal(""), z.string().email().max(254)])
       .default(""),
+    imagePlacements:z.record(imagePlacementSchema).default({}),
     contactPhone: text(40)
       .regex(/^[+0-9 ()-]*$/)
       .default(""),
@@ -219,7 +233,16 @@ export const contentBodySchema = z
   })
   .strict();
 export function contentForPage(page, body) {
+  pageSchema.parse(page);
   const value = contentBodySchema.parse(body);
+  const allowed=new Set(placementSlots(page).map(slot=>slot.id));
+  for(const [key,placement] of Object.entries(value.imagePlacements)) {
+    if(!allowed.has(key)||(!placementSlots(page).find(slot=>slot.id===key)?.split&&placement.layout!=='default')) throw new ContentError(400,'validation_error','Choose a supported image placement and layout for this section.');
+  }
+  const entryIds=value.entries.map(entry=>entry.id).filter(Boolean);
+  const recordPlacements=[...value.entries,...value.packages,...value.articles,...value.tips].map(record=>record.imagePlacement).filter(Boolean);
+  if(recordPlacements.some(placement=>placement.layout!=='default'))throw new ContentError(400,'validation_error','Record photographs use the existing card or gallery layout.');
+  if(new Set(entryIds).size!==entryIds.length)throw new ContentError(400,'validation_error','Each content entry needs its own stable identifier.');
   if (
     (page !== "journal" && value.articles.length) ||
     (page !== "travel-tips" && value.tips.length) ||
@@ -257,6 +280,7 @@ export function contentMediaIds(body) {
     ...new Set(
       [
         body.imageId,
+        ...[...Object.values(body.imagePlacements||{}),...body.entries.map(entry=>entry.imagePlacement),...body.tips.map(tip=>tip.imagePlacement),...[...body.packages,...body.articles].map(item=>item.imagePlacement)].filter(Boolean).flatMap(placement=>[placement.imageId,placement.mobileImageId]),
         ...body.tips.map((tip) => tip.imageId),
         ...[...body.packages, ...body.articles].flatMap((item) => [
           item.imageId,

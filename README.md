@@ -161,6 +161,14 @@ Owner manages business content/publishing/staff; Editor drafts/previews/media
 and has authorised enquiry access, as retained by the final launch brief.
 Application roles never grant provider-account ownership or infrastructure credentials.
 
+The [CMS roles, imagery, activity and navigation extension](docs/apps/travel-with-ease/cms-access-imagery-activity-2026-11-04.md)
+adds Superadmin-only Owner/Editor assignment, role-aware invitations and an
+audited handover command; section-level desktop/mobile images, focal crops,
+ordered galleries and shared CTA/footer imagery; separate business/security
+activity; and five mobile shortcuts with a full drawer/collapsible sidebar.
+Migration 013 and staging acceptance are required before hosted use. Real account
+handover and production promotion are not implied by passing local checks.
+
 See [CMS runtime, worker configuration and initial recovery acceptance](docs/apps/travel-with-ease/cms-runtime-2026-11-03.md)
 and the [client editing guide](docs/apps/travel-with-ease/client-cms-guide.md).
 Website project `twe-concierge` uses develop previews for staging and main for

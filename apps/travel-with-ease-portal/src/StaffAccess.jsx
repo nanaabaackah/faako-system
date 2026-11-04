@@ -6,6 +6,8 @@ import {
   StatusPill,
   InlineNotice,
   AnimatedLoadingState,
+  SelectField,
+  ERPConfirmDialog,
 } from "@faako/ui";
 import Invitations from "./Invitations.jsx";
 import "./activation.css";
@@ -19,6 +21,10 @@ export default function StaffAccess({ api, session }) {
     [loading, setLoading] = useState(true);
   const owner = session.user.role === "owner";
   const allowed = owner || session.user.role === "platform_admin";
+  const canAssign = session.user.permissions?.includes('staff.roles.manage');
+  const [roleTarget,setRoleTarget]=useState(null);
+  const [nextRole,setNextRole]=useState('editor');
+  const [approval,setApproval]=useState('');
   const load = useCallback(
     () =>
       api
@@ -54,12 +60,14 @@ export default function StaffAccess({ api, session }) {
       });
       await load();
       setMessage(
-        `Action recorded${path === "support-grants" ? `; support grant ${result.id} expires within 15 minutes` : ""}.`,
+        session.demo ? 'Demo updated in this tab only. No real account, session or invitation was changed.' : `Action recorded${path === "support-grants" ? `; support grant ${result.id} expires within 15 minutes` : ""}.`,
       );
-    } catch {
+      return true;
+    } catch (error) {
       setMessage(
-        "Action was not completed. Your permission or session may have changed; refresh before retrying.",
+        error.message || "Action was not completed. Your permission or session may have changed; refresh before retrying.",
       );
+      return false;
     } finally {
       setBusy(false);
     }
@@ -100,8 +108,8 @@ export default function StaffAccess({ api, session }) {
       <p>
         Use the independently verified Cloudflare subject—not an email address.
         New accounts are Editors. Owners and Superadmins can provision them.
-        Owner and Superadmin role assignment requires a
-        reviewed administrative procedure.
+        Superadmins can assign Owner or Editor. Superadmin assignment requires
+        a reviewed administrative procedure. At least one active Owner must remain.
       </p>
       {message && (
         <InlineNotice title="Staff access result" message={message} />
@@ -147,7 +155,7 @@ export default function StaffAccess({ api, session }) {
             <StatusPill tone={user.active ? "success" : "neutral"}>
               {user.active ? "Active" : "Inactive"}
             </StatusPill>
-            {user.role === "editor" && allowed && (
+            {['editor','owner'].includes(user.role) && (user.role === 'editor' || canAssign) && (
               <Button
                 variant={user.active ? "danger" : "primary"}
                 type="button"
@@ -155,7 +163,7 @@ export default function StaffAccess({ api, session }) {
                 onClick={() => {
                   if (
                     window.confirm(
-                      `${user.active ? "Revoke" : "Activate"} this Editor? Existing sessions will be revoked.`,
+                      `${user.active ? "Revoke" : "Activate"} this ${user.role}? Existing sessions will be revoked.`,
                     )
                   )
                     mutate(`staff/${user.id}/status`, { active: !user.active });
@@ -163,6 +171,9 @@ export default function StaffAccess({ api, session }) {
               >
                 {user.active ? "Revoke access" : "Activate"}
               </Button>
+            )}
+            {canAssign && ['owner','editor'].includes(user.role) && (
+              <Button icon="staff" type="button" disabled={busy} onClick={()=>{setRoleTarget(user);setNextRole(user.role==='owner'?'editor':'owner');setApproval('');}}>Change role</Button>
             )}
             {(!owner || user.role === "editor") && (
               <Button
@@ -205,6 +216,16 @@ export default function StaffAccess({ api, session }) {
           </li>
         ))}
       </ul>
+      <ERPConfirmDialog open={Boolean(roleTarget)} title="Change staff role" confirmTone="primary" confirmLabel="Confirm role change" loading={busy}
+        disabled={!/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/.test(approval)||nextRole===roleTarget?.role}
+        onCancel={()=>setRoleTarget(null)} onClose={()=>{if(!busy)setRoleTarget(null);}}
+        onConfirm={async()=>{if(await mutate(`staff/${roleTarget.id}/role`,{role:nextRole,expectedRole:roleTarget.role,approvalReference:approval}))setRoleTarget(null);}}>
+        <p>Account {roleTarget?.id}. Current role: {roleTarget?.role}. This account will need to sign in again.</p>
+        <SelectField label="New role" value={nextRole} onChange={event=>setNextRole(event.target.value)} options={[{value:'editor',label:'Editor'},{value:'owner',label:'Owner'}]} />
+        <p>{nextRole==='owner'?'Owners can publish and manage Editors. They do not gain Faako system administration.':'Editors can draft content and manage permitted media/enquiries, but cannot publish or manage staff.'}</p>
+        <TextField label="Role change approval reference" value={approval} maxLength={120} onChange={event=>setApproval(event.target.value)} />
+        <p>Changing the last active Owner is blocked. Existing sessions and affected approvals are revoked.</p>
+      </ERPConfirmDialog>
     </section>
   );
 }

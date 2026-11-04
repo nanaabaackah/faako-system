@@ -4,7 +4,7 @@ import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
 import "../styles/components/journey-editorial.css";
 interface Props {
-  entries: { heading: string; text: string; attribution?: string }[];
+  entries: { heading: string; text: string; attribution?: string; imagePlacement?:import('../lib/collections').ImagePlacement }[];
   all?: boolean;
 }
 const { entries, all = false } = Astro.props;
@@ -17,7 +17,7 @@ const images = [photography.hippos, photography.coast, photography.garden, photo
     const [title, price] = entry.heading.split(" · ");
     return (
       <article class="service-panel" id={all ? `service-${index + 1}` : undefined}>
-        <EditorialPhoto image={images[index % images.length]} class={`service-panel__photo service-panel__photo--${index}`} />
+        <EditorialPhoto image={images[index % images.length]} placement={entry.imagePlacement} class={`service-panel__photo service-panel__photo--${index}`} />
         <div class="service-panel__label">
           <h2><ContentLink href={all ? "#plan" : `/services#service-${index + 1}`}>{title}</ContentLink></h2>
           {price && <p>{price}</p>}

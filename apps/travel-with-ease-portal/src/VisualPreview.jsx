@@ -21,6 +21,7 @@ export default function VisualPreview({ job, api, body }) {
     return () => { active = false; clearTimeout(timer); };
   }, [api, job]);
   const records = [
+    ...(job.page==='site-appearance'?[{path:'index.html',title:'Homepage'},{path:'services/index.html',title:'Services'},{path:'packages/index.html',title:'Packages'},{path:'journal/index.html',title:'Journal'}]:[]),
     ...(body.packages || []).map(item => ({ path: `packages/${item.slug}/index.html`, title: item.title })),
     ...(body.articles || []).map(item => ({ path: `journal/${item.slug}/index.html`, title: item.title })),
     ...(body.tips || []).map(item => ({ path: `travel-tips/${item.slug}/index.html`, title: item.title })),
