@@ -278,6 +278,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     const next=await readActivity(admin,owner,{cursor:page.nextCursor});
     assert.ok(next.items.length);assert.equal(next.items.some(row=>page.items.some(first=>first.id===row.id)),false);
     assert.equal([...page.items,...next.items].some(row=>row.action.startsWith('auth.')||row.action.startsWith('staff.bootstrap.')),false);
+    assert.equal((await admin.staffEvents(owner)).some(row=>row.action.startsWith('staff.bootstrap.')),false);
     await assert.rejects(readActivity(admin,owner,{},true),{status:403});
     await assert.rejects(readActivity(admin,{...owner,organisationId:otherOrg},{}),{status:403});
     await assert.rejects(readActivity(admin,owner,{category:'auth'}),{status:400});

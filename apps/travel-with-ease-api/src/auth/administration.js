@@ -120,7 +120,7 @@ export class Administration {
     return rows;
   }
   async staffEvents(actor) {
-    await this.actor(this.pool,actor,"staff.manage");
-    return (await this.pool.query("SELECT id,action,record_id,created_at FROM twe.audit_records WHERE organisation_id=$1 AND action LIKE 'staff.%' ORDER BY created_at DESC LIMIT 100",[this.organisationId])).rows;
+    const current=await this.actor(this.pool,actor,"staff.manage");
+    return (await this.pool.query("SELECT id,action,record_id,created_at FROM twe.audit_records WHERE organisation_id=$1 AND action LIKE 'staff.%' AND ($2::boolean OR action NOT LIKE 'staff.bootstrap.%') ORDER BY created_at DESC LIMIT 100",[this.organisationId,current.role==='platform_admin'])).rows;
   }
 }
