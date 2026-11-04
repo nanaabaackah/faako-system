@@ -10,7 +10,7 @@
   margin: 24px 0;
   box-shadow: 0 8px 24px #000a1f14;
 }
-.placed-image > img {
+.placed-image--custom-focus > img {
   object-position: var(--image-x, 50%) var(--image-y, 50%);
 }
 .journey-process[data-image-layout="right"] > .placed-image {
@@ -72,7 +72,7 @@
   ) {
     display: block;
   }
-  .placed-image > img {
+  .placed-image--custom-focus > img {
     object-position: var(--image-mobile-x, 50%) var(--image-mobile-y, 50%);
   }
   .journey-process[data-image-layout="right"] > .placed-image {
