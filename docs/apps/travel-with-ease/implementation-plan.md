@@ -1,5 +1,14 @@
 # Travel With Ease — MVP implementation plan
 
+## CMS roles, imagery, activity and navigation — 2026-11-04
+
+The approved extension is implemented on a focused develop branch. See the
+[implementation, migration and acceptance runbook](./cms-access-imagery-activity-2026-11-04.md)
+for Superadmin role assignment/handover, section images, audit separation and
+five-shortcut/drawer navigation. Migration 013 precedes hosted runtime. Staging
+authenticated acceptance, real handover and production release remain gates;
+this does not complete the broader roadmap.
+
 ## CMS runtime update — 2026-11-03
 
 Autosave, actual protected Astro previews, viewport modes, collection navigation,

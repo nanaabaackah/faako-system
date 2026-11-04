@@ -1,5 +1,5 @@
 // Test harness only: synthetic staff session and no database/provider access.
-/* global document, innerWidth */
+/* global document, innerWidth, getComputedStyle */
 import express from "express";
 import assert from "node:assert/strict";
 import { once } from "node:events";
@@ -9,15 +9,19 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { PreviewService } from "../src/content/preview.js";
 import { contentRoutes } from "../src/content/routes.js";
+import sharp from 'sharp';
 
 const require = createRequire(new URL("../../stroane-web/package.json", import.meta.url));
 const { chromium } = require("@playwright/test");
 const actor = { id: "synthetic-editor", organisationId: "synthetic-test-tenant" };
+const imageId='40000000-0000-4000-8000-000000000001';
+const imageBytes=await sharp({create:{width:64,height:48,channels:4,background:{r:1,g:12,b:51,alpha:.5}}}).webp().toBuffer();
 const service = new PreviewService({ organisationId: actor.organisationId, environment: "test",
   siteOrigin: "https://staging.travelwitheasegh.com", apiOrigin: "",
+  media:{get:async id=>{assert.equal(id,imageId);return {alt_text:'Private placement fixture',derivatives:[{key:'synthetic',variant:640,width:64,height:48}]};},store:{get:async()=>imageBytes}},
   repository: {
     list: async () => [{ slug: "home" }],
-    get: async slug => slug === "home" ? { version: 1, body: { heading: "Private preview fixture", body: "A synthetic draft for local verification only.", seoTitle: "Private preview", seoDescription: "Test only" } } : null,
+    get: async slug => slug === "home" ? { version: 1, body: { heading: "Private preview fixture", body: "A synthetic draft for local verification only.", seoTitle: "Private preview", seoDescription: "Test only",imagePlacements:{hero:{imageId,mobileImageId:imageId,focalY:25,mobileFocalY:25}} } } : null,
   },
 });
 const app = express(); app.use(express.json());
@@ -58,6 +62,8 @@ try {
     await page.evaluate(async () => { document.querySelectorAll("img").forEach(image => image.loading = "eager"); await Promise.all([...document.images].map(image => image.decode().catch(() => {}))); await document.fonts.ready; });
     const broken = await page.locator("img").evaluateAll(images => images.filter(image => !image.naturalWidth).map(image => image.getAttribute("src")));
     assert.deepEqual(broken, []);
+    assert.match(await page.locator('.cinematic-hero__image').getAttribute('src'),new RegExp(imageId));
+    assert.equal(await page.locator('.cinematic-hero__image').evaluate(node=>getComputedStyle(node).objectPosition),'50% 25%');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     assert.equal(await page.locator("script").count(), 0);
     await page.screenshot({ path: path.join(output, `private-preview-${width}.png`), fullPage: true });

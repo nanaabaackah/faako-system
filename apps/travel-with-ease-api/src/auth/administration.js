@@ -3,6 +3,7 @@ import { transaction } from "../db/database.js";
 import { appendAudit } from "../audit.js";
 import { ContentError } from "../content/schema.js";
 import { hasPermission, validSupportGrant } from "./permissions.js";
+import { lockStaff, protectLastOwner, invalidateStaffAccess, recordRoleChange } from './staff-policy.js';
 
 const denied = () => { throw new ContentError(403, "permission_error", "Administrative permission denied."); };
 
@@ -34,14 +35,32 @@ export class Administration {
   }
   async changeStaff(actor, id, active, requestId) {
     return transaction(this.pool, async client => {
+      await lockStaff(client,this.organisationId);
       const current = await this.actor(client, actor, actor.role === "platform_admin" ? "staff.revoke" : "staff.manage");
-      // Owner/Platform Admin bootstrap and role changes are offline reviewed
-      // operations. Normal management may only activate/revoke Editors.
-      const result = await client.query("UPDATE twe.staff_users SET active=$3 WHERE organisation_id=$1 AND id=$2 AND role='editor' RETURNING id,role,active", [this.organisationId,id,active]);
+      const target = (await client.query('SELECT id,role,active FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 FOR UPDATE',[this.organisationId,id])).rows[0];
+      if (!target || target.role === 'platform_admin' || (target.role === 'owner' && !hasPermission(current,'staff.roles.manage',this.organisationId))) denied();
+      await protectLastOwner(client,this.organisationId,target,target.role,active);
+      const result = await client.query("UPDATE twe.staff_users SET active=$3 WHERE organisation_id=$1 AND id=$2 RETURNING id,role,active", [this.organisationId,id,active]);
       if (!result.rowCount) denied();
-      await client.query("UPDATE twe.staff_sessions SET revoked_at=now() WHERE organisation_id=$1 AND user_id=$2 AND revoked_at IS NULL", [this.organisationId,id]);
+      await invalidateStaffAccess(client,this.organisationId,id,{invitations:!active});
       await this.audit(client,current,active ? "staff.activated" : "staff.revoked",id,requestId);
       return result.rows[0];
+    });
+  }
+  async changeRole(actor,id,input,requestId) {
+    return transaction(this.pool,async client => {
+      await lockStaff(client,this.organisationId);
+      const current = await this.actor(client,actor,'staff.roles.manage');
+      const target = (await client.query('SELECT id,role,active FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 FOR UPDATE',[this.organisationId,id])).rows[0];
+      if (!target || target.role === 'platform_admin' || id === current.id || !['owner','editor'].includes(input.role)) denied();
+      if (target.role !== input.expectedRole) throw new ContentError(409,'conflict','This role changed. Refresh staff before trying again.');
+      if (target.role === input.role) return target;
+      await protectLastOwner(client,this.organisationId,target,input.role,target.active);
+      await client.query('UPDATE twe.staff_users SET role=$3 WHERE organisation_id=$1 AND id=$2',[this.organisationId,id,input.role]);
+      await invalidateStaffAccess(client,this.organisationId,id,{invitations:input.role==='editor'});
+      const changeId = await recordRoleChange(client,{organisationId:this.organisationId,actorId:current.id,userId:id,previousRole:target.role,nextRole:input.role,approvalReference:input.approvalReference,requestId});
+      await this.audit(client,current,'staff.role_changed',changeId,requestId);
+      return {...target,role:input.role};
     });
   }
   async grantSupport(actor, input, requestId) {

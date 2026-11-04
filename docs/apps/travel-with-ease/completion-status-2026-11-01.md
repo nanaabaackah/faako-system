@@ -1,5 +1,10 @@
 # TWE implementation status and production-readiness gates
 
+**2026-11-04 extension:** [CMS role management, imagery, activity and navigation](./cms-access-imagery-activity-2026-11-04.md)
+adds code and isolated/local checks, not a production certification. Migration
+013, authenticated staging acceptance and real handover are explicit remaining
+operations. Historical findings below are retained as dated evidence.
+
 **2026-11-03 update:** the following original audit remains historical evidence.
 Autosave, protected actual-Astro previews, viewport modes, independent collection
 publication, Pages worker/artifact recovery and the approved Superadmin matrix

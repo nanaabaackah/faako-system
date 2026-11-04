@@ -125,6 +125,7 @@ a:focus .link-arrow {
   min-width: 0;
 }
 .editorial-hero > img,
+.editorial-hero > .placed-image > img,
 .editorial-hero > figure img {
   display: block;
   width: 100%;

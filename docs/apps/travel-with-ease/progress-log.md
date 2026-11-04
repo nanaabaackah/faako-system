@@ -1,5 +1,33 @@
 # Travel With Ease progress log
 
+## 2026-11-04 — CMS roles, imagery, activity and responsive navigation
+
+- Focused branch `feat/twe-cms-roles-imagery-activity` from develop
+  `358ad9732a4948ef5a8d35150e5f4fef570650c7`; unrelated edits preserved.
+- Added Superadmin-only Owner/Editor role changes, role-aware invitations,
+  last-active-Owner serialisation, session/grant/invitation revocation and
+  immutable role history. Reviewed identity-bound handover command added;
+  real accounts have not been converted.
+- Added supported image slots, desktop/mobile crops, gallery ordering and shared
+  CTA/footer placement drafts, with tenant/media validation and artifact/revision
+  preservation. Drive imports require no manual licence evidence.
+- Added filtered/paginated business/security activity, responsive history views
+  and diagnostic tables. Five high-use mobile shortcuts plus accessible full
+  drawer and collapsible desktop sidebar retain role filtering.
+- Updated root README, security/design/implementation status and client guide;
+  operating and recovery details are in the
+  [CMS extension runbook](./cms-access-imagery-activity-2026-11-04.md).
+- Local verification passed: TWE lint/type/build; API 110, portal 16, website 39,
+  shared UI 8 and isolated PostgreSQL 10 tests. The database drill includes
+  migration, runtime grants, concurrent last-Owner changes, role/session/grant
+  revocation, handover, image references/artifacts, restart and logical restore.
+- Chrome passed CMS management, existing content demos/onboarding and actual
+  private Astro image previews at 320/390/768/1440. Public-site regression
+  includes no-JavaScript content and axe checks. Synthetic fixtures only.
+- Registry/manifests, whitespace and workspace secret scan passed. Remote CI,
+  merge SHA and authenticated staging acceptance remain separate evidence.
+  No production deployment or real account handover is implied.
+
 ## 2026-11-03 — Develop release preparation
 
 - Created `feat/twe-cms-website-release-2026-11-03` from refreshed

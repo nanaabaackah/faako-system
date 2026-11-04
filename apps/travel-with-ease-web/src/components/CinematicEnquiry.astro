@@ -2,36 +2,22 @@
 import PublicFooter from "./PublicFooter.astro";
 import EnquiryForm from "./EnquiryForm.jsx";
 import photography from "../lib/assigned-photography.json";
+import { publishedPage } from '../lib/published.js';
+import PlacedImage from './PlacedImage.astro';
 import "../styles/components/cinematic-enquiry.css";
 const { demo = false } = Astro.props;
 // One continuous image covers the enquiry and transparent footer together.
 // Contact-page CMS imagery remains independent from footer art direction.
 const photo = photography.footer;
+const selected=publishedPage('site-appearance')?.imagePlacements?.['footer-background'];
+const placement={focalY:60,mobileImage:!selected?.image&&!selected?.mobileImage?{src:'/media/zanzibar-beach-club-b60ec1e6297a-1920.webp',width:1920,height:3413,alt:''}:null,...selected};
 ---
 
 <div class="closing-scene">
-  <picture>
-    <!-- Height-driven cover needs a tall, high-resolution source, not a 100vw thumbnail. -->
-    <source
-      media="(max-width: 760px)"
-      srcset="/media/zanzibar-beach-club-b60ec1e6297a-1920.webp"
-      width="1920"
-      height="3413"
-    />
-  <img
+  <PlacedImage image={photo} placement={placement} decorative
     class="closing-scene__image"
-    src={photo.src}
-    srcset={photo.sources
-      .map((source) => `${source.src} ${source.width}w`)
-      .join(", ")}
     sizes="100vw"
-    alt=""
-    width={photo.width}
-    height={photo.height}
-    loading="lazy"
-    decoding="async"
   />
-  </picture>
   <section
     id={demo ? "demo-plan" : "plan"}
     class="cinematic-enquiry"

@@ -8,7 +8,7 @@ import { prepareImage } from "./images.js";
 export const mediaMetadataSchema = z
   .object({
     alt: z.string().trim().min(1).max(500),
-    rights: z.string().trim().min(1).max(2000),
+    rights: z.string().trim().min(1).max(2000).default('TWE-owned photography; supplied by Travel With Ease.'),
   })
   .strict();
 
@@ -223,7 +223,7 @@ export class MediaService {
       );
     const fields = mediaMetadataSchema.parse({
       alt: input.alt,
-      rights: input.rights,
+      rights: 'TWE-owned photography; approved TWE Drive folder.',
     });
     this.driveImporting = true;
     try {

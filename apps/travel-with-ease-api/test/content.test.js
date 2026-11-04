@@ -51,6 +51,20 @@ test("packages and enhanced Journal retain strict validation and all nested medi
   assert.deepEqual(contentMediaIds(contentForPage("journal", { ...base, articles: [article] })).sort(), [imageId, galleryId].sort());
 });
 
+test("image placements accept only reviewed slots, bounded crops and internal media references",()=>{
+  const base={heading:'Image fixture',body:'',seoTitle:'Fixture',seoDescription:'Test only'};
+  const imageId='40000000-0000-4000-8000-000000000001',mobileImageId='40000000-0000-4000-8000-000000000002';
+  const result=contentForPage('home',{...base,imagePlacements:{hero:{imageId,mobileImageId,focalY:15}}});
+  assert.deepEqual(contentMediaIds(result),[imageId,mobileImageId]);
+  assert.equal(result.imagePlacements.hero.focalY,15);
+  for(const placement of [{focalX:-1},{mobileFocalY:101},{imageId:'https://untrusted.invalid/photo'},{css:'position:fixed'},{layout:'left'}])
+    assert.throws(()=>contentForPage('home',{...base,imagePlacements:{hero:placement}}));
+  assert.throws(()=>contentForPage('home',{...base,imagePlacements:{unknown:{imageId}}}));
+  assert.equal(contentForPage('about',{...base,imagePlacements:{story:{layout:'left'}}}).imagePlacements.story.layout,'left');
+  assert.equal(Object.keys(contentForPage('site-appearance',{...base,imagePlacements:{'cta-laptop':{imageId},'footer-background':{mobileImageId}}}).imagePlacements).length,2);
+  assert.throws(()=>contentForPage('services',{...base,entries:[{id:imageId,heading:'A',text:'A'},{id:imageId,heading:'B',text:'B'}]}));
+});
+
 test("CMS uses fixed page names, bounded fields and code-owned CTA destinations", () => {
   const body = {
     heading: "Synthetic heading",

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { TextField, InlineNotice } from "@faako/ui";
+import { TextField, InlineNotice, SelectField } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import { ActivityList } from './ActivityView.jsx';
 
 export default function Invitations({ api, session, installer = false }) {
   const [subject, setSubject] = useState("");
@@ -10,6 +11,8 @@ export default function Invitations({ api, session, installer = false }) {
   const [events, setEvents] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [role,setRole]=useState('editor');
+  const canInviteOwner=!installer&&session?.user.permissions?.includes('staff.roles.manage');
   const path = installer
     ? "/api/auth/activation/owner-invitation"
     : "/api/auth/invitations";
@@ -64,7 +67,7 @@ export default function Invitations({ api, session, installer = false }) {
       aria-labelledby="invitations-heading"
     >
       <h2 id="invitations-heading">
-        {installer ? "Initial Owner invitation" : "Invite an Editor"}
+        {installer ? "Initial Owner invitation" : canInviteOwner ? 'Invite a team member' : "Invite an Editor"}
       </h2>
       <p>
         Independently verify the recipient's Cloudflare Access subject. Deliver
@@ -81,9 +84,10 @@ export default function Invitations({ api, session, installer = false }) {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          mutate(path, { subject, approvalReference: reference });
+          mutate(path, { subject, approvalReference: reference,...(!installer?{role}: {}) });
         }}
       >
+        {canInviteOwner&&<SelectField label="Invitation role" value={role} onChange={event=>setRole(event.target.value)} options={[{value:'editor',label:'Editor'},{value:'owner',label:'Owner'}]} />}
         <TextField
           label="Verified recipient subject"
           required
@@ -99,7 +103,7 @@ export default function Invitations({ api, session, installer = false }) {
           onChange={(event) => setReference(event.target.value)}
         />
         <Button type="submit" disabled={busy}>
-          Create {installer ? "Owner" : "Editor"} invitation
+          Create {installer || role==='owner' ? "Owner" : "Editor"} invitation
         </Button>
       </form>
       {issued && (
@@ -129,44 +133,16 @@ export default function Invitations({ api, session, installer = false }) {
         </div>
       )}
       {!installer && (
-        <ul className="staff-list">
-          {items.map((item) => (
-            <li key={item.id}>
-              <span>
-                {item.role} ·{" "}
-                {item.accepted_at
-                  ? "Accepted"
-                  : item.revoked_at
-                    ? "Revoked"
-                    : new Date(item.expires_at) <= new Date()
-                      ? "Expired"
-                      : "Pending"}
-              </span>
-              <code>{item.id}</code>
-              {!item.accepted_at && !item.revoked_at && (
-                <Button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => mutate(`${path}/${item.id}/revoke`, {})}
-                >
-                  Revoke invitation
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <ActivityList title="Invitation history" items={items.map(item=>({...item,action:`${item.role} invitation · ${item.accepted_at?'Accepted':item.revoked_at?'Revoked':new Date(item.expires_at)<=new Date()?'Expired':'Pending'}`}))}
+          renderAction={item=><>
+            <p>Expires: {new Date(item.expires_at).toLocaleString()}</p>
+            {!item.accepted_at&&!item.revoked_at&&(item.role==='editor'||canInviteOwner)&&<Button type="button" disabled={busy} onClick={()=>mutate(`${path}/${item.id}/revoke`,{})}>Revoke invitation</Button>}
+          </>}/>
       )}
       {!installer && (
         <details>
           <summary>Staff access audit history</summary>
-          <ul>
-            {events.map((event) => (
-              <li key={event.id}>
-                {event.action} · {new Date(event.created_at).toLocaleString()}{" "}
-                {event.record_id && <code>{event.record_id}</code>}
-              </li>
-            ))}
-          </ul>
+          <ActivityList title="Staff access audit history" items={events}/>
         </details>
       )}
     </section>

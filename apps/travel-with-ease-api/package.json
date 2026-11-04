@@ -20,7 +20,8 @@
     "publication:once": "node scripts/run-publication-worker.mjs",
     "publication:baseline": "node scripts/accept-publication-baseline.mjs",
     "db:migrate": "node --env-file-if-exists=.env src/db/migrate.js",
-    "db:deploy": "node scripts/deploy-database.mjs"
+    "db:deploy": "node scripts/deploy-database.mjs",
+    "staff:handover": "node scripts/handover-developer.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1149.0",

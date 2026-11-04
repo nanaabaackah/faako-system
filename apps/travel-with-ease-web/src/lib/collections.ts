@@ -5,7 +5,13 @@ export interface PublicImage {
   height: number;
   sources?: { src: string; width: number }[];
 }
+export interface ImagePlacement {
+  image?:PublicImage|null; mobileImage?:PublicImage|null;
+  focalX?:number; focalY?:number; mobileFocalX?:number; mobileFocalY?:number;
+  alt?:string; layout?:'default'|'left'|'right';
+}
 export interface TravelPackage {
+  imagePlacement?:ImagePlacement;
   id: string;
   slug: string;
   title: string;
@@ -39,6 +45,7 @@ export interface TravelPackage {
   tiers?: { id: string; label: string; description?: string; amountMinor: number | null; currency?: string }[];
 }
 export interface JournalArticle {
+  imagePlacement?:ImagePlacement;
   slug: string;
   title: string;
   excerpt: string;

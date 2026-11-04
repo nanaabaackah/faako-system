@@ -81,7 +81,7 @@ try {
     if (await publicConsent.isVisible()) await publicConsent.click();
     await page.getByRole("status").filter({ hasText: "4 entries shown" }).waitFor();
     assert.equal(await page.locator("[data-collection-item]").count(), 4);
-    assert.equal(await page.locator("[data-collection-item] > img").count(), 4);
+    assert.equal(await page.locator("[data-collection-item] > .placed-image > img").count(), 4);
     const fieldStyle = await page.getByRole("button", { name: "Destination", exact: true }).evaluate(element => {
       const style = getComputedStyle(element);
       return { border: parseFloat(style.borderTopWidth), font: parseFloat(style.fontSize) };

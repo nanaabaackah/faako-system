@@ -1,5 +1,6 @@
 // Browser-only synthetic fixtures. This adapter never calls fetch or stores data.
 import { defaultTemplateCopies, renderEmailTemplate } from "../../travel-with-ease-api/src/notifications/template-catalogue.js";
+import { ROLE_PERMISSIONS } from "../../travel-with-ease-api/src/auth/permissions.js";
 export function demoEnabled({
   allowed,
   hostname,
@@ -20,23 +21,12 @@ export function demoEnabled({
   return local || staging;
 }
 
-export function createDemoClient() {
+export function createDemoClient({role='owner'}={}) {
+  if(!Object.hasOwn(ROLE_PERMISSIONS,role))role='owner';
   const templates = new Map(Object.entries(defaultTemplateCopies).map(([slug, defaults]) => [slug, { version: 0, draft: { ...defaults }, active: { ...defaults }, active_version: null }]));
-  const permissions = [
-    "content.read",
-    "content.write",
-    "content.publish",
-    "media.read",
-    "media.write",
-    "enquiries.read",
-    "enquiries.write",
-    "staff.manage",
-    "support.approve",
-    "templates.manage",
-  ];
   const session = {
     demo: true,
-    user: { id: "demo-owner", role: "owner", permissions },
+    user: { id: "demo-owner", role, permissions: [...ROLE_PERMISSIONS[role]] },
     csrfToken: "synthetic-not-a-credential",
   };
   const timestamp = "2026-10-27T09:00:00.000Z";
@@ -74,6 +64,8 @@ export function createDemoClient() {
   const pages = new Map();
   const history = new Map();
   const demoMedia = [];
+  const staff=[{id:'demo-editor',role:'editor',active:true},{id:'demo-owner',role,active:true}];
+  const events=[{id:'demo-event-1',action:'content.saved',actor_id:'demo-owner',record_id:'demo-home',request_id:'synthetic-request',created_at:timestamp}];
   let signedIn = true;
   const fail = (status, message) => {
     throw Object.assign(new Error(message), { status });
@@ -87,7 +79,7 @@ export function createDemoClient() {
     seoTitle: `Demo ${page}`,
     seoDescription: "Local demonstration only.",
     imageId: null,
-    entries: [],
+    entries: page==='services'?[{id:'30000000-0000-4000-8000-000000000009',heading:'Sample service',text:'Synthetic service for image editing practice.',attribution:''}]:[],
     contactEmail: "",
     contactPhone: "",
     articles:
@@ -177,7 +169,12 @@ export function createDemoClient() {
           ],
         });
       if (url.pathname === "/api/agent/administration/staff")
-        return { items: [{ id: "demo-editor", role: "editor", active: true }] };
+        return copy({items:staff});
+      if(url.pathname==='/api/auth/invitations')return {items:[]};
+      if(url.pathname==='/api/agent/administration/staff-events')return {items:[]};
+      if(['/api/agent/administration/activity','/api/agent/administration/security-activity'].includes(url.pathname))
+        return copy({items:events.filter(event=>!url.searchParams.get('category')||url.searchParams.get('category')==='all'||event.action.startsWith(url.searchParams.get('category')+'.')),nextCursor:null});
+      if(url.pathname==='/api/agent/administration/diagnostics')return {environment:'local demo',database:'Simulated — no database connection',authentication:'Synthetic session',hostedAcceptance:'Not evaluated in demo',publication:[],notifications:[]};
       if (url.pathname === "/api/agent/content/publication-jobs")
         return { items: [] };
       if (url.pathname === "/api/agent/content")
@@ -211,6 +208,18 @@ export function createDemoClient() {
         return { signedOut: true };
       }
       if (!signedIn) return fail(401, "Demo signed out.");
+      const staffAction=path.match(/^\/api\/agent\/administration\/staff\/([^/]+)\/(role|status|revoke-sessions)$/);
+      if(staffAction){
+        const target=staff.find(user=>user.id===staffAction[1]);
+        if(!target)return fail(404,'Demo account not found.');
+        if(staffAction[2]==='role'){
+          if(role!=='platform_admin'||!['owner','editor'].includes(json.role))return fail(403,'Role management requires Superadmin.');
+          if(target.role!==json.expectedRole)return fail(409,'Refresh the changed demo role.');
+          const previous=target.role;target.role=json.role;
+          events.unshift({id:`demo-event-${events.length+1}`,action:'staff.role_changed',actor_id:'demo-owner',record_id:target.id,previous_role:previous,next_role:target.role,approval_reference:json.approvalReference,created_at:new Date().toISOString()});
+        }else if(staffAction[2]==='status')target.active=json.active;
+        return copy(target);
+      }
       const templateAction = path.match(/^\/api\/agent\/templates\/(?:(enquiry-acknowledgement|staff-invitation)\/)?(preview|draft|activate)$/);
       if (templateAction) {
         const slug = templateAction[1] || "enquiry-acknowledgement";
@@ -226,19 +235,18 @@ export function createDemoClient() {
         if (
           json?.fileId !== "synthetic_drive_photo" ||
           json?.version !== "1" ||
-          !json?.alt?.trim() ||
-          !json?.rights?.trim()
+          !json?.alt?.trim()
         )
           return fail(
             400,
-            "Choose the synthetic image and complete its alt text and source details.",
+            "Choose the synthetic image and complete its alt text.",
           );
         const unchanged = demoMedia.length > 0;
         if (!unchanged)
           demoMedia.push({
             id: "20000000-0000-4000-8000-000000000001",
             alt_text: json.alt,
-            rights: json.rights,
+            rights: "TWE-owned photography; approved Drive folder.",
             width: 1280,
             height: 720,
             byte_size: 1024,

@@ -32,7 +32,8 @@ test("shared CTA preserves the five supplied mockups, one action and no copied r
 
 test("one continuous image covers the enquiry and footer, with gutters only at the page end", () => {
   const component = source("components/CinematicEnquiry.astro");
-  assert.equal((component.match(/<img\b/g) || []).length, 1);
+  assert.equal((component.match(/<PlacedImage\b/g) || []).length, 1);
+  assert.equal((source("components/PlacedImage.astro").match(/<img\b/g)||[]).length,1);
   assert.match(component, /class="closing-scene__image"/);
   assert.match(
     component,
@@ -45,7 +46,8 @@ test("one continuous image covers the enquiry and footer, with gutters only at t
   assert.doesNotMatch(source("layouts/BaseLayout.astro"), /<PublicFooter/);
   assert.match(source("styles/components/cinematic-enquiry.css"),
     /@media \(max-width: 760px\)[\s\S]*object-fit: cover/);
-  assert.match(component, /media="\(max-width: 760px\)"[\s\S]*zanzibar-beach-club-b60ec1e6297a-1920\.webp/);
+  assert.match(source("components/PlacedImage.astro"), /media="\(max-width:760px\)"/);
+  assert.match(component,/zanzibar-beach-club-b60ec1e6297a-1920\.webp/);
   const motion = source("components/EditorialMotion.astro");
   assert.match(motion, /scrollHeight - innerHeight - scrollY/);
   assert.match(motion, /distance \/ 180/);

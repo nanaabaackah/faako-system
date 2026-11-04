@@ -1,5 +1,12 @@
 # Travel With Ease security architecture and threat model
 
+> Current policy: the final launch brief explicitly authorises TWE Superadmin
+> business/content/publishing access as well as technical duties. The
+> [November 4 CMS extension](./cms-access-imagery-activity-2026-11-04.md)
+> supersedes older technical-only/support-only wording below. Role changes,
+> handover and audit separation retain tenant, Access/MFA, session and CSRF
+> boundaries. Provider ownership is never granted through application roles.
+
 > Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
 > supersedes the production API blanket block and startup release-SHA requirement
 > below. Both hosted API environments require verified persistence and Access;

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { createSuccessResponse, createErrorResponse } from "@faako/api-contracts";
 import { ContentError } from "../content/schema.js";
+import { readActivity } from './activity.js';
 
 export function administrationRoutes(service, auth) {
   const router=Router();
@@ -11,6 +12,12 @@ export function administrationRoutes(service, auth) {
   router.get("/security-events",auth.requirePermission("security.read"),async(req,res)=>send(req,res,{items:await service.securityEvents(req.staff,req.requestId)}));
   router.get("/staff",async(req,res)=>send(req,res,{items:await service.staff(req.staff)}));
   router.get("/staff-events",auth.requirePermission("staff.manage"),async(req,res)=>send(req,res,{items:await service.staffEvents(req.staff)}));
+  router.get('/activity',auth.requirePermission('audit.business.read'),async(req,res)=>send(req,res,await readActivity(service,req.staff,req.query)));
+  router.get('/security-activity',auth.requirePermission('security.read'),async(req,res)=>{
+    const result=await readActivity(service,req.staff,req.query,true);
+    await service.audit(service.pool,req.staff,'system.security_read',null,req.requestId);
+    send(req,res,result);
+  });
   router.post("/staff/:id/revoke-sessions",auth.requireMutation,async(req,res)=> {
     await service.revokeSessions(req.staff,id(req.params.id),req.requestId);send(req,res,{revoked:true});
   });
@@ -21,6 +28,10 @@ export function administrationRoutes(service, auth) {
   router.post("/staff/:id/status",auth.requireMutation,async(req,res)=> {
     const input=z.object({active:z.boolean()}).strict().parse(req.body);
     send(req,res,await service.changeStaff(req.staff,id(req.params.id),input.active,req.requestId));
+  });
+  router.post('/staff/:id/role',auth.requireMutation,auth.requirePermission('staff.roles.manage'),async(req,res)=> {
+    const input=z.object({role:z.enum(['owner','editor']),expectedRole:z.enum(['owner','editor']),approvalReference:z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/)}).strict().parse(req.body);
+    send(req,res,await service.changeRole(req.staff,id(req.params.id),input,req.requestId));
   });
   router.post("/support-grants",auth.requireMutation,auth.requirePermission("support.approve"),async(req,res)=> {
     const input=z.object({userId:z.string().uuid(),minutes:z.number().int().min(1).max(30),reasonReference:z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/)}).strict().parse(req.body);

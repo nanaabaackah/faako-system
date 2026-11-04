@@ -61,7 +61,7 @@ export class PreviewService {
   }
   describe(job) { return { id: job.id, page: job.page, version: job.version, status: job.status,
     expiresAt: new Date(job.expires).toISOString(),
-    ...(job.status === "ready" ? { url: `/api/agent/content/previews/${job.id}/files/${job.page === "home" ? "" : job.page + "/"}index.html` } : {}),
+    ...(job.status === "ready" ? { url: `/api/agent/content/previews/${job.id}/files/${['home','site-appearance'].includes(job.page) ? "" : job.page + "/"}index.html` } : {}),
     ...(job.status === "failed" ? { message: "The website preview could not be built. Your saved draft is unchanged." } : {}) }; }
   get(id, actor) { return this.describe(this.authorize(this.jobs.get(id), actor)); }
   async render(job, pages) {
