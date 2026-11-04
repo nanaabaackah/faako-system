@@ -68,7 +68,7 @@
   align-items: center;
   justify-content: center;
   padding: max(var(--page-gutter), 6vw);
-  opacity: 80%;
+  opacity: 0;
   text-align: center;
 }
 
@@ -142,7 +142,7 @@
 }
 
 .scroll-expand[data-motion-active] .scroll-expand__media { will-change: transform; }
-@media (prefers-reduced-motion: reduce), (max-width: 699px) {
+@media (prefers-reduced-motion: reduce) {
   .scroll-expand__frame {
     clip-path: none !important;
   }
