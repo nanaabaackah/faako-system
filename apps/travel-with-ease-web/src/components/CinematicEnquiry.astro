@@ -10,7 +10,7 @@ const { demo = false } = Astro.props;
 // Contact-page CMS imagery remains independent from footer art direction.
 const photo = photography.footer;
 const selected=publishedPage('site-appearance')?.imagePlacements?.['footer-background'];
-const placement={focalY:60,mobileImage:!selected?.image&&!selected?.mobileImage?{src:'/media/zanzibar-beach-club-b60ec1e6297a-1920.webp',width:1920,height:3413,alt:''}:null,...selected};
+const placement={focalY:60,mobileFocalY:50,mobileImage:!selected?.image&&!selected?.mobileImage?{src:'/media/zanzibar-beach-club-b60ec1e6297a-1920.webp',width:1920,height:3413,alt:''}:null,...selected};
 ---
 
 <div class="closing-scene">
