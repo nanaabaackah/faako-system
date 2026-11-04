@@ -54,9 +54,6 @@ const {
       const title = this.querySelector(".scroll-expand__title");
       const hint = this.querySelector(".scroll-expand__hint");
       if (!track || !stage || !frame || !scrim || !overlay || !title || !hint) return;
-      if (!("IntersectionObserver" in window)) return;
-      this.dataset.ready = "true";
-
       const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
       let reduceMotion = motionQuery.matches;
       let stageHeight = 0;
@@ -96,13 +93,13 @@ const {
         lastProgress = -1;
         stageHeight = Math.max(520, Math.min(800, window.innerHeight * 0.85));
         stage.style.height = `${stageHeight}px`;
-        track.style.height = reduceMotion || mobile ? `${stageHeight}px` : `${stageHeight * 2.15}px`;
-        if (reduceMotion || mobile) { apply(1); return; }
+        track.style.height = reduceMotion ? `${stageHeight}px` : `${stageHeight * 2.15}px`;
+        if (reduceMotion) { apply(1); return; }
         update();
       };
 
       const update = () => {
-        if (!active || reduceMotion || mobile || frameId) return;
+        if (!active || reduceMotion || frameId) return;
         frameId = requestAnimationFrame(() => {
           frameId = 0;
           const progress = reduceMotion || this.contains(document.activeElement) ? 1 : clamp(-track.getBoundingClientRect().top / (stageHeight * 1.1), 0, 1);
@@ -110,27 +107,41 @@ const {
         });
       };
 
-      const observer = new IntersectionObserver(([entry]) => {
-        active = entry.isIntersecting;
-        this.toggleAttribute("data-motion-active", active && !reduceMotion && !mobile);
-        if (active) update();
-      }, { rootMargin: "100px" });
+      // Visibility observation is an optimization; scroll animation must still work if it fails.
+      let observer = null;
+      try {
+        if ("IntersectionObserver" in window) {
+          observer = new IntersectionObserver(([entry]) => {
+            active = entry.isIntersecting;
+            this.toggleAttribute("data-motion-active", active && !reduceMotion);
+            if (active) update();
+          }, { rootMargin: "100px" });
+          observer.observe(this);
+        }
+      } catch {
+        observer?.disconnect();
+        observer = null;
+        active = true;
+      }
 
-      observer.observe(this);
       measure();
+      this.dataset.ready = "true";
       window.addEventListener("scroll", update, { passive: true });
       window.addEventListener("resize", measure, { passive: true });
-      const motionChanged = () => { reduceMotion = motionQuery.matches; cancelAnimationFrame(frameId); frameId = 0; measure(); };
+      const motionChanged = () => { reduceMotion = motionQuery.matches; cancelAnimationFrame(frameId); frameId = 0; this.toggleAttribute("data-motion-active", active && !reduceMotion); measure(); };
       motionQuery.addEventListener("change", motionChanged);
       const revealForFocus = () => apply(1);
+      const restoreAfterFocus = () => update();
       this.addEventListener("focusin", revealForFocus);
+      this.addEventListener("focusout", restoreAfterFocus);
       this.cleanup = () => {
-        observer.disconnect();
+        observer?.disconnect();
         cancelAnimationFrame(frameId);
         window.removeEventListener("scroll", update);
         window.removeEventListener("resize", measure);
         motionQuery.removeEventListener("change", motionChanged);
         this.removeEventListener("focusin", revealForFocus);
+        this.removeEventListener("focusout", restoreAfterFocus);
         delete this.dataset.ready;
       };
     }
