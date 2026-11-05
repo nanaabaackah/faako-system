@@ -1,0 +1,60 @@
+name: Faako Notebook Impact (read-only)
+
+# Stage 1: change classification and artifact capture only.
+# No Notion token is consumed and this workflow cannot write to Notion.
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: Full 40-character baseline commit SHA
+        type: string
+        required: true
+      head_sha:
+        description: Full 40-character comparison commit SHA
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: faako-notebook-impact-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  analyze-changes:
+    name: Analyze and archive notebook impact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.base_sha || github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+      HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.head_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout repository and full comparison history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test read-only impact classifier
+        run: node --test scripts/notebook/impact.test.mjs
+
+      - name: Generate JSON report
+        run: node scripts/notebook/impact.mjs --base "$BASE_SHA" --head "$HEAD_SHA" > notebook-impact.json
+
+      - name: Archive impact report
+        uses: actions/upload-artifact@v4
+        with:
+          name: faako-notebook-impact-${{ github.run_id }}-${{ github.run_attempt }}
+          path: notebook-impact.json
+          if-no-files-found: error
+          retention-days: 14
