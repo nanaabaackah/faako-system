@@ -4,7 +4,8 @@ import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import TravelTips from "./TravelTips.astro";
 import CinematicHero from "./CinematicHero.astro";
-import ServicePanels from "./ServicePanels.astro";
+import HomeServices from "./HomeServices.astro";
+import FeaturedJourneys from "./FeaturedJourneys.astro";
 import JourneyProcess from "./JourneyProcess.astro";
 import { publishedPage } from "../lib/published.js";
 import "../styles/components/home-sections.css";
@@ -12,6 +13,7 @@ import "../styles/components/journey-editorial.css";
 const { content } = Astro.props;
 const about = publishedPage("about");
 const services = publishedPage("services");
+const packages = publishedPage("packages");
 const process = publishedPage("how-it-works");
 const contact = publishedPage("contact");
 const tips = publishedPage("travel-tips");
@@ -25,15 +27,27 @@ const footprint = publishedPage("travel-footprint");
       <div class="editorial-wrap journey-introduction__inner">
         <h2>{about.heading}</h2>
         <div class="journey-introduction__copy">
-          <p>Journeys from Ghana, planned around you. Flights, stays and the details in between, handled with care.</p>
+          <p>{about.body}</p>
           <ContentLink href="/about">Meet Travel With Ease</ContentLink>
         </div>
       </div>
     </section>
   )}
-  {services && <section id="services" aria-label="Travel planning services"><ServicePanels entries={services.entries} /></section>}
-  {process && <JourneyProcess content={process} />}
 </div>
+{services?.entries?.length > 0 && (
+  <div class="home-journey-chapters">
+    <HomeServices heading={services.heading} body={services.body} entries={services.entries} />
+  </div>
+)}
+{packages?.packages?.length > 0 && <FeaturedJourneys items={packages.packages} />}
+{process && (
+  <div class="home-journey-chapters">
+    <JourneyProcess content={process} />
+    <div class="editorial-wrap journey-process__more">
+      <ContentLink href="/how-it-works">How our planning process works</ContentLink>
+    </div>
+  </div>
+)}
 <section id="our-world" class="cream-footprint">
   <div class="editorial-wrap">
     <TravelFootprint heading={footprint?.heading} description={footprint?.body}>

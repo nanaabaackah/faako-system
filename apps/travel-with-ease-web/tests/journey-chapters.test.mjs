@@ -8,11 +8,14 @@ const source = file => readFileSync(new URL("../src/" + file, import.meta.url), 
 
 test("selected journey chapters keep the real hero and CTA and one footprint heading", () => {
   const home = source("components/PublishedHome.astro");
-  for (const component of ["CinematicHero", "ServicePanels", "JourneyProcess", "TravelFootprint", "ClosingCta"]) {
+  for (const component of ["CinematicHero", "HomeServices", "FeaturedJourneys", "JourneyProcess", "TravelFootprint", "ClosingCta"]) {
     assert.match(home, new RegExp("<" + component + "\\b"));
   }
   assert.match(home, /heading=\{content.heading\} body=\{content.body\} image=\{content.image\}/);
   assert.doesNotMatch(home, /<h2>\{footprint.heading\}/);
+  const overview = source("components/HomeServices.astro");
+  assert.match(overview, /entries\.map\(/);
+  assert.match(overview, /\/services#service-/);
   const panels = source("components/ServicePanels.astro");
   assert.match(panels, /<ContentLink href=\{all \? "#plan"/);
   assert.doesNotMatch(panels, /<figcaption|onClick|window.location/);

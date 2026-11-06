@@ -90,11 +90,12 @@ const visible = (href: string) =>
   (cinematic && href.startsWith("#")) ||
   Boolean(publishedPage(href === "/" ? "home" : href.slice(1)));
 const navigation = [
-      ["/packages", "Packages"],
-      ["/journal", "Journal"],
-      ["/services", "Services"],
-      ["/about", "About"],
-    ];
+  ["/packages", "Packages"],
+  ["/services", "Services"],
+  ["/how-it-works", "How It Works"],
+  ["/journal", "Journal"],
+  ["/about", "About"],
+];
 ---
 
 <!doctype html>
@@ -202,7 +203,7 @@ const navigation = [
               class="nav-cta"
               href="#plan"
             >
-              Plan a trip
+              Plan My Trip
             </ContentLink>
           )
         }
