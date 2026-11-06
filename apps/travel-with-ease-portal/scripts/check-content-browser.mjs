@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 const require = createRequire(
   new URL("../../stroane-web/package.json", import.meta.url),
 );
-const { chromium } = require("@playwright/test");
+const { chromium, expect } = require("@playwright/test");
 const origin = process.env.TWE_TEST_PORTAL_ORIGIN || "http://127.0.0.1:5197";
 assert.equal(new URL(origin).hostname, "127.0.0.1");
 const output = await mkdtemp(path.join(tmpdir(), "twe-content-browser-"));
@@ -29,7 +29,7 @@ try {
     const page = await context.newPage();
     const requests = [];
     const navigate=async(name)=>{let button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();if(!await button.count()){await page.getByRole('button',{name:/^Menu/}).click();button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();}await button.click();};
-    await mockWorkspaceApi(page, {role: "owner", requests});
+    await mockWorkspaceApi(page, {role: "owner", requests, templateDelay: 100});
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
     if (width <= 800) {
@@ -193,6 +193,9 @@ try {
     await page.getByRole("option", { name: "Staff invitation", exact: true }).click();
     await page.getByRole("heading", { name: "Staff invitation", exact: true }).waitFor();
     await page.getByLabel(/^Heading/).fill("Synthetic team invitation");
+    await emailType.click();
+    await page.getByRole("option", { name: "Staff invitation", exact: true }).click();
+    await expect(page.getByLabel(/^Heading/)).toHaveValue("Synthetic team invitation");
     page.once("dialog", dialog => dialog.dismiss());
     await emailType.click();
     await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
@@ -211,7 +214,7 @@ try {
     await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
     await page.getByRole("heading", { name: "Enquiry acknowledgement", exact: true }).waitFor();
     await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
-    assert.equal(await page.getByLabel(/^Heading/).inputValue(), "Synthetic acknowledgement");
+    await expect(page.getByLabel(/^Heading/)).toHaveValue("Synthetic acknowledgement");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     while (await notifications.count()) await notifications.first().click();
     await page.screenshot({ path: path.join(output, `templates-${width}.png`), fullPage: true });

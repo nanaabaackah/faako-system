@@ -81,13 +81,17 @@ Final local results:
   Browser checks were completed sequentially after real-transport fixture and
   session-wait corrections. Remote CI must pass on the cleanup PR before merging;
   the PR records those results separately from these local checks.
+- CI exposed a template-switch timing race: the new heading could appear before
+  old fields were cleared. Switching now clears the old copy synchronously;
+  selecting the same type retains unsaved edits. Browser coverage deliberately
+  delays template responses and waits for the correct saved copy.
 
 The 99 scoped source/documentation paths were compared between the focused
 worktree and regular checkout; they match. Unrelated edits and local branch
 history were not reset. Historical demo guides now carry retirement notices.
 
-Final build measurement: portal JS 493.22 → 477.40 KB, gzip 146.16 → 140.61 KB.
-This removes about 15.82 KB raw / 5.55 KB gzip without a new dependency.
+Final build measurement: portal JS 493.22 → 477.44 KB, gzip 146.16 → 140.61 KB.
+This removes about 15.78 KB raw / 5.55 KB gzip without a new dependency.
 Portal CSS changed from 151.19 to 150.79 KB. Build output is not committed.
 
 Read-only HTTPS observations, 2026-11-04: staging website 200, production website

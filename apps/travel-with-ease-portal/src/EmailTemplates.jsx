@@ -55,12 +55,17 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
     };
   }, [api, slug]);
   function changeTemplate(event) {
+    if (event.target.value === slug) return;
     if (dirty && !window.confirm("Discard unsaved template changes?")) return;
     setDirty(false);
     onDirtyChange(false);
     setPreview(null);
     setError("");
     setNotice("");
+    // Hide the previous template before the selected type changes. A delayed
+    // response must never leave its copy editable under another template name.
+    setRecord(null);
+    setCopy(null);
     setSlug(event.target.value);
   }
   function edit(field, value) {
