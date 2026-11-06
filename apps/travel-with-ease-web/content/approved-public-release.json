@@ -6,6 +6,11 @@
     "mediaRefresh": {
       "date": "2026-10-31",
       "scope": "User requested incorporation of additional photographs from the previously approved Kenya/Zanzibar Drive folders. Business copy and unpublished sections unchanged."
+    },
+    "productionDiscoveryRelease": {
+      "date": "2026-11-06",
+      "source": "Approved November 1 TWE privacy/cookie copy on develop; wording narrowed for the original main-branch website",
+      "scope": "Publish privacy and cookie explanations for the existing public contact channels and consent-gated GA4. Preserve all other unpublished pages, including services, contact and terms, as null. Does not authorise releasing the newer API/CMS or accepting online enquiries."
     }
   },
   "pages": {
@@ -48,7 +53,92 @@
     "testimonials": null,
     "journal": null,
     "travel-footprint": null,
-    "privacy": null,
-    "terms": null
+    "privacy": {
+      "heading": "Privacy notice",
+      "body": "Travel With Ease uses your information to respond to enquiries, provide the travel services you request and operate this website.",
+      "entries": [
+        {
+          "heading": "Who handles your information",
+          "text": "Travel With Ease, a trading name of TWE Concierge, is based in Accra, Ghana. Contact nana@travelwitheasegh.com or +233 20 020 9170 with questions about your information.",
+          "attribution": ""
+        },
+        {
+          "heading": "Information you provide",
+          "text": "The current public website offers contact by WhatsApp, email or telephone rather than an online enquiry form. If you contact us, you may choose to share your name, contact details, destination, intended travel dates, traveller count, budget and other trip preferences. Do not send passport numbers, payment information, medical records or other unnecessary sensitive information through general enquiry channels.",
+          "attribution": ""
+        },
+        {
+          "heading": "Operational and security information",
+          "text": "Website hosting and security providers may process IP addresses, browser/request metadata and security events to operate and protect the site. Your browser stores your cookie preferences. Separate staff tools use role-restricted access; the public website does not expose staff accounts.",
+          "attribution": ""
+        },
+        {
+          "heading": "Why we use it",
+          "text": "We use details you choose to share through our contact channels to respond to your request, discuss suitable travel services and protect the service. Giving us enquiry details is not marketing consent. Where processing relies on consent, you can withdraw it by contacting us; withdrawal does not undo processing already carried out.",
+          "attribution": ""
+        },
+        {
+          "heading": "Analytics and search",
+          "text": "Optional Google Analytics is blocked until you allow analytics cookies and remains subject to browser privacy signals. It measures public website usage, not enquiry answers or private staff activity. Google Search Console provides search-performance information separately from the analytics tag.",
+          "attribution": ""
+        },
+        {
+          "heading": "Providers and communications",
+          "text": "Cloudflare provides website hosting and security. Google supports optional analytics and search reporting. WhatsApp, Instagram and TikTok links open external services with their own terms and privacy policies; email and telephone are also available contact channels. Provider processing may take place outside Ghana.",
+          "attribution": ""
+        },
+        {
+          "heading": "Retention and access",
+          "text": "We retain contact details and correspondence only as needed to handle requests, agreed services and applicable legal or dispute requirements. Access is restricted to authorised team members. Contact us regarding access, correction, retention or deletion; some records may need to be kept where law requires.",
+          "attribution": ""
+        },
+        {
+          "heading": "Your choices and rights",
+          "text": "You can contact us to request access, correction, deletion where applicable, raise an objection or withdraw consent. We may need proportionate identity verification. You can also contact Ghana’s Data Protection Commission at https://dpc.gov.gh about your rights under the Data Protection Act, 2012 (Act 843).",
+          "attribution": ""
+        },
+        {
+          "heading": "Effective date",
+          "text": "1 November 2026. Material changes to this notice will be reflected here.",
+          "attribution": ""
+        }
+      ],
+      "seoTitle": "Privacy notice | Travel With Ease",
+      "seoDescription": "Travel With Ease uses your information to respond to enquiries, provide the travel services you request and operate this website."
+    },
+    "terms": null,
+    "cookies": {
+      "heading": "Cookies and preferences",
+      "body": "Choose whether to allow optional analytics. Essential security and preference storage remain available without analytics consent.",
+      "entries": [
+        {
+          "heading": "Essential storage",
+          "text": "The public website stores your preference under twe-cookie-consent-v1 in your browser. Separate protected cookies support staff sign-in and security. These are not public marketing preferences.",
+          "attribution": ""
+        },
+        {
+          "heading": "Optional analytics",
+          "text": "If you choose analytics, the configured Google Analytics tag can measure public website usage and set identifiers such as _ga. It is not loaded before consent. Cookie names and expiry behaviour depend on the active Google configuration.",
+          "attribution": ""
+        },
+        {
+          "heading": "Change your choice",
+          "text": "Use Cookie settings in the footer to review your preference at any time. Essential only does not grant analytics consent. Changing preferences stops future optional measurement; it does not remove information already processed.",
+          "attribution": ""
+        },
+        {
+          "heading": "Other services",
+          "text": "Google Search Console is separate search reporting, not a cookie category enabled by this popup. Following an external WhatsApp or social-media link takes you to that service’s own privacy and cookie rules.",
+          "attribution": ""
+        },
+        {
+          "heading": "Questions",
+          "text": "Contact nana@travelwitheasegh.com about cookies or personal information.",
+          "attribution": ""
+        }
+      ],
+      "seoTitle": "Cookies and preferences | Travel With Ease",
+      "seoDescription": "Choose whether to allow optional analytics. Essential security and preference storage remain available without analytics consent."
+    }
   }
 }
