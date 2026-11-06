@@ -1,5 +1,9 @@
 # TWE implementation status and production-readiness gates
 
+> 2026-11-06: Demo routes, flags and simulated sessions described here are
+> retired. Preserve this historical context, but use the current
+> [cleanup and verification guide](./repository-cleanup-2026-11-06.md), not the old demo instructions.
+
 **2026-11-04 extension:** [CMS role management, imagery, activity and navigation](./cms-access-imagery-activity-2026-11-04.md)
 adds code and isolated/local checks, not a production certification. Migration
 013, authenticated staging acceptance and real handover are explicit remaining

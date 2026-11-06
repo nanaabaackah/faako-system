@@ -1,5 +1,13 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-11-06 cleanup addendum
+
+Synthetic public/portal demos are retired, not a separate delivery environment.
+Local verification uses approved public content and isolated test-only HTTP
+fixtures. Private authenticated CMS previews remain supported.
+See the [cleanup inventory](./repository-cleanup-2026-11-06.md).
+This does not imply hosted acceptance or launch approval.
+
 ## CMS roles, imagery, activity and navigation — 2026-11-04
 
 The approved extension is implemented on a focused develop branch. See the

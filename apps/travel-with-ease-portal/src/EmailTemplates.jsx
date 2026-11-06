@@ -55,12 +55,17 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
     };
   }, [api, slug]);
   function changeTemplate(event) {
+    if (event.target.value === slug) return;
     if (dirty && !window.confirm("Discard unsaved template changes?")) return;
     setDirty(false);
     onDirtyChange(false);
     setPreview(null);
     setError("");
     setNotice("");
+    // Hide the previous template before the selected type changes. A delayed
+    // response must never leave its copy editable under another template name.
+    setRecord(null);
+    setCopy(null);
     setSlug(event.target.value);
   }
   function edit(field, value) {
@@ -94,9 +99,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
         setDirty(false);
         onDirtyChange(false);
         setNotice(
-          session.demo
-            ? "Demo template updated in this tab only. Nothing was sent or activated on the server."
-            : kind === "draft"
+          kind === "draft"
               ? "Draft saved. Outgoing emails have not changed."
               : definition.automated
                 ? "Template activated for newly prepared enquiry emails. Existing queued email payloads are unchanged."

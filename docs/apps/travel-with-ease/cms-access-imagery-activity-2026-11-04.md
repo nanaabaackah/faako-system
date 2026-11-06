@@ -1,5 +1,9 @@
 # CMS access, imagery, activity and navigation
 
+> 2026-11-06: Demo routes, flags and simulated sessions described here are
+> retired. Preserve this historical context, but use the current
+> [cleanup and verification guide](./repository-cleanup-2026-11-06.md), not the old demo instructions.
+
 ## Scope and rollout
 
 Focused branch: `feat/twe-cms-roles-imagery-activity`, based on develop

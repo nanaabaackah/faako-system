@@ -6,11 +6,10 @@ import type { JournalArticle } from "../lib/collections";
 import "../styles/components/collections.css";
 interface Props {
   items: JournalArticle[];
-  demo?: boolean;
   prefix?: string;
   headerPlacement?:import('../lib/collections').ImagePlacement;
 }
-const { items, demo = false, prefix = "/journal",headerPlacement } = Astro.props;
+const { items, prefix = "/journal",headerPlacement } = Astro.props;
 ---
 
 <section class="editorial-wrap collection-page" id="journal-collection">
@@ -23,14 +22,7 @@ const { items, demo = false, prefix = "/journal",headerPlacement } = Astro.props
     </p>
   </header>
   <PlacedImage placement={headerPlacement} class="collection-header-photo" sizes="90vw"/>
-  {
-    demo && (
-      <p class="collection-demo-notice">
-        Demonstration editorial only — these are not published TWE stories or
-        travel claims.
-      </p>
-    )
-  }
+
   {
     items.length ? (
       <>

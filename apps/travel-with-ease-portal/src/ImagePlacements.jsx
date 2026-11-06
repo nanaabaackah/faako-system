@@ -115,7 +115,7 @@ export default function ImagePlacements({ page, body, change, api, session }) {
               : `Used in ${page}${["services", "how-it-works"].includes(page) ? " and its homepage section" : ""}.`}
           </p>
           <div className="image-placement-preview">
-            {value.imageId && !session.demo ? (
+            {value.imageId ? (
               <img
                 src={`/api/agent/media/${value.imageId}/preview`}
                 alt={value.alt || "Selected draft image"}
@@ -123,9 +123,7 @@ export default function ImagePlacements({ page, body, change, api, session }) {
               />
             ) : (
               <p>
-                {value.imageId
-                  ? "Synthetic media selected for this demo."
-                  : "Using the approved default image."}
+                Using the approved default image.
               </p>
             )}
             {chosen[value.imageId] && (
@@ -161,7 +159,7 @@ export default function ImagePlacements({ page, body, change, api, session }) {
           </p>
           {value.mobileImageId && (
             <div className="image-placement-preview">
-              {!session.demo && (
+              {(
                 <img
                   src={`/api/agent/media/${value.mobileImageId}/preview`}
                   alt="Selected mobile draft image"

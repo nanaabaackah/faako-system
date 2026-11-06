@@ -31,7 +31,8 @@ Media configuration and image changes: [Drive → private R2 → publication](./
 Latest visual work: [Flyward reference correction — 2026-10-30](./reference-correction-2026-10-30.md).
 Earlier implementation/release gates: [editorial redesign](./editorial-redesign-2026-10-30.md).
 
-Current follow-up: [company content, enquiry email and demos](./content-and-email-followup.md).
+Current cleanup: [demo retirement and repository hygiene](./repository-cleanup-2026-11-06.md).
+Historical content/email decisions: [follow-up record](./content-and-email-followup.md).
 Company source: [public facts and outstanding approvals](./company-content-source.md).
 Email configuration: [final test/production routing](./email-test-flow.md).
 
@@ -85,4 +86,4 @@ privacy page, so live analytics stays off until the Owner publishes that notice.
 Rebuild/deploy after configuration/publication, then follow
 `docs/architecture/google-analytics-architecture.md`'s hosted verification checklist.
 Local browser checks intercept Google requests; production receipt in GA4 is not
-verified by those checks. Staff portals and demos do not load analytics.
+verified by those checks. Staff portals do not load analytics. Synthetic demo routes have been retired.

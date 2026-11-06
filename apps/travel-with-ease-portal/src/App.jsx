@@ -18,7 +18,6 @@ import SystemAdministration from "./SystemAdministration.jsx";
 import StaffAccess from "./StaffAccess.jsx";
 import Enquiries from "./Enquiries.jsx";
 import { createSessionLoader } from "./session.js";
-import { createDemoClient, demoEnabled } from "./demo.js";
 import Dashboard from "./Dashboard.jsx";
 import PortalNavigation from './PortalNavigation.jsx';
 import ActivityView from './ActivityView.jsx';
@@ -30,21 +29,7 @@ import Invitations from "./Invitations.jsx";
 // Staff authentication is same-origin in both Vite development and hosted mode.
 // Never embed an API origin that bypasses the Access-aware portal server.
 const baseUrl = "";
-const localDemoAllowed =
-  import.meta.env.DEV && import.meta.env.TWE_LOCAL_DEMO_ALLOWED === true;
-const stagingDemoAllowed =
-  import.meta.env.TWE_STAGING_PORTAL_DEMO_ALLOWED === true;
-const isDemo = demoEnabled({
-  allowed: localDemoAllowed,
-  stagingAllowed: stagingDemoAllowed,
-  hostname: window.location.hostname,
-  pathname: window.location.pathname,
-  search: window.location.search,
-});
-const demoRestartUrl = stagingDemoAllowed ? "/demo" : "/?demo=1";
-const baseApi = isDemo
-  ? createDemoClient({role:new URLSearchParams(location.search).get('demoRole')||'owner'})
-  : createBrowserApiClient({ baseUrl, credentials: "include" });
+const baseApi = createBrowserApiClient({ baseUrl, credentials: "include" });
 const loadSession = createSessionLoader(baseApi);
 
 function StaffWorkspace() {
@@ -59,17 +44,15 @@ function StaffWorkspace() {
         }
         const id = pushToast({
           tone: "loading",
-          title: isDemo ? "Updating demo" : "Working",
+          title: "Working",
           message: "Please wait for confirmation.",
         });
         try {
           const result = await baseApi.post(...args);
           updateToast(id, {
             tone: "success",
-            title: isDemo ? "Demo updated" : "Request completed",
-            message: isDemo
-              ? "Only simulated demo data changed in this tab. No server change was made."
-              : "The server confirmed the action. Publication requests still require a successful deployment.",
+            title: "Request completed",
+            message: "The server confirmed the action. Publication requests still require a successful deployment.",
           });
           return result;
         } catch (error) {
@@ -133,7 +116,7 @@ function StaffWorkspace() {
       });
       let activeSession = null;
       setActivation(null);
-      if (!isDemo && status.configured && status.mode === "cloudflare_access") {
+      if (status.configured && status.mode === "cloudflare_access") {
         const account = await baseApi.get("/api/auth/activation", {
           responseMode: "data",
         });
@@ -211,34 +194,6 @@ function StaffWorkspace() {
     <div className="portal-shell">
       <PortalNavigation navigation={navigation} section={section} navigate={navigate} session={session}/>
       <PageShell>
-        {isDemo ? (
-          <aside
-            className="demo-notice"
-            aria-label="Synthetic portal demonstration"
-          >
-            <strong>
-              {stagingDemoAllowed ? "Staging portal demo" : "Local portal demo"}{" "}
-              — synthetic data only
-            </strong>
-            <p>
-              This is an interactive preview, not a real staff login. The sample
-              enquiries and drafts reset on reload; no real customer records,
-              database, emails, uploads or published website content are
-              changed.
-            </p>
-            <a href="/">Exit demo and open staff login</a>
-          </aside>
-        ) : (
-          localDemoAllowed &&
-          ["localhost", "127.0.0.1", "[::1]"].includes(
-            window.location.hostname,
-          ) && (
-            <aside className="demo-notice">
-              <p>Preview the updated staff workspace using synthetic data.</p>
-              <a href="/?demo=1">Open local demo workspace</a>
-            </aside>
-          )
-        )}
         <PageHeader
           title={
             session
@@ -278,7 +233,7 @@ function StaffWorkspace() {
         ) : session ? (
           <div className="session-toolbar" aria-label="Your session">
             <span>
-              {isDemo ? "Simulating role " : "Signed in as "}
+              Signed in as
               <strong>{session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ")}</strong>
             </span>
             <Button
@@ -287,9 +242,9 @@ function StaffWorkspace() {
               type="button"
               onClick={() => logout()}
             >
-              {isDemo ? "End demo session" : "Sign out"}
+              Sign out
             </Button>
-            {!isDemo && (
+            {(
               <Button
                 type="button"
                 onClick={() => {
@@ -307,12 +262,6 @@ function StaffWorkspace() {
           </div>
         ) : activation && activation.status !== "active" ? (
           <Activation status={activation} api={baseApi} onActivated={load} />
-        ) : isDemo ? (
-          <section>
-            <h2>Demo session ended</h2>
-            <p>No real staff session was created.</p>
-            <a href={demoRestartUrl}>Restart demo</a>
-          </section>
         ) : state.configured && accountLinks.mode === "cloudflare_access" ? (
           <section
             className="signin-panel"
@@ -445,12 +394,6 @@ function StaffWorkspace() {
               api={api}
               session={session}
               onNavigate={navigate}
-              isDemo={isDemo}
-              demoWebsiteUrl={
-                stagingDemoAllowed
-                  ? "https://staging.travelwitheasegh.com/demo"
-                  : "http://127.0.0.1:4328/demo"
-              }
             />
           )}
           {!state.loading &&
@@ -472,7 +415,7 @@ function StaffWorkspace() {
             session?.user.permissions?.includes("staff.manage") &&
             section === "staff" && <StaffAccess api={api} session={session} />}
         </div>
-        {!state.loading && session && !isDemo && (
+        {!state.loading && session && (
           <TutorialWorkspace
             key={session.user.id}
             api={baseApi}

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { publicationSnapshotPath } from "../src/lib/published.js";
@@ -10,7 +10,6 @@ const readPage = (env, slug = "home") => execFileSync(process.execPath, ["--inpu
   cwd: new URL("../", import.meta.url),
   env: { PATH: process.env.PATH, ...env }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
 });
-
 test("local and hosted builds use the same approved release", () => {
   assert.ok(publicationSnapshotPath({}) instanceof URL);
   for (const PUBLIC_APP_ENV of ["development", "production", "staging"]) {
@@ -81,7 +80,7 @@ test("production build publishes approved content without preview copy or unpubl
   assert.match(sitemap, /\/packages\/zanzibar/);
 });
 
-test("staging demo builds an interactive noindex page while the approved homepage remains separate", () => {
+test("staging ignores obsolete demo flags and builds only approved content", () => {
   const cache = fileURLToPath(new URL("../node_modules/.cache/", import.meta.url));
   mkdirSync(cache, { recursive: true });
   const output = mkdtempSync(path.join(cache, "twe-staging-demo-build-"));
@@ -96,35 +95,9 @@ test("staging demo builds an interactive noindex page while the approved homepag
     },
     stdio: ["ignore", "pipe", "pipe"], timeout: 120000,
   });
-  const demo = readFileSync(path.join(output, "demo", "index.html"), "utf8");
+  assert.equal(existsSync(path.join(output, "demo")), false);
   const home = readFileSync(path.join(output, "index.html"), "utf8");
-  assert.match(demo, /Staging website demo/);
-  assert.match(demo, /Demonstration content only/);
-  assert.ok(demo.indexOf('id="demo-process"') < demo.indexOf('aria-label="Demonstration travel tips"'));
-  assert.ok(demo.indexOf('aria-label="Demonstration travel tips"') < demo.indexOf('id="demo-journal"'));
-  assert.doesNotMatch(demo, /service-photography/);
-  assert.match(demo, /\/media\/IMG_3328-1440\.webp/);
-  assert.match(demo, /\/media\/12bacbf0[^"\s]+\.webp/);
-  assert.match(demo, /closing-scene__image[^>]*src="\/media\/b7e55[^"\s]+\.webp"/);
-  assert.match(demo, /BN045370826/);
-  assert.doesNotMatch(demo, /House no\s+\d/i);
-  assert.match(demo, /Sample package enquiry|Sample personalised enquiry|sample enquiry/i);
-  assert.match(demo, /staging test inbox/i);
-  assert.match(demo, /noindex, nofollow/);
-  assert.doesNotMatch(demo, /127\.0\.0\.1:5188|http-equiv="refresh"/);
   assert.match(home, /A little further/);
   assert.doesNotMatch(home, /Sample journey · Zanzibar/);
   assert.match(readFileSync(path.join(output, "robots.txt"), "utf8"), /Disallow: \/$/m);
-});
-
-test("staging demo refuses a missing API origin and production never enables the route", () => {
-  const cache = fileURLToPath(new URL("../node_modules/.cache/", import.meta.url));
-  mkdirSync(cache, { recursive: true });
-  const output = mkdtempSync(path.join(cache, "twe-staging-no-api-"));
-  assert.throws(() => execFileSync("pnpm", ["run", "build"], {
-    cwd: new URL("../", import.meta.url),
-    env: { ...process.env, PUBLIC_APP_ENV: "staging", PUBLIC_SITE_URL: "https://staging.travelwitheasegh.com",
-      PUBLIC_STAGING_DEMO_ENABLED: "true", PUBLIC_API_BASE_URL: "", TWE_CONTENT_SNAPSHOT: "", TWE_BUILD_OUT_DIR: output },
-    stdio: ["ignore", "pipe", "pipe"], timeout: 120000,
-  }));
 });

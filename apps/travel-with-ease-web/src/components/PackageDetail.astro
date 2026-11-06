@@ -13,7 +13,6 @@ interface Props {
   item: TravelPackage;
   relatedPackages?: TravelPackage[];
   stories?: JournalArticle[];
-  demo?: boolean;
   prefix?: string;
   journalPrefix?: string;
 }
@@ -21,25 +20,16 @@ const {
   item,
   relatedPackages = [],
   stories = [],
-  demo = false,
   prefix = "/packages",
   journalPrefix = "/journal",
 } = Astro.props;
 const canEnquire = !["closed", "sold_out"].includes(item.availability || "");
-const enquiry = demo
-  ? `/demo?destination=${encodeURIComponent(item.destination)}#demo-enquiry-form`
-  : "#plan";
+const enquiry = "#plan";
 ---
 
 <article class="collection-detail">
   <div class="editorial-wrap">
-    <ContentLink href={prefix}>All packages</ContentLink>{
-      demo && (
-        <p class="collection-demo-notice">
-          Sample package — not an offer or confirmed booking.
-        </p>
-      )
-    }
+    <ContentLink href={prefix}>All packages</ContentLink>
     <header class="collection-detail-heading">
       <p>{item.destination}</p><h1>{item.title}</h1><p>
         {[item.duration, item.dates].filter(Boolean).join(" · ")}
@@ -178,7 +168,7 @@ const enquiry = demo
             <p>Enquiries for this trip are currently closed.</p>
           )
         }{
-          !demo && (
+          (
             <p>
               Mention “{item.title}” in your enquiry. Your final dates,
               arrangements and price are confirmed in a live quote.
@@ -222,4 +212,4 @@ const enquiry = demo
     )
   }
 </article>
-<ClosingCta demo={demo} standalone enquiryAvailable={Boolean(publishedPage("contact"))} />
+<ClosingCta standalone enquiryAvailable={Boolean(publishedPage("contact"))} />

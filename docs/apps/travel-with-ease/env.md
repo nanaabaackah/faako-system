@@ -10,9 +10,8 @@ hosted widgets. See [configuration and contract](./turnstile-and-enquiry-intake.
 
 > Reviewed 2026-11-01 against executable configuration and example files. See
 > [current implementation and hosted evidence](./completion-status-2026-11-01.md).
-> Demo is a route/feature flag, not a fifth APP_ENV. The ordinary local API
-> launcher ignores hosted .env credentials; configure actual integration tests
-> only against isolated resources. Never document secret values.
+> Synthetic workspaces were retired in the repository cleanup. Browser tests
+> use isolated HTTP fixtures; deployed applications always use real authentication.
 
 > Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
 > supersedes the production API blanket block and startup release-SHA requirement

@@ -1,5 +1,9 @@
 # Local staff workspace demo
 
+> 2026-11-06: Demo routes, flags and simulated sessions described here are
+> retired. Preserve this historical context, but use the current
+> [cleanup and verification guide](./repository-cleanup-2026-11-06.md), not the old demo instructions.
+
 ## Dashboard and website design update
 
 The Overview now provides recent-enquiry counts, draft counts, publication status,

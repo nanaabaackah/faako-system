@@ -251,46 +251,6 @@ try {
         .getAttribute("aria-label"),
       "Tanzania: 4 combined trips",
     );
-    await page.goto(`${origin}/demo`, { waitUntil: "domcontentloaded" });
-    await page
-      .getByRole("button", { name: "Manage preferences", exact: true })
-      .click();
-    await page.locator("[data-cookie-analytics-choice]").check();
-    await page
-      .getByRole("button", { name: "Save preferences", exact: true })
-      .click();
-    assert.equal(
-      await page.evaluate(
-        () =>
-          JSON.parse(localStorage.getItem("twe-demo-cookie-consent-v1"))
-            .analytics,
-      ),
-      true,
-    );
-    assert.equal(
-      await page.evaluate(
-        () =>
-          JSON.parse(localStorage.getItem("twe-cookie-consent-v1")).analytics,
-      ),
-      false,
-    );
-    assert.equal(
-      await page.locator("[data-analytics-config]").count(),
-      0,
-      "Demo never loads analytics",
-    );
-    await page
-      .getByRole("heading", {
-        name: "Travel planning from Ghana.",
-        exact: true,
-      })
-      .waitFor();
-    await page.screenshot({
-      path: path.join(directory, `demo-${width}.png`),
-      fullPage: true,
-    });
-    assert.equal(await page.locator(".demo-email-preview, iframe").count(), 0,
-      "Editable email preview belongs in the protected portal, not the public demo");
     assert.deepEqual(errors, []);
     const email = await context.newPage();
     await email.route("https://travelwitheasegh.com/**", async (route) => {

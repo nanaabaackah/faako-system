@@ -7,8 +7,6 @@ export default function Dashboard({
   api,
   session,
   onNavigate,
-  isDemo,
-  demoWebsiteUrl = "",
 }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -106,11 +104,7 @@ export default function Dashboard({
               className="metric-word"
               label="Latest publication"
               value={latest?.status || "No requests"}
-              detail={
-                isDemo
-                  ? "Live publishing is disabled in demo"
-                  : "A request is not proof of deployment"
-              }
+              detail="A request is not proof of deployment"
             />
           </>
         )}
@@ -181,13 +175,6 @@ export default function Dashboard({
               <span>Review technical health and security events.</span>
               <NavigationIcon name="system" />
             </button>
-          )}
-          {isDemo && (
-            <a href={demoWebsiteUrl} target="_blank" rel="noopener noreferrer">
-              <strong>Preview the website demo</strong>
-              <span>Explore the public-facing travel experience.</span>
-              <NavigationIcon name="preview" />
-            </a>
           )}
         </section>
       </div>

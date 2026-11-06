@@ -1,6 +1,5 @@
 ---
 import TravelFootprint from "../components/TravelFootprint.astro";
-import ContentLink from "../components/ContentLink.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PublishedContent from "../components/PublishedContent.astro";
 import JourneyProcess from "../components/JourneyProcess.astro";
@@ -19,18 +18,6 @@ export function getStaticPaths() {
   ].map((contentPage) => ({ params: { contentPage } }));
 }
 const content = publishedPage(Astro.params.contentPage);
-const labels = {
-  faqs: "Frequently asked questions",
-  testimonials: "Traveller stories",
-  contact: "Plan a trip",
-  journal: "Travel Journal",
-  "travel-footprint": "Travel footprint",
-  privacy: "Privacy policy",
-  terms: "Terms and booking information",
-  cookies: "Cookie policy",
-  "how-it-works": "How it works",
-};
-const label = labels[Astro.params.contentPage as keyof typeof labels];
 ---
 
 <BaseLayout
@@ -40,28 +27,7 @@ const label = labels[Astro.params.contentPage as keyof typeof labels];
   noIndex={!content}
 >
   {
-    content === undefined ? (
-      <section class="editorial-wrap">
-        <>
-          <h1>{label}</h1>
-          <div class="review-empty">
-            <>
-              <p>
-                Placeholder for review — approved content is not available yet.
-              </p>
-              <p>
-                {Astro.params.contentPage === "contact"
-                  ? "Personalised and package enquiry forms will appear here when connected. This preview does not submit enquiries or collect your details."
-                  : Astro.params.contentPage === "travel-footprint"
-                    ? "No approved activity data is available. No trip totals or geographic claims are displayed."
-                    : "This page is not a published policy, offer or business claim."}
-              </p>
-            </>
-          </div>
-          <ContentLink href="/">Back to home</ContentLink>
-        </>
-      </section>
-    ) : content && Astro.params.contentPage === "how-it-works" ? (
+    content && Astro.params.contentPage === "how-it-works" ? (
       <JourneyProcess content={content} page />
     ) : (
       <PublishedContent
@@ -74,39 +40,6 @@ const label = labels[Astro.params.contentPage as keyof typeof labels];
     Astro.params.contentPage === "travel-footprint" && (
       <section class="editorial-wrap footprint-full-width">
         <TravelFootprint />
-      </section>
-    )
-  }
-  {
-    Astro.params.contentPage === "journal" && content && (
-      <section
-        class="journal-list editorial-wrap"
-        aria-label="Published journal articles"
-      >
-        {(content.articles || []).length ? (
-          content.articles.map(
-            (article: {
-              slug: string;
-              title: string;
-              excerpt: string;
-              date: string;
-            }) => (
-              <article class="twe-action-card">
-                <time datetime={article.date}>{article.date}</time>
-                <h2>
-                  <ContentLink href={`/journal/${article.slug}`}>
-                    {article.title}
-                  </ContentLink>
-                </h2>
-                <p>{article.excerpt}</p>
-              </article>
-            ),
-          )
-        ) : (
-          <p>
-            Our travel journal will appear here when articles are published.
-          </p>
-        )}
       </section>
     )
   }

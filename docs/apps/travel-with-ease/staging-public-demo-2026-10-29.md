@@ -1,5 +1,9 @@
 # Travel With Ease — interactive public website demo in staging
 
+> 2026-11-06: Demo routes, flags and simulated sessions described here are
+> retired. Preserve this historical context, but use the current
+> [cleanup and verification guide](./repository-cleanup-2026-11-06.md), not the old demo instructions.
+
 ## Scope and separation
 
 The public Astro website provides `/demo` for approved staging review. It contains sample package selections, interactive FAQ/journal, travel footprint, and an enquiry form. The main staging homepage remains backed by the approved public content snapshot, separate from the sample journey content.

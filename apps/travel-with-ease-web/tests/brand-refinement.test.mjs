@@ -15,18 +15,7 @@ test("requested fonts are self-hosted licensed WOFF2 assets with a case-preservi
   assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*A Little More You/);
 });
 
-test("full-card links preserve native activation, motion fallback and pre-hydration intent", () => {
-  const demo = read("../src/components/DemoWebsite.astro");
-  assert.match(demo, /class="journey-card__link"/);
-  assert.match(demo, /href="#demo-enquiry-form"/);
-  assert.match(demo, /demoEnquiryDestination/);
-  const css = read("../src/styles/components/demo-website.css");
-  assert.match(css, /journey-card__link::after/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.doesNotMatch(demo, /DemoEmailPreview/);
-});
-
-test("privacy preferences use native modal semantics, Escape support and distinct demo storage", () => {
+test("privacy preferences use native modal semantics, Escape support and a single consent preference", () => {
   const notice = read("../src/components/CookieNotice.astro");
   assert.match(notice, /<dialog/);
   assert.match(notice, /aria-labelledby="cookie-preferences-title"/);
@@ -34,6 +23,7 @@ test("privacy preferences use native modal semantics, Escape support and distinc
   assert.match(notice, /if \(!savedChoice\(\)\) show\(\)/);
   assert.doesNotMatch(notice, /<aside/);
   assert.match(notice, /Close without saving/);
-  assert.match(notice, /twe-demo-cookie-consent-v1/);
+  assert.match(notice, /twe-cookie-consent-v1/);
+  assert.doesNotMatch(notice, /twe-demo-cookie/);
   assert.doesNotMatch(read("../src/components/PublicFooter.astro"), /<TravelFootprint/);
 });

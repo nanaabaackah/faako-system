@@ -1,5 +1,9 @@
 # Roadmap-aligned visual refinement — 27 October 2026
 
+> 2026-11-06: Demo routes, flags and simulated sessions described here are
+> retired. Preserve this historical context, but use the current
+> [cleanup and verification guide](./repository-cleanup-2026-11-06.md), not the old demo instructions.
+
 ## Boundaries
 
 Local implementation and demo only. No deployment, database migration, map editor,

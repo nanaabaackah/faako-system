@@ -103,7 +103,7 @@ test("embedded CMS is host-scoped, Access-protected, and uses same-process API r
   }
 });
 
-test("staging /demo requires signed Cloudflare Access but no provisioned staff session", async () => {
+test("retired portal /demo stays unavailable with verified Access and an obsolete flag", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "twe-portal-demo-"));
   await writeFile(path.join(directory, "index.html"), "<!doctype html><title>Staging demo frontend</title>");
   const settings = { portalOrigin: "https://portal-staging.travelwitheasegh.com", secure: true };
@@ -151,13 +151,8 @@ test("staging /demo requires signed Cloudflare Access but no provisioned staff s
       assert.equal(unsigned.status, 401);
       assert.equal((await send("/demo", "invalid")).status, 401);
       const accepted = await send("/demo", "verified-access");
-      assert.equal(accepted.status, enabled ? 200 : 404);
-      if (enabled) {
-        assert.match(accepted.body, /Staging demo frontend/);
-        assert.equal(accepted.headers["x-robots-tag"], "noindex, nofollow");
-        assert.equal(accepted.headers["cache-control"], "private, no-store");
-        assert.equal((await send("/demo/", "verified-access")).status, 200);
-      }
+      assert.equal(accepted.status, 404);
+      assert.equal((await send("/demo/", "verified-access")).status, 404);
       assert.equal((await send("/demo", "verified-access", "POST")).status, 404);
       assert.equal((await send("/demo/api/auth/session", "verified-access")).status, 404);
       assert.equal((await send("/api/auth/session", "verified-access")).status, 401);

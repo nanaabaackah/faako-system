@@ -20,15 +20,11 @@ interface Tip {
 }
 interface Props {
   tips: Tip[];
-  preview?: boolean;
   homepage?: boolean;
-  previewTarget?: string;
 }
 const {
   tips,
-  preview = false,
   homepage = true,
-  previewTarget = "#demo-journal",
 } = Astro.props;
 const ordered = [...tips].sort(
   (a, b) =>
@@ -43,19 +39,14 @@ const items = homepage ? ordered.slice(0, 3) : ordered;
   items.length > 0 && (
     <section
       class="editorial-wrap travel-tips editorial-rule"
-      aria-label={preview ? "Demonstration travel tips" : "Travel tips"}
+      aria-label="Travel tips"
     >
       <div class="editorial-heading">
         <h2>A little advice goes a long way.</h2>
-        {!preview && homepage && (
+        {homepage && (
           <ContentLink href="/travel-tips">All travel tips</ContentLink>
         )}
       </div>
-      {preview && (
-        <p class="travel-tips__notice">
-          Demonstration content only — not published travel advice.
-        </p>
-      )}
       <div class="travel-tips__grid">
         {items.map((tip, index) => (
           <article
@@ -85,7 +76,7 @@ const items = homepage ? ordered.slice(0, 3) : ordered;
             <p class="travel-tips__category">{tip.category}</p>
             <h3>
               <ContentLink
-                href={preview ? previewTarget : `/travel-tips/${tip.slug}`}
+                href={`/travel-tips/${tip.slug}`}
               >
                 {tip.title}
               </ContentLink>

@@ -1,3 +1,9 @@
 /destinations /packages 301
 /destinations/ /packages 301
+/demo / 301
+/demo/ / 301
+/demo/packages /packages 301
+/demo/packages/ /packages 301
+/demo/journal /journal 301
+/demo/journal/ /journal 301
 /* /404.html 404

@@ -179,9 +179,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
       setState({
         loading: false,
         error: "",
-        message: result.demo
-          ? "Demo image selected in the simulated library. No Drive or R2 request was made; nothing was sent or published."
-          : result.unchanged
+        message: result.unchanged
             ? "This Drive revision is already in the private library. Select it in a draft to use it."
             : "Drive image imported into private R2 storage. Select it in a draft, save and request publication. The live website has not changed.",
       });
@@ -266,13 +264,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
       ) : (
         <p role="status">{state.message}</p>
       )}
-      {session.demo && (
-        <p>
-          This is a simulated Drive library. No Google Drive, R2 or upload
-          connection is used in the demo.
-        </p>
-      )}
-      {!session.demo && !state.loading && !configured && (
+      {!state.loading && !configured && (
         <p>
           Private storage is not configured. Baaba must complete the
           environment-specific R2 setup before uploads or previews are

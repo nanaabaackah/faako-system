@@ -7,7 +7,7 @@ export default function AccountSettings({ session, onLogout }) {
   const expires = session.expiresAt ? new Date(session.expiresAt) : null;
   const expiresLabel = expires && !Number.isNaN(expires.getTime())
     ? expires.toLocaleString()
-    : session.demo ? "Ends when you leave or reset the demo" : "Check your session status";
+    : "Check your session status";
   return (
     <section
       className="account-workspace"
@@ -21,7 +21,7 @@ export default function AccountSettings({ session, onLogout }) {
       <div className="account-summary">
         <span className="account-summary__icon"><IconsaxIcon name="ShieldTick" /></span>
         <div>
-          <h3>{session.demo ? "Your demo workspace" : "Your staff account"}</h3>
+          <h3>Your staff account</h3>
           <p>Travel With Ease · Staff workspace</p>
         </div>
         <StatusPill tone="neutral"><span className="account-role">{role}</span></StatusPill>
@@ -31,10 +31,10 @@ export default function AccountSettings({ session, onLogout }) {
           <h3 id="account-access-heading">Workspace access</h3>
           <dl className="account-details">
             <div><dt>Your role</dt><dd className="account-role">{role}</dd></div>
-            <div><dt>Workspace reference</dt><dd>{session.user.organisationId || (session.demo ? "Local demonstration" : "Unavailable")}</dd></div>
+            <div><dt>Workspace reference</dt><dd>{session.user.organisationId || "Unavailable"}</dd></div>
             <div><dt>Session expires</dt><dd>{expiresLabel}</dd></div>
           </dl>
-          {!session.demo && expires && <p className="workspace-caption">Times are shown in your device’s local timezone.</p>}
+          {expires && <p className="workspace-caption">Times are shown in your device’s local timezone.</p>}
         </section>
         <section className="workspace-panel account-security" aria-labelledby="account-security-heading">
           <h3 id="account-security-heading">Sign-in and security</h3>

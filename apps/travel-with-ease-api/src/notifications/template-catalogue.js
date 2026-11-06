@@ -5,7 +5,7 @@ import {
   invitationTemplate,
 } from "./enquiry-template.js";
 
-// Plain configuration/renderers only: safe for the isolated browser demo.
+// Plain configuration/renderers only: shared by email rendering and isolated tests.
 export const emailTemplateOptions = Object.freeze([
   {
     slug: "enquiry-acknowledgement",

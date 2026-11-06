@@ -8,14 +8,12 @@ import type { TravelPackage } from "../lib/collections";
 import "../styles/components/collections.css";
 interface Props {
   items: TravelPackage[];
-  demo?: boolean;
   prefix?: string;
   heading?: string;
   headerPlacement?:import('../lib/collections').ImagePlacement;
 }
 const {
   items,
-  demo = false,
   prefix = "/packages",
   heading = "Find your next journey.",
   headerPlacement,
@@ -30,14 +28,7 @@ const {
     </p>
   </header>
   <PlacedImage placement={headerPlacement} class="collection-header-photo" sizes="90vw"/>
-  {
-    demo && (
-      <p class="collection-demo-notice">
-        Demonstration packages only — no prices, dates, availability or bookings
-        are confirmed.
-      </p>
-    )
-  }
+
   {
     items.length > 0 ? (
       <>

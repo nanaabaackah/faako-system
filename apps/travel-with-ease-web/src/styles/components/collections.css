@@ -12,13 +12,6 @@
   margin-block: 16px;
   overflow-wrap: anywhere;
 }
-.collection-demo-notice {
-  border-left: 3px solid #d8b56a;
-  background: #f4ede3;
-  color: #010c33;
-  padding: 16px;
-  margin-block: 24px;
-}
 .collection-filters {
   display: flex;
   align-items: end;

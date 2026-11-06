@@ -6,7 +6,7 @@
 }
 main :is(.collection-hero, .collection-gallery img, .published-content img,
   .journey-process__photo, .how-it-works-photo, .travel-tips__grid img,
-  .review-journey-images img, .demo-journal img) {
+  .review-journey-images img) {
   border-radius: var(--content-radius);
   box-shadow: var(--content-shadow);
 }

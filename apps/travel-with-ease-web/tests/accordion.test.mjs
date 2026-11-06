@@ -17,5 +17,4 @@ test("disclosures use native keyboard and no-JavaScript semantics", () => {
 test("FAQ entries opt in without converting other published content", () => {
   assert.match(read("../src/pages/[contentPage].astro"), /accordion=\{Astro.params.contentPage === "faqs"\}/);
   assert.match(read("../src/components/PublishedContent.astro"), /accordion = false/);
-  assert.doesNotMatch(read("../src/components/DemoWebsite.astro"), /<details|<summary/);
 });
