@@ -37,6 +37,9 @@ const featured = items
               <p class="featured-journeys__duration">{item.duration}</p>
               <h3><ContentLink href={`/packages/${item.slug}`}>{item.title}</ContentLink></h3>
               <p class="featured-journeys__price">{packageStartingPrice(item)}</p>
+              {item.pricingStatus === "indicative" && (
+                <p class="featured-journeys__price-note">Per person sharing · return flights from Accra included</p>
+              )}
               {item.pricingStatus === "indicative" && referenceMonthLabel(item.referenceMonth) && (
                 <p class="featured-journeys__reference">Reference: {referenceMonthLabel(item.referenceMonth)}</p>
               )}
