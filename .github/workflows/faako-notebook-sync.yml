@@ -1,20 +1,21 @@
 name: Faako Notebook Sync (controlled)
 
-# Closed+merged PRs are verified again against GitHub API before any update.
-# Default: GitHub-only dry-run. Write mode requires a repository variable AND
-# a private Notion integration token, neither is included in this repository.
+# Scoped source: GitHub verified merged PRs. No arbitrary PR text is published.
+# Dry-run is the default. Writes require both the enable variable and token.
 on:
+  push:
+    branches: [develop, main]
   pull_request:
     types: [closed]
     branches: [develop, main]
   workflow_dispatch:
     inputs:
       pr_number:
-        description: Merged pull request number in this repository
+        description: Number of an already-merged PR
         required: true
         type: number
       write:
-        description: Apply if globally enabled (otherwise dry-run only)
+        description: Request a write, if repo-wide sync is explicitly enabled
         required: true
         type: boolean
         default: false
@@ -23,7 +24,8 @@ permissions:
   contents: read
   pull-requests: read
 
-# One writer at a time. Nightly reconciliation will handle any skipped events.
+# Serializes journal upserts and component note appends. Retries are idempotent.
+# GitHub may discard an older pending run; later reconciliation is still needed.
 concurrency:
   group: faako-notebook-controlled-sync
   cancel-in-progress: false
@@ -32,12 +34,13 @@ jobs:
   merged-pr-journal:
     name: Verify and sync merged PR activity
     if: >-
-      ${{ github.event_name == 'workflow_dispatch' ||
+      ${{ github.event_name == 'push' ||
+          github.event_name == 'workflow_dispatch' ||
           (github.event_name == 'pull_request' && github.event.pull_request.merged == true) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
+      PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.pr_number }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout trusted target branch
@@ -56,14 +59,27 @@ jobs:
         run: node --test scripts/notebook/*.test.mjs
 
       - name: GitHub-only impact preview
-        run: node scripts/notebook/sync-cli.mjs --pr "$PR_NUMBER"
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            node scripts/notebook/sync-cli.mjs --commit "$GITHUB_SHA"
+          else
+            node scripts/notebook/sync-cli.mjs --pr "$PR_NUMBER"
+          fi
 
-      - name: Apply approved Notion updates (fail-closed)
+      - name: Apply controlled Notion updates
         if: >-
           ${{ vars.FAAKO_NOTEBOOK_SYNC_ENABLED == 'true' &&
-              (github.event_name == 'pull_request' ||
+              (github.event_name == 'push' ||
+               github.event_name == 'pull_request' ||
                (github.event_name == 'workflow_dispatch' && inputs.write == true)) }}
         env:
           FAAKO_NOTEBOOK_SYNC_ENABLED: "true"
           FAAKO_NOTEBOOK_NOTION_TOKEN: ${{ secrets.FAAKO_NOTEBOOK_NOTION_TOKEN }}
-        run: node scripts/notebook/sync-cli.mjs --pr "$PR_NUMBER" --write
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            node scripts/notebook/sync-cli.mjs --commit "$GITHUB_SHA" --write
+          else
+            node scripts/notebook/sync-cli.mjs --pr "$PR_NUMBER" --write
+          fi
