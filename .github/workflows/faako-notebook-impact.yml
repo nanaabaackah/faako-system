@@ -46,7 +46,7 @@ jobs:
           node-version: 22
 
       - name: Test read-only impact classifier
-        run: node --test scripts/notebook/impact.test.mjs
+        run: node --test scripts/notebook/*.test.mjs
 
       - name: Generate JSON report
         run: node scripts/notebook/impact.mjs --base "$BASE_SHA" --head "$HEAD_SHA" > notebook-impact.json
