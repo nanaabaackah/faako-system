@@ -1,8 +1,8 @@
 // Public projection only. No staff records or traveller details belong here.
-export function footprintRows(records, countries, allowDemo = false) {
+export function footprintRows(records, countries) {
   const seen = new Set();
   return records.map(record => {
-    if (!record || !["verified", "demo"].includes(record.status) || (record.status === "demo" && !allowDemo)) throw new Error("Unapproved footprint data.");
+    if (!record || record.status !== "verified") throw new Error("Unapproved footprint data.");
     const country = countries.find(item => item.code === record.countryCode);
     if (!country || seen.has(record.countryCode) || !Number.isSafeInteger(record.total) || record.total < 0) throw new Error("Invalid footprint aggregate.");
     seen.add(record.countryCode);

@@ -13,10 +13,9 @@ interface Props {
     height: number;
     sources?: { src: string; width: number }[];
   } | null;
-  demo?: boolean;
   placement?: import('../lib/collections').ImagePlacement;
 }
-const { heading, body, image, placement={},demo = false } = Astro.props;
+const { heading, body, image, placement={} } = Astro.props;
 const signature = /a little more you\.?/i;
 const parts = heading.split(signature);
 const approved = photos.find((photo) => photo.placement === "hero")!;
@@ -27,11 +26,11 @@ const variants = photos.find((item) =>
 ---
 
 <section
-  class:list={["cinematic-hero", { "cinematic-hero--text": !image && !placement.image && !demo }]}
+  class:list={["cinematic-hero", { "cinematic-hero--text": !image && !placement.image }]}
   aria-labelledby="hero-heading"
 >
   {
-    (image || placement.image || demo) && (
+    (image || placement.image) && (
       <PlacedImage image={{...photo,sources:photo.sources||variants?.sources}} placement={placement}
         class="cinematic-hero__image"
         sizes="100vw"
@@ -57,20 +56,16 @@ const variants = photos.find((item) =>
     <div class="cinematic-hero__actions">
       <ContentLink
         button
-        href={demo ? "#demo-plan" : "#plan"}
-        data-demo-personalised={demo ? "" : undefined}
-        >{demo ? "Try planning a trip" : "Plan your trip"}</ContentLink
+        href="#plan"
+        >Plan your trip</ContentLink
       >
-      <ContentLink href={demo ? "#demo-packages" : "#our-world"}
-        >{
-          demo ? "Explore sample journeys" : "Our travel footprint"
-        }</ContentLink
+      <ContentLink href="#our-world"
+        >Our travel footprint</ContentLink
       >
     </div>
-    {demo && <small>Design demonstration · not bookable offers.</small>}
   </div>
   <a
     class="cinematic-hero__scroll"
-    href={demo ? "#demo-packages" : "#our-world"}>Discover more</a
+    href="#our-world">Discover more</a
   >
 </section>

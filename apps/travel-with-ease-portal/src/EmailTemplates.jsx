@@ -94,9 +94,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
         setDirty(false);
         onDirtyChange(false);
         setNotice(
-          session.demo
-            ? "Demo template updated in this tab only. Nothing was sent or activated on the server."
-            : kind === "draft"
+          kind === "draft"
               ? "Draft saved. Outgoing emails have not changed."
               : definition.automated
                 ? "Template activated for newly prepared enquiry emails. Existing queued email payloads are unchanged."

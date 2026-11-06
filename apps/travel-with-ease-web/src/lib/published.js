@@ -11,7 +11,6 @@ export function publicationSnapshotPath(env = process.env) {
 // Build-only import. Never hydrate this module or fetch staff drafts publicly.
 export function publishedPage(slug) {
   const filename = publicationSnapshotPath();
-  if (!filename) return undefined; // Preserve the existing local scaffold only.
   // Import bundled content so Astro can relocate prerender modules safely.
   const snapshot = process.env.TWE_CONTENT_SNAPSHOT
     ? JSON.parse(readFileSync(filename, "utf8")) : approvedRelease;

@@ -4,7 +4,7 @@ Faako System is a PNPM + Turborepo workspace for Faako, REEBS, Dev ERP, ByNana, 
 
 ## Current Workspace
 
-Manifest inventory reviewed 2026-11-01: 38 workspace members (excluding the root):
+Manifest inventory reviewed 2026-11-06: 38 workspace members (excluding the root):
 
 - 15 application workspaces in `apps/` (including starter/workbench)
 - 21 shared packages in `packages/`
@@ -32,16 +32,23 @@ Main directories:
 | `@faako/faako-erp` | `apps/faako-erp` | Shared-shell Faako ERP frontend | `pnpm --filter @faako/faako-erp run dev:frontend` |
 | `@faako/reebs-portal` | `apps/reebs-portal` | REEBS admin portal plus API wrapper backend | `pnpm --filter @faako/reebs-portal run dev:with-backend` |
 | `@faako/reebs-website` | `apps/reebs-website` | REEBS public storefront, rentals, and booking site | `pnpm --filter @faako/reebs-website run dev:with-backend` |
-| `@faako/dev-erp` | `apps/dev-erp` | Fully live operational ERP with real operational data | `pnpm --filter @faako/dev-erp run dev:with-backend` |
+| `@faako/dev-erp` | `apps/dev-erp` | Operational ERP for invoices, payments, rentals and reporting | `pnpm --filter @faako/dev-erp run dev:with-backend` |
 | `@faako/bynana-portfolio` | `apps/bynana-portfolio` | ByNana public portfolio and contact entry points | `pnpm --filter @faako/bynana-portfolio run dev` |
 | `@faako/stroane-web` | `apps/stroane-web` | Full-stack Stroane commerce app | `pnpm --filter @faako/stroane-web run dev:with-backend` |
 | `@faako/system-starter` | `apps/system-starter` | Minimal starter app for the current shared shell system | `pnpm --filter @faako/system-starter run dev` |
 | `@faako/reebs-water` | `apps/reebs-water` | REEBS water operations application | `pnpm run dev:reebs-water` |
 | `@faako/ttngh` | `apps/ttngh` | TTNGH Astro public website | `pnpm run dev:ttngh` |
-| `@faako/travel-with-ease-web` | `apps/travel-with-ease-web` | Astro public website and isolated design demo | `pnpm --filter @faako/travel-with-ease-web run dev` |
+| `@faako/travel-with-ease-web` | `apps/travel-with-ease-web` | Astro public website, approved content and enquiries | `pnpm --filter @faako/travel-with-ease-web run dev` |
 | `@faako/travel-with-ease-portal` | `apps/travel-with-ease-portal` | React/Vite staff CMS; hosted bundle embedded in the TWE API | `pnpm --filter @faako/travel-with-ease-portal run dev` |
 | `@faako/travel-with-ease-api` | `apps/travel-with-ease-api` | Express authentication, CMS, enquiries, media and job boundaries | `pnpm --filter @faako/travel-with-ease-api run dev` |
 | `@faako/ui-workbench` | `apps/ui-workbench` | Local playground for the shared UI system | `pnpm --filter @faako/ui-workbench run dev` |
+
+Additional workspaces outside the one-level application list:
+
+| Workspace package | Path | Responsibility | Local command |
+| --- | --- | --- | --- |
+| `@faako/ttngh-studio` | `apps/ttngh/studio` | Sanity editorial studio | `pnpm --filter @faako/ttngh-studio dev` |
+| `@faako/ttngh-api` | `services/ttngh-api` | TTNGH enquiry/media backend | `pnpm --filter @faako/ttngh-api dev` |
 
 ## Shared Packages
 
@@ -69,7 +76,21 @@ Main directories:
 | `@faako/ui` | Shared shell primitives, navigation, fields, low-risk ERP form/table/modal/action presentation wrappers, and compat styles |
 | `@faako/utils` | Shared title, path, role, and layout observer helpers |
 
-## Current Shared System
+## Architecture and shared responsibilities
+
+| Boundary | Current implementation |
+| --- | --- |
+| Content-first public sites | Astro for Faako Website, REEBS Website, ByNana Portfolio, TTNGH and TWE; React islands where needed |
+| Operational interfaces | React/Vite for ERP, portals and commerce; app-owned workflow and permissions |
+| Node backends | Express APIs and app backends; Railway workspace selection via `RAILWAY_WORKSPACE` |
+| Persistence | Existing Prisma migrations where applicable; TWE uses versioned PostgreSQL SQL migrations, not Prisma |
+| Public delivery | Cloudflare Pages with checked headers/redirects and environment-specific configuration |
+| TWE staff access | Cloudflare Access, application sessions and tenant-scoped authorisation; CMS embedded in API |
+| TWE integrations | Private R2, approved Drive imports, queued Resend email, consent-controlled GA4 |
+| Analytics | Shared architecture and Python compatibility runtime at `services/reebs-analytics`, not per-client clones |
+
+Presentation components never replace authoritative backend permission checks.
+
 
 - `@faako/layout`, `@faako/ui`, and `@faako/theme` now define the common shell system used across the ERP and portal apps, including shell region contracts, uniform sidebar widths, the edge collapse toggle, shared topbar/content/mobile-nav wrappers, shared field sizing, and mobile-safe topbar behavior.
 - The shared compat layer normalizes `select`, `date`, `time`, `month`, and related controls so Safari and other WebKit browsers do not fall back to mismatched native chrome unexpectedly.
@@ -104,7 +125,7 @@ Helpful stack shortcuts:
 
 For Travel With Ease, run `pnpm run dev:twe` from the repository root.
 The general `pnpm run dev` starts every application's dev task; its concurrency
-limit is 20 to accommodate the current 17 persistent tasks. Use a stack shortcut
+limit is 20. Use a stack shortcut
 on a laptop to avoid starting unrelated applications.
 
 ```bash
@@ -131,6 +152,7 @@ pnpm lint
 pnpm test
 pnpm run monitoring:check
 pnpm run hosting:check
+node scripts/check-repository-hygiene.mjs
 pnpm affected:apps -- --files <path>
 pnpm db:refresh:local
 pnpm db:refresh:local:dry
@@ -146,7 +168,7 @@ production-ready.** See the [current implementation and hosted evidence](docs/ap
 
 | Area | Code-backed status |
 | --- | --- |
-| Public website | Astro multi-page site with supplied company/services copy, FAQs/legal information, photo-led package cards, article/Tips routes, 21-country experience map and shared enquiry/footer. Local and hosted builds read the same approved baseline; new hosted deployment is not verified. Existing demos remain pending retirement. |
+| Public website | Astro multi-page site with supplied company/services copy, FAQs/legal information, photo-led package cards, article/Tips routes, 21-country experience map and shared enquiry/footer. Local and hosted builds read the same approved baseline; new hosted deployment is not verified. Synthetic website/portal routes and their staging write endpoint have been retired; browser fixtures are test-only. |
 | Packages | Dedicated `/packages` and detail routes, search/destination/occasion/group-friendly filters, itineraries/galleries and independently publishable records. Approved Zanzibar/Nairobi tiers include reference months/disclaimers; Singapore/combined-trip pricing remains coming soon. Native package enquiry context and hosted acceptance remain incomplete. |
 | Travel Tips / Journal | Three source-derived Tips and two articles using supplied founder/itinerary copy; CMS collections, images, categories, listing/detail pages and independent record publication. Rich article blocks and hosted acceptance remain incomplete. |
 | Enquiries | Shared first-contact form, required Trip/Gift/Group/Celebration classification, validated API, exact-Origin/rate/honeypot checks, transactional PostgreSQL + notification-outbox persistence and duplicate protection. Turnstile integration requires per-environment keys. Full Google Form branches and authoritative package/tier context remain incomplete. |
@@ -202,8 +224,9 @@ pnpm --filter @faako/ui test
 pnpm --filter @faako/travel-with-ease-api run test:db:isolated
 ```
 
-Local ports: website 4328, portal 5188, API 3090. Use `/demo` on the website and
-portal for synthetic interactive data. The standard API development launcher
+Local ports: website 4328, portal 5188, API 3090. Local public pages use the approved
+content baseline. There is no simulated staff login or browser-accessible demo.
+The standard API development launcher
 deliberately does not load hosted `.env` credentials or enable real staff login.
 Never point isolated tests at a shared database. Direct `test:db` requires the
 documented disposable test database; it is mandatory in TWE foundation CI.
@@ -216,20 +239,20 @@ documented disposable test database; it is mandatory in TWE foundation CI.
 | Protected staff CMS | https://portal-staging.travelwitheasegh.com | https://portal.travelwitheasegh.com |
 | API | https://staging-api.travelwitheasegh.com | https://api.travelwitheasegh.com |
 
-Website demo: https://staging.travelwitheasegh.com/demo.
-Protected portal demo: https://portal-staging.travelwitheasegh.com/demo.
-Hosted demo flags are explicit; production must not expose synthetic offers or
-demo mutations. Portal Access protection still applies to its staging demo.
+Retired website demo landing/list URLs redirect to real public pages. Synthetic
+detail URLs are not mapped to real offers. The protected portal `/demo` returns
+404; historical demo flags have no effect. HTTP fixtures remain test-only.
 
 Pages branch configuration was confirmed by the user: staging tracks `develop`,
 production tracks `main`; repository-root build command
 `pnpm --filter @faako/travel-with-ease-web build`, output
 `apps/travel-with-ease-web/dist`. This is configuration evidence, not proof that
 the latest branch SHA is deployed. Record the provider deployment SHA and content
-marker independently. [2026-11-01 checks](docs/apps/travel-with-ease/completion-status-2026-11-01.md#hosted-observations)
-found staging healthy, portal login redirects and website HTTP 200; production
-API health timed out and publication markers were absent. Authenticated UAT,
-email receipt, restore drills and production acceptance remain unverified.
+marker independently. Read-only HTTPS observations on 2026-11-04: staging and production websites
+returned 200; staging API `/readyz` returned 200; production API `/readyz` returned
+502. This does not verify authentication or that the cleanup branch is deployed.
+Production API recovery, authenticated UAT, email receipt, restore drills and
+production acceptance remain unverified.
 
 TWE foundation CI runs lint/type/build/unit tests, shared UI checks, synthetic
 browser/accessibility tests and isolated PostgreSQL integration. Monorepo CI runs
@@ -261,6 +284,18 @@ generation. Their historical roadmap descriptions are not implemented features.
 - Use `pnpm run hosting:check` after adding or moving apps to confirm static apps have Cloudflare files, API apps have Railway start paths, and legacy hosting artifacts are absent.
 - `faako-website` calls the dedicated Faako API through `VITE_API_BASE_URL` or the local Vite `/api` proxy during development.
 - Workspace impact checks are driven by [scripts/workspace-graph.mjs](scripts/workspace-graph.mjs).
+
+## Repository hygiene
+
+- Install from the pinned lockfile. Dependencies, builds, reports and temporary
+  probes are generated/ignored, not source to commit.
+- Browser fixtures belong under tests; TWE no longer ships a synthetic workspace.
+- Keep migrations, recovery tooling and durable decisions. Historical runbooks
+  are not current instructions where a newer document supersedes them.
+- Inspect `git worktree list --porcelain` and status before cleanup. Preserve
+  unmerged branches, source edits, private configuration and active servers.
+- See the [cleanup inventory and recovery notes](docs/apps/travel-with-ease/repository-cleanup-2026-11-06.md).
+  Installed dependencies remain on disk; this is not a Git history rewrite.
 
 ## Docs
 

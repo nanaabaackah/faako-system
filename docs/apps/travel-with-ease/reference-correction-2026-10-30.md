@@ -1,5 +1,9 @@
 # Flyward reference correction — 30 October 2026
 
+> 2026-11-06: Demo routes, flags and simulated sessions described here are
+> retired. Preserve this historical context, but use the current
+> [cleanup and verification guide](./repository-cleanup-2026-11-06.md), not the old demo instructions.
+
 This supersedes the photo-collage CTA and permanently cream footer in PR #120.
 The user's supplied mockups are the approved CTA artwork; Flyward is the layout
 reference, not a source of TWE photography, claims, testimonials or credentials.

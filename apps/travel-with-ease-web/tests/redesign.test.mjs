@@ -37,7 +37,7 @@ test("one continuous image covers the enquiry and footer, with gutters only at t
   assert.match(component, /class="closing-scene__image"/);
   assert.match(
     component,
-    /<\/section>\s*<PublicFooter demo=\{demo\} cinematic/,
+    /<\/section>\s*<PublicFooter cinematic/,
   );
   assert.match(
     source("layouts/BaseLayout.astro"),
@@ -59,8 +59,8 @@ test("one continuous image covers the enquiry and footer, with gutters only at t
   );
 });
 
-test("both website modes use the same hero, CTA, enquiry and footprint components", () => {
-  for (const filename of ["PublishedHome", "DemoWebsite"]) {
+test("public homepage uses the approved hero, CTA, enquiry and footprint components", () => {
+  for (const filename of ["PublishedHome"]) {
     const component = source(`components/${filename}.astro`);
     for (const name of ["CinematicHero", "ClosingCta", "TravelFootprint"])
       assert.match(component, new RegExp(`<${name}\\b`));
@@ -70,11 +70,6 @@ test("both website modes use the same hero, CTA, enquiry and footprint component
     /heading=\{content.heading\}/,
   );
   assert.match(source("pages/index.astro"), /slot="closing"/);
-  assert.match(source("pages/demo.astro"), /<DemoClosing\s+slot="closing"/);
-  assert.match(
-    source("components/DemoClosing.astro"),
-    /<CinematicEnquiry demo>/,
-  );
   assert.match(
     source("components/PublishedHome.astro"),
     /image=\{content.image\}/,

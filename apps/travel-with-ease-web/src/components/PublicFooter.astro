@@ -1,12 +1,12 @@
 ---
 import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
 import ContentLink from "./ContentLink.astro";
-import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
+import { publishedPage } from "../lib/published.js";
 import photography from "../lib/assigned-photography.json";
-const { demo = false, cinematic = false } = Astro.props;
+const { cinematic = false } = Astro.props;
 const visible = (slug: string) =>
-  demo || !publicationSnapshotPath() || Boolean(publishedPage(slug));
-const contact = demo ? null : publishedPage("contact");
+  Boolean(publishedPage(slug));
+const contact = publishedPage("contact");
 const closingPhoto = photography.footer;
 const email =
   contact?.contactEmail &&
@@ -50,7 +50,7 @@ const phone =
     <div class="footer-brand-block">
       <a
         class="brand"
-        href={demo ? "/demo" : "/"}
+        href="/"
         aria-label="Travel With Ease home"
         ><img
           src="/brand/Primary gold.png"
@@ -61,8 +61,8 @@ const phone =
         /></a
       >{
         visible("contact") && (
-          <ContentLink button href={demo ? "/demo#demo-plan" : "/contact"}>
-            {demo ? "Try the enquiry demo" : "Plan a trip"}
+          <ContentLink button href="/contact">
+            Plan a trip
           </ContentLink>
         )
       }
@@ -71,15 +71,15 @@ const phone =
       <nav aria-label="Explore">
         <h2>Explore</h2>{
           (visible("packages") || visible("destinations")) && (
-            <a href={demo ? "/demo/packages" : "/packages"}>Packages</a>
+            <a href="/packages">Packages</a>
           )
         }{
           visible("services") && (
-            <a href={demo ? "/demo#demo-process" : "/services"}>Services</a>
+            <a href="/services">Services</a>
           )
-        }{visible("about") && !demo && <a href="/about">About TWE</a>}{
+        }{visible("about") && <a href="/about">About TWE</a>}{
           visible("journal") && (
-            <a href={demo ? "/demo/journal" : "/journal"}>Travel journal</a>
+            <a href="/journal">Travel journal</a>
           )
         }
       </nav>
@@ -95,10 +95,10 @@ const phone =
       </nav>
       <nav aria-label="Help and contact">
         <h2>Let’s talk</h2>{
-          visible("faqs") && <a href={demo ? "#demo-faqs" : "/faqs"}>FAQs</a>
+          visible("faqs") && <a href="/faqs">FAQs</a>
         }{
           visible("contact") && (
-            <a href={demo ? "#demo-plan" : "/contact"}>Contact</a>
+            <a href="/contact">Contact</a>
           )
         }{email && <a href={"mailto:" + email}>{email}</a>}{
           phone && <a href={"tel:" + phone.replace(/[^+\d]/g, "")}>{phone}</a>
@@ -113,14 +113,10 @@ const phone =
       The Travel Institute. Accra, Ghana.
     </p>
     <span
-      >{
-        demo
-          ? "Website demonstration · sample offers not bookable"
-          : "Travel With Ease"
-      }</span
+      >{"Travel With Ease"}</span
     ><nav aria-label="Legal and preferences">
       {
-        !demo && (
+        (
           <>
             {visible("privacy") && <a href="/privacy">Privacy</a>}
             {visible("terms") && <a href="/terms">Terms</a>}
@@ -128,7 +124,7 @@ const phone =
           </>
         )
       }<button type="button" data-cookie-settings
-        >{demo ? "Demo cookie settings" : "Cookie settings"}</button
+        >Cookie settings</button
       ><a href="#top">Back to top</a>
     </nav>
   </div>

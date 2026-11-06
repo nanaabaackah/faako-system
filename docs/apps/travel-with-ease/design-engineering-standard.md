@@ -293,8 +293,8 @@ The trade-offs are deliberate: authentic imagery needs licensing/content ownersh
 - Public WhatsApp is bottom left and back-to-top bottom right, using local Iconsax
   assets and minimum 44px targets. Text precedes icons where labels are shown.
   Hide these controls while the cookie preference panel is open.
-- Demo cookie choices use separate storage and never enable Google Analytics.
-  Shared public components apply to demos; synthetic records remain labelled.
+- Public cookie preferences use one consent store. Runtime demos are retired;
+  synthetic interface fixtures are test-only and never enter browser bundles.
 - Journal articles are semantic Astro content. Verified footprint records feed the
   homepage and dedicated map from one approved publication, not the footer.
 - Policy starter copy and company facts have distinct approval status. TIDS marks

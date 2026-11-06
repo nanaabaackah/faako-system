@@ -8,7 +8,6 @@ import tablet from "../../public/media/Mockups/TWE_mockup2.png";
 import camera from "../../public/media/Mockups/TWE_mockup3.png";
 import headphones from "../../public/media/Mockups/TWE_mockup4.png";
 import laptop from "../../public/media/Mockups/TWE_mockup5.png";
-const { demo = false, standalone = false } = Astro.props;
 const placements=publishedPage('site-appearance')?.imagePlacements||{};
 const mockups = [
   { image: headphones, name: "headphones" },
@@ -23,21 +22,12 @@ const mockups = [
   <div class="closing-copy">
     <h2 id="closing-cta-heading">Make room for your next journey.</h2>
     <p>
-      {
-        demo
-          ? "Explore a sample trip, then try the enquiry experience. Sample offers cannot be booked; staging enquiries are labelled as tests."
-          : "Start with an idea. Tell us what you have in mind and we’ll help shape the journey."
-      }
+      Start with an idea. Tell us what you have in mind and we’ll help shape the journey.
     </p>
     <ContentLink
       button
-      href={demo ? standalone ? "/demo#demo-plan" : "#demo-plan" : "#plan"}
-      data-demo-personalised={demo ? "" : undefined}
-      >{
-        demo
-          ? "Try a personalised enquiry"
-          : "Plan my trip"
-      }</ContentLink
+      href="#plan"
+      >Plan my trip</ContentLink
     >
   </div>
   <div class="closing-artwork">

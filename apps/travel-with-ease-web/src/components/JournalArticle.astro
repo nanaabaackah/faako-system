@@ -10,7 +10,6 @@ interface Props {
   item: JournalArticle;
   related?: JournalArticle[];
   packages?: TravelPackage[];
-  demo?: boolean;
   prefix?: string;
   packagePrefix?: string;
 }
@@ -18,7 +17,6 @@ const {
   item,
   related = [],
   packages = [],
-  demo = false,
   prefix = "/journal",
   packagePrefix = "/packages",
 } = Astro.props;
@@ -26,13 +24,7 @@ const {
 
 <article class="editorial-wrap collection-detail journal-reading">
   <ContentLink href={prefix}>Travel Journal</ContentLink>
-  {
-    demo && (
-      <p class="collection-demo-notice">
-        Demonstration article — not a published TWE story.
-      </p>
-    )
-  }
+
   <header class="collection-detail-heading">
     <p>{item.category || "Travel stories"}</p><h1>{item.title}</h1><p>
       <time datetime={item.date}>{item.date}</time>{
@@ -93,4 +85,4 @@ const {
     )
   }
 </article>
-<ClosingCta demo={demo} standalone enquiryAvailable={Boolean(publishedPage("contact"))} />
+<ClosingCta standalone enquiryAvailable={Boolean(publishedPage("contact"))} />

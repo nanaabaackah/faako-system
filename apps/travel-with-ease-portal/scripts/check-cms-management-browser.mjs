@@ -1,3 +1,4 @@
+import { mockWorkspaceApi } from "../test/fixtures/browser-api.js";
 import { createRequire } from "node:module";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -28,11 +29,8 @@ try {
       requests = [];
     page.setDefaultTimeout(15000);
     page.on("pageerror", (error) => errors.push(error.message));
-    await page.route("**/api/**", (route) => {
-      requests.push(route.request().url());
-      return route.abort();
-    });
-    await page.goto(origin + "/?demo=1&demoRole=platform_admin");
+    await mockWorkspaceApi(page, {role: "platform_admin", requests});
+    await page.goto(origin + "/");
     const visible = (name) =>
       page.getByRole("button", { name, exact: true }).filter({ visible: true });
     const navigate = async (name) => {
@@ -187,16 +185,14 @@ try {
       path: path.join(output, `system-${width}.png`),
       fullPage: true,
     });
-    await page.goto(origin + "/?demo=1&demoRole=editor");
+    await page.unroute("**/api/**");
+    await mockWorkspaceApi(page, {role: "editor", requests});
+    await page.goto(origin);
     await visible("Overview").first().waitFor();
     if (width <= 800) await page.getByRole("button", { name: /^Menu/ }).click();
     for (const name of ["Staff", "Activity", "System"])
       assert.equal(await visible(name).count(), 0);
-    assert.deepEqual(
-      requests,
-      [],
-      "Synthetic demos must never call the backend",
-    );
+    assert.ok(requests.length > 0, "Actual API client exercised against isolated HTTP fixtures");
     assert.deepEqual(errors, []);
     await context.close();
   }

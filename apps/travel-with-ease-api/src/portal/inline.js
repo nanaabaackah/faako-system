@@ -6,7 +6,7 @@ import { accessFailureReason } from "../auth/access-diagnostics.js";
 
 // A single Railway process can expose two hostnames: the protected CMS hostname
 // and the existing API hostname. Do not proxy HTTP requests back into this process.
-export function createInlinePortal({ settings, verifier, distDirectory, logger, stagingDemoEnabled = false }) {
+export function createInlinePortal({ settings, verifier, distDirectory, logger }) {
   if (!settings?.portalOrigin || !verifier?.verify || !distDirectory) {
     throw new Error("The embedded portal requires Access verification and a built frontend.");
   }
@@ -58,11 +58,8 @@ export function createInlinePortal({ settings, verifier, distDirectory, logger, 
       return rejectAuthentication(accessFailureReason(error));
     }
 
-    // Staff demo is a single reviewed path; no wildcard SPA fallback and no
-    // permission to authenticate or mutate staff records. Access is still mandatory.
-    if (["/demo", "/demo/"].includes(req.path) && !stagingDemoEnabled) {
-      return reject(req, res, 404);
-    }
+    // Retired synthetic workspace paths never resolve to the CMS.
+    if (["/demo", "/demo/"].includes(req.path)) return reject(req, res, 404);
 
     if (req.url.startsWith("/api")) {
       const pathname = req.url.split("?")[0];
@@ -77,11 +74,6 @@ export function createInlinePortal({ settings, verifier, distDirectory, logger, 
 
   const serve = (req, res, next) => {
     if (req.headers.host !== portalHost || req.url.startsWith("/api")) return next();
-    if (stagingDemoEnabled && ["/demo", "/demo/"].includes(req.path)) {
-      return res.sendFile("index.html", { root: distDirectory, dotfiles: "deny", cacheControl: false, lastModified: false }, error => {
-        if (error) next(error);
-      });
-    }
     return staticFiles(req, res, next);
   };
   return { guard, serve };

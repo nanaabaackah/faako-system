@@ -60,7 +60,7 @@ export default function StaffAccess({ api, session }) {
       });
       await load();
       setMessage(
-        session.demo ? 'Demo updated in this tab only. No real account, session or invitation was changed.' : `Action recorded${path === "support-grants" ? `; support grant ${result.id} expires within 15 minutes` : ""}.`,
+        `Action recorded${path === "support-grants" ? `; support grant ${result.id} expires within 15 minutes` : ""}.`,
       );
       return true;
     } catch (error) {

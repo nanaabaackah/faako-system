@@ -13,7 +13,7 @@ import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import CookieNotice from "../components/CookieNotice.astro";
 import FloatingActions from "../components/FloatingActions.astro";
 import { sharingMetadata } from "../lib/sharing.js";
-import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
+import { publishedPage } from "../lib/published.js";
 
 const {
   title,
@@ -22,17 +22,10 @@ const {
   type = "website",
   noIndex = false,
 } = Astro.props;
-const demo =
-  Astro.props.demo === true &&
-  (import.meta.env.DEV ||
-    (import.meta.env.PUBLIC_APP_ENV === "staging" &&
-      import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true"));
 const cinematic = Astro.props.cinematic === true;
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
-const pageContent = demo
-  ? undefined
-  : publishedPage(path.replace(/^\/|\/$/g, "") || "home");
+const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
 const sharing = sharingMetadata({
   site: site.href,
   image:
@@ -86,7 +79,6 @@ const breadcrumbJson = breadcrumbs.length
   : null;
 const googleSiteVerification =
   import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
-const review = !publicationSnapshotPath();
 // Public source identifier only; never emit arbitrary environment values.
 const releaseSha = [
   process.env.CF_PAGES_COMMIT_SHA,
@@ -95,18 +87,9 @@ const releaseSha = [
 ].find((value) => typeof value === "string" && /^[a-f0-9]{40}$/i.test(value));
 const visible = (href: string) =>
   href === "/journal" ||
-  demo ||
-  review ||
   (cinematic && href.startsWith("#")) ||
   Boolean(publishedPage(href === "/" ? "home" : href.slice(1)));
-const navigation = demo
-  ? [
-      ["/demo/packages", "Packages"],
-      ["/demo#demo-process", "How it works"],
-      ["/demo/journal", "Journal"],
-      ["/demo#demo-footprint", "Travel footprint"],
-    ]
-  : [
+const navigation = [
       ["/packages", "Packages"],
       ["/journal", "Journal"],
       ["/services", "Services"],
@@ -176,7 +159,7 @@ const navigation = demo
     <header class="site-header">
       <a
         class="brand"
-        href={demo ? "/demo" : "/"}
+        href="/"
         aria-label="Travel With Ease home"
         ><img
           class="brand__wordmark"
@@ -213,7 +196,7 @@ const navigation = demo
           }
         </div>
         {
-          !demo && (
+          (
             <ContentLink
               button
               class="nav-cta"
@@ -226,33 +209,15 @@ const navigation = demo
       </nav>
     </header>
     </div>
-    {
-      demo ? (
-        <p class="review-banner">
-          Website demo · sample packages are not available to book.{" "}
-          {import.meta.env.PUBLIC_APP_ENV === "staging"
-            ? "Enquiries are saved to the staging test inbox only."
-            : "Local preview: enquiries are not submitted."}{" "}
-          <a href="/">Exit demo</a>
-        </p>
-      ) : (
-        review && (
-          <p class="review-banner">
-            Design preview · placeholder content · enquiries and offers are not
-            live.
-          </p>
-        )
-      )
-    }
     <main id="main-content"><slot /></main>
     <slot name="closing" />
     {!Astro.slots.has("closing") && (
-      <CinematicEnquiry demo={demo} enquiryAvailable={Boolean(publishedPage("contact"))} />
+      <CinematicEnquiry enquiryAvailable={Boolean(publishedPage("contact"))} />
     )}
     <FloatingActions />
     <EditorialMotion />
-    <CookieNotice demo={demo} />
-    {!demo && <AnalyticsConsent />}
+    <CookieNotice />
+    <AnalyticsConsent />
   </body>
 </html>
 <script>

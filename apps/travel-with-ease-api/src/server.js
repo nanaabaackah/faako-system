@@ -102,9 +102,7 @@ const app = createApp({ repository, estimatorService: new EstimatorService({ cur
   turnstileVerifier: createTurnstileVerifier({
     secret: process.env.TWE_TURNSTILE_SECRET_KEY, environment,
   }),
-  portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist,
-    stagingDemoEnabled: environment === "staging" && process.env.TWE_STAGING_PORTAL_DEMO_ENABLED === "true" } : null,
-  demoOrigin: process.env.TWE_DEMO_ORIGIN || "",
+  portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist } : null,
 });
 const server = app.listen(port, deployed ? undefined : "127.0.0.1", () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;

@@ -7,33 +7,24 @@ interface Props {
   heading?: string;
   description?: string;
   compact?: boolean;
-  demo?: boolean;
   records?: {
     countryCode: string;
     total: number;
-    status: "demo" | "verified";
+    status: "verified";
   }[];
 }
 const { compact = false, heading = "Our travel footprint", description, records = publishedPage("travel-footprint")?.footprint || [] } = Astro.props;
-const demo = Astro.props.demo === true && (import.meta.env.DEV || (import.meta.env.PUBLIC_APP_ENV === "staging" && import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true"));
 const rows: {
   countryCode: string;
   name: string;
   total: number;
   status: string;
 }[] = footprintRows(
-  demo
-    ? [
-        { countryCode: "KE", total: 12, status: "demo" },
-        { countryCode: "TZ", total: 4, status: "demo" },
-        { countryCode: "GH", total: 2, status: "demo" },
-      ]
-    : records,
+  records,
   world.countries,
-  demo,
 );
 const byCode = new Map(rows.map((row) => [row.countryCode, row]));
-const experience: { countryCode: string; name: string; label: string; band: number }[] = demo ? [] : experienceRows(
+const experience: { countryCode: string; name: string; label: string; band: number }[] = experienceRows(
   publishedPage("travel-footprint")?.experienceCountries || [],
   [...world.countries, ...smallCountries.countries],
 );
@@ -50,9 +41,7 @@ const id = compact ? "footer-footprint" : "travel-footprint";
   <div class="footprint-heading">
     <h2 id={id + "-heading"}>{heading}</h2><p>
       {
-        description || (demo
-          ? "Illustrative demo totals—not TWE trip records."
-          : showingExperience
+        description || (showingExperience
             ? "Countries explored, near and far. Select a country to discover more."
           : rows.length
             ? "Completed and confirmed upcoming trips, combined by country."
@@ -73,7 +62,7 @@ const id = compact ? "footer-footprint" : "travel-footprint";
         const visited = country.code ? experiences.get(country.code) : undefined;
         const selectable = Boolean(visited || row);
         const label = visited ? `${country.name}: ${visited.label}` : row
-          ? `${country.name}: ${row.total} combined trips${demo ? " (demo)" : ""}`
+          ? `${country.name}: ${row.total} combined trips`
           : country.name;
         return (
           <path
@@ -150,7 +139,7 @@ const id = compact ? "footer-footprint" : "travel-footprint";
             <li>
               <strong>{row.name}</strong>
               <span>
-                {row.total} {demo ? "demo trips" : "trips"}
+                {row.total} trips
               </span>
             </li>
           ))}

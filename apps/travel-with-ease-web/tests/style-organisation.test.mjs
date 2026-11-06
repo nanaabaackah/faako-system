@@ -19,7 +19,7 @@ test("Astro component style blocks only import external CSS", () => {
       count++;
     }
   }
-  assert.equal(count, 7);
+  assert.equal(count, 5, "Only the five retained component style imports remain");
   // Child photo components need an unscoped, class-namespaced stylesheet.
   const published = readFileSync(new URL("PublishedContent.astro", directory), "utf8");
   assert.match(published, /import "\.\.\/styles\/components\/published-content\.css";/);

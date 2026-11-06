@@ -1,5 +1,20 @@
 # Travel With Ease progress log
 
+## 2026-11-06 — Demo retirement and repository sweep
+
+- Retired public demo routes, simulated portal sessions, staging demo submissions
+  and unused prototypes/styles. Approved content and private CMS previews remain.
+- Moved workspace fixtures out of application source; browser tests exercise the
+  real API client with isolated HTTP responses.
+- Pruned six stale worktree registrations and removed the fully merged
+  Drive-preview worktree. Preserved unmerged Paystack and unrelated local edits.
+- Untracked installed dependencies and generated Astro caches without deleting
+  installed files; added repository hygiene gates to CI.
+- Updated the root README inventory, architecture, commands, feature statuses,
+  environments and release safeguards. See the
+  [cleanup inventory and recovery notes](./repository-cleanup-2026-11-06.md).
+- This is local cleanup, not production deployment or authenticated acceptance.
+
 ## 2026-11-04 — CMS roles, imagery, activity and responsive navigation
 
 - Focused branch `feat/twe-cms-roles-imagery-activity` from develop

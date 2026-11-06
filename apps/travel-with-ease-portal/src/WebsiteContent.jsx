@@ -202,11 +202,11 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         responseMode: "data",
       });
       setPreview(item.body);
-      if (!session.demo) setVisualPreview(await api.post(`/api/agent/content/${page}/visual-preview`, {
+      setVisualPreview(await api.post(`/api/agent/content/${page}/visual-preview`, {
         responseMode: "data", json: { expectedVersion: version },
         headers: { "X-CSRF-Token": session.csrfToken },
       }));
-      if (!session.demo) setEditorView("preview");
+      setEditorView("preview");
       setState({
         loading: false,
         error: "",
