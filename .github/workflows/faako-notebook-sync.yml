@@ -1,0 +1,69 @@
+name: Faako Notebook Sync (controlled)
+
+# Closed+merged PRs are verified again against GitHub API before any update.
+# Default: GitHub-only dry-run. Write mode requires a repository variable AND
+# a private Notion integration token, neither is included in this repository.
+on:
+  pull_request:
+    types: [closed]
+    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Merged pull request number in this repository
+        required: true
+        type: number
+      write:
+        description: Apply if globally enabled (otherwise dry-run only)
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# One writer at a time. Nightly reconciliation will handle any skipped events.
+concurrency:
+  group: faako-notebook-controlled-sync
+  cancel-in-progress: false
+
+jobs:
+  merged-pr-journal:
+    name: Verify and sync merged PR activity
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.pull_request.number }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout trusted target branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate sync rules and idempotency
+        run: node --test scripts/notebook/*.test.mjs
+
+      - name: GitHub-only impact preview
+        run: node scripts/notebook/sync-cli.mjs --pr "$PR_NUMBER"
+
+      - name: Apply approved Notion updates (fail-closed)
+        if: >-
+          ${{ vars.FAAKO_NOTEBOOK_SYNC_ENABLED == 'true' &&
+              (github.event_name == 'pull_request' ||
+               (github.event_name == 'workflow_dispatch' && inputs.write == true)) }}
+        env:
+          FAAKO_NOTEBOOK_SYNC_ENABLED: "true"
+          FAAKO_NOTEBOOK_NOTION_TOKEN: ${{ secrets.FAAKO_NOTEBOOK_NOTION_TOKEN }}
+        run: node scripts/notebook/sync-cli.mjs --pr "$PR_NUMBER" --write
