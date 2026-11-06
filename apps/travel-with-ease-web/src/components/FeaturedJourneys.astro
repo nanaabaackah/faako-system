@@ -1,0 +1,54 @@
+---
+import ContentLink from "./ContentLink.astro";
+import PlacedImage from "./PlacedImage.astro";
+import { packageStartingPrice, referenceMonthLabel } from "../lib/package-pricing.js";
+import type { TravelPackage } from "../lib/collections";
+import "../styles/components/home-features.css";
+
+interface Props {
+  items: TravelPackage[];
+}
+const { items } = Astro.props;
+const approvedOrder = ["zanzibar", "nairobi"];
+const featured = items
+  .filter((item) => approvedOrder.includes(item.slug))
+  .sort((a, b) => approvedOrder.indexOf(a.slug) - approvedOrder.indexOf(b.slug))
+  .slice(0, 2);
+---
+
+{featured.length > 0 && (
+  <section id="featured-journeys" class="featured-journeys" aria-labelledby="featured-journeys-heading">
+    <div class="editorial-wrap">
+      <div class="home-section-heading">
+        <div>
+          <p class="home-section-eyebrow">Discover</p>
+          <h2 id="featured-journeys-heading">Journeys worth exploring.</h2>
+          <p>Start with a destination that speaks to you. We'll help shape the details around your dates.</p>
+        </div>
+        <ContentLink href="/packages">Explore all packages</ContentLink>
+      </div>
+      <div class="featured-journeys__grid">
+        {featured.map((item) => (
+          <article class="featured-journeys__card">
+            <div class="featured-journeys__photo">
+              {item.image && <PlacedImage image={item.image} placement={item.imagePlacement} sizes="(max-width: 760px) 100vw, 50vw" loading="lazy" />}
+            </div>
+            <div class="featured-journeys__details">
+              <p class="featured-journeys__duration">{item.duration}</p>
+              <h3><ContentLink href={`/packages/${item.slug}`}>{item.title}</ContentLink></h3>
+              <p class="featured-journeys__price">{packageStartingPrice(item)}</p>
+              {item.pricingStatus === "indicative" && referenceMonthLabel(item.referenceMonth) && (
+                <p class="featured-journeys__reference">Reference: {referenceMonthLabel(item.referenceMonth)}</p>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+      <p class="featured-journeys__disclaimer">
+        Published starting prices are indicative, per person sharing, and include return flights from Accra.
+        Final prices depend on your dates, availability, live airfare and exchange rates.
+        Request a live quote before confirming travel.
+      </p>
+    </div>
+  </section>
+)}
