@@ -73,10 +73,12 @@ export default function EnquiryForm() {
       <fieldset disabled={!ready || disabled}>
         <legend>Tell us about your trip</legend>
         <div className="enquiry-fields-pair">
-          <SelectField name="enquiryType" label="Enquiry type" value={form.enquiryType} onChange={update} required>
+          <SelectField name="enquiryType" label="Enquiry type" value={form.enquiryType}
+            onChangeValue={value => setForm(current => ({ ...current, enquiryType: value }))} required>
             {enquiryTypes.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
           </SelectField>
-          <SelectField name="service" label="Planning support" value={form.service} onChange={update} required>
+          <SelectField name="service" label="Planning support" value={form.service}
+            onChangeValue={value => setForm(current => ({ ...current, service: value }))} required>
             <option value="not_sure">Help me choose</option>
             <option value="readiness">Travel Readiness Session</option>
             <option value="full_planning">Full Trip Planning</option>

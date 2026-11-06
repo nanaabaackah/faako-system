@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import approvedRelease from "../../content/approved-public-release.json" with { type: "json" };
+import { publishedServices } from "./services.js";
 
 export function publicationSnapshotPath(env = process.env) {
   if (env.TWE_CONTENT_SNAPSHOT) return env.TWE_CONTENT_SNAPSHOT;
@@ -18,6 +19,7 @@ export function publishedPage(slug) {
   if (slug.startsWith("journal/")) return withPlacementImages(snapshot.pages.journal?.articles?.find(article => article.slug === slug.slice(8)) || null);
   if (slug.startsWith("travel-tips/")) return withPlacementImages(snapshot.pages["travel-tips"]?.tips?.find(tip => tip.slug === slug.slice(12)) || null);
   if (slug.startsWith("packages/")) return withPlacementImages(snapshot.pages.packages?.packages?.find(item => item.slug === slug.slice(9)) || null);
+  if (slug.startsWith("services/")) return withPlacementImages(publishedServices(snapshot.pages.services).find(item => item.slug === slug.slice(9)) || null);
   return withPlacementImages(snapshot.pages[slug] || null); // Explicitly unpublished; never fall back to old copy.
 }
 function withPlacementImages(value) {

@@ -9,6 +9,7 @@ import PackagePrices from "./PackagePrices.astro";
 import { packageStartingPrice } from "../lib/package-pricing.js";
 import type { TravelPackage, JournalArticle } from "../lib/collections";
 import "../styles/components/collections.css";
+import "../styles/components/package-experience.css";
 interface Props {
   item: TravelPackage;
   relatedPackages?: TravelPackage[];
@@ -27,14 +28,21 @@ const canEnquire = !["closed", "sold_out"].includes(item.availability || "");
 const enquiry = "#plan";
 ---
 
-<article class="collection-detail">
+<article class="collection-detail package-experience">
   <div class="editorial-wrap">
     <ContentLink href={prefix}>All packages</ContentLink>
-    <header class="collection-detail-heading">
-      <p>{item.destination}</p><h1>{item.title}</h1><p>
-        {[item.duration, item.dates].filter(Boolean).join(" · ")}
-      </p>
-    </header>
+    <div class="package-experience__hero">
+      <header class="collection-detail-heading">
+        <p class="package-section-label">{item.destination}</p><h1>{item.title}</h1>
+        <p class="package-experience__tagline">{item.tagline || item.overview}</p>
+        <dl class="package-experience__facts">
+          {item.duration && <div><dt>Your time away</dt><dd>{item.duration}</dd></div>}
+          <div><dt>{item.pricingStatus === "indicative" ? "Starting price" : "Pricing"}</dt><dd>{packageStartingPrice(item)}</dd></div>
+        </dl>
+        {item.dates && <p>{item.dates}</p>}
+        {item.pricingStatus === "indicative" && <p class="package-price-disclaimer">Indicative, per person sharing · return flights from Accra included. Review the full pricing details below.</p>}
+        <ContentLink href="#package-pricing">Explore the details</ContentLink>
+      </header>
     {
       item.image && (
         <PlacedImage image={item.image} placement={item.imagePlacement}
@@ -51,9 +59,16 @@ const enquiry = "#plan";
         />
       )
     }
+    </div>
+    <nav class="package-section-nav" aria-label="Package sections">
+      <a href="#package-overview">Overview</a>
+      <a href="#package-pricing">Prices &amp; stays</a>
+      {(item.inclusions?.length || 0) > 0 && <a href="#package-inclusions">What’s included</a>}
+      {(item.itinerary?.length || 0) > 0 && <a href="#package-itinerary">Day by day</a>}
+    </nav>
     <div class="package-detail-grid">
       <div class="collection-reading">
-        <section>
+        <section id="package-overview">
           <h2>The journey</h2><p class="preserve-lines">{item.overview}</p>
         </section>
         {
@@ -73,7 +88,7 @@ const enquiry = "#plan";
         <PackagePrices item={item} />
         {
           (item.inclusions?.length || 0) > 0 && (
-            <section>
+            <section id="package-inclusions" class="package-inclusions">
               <>
                 <h2>What is included</h2>
                 <ul>
@@ -121,7 +136,7 @@ const enquiry = "#plan";
         }
         {
           (item.itinerary?.length || 0) > 0 && (
-            <section>
+            <section id="package-itinerary">
               <h2>Your itinerary</h2>
               {[...(item.itinerary || [])]
                 .sort((a, b) => a.day - b.day)
@@ -153,7 +168,7 @@ const enquiry = "#plan";
             </section>
           )
         }
-      </div><aside class="package-enquiry-panel">
+      </div><aside class="package-enquiry-panel" aria-label="Enquire about this package">
         <h2>Interested in this trip?</h2>{
           <p class="package-price">{packageStartingPrice(item)}</p>
         }<p>

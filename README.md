@@ -164,6 +164,8 @@ pnpm security:all
 
 The homepage visitor flow, navigation priorities, published-featured-package preview and compact services overview are described in [TWE homepage journey (2026-11-06)](docs/apps/travel-with-ease/homepage-journey-2026-11-06.md). These code changes do not by themselves certify a hosted deployment.
 
+See [package and planning-page refinement](docs/apps/travel-with-ease/packages-process-refinement-2026-11-06.md) for photo-led package layouts, four service detail pages, the expanded process example and the enquiry dropdown regression fix.
+
 The approved cinematic homepage, five-mockup CTA and enquiry/footer styling are
 preserved. **The broader feature-completion brief is not complete or certified
 production-ready.** See the [current implementation and hosted evidence](docs/apps/travel-with-ease/completion-status-2026-11-01.md).

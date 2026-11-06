@@ -6,6 +6,7 @@ import { packageStartingPrice } from "../lib/package-pricing.js";
 import { packageOccasions } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
 import type { TravelPackage } from "../lib/collections";
 import "../styles/components/collections.css";
+import "../styles/components/package-experience.css";
 interface Props {
   items: TravelPackage[];
   prefix?: string;
@@ -20,12 +21,13 @@ const {
 } = Astro.props;
 ---
 
-<section class="editorial-wrap collection-page" id="package-collection">
-  <header class="collection-introduction">
-    <h1>{heading}</h1><p>
-      Explore the journeys available to enquire about, or talk to us about a
-      personalised trip.
-    </p>
+<section class="editorial-wrap collection-page package-catalogue" id="package-collection">
+  <header class="collection-introduction package-catalogue__introduction">
+    <div><p class="package-section-label">Travel from Ghana</p><h1>{heading}</h1></div>
+    <div><p>A beach escape, a wildlife-filled few days, or two cities in one trip.
+      Find your starting point. We’ll work through dates and details with you.</p>
+      <ContentLink href="#plan">Prefer something personalised?</ContentLink>
+    </div>
   </header>
   <PlacedImage placement={headerPlacement} class="collection-header-photo" sizes="90vw"/>
 
@@ -69,6 +71,7 @@ const {
                 />
               )}
               <div>
+                <p class="journey-card__duration">{item.duration}</p>
                 <h2>
                   <ContentLink
                     class="journey-card__link"
@@ -79,10 +82,12 @@ const {
                 </h2>
                 <p class="journey-card__summary">{item.tagline || item.overview.slice(0, 160)}</p>
                 <p class="package-price">{packageStartingPrice(item)}</p>
+                <span class="journey-card__explore" aria-hidden="true">Explore this journey</span>
               </div>
             </article>
           ))}
         </div>
+        <p class="package-catalogue__price-note">Published starting prices are indicative, per person sharing, and include return flights from Accra. Your dates, availability, live airfare and exchange rates determine the final quote. Open a package for its inclusions and pricing details.</p>
       </>
     ) : (
       <div class="review-empty">

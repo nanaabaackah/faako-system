@@ -3,12 +3,23 @@ import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
 import { imagePlacement } from '../lib/image-placements.js';
 import "../styles/components/journey-editorial.css";
+import "../styles/components/planning-process.css";
+import ContentLink from "./ContentLink.astro";
+import { publishedPage } from "../lib/published.js";
+import type { TravelPackage } from "../lib/collections";
 interface Props {
   content: { heading: string; body: string; entries: { heading: string; text: string }[];imagePlacements?:Record<string,import('../lib/collections').ImagePlacement> };
   page?: boolean;
 }
 const { content, page = false } = Astro.props;
 const photo=imagePlacement(content,'feature',photography.park);
+const example = publishedPage("packages")?.packages?.find((item: TravelPackage) => item.slug === "nairobi");
+const practicalSteps = [
+  { heading: "What to share", text: "Your destination ideas, preferred dates, number of travellers and approximate total budget. If you are choosing a package, include the tier you are considering." },
+  { heading: "What to check", text: "Read the proposed dates, accommodation, inclusions and exclusions together. Ask about anything you want to change before you agree to proceed." },
+  { heading: "Before you pay", text: "Review the payment schedule and booking terms in your quote. Package deposit terms do not automatically apply to a separate planning service." },
+  { heading: "Before you go", text: "Keep your confirmed itinerary and travel information together. Check what support your chosen package or service includes and clarify any outstanding questions." },
+];
 // Short homepage summaries; the dedicated page retains complete approved terms.
 const summaries = [
   "Tell us where you would like to go, when, and who is travelling.",
@@ -18,7 +29,7 @@ const summaries = [
 ];
 ---
 
-<section class="journey-process editorial-wrap" id="how-it-works" data-image-layout={photo.layout}>
+<section class:list={["journey-process editorial-wrap", { "planning-process": page }]} id="how-it-works" data-image-layout={photo.layout}>
   <EditorialPhoto image={photography.park} placement={photo} class="journey-process__photo" />
   <div>
     {page ? <h1>{content.heading}</h1> : <h2>{content.heading}</h2>}
@@ -27,9 +38,26 @@ const summaries = [
       {content.entries.map((step, index) => (
         <li>
           <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-          <div><h3>{step.heading}</h3><p>{page ? step.text : summaries[index] || step.text}</p></div>
+          <div><h3>{step.heading}</h3><p>{page ? step.text : summaries[index] || step.text}</p>
+            {page && practicalSteps[index] && <div class="planning-process__guidance"><h4>{practicalSteps[index].heading}</h4><p>{practicalSteps[index].text}</p></div>}
+          </div>
         </li>
       ))}
     </ol>
   </div>
 </section>
+{page && <section class="planning-example editorial-wrap" aria-labelledby="planning-example-heading">
+  <div class="planning-example__intro">
+    <p class="planning-example__label">An example, not a booking</p>
+    <h2 id="planning-example-heading">From “we’re thinking about it” to a clear plan.</h2>
+    <p>{example ? `Imagine two friends considering ${example.duration?.toLowerCase() || "a trip"} in ${example.title}. Here is how they could use the process.` : "Imagine two friends planning a trip from Ghana. Here is how they could use the process."}</p>
+    {example && <ContentLink href={`/packages/${example.slug}`}>Explore the {example.title} package</ContentLink>}
+  </div>
+  <ol class="planning-example__steps">
+    <li><h3>Start with an idea</h3><p>They send their preferred travel month, two travellers and an approximate budget, and mention the package they like.</p></li>
+    <li><h3>Make it fit</h3><p>They compare the accommodation options and check the live quote against what they want included. They ask about room sharing and any extras.</p></li>
+    <li><h3>Agree, then confirm</h3><p>They review the quote and its payment schedule before making a payment. The agreed booking and payment terms govern what happens next.</p></li>
+    <li><h3>Get ready to travel</h3><p>They use their confirmed itinerary and travel information to prepare, with the support included in their chosen package.</p></li>
+  </ol>
+  <div class="planning-example__next"><p>This illustrates the process, not a real client story or a confirmed offer. Your quote sets out your own arrangements.</p><ContentLink button href="#plan">Tell us about your trip</ContentLink></div>
+</section>}

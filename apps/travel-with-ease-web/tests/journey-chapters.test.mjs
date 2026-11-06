@@ -15,9 +15,9 @@ test("selected journey chapters keep the real hero and CTA and one footprint hea
   assert.doesNotMatch(home, /<h2>\{footprint.heading\}/);
   const overview = source("components/HomeServices.astro");
   assert.match(overview, /entries\.map\(/);
-  assert.match(overview, /\/services#service-/);
+  assert.match(overview, /\/services\/\$\{serviceSlug\(entry.heading\)\}/);
   const panels = source("components/ServicePanels.astro");
-  assert.match(panels, /<ContentLink href=\{all \? "#plan"/);
+  assert.match(panels, /<ContentLink href=\{`\/services\/\$\{serviceSlug\(entry.heading\)\}`\}/);
   assert.doesNotMatch(panels, /<figcaption|onClick|window.location/);
   assert.match(source("styles/components/journey-editorial.css"), /prefers-reduced-motion: no-preference/);
 });

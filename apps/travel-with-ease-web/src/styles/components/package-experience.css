@@ -1,0 +1,272 @@
+/* Shared package discovery language; images stay CMS-managed and copy stays published. */
+.package-section-label {
+  color: #77551b;
+  font-size: 0.875rem;
+  font-weight: 700;
+  margin: 0 0 16px;
+}
+.package-catalogue .package-catalogue__introduction {
+  border: 0;
+  padding-block: 16px 12px;
+  gap: 32px 72px;
+}
+.package-catalogue__introduction h1 {
+  max-width: 15ch;
+}
+.package-catalogue__introduction p {
+  line-height: 1.75;
+}
+.package-catalogue .package-collection-grid {
+  gap: 24px;
+}
+.package-catalogue .journey-card {
+  min-height: clamp(360px, 40vw, 520px);
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgb(0 10 31 / 10%);
+}
+.package-catalogue .journey-card::before {
+  background: rgb(0 10 31 / 22%);
+}
+.package-catalogue .journey-card > div {
+  margin: 16px;
+  padding: 24px;
+  background: rgb(0 10 31 / 94%);
+  border-radius: 12px;
+}
+.package-catalogue .journey-card h2 {
+  margin: 10px 0;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+}
+.journey-card__duration {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #d8b56a;
+}
+.package-catalogue .journey-card__summary {
+  margin: 0 0 16px;
+  max-width: 42ch;
+  line-height: 1.6;
+}
+.package-catalogue .package-price {
+  margin: 0;
+}
+.journey-card__explore {
+  display: block;
+  margin-top: 16px;
+  font-size: 0.875rem;
+  color: #d8b56a;
+}
+.package-catalogue__price-note {
+  max-width: 90ch;
+  margin: 24px 0 0;
+  line-height: 1.75;
+  font-size: 0.875rem;
+}
+.featured-journeys {
+  background: transparent;
+  color: #010c33;
+}
+.featured-journeys .home-section-eyebrow {
+  color: #77551b;
+}
+.featured-journeys .featured-journeys__grid {
+  gap: 28px;
+  align-items: start;
+}
+.journey-preview {
+  position: relative;
+  overflow: clip;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgb(0 10 31 / 10%);
+  background: #010c33;
+  color: #f4ede3;
+}
+.journey-preview .featured-journeys__photo img {
+  height: clamp(280px, 27vw, 390px);
+  border-radius: 0;
+  box-shadow: none;
+}
+.journey-preview .featured-journeys__details {
+  padding: 24px 28px 28px;
+}
+.journey-preview .featured-journeys__duration {
+  color: #d8b56a;
+  opacity: 1;
+  font-size: 0.875rem;
+}
+.journey-preview .featured-journeys__details h3 {
+  margin: 10px 0;
+  font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+}
+.journey-preview h3 .twe-content-link {
+  position: static;
+  color: inherit;
+  text-decoration: none;
+}
+.journey-preview h3 a::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+.journey-preview__tagline {
+  margin: 0 0 20px;
+  max-width: 44ch;
+  line-height: 1.65;
+}
+.journey-preview__explore {
+  display: block;
+  margin-top: 16px;
+  color: #d8b56a;
+  font-size: 0.875rem;
+}
+.journey-preview:focus-within {
+  outline: 3px solid #77551b;
+  outline-offset: 5px;
+}
+.featured-journeys .featured-journeys__disclaimer {
+  border: 0;
+  margin-top: 24px;
+  padding: 0;
+}
+.package-experience {
+  padding-top: 32px;
+}
+.package-experience__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: clamp(28px, 5vw, 80px);
+  align-items: center;
+  margin: 24px 0 40px;
+}
+.package-experience__hero .collection-detail-heading {
+  padding: 20px 0;
+}
+.package-experience__hero h1 {
+  margin: 0 0 24px;
+  font-size: clamp(2rem, 4vw, 4rem);
+}
+.package-experience__tagline {
+  max-width: 42ch;
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+.package-experience__hero > .placed-image {
+  width: 100%;
+  min-width: 0;
+}
+.package-experience__hero .collection-hero {
+  height: clamp(340px, 42vw, 580px);
+  aspect-ratio: 1;
+  border-radius: 18px;
+}
+.package-experience__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 40px;
+  margin: 28px 0;
+}
+.package-experience__facts dt {
+  font-size: 0.875rem;
+  margin-bottom: 8px;
+}
+.package-experience__facts dd {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+.package-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.package-section-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 18px;
+  color: #010c33;
+  border: 1px solid #b6b1a9;
+  border-radius: 28px;
+  text-decoration: none;
+}
+.package-section-nav a:hover {
+  background: #010c33;
+  color: #f4ede3;
+}
+.package-section-nav a:focus-visible {
+  outline: 3px solid #77551b;
+  outline-offset: 3px;
+}
+.package-experience .collection-reading > section {
+  scroll-margin-top: 130px;
+  padding-bottom: 12px;
+}
+.package-experience .package-enquiry-panel {
+  top: 120px;
+  background: #010c33;
+  color: #f4ede3;
+  border: 0;
+  border-radius: 16px;
+  padding: clamp(24px, 3vw, 36px);
+}
+.package-experience .package-enquiry-panel .package-price {
+  color: #d8b56a;
+}
+.package-experience .package-enquiry-panel .button {
+  background: #d8b56a;
+  color: #010c33;
+}
+.package-experience .package-tiers {
+  gap: 12px;
+}
+.package-experience .package-tiers > div {
+  border: 1px solid #d6cbb9;
+  border-radius: 12px;
+  padding: 20px;
+}
+.package-experience .package-tiers p {
+  margin-bottom: 0;
+}
+.package-experience .package-inclusions ul {
+  list-style: square;
+  padding-left: 24px;
+}
+.package-experience .package-inclusions li {
+  padding: 5px 0;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .journey-preview {
+    transition: transform 200ms ease;
+  }
+  .journey-preview:hover {
+    transform: translateY(-4px);
+  }
+}
+@media (max-width: 760px) {
+  .package-catalogue .package-collection-grid,
+  .package-experience__hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .package-catalogue .journey-card > div {
+    margin: 12px;
+    padding: 20px;
+  }
+  .journey-preview .featured-journeys__details {
+    padding: 22px;
+  }
+  .package-experience__hero {
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .package-experience__hero .collection-hero {
+    height: clamp(280px, 80vw, 460px);
+  }
+  .package-section-nav {
+    gap: 8px;
+  }
+  .package-section-nav a {
+    padding-inline: 14px;
+    font-size: 0.875rem;
+  }
+}

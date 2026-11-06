@@ -118,18 +118,18 @@ try {
       }
     }
     await page.goto(origin + "/", { waitUntil: "networkidle" });
-    await page.locator(".service-panel").first().click({ position: { x: 24, y: 100 } });
-    await page.waitForURL("**/services#service-2");
-    const link = page.locator("#service-2 a").first();
+    await page.locator(".home-services__item h3 a").nth(1).click();
+    await page.waitForURL("**/services/full-trip-planning");
+    const link = page.getByRole("link", { name: "Enquire about this service", exact: true });
     await link.focus();
     await page.keyboard.press("Enter");
-    await page.waitForURL("**/services#plan");
+    await page.waitForURL("**/services/full-trip-planning#plan");
     await context.close();
   }
   const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 1000 } });
   const page = await context.newPage();
   await page.goto(origin + "/");
-  assert.equal(await page.locator(".service-panel a").count(), 2);
+  assert.equal(await page.locator(".home-services__item h3 a").count(), 4);
   assert.equal(await page.locator(".journey-process li").count(), 4);
   await page.goto(origin + "/faqs");
   await page.locator("details summary").first().click();
