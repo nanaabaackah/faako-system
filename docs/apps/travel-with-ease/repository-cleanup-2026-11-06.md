@@ -79,7 +79,8 @@ Final local results:
 - One API subprocess check timed out during concurrent local builds; the full
   API suite passed on rerun without changing a timeout or weakening a check.
   Browser checks were completed sequentially after real-transport fixture and
-  session-wait corrections. Remote CI has not run for this cleanup.
+  session-wait corrections. Remote CI must pass on the cleanup PR before merging;
+  the PR records those results separately from these local checks.
 
 The 99 scoped source/documentation paths were compared between the focused
 worktree and regular checkout; they match. Unrelated edits and local branch

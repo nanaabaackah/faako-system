@@ -285,6 +285,19 @@ generation. Their historical roadmap descriptions are not implemented features.
 - `faako-website` calls the dedicated Faako API through `VITE_API_BASE_URL` or the local Vite `/api` proxy during development.
 - Workspace impact checks are driven by [scripts/workspace-graph.mjs](scripts/workspace-graph.mjs).
 
+## Faako Notebook automation
+
+The source-controlled Notebook foundation includes a read-only Git change-impact
+classifier and guarded merged-PR synchronisation tooling. GitHub remains the code
+and release authority; Notebook entries are curated references, not proof of
+deployment. Writes are gated and default to dry-run; this cleanup does not enable
+or verify live Notion updates.
+
+`node --test scripts/notebook/*.test.mjs` verifies classification, event
+validation, idempotency and scoped synchronization rules without live writes.
+See the [Notebook foundation](docs/faako-notebook/README.md) and
+[controlled setup/recovery guide](docs/faako-notebook/SYNC_SETUP.md).
+
 ## Repository hygiene
 
 - Install from the pinned lockfile. Dependencies, builds, reports and temporary
