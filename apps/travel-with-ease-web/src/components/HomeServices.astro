@@ -1,0 +1,39 @@
+---
+import ContentLink from "./ContentLink.astro";
+import "../styles/components/home-features.css";
+
+interface ServiceEntry {
+  heading: string;
+  text: string;
+}
+interface Props {
+  heading: string;
+  body: string;
+  entries: ServiceEntry[];
+}
+const { heading, body, entries } = Astro.props;
+---
+
+<section id="services" class="home-services editorial-wrap" aria-labelledby="home-services-heading">
+  <div class="home-section-heading">
+    <div>
+      <h2 id="home-services-heading">{heading}</h2>
+      <p>{body}</p>
+    </div>
+    <ContentLink href="/services">Explore all services</ContentLink>
+  </div>
+  <ol class="home-services__grid">
+    {entries.map((entry, index) => {
+      const [title, ...priceParts] = entry.heading.split(" · ");
+      const price = priceParts.join(" · ");
+      return (
+        <li class="home-services__item">
+          <span class="home-services__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+          <h3><ContentLink href={`/services#service-${index + 1}`}>{title}</ContentLink></h3>
+          {price && <p class="home-services__price">{price}</p>}
+          <p class="home-services__description">{entry.text}</p>
+        </li>
+      );
+    })}
+  </ol>
+</section>
