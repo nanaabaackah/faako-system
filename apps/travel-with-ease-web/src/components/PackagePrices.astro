@@ -13,7 +13,7 @@ const priced = item.pricingStatus === "indicative";
 const reference = referenceMonthLabel(item.referenceMonth);
 ---
 
-<section class="package-prices" aria-label="Package pricing">
+<section id="package-pricing" class="package-prices" aria-label="Package pricing">
   <h2>{priced ? "Choose your level of comfort" : "Price coming soon"}</h2>
   {
     priced && (

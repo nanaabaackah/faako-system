@@ -78,6 +78,12 @@ test("production build publishes approved content without preview copy or unpubl
   assert.match(sitemap, /\/privacy</);
   assert.match(sitemap, /\/contact</);
   assert.match(sitemap, /\/packages\/zanzibar/);
+  for (const slug of ["travel-readiness-session", "full-trip-planning", "premium-concierge", "group-trip-planning"]) {
+    const service = readFileSync(path.join(output, "services", slug, "index.html"), "utf8");
+    assert.match(service, /service-detail__fee/);
+    assert.doesNotMatch(service, /Content unavailable/);
+    assert.ok(sitemap.includes(`/services/${slug}`));
+  }
 });
 
 test("staging ignores obsolete demo flags and builds only approved content", () => {

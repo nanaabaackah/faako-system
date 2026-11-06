@@ -1,6 +1,7 @@
 ---
 import ContentLink from "./ContentLink.astro";
 import "../styles/components/home-features.css";
+import { serviceSlug } from "../lib/services.js";
 
 interface ServiceEntry {
   heading: string;
@@ -29,7 +30,7 @@ const { heading, body, entries } = Astro.props;
       return (
         <li class="home-services__item">
           <span class="home-services__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-          <h3><ContentLink href={`/services#service-${index + 1}`}>{title}</ContentLink></h3>
+          <h3><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
           {price && <p class="home-services__price">{price}</p>}
           <p class="home-services__description">{entry.text}</p>
         </li>

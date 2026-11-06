@@ -38,6 +38,7 @@ try {
     if (await publicConsent.isVisible()) await publicConsent.click();
     await page.getByRole("status").filter({ hasText: "4 entries shown" }).waitFor();
     assert.equal(await page.locator("[data-collection-item]").count(), 4);
+    assert.notEqual(await page.locator(".journey-card").first().evaluate(element => getComputedStyle(element).boxShadow), "none");
     assert.equal(await page.locator("[data-collection-item] > .placed-image > img").count(), 4);
     const fieldStyle = await page.getByRole("button", { name: "Destination", exact: true }).evaluate(element => {
       const style = getComputedStyle(element);
@@ -98,7 +99,8 @@ try {
       submissions++;
       const body = route.request().postDataJSON();
       assert.equal(body.name, "Synthetic Browser Traveller");
-      assert.equal(body.enquiryType, "trip");
+      assert.equal(body.enquiryType, "group");
+      assert.equal(body.service, "full_planning");
       assert.equal(body.travellers, 2);
       assert.equal(body.consent, true);
       assert.ok(body.submissionId);
@@ -112,15 +114,53 @@ try {
       const submit = document.querySelector(".public-enquiry-form button[type=submit]");
       return submit instanceof HTMLButtonElement && !submit.disabled;
     });
+    // Faako SelectField emits a value, not a native event with target.name.
+    // Assert the visible label AND submitted state so a silently reset select fails.
+    await form.getByRole("button", { name: "Enquiry type", exact: true }).click();
+    await page.getByRole("option", { name: "Group", exact: true }).click();
+    assert.equal(await form.locator('select[name="enquiryType"]').inputValue(), "group");
+    await form.getByRole("button", { name: "Planning support", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("option", { name: "Full Trip Planning", exact: true }).focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await form.locator('select[name="service"]').inputValue(), "full_planning");
     await form.locator('input[name="destination"]').fill("Help me choose");
     await form.locator('input[name="travelTimeframe"]').fill("Exploring next year");
     await form.locator('input[name="name"]').fill("Synthetic Browser Traveller");
     await form.locator('input[name="email"]').fill("browser@example.invalid");
     await form.locator('input[name="phone"]').fill("+233200000000");
+    assert.equal(await form.locator('select[name="enquiryType"]').inputValue(), "group");
+    assert.equal(await form.locator('select[name="service"]').inputValue(), "full_planning");
     await form.locator('input[name="consent"]').check();
     await form.getByRole("button", { name: "Send enquiry", exact: true }).click();
     await form.getByRole("status").filter({ hasText: "Your enquiry is received" }).waitFor();
     assert.equal(submissions, 1);
+    assert.equal(await form.locator('select[name="enquiryType"]').inputValue(), "trip");
+    assert.equal(await form.locator('select[name="service"]').inputValue(), "not_sure");
+    await page.goto(origin + "/services", { waitUntil: "networkidle" });
+    assert.equal(await page.locator(".service-panel").count(), 4);
+    assert.equal(await page.locator(".service-panel").first().evaluate(element => getComputedStyle(element).boxShadow), "none");
+    assert.equal(await page.locator(".service-panel__photo").first().evaluate(element => getComputedStyle(element).boxShadow), "none");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: path.join(output, `approved-services-${width}.png`), fullPage: true });
+    await page.locator(".service-panel").first().click({ position: { x: 25, y: 50 } });
+    await page.waitForURL("**/services/travel-readiness-session");
+    await page.getByRole("heading", { name: "Travel Readiness Session", exact: true }).waitFor();
+    assert.equal(await page.locator(".service-detail__fee").innerText(), "GHS 400");
+    assert.equal(await page.getByRole("link", { name: "Enquire about this service", exact: true }).getAttribute("href"), "#plan");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: path.join(output, `approved-service-detail-${width}.png`), fullPage: true });
+    for (const slug of ["full-trip-planning", "premium-concierge", "group-trip-planning"]) {
+      const response = await page.request.get(origin + "/services/" + slug);
+      assert.equal(response.status(), 200);
+      assert.match(await response.text(), /service-detail__fee/);
+    }
+    await page.goto(origin + "/how-it-works", { waitUntil: "networkidle" });
+    assert.equal(await page.locator(".planning-process__guidance").count(), 4);
+    assert.equal(await page.locator(".planning-example__steps li").count(), 4);
+    assert.equal(await page.getByRole("link", { name: "Explore the Nairobi package", exact: true }).getAttribute("href"), "/packages/nairobi");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: path.join(output, `approved-process-${width}.png`), fullPage: true });
     await page.goto(origin + "/journal", { waitUntil: "domcontentloaded" });
     assert.equal(await page.locator("[data-collection-item]").count(), 2);
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
@@ -134,6 +174,8 @@ try {
     assert.equal(await page.locator('[aria-label="Travel tips"] article').count(), 3);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-home-${width}.png`), fullPage: true });
+    await page.locator(".journey-preview").first().click({ position: { x: 30, y: 30 } });
+    await page.waitForURL("**/packages/zanzibar");
     assert.deepEqual(errors, []);
     await context.close();
   }
@@ -146,6 +188,13 @@ try {
   assert.equal(await published.locator("details").count(), 4);
   await published.locator("details summary").first().click();
   assert.equal(await published.locator("details").first().getAttribute("open"), "");
+  await published.goto(origin + "/how-it-works");
+  assert.equal(await published.locator(".planning-example__steps li").count(), 4);
+  await published.getByRole("link", { name: "Explore the Nairobi package", exact: true }).click();
+  assert.equal(new URL(published.url()).pathname, "/packages/nairobi");
+  await published.goto(origin + "/services");
+  await published.locator("#service-2 h2 a").click();
+  assert.equal(new URL(published.url()).pathname, "/services/full-trip-planning");
   await published.close();
   await noJs.close();
   console.log(JSON.stringify({ passed: true, widths: [320, 390, 768, 1440], noJavaScript: true, screenshots: output, scope: "Local synthetic Astro pages; no provider or real enquiry requests" }));

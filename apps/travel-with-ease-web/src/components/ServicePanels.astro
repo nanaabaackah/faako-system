@@ -3,6 +3,8 @@ import ContentLink from "./ContentLink.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
 import "../styles/components/journey-editorial.css";
+import "../styles/components/service-experience.css";
+import { serviceSlug } from "../lib/services.js";
 interface Props {
   entries: { heading: string; text: string; attribution?: string; imagePlacement?:import('../lib/collections').ImagePlacement }[];
   all?: boolean;
@@ -19,10 +21,11 @@ const images = [photography.hippos, photography.coast, photography.garden, photo
       <article class="service-panel" id={all ? `service-${index + 1}` : undefined}>
         <EditorialPhoto image={images[index % images.length]} placement={entry.imagePlacement} class={`service-panel__photo service-panel__photo--${index}`} />
         <div class="service-panel__label">
-          <h2><ContentLink href={all ? "#plan" : `/services#service-${index + 1}`}>{title}</ContentLink></h2>
+          <h2><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h2>
           {price && <p>{price}</p>}
         </div>
         {all && <p class="service-panel__description">{entry.text}</p>}
+        {all && <span class="service-panel__explore" aria-hidden="true">Explore this service</span>}
       </article>
     );
   })}

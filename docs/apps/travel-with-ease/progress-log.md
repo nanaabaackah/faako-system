@@ -1,5 +1,20 @@
 # Travel With Ease progress log
 
+## 2026-11-06 — Package pages, planning guidance and enquiry selection
+
+- Refined listing/detail/homepage package layouts while preserving real published
+  content, prices, reference months and all existing package URLs.
+- Expanded the dedicated planning process with practical guidance and a clearly
+  labelled hypothetical example; the homepage summary remains compact.
+- Refined the Services overview and added four published-only service detail
+  routes, preserving approved fees/descriptions, image assignments and old anchors.
+- Fixed enquiry select state bindings to the existing Faako value callback.
+  Added regression coverage for actual choices and mocked submission payloads.
+- Focused branch/verification boundaries and rollback notes:
+  [package and process refinement](./packages-process-refinement-2026-11-06.md).
+- No shared-component, API, authentication or database changes. Local code is
+  updated; hosted deployment and authenticated acceptance are not implied.
+
 ## 2026-11-06 — Demo retirement and repository sweep
 
 - Retired public demo routes, simulated portal sessions, staging demo submissions
