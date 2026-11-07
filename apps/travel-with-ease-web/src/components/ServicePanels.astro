@@ -1,5 +1,7 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import MoneyText from "./MoneyText.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
 import "../styles/components/journey-editorial.css";
@@ -22,11 +24,12 @@ const images = [photography.hippos, photography.coast, photography.garden, photo
         <EditorialPhoto image={images[index % images.length]} placement={entry.imagePlacement} class={`service-panel__photo service-panel__photo--${index}`} />
         <div class="service-panel__label">
           <h2><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h2>
-          {price && <p>{price}</p>}
+          {price && <p><MoneyText text={price} /></p>}
         </div>
-        {all && <p class="service-panel__description">{entry.text}</p>}
+        {all && <p class="service-panel__description"><MoneyText text={entry.text} /></p>}
         {all && <span class="service-panel__explore" aria-hidden="true">Explore this service</span>}
       </article>
     );
   })}
+  <CurrencyAttribution />
 </div>

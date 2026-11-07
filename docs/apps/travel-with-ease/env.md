@@ -53,7 +53,7 @@ Production readiness additionally requires monitoring/alert ownership, encrypted
 
 ## Configuration inventory
 
-The table records current/future variable names, not implemented capabilities. Public origins, API URLs, exact allowed origins and database credentials are required independently for both deployed environments once supported. Future payment/AI/currency capabilities remain subject to the October scope exclusions; their presence here does not approve launch use.
+The table records current/future variable names, not implemented capabilities. Public origins, API URLs, exact allowed origins and database credentials are required independently for both deployed environments once supported. Future payment/AI/currency capabilities remain subject to the October scope exclusions; their presence here does not approve launch use. The approved exception is [website display-only currency conversion](./display-currency-2026-11-06.md), which does not enable payments, invoicing or quote conversion.
 
 | Variable | Consumer | Required | Secret | Purpose |
 | --- | --- | --- | --- | --- |
@@ -71,7 +71,7 @@ The table records current/future variable names, not implemented capabilities. P
 | `TWE_TEST_DATABASE_URL` | Integration tests only | test:db | Yes | Disposable loopback twe_test_* database |
 | `TWE_LOCAL_DATA_FILE` | API | Development only | No | Local Phase 1 repository file |
 | `TWE_TEST_PG_BIN` | Isolated test runner | test:db:isolated | No | Absolute supported local PostgreSQL bin directory; runner never consumes an application DB URL |
-| `EXCHANGE_RATE_API_BASE_URL` | API | No | No | Provider endpoint override |
+| `EXCHANGE_RATE_API_BASE_URL` | API | No | No | Normally omit; automatic open/keyed defaults. Keyed override is prefix before /{key}/latest/{baseCurrency}; see display-currency runbook. |
 | `EXCHANGE_RATE_API_KEY` | API | Provider-dependent | Yes | Server-only provider credential |
 | `EXCHANGE_RATE_CACHE_TTL_SECONDS` | API | No | No | Fresh cache duration |
 | `EXCHANGE_RATE_TIMEOUT_MS` | API | No | No | Provider request timeout |

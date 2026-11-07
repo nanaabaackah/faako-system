@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ContentLink from "../../components/ContentLink.astro";
+import MoneyText from "../../components/MoneyText.astro";
+import CurrencyAttribution from "../../components/CurrencyAttribution.astro";
 import EditorialPhoto from "../../components/EditorialPhoto.astro";
 import photography from "../../lib/journey-photography.json";
 import { publishedPage } from "../../lib/published.js";
@@ -29,8 +31,9 @@ const others: Props["service"][] = publishedServices(publishedPage("services")).
       <div>
         <p class="service-detail__label">Travel planning, your way</p>
         <h1>{service.title}</h1>
-        {service.fee && <p class="service-detail__fee">{service.fee}</p>}
-        <p class="service-detail__summary">{service.text}</p>
+        {service.fee && <p class="service-detail__fee"><MoneyText text={service.fee} /></p>}
+        <p class="service-detail__summary"><MoneyText text={service.text} /></p>
+        <CurrencyAttribution />
         <ContentLink button href="#plan">Enquire about this service</ContentLink>
       </div>
       <EditorialPhoto image={images[service.index % images.length]} placement={service.imagePlacement} class="service-detail__photo" eager />

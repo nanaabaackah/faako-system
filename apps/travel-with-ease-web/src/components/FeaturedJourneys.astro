@@ -1,5 +1,7 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import MoneyText from "./MoneyText.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
 import PlacedImage from "./PlacedImage.astro";
 import { packageStartingPrice, referenceMonthLabel } from "../lib/package-pricing.js";
 import type { TravelPackage } from "../lib/collections";
@@ -38,12 +40,13 @@ const featured = items
               <p class="featured-journeys__duration">{item.duration}</p>
               <h3><ContentLink href={`/packages/${item.slug}`}>{item.title}</ContentLink></h3>
               <p class="journey-preview__tagline">{item.tagline || item.destination}</p>
-              <p class="featured-journeys__price">{packageStartingPrice(item)}</p>
+              <p class="featured-journeys__price"><MoneyText text={packageStartingPrice(item)} /></p>
               <span class="journey-preview__explore" aria-hidden="true">View the journey</span>
             </div>
           </article>
         ))}
       </div>
+      <CurrencyAttribution />
       <p class="featured-journeys__disclaimer">
         Published starting prices are indicative, per person sharing, and include return flights from Accra.
         {featured.filter(item => item.pricingStatus === "indicative" && referenceMonthLabel(item.referenceMonth)).map(item => `${item.title}: ${referenceMonthLabel(item.referenceMonth)} reference. `)}
