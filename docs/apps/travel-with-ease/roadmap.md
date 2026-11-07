@@ -8,6 +8,12 @@ IDs below remain history, not new launch scope or Trello completion evidence.
 
 ## Current product baseline
 
+**6 November follow-up:** the user approved a footer-based global
+[display-currency preference](./display-currency-2026-11-06.md). This reuses the
+existing rate/conversion foundation for indicative public prices only. It does
+not enable the broader estimator, payments or multi-currency business records
+deferred by the October scope below.
+
 The proposed October 2026 scope in
 [`Travel_With_Ease_Solution_Roadmap.md`](./Travel_With_Ease_Solution_Roadmap.md)
 is the current product baseline pending client approval. It narrows the launch

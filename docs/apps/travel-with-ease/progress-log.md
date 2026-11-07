@@ -1,5 +1,18 @@
 # Travel With Ease progress log
 
+## 2026-11-06 — Footer display currency
+
+- Added a global website currency preference using Faako controls and marked
+  Astro-rendered package/service amounts. Original GHS remains visible alongside
+  indicative conversions; no-JavaScript and provider failures retain GHS.
+- Reused precise conversion and cached provider boundaries, with a minimal
+  rate-limited read endpoint, validated timestamps, bounded stale fallback and
+  correct open/keyed provider request formats. No secrets reach the browser.
+- Added unit/HTTP and four-viewport keyboard/touch/browser regression coverage;
+  see [display currency operations and scope](./display-currency-2026-11-06.md).
+- This is display-only scope approved by the footer request, not activation of
+  the deferred estimator, payments or multi-currency business records.
+
 ## 2026-11-06 — Package pages, planning guidance and enquiry selection
 
 - Refined listing/detail/homepage package layouts while preserving real published

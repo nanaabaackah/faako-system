@@ -98,7 +98,7 @@ const previewService = pool && process.env.TWE_CMS_PREVIEW_ENABLED === "true" ? 
   environment, siteOrigin: process.env.TWE_PUBLIC_SITE_ORIGIN || (environment === "production" ? "https://travelwitheasegh.com" : "https://staging.travelwitheasegh.com"),
   apiOrigin: process.env.TWE_PUBLIC_API_ORIGIN || "",
 }) : null;
-const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, previewService, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
+const app = createApp({ repository, currencyService, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, previewService, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
   turnstileVerifier: createTurnstileVerifier({
     secret: process.env.TWE_TURNSTILE_SECRET_KEY, environment,
   }),

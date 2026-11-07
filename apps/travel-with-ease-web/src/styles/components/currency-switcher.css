@@ -1,0 +1,58 @@
+.footer-currency {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+.footer-currency__control { width: 88px; }
+.footer-currency__control .ui-field { margin: 0; }
+.footer-currency__control .ui-field__label,
+.footer-currency__status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.twe-public-footer .footer-currency .ui-dropdown-field__trigger {
+  min-height: 44px;
+  min-width: 88px;
+  border: 1px solid rgb(244 237 227 / 65%);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #f4ede3;
+  background: transparent;
+  box-shadow: none;
+  font-size: .875rem;
+}
+.footer-currency .ui-dropdown-field__value {
+  flex: 0 0 3ch;
+  width: 3ch;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+  font-family: ui-monospace, monospace;
+}
+.twe-public-footer .footer-currency__retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid #d8b56a;
+  border-radius: 50%;
+  color: #d8b56a;
+}
+.twe-money [data-money-original] {
+  font-size: .8em;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.currency-attribution { font-size: .8125rem; line-height: 1.6; }
+.currency-attribution a { color: inherit; text-underline-offset: 3px; }
+.service-panels > .currency-attribution { grid-column: 1 / -1; }

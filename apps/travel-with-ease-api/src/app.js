@@ -11,6 +11,7 @@ import { EmailTemplates, emailTemplateRoutes } from "./notifications/templates.j
 import { createSecurityHeaders } from "./security/securityHeaders.js";
 import { estimateSchema, inquirySchema, nativeInquirySchema } from "./validation.js";
 import { TurnstileError } from "./enquiries/turnstile.js";
+import { currencyDisplayRoutes } from "./currency/display-routes.js";
 
 const safeEqual = (left, right) => {
   const a = Buffer.from(String(left));
@@ -45,7 +46,7 @@ export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Da
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, logger = createLogger("travel-with-ease-api") }) => {
+export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, logger = createLogger("travel-with-ease-api") }) => {
   assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt });
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
   if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
@@ -89,6 +90,7 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
   });
 
   const publicLimiter = createLimiter({ limit: 40, windowMs: 10 * 60_000 });
+  app.use("/api/public/currency", createLimiter({ limit: 60, windowMs: 10 * 60_000 }), currencyDisplayRoutes(currencyService));
   const verifyEnquiryChallenge = async (req, token) => {
     if (["staging", "production"].includes(environment) && !turnstileVerifier) {
       throw new TurnstileError(503, "service_unavailable",

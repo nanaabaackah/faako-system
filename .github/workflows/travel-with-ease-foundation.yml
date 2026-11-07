@@ -80,6 +80,7 @@ jobs:
           node apps/travel-with-ease-web/scripts/check-public-followup.mjs
           node apps/travel-with-ease-web/scripts/check-redesign-browser.mjs
           node apps/travel-with-ease-web/scripts/check-collections-browser.mjs
+          node apps/travel-with-ease-web/scripts/check-currency-browser.mjs
           node apps/travel-with-ease-api/scripts/check-private-preview-browser.mjs
       - name: Retain synthetic design acceptance screenshots
         if: always()
@@ -94,6 +95,7 @@ jobs:
             /tmp/twe-public-followup-*/*.png
             /tmp/twe-redesign-*/*.png
             /tmp/twe-collections-*/*.png
+            /tmp/twe-currency-*/*.png
             /tmp/twe-private-preview-browser-*/*.png
       - name: Required isolated PostgreSQL integration tests
         run: pnpm --filter @faako/travel-with-ease-api run test:db

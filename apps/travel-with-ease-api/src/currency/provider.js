@@ -11,9 +11,9 @@ import { convertMinorUnits } from "../domain/money.js";
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 export class ExchangeRateApiProvider extends ExchangeRateProvider {
-  constructor({ baseUrl = "https://open.er-api.com/v6/latest", apiKey = "", timeoutMs = 5000, retries = 1, fetchImpl = fetch } = {}) {
+  constructor({ baseUrl, apiKey = "", timeoutMs = 5000, retries = 1, fetchImpl = fetch } = {}) {
     super();
-    this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.baseUrl = (baseUrl || (apiKey ? "https://v6.exchangerate-api.com/v6" : "https://open.er-api.com/v6/latest")).replace(/\/$/, "");
     this.apiKey = apiKey;
     this.timeoutMs = timeoutMs;
     this.retries = retries;
@@ -22,7 +22,7 @@ export class ExchangeRateApiProvider extends ExchangeRateProvider {
   }
 
   async request(baseCurrency) {
-    const suffix = this.apiKey ? `/${encodeURIComponent(this.apiKey)}` : "";
+    const suffix = this.apiKey ? `/${encodeURIComponent(this.apiKey)}/latest` : "";
     const url = `${this.baseUrl}${suffix}/${encodeURIComponent(baseCurrency)}`;
     let lastError;
     for (let attempt = 0; attempt <= this.retries; attempt += 1) {
@@ -33,9 +33,13 @@ export class ExchangeRateApiProvider extends ExchangeRateProvider {
         if (!response.ok) throw new Error(`Exchange-rate provider returned ${response.status}.`);
         const payload = await response.json();
         if (payload.result && payload.result !== "success") throw new Error("Exchange-rate provider rejected the request.");
-        if (!payload.rates || typeof payload.rates !== "object") throw new Error("Exchange-rate provider response is invalid.");
-        this.lastUpdated = payload.time_last_update_utc || new Date().toISOString();
-        return payload;
+        const rates = payload.rates || payload.conversion_rates;
+        if (!rates || typeof rates !== "object" || Array.isArray(rates) ||
+          payload.base_code !== baseCurrency || !Number.isFinite(Date.parse(payload.time_last_update_utc))) {
+          throw new Error("Exchange-rate provider response is invalid.");
+        }
+        this.lastUpdated = new Date(payload.time_last_update_utc).toISOString();
+        return { ...payload, rates };
       } catch (error) {
         lastError = error;
         if (attempt < this.retries) await wait(100 * (attempt + 1));

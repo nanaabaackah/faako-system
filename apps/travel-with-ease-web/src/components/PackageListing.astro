@@ -1,6 +1,8 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import MoneyText from "./MoneyText.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
 import CollectionFilters from "./CollectionFilters.jsx";
 import { packageStartingPrice } from "../lib/package-pricing.js";
 import { packageOccasions } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
@@ -81,12 +83,13 @@ const {
                   </ContentLink>
                 </h2>
                 <p class="journey-card__summary">{item.tagline || item.overview.slice(0, 160)}</p>
-                <p class="package-price">{packageStartingPrice(item)}</p>
+                <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
                 <span class="journey-card__explore" aria-hidden="true">Explore this journey</span>
               </div>
             </article>
           ))}
         </div>
+        <CurrencyAttribution />
         <p class="package-catalogue__price-note">Published starting prices are indicative, per person sharing, and include return flights from Accra. Your dates, availability, live airfare and exchange rates determine the final quote. Open a package for its inclusions and pricing details.</p>
       </>
     ) : (

@@ -627,6 +627,11 @@
           "heading": "Room sharing",
           "text": "A single supplement applies when you do not share a room. Message us for your exact price.",
           "attribution": ""
+        },
+        {
+          "heading": "Display currency and indicative exchange rates",
+          "text": "The website currency selector changes display estimates only. Package and service prices are published in Ghanaian cedi (GHS); original GHS amounts remain alongside conversions. Reference rates are supplied by ExchangeRate-API and cached, so conversions are approximate, not a live quote, bank rate, payment-currency choice or price guarantee. The selector's accessible status and tooltip identify the rate date and any cached fallback. Rates over 72 hours old are not used; if a rate is unavailable or expires, the website shows GHS. Changing display currency does not change your quote, booking terms, payment schedule, or the separate Travel Fund exchange-rate provisions above. Your successful currency preference is stored on this browser under twe-display-currency-v1; clearing browser storage resets it. Currency switching requires JavaScript, but original GHS prices remain available without it.",
+          "attribution": ""
         }
       ],
       "seoTitle": "Booking and planning terms | Travel With Ease",

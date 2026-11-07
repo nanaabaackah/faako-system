@@ -1,5 +1,7 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import MoneyText from "./MoneyText.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
 import "../styles/components/home-features.css";
 import { serviceSlug } from "../lib/services.js";
 
@@ -31,10 +33,11 @@ const { heading, body, entries } = Astro.props;
         <li class="home-services__item">
           <span class="home-services__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
           <h3><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
-          {price && <p class="home-services__price">{price}</p>}
-          <p class="home-services__description">{entry.text}</p>
+          {price && <p class="home-services__price"><MoneyText text={price} /></p>}
+          <p class="home-services__description"><MoneyText text={entry.text} /></p>
         </li>
       );
     })}
   </ol>
+  <CurrencyAttribution />
 </section>

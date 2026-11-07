@@ -1,5 +1,7 @@
 ---
 import type { TravelPackage } from "../lib/collections";
+import MoneyText from "./MoneyText.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
 import {
   formatGhsMinor,
   packageStartingPrice,
@@ -17,7 +19,7 @@ const reference = referenceMonthLabel(item.referenceMonth);
   <h2>{priced ? "Choose your level of comfort" : "Price coming soon"}</h2>
   {
     priced && (
-      <p class="package-price">{packageStartingPrice(item)} per person sharing</p>
+      <p class="package-price"><MoneyText text={packageStartingPrice(item)} /> per person sharing</p>
     )
   }
   {reference && priced && <p>Reference month: {reference}</p>}
@@ -29,7 +31,7 @@ const reference = referenceMonthLabel(item.referenceMonth);
             <dt>{tier.label}</dt>
             <dd>
               {priced && tier.amountMinor !== null && (
-                <strong>From {formatGhsMinor(tier.amountMinor)} per person sharing</strong>
+                <strong>From <MoneyText text={formatGhsMinor(tier.amountMinor)} /> per person sharing</strong>
               )}
               <p>{tier.description}</p>
             </dd>
@@ -49,3 +51,4 @@ const reference = referenceMonthLabel(item.referenceMonth);
     )
   }
 </section>
+<CurrencyAttribution />

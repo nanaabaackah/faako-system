@@ -1,12 +1,17 @@
 ---
 import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
 import ContentLink from "./ContentLink.astro";
+import CurrencySwitcher from "./CurrencySwitcher.jsx";
+import { displayCurrencyPolicyHeading } from "../lib/currency-display.js";
 import { publishedPage } from "../lib/published.js";
 import photography from "../lib/assigned-photography.json";
 const { cinematic = false } = Astro.props;
 const visible = (slug: string) =>
   Boolean(publishedPage(slug));
 const contact = publishedPage("contact");
+const currencyNoticePublished = publishedPage("terms")?.entries?.some(
+  (entry: { heading: string }) => entry.heading === displayCurrencyPolicyHeading,
+);
 const closingPhoto = photography.footer;
 const email =
   contact?.contactEmail &&
@@ -125,7 +130,7 @@ const phone =
         )
       }<button type="button" data-cookie-settings
         >Cookie settings</button
-      ><a href="#top">Back to top</a>
+      >{currencyNoticePublished && <CurrencySwitcher client:load />}<a href="#top">Back to top</a>
     </nav>
   </div>
   <SharedFaakoFooter />

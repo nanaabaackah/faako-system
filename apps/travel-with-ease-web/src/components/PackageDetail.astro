@@ -1,6 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import MoneyText from "./MoneyText.astro";
 import Accordion from "./Accordion.astro";
 import ClosingCta from "./ClosingCta.astro";
 import { publishedPage } from "../lib/published.js";
@@ -37,7 +38,7 @@ const enquiry = "#plan";
         <p class="package-experience__tagline">{item.tagline || item.overview}</p>
         <dl class="package-experience__facts">
           {item.duration && <div><dt>Your time away</dt><dd>{item.duration}</dd></div>}
-          <div><dt>{item.pricingStatus === "indicative" ? "Starting price" : "Pricing"}</dt><dd>{packageStartingPrice(item)}</dd></div>
+          <div><dt>{item.pricingStatus === "indicative" ? "Starting price" : "Pricing"}</dt><dd><MoneyText text={packageStartingPrice(item)} /></dd></div>
         </dl>
         {item.dates && <p>{item.dates}</p>}
         {item.pricingStatus === "indicative" && <p class="package-price-disclaimer">Indicative, per person sharing · return flights from Accra included. Review the full pricing details below.</p>}
@@ -170,7 +171,7 @@ const enquiry = "#plan";
         }
       </div><aside class="package-enquiry-panel" aria-label="Enquire about this package">
         <h2>Interested in this trip?</h2>{
-          <p class="package-price">{packageStartingPrice(item)}</p>
+          <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
         }<p>
           An enquiry is not a booking. Confirm the offer, dates, price and terms
           directly with the agency.
