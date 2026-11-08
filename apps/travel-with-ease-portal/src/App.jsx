@@ -1,4 +1,4 @@
-import Button from "./ActionButton.jsx";
+import Button from "./components/ActionButton.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
 import {
@@ -11,20 +11,20 @@ import {
 } from "@faako/ui";
 import "@faako/ui/twe-feedback.css";
 import appSystem from "../appSystem.js";
-import WebsiteContent from "./WebsiteContent.jsx";
-import MediaLibrary from "./MediaLibrary.jsx";
-import EmailTemplates from "./EmailTemplates.jsx";
-import SystemAdministration from "./SystemAdministration.jsx";
-import StaffAccess from "./StaffAccess.jsx";
-import Enquiries from "./Enquiries.jsx";
-import { createSessionLoader } from "./session.js";
-import Dashboard from "./Dashboard.jsx";
-import PortalNavigation from './PortalNavigation.jsx';
-import ActivityView from './ActivityView.jsx';
-import TutorialWorkspace from "./TutorialWorkspace.jsx";
-import Activation from "./Activation.jsx";
-import AccountSettings from "./AccountSettings.jsx";
-import Invitations from "./Invitations.jsx";
+import WebsiteContent from "./components/WebsiteContent.jsx";
+import MediaLibrary from "./components/MediaLibrary.jsx";
+import EmailTemplates from "./components/EmailTemplates.jsx";
+import SystemAdministration from "./components/SystemAdministration.jsx";
+import StaffAccess from "./components/StaffAccess.jsx";
+import Enquiries from "./components/Enquiries.jsx";
+import { createSessionLoader } from "./lib/session.js";
+import Dashboard from "./components/Dashboard.jsx";
+import PortalNavigation from './components/PortalNavigation.jsx';
+import ActivityView from './components/ActivityView.jsx';
+import TutorialWorkspace from "./components/TutorialWorkspace.jsx";
+import Activation from "./components/Activation.jsx";
+import AccountSettings from "./components/AccountSettings.jsx";
+import Invitations from "./components/Invitations.jsx";
 
 // Staff authentication is same-origin in both Vite development and hosted mode.
 // Never embed an API origin that bypasses the Access-aware portal server.

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ERPDrawer, ErpMobileBottomNavFrame } from "@faako/ui";
 import NavigationIcon from "./NavigationIcon.jsx";
-import logo from "../../travel-with-ease-web/public/brand/Primary gold.png";
-import "./navigation.css";
+import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
+import "../styles/navigation.css";
 
 const mobileShortcutIds = [
   "content",

@@ -1,7 +1,7 @@
 import Button from "./ActionButton.jsx";
 import GalleryOrder from './GalleryOrder.jsx';
 import { TextField, TextareaField, SelectField } from "@faako/ui";
-import { packageOccasions } from "../../travel-with-ease-api/src/content/catalogue-constants.js";
+import { packageOccasions } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
 
 export default function PackageEditor({ items, onChange, onChooseImage }) {
   const update = (index, key, value) =>

@@ -4,9 +4,16 @@
   --content-radius: 14px;
   --content-shadow: 0 6px 20px rgb(0 10 31 / 10%);
 }
-main :is(.collection-hero, .collection-gallery img, .published-content img,
-  .journey-process__photo, .how-it-works-photo, .travel-tips__grid img,
-  .review-journey-images img) {
+main
+  :is(
+    .collection-hero,
+    .collection-gallery img,
+    .published-content img,
+    .journey-process__photo,
+    .how-it-works-photo,
+    .travel-tips__grid img,
+    .review-journey-images img
+  ) {
   border-radius: var(--content-radius);
   box-shadow: var(--content-shadow);
 }
@@ -15,13 +22,31 @@ main :is(.service-panel, .journey-card, .journal-card) {
   box-shadow: var(--content-shadow);
   overflow: clip;
 }
-.service-panel__photo { border-radius: var(--content-radius) var(--content-radius) 0 0; }
-main .service-panels { gap: 20px; padding: 6px 20px 0; }
-main .service-panels--all { padding-inline: 0; gap: 28px; }
-.home-journey-chapters .service-panels { width: min(1200px, 90%); padding-inline: 0; margin-inline: auto; }
-.home-journey-chapters .service-panel__photo { height: clamp(240px, 28vw, 360px); }
-.service-panel__label { padding-inline: 24px; }
-.service-panel__description { padding-inline: 24px; }
+.service-panel__photo {
+  border-radius: var(--content-radius) var(--content-radius) 0 0;
+}
+main .service-panels {
+  gap: 20px;
+  padding: 6px 20px 0;
+}
+main .service-panels--all {
+  padding-inline: 0;
+  gap: 28px;
+}
+.home-journey-chapters .service-panels {
+  width: min(1200px, 90%);
+  padding-inline: 0;
+  margin-inline: auto;
+}
+.home-journey-chapters .service-panel__photo {
+  height: clamp(240px, 28vw, 360px);
+}
+.service-panel__label {
+  padding-inline: 24px;
+}
+.service-panel__description {
+  padding-inline: 24px;
+}
 .collection-page .journal-collection-grid {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 360px));
   gap: 24px;
@@ -49,22 +74,71 @@ main .service-panels--all { padding-inline: 0; gap: 28px; }
   object-fit: cover;
   aspect-ratio: auto;
 }
-.journal-card__content { padding: 20px; background: rgb(0 10 31 / 86%); }
-.journal-card__metadata { margin: 0 0 12px; font-size: .8125rem; }
-.journal-collection-grid .journal-card h2 { margin: 0; font-size: 1.3rem; line-height: 1.3; }
-.journal-card__excerpt { margin: 12px 0 0; font-size: .9375rem; line-height: 1.55; }
-.journal-collection-grid .journal-card .twe-content-link { color: inherit; }
-.journal-collection-grid .journal-card .twe-content-link::after { z-index: 1; }
-main :is(.twe-action-card, .travel-tips__grid article, .journey-process li,
-  .collection-introduction, .collection-filters, .cream-footprint) { border-bottom: 0; }
-main :is(.editorial-rule, .published-content__sections > section, .collection-related,
-  .footprint-totals li) { border-top: 0; }
-.journey-process li { padding-block: 16px; }
-.travel-tips__grid { gap: 24px; }
+.journal-card__content {
+  padding: 20px;
+  background: rgb(0 10 31 / 86%);
+}
+.journal-card__metadata {
+  margin: 0 0 12px;
+  font-size: 0.8125rem;
+}
+.journal-collection-grid .journal-card h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  line-height: 1.3;
+}
+.journal-card__excerpt {
+  margin: 12px 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+.journal-collection-grid .journal-card .twe-content-link {
+  color: inherit;
+}
+.journal-collection-grid .journal-card .twe-content-link::after {
+  z-index: 1;
+}
+main
+  :is(
+    .twe-action-card,
+    .travel-tips__grid article,
+    .journey-process li,
+    .collection-introduction,
+    .collection-filters,
+    .cream-footprint
+  ) {
+  border-bottom: 0;
+}
+main
+  :is(
+    .editorial-rule,
+    .published-content__sections > section,
+    .collection-related,
+    .footprint-totals li
+  ) {
+  border-top: 0;
+}
+.journey-process li {
+  padding-block: 16px;
+}
+.travel-tips__grid {
+  gap: 24px;
+}
 @media (max-width: 760px) {
-  main .service-panels { padding-inline: 16px; gap: 24px; }
-  .home-journey-chapters .service-panels { padding-inline: 0; }
-  .home-journey-chapters .service-panel__photo { height: 280px; }
-  main .service-panels--all { padding-inline: 0; }
-  .collection-page .journal-collection-grid { grid-template-columns: minmax(0, 360px); }
+  main .service-panels {
+    padding-inline: 16px;
+    gap: 24px;
+  }
+  .home-journey-chapters .service-panels {
+    padding-inline: 0;
+  }
+  .home-journey-chapters .service-panel__photo {
+    height: 280px;
+  }
+  main .service-panels--all {
+    padding-inline: 0;
+  }
+  .collection-page .journal-collection-grid {
+    grid-template-columns: minmax(0, 360px);
+  }
 }

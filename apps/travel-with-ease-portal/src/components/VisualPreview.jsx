@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { SelectField, InlineNotice, AnimatedLoadingState } from "@faako/ui";
-import "./visual-preview.css";
+import "../styles/visual-preview.css";
 
 export default function VisualPreview({ job, api, body }) {
   const [current, setCurrent] = useState(job);

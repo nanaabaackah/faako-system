@@ -10,7 +10,7 @@ import {
   ERPConfirmDialog,
 } from "@faako/ui";
 import Invitations from "./Invitations.jsx";
-import "./activation.css";
+import "../styles/activation.css";
 
 export default function StaffAccess({ api, session }) {
   const [staff, setStaff] = useState([]),

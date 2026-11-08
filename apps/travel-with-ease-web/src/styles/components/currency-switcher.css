@@ -6,8 +6,12 @@
   margin: 0;
   padding: 0;
 }
-.footer-currency__control { width: 88px; }
-.footer-currency__control .ui-field { margin: 0; }
+.footer-currency__control {
+  width: 88px;
+}
+.footer-currency__control .ui-field {
+  margin: 0;
+}
 .footer-currency__control .ui-field__label,
 .footer-currency__status {
   position: absolute;
@@ -28,7 +32,7 @@
   color: #f4ede3;
   background: transparent;
   box-shadow: none;
-  font-size: .875rem;
+  font-size: 0.875rem;
 }
 .footer-currency .ui-dropdown-field__value {
   flex: 0 0 3ch;
@@ -49,10 +53,18 @@
   color: #d8b56a;
 }
 .twe-money [data-money-original] {
-  font-size: .8em;
+  font-size: 0.8em;
   font-weight: 400;
   white-space: nowrap;
 }
-.currency-attribution { font-size: .8125rem; line-height: 1.6; }
-.currency-attribution a { color: inherit; text-underline-offset: 3px; }
-.service-panels > .currency-attribution { grid-column: 1 / -1; }
+.currency-attribution {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+.currency-attribution a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+.service-panels > .currency-attribution {
+  grid-column: 1 / -1;
+}

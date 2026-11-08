@@ -1,5 +1,5 @@
 import Button from "./ActionButton.jsx";
-import "./media-library.css";
+import "../styles/media-library.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   InlineNotice,

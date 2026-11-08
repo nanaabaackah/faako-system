@@ -1,6 +1,13 @@
 /* TWE-only skin. The shared wrapper owns the one visible field boundary. */
-body .ui-field { margin-bottom: 18px; color: var(--brand-navy); }
-body .ui-field__label { margin: 0; font-size: 1rem; color: var(--brand-navy); }
+body .ui-field {
+  margin-bottom: 18px;
+  color: var(--brand-navy);
+}
+body .ui-field__label {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--brand-navy);
+}
 body .ui-field__control,
 body .ui-dropdown-field__trigger,
 body .ui-combobox-field__control {
@@ -11,7 +18,9 @@ body .ui-combobox-field__control {
   min-height: 50px;
   box-shadow: none;
 }
-body .ui-field__control { padding: 0 14px; }
+body .ui-field__control {
+  padding: 0 14px;
+}
 body .ui-field__input {
   border: 0;
   border-radius: 0;
@@ -23,7 +32,10 @@ body .ui-field__input {
   font-size: 1rem;
   font-weight: 400;
 }
-body .ui-field__input:focus { outline: none; border: 0; }
+body .ui-field__input:focus {
+  outline: none;
+  border: 0;
+}
 body .ui-field__control:focus-within,
 body .ui-dropdown-field__trigger:focus-visible {
   outline: 3px solid var(--brand-sky);
@@ -31,9 +43,18 @@ body .ui-dropdown-field__trigger:focus-visible {
   border-color: var(--brand-navy);
   box-shadow: none;
 }
-body .ui-field.is-error .ui-field__control { border-color: #a32b2b; }
-body .ui-field__textarea { min-height: 120px; resize: vertical; }
-body .ui-dropdown-field__trigger { margin: 0; padding: 10px 14px; font-size: 1rem; }
+body .ui-field.is-error .ui-field__control {
+  border-color: #a32b2b;
+}
+body .ui-field__textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+body .ui-dropdown-field__trigger {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 1rem;
+}
 body .ui-dropdown-field__popover,
 body .ui-combobox-field__popover {
   background: var(--brand-cream);
@@ -47,7 +68,16 @@ body .ui-combobox-field__popover {
   --sys-muted: #5d6372;
   --sys-accent: #010c33;
 }
-body .ui-dropdown-field__option { min-height: 44px; color: var(--brand-navy); }
+body .ui-dropdown-field__option {
+  min-height: 44px;
+  color: var(--brand-navy);
+}
 body .ui-dropdown-field__option.is-selected,
-body .ui-dropdown-field__option:hover { background: #e7dccb; color: var(--brand-navy); }
-body .ui-dropdown-field__option:focus-visible { outline: 2px solid var(--brand-navy); outline-offset: -2px; }
+body .ui-dropdown-field__option:hover {
+  background: #e7dccb;
+  color: var(--brand-navy);
+}
+body .ui-dropdown-field__option:focus-visible {
+  outline: 2px solid var(--brand-navy);
+  outline-offset: -2px;
+}

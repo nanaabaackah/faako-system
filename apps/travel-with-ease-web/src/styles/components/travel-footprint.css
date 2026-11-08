@@ -86,9 +86,15 @@ small {
   stroke: #7ab8ff;
   stroke-width: 2;
 }
-circle[tabindex] { cursor: pointer; }
+circle[tabindex] {
+  cursor: pointer;
+}
 circle[tabindex]:focus,
-circle[tabindex]:hover { stroke: #010c33; stroke-width: 2; outline: none; }
+circle[tabindex]:hover {
+  stroke: #010c33;
+  stroke-width: 2;
+  outline: none;
+}
 .footprint-country-disclosure summary {
   min-height: 44px;
   display: flex;
@@ -103,9 +109,9 @@ circle[tabindex]:hover { stroke: #010c33; stroke-width: 2; outline: none; }
 }
 .footprint-countries button {
   display: grid;
-  gap: .25rem;
+  gap: 0.25rem;
   min-height: 48px;
-  padding: .5rem .75rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid #687386;
   background: transparent;
   color: inherit;

@@ -7,7 +7,7 @@ import {
   AnimatedLoadingState,
 } from "@faako/ui";
 import Button from "./ActionButton.jsx";
-import "./activity.css";
+import "../styles/activity.css";
 
 const label = (value) =>
   String(value || "Activity")

@@ -1,7 +1,7 @@
 import { SelectField, TextField } from "@faako/ui";
 import Button from "./ActionButton.jsx";
-import countries from "../../travel-with-ease-web/src/lib/footprint-countries.json";
-import tiny from "../../travel-with-ease-web/src/lib/footprint-small-countries.json";
+import countries from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
+import tiny from "../../../travel-with-ease-web/src/lib/footprint-small-countries.json";
 
 const choices = [...countries, ...tiny.countries].sort((a, b) => a.name.localeCompare(b.name));
 

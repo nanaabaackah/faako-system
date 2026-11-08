@@ -1,6 +1,6 @@
 import Button from "./ActionButton.jsx";
 import { IconsaxIcon, StatusPill } from "@faako/ui";
-import "./account-settings.css";
+import "../styles/account-settings.css";
 
 export default function AccountSettings({ session, onLogout }) {
   const role = session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ");

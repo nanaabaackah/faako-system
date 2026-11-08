@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { SelectField, TextField, InlineNotice } from "@faako/ui";
-import { placementSlots } from "../../travel-with-ease-api/src/content/placement-catalogue.js";
+import { placementSlots } from "../../../travel-with-ease-api/src/content/placement-catalogue.js";
 import Button from "./ActionButton.jsx";
 import MediaLibrary from "./MediaLibrary.jsx";
-import "./image-placements.css";
+import "../styles/image-placements.css";
 const defaults = {
   imageId: null,
   mobileImageId: null,
