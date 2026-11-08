@@ -517,8 +517,12 @@ export const SelectField = forwardRef<
       // The panel is portalled at the end of <body>. Focusing while its fixed
       // position is being applied must not scroll the document to that DOM
       // location and move the trigger (and therefore the panel) off screen.
-      target?.focus({ preventScroll: true });
       openFocusDirectionRef.current = "selected";
+      // Do not overwrite deliberate keyboard/assistive focus that arrived
+      // inside the panel before this deferred initial-focus frame.
+      if (!panelRef.current?.contains(document.activeElement)) {
+        target?.focus({ preventScroll: true });
+      }
     });
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
@@ -559,8 +563,14 @@ export const SelectField = forwardRef<
     if (!multiple) {
       setOpen(false);
       if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+        const focusAtSelection = document.activeElement;
         window.requestAnimationFrame(() => {
-          triggerRef.current?.focus({ preventScroll: true });
+          // Restore normal focus, but do not steal it from a control the user
+          // has already reached while this return-focus frame was pending.
+          const active = document.activeElement;
+          if (active === document.body || active === focusAtSelection || active === triggerRef.current) {
+            triggerRef.current?.focus({ preventScroll: true });
+          }
         });
         return;
       }

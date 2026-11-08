@@ -21,6 +21,10 @@
   Railway is not connected here; real queue/provider inspection, worker
   provisioning, test-mailbox receipt and account handover remain pending.
 - Current commands, deployment settings, safeguards and rollback:
+  A foundation CI keyboard regression also exposed shared SelectField focus
+  stealing; the required narrow shared-primitive fix now preserves intentional
+  focus across deferred frames, with 10 shared UI tests and stronger browser
+  selection/payload checks. No unrelated application source was changed.
   [implementation and operations](./workspace-refinements-2026-11-08.md).
   No production deployment or role change was performed.
 

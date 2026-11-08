@@ -183,13 +183,21 @@ not undone by a code rollback: any subsequent role recovery requires separate,
 audited approval.
 
 Local evidence: portal tests 18/18, website tests 56/56, API regression suite
-119/119, shared UI tests 8/8 and
+119/119, shared UI tests 10/10 and
 isolated PostgreSQL tests 10/10 passed. All TWE lint/type checks passed; Astro
 checked 91 files with no diagnostics and built 29 routes. Portal and embedded
 API CMS builds passed; the deployed bundle contains no preview controls,
 synthetic identity token or fixture adapter. Chrome acceptance passed all four
 widths and public no-JavaScript navigation. Browser evidence is retained outside
 source control; CI uploads its own screenshot artifacts.
+
+The first PR foundation run exposed a genuine deferred-focus race in the shared
+Faako SelectField while choosing enquiry planning support. A narrow required
+shared-primitive fix preserves an option/next-control focus already established
+before an animation frame, while retaining normal focus restoration. No unrelated
+application was edited. The strengthened collections browser test checks focus
+after both deferred frames, visible selection, controlled value and the submitted
+synthetic payload; it passed all four viewports against the focused built site.
 
 The regular workspace contains additional user CTA/imagery/copy edits, preserved
 but excluded from this focused branch. Focused-branch results do not claim those
