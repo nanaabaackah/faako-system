@@ -71,12 +71,12 @@ export class NotificationOutbox {
     );
     return result.rowCount === 1;
   }
-  async fail(job) {
+  async fail(job, reason = "delivery_failed") {
     await this.pool.query(
       `UPDATE twe.notification_outbox SET status = CASE WHEN attempts >= 5 THEN 'failed' ELSE 'pending' END,
       available_at = now() + interval '1 minute' * power(2, attempts), lease_until = NULL, lease_token = NULL,
-      last_error = 'delivery_failed' WHERE organisation_id = $1 AND id = $2 AND status = 'processing' AND lease_token = $3`,
-      [this.organisationId, job.id, job.lease_token],
+      last_error = $4 WHERE organisation_id = $1 AND id = $2 AND status = 'processing' AND lease_token = $3`,
+      [this.organisationId, job.id, job.lease_token, ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response"].includes(reason) ? reason : "delivery_failed"],
     );
   }
 }
@@ -91,10 +91,11 @@ export async function deliverOne(outbox, sender, logger) {
         { eventName: "notification.lease_lost", jobId: job.id },
         "Notification needs reconciliation",
       );
-  } catch {
-    await outbox.fail(job);
+  } catch (error) {
+    const reason = ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response"].includes(error?.message) ? error.message : "delivery_failed";
+    await outbox.fail(job, reason);
     logger?.warn(
-      { eventName: "notification.failed", jobId: job.id },
+      { eventName: "notification.failed", jobId: job.id, reason },
       "Notification will follow bounded retry policy",
     );
   }

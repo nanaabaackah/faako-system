@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ContentLink from "../../components/ContentLink.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import MoneyText from "../../components/MoneyText.astro";
 import CurrencyAttribution from "../../components/CurrencyAttribution.astro";
 import EditorialPhoto from "../../components/EditorialPhoto.astro";
@@ -26,7 +27,7 @@ const others: Props["service"][] = publishedServices(publishedPage("services")).
 
 <BaseLayout title={`${service.title} | Travel With Ease`} description={service.text.slice(0, 180)}>
   <article class="service-detail editorial-wrap">
-    <ContentLink href="/services">All services</ContentLink>
+    <Breadcrumbs collection="Services" href="/services" title={service.title} />
     <header class="service-detail__hero">
       <div>
         <p class="service-detail__label">Travel planning, your way</p>

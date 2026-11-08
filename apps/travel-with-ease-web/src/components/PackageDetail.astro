@@ -1,6 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import Breadcrumbs from "./Breadcrumbs.astro";
 import MoneyText from "./MoneyText.astro";
 import Accordion from "./Accordion.astro";
 import ClosingCta from "./ClosingCta.astro";
@@ -31,7 +32,7 @@ const enquiry = "#plan";
 
 <article class="collection-detail package-experience">
   <div class="editorial-wrap">
-    <ContentLink href={prefix}>All packages</ContentLink>
+    <Breadcrumbs collection="Packages" href={prefix} title={item.title} />
     <div class="package-experience__hero">
       <header class="collection-detail-heading">
         <p class="package-section-label">{item.destination}</p><h1>{item.title}</h1>

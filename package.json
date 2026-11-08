@@ -16,6 +16,7 @@
     "dev:reebs-water": "pnpm --filter @faako/reebs-water run dev:with-backend",
     "dev:stroane": "pnpm --filter @faako/stroane-web run dev:with-backend",
     "dev:twe": "pnpm --parallel --filter @faako/travel-with-ease-web --filter @faako/travel-with-ease-portal --filter @faako/travel-with-ease-api run dev",
+    "dev:twe:workspace": "node scripts/dev-twe-workspace.mjs",
     "dev:workbench": "pnpm --filter @faako/ui-workbench run dev",
     "dev:starter": "pnpm --filter @faako/system-starter run dev",
     "affected:apps": "node ./scripts/affected-apps.mjs",

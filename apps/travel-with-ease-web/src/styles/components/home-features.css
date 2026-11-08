@@ -33,41 +33,6 @@
   padding-block: clamp(48px, 7vw, 104px);
   color: var(--brand-navy);
 }
-.home-services__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: clamp(28px, 4vw, 48px) clamp(32px, 6vw, 96px);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.home-services__item {
-  min-width: 0;
-  padding-top: 20px;
-  border-top: 1px solid var(--brand-grey);
-}
-.home-services__number {
-  font-size: 0.875rem;
-  color: #77551b;
-  letter-spacing: 0.14em;
-}
-.home-services__item h3 {
-  margin: 12px 0 10px;
-  font-size: clamp(1.3rem, 2vw, 2rem);
-  line-height: 1.2;
-}
-.home-services__item .twe-content-link {
-  color: var(--brand-navy);
-}
-.home-services__price {
-  margin: 0 0 12px;
-  font-weight: 700;
-}
-.home-services__description {
-  margin: 0;
-  line-height: 1.7;
-  max-width: 54ch;
-}
 .featured-journeys {
   padding-block: clamp(56px, 8vw, 112px);
   background: var(--brand-navy);
@@ -146,14 +111,10 @@
     align-items: start;
     flex-direction: column;
   }
-  .home-services__grid,
   .featured-journeys__grid {
     grid-template-columns: minmax(0, 1fr);
   }
   .featured-journeys__photo img {
     height: clamp(290px, 85vw, 480px);
-  }
-  .home-services__grid {
-    gap: 32px;
   }
 }

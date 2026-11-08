@@ -1,0 +1,30 @@
+.workspace-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: #f4ede3;
+  color: #010c33;
+  border-bottom: 2px solid #d8b56a;
+}
+.workspace-preview-toolbar > div:first-child {
+  flex: 1;
+}
+.workspace-preview-toolbar p {
+  margin: 4px 0;
+  font-size: 0.875rem;
+}
+.workspace-preview-toolbar .ui-field {
+  min-width: 160px;
+  margin: 0;
+}
+@media (max-width: 600px) {
+  .workspace-preview-toolbar {
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 8px;
+  }
+  .workspace-preview-toolbar > div:first-child {
+    flex-basis: 100%;
+  }
+}

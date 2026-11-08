@@ -26,5 +26,5 @@ test("shipped portal bundle does not contain the synthetic workspace adapter", (
   const scripts = readdirSync(directory).filter(name => name.endsWith(".js"));
   assert.ok(scripts.length);
   for (const file of scripts) assert.doesNotMatch(readFileSync(new URL(file, directory), "utf8"),
-    /synthetic-not-a-credential|stagingAllowed|demoRole|Only simulated demo data|Example package — not an actual offer/);
+    /synthetic-not-a-credential|stagingAllowed|demoRole|Only simulated demo data|Example package — not an actual offer|Local workspace preview|createWorkspaceFixture|\/__workspace/);
 });

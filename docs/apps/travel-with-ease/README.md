@@ -1,10 +1,18 @@
 # Travel With Ease documentation
 
+## Latest implementation — 2026-11-08
+
+Use [workspace preview, source structure, notification worker and staging handover](./workspace-refinements-2026-11-08.md)
+for the new local command, current folder map, services/breadcrumb changes and
+explicit remaining hosted acceptance steps. This supersedes older claims below
+about missing collection pages, autosave, Astro previews and the role matrix.
+Implemented and locally tested does not mean deployed or authenticated acceptance.
+
 Latest CMS extension: [roles, imagery, activity and responsive navigation](./cms-access-imagery-activity-2026-11-04.md).
 Migration 013, real handover and authenticated staging acceptance are explicit
 rollout steps, not implied by local tests.
 
-## Current status — 2026-11-01
+## Historical status review — 2026-11-01
 
 Start with the [implementation status and hosted evidence](./completion-status-2026-11-01.md),
 [release readiness gates](./readiness-check.md) and

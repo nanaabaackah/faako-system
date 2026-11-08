@@ -1,5 +1,9 @@
 # Local staff workspace demo
 
+> 2026-11-08: An explicit loopback-only workspace was reapproved. Use
+> `pnpm run dev:twe:workspace` and the [current guide](./workspace-refinements-2026-11-08.md).
+> The historical /demo and ?demo=1 instructions below remain retired.
+
 > 2026-11-06: Demo routes, flags and simulated sessions described here are
 > retired. Preserve this historical context, but use the current
 > [cleanup and verification guide](./repository-cleanup-2026-11-06.md), not the old demo instructions.

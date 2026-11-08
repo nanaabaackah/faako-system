@@ -26,6 +26,9 @@ export default defineConfig({
         "@faako/utils": fileURLToPath(new URL("../../packages/utils/src", import.meta.url)),
       },
     },
-    server: { proxy: { "/api": { target: process.env.TWE_API_PROXY_TARGET || "http://localhost:3090", changeOrigin: true } } },
+    server: {
+      ...(process.env.TWE_WORKSPACE_PREVIEW === "true" ? { strictPort: true } : {}),
+      proxy: { "/api": { target: process.env.TWE_API_PROXY_TARGET || "http://localhost:3090", changeOrigin: true } },
+    },
   },
 });

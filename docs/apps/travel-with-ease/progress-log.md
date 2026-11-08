@@ -1,5 +1,29 @@
 # Travel With Ease progress log
 
+## 2026-11-08 — Portal structure, isolated workspace and delivery refinements
+
+- Split portal React components, styles and utilities; vertically formatted
+  TWE CSS in a separate mechanical commit, preserving unrelated applications.
+- Added explicit `dev:twe:workspace` with actual portal components, loopback HTTP
+  fixtures, role/reset controls, in-memory drafts/revisions and tutorials.
+  No hosted login bypass, real invitations, email, Drive/R2 or publication.
+- Replaced homepage services with approved photography and compact editorial
+  rows; added shared accessible breadcrumbs for all four detail-page families.
+  Preserved hero, package shadows, CTA and enquiry/footer composition.
+- Added continuous enquiry-outbox processing, redacted status/error diagnostics,
+  graceful shutdown and a staging-only hidden-input handover helper.
+- Verified local Chrome at 320/390/768/1440px, including real preview controls,
+  autosave, enquiry details, role separation, overflow and no-JavaScript public
+  breadcrumbs. Isolated PostgreSQL checks passed, including handover, leases,
+  safe diagnostic persistence, restart persistence and logical restoration.
+- Public staging readiness returned ready over HTTPS. This does not identify
+  the reported email failure or certify deployed code/authenticated modules.
+  Railway is not connected here; real queue/provider inspection, worker
+  provisioning, test-mailbox receipt and account handover remain pending.
+- Current commands, deployment settings, safeguards and rollback:
+  [implementation and operations](./workspace-refinements-2026-11-08.md).
+  No production deployment or role change was performed.
+
 ## 2026-11-06 — Footer display currency
 
 - Added a global website currency preference using Faako controls and marked

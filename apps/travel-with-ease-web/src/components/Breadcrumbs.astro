@@ -1,0 +1,18 @@
+---
+import { ArrowRight4 } from "@faako/ui";
+import "../styles/components/breadcrumbs.css";
+interface Props {
+  collection: string;
+  href: string;
+  title: string;
+}
+const { collection, href, title } = Astro.props;
+---
+
+<nav class="twe-breadcrumbs" aria-label="Breadcrumb">
+  <ol>
+    <li><a href="/">Home</a></li>
+    <li><ArrowRight4 aria-hidden="true" focusable="false" /><a href={href}>{collection}</a></li>
+    <li><ArrowRight4 aria-hidden="true" focusable="false" /><span aria-current="page">{title}</span></li>
+  </ol>
+</nav>
