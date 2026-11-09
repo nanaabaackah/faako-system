@@ -11,6 +11,10 @@
 .activity-results {
   min-width: 0;
 }
+.activity-empty p {
+  margin: 6px 0 0;
+  color: #535966;
+}
 .activity-details summary {
   cursor: pointer;
   min-height: 44px;

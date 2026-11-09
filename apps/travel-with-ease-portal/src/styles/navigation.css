@@ -68,6 +68,8 @@
 .twe-menu-drawer nav {
   display: grid;
   gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 0;
 }
 .twe-menu-drawer nav button {
   display: flex;
@@ -86,8 +88,17 @@
 }
 .twe-menu-drawer nav button[aria-current] {
   background: #f4ede3;
+  color: #010c33;
   box-shadow: inset 3px 0 #d8b56a;
   font-weight: 700;
+}
+.portal-shell .twe-menu-drawer nav button:is(:hover, :focus-visible) {
+  background: #eef2f7;
+  color: #010c33;
+}
+.portal-shell .twe-menu-drawer nav button[aria-current="page"]:is(:hover, :focus-visible) {
+  background: #f4ede3;
+  color: #010c33;
 }
 @media (max-width: 800px) {
   .portal-shell:has(.portal-sidebar.is-collapsed) {
@@ -139,6 +150,15 @@
     background: #131c30;
     color: #f4ede3;
     z-index: 40;
+  }
+  .portal-shell .twe-menu-drawer nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 0;
+  }
+  .portal-shell .twe-menu-drawer nav button {
+    min-width: 0;
+    padding: 12px;
+    font-size: 14px;
   }
   .portal-shell .twe-bottom-nav .twe-bottom-nav__tab {
     display: flex;

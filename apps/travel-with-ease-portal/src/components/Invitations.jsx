@@ -133,7 +133,7 @@ export default function Invitations({ api, session, installer = false }) {
         </div>
       )}
       {!installer && (
-        <ActivityList title="Invitation history" items={items.map(item=>({...item,action:`${item.role} invitation · ${item.accepted_at?'Accepted':item.revoked_at?'Revoked':new Date(item.expires_at)<=new Date()?'Expired':'Pending'}`}))}
+        <ActivityList title="Invitation history" emptyTitle="No invitations yet" emptyMessage="Created staff invitations will appear here." items={items.map(item=>({...item,action:`${item.role} invitation · ${item.accepted_at?'Accepted':item.revoked_at?'Revoked':new Date(item.expires_at)<=new Date()?'Expired':'Pending'}`}))}
           renderAction={item=><>
             <p>Expires: {new Date(item.expires_at).toLocaleString()}</p>
             {!item.accepted_at&&!item.revoked_at&&(item.role==='editor'||canInviteOwner)&&<Button type="button" disabled={busy} onClick={()=>mutate(`${path}/${item.id}/revoke`,{})}>Revoke invitation</Button>}
@@ -142,7 +142,7 @@ export default function Invitations({ api, session, installer = false }) {
       {!installer && (
         <details>
           <summary>Staff access audit history</summary>
-          <ActivityList title="Staff access audit history" items={events}/>
+          <ActivityList title="Staff access audit history" emptyTitle="No staff access changes yet" emptyMessage="Role and access changes will appear here." items={events}/>
         </details>
       )}
     </section>
