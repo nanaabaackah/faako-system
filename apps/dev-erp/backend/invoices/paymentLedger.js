@@ -389,9 +389,6 @@ export const createInvoicePaymentHandlers = ({ prisma, isGlobalAdmin, serializeI
         let projection = { invoice, accountingEntry: null };
         if (operation === "VERIFY") {
           if (payment.verificationStatus !== "PENDING_VERIFICATION") throw new PaymentError(409, "Only pending payments can be verified.", "INVALID_PAYMENT_STATE");
-          if (payment.recordedByUserId === req.user.userId && !(isGlobalAdmin(req.user) && payload.segregationOverrideReason)) {
-            throw new PaymentError(403, "A different administrator must verify this payment, or a global administrator must provide an override reason.", "SEGREGATION_OF_DUTIES");
-          }
           const currentOpening = centsFrom((invoice.legacyPaidAmount ?? invoice.paidAmount ?? 0).toString());
           const currentLedger = await sumLedgerCents(tx, invoice.id);
           if (currentOpening + currentLedger + centsFrom(payment.amount.toString()) > centsFrom(invoice.total.toString())) throw new PaymentError(409, "Verifying this payment would overpay the invoice.", "OVERPAYMENT");
