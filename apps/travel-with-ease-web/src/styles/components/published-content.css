@@ -177,3 +177,8 @@
     max-width: none;
   }
 }
+
+/* Only the About story's founder/client attribution receives italic styling. */
+.published-content--story .published-content__attribution {
+  font-style: italic;
+}

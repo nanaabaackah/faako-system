@@ -3,16 +3,29 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("requested fonts are self-hosted licensed WOFF2 assets with a case-preserving signature", () => {
-  for (const font of ["bonheur-royale-latin-400", "montserrat-latin-800"])
-    assert.equal(readFileSync(new URL(`../public/fonts/${font}.woff2`, import.meta.url)).subarray(0, 4).toString(), "wOF2");
-  for (const licence of ["Bonheur-Royale-OFL", "Montserrat-OFL"])
-    assert.match(read(`../public/fonts/${licence}.txt`), /SIL OPEN FONT LICENSE/);
+test("brand typography retains Bonheur hero and loads Instrument Serif and DM Sans", () => {
+  assert.equal(readFileSync(new URL("../public/fonts/bonheur-royale-latin-400.woff2", import.meta.url)).subarray(0, 4).toString(), "wOF2");
+  assert.match(read("../public/fonts/Bonheur-Royale-OFL.txt"), /SIL OPEN FONT LICENSE/);
   const typography = read("../src/styles/typography.css");
-  assert.match(typography, /font-weight: 800/);
+  assert.match(typography, /--font-display: "Instrument Serif"/);
+  assert.match(typography, /--font-body: "DM Sans"/);
+  assert.match(typography, /--font-signature: "Bonheur Royale"/);
   assert.match(typography, /font-display: swap/);
-  assert.doesNotMatch(typography, /https:\/\/fonts\./);
+  assert.doesNotMatch(typography, /font-weight: 800/);
+  const layout = read("../src/layouts/BaseLayout.astro");
+  assert.match(layout, /fonts.googleapis.com\/css2\?family=DM\+Sans/);
+  assert.match(layout, /Instrument\+Serif:ital@0;1/);
+  const headers = read("../public/_headers");
+  assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
+  assert.match(headers, /font-src[^\n]*https:\/\/fonts.gstatic.com/);
   assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*A Little More You/);
+});
+
+test("About attribution italic styling is scoped to the story page", () => {
+  const component = read("../src/components/PublishedContent.astro");
+  const css = read("../src/styles/components/published-content.css");
+  assert.match(component, /story \? "published-content__attribution" : undefined/);
+  assert.match(css, /\.published-content--story \.published-content__attribution \{\s*font-style: italic;/);
 });
 
 test("privacy preferences use native modal semantics, Escape support and a single consent preference", () => {
