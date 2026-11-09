@@ -1,0 +1,21 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import { pressCoverage } from "../../../content/press.js";
+import Icon from "../../../components/Icon.jsx";
+import articleStyles from "../../../styles/pages/press-detail.css?url";
+export function getStaticPaths() { return pressCoverage.map(story => ({params:{slug:story.slug},props:{story}})); }
+const { story } = Astro.props;
+const path = `/news/coverage/${story.slug}`;
+---
+<BaseLayout path={path} title={`${story.title} | TTNGH`} description={story.summary} image={story.image.src} imageAlt={story.image.alt} pageStyles={[articleStyles]} breadcrumbs={[{name:"Home",path:"/"},{name:"News",path:"/news"},{name:story.title,path}]}>
+  <main id="main-content" class="editorial-main">
+    <article class="press-detail">
+      <header><a class="text-link" href="/news">Back to news</a><h1>{story.title}</h1><p>{story.summary}</p><p class="press-attribution">TTNGH summary of reporting by {story.publisher}.</p></header>
+      <figure><img src={story.image.src} width={story.image.width} height={story.image.height} alt={story.image.alt} fetchpriority="high" decoding="async" /></figure>
+      <div class="press-body">{story.paragraphs.map(paragraph => <p>{paragraph}</p>)}</div>
+      <figure><img src={story.supportingImage.src} width={story.supportingImage.width} height={story.supportingImage.height} alt={story.supportingImage.alt} loading="lazy" decoding="async" /></figure>
+      <aside class="press-source" aria-labelledby="source-title"><h2 id="source-title">Read the full story</h2><p>This page is a short TTNGH summary, not a reproduction of the publisher's article.</p><a class="text-link" href={story.href}>Full report on {story.publisher} <Icon name="arrow-right" /></a></aside>
+      <a class="text-link" href="/gallery#odorgonno-nilee-consult">Explore the event gallery <Icon name="arrow-right" /></a>
+    </article>
+  </main>
+</BaseLayout>

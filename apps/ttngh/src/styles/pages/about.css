@@ -1,7 +1,6 @@
 .story-layout,.founder-feature,.about-team { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center; gap:clamp(2rem,5vw,5rem); }
 .story-visual { position:relative; margin:0; align-self:stretch; min-height:26rem; overflow:hidden; border-radius:0; }
 .story-visual img { width:100%; height:100%; object-fit:cover; }
-.story-visual figcaption { position:absolute; bottom:1rem; left:1rem; right:1rem; padding:.6rem .9rem; border-radius:var(--radius-md); background:var(--brand-black); color:white; font-size:.8rem; }
 .story-copy>p { color:var(--muted); }
 .story-progress { display:grid; gap:1.5rem; padding:0; margin:2rem 0; list-style:none; }
 .story-progress li { display:grid; grid-template-columns:2.5rem minmax(0,1fr); gap:1rem; }
@@ -13,9 +12,6 @@
 .story-beliefs p { margin:0; }
 .founder-portrait { position:relative; margin:0; height:35rem; overflow:hidden; border-radius:0; }
 .founder-portrait img { width:100%; height:100%; object-fit:cover; object-position:center 18%; }
-.founder-portrait figcaption { position:absolute; inset:auto 1rem 1rem; padding:1rem; border-radius:var(--radius-md); background:white; color:var(--brand-black); }
-.founder-portrait figcaption :is(strong,span) { display:block; }
-.founder-portrait figcaption span { margin-top:.3rem; font-size:.85rem; }
 .founder-copy blockquote { padding:0; margin:1.5rem 0; }
 .founder-copy blockquote p { color:var(--brand-black); line-height:1.65; }
 .about-team-portraits { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); align-items:center; gap:.75rem; }

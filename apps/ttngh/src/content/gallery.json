@@ -1,0 +1,30 @@
+[
+  {
+    "id": "gallery-african-science-academy",
+    "title": "African Science Academy",
+    "slug": "african-science-academy",
+    "summary": "Moments from TTNGH's visit to African Science Academy.",
+    "source": "https://drive.google.com/drive/folders/1WVxFOwl4KLWFrRrkntCZjVeo5NTBPLvi — Public name confirmed by the client. Library publication consent confirmed in the project conversation.",
+    "photos": [
+      {"file":"asa-3.webp","driveId":"1G1cCC42eg8s9IoYoWzFo9qh1q6ro-0nN","sourceName":"IMG_4256.jpg","alt":"Two people holding a TTNGH photo frame outside African Science Academy"},
+      {"file":"asa-4.webp","driveId":"14RAuA3XFj59rM78UOt7uFVOnkrb0o5Mm","sourceName":"IMG_4178.jpg","alt":"A person wearing a TTNGH shirt seated beside a display banner"},
+      {"file":"asa-2.webp","driveId":"1KEbe_sCeQaRZSgtvYHDH64KL-szpgxtw","sourceName":"IMG_4117.jpg","alt":"Three people wearing TTNGH shirts smiling together in a classroom"},
+      {"file":"asa-1.webp","driveId":"1C8b-_waTmRmo_6otUK5FJoF77uH6LlsM","sourceName":"IMG_4216.jpg","alt":"A person wearing a TTNGH shirt seated beside a classroom whiteboard"},
+      {"file":"asa-0.webp","driveId":"1h-8m2fBxbpgNxs77ddL0VzEHqEaRHtgU","sourceName":"IMG_4278.jpg","alt":"A person wearing a TTNGH shirt standing outside a building near a TTNGH banner"}
+    ]
+  },
+  {
+    "id": "gallery-odorgonno-nilee-consult",
+    "title": "Odorgonno Senior High School · Nilee Consult × TTNGH",
+    "slug": "odorgonno-nilee-consult",
+    "summary": "Photographs from the school engagement with Nilee Consult and The Thriving Network GH.",
+    "source": "https://drive.google.com/drive/folders/1UDtpJqS3m5inb_vxSa2RM3o2CoNk6Ii3 — School and collaboration corroborated by client-supplied Pulse Ghana and Yemmey coverage. Library publication consent confirmed in the project conversation, including minors.",
+    "photos": [
+      {"file":"nilee-4.webp","driveId":"11Cop8w8EJi51vs607WQ0PEY9WBJtLVSv","sourceName":"IMG_9624.JPG","alt":"A student in a yellow school shirt holding a microphone among seated students"},
+      {"file":"nilee-3.webp","driveId":"1KVuysKJMwc_6loq7ifxxUDc80LWQdSxh","sourceName":"IMG_9568.JPG","alt":"Students seated side by side during the school session"},
+      {"file":"nilee-0.webp","driveId":"1S5sKgD9TMSAM2hBFh7NS_gtyqFr7yP7H","sourceName":"IMG_9543.JPG","alt":"A speaker in a green Nilee Consult shirt holding a microphone and phone"},
+      {"file":"nilee-1.webp","driveId":"1HalTzPboDbfbTIt_OnpSh2pQojkFQVfC","sourceName":"IMG_9601.JPG","alt":"Students seated in rows applauding during the school session"},
+      {"file":"nilee-2.webp","driveId":"1Xk8lQTW_Xj24qJIgVZDyA9Gap10KzECD","sourceName":"IMG_9650.JPG","alt":"Students seated together and looking toward the front of the hall"}
+    ]
+  }
+]

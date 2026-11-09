@@ -1,0 +1,18 @@
+.gallery-page { background: #fff; }
+.gallery-intro, .gallery-albums, .gallery-album, .gallery-empty { width: min(90%, 80rem); margin-inline: auto; }
+.gallery-intro { padding-block: clamp(3rem, 7vw, 7rem) 3rem; }
+.gallery-intro h1 { max-width: 16ch; }
+.gallery-intro p, .gallery-album header p { max-width: 60ch; }
+.gallery-albums { display: flex; flex-wrap: wrap; gap: 1rem 2rem; padding-block: 1rem 2rem; }
+.gallery-album, .gallery-empty { padding-block: 2rem 4rem; }
+.gallery-album h2 { scroll-margin-top: 8rem; }
+.gallery-grid { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 2rem; align-items: start; }
+/* Proportional widths give every photograph in a row the same height.
+   Each row fills the album width, including the last row, without cropping. */
+.gallery-grid figure { margin: 0; min-width: 0; flex: calc(var(--photo-ratio, 1) * 10) 1 calc(var(--photo-ratio, 1) * 18rem); }
+.gallery-grid a { display: block; overflow: hidden; }
+.gallery-grid img { display: block; width: 100%; height: auto; transition: transform 600ms ease; }
+.gallery-grid a:hover img { transform: scale(1.025); }
+.gallery-grid a:focus-visible { outline: 3px solid currentColor; outline-offset: 5px; }
+@media (max-width: 600px) { .gallery-grid figure { flex-basis: 100%; } }
+@media (prefers-reduced-motion: reduce) { .gallery-grid img { transition: none; } .gallery-grid a:hover img { transform: none; } }

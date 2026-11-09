@@ -1,0 +1,19 @@
+---
+import { eventStories } from "../content/event-stories.js";
+import Icon from "./Icon.jsx";
+import "../styles/components/event-listings.css";
+import { eventPath, formatEventDate } from "../lib/events.js";
+const { pastEvents = [] } = Astro.props;
+const stories = [
+  ...pastEvents.map(event => ({...event, href:eventPath(event), image:{...event.image,src:event.image.url}, date:formatEventDate(event)})),
+  ...eventStories.filter(story => !pastEvents.some(event => event.slug === story.slug)).map(story => ({...story,href:`/events/stories/${story.slug}`})),
+];
+---
+<section class="cms-content-section" aria-labelledby="event-stories-title" id="event-stories">
+  <h2 id="event-stories-title"><span id="previous-events">Previous events</span></h2>
+  <p>Explore our school visits, community gatherings and programme highlights.</p>
+  <div class="event-card-grid">{stories.map(story => <a class="bubble-card event-card" href={story.href} data-reveal>
+    <div class="event-card-visual"><img src={story.image.src} alt={story.image.alt} width={story.image.width} height={story.image.height} loading="lazy" decoding="async" /></div>
+    <div>{story.date && <p class="event-date"><time datetime={story.start}>{story.date}</time></p>}<h3>{story.title}</h3><p class="event-card-summary">{story.summary}</p><span class="text-link">View event <Icon name="arrow-right" /></span></div>
+  </a>)}</div>
+</section>

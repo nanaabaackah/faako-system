@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PageHero from "../components/PageHero.astro";
 import CmsCards from "../components/CmsCards.astro";
+import PressCoverage from "../components/PressCoverage.astro";
 import { contentOfType } from "../lib/cms-source.js";
 const articles=(await contentOfType("newsArticle")).sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt));
 const resources=await contentOfType("resource");
@@ -12,9 +13,10 @@ import { organization } from "../content/home.js";
 <BaseLayout path="/news" title={`News and resources | ${organization.name}`} description="Mental health resources, programme updates, and stories from The Thriving Network GH." image="/images/home/initiative-speaker.jpg" imageAlt="A TTNGH speaker delivering mental health education in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "News", path: "/news" }]}>
   <main id="main-content" class="editorial-main">
     <PageHero variant="immersive" links={[["Explore topics","#topics-title"],["Reviewed resources","/resources"]]} title="Stories, learning" accent="and conversation." intro="This space will bring together educational resources, programme news, advocacy updates, and stories from our community work." images={[
-      { src: "/images/refresh/vision-listening-1600.webp", alt: "People listening together around a table", caption: "Vision with Clarity · TTNGH" },
+      { src: "/images/refresh/vision-listening-1600.webp", alt: "People listening together around a table" },
     ]} />
     <CmsCards documents={articles} title="Latest news" />
+    <PressCoverage />
     <CmsCards documents={resources} title="Reviewed resources" />
     <section class="news-topics" aria-labelledby="topics-title">
       <div class="section-heading"><h2 id="topics-title">Useful information, grounded in our mission.</h2></div>
@@ -26,6 +28,6 @@ import { organization } from "../content/home.js";
       </div>
     </section>
     <section class="photo-feature" aria-labelledby="documenting-title"><figure><img src="/images/refresh/vision-reflection-1600.webp" alt="Participants completing a guided reflection exercise during Vision with Clarity" width="1600" height="1067" loading="lazy" decoding="async" /></figure><div class="photo-feature-copy"><h2 id="documenting-title">Documenting programmes with care.</h2><p>News and resources will draw from TTNGH's education, support, advocacy, research, and policy work. The first approved publications will appear here once publication begins.</p></div></section>
-    <div id="latest"><ScrollExpandSection title="Support the work behind the stories." text="Donate to support mental health education, advocacy, research, and community programmes." frameTitle="Share useful knowledge." id="articles-title" /></div>
+    <div id="latest"><ScrollExpandSection image="/images/refresh/vision-conversation-1600.webp" alt="Participants listening together around a table at Vision with Clarity" title="Support the work behind the stories." text="Donate to support mental health education, advocacy, research, and community programmes." frameTitle="Share useful knowledge." id="articles-title" /></div>
   </main>
 </BaseLayout>
