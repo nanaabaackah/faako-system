@@ -15,7 +15,6 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Administration } from "../../src/auth/administration.js";
-import { handoverDeveloper } from "../../src/auth/handover.js";
 import { readActivity } from "../../src/auth/activity.js";
 import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
@@ -153,6 +152,143 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [otherOrg])).rows[0].n, 2);
   });
 
+  await context.test("Issue 02: installer authority closes after first Owner, including races and inactive-Owner recovery", async () => {
+    const scope = randomUUID();
+    const settings = {
+      issuer: "https://issue02.example.invalid",
+      audience: "c".repeat(64),
+    };
+    const identity = (subject) => ({ ...settings, subject });
+    const installer = identity("synthetic-installer");
+    await pool.query(
+      "INSERT INTO twe.organisations(id,name) VALUES($1,'Synthetic installer lifecycle')",
+      [scope],
+    );
+    // Each concurrent claim gets its own connection and restricted runtime role.
+    const clients = await Promise.all([pool.connect(), pool.connect()]);
+    try {
+      for (const client of clients) {
+        await client.query("SET ROLE twe_test_runtime");
+        assert.equal((await client.query("SELECT current_user")).rows[0].current_user, "twe_test_runtime");
+      }
+      const runtimePools = clients.map((client) => {
+        const query = (...args) => client.query(...args);
+        return { query, connect: async () => ({ query, release() {} }) };
+      });
+      const makeService = (runtimePool, config = settings, environment = "test", installerSubject = installer.subject, tenant = scope) =>
+        new Invitations(runtimePool, tenant, config, environment, installerSubject);
+      const service = makeService(runtimePools[0]);
+      const input = (subject) => ({
+        identity: installer, subject, approvalReference: "ISSUE02-SYNTHETIC",
+        requestId: "issue02-lifecycle",
+      });
+      assert.equal((await service.identityStatus(installer)).canIssueOwner, true);
+      await assert.rejects(makeService(runtimePools[0], settings, "test", "").issue(input(randomUUID())), { status: 403 });
+      for (const change of [
+        { issuer: "https://other.example.invalid" },
+        { audience: "d".repeat(64) },
+        { subject: "not-the-installer", email: "approved@example.invalid" },
+      ]) {
+        await assert.rejects(service.issue({ ...input(randomUUID()), identity: { ...installer, ...change } }), { status: 403 });
+      }
+
+      const expiredSubject = randomUUID();
+      const expired = await service.issue(input(expiredSubject));
+      await pool.query(
+        "UPDATE twe.staff_invitations SET created_at=now()-interval '2 hours',expires_at=now()-interval '1 hour' WHERE id=$1",
+        [expired.id],
+      );
+      await assert.rejects(service.claim(identity(expiredSubject), expired.code, "issue02-expired"), { status: 403 });
+
+      const revokedSubject = randomUUID();
+      const revoked = await service.issue(input(revokedSubject));
+      await service.revoke({ identity: installer, id: revoked.id, requestId: "issue02-revoke" });
+      await assert.rejects(service.claim(identity(revokedSubject), revoked.code, "issue02-revoked"), { status: 403 });
+
+      const replacementSubject = randomUUID();
+      const superseded = await service.issue(input(replacementSubject));
+      const replacement = await service.issue(input(replacementSubject));
+      assert.notEqual(superseded.code, replacement.code);
+      assert.match(replacement.code, /^[A-Za-z0-9_-]{43}$/);
+      const stored = (await pool.query(
+        "SELECT token_hash,purpose,role,created_by FROM twe.staff_invitations WHERE id=$1",
+        [replacement.id],
+      )).rows[0];
+      assert.equal(stored.purpose, "initial_owner");
+      assert.equal(stored.role, "owner");
+      assert.equal(stored.created_by, null);
+      assert.notEqual(stored.token_hash, replacement.code);
+      assert.match(stored.token_hash, /^[a-f0-9]{64}$/);
+      await assert.rejects(service.claim(identity(replacementSubject), superseded.code, "issue02-superseded"), { status: 403 });
+      await assert.rejects(
+        makeService(runtimePools[0], settings, "staging").claim(identity(replacementSubject), replacement.code, "issue02-wrong-environment"),
+        { status: 403 },
+      );
+      await assert.rejects(
+        makeService(runtimePools[0], settings, "test", installer.subject, organisationId).claim(identity(replacementSubject), replacement.code, "issue02-wrong-tenant"),
+        { status: 403 },
+      );
+
+      // An identity provisioned separately after issuance must not be overwritten
+      // or silently reactivated/upgraded by a still-unclaimed Owner invitation.
+      const existingSubject = randomUUID();
+      const existingInvite = await service.issue(input(existingSubject));
+      const existingId = randomUUID();
+      await pool.query(
+        "INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role,active) VALUES($1,$2,$3,$4,$5,'editor',false)",
+        [existingId, scope, settings.issuer, existingSubject, settings.audience],
+      );
+      await assert.rejects(service.claim(identity(existingSubject), existingInvite.code, "issue02-no-replacement"), { status: 403 });
+      assert.deepEqual((await pool.query(
+        "SELECT id,role,active FROM twe.staff_users WHERE id=$1", [existingId],
+      )).rows[0], { id: existingId, role: "editor", active: false });
+
+      const subjects = [randomUUID(), randomUUID()];
+      const invites = [];
+      for (const subject of subjects) invites.push(await service.issue(input(subject)));
+      const race = await Promise.allSettled(invites.map((invite, index) =>
+        makeService(runtimePools[index]).claim(identity(subjects[index]), invite.code, `issue02-concurrent-${index}`),
+      ));
+      assert.equal(race.filter((result) => result.status === "fulfilled").length, 1);
+      assert.equal(race.filter((result) => result.status === "rejected").length, 1);
+      const winnerIndex = race.findIndex((result) => result.status === "fulfilled");
+      const owners = (await pool.query(
+        "SELECT id,subject,role,active FROM twe.staff_users WHERE organisation_id=$1 AND role='owner'", [scope],
+      )).rows;
+      assert.equal(owners.length, 1);
+      const owner = owners[0];
+      assert.equal(owner.subject, subjects[winnerIndex]);
+      assert.equal(owner.active, true);
+      assert.equal((await pool.query(
+        "SELECT 1 FROM twe.tutorial_progress WHERE organisation_id=$1 AND user_id=$2", [scope, owner.id],
+      )).rowCount, 1);
+      assert.equal((await pool.query(
+        "SELECT 1 FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [scope],
+      )).rowCount, 1);
+
+      assert.equal((await service.identityStatus(installer)).canIssueOwner, false);
+      await assert.rejects(service.issue(input(randomUUID())), { status: 403 });
+      await assert.rejects(service.revoke({ identity: installer, id: replacement.id, requestId: "issue02-installer-closed" }), { status: 403 });
+      await assert.rejects(service.preview(identity(replacementSubject), replacement.code), { status: 403 });
+      await assert.rejects(service.claim(identity(replacementSubject), replacement.code, "issue02-pending-closed"), { status: 403 });
+      await assert.rejects(service.claim(identity(owner.subject), invites[winnerIndex].code, "issue02-replay"), { status: 403 });
+
+      // Isolated fault injection, not a supported live deactivation procedure:
+      // losing access to the Owner must never reopen public bootstrap/recovery.
+      await pool.query("UPDATE twe.staff_users SET active=false WHERE id=$1", [owner.id]);
+      assert.equal((await service.identityStatus(installer)).canIssueOwner, false);
+      await assert.rejects(service.issue(input(randomUUID())), { status: 403 });
+      await assert.rejects(service.claim(identity(replacementSubject), replacement.code, "issue02-disabled-owner"), { status: 403 });
+      assert.deepEqual((await pool.query(
+        "SELECT id,subject,role,active FROM twe.staff_users WHERE organisation_id=$1 AND role='owner'", [scope],
+      )).rows, [{ ...owner, active: false }]);
+    } finally {
+      for (const client of clients) {
+        try { await client.query("RESET ROLE"); } finally { client.release(); }
+      }
+    }
+  });
+
   const repository = new PostgresLeadRepository(pool, options);
   await repository.ready();
   assert.equal(typeof repository.createDemoEnquiry, "undefined", "Retired staging writes are unavailable");
@@ -192,17 +328,45 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   const auth = new PostgresAuthStore(pool, organisationId);
   const accessSettings={issuer:"https://synthetic.cloudflareaccess.com",audience:"a".repeat(64)};
   const platformId=randomUUID();
-  await context.test("reviewed handover binds existing verified subjects atomically, preserves IDs and refuses replay",async()=>{
+  await context.test("portal-session handover is expiring, two-party, atomic, audited and single-use",async()=>{
     const developerId=randomUUID(),clientId=randomUUID();
     for(const [id,subject,role] of [[developerId,'handover-developer','owner'],[clientId,'handover-client','editor']])
       await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,$4,$5,$6)",[id,organisationId,accessSettings.issuer,subject,accessSettings.audience,role]);
-    const args={...options,settings:accessSettings,developer:{...accessSettings,subject:'handover-developer',email:'dev.nanaabaackah@gmail.com'},client:{...accessSettings,subject:'handover-client'},approvalReference:'HANDOVER-TEST',requestId:'handover-test'};
-    await assert.rejects(handoverDeveloper(pool,{...args,developer:{...args.developer,subject:'email-only-attacker'}}));
-    assert.equal((await handoverDeveloper(pool,args)).completed,true);
+    const service=new Administration(pool,organisationId,accessSettings,'test');
+    await assert.rejects(new Administration(pool,organisationId,accessSettings,'production').handoverStatus({id:developerId,organisationId}),{status:404});
+    const developer={id:developerId,role:'owner',organisationId},client={id:clientId,role:'editor',organisationId};
+    const expiresAt=new Date(Date.now()+60_000);
+    const developerIdentity={...accessSettings,subject:'handover-developer',email:'dev.nanaabaackah@gmail.com',expiresAt,assertionHash:'7'.repeat(64)};
+    const clientIdentity={...accessSettings,subject:'handover-client',email:'client@example.invalid',expiresAt,assertionHash:'8'.repeat(64)};
+    const developerSession='9'.repeat(64),clientSession='0'.repeat(64);
+    await auth.createSession(developerIdentity,developerSession,'5'.repeat(64),'handover-developer-login');
+    await auth.createSession(clientIdentity,clientSession,'6'.repeat(64),'handover-client-login');
+    const input={clientId,approvalReference:'HANDOVER-TEST'};
+    await assert.rejects(service.requestHandover(developer,{hash:developerSession},{...developerIdentity,subject:'email-only-attacker'},input,'handover-forged'));
+    const expired=await service.requestHandover(developer,{hash:developerSession},developerIdentity,input,'handover-expiring');
+    await pool.query("UPDATE twe.staff_handover_requests SET created_at=now()-interval '20 minutes',expires_at=now()-interval '10 minutes' WHERE id=$1",[expired.id]);
+    await assert.rejects(service.approveHandover(client,{hash:clientSession},clientIdentity,expired.id,'handover-expired'),{status:409});
+    const pending=await service.requestHandover(developer,{hash:developerSession},developerIdentity,input,'handover-request');
+    assert.equal((await service.handoverStatus(client)).can_approve,true);
+    assert.equal((await service.handoverStatus(developer)).can_approve,false);
+    await assert.rejects(service.requestHandover(developer,{hash:developerSession},developerIdentity,input,'handover-duplicate'),{status:409});
+    await assert.rejects(service.approveHandover(developer,{hash:developerSession},developerIdentity,pending.id,'handover-self-approval'),{status:403});
+    await assert.rejects(service.approveHandover(client,{hash:clientSession},{...clientIdentity,assertionHash:'9'.repeat(64)},pending.id,'handover-wrong-session'),{status:409});
+    const result=await service.approveHandover(client,{hash:clientSession},clientIdentity,pending.id,'handover-approved');
+    assert.deepEqual(result,{completed:true,sessionsInvalidated:true});
     const roles=(await pool.query("SELECT id,role FROM twe.staff_users WHERE id=ANY($1::uuid[])",[[developerId,clientId]])).rows;
     assert.equal(roles.find(row=>row.id===developerId).role,'platform_admin');
     assert.equal(roles.find(row=>row.id===clientId).role,'owner');
-    await assert.rejects(handoverDeveloper(pool,args));
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.staff_users WHERE organisation_id=$1 AND active=true AND role='owner'",[organisationId])).rows[0].n>=1,true);
+    assert.equal(await auth.getSession(developerSession),undefined);
+    assert.equal(await auth.getSession(clientSession),undefined);
+    await assert.rejects(service.approveHandover(client,{hash:clientSession},clientIdentity,pending.id,'handover-replay'),{status:409});
+    const approval=await pool.query("SELECT approved_by,approved_at FROM twe.staff_handover_requests WHERE id=$1",[pending.id]);
+    assert.equal(approval.rows[0].approved_by,clientId);
+    assert.ok(approval.rows[0].approved_at);
+    const events=await pool.query("SELECT action,actor_id FROM twe.audit_records WHERE record_id=$1 ORDER BY created_at",[pending.id]);
+    assert.deepEqual(events.rows.map(row=>row.action),['staff.bootstrap.handover_requested','staff.bootstrap.handover_approved']);
+    assert.equal(events.rows[1].actor_id,clientId);
     await assert.rejects(pool.query("DELETE FROM twe.staff_role_changes WHERE user_id=$1",[developerId]),/append-only/);
   });
   await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,'platform',$4,'platform_admin')",[platformId,organisationId,accessSettings.issuer,accessSettings.audience]);

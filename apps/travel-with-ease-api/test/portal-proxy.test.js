@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { once } from "node:events";
 import { fileURLToPath } from "node:url";
-import { createPortalApp, readPortalUpstream } from "../src/portal/proxy.js";
+import { createPortalApp, isAllowedPortalApiRoute, readPortalUpstream } from "../src/portal/proxy.js";
 
 test("portal upstream allows only fixed HTTPS origins outside local tests", () => {
   assert.equal(readPortalUpstream("https://api.example.test", "staging"), "https://api.example.test");
@@ -11,6 +11,11 @@ test("portal upstream allows only fixed HTTPS origins outside local tests", () =
     assert.throws(() => readPortalUpstream(url, "production"));
   }
   assert.equal(readPortalUpstream("http://127.0.0.1:3090", "test"), "http://127.0.0.1:3090");
+  const handoverId = "10000000-0000-4000-8000-000000000003";
+  assert.equal(isAllowedPortalApiRoute("GET", "/api/agent/administration/handover"), true);
+  assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/administration/handover"), true);
+  assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/administration/handover/${handoverId}/approve`), true);
+  assert.equal(isAllowedPortalApiRoute("GET", `/api/agent/administration/handover/${handoverId}/approve`), false);
 });
 
 test("portal verifies Access, restricts proxy routes and preserves only scoped credentials", async () => {

@@ -7,6 +7,13 @@
 > handover and audit separation retain tenant, Access/MFA, session and CSRF
 > boundaries. Provider ownership is never granted through application roles.
 
+> Handover update, 2026-11-09: the staging developer transition uses two
+> independent, Access-verified portal sessions and a single-use ten-minute
+> client approval. The old raw-assertion terminal input path is removed. The
+> transaction preserves an active Owner, records immutable role/audit history,
+> and revokes both affected application sessions. Production execution remains
+> disabled.
+
 > Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
 > supersedes the production API blanket block and startup release-SHA requirement
 > below. Both hosted API environments require verified persistence and Access;

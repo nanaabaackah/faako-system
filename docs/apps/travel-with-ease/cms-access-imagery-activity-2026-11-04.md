@@ -50,26 +50,14 @@ expiry, single use and initial-bootstrap restrictions remain authoritative.
 
 ## Reviewed developer handover
 
-2026-11-08: The staging-only handover is approved and the client is reported
-activated. The new `staff:handover:prompt` helper provides hidden TTY input and
-refuses production. Follow the [current staging runbook](./workspace-refinements-2026-11-08.md#approved-staging-developer-handover).
-It still invokes the existing identity-bound transaction; real execution and
-post-login checks remain pending, not implied by synthetic tests.
-
-Run `pnpm --filter @faako/travel-with-ease-api staff:handover APPROVAL-REF --approved-handover`
-only in a reviewed backend administration environment with its migration
-connection and intended environment/organisation configured.
-
-The command reads protected stdin JSON containing exactly `developerAssertion`
-and `clientAssertion`. Use an approved secret-input mechanism, never arguments,
-shell history, logs, chat or committed files. Both must be current real
-Cloudflare app assertions obtained after the configured MFA policy. The command
-verifies signatures, issuer, audience and stable subjects. Developer email must
-additionally be `dev.nanaabaackah@gmail.com`; email matching alone grants nothing.
+2026-11-09 supersession: the assertion-input terminal helper has been removed.
+Follow the [current staging runbook](./workspace-refinements-2026-11-08.md#approved-staging-developer-handover).
+The developer and client now use their own independently verified portal
+sessions; no Cloudflare Access assertion is extracted, copied or shared.
 
 Both users must already be activated and active in this tenant. Developer must
-be Owner; client must be Owner/Editor. Existing Superadmin presence blocks this
-bootstrap path. The transaction establishes client Owner first, converts the
+be Owner; client must be Editor. Existing Superadmin presence blocks this
+bootstrap path. A single-use ten-minute approval establishes client Owner first, converts the
 developer, retains IDs, revokes both users' sessions/approvals/pending invitations
 and writes immutable history. Both sign in again. Failure rolls back; inspect
 the ledger before retrying an uncertain result. Only synthetic isolated tests
