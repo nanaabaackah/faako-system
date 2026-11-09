@@ -34,16 +34,13 @@ try {
     await page.locator(".session-toolbar").waitFor();
     if (width <= 800) {
       const nav = page.locator(".twe-bottom-nav");
-      const overview = nav.getByRole("button", { name: "Overview", exact: true });
-      const overviewBox = await overview.boundingBox();
-      assert.ok(Math.abs(overviewBox.x + overviewBox.width / 2 - width / 2) <= 1, "Overview must be centred in the viewport");
-      const others = nav.locator("button:not(.nav-overview)");
-      for (const button of await others.all()) {
+      const navBox = await nav.boundingBox();
+      assert.ok(Math.abs(navBox.x + navBox.width / 2 - width / 2) <= 1, "Floating navigation is centred");
+      await expect(nav.getByRole("button", { name: "Home", exact: true })).toHaveAttribute("aria-current", "page");
+      for (const button of await nav.getByRole("button").all()) {
         const box = await button.boundingBox();
         assert.ok(box.width >= 44 && box.height >= 44, "Bottom navigation retains touch targets");
-        assert.ok(overviewBox.height >= box.height + 12, "Overview should be visibly larger");
       }
-      assert.equal(await overview.locator("svg").evaluate(node => node.getBoundingClientRect().width), 32);
     }
     await navigate("Account");
     await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();

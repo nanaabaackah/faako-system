@@ -59,7 +59,7 @@ console.info(
 start(["apps/travel-with-ease-portal/dev/serve-workspace.mjs"]);
 const pnpm = process.env.npm_execpath;
 if (!pnpm)
-  throw new Error("Run this command through pnpm run dev:twe:workspace.");
+  throw new Error("Run this command through pnpm run dev:twe.");
 const runPnpm = (args) =>
   /\.[cm]?js$/.test(pnpm) ? start([pnpm, ...args]) : start(args, pnpm);
 runPnpm(["--filter", "@faako/travel-with-ease-portal", "dev"]);

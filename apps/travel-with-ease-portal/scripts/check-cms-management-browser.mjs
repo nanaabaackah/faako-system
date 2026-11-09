@@ -38,13 +38,13 @@ try {
         await page.getByRole("button", { name: /^Menu/ }).click();
       await visible(name).first().click();
     };
-    await visible("Overview").first().waitFor();
+    await visible(width <= 800 ? "Home" : "Overview").first().waitFor();
     if (width <= 800) {
       const bottom = page.locator(".twe-bottom-nav");
       assert.deepEqual(await bottom.locator("button").allTextContents(), [
-        "Content",
+        "Home",
         "Enquiries",
-        "Overview",
+        "Content",
         "Media",
         "Account",
       ]);
@@ -188,7 +188,7 @@ try {
     await page.unroute("**/api/**");
     await mockWorkspaceApi(page, {role: "editor", requests});
     await page.goto(origin);
-    await visible("Overview").first().waitFor();
+    await visible(width <= 800 ? "Home" : "Overview").first().waitFor();
     if (width <= 800) await page.getByRole("button", { name: /^Menu/ }).click();
     for (const name of ["Staff", "Activity", "System"])
       assert.equal(await visible(name).count(), 0);
