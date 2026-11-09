@@ -3,7 +3,7 @@ import Icon from "./Icon.jsx";
 import { getPublishedEvents } from "../lib/event-source.js";
 import { groupEvents, eventPath, formatEventDate, eventRegistrationLabel } from "../lib/events.js";
 import "../styles/components/event-listings.css";
-const { compact = false, featuredEventId, showEmpty = true, excludeFeatured = false, selectedEvents, id } = Astro.props;
+const { compact = false, featuredEventId, showEmpty = false, excludeFeatured = false, selectedEvents, id } = Astro.props;
 const { upcoming, past } = groupEvents(selectedEvents ?? await getPublishedEvents());
 const selection=compact&&featuredEventId?[...upcoming.filter(event=>event.id===featuredEventId),...upcoming.filter(event=>event.id!==featuredEventId)]:upcoming;
 const groups = [{ title: "Upcoming events", events: selectedEvents ?? (compact ? selection.slice(0, 3) : excludeFeatured ? upcoming.slice(1) : upcoming) }, ...(!selectedEvents && !compact && past.length ? [{ title: "Past events", events: past }] : [])];
@@ -13,9 +13,9 @@ const month = event => new Intl.DateTimeFormat("en-GH",{month:"short",timeZone:e
 <div class="event-listings" id={id} data-reveal>
   {groups.filter(group => showEmpty || group.events.length).map(group => <section class="event-listing-group">
     <h2>{group.title}</h2>
-    {group.events.length ? <div class="event-card-grid">{group.events.map(event => <a class="event-card" href={eventPath(event)}>
+    {group.events.length ? <div class="event-card-grid">{group.events.map(event => <a class="bubble-card event-card" href={eventPath(event)}>
       <div class="event-card-visual"><img src={`${event.image.url}?w=800&auto=format`} alt={event.image.alt} width={event.image.width} height={event.image.height} loading="lazy" decoding="async" /><span class="event-date-badge" aria-hidden="true"><strong>{day(event)}</strong>{month(event)}</span></div>
       <div><p class="event-date"><time datetime={event.start}>{formatEventDate(event)}</time></p><h3>{event.title}</h3><p class="event-card-summary">{event.summary}</p><p>{event.format === "online" ? "Online" : event.venue} · {eventRegistrationLabel(event)}</p><span class="text-link">View event details <Icon name="arrow-right" /></span></div>
-    </a>)}</div> : <p>New dates have not been published yet. <a href="/contact?topic=events">Ask the team about upcoming events.</a></p>}
+    </a>)}</div> : <p><a href="/events#previous-events">Explore previous events</a></p>}
   </section>)}
 </div>

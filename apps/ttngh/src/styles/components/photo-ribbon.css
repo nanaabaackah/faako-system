@@ -6,7 +6,6 @@
 .photo-ribbon-group { display:flex; gap:1rem; padding-right:1rem; }
 .photo-ribbon-group figure { width:clamp(15rem,28vw,22rem); margin:0; }
 .photo-ribbon-group img { width:100%; height:auto; aspect-ratio:4/3; object-fit:cover; display:block; }
-.photo-ribbon-group figcaption { padding-top:.75rem; font-size:.75rem; color:var(--muted); }
 .photo-ribbon-clone { display:none; }
 .photo-ribbon[data-animate="true"] .photo-ribbon-clone { display:flex; }
 .photo-ribbon[data-animate="true"] .photo-ribbon-viewport { overflow:hidden; }
