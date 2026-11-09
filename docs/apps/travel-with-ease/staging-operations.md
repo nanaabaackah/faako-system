@@ -95,6 +95,12 @@ separation is mandatory, not just different subdomains.
     `TWE_ACCESS_AUDIENCE`, `TWE_PORTAL_ORIGIN` and reviewed `TWE_RELEASE_SHA`.
     Remove legacy `TWE_OIDC_*` values and local bearer/file settings. Validate
     Railway proxy/headers and rate limits; never enable blind trust proxy.
+    For the one-time developer handover, deploy the reviewed additive migration,
+    then have the developer Owner create a ten-minute request in Staff access.
+    The named client Editor approves from Account settings in their own verified
+    portal session. Never extract or share Access JWTs, use direct SQL, or run
+    the transition in production. The operation remains manual and must stop
+    for approval before real execution.
 11. In Faako Resend, create a narrowly scoped stage sending credential. Baaba
     installs Resend's actual sender-verification DNS records in TWE Cloudflare
     after sender-domain approval. Configure `TWE_EMAIL_FROM`, `TWE_RESEND_API_KEY`

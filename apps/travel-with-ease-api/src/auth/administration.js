@@ -4,6 +4,7 @@ import { appendAudit } from "../audit.js";
 import { ContentError } from "../content/schema.js";
 import { hasPermission, validSupportGrant } from "./permissions.js";
 import { lockStaff, protectLastOwner, invalidateStaffAccess, recordRoleChange } from './staff-policy.js';
+import { developerHandoverStatus, handoverDeveloper, requestDeveloperHandover } from "./handover.js";
 
 const denied = () => { throw new ContentError(403, "permission_error", "Administrative permission denied."); };
 
@@ -20,6 +21,38 @@ export class Administration {
   }
   audit(client, actor, action, recordId, requestId) {
     return appendAudit(client, { organisationId: this.organisationId, actorId: actor.id, action, recordId, requestId });
+  }
+  handoverStatus(actor) {
+    return developerHandoverStatus(this.pool, {
+      environment: this.environment,
+      organisationId: this.organisationId,
+      actor,
+    });
+  }
+  requestHandover(actor, staffSession, identity, input, requestId) {
+    return requestDeveloperHandover(this.pool, {
+      environment: this.environment,
+      organisationId: this.organisationId,
+      settings: this.settings,
+      developer: actor,
+      developerSessionHash: staffSession?.hash,
+      developerIdentity: identity,
+      clientId: input.clientId,
+      approvalReference: input.approvalReference,
+      requestId,
+    });
+  }
+  approveHandover(actor, staffSession, identity, handoverId, requestId) {
+    return handoverDeveloper(this.pool, {
+      environment: this.environment,
+      organisationId: this.organisationId,
+      settings: this.settings,
+      client: actor,
+      clientSessionHash: staffSession?.hash,
+      clientIdentity: identity,
+      handoverId,
+      requestId,
+    });
   }
   async provision(actor, input, requestId) {
     return transaction(this.pool, async client => {

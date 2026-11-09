@@ -378,7 +378,15 @@ function StaffWorkspace() {
             activation?.canIssueOwner &&
             section === "overview" && <Invitations api={baseApi} installer />}
           {!state.loading && session && section === "settings" && (
-            <AccountSettings session={session} onLogout={logout} />
+            <AccountSettings
+              api={api}
+              session={session}
+              onLogout={logout}
+              onHandoverCompleted={() => {
+                setSession(null);
+                window.location.assign("/cdn-cgi/access/logout");
+              }}
+            />
           )}
           {!state.loading &&
             session?.user.permissions?.includes("content.read") &&

@@ -16,6 +16,8 @@ export default function StaffAccess({ api, session }) {
   const [staff, setStaff] = useState([]),
     [subject, setSubject] = useState(""),
     [reason, setReason] = useState(""),
+    [handoverClient, setHandoverClient] = useState(""),
+    [handoverReference, setHandoverReference] = useState(""),
     [message, setMessage] = useState(""),
     [busy, setBusy] = useState(false),
     [loading, setLoading] = useState(true);
@@ -48,6 +50,12 @@ export default function StaffAccess({ api, session }) {
       active = false;
     };
   }, [load, allowed]);
+  useEffect(() => {
+    if (!handoverClient) {
+      const client = staff.find((user) => user.active && user.role === "editor");
+      if (client) setHandoverClient(client.id);
+    }
+  }, [staff, handoverClient]);
   if (!allowed) return null;
   async function mutate(path, json) {
     setBusy(true);
@@ -115,6 +123,43 @@ export default function StaffAccess({ api, session }) {
         <InlineNotice title="Staff access result" message={message} />
       )}
       {allowed && <Invitations api={api} session={session} />}
+      {owner && !staff.some((user) => user.active && user.role === "platform_admin") && (
+        <form
+          className="staff-provision"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (await mutate("handover", { clientId: handoverClient, approvalReference: handoverReference })) {
+              setHandoverReference("");
+              setMessage("Handover approval requested. The named client must approve it from Account settings within 10 minutes. No Access token needs to be shared.");
+            }
+          }}
+        >
+          <div>
+            <h3>Request staging handover</h3>
+            <p>Ask the named active Editor to become Owner and approve this account’s transition to Superadmin. Both sessions will be revoked after approval.</p>
+          </div>
+          <SelectField
+            label="Client approver"
+            value={handoverClient}
+            onChange={(event) => setHandoverClient(event.target.value)}
+            options={staff.filter((user) => user.active && user.role === "editor").map((user) => ({ value: user.id, label: user.id }))}
+          />
+          <TextField
+            label="Handover approval reference"
+            value={handoverReference}
+            maxLength={120}
+            placeholder="TWE-STAGING-HANDOVER"
+            onChange={(event) => setHandoverReference(event.target.value)}
+          />
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={busy || !handoverClient || !/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/.test(handoverReference)}
+          >
+            Request client approval
+          </Button>
+        </form>
+      )}
       {!owner && (
         <form
           className="staff-provision"

@@ -150,34 +150,29 @@ against production. These hosted actions remain pending verified operator access
 
 ## Approved staging developer handover
 
-The user confirmed that the client's separate account is activated and approved
-the staging-only handover. First verify the deployed staging SHA, migrations and
-database identity; both users need fresh Access assertions from the staging
-application after MFA. Review the current staff ledger for an existing Superadmin.
-Do not infer issuer/subject from email or change roles with direct SQL.
+The client account is activated for the staging-only handover. Migration 014
+must be reviewed and deployed before the portal flow is enabled. Review the
+current staff ledger for an existing Superadmin. Do not infer issuer/subject
+from email, copy Cloudflare Access assertions, or change roles with direct SQL.
 
-In a private interactive staging backend administration terminal, with the
-reviewed migration connection and staging Access configuration already injected:
-
-```sh
-pnpm --filter @faako/travel-with-ease-api staff:handover:prompt TWE-STAGING-HANDOVER-2026-11-08
-```
-
-The helper refuses non-staging/non-TTY use. Type the displayed confirmation, then
-enter the developer and client assertions into hidden prompts. Never put them
-in arguments, chat, shell history, screenshots or committed files. It delegates
-to the existing cryptographically verified handover command through protected
-stdin; it does not introduce a new promotion path.
+The authenticated developer Owner selects the active client Editor in **Staff
+access**, enters the approved reference, and requests approval. The request is
+bound to the developer's verified application session and expires after ten
+minutes. The named client signs in independently, reviews the request in
+**Account settings**, and explicitly approves it. No assertion or application
+session token is displayed, copied or shared.
 
 The transaction establishes client Owner, converts the verified developer to
 Superadmin, preserves IDs/content/tutorials, invalidates affected access and
 records immutable history. An existing Superadmin blocks this bootstrap.
-Both users sign in again; verify Owner cannot self-promote and Superadmin can
-access the authorised technical/staff controls. If the result is uncertain,
+Both application sessions are invalidated and both users sign in again; verify
+Owner cannot self-promote and Superadmin can access the authorised technical/staff
+controls. If the result is uncertain,
 inspect the ledger before retrying. Production is unchanged.
 
 Only synthetic PostgreSQL handover tests have run here. Real handover remains
-pending protected identity input and verified staging administration access.
+pending reviewed migration deployment, independent portal sign-ins and explicit
+client approval. It must not be executed automatically.
 
 ## Website and release checks
 

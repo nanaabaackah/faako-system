@@ -12,6 +12,7 @@ export function administrationRoutes(service, auth) {
   router.get("/security-events",auth.requirePermission("security.read"),async(req,res)=>send(req,res,{items:await service.securityEvents(req.staff,req.requestId)}));
   router.get("/staff",async(req,res)=>send(req,res,{items:await service.staff(req.staff)}));
   router.get("/staff-events",auth.requirePermission("staff.manage"),async(req,res)=>send(req,res,{items:await service.staffEvents(req.staff)}));
+  router.get("/handover",async(req,res)=>send(req,res,{request:await service.handoverStatus(req.staff)}));
   router.get('/activity',auth.requirePermission('audit.business.read'),async(req,res)=>send(req,res,await readActivity(service,req.staff,req.query)));
   router.get('/security-activity',auth.requirePermission('security.read'),async(req,res)=>{
     const result=await readActivity(service,req.staff,req.query,true);
@@ -24,6 +25,14 @@ export function administrationRoutes(service, auth) {
   router.post("/staff",auth.requireMutation,async(req,res)=> {
     const input=z.object({subject:z.string().trim().min(1).max(255)}).strict().parse(req.body);
     send(req,res,await service.provision(req.staff,input,req.requestId));
+  });
+  router.post("/handover",auth.requireMutation,async(req,res)=> {
+    const input=z.object({clientId:z.string().uuid(),approvalReference:z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/)}).strict().parse(req.body);
+    send(req,res,await service.requestHandover(req.staff,req.staffSession,req.staffIdentity,input,req.requestId));
+  });
+  router.post("/handover/:id/approve",auth.requireMutation,async(req,res)=> {
+    z.object({approved:z.literal(true)}).strict().parse(req.body);
+    send(req,res,await service.approveHandover(req.staff,req.staffSession,req.staffIdentity,id(req.params.id),req.requestId));
   });
   router.post("/staff/:id/status",auth.requireMutation,async(req,res)=> {
     const input=z.object({active:z.boolean()}).strict().parse(req.body);
