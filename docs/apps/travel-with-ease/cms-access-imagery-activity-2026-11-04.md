@@ -50,6 +50,12 @@ expiry, single use and initial-bootstrap restrictions remain authoritative.
 
 ## Reviewed developer handover
 
+2026-11-08: The staging-only handover is approved and the client is reported
+activated. The new `staff:handover:prompt` helper provides hidden TTY input and
+refuses production. Follow the [current staging runbook](./workspace-refinements-2026-11-08.md#approved-staging-developer-handover).
+It still invokes the existing identity-bound transaction; real execution and
+post-login checks remain pending, not implied by synthetic tests.
+
 Run `pnpm --filter @faako/travel-with-ease-api staff:handover APPROVAL-REF --approved-handover`
 only in a reviewed backend administration environment with its migration
 connection and intended environment/organisation configured.

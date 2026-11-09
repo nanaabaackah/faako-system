@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 const require = createRequire(new URL("../../stroane-web/package.json", import.meta.url));
-const { chromium } = require("@playwright/test");
+const { chromium, expect } = require("@playwright/test");
 const cwd = fileURLToPath(new URL("../", import.meta.url));
 const output = await mkdtemp(path.join(tmpdir(), "twe-collections-"));
 const origin = process.env.TWE_TEST_WEB_ORIGIN || "http://127.0.0.1:4361";
@@ -120,10 +120,18 @@ try {
     await page.getByRole("option", { name: "Group", exact: true }).click();
     assert.equal(await form.locator('select[name="enquiryType"]').inputValue(), "group");
     await form.getByRole("button", { name: "Planning support", exact: true }).focus();
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(form.getByRole("button", { name: "Planning support", exact: true })).toBeFocused();
     await page.keyboard.press("Enter");
-    await page.getByRole("option", { name: "Full Trip Planning", exact: true }).focus();
+    const planningOption = page.getByRole("option", { name: "Full Trip Planning", exact: true });
+    await planningOption.focus();
+    // Let the select's deferred initial-focus frame run. It must not steal
+    // an option focus already established by keyboard/assistive navigation.
+    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(planningOption).toBeFocused();
     await page.keyboard.press("Enter");
-    assert.equal(await form.locator('select[name="service"]').inputValue(), "full_planning");
+    await expect(form.locator('select[name="service"]')).toHaveValue("full_planning");
+    await expect(form.getByRole("button", { name: "Planning support", exact: true })).toContainText("Full Trip Planning");
     await form.locator('input[name="destination"]').fill("Help me choose");
     await form.locator('input[name="travelTimeframe"]').fill("Exploring next year");
     await form.locator('input[name="name"]').fill("Synthetic Browser Traveller");

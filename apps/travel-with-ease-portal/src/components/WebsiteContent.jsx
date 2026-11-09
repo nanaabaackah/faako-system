@@ -11,16 +11,16 @@ import {
 import MediaLibrary from "./MediaLibrary.jsx";
 import PackageEditor from "./PackageEditor.jsx";
 import ExperienceEditor from "./ExperienceEditor.jsx";
-import reviewDrafts from "../../../docs/apps/travel-with-ease/content-review-drafts.json";
-import { createDraftAutosave } from "./draft-autosave.js";
+import reviewDrafts from "../../../../docs/apps/travel-with-ease/content-review-drafts.json";
+import { createDraftAutosave } from "../lib/draft-autosave.js";
 import VisualPreview from "./VisualPreview.jsx";
 import ImagePlacements from './ImagePlacements.jsx';
 import { ActivityList } from './ActivityView.jsx';
 import GalleryOrder from './GalleryOrder.jsx';
-import approvedRelease from "../../travel-with-ease-web/content/approved-public-release.json";
-import { approvedEditorCopy } from "./approved-copy.js";
+import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
+import { approvedEditorCopy } from "../lib/approved-copy.js";
 
-import countryOptions from "../../travel-with-ease-web/src/lib/footprint-countries.json";
+import countryOptions from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
 const countries = [...countryOptions].sort((a, b) =>
   a.name.localeCompare(b.name),
 );

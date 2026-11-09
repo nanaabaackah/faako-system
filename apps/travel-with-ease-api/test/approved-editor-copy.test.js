@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { approvedEditorCopy } from "../../travel-with-ease-portal/src/approved-copy.js";
+import { approvedEditorCopy } from "../../travel-with-ease-portal/src/lib/approved-copy.js";
 import { contentForPage } from "../src/content/schema.js";
 
 test("every approved public section loads as a strict CMS draft without asset URLs or invented copy", () => {

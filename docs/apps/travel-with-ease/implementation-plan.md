@@ -1,5 +1,14 @@
 # Travel With Ease — MVP implementation plan
 
+## 2026-11-08 approved local preview and delivery extension
+
+The user explicitly reapproved an isolated interactive local workspace, not hosted
+demo routes or an authentication bypass. Portal folders/CSS, homepage services,
+detail breadcrumbs, continuous enquiry-email worker and protected-input staging
+handover are tracked in the [implementation and operations guide](./workspace-refinements-2026-11-08.md).
+Real staging handover, worker provisioning, provider acceptance and inbox receipt
+remain separate execution gates. No production promotion is approved here.
+
 ## 2026-11-06 cleanup addendum
 
 Synthetic public/portal demos are retired, not a separate delivery environment.

@@ -1,7 +1,7 @@
 // Test-only synthetic fixtures. Never imported by application code or builds.
 import { defaultTemplateCopies, renderEmailTemplate } from "../../../travel-with-ease-api/src/notifications/template-catalogue.js";
 import { ROLE_PERMISSIONS } from "../../../travel-with-ease-api/src/auth/permissions.js";
-export function createWorkspaceFixture({role='owner'}={}) {
+export function createWorkspaceFixture({role='owner', interactivePreview=false}={}) {
   if(!Object.hasOwn(ROLE_PERMISSIONS,role))role='owner';
   const templates = new Map(Object.entries(defaultTemplateCopies).map(([slug, defaults]) => [slug, { version: 0, draft: { ...defaults }, active: { ...defaults }, active_version: null }]));
   const session = {
@@ -191,6 +191,18 @@ export function createWorkspaceFixture({role='owner'}={}) {
         return { signedOut: true };
       }
       if (!signedIn) return fail(401, "Demo signed out.");
+      const restoration = path.match(/^\/api\/agent\/content\/([a-z]+(?:-[a-z]+)*)\/revert\/([^/]+)$/);
+      if (interactivePreview && restoration) {
+        const page = restoration[1], current = pages.get(page);
+        const revision = history.get(page)?.find(item => item.id === restoration[2]);
+        if (!revision?.body) return fail(404, "Synthetic revision not found.");
+        if (current?.version !== json.expectedVersion) return fail(409, "Synthetic draft changed. Refresh.");
+        const restored = { version: current.version + 1, body: copy(revision.body) };
+        const id = `demo-revision-${restored.version}`;
+        pages.set(page, restored);
+        history.set(page, [{ id, version: restored.version, body: copy(restored.body), created_at: new Date().toISOString() }, ...history.get(page)]);
+        return copy({ ...restored, revisionId: id });
+      }
       const staffAction=path.match(/^\/api\/agent\/administration\/staff\/([^/]+)\/(role|status|revoke-sessions)$/);
       if(staffAction){
         const target=staff.find(user=>user.id===staffAction[1]);
@@ -262,6 +274,7 @@ export function createWorkspaceFixture({role='owner'}={}) {
           {
             id: `demo-revision-${item.version}`,
             version: item.version,
+            ...(interactivePreview ? { body: copy(item.body) } : {}),
             created_at: timestamp,
           },
           ...(history.get(page) || []),

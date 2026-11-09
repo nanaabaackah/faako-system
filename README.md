@@ -124,6 +124,7 @@ pnpm install --frozen-lockfile
 Helpful stack shortcuts:
 
 For Travel With Ease, run `pnpm run dev:twe` from the repository root.
+For a login-free, isolated portal design workspace, use `pnpm run dev:twe:workspace`.
 The general `pnpm run dev` starts every application's dev task; its concurrency
 limit is 20. Use a stack shortcut
 on a laptop to avoid starting unrelated applications.
@@ -162,6 +163,12 @@ pnpm security:all
 
 ## Travel With Ease
 
+Latest: [local workspace preview, folder layout, email worker and staging handover](docs/apps/travel-with-ease/workspace-refinements-2026-11-08.md).
+The portal now separates React components, styles and utilities; public detail pages
+share accessible breadcrumbs and homepage services use an editorial photo/list.
+The continuous notification worker and hidden-input staging handover helper are
+implemented; real staging delivery/receipt and account handover remain pending.
+
 The homepage visitor flow, navigation priorities, published-featured-package preview and compact services overview are described in [TWE homepage journey (2026-11-06)](docs/apps/travel-with-ease/homepage-journey-2026-11-06.md). These code changes do not by themselves certify a hosted deployment.
 
 See [package and planning-page refinement](docs/apps/travel-with-ease/packages-process-refinement-2026-11-06.md) for photo-led package layouts, four service detail pages, the expanded process example and the enquiry dropdown regression fix.
@@ -172,7 +179,7 @@ production-ready.** See the [current implementation and hosted evidence](docs/ap
 
 | Area | Code-backed status |
 | --- | --- |
-| Public website | Astro multi-page site with supplied company/services copy, FAQs/legal information, photo-led package cards, article/Tips routes, 21-country experience map and shared enquiry/footer. Local and hosted builds read the same approved baseline; new hosted deployment is not verified. Synthetic website/portal routes and their staging write endpoint have been retired; browser fixtures are test-only. |
+| Public website | Astro multi-page site with supplied company/services copy, FAQs/legal information, photo-led package cards, article/Tips routes, 21-country experience map and shared enquiry/footer. Local and hosted builds read the same approved baseline; new hosted deployment is not verified. Synthetic website/portal routes and their staging write endpoint have been retired; the explicit loopback workspace reuses isolated fixtures outside hosted bundles. |
 | Packages | Dedicated `/packages` and detail routes, search/destination/occasion/group-friendly filters, itineraries/galleries and independently publishable records. Approved Zanzibar/Nairobi tiers include reference months/disclaimers; Singapore/combined-trip pricing remains coming soon. Native package enquiry context and hosted acceptance remain incomplete. |
 | Display currency | Footer preference updates marked package/service prices with indicative conversions while retaining original GHS. Existing cached rate service, exact minor-unit rounding, source dates, stale/error fallback and local/browser tests; hosted rates/deployment remain separately verifiable. See [currency operations](docs/apps/travel-with-ease/display-currency-2026-11-06.md). |
 | Travel Tips / Journal | Three source-derived Tips and two articles using supplied founder/itinerary copy; CMS collections, images, categories, listing/detail pages and independent record publication. Rich article blocks and hosted acceptance remain incomplete. |
@@ -201,7 +208,9 @@ and the [client editing guide](docs/apps/travel-with-ease/client-cms-guide.md).
 Website project `twe-concierge` uses develop previews for staging and main for
 production; the separate `twe-portal` project is not a content-publication target.
 Run `publication:once` / `notifications:once` in the configured backend workspace
-only after the documented migration/provider acceptance; these are not part of
+only after the documented migration/provider acceptance. `notifications:worker`
+provides continuous supervised delivery and `notifications:status` reads a
+redacted queue summary. None are part of
 the credential-isolated local `dev:twe` launcher.
 
 See the [approved content and decisions](docs/apps/travel-with-ease/approved-launch-content-2026-11-01.md),
@@ -230,7 +239,9 @@ pnpm --filter @faako/travel-with-ease-api run test:db:isolated
 ```
 
 Local ports: website 4328, portal 5188, API 3090. Local public pages use the approved
-content baseline. There is no simulated staff login or browser-accessible demo.
+content baseline. Retired public demo routes remain absent.
+The explicitly selected `dev:twe:workspace` command provides a loopback-only,
+in-memory synthetic portal with role switching/reset and no real external actions.
 The standard API development launcher
 deliberately does not load hosted `.env` credentials or enable real staff login.
 Never point isolated tests at a shared database. Direct `test:db` requires the

@@ -479,7 +479,8 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.notEqual(reclaimed.lease_token, claimed.lease_token);
   assert.deepEqual(reclaimed.delivery_payload, payload);
   assert.equal(await outbox.finish(claimed, "stale-worker"), false);
-  await outbox.fail(reclaimed);
+  await outbox.fail(reclaimed, "provider_rejected");
+  assert.equal((await pool.query("SELECT last_error FROM twe.notification_outbox WHERE id = $1", [reclaimed.id])).rows[0].last_error, "provider_rejected");
   assert.equal(await outbox.claim(payload), undefined, "Backoff prevents immediate retry");
   await pool.query("UPDATE twe.notification_outbox SET first_attempt_at = now() - interval '25 hours', available_at = now() WHERE id = $1", [claimed.id]);
   assert.equal(await outbox.claim(payload), undefined);

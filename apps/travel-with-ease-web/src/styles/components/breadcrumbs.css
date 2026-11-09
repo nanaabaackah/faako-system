@@ -1,0 +1,46 @@
+.twe-breadcrumbs {
+  margin-block: 0 24px;
+  color: var(--brand-navy, #010c33);
+  font-size: 0.875rem;
+}
+.twe-breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.twe-breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+.twe-breadcrumbs svg {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  opacity: 0.6;
+}
+.twe-breadcrumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration-color: rgba(1, 12, 51, 0.3);
+  text-underline-offset: 4px;
+}
+.twe-breadcrumbs a:focus-visible {
+  outline: 3px solid #010c33;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.twe-breadcrumbs [aria-current] {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  padding-block: 10px;
+}

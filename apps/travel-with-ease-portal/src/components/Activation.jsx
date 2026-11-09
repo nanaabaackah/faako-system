@@ -2,7 +2,7 @@ import { useState } from "react";
 import { TextField, InlineNotice } from "@faako/ui";
 import Button from "./ActionButton.jsx";
 import Invitations from "./Invitations.jsx";
-import "./activation.css";
+import "../styles/activation.css";
 
 export default function Activation({ status, api, onActivated }) {
   const [code, setCode] = useState("");

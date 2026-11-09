@@ -2,6 +2,7 @@
 import PlacedImage from '../../components/PlacedImage.astro';
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ContentLink from "../../components/ContentLink.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
 import { publishedPage } from "../../lib/published.js";
 import "../../styles/components/published-content.css";
 import "../../styles/components/travel-tips.css";
@@ -40,7 +41,7 @@ const related = tip.relatedArticle
   type="article"
 >
   <article class="published-content">
-    <ContentLink href="/travel-tips">Travel tips</ContentLink>
+    <Breadcrumbs collection="Travel Tips" href="/travel-tips" title={tip.title} />
     <p>{tip.category}</p><h1>{tip.title}</h1>
     {
       tip.image && (

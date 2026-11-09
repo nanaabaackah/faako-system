@@ -82,6 +82,12 @@ jobs:
           node apps/travel-with-ease-web/scripts/check-collections-browser.mjs
           node apps/travel-with-ease-web/scripts/check-currency-browser.mjs
           node apps/travel-with-ease-api/scripts/check-private-preview-browser.mjs
+      - name: Isolated local workspace and public detail acceptance
+        run: |
+          pnpm run dev:twe:workspace > "$RUNNER_TEMP/twe-local-workspace.log" 2>&1 &
+          workspace_pid=$!
+          trap 'kill "$workspace_pid" 2>/dev/null || true' EXIT
+          node apps/travel-with-ease-portal/scripts/check-local-workspace-browser.mjs
       - name: Retain synthetic design acceptance screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,6 +102,7 @@ jobs:
             /tmp/twe-redesign-*/*.png
             /tmp/twe-collections-*/*.png
             /tmp/twe-currency-*/*.png
+            /tmp/twe-workspace-refinements-*/*.png
             /tmp/twe-private-preview-browser-*/*.png
       - name: Required isolated PostgreSQL integration tests
         run: pnpm --filter @faako/travel-with-ease-api run test:db

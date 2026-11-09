@@ -7,11 +7,11 @@ import {
   SelectField,
 } from "@faako/ui";
 import Button from "./ActionButton.jsx";
-import logo from "../../travel-with-ease-web/public/brand/Primary gold.png";
-import instagram from "../../travel-with-ease-web/public/brand/social/instagram.png";
-import tiktok from "../../travel-with-ease-web/public/brand/social/tiktok.png";
-import "./email-templates.css";
-import { emailTemplateOptions } from "../../travel-with-ease-api/src/notifications/template-catalogue.js";
+import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
+import instagram from "../../../travel-with-ease-web/public/brand/social/instagram.png";
+import tiktok from "../../../travel-with-ease-web/public/brand/social/tiktok.png";
+import "../styles/email-templates.css";
+import { emailTemplateOptions } from "../../../travel-with-ease-api/src/notifications/template-catalogue.js";
 
 export default function EmailTemplates({ api, session, onDirtyChange }) {
   const [slug, setSlug] = useState("enquiry-acknowledgement");

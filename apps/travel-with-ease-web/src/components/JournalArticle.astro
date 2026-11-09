@@ -1,6 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import Breadcrumbs from "./Breadcrumbs.astro";
 import ClosingCta from "./ClosingCta.astro";
 import { publishedPage } from "../lib/published.js";
 import ImageGallery from "./ImageGallery.astro";
@@ -23,7 +24,7 @@ const {
 ---
 
 <article class="editorial-wrap collection-detail journal-reading">
-  <ContentLink href={prefix}>Travel Journal</ContentLink>
+  <Breadcrumbs collection="Travel Journal" href={prefix} title={item.title} />
 
   <header class="collection-detail-heading">
     <p>{item.category || "Travel stories"}</p><h1>{item.title}</h1><p>

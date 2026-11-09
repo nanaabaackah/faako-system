@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createDraftAutosave } from "../src/draft-autosave.js";
+import { createDraftAutosave } from "../src/lib/draft-autosave.js";
 
 function fixture(overrides = {}) {
   const calls = [], states = [], acknowledgements = [];

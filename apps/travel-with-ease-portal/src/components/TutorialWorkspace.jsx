@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GuidedTour } from "@faako/ui/GuidedTour";
 import "@faako/ui/guided-tour.css";
-import "./tutorials.css";
+import "../styles/tutorials.css";
 import Button from "./ActionButton.jsx";
 
 export default function TutorialWorkspace({ api, session, navigate, section }) {

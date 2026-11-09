@@ -112,9 +112,15 @@
   gap: clamp(24px, 5vw, 72px);
 }
 .published-content--services h1,
-.published-content--story h1 { margin: 0; }
+.published-content--story h1 {
+  margin: 0;
+}
 .published-content--services .body-copy,
-.published-content--story .body-copy { margin: 0; font-size: 1rem; line-height: 1.75; }
+.published-content--story .body-copy {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.75;
+}
 .published-content--story .published-content__story-photo {
   display: block;
   width: 100%;
@@ -126,16 +132,37 @@
 .published-content--story .published-content__sections > section:only-child {
   max-width: none;
   display: grid;
-  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   gap: 0 clamp(24px, 6vw, 96px);
 }
-.published-content--story .published-content__sections h2 { grid-row: span 2; max-width: 20ch; }
-.published-content--story .published-content__sections p { margin-top: 0; line-height: 1.8; max-width: 65ch; }
-.published-content--faq { max-width: 1200px; margin-block: 64px; }
-.published-content--faq .published-content__header { max-width: 60ch; margin-bottom: 40px; }
-.published-content--faq .published-content__sections { max-width: none; }
-.published-content--services .service-panels { margin-top: 40px; }
-.published-content:not(.published-content--editorial):not(.published-content--faq) .published-content__sections h2 {
+.published-content--story .published-content__sections h2 {
+  grid-row: span 2;
+  max-width: 20ch;
+}
+.published-content--story .published-content__sections p {
+  margin-top: 0;
+  line-height: 1.8;
+  max-width: 65ch;
+}
+.published-content--faq {
+  max-width: 1200px;
+  margin-block: 64px;
+}
+.published-content--faq .published-content__header {
+  max-width: 60ch;
+  margin-bottom: 40px;
+}
+.published-content--faq .published-content__sections {
+  max-width: none;
+}
+.published-content--services .service-panels {
+  margin-top: 40px;
+}
+.published-content:not(.published-content--editorial):not(
+    .published-content--faq
+  )
+  .published-content__sections
+  h2 {
   font-size: 1.35rem;
   margin-block: 0 16px;
 }
@@ -145,5 +172,8 @@
   .published-content--story .published-content__sections > section:only-child {
     grid-template-columns: minmax(0, 1fr);
   }
-  .published-content--story .published-content__sections h2 { grid-row: auto; max-width: none; }
+  .published-content--story .published-content__sections h2 {
+    grid-row: auto;
+    max-width: none;
+  }
 }
