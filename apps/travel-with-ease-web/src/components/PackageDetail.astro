@@ -174,12 +174,12 @@ const enquiry = "#plan";
         <h2>Interested in this trip?</h2>{
           <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
         }<p>
-          An enquiry is not a booking. Confirm the offer, dates, price and terms
-          directly with the agency.
+          An enquiry is not a booking. Confirm offer, dates, price and terms
+          directly with us.
         </p>{
           canEnquire ? (
             <ContentLink button href={enquiry}>
-              Check dates &amp; get a quote
+              Check dates &amp; Get a Quote
             </ContentLink>
           ) : (
             <p>Enquiries for this trip are currently closed.</p>
@@ -188,7 +188,7 @@ const enquiry = "#plan";
           (
             <p>
               Mention “{item.title}” in your enquiry. Your final dates,
-              arrangements and price are confirmed in a live quote.
+              arrangements and price will be confirmed with a quote.
             </p>
           )
         }
@@ -219,14 +219,5 @@ const enquiry = "#plan";
       )
     }
   </div>
-  {
-    canEnquire && (
-      <div class="package-mobile-enquiry">
-        <ContentLink button href={enquiry}>
-          Check dates &amp; get a quote
-        </ContentLink>
-      </div>
-    )
-  }
 </article>
 <ClosingCta standalone enquiryAvailable={Boolean(publishedPage("contact"))} />

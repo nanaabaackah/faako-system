@@ -2,8 +2,6 @@
   overflow: clip;
   text-align: center;
   padding: 72px 0 32px;
-  color: #010c33;
-  background: #f4ede3;
 }
 .closing-copy {
   max-width: 650px;
@@ -23,7 +21,7 @@ p {
 }
 .closing-photos {
   display: grid;
-  grid-template-columns: 0.8fr 1fr 1.8fr 0.65fr 0.85fr;
+  grid-template-columns: 1fr 1.8fr 0.65fr;
   align-items: center;
   gap: 0;
   width: min(98%, 1600px);

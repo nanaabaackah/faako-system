@@ -43,9 +43,6 @@ const items = homepage ? ordered.slice(0, 3) : ordered;
     >
       <div class="editorial-heading">
         <h2>A little advice goes a long way.</h2>
-        {homepage && (
-          <ContentLink href="/travel-tips">All travel tips</ContentLink>
-        )}
       </div>
       <div class="travel-tips__grid">
         {items.map((tip, index) => (

@@ -3,7 +3,7 @@ import ContentLink from "./ContentLink.astro";
 import MoneyText from "./MoneyText.astro";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import PlacedImage from "./PlacedImage.astro";
-import { packageStartingPrice, referenceMonthLabel } from "../lib/package-pricing.js";
+import { packageStartingPrice } from "../lib/package-pricing.js";
 import type { TravelPackage } from "../lib/collections";
 import "../styles/components/home-features.css";
 import "../styles/components/package-experience.css";
@@ -24,8 +24,7 @@ const featured = items
     <div class="editorial-wrap">
       <div class="home-section-heading">
         <div>
-          <p class="home-section-eyebrow">Discover</p>
-          <h2 id="featured-journeys-heading">Journeys worth exploring.</h2>
+          <h2 id="featured-journeys-heading">Discover Journeys worth exploring.</h2>
           <p>Start with a destination that speaks to you. We'll help shape the details around your dates.</p>
         </div>
         <ContentLink href="/packages">Explore all packages</ContentLink>
@@ -40,19 +39,16 @@ const featured = items
               <p class="featured-journeys__duration">{item.duration}</p>
               <h3><ContentLink href={`/packages/${item.slug}`}>{item.title}</ContentLink></h3>
               <p class="journey-preview__tagline">{item.tagline || item.destination}</p>
-              <p class="featured-journeys__price"><MoneyText text={packageStartingPrice(item)} /></p>
+              <p
+                class="featured-journeys__price"
+                aria-label={`Starting price ${packageStartingPrice(item)} per person sharing`}
+              ><MoneyText text={packageStartingPrice(item)} /></p>
               <span class="journey-preview__explore" aria-hidden="true">View the journey</span>
             </div>
           </article>
         ))}
       </div>
       <CurrencyAttribution />
-      <p class="featured-journeys__disclaimer">
-        Published starting prices are indicative, per person sharing, and include return flights from Accra.
-        {featured.filter(item => item.pricingStatus === "indicative" && referenceMonthLabel(item.referenceMonth)).map(item => `${item.title}: ${referenceMonthLabel(item.referenceMonth)} reference. `)}
-        Final prices depend on your dates, availability, live airfare and exchange rates.
-        Request a live quote before confirming travel.
-      </p>
     </div>
   </section>
 )}

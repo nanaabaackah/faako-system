@@ -30,7 +30,6 @@ const others: Props["service"][] = publishedServices(publishedPage("services")).
     <Breadcrumbs collection="Services" href="/services" title={service.title} />
     <header class="service-detail__hero">
       <div>
-        <p class="service-detail__label">Travel planning, your way</p>
         <h1>{service.title}</h1>
         {service.fee && <p class="service-detail__fee"><MoneyText text={service.fee} /></p>}
         <p class="service-detail__summary"><MoneyText text={service.text} /></p>

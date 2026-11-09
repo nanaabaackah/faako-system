@@ -26,7 +26,7 @@
 }
 .brand img {
   display: block;
-  width: 175px;
+  width: 160px;
   height: auto;
   background: none;
   padding: 8px;
@@ -354,8 +354,8 @@ a:focus .link-arrow {
   min-height: 44px;
   padding: 13px 20px;
   border-radius: 7px;
-  background: #010c33;
-  color: #f4ede3;
+  background: var(--brand-cream);
+  color: var(--brand-navy);
   border: 1px solid #010c33;
   text-decoration: none;
   font-size: 14px;
