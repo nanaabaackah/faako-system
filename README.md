@@ -124,7 +124,9 @@ pnpm install --frozen-lockfile
 Helpful stack shortcuts:
 
 For Travel With Ease, run `pnpm run dev:twe` from the repository root.
-For a login-free, isolated portal design workspace, use `pnpm run dev:twe:workspace`.
+This starts the website and login-free, isolated portal workspace together.
+`pnpm run dev:twe:workspace` remains an alias; use `pnpm run dev:twe:public`
+for the credential-isolated public/API development mode without workspace fixtures.
 The general `pnpm run dev` starts every application's dev task; its concurrency
 limit is 20. Use a stack shortcut
 on a laptop to avoid starting unrelated applications.
@@ -240,9 +242,9 @@ pnpm --filter @faako/travel-with-ease-api run test:db:isolated
 
 Local ports: website 4328, portal 5188, API 3090. Local public pages use the approved
 content baseline. Retired public demo routes remain absent.
-The explicitly selected `dev:twe:workspace` command provides a loopback-only,
+The default `dev:twe` command (also aliased as `dev:twe:workspace`) provides a loopback-only,
 in-memory synthetic portal with role switching/reset and no real external actions.
-The standard API development launcher
+The `dev:twe:public` API development launcher
 deliberately does not load hosted `.env` credentials or enable real staff login.
 Never point isolated tests at a shared database. Direct `test:db` requires the
 documented disposable test database; it is mandatory in TWE foundation CI.

@@ -121,13 +121,68 @@
   .portal-shell .portal-sidebar .portal-brand small {
     display: none;
   }
-  .portal-shell .twe-bottom-nav button {
-    font-size: 11px;
+  .portal-shell .twe-bottom-nav {
+    display: flex;
+    position: fixed;
+    inset: auto auto calc(12px + env(safe-area-inset-bottom, 0px)) 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 24px);
+    box-sizing: border-box;
+    min-height: 68px;
+    margin: 0;
+    padding: 8px;
+    gap: 0;
+    align-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: #131c30;
+    color: #f4ede3;
+    z-index: 40;
+  }
+  .portal-shell .twe-bottom-nav .twe-bottom-nav__tab {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 52px;
+    padding: 8px;
+    gap: 6px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #f4ede3;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+    cursor: pointer;
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+  .twe-bottom-nav__tab svg {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
+  }
+  .twe-bottom-nav__tab:not([aria-current="page"]) span {
+    display: none;
+  }
+  .portal-shell .twe-bottom-nav .twe-bottom-nav__tab[aria-current="page"] {
+    background: #fff;
+    color: #131c30;
+  }
+  .portal-shell .twe-bottom-nav .twe-bottom-nav__tab:focus-visible {
+    outline: 3px solid #7ab8ff;
+    outline-offset: 2px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
   .twe-menu-drawer {
     animation: none;
+    transition: none;
+  }
+  .portal-shell .twe-bottom-nav .twe-bottom-nav__tab {
     transition: none;
   }
 }

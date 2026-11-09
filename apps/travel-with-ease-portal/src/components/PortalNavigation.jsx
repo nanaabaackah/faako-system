@@ -5,9 +5,9 @@ import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
 import "../styles/navigation.css";
 
 const mobileShortcutIds = [
-  "content",
-  "enquiries",
   "overview",
+  "enquiries",
+  "content",
   "media",
   "settings",
 ];
@@ -62,19 +62,19 @@ export default function PortalNavigation({
     requestAnimationFrame(() => menu.current?.focus());
   };
   const choose = (id) => {
-    if (navigate(id)) close();
+    if (navigate(id) && open) close();
   };
-  const button = ([id, label]) => (
+  const button = ([id, label], mobile = false) => (
     <button
       key={id}
       type="button"
-      className={id === "overview" ? "nav-overview" : ""}
+      className={mobile ? "twe-bottom-nav__tab" : undefined}
       aria-current={section === id ? "page" : undefined}
       aria-label={label}
       title={label}
       onClick={() => choose(id)}
     >
-      <NavigationIcon name={id} />
+      <NavigationIcon name={mobile && id === "settings" ? "staff" : id} />
       <span>{label}</span>
     </button>
   );
@@ -117,7 +117,9 @@ export default function PortalNavigation({
           <NavigationIcon name={collapsed ? "arrow" : "back"} />
           <span>{collapsed ? "Expand" : "Collapse"} menu</span>
         </button>
-        <nav aria-label="Staff navigation">{navigation.map(button)}</nav>
+        <nav aria-label="Staff navigation">
+          {navigation.map((item) => button(item))}
+        </nav>
       </aside>
       <ERPDrawer
         open={open && Boolean(session)}
@@ -127,26 +129,22 @@ export default function PortalNavigation({
         closeOnBackdrop
         className="twe-menu-drawer"
       >
-        <nav aria-label="All workspace modules">{navigation.map(button)}</nav>
+        <nav aria-label="All workspace modules">
+          {navigation.map((item) => button(item))}
+        </nav>
         <p>
           Only modules available to your account are shown. Tutorial controls
           and sign-out remain in your workspace.
         </p>
       </ERPDrawer>
       {session && (
-        <ErpMobileBottomNavFrame className="twe-bottom-nav">
-          <div className="twe-bottom-nav__group">
-            {shortcuts
-              .filter(([id]) => ["content", "enquiries"].includes(id))
-              .map(button)}
-          </div>
-          {shortcuts.find(([id]) => id === "overview") &&
-            button(shortcuts.find(([id]) => id === "overview"))}
-          <div className="twe-bottom-nav__group">
-            {shortcuts
-              .filter(([id]) => ["media", "settings"].includes(id))
-              .map(button)}
-          </div>
+        <ErpMobileBottomNavFrame
+          className="twe-bottom-nav"
+          ariaLabel="Workspace shortcuts"
+        >
+          {shortcuts.map(([id, label]) =>
+            button([id, id === "overview" ? "Home" : label], true),
+          )}
         </ErpMobileBottomNavFrame>
       )}
     </>

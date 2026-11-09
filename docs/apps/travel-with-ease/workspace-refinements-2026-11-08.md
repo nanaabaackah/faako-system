@@ -19,13 +19,15 @@ the reviewed real staging handover is actually executed.
 From the regular repository root:
 
 ```sh
-pnpm run dev:twe:workspace
+pnpm run dev:twe
 ```
 
 Open the portal at http://127.0.0.1:5188 and the approved public website at
 http://127.0.0.1:4328. The isolated fixture API listens only on 127.0.0.1:3090.
-Stop an existing `dev:twe` stack first: the two modes intentionally use the same
-ports. The launcher stops its owned child process groups on exit.
+One command starts all three processes; do not start a second workspace stack.
+`dev:twe:workspace` remains a compatible alias. Stop any existing public/API
+stack first because both modes use the same ports. The launcher stops its owned
+child process groups on exit.
 
 The preview opens as Owner without Google or Cloudflare login. The persistent
 **Local workspace preview** toolbar offers Owner, Editor and Superadmin,
@@ -52,9 +54,26 @@ Host/Origin, forwarded hosting headers and cross-site requests are rejected;
 mutations require JSON and explicit local-only headers. Fixture code stays
 outside application source, and hosted bundles exclude it and the controls.
 
-`pnpm run dev:twe` remains the credential-isolated public/API development mode;
+`pnpm run dev:twe:public` retains the credential-isolated public/API development mode;
 it does not enable staff login. Use staging for real MFA, activation and
 persistence acceptance. Never enter actual customer data in the fixture workspace.
+
+## Mobile navigation update — 9 November 2026
+
+The mobile shortcut bar is now a floating dark pill with one white active
+capsule. Its order is Home (the existing overview section), Enquiries, Content,
+Media and Account (settings). Only permitted entries are rendered; inactive
+entries retain accessible names without visible labels. Side-menu-only sections
+do not falsely activate Home. The desktop sidebar and role-filtered Menu drawer
+remain available. Unsaved-change rejection preserves the current section and
+edits. Bottom-tab selection retains focus; drawer navigation restores Menu focus.
+
+The scoped browser check is
+`node apps/travel-with-ease-portal/scripts/check-mobile-navigation-browser.mjs`
+against the isolated portal at 127.0.0.1:5197 (or `TWE_TEST_PORTAL_ORIGIN`).
+It covers Owner, Editor and Superadmin at 320, 375, 390, 428, 768 and 1024px,
+plus restricted permissions and signed-out sessions. Chromium checks passed
+locally; native Safari/Android device acceptance is not implied.
 
 ## Enquiry email diagnosis and Railway worker
 

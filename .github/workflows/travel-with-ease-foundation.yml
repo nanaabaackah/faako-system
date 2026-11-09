@@ -77,6 +77,7 @@ jobs:
           node apps/travel-with-ease-portal/scripts/check-onboarding-browser.mjs
           node apps/travel-with-ease-portal/scripts/check-content-browser.mjs
           node apps/travel-with-ease-portal/scripts/check-cms-management-browser.mjs
+          node apps/travel-with-ease-portal/scripts/check-mobile-navigation-browser.mjs
           node apps/travel-with-ease-web/scripts/check-public-followup.mjs
           node apps/travel-with-ease-web/scripts/check-redesign-browser.mjs
           node apps/travel-with-ease-web/scripts/check-collections-browser.mjs
@@ -84,7 +85,7 @@ jobs:
           node apps/travel-with-ease-api/scripts/check-private-preview-browser.mjs
       - name: Isolated local workspace and public detail acceptance
         run: |
-          pnpm run dev:twe:workspace > "$RUNNER_TEMP/twe-local-workspace.log" 2>&1 &
+          pnpm run dev:twe > "$RUNNER_TEMP/twe-local-workspace.log" 2>&1 &
           workspace_pid=$!
           trap 'kill "$workspace_pid" 2>/dev/null || true' EXIT
           node apps/travel-with-ease-portal/scripts/check-local-workspace-browser.mjs
@@ -98,6 +99,7 @@ jobs:
           path: |
             /tmp/twe-content-browser-*/*.png
             /tmp/twe-cms-management-*/*.png
+            /tmp/twe-mobile-navigation-*/*.png
             /tmp/twe-public-followup-*/*.png
             /tmp/twe-redesign-*/*.png
             /tmp/twe-collections-*/*.png

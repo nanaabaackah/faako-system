@@ -13,6 +13,15 @@ const env = {
   NODE_ENV: "test",
   TWE_WORKSPACE_PREVIEW: "true",
 };
+test("default TWE development starts the complete workspace with a compatible alias", () => {
+  const { scripts } = JSON.parse(
+    readFileSync(new URL("../../../package.json", import.meta.url), "utf8"),
+  );
+  assert.equal(scripts["dev:twe"], "node scripts/dev-twe-workspace.mjs");
+  assert.equal(scripts["dev:twe:workspace"], scripts["dev:twe"]);
+  assert.match(scripts["dev:twe:public"], /--parallel/);
+  assert.match(scripts["dev:twe:public"], /@faako\/travel-with-ease-api/);
+});
 test("workspace preview refuses hosted runtimes, credentials and accidental activation", () => {
   assert.doesNotThrow(() => assertPreviewEnvironment(env));
   for (const change of [
