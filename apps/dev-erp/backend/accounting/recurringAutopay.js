@@ -99,6 +99,22 @@ export const processAutopayExpense = async (prisma, root, { now = new Date() } =
       ? await tx.accountingEntry.createMany({ data: toCreate, skipDuplicates: true })
       : { count: 0 };
 
+    // Changes to a series template affect only future, not already-paid occurrences.
+    await tx.accountingEntry.updateMany({
+      where: {
+        recurrenceParentId: root.id,
+        recurrencePeriodAt: { gt: today },
+        status: "SCHEDULED",
+        archivedAt: null,
+      },
+      data: {
+        amount: root.amount,
+        currency: root.currency,
+        serviceName: root.serviceName,
+        detail: root.detail ?? null,
+      },
+    });
+
     // Existing scheduled occurrences and adopted legacy rows become paid on their charge date.
     const dueChildren = await tx.accountingEntry.findMany({
       where: {
