@@ -155,7 +155,7 @@ const sumLedgerCents = async (tx, invoiceId) => {
 const syncAccountingProjection = async (tx, invoice, paidCents, effectiveAt) => {
   const paidAmount = decimalFromCents(paidCents);
   const existing = await tx.accountingEntry.findFirst({
-    where: { organizationId: invoice.organizationId, invoiceNumber: invoice.invoiceNumber, type: "REVENUE", source: "MANUAL", archivedAt: null },
+    where: { organizationId: invoice.organizationId, sourceRef: `invoice:${invoice.id}:payment-ledger`, type: "REVENUE", source: "INVOICE_PAYMENT", archivedAt: null },
     orderBy: { id: "asc" },
   });
   if (!existing && paidCents === 0n) return null;
@@ -163,7 +163,7 @@ const syncAccountingProjection = async (tx, invoice, paidCents, effectiveAt) => 
     organizationId: invoice.organizationId,
     type: "REVENUE",
     status: paidCents > 0n ? "PAID" : "PENDING",
-    source: "MANUAL",
+    source: "INVOICE_PAYMENT",
     sourceRef: `invoice:${invoice.id}:payment-ledger`,
     recurringInterval: null,
     invoiceNumber: invoice.invoiceNumber,
@@ -389,9 +389,6 @@ export const createInvoicePaymentHandlers = ({ prisma, isGlobalAdmin, serializeI
         let projection = { invoice, accountingEntry: null };
         if (operation === "VERIFY") {
           if (payment.verificationStatus !== "PENDING_VERIFICATION") throw new PaymentError(409, "Only pending payments can be verified.", "INVALID_PAYMENT_STATE");
-          if (payment.recordedByUserId === req.user.userId && !(isGlobalAdmin(req.user) && payload.segregationOverrideReason)) {
-            throw new PaymentError(403, "A different administrator must verify this payment, or a global administrator must provide an override reason.", "SEGREGATION_OF_DUTIES");
-          }
           const currentOpening = centsFrom((invoice.legacyPaidAmount ?? invoice.paidAmount ?? 0).toString());
           const currentLedger = await sumLedgerCents(tx, invoice.id);
           if (currentOpening + currentLedger + centsFrom(payment.amount.toString()) > centsFrom(invoice.total.toString())) throw new PaymentError(409, "Verifying this payment would overpay the invoice.", "OVERPAYMENT");
