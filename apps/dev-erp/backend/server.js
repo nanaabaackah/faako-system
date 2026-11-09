@@ -16,6 +16,7 @@ import { Resend } from "resend";
 import { google } from "googleapis";
 import { createRequestLogger } from "./observability/requestLogger.js";
 import { createSecurityHeadersMiddleware } from "./security/securityHeaders.js";
+import { processAutopayExpense, runRecurringAutopaySweep } from "./accounting/recurringAutopay.js";
 import { createSecretCrypto } from "./security/secretCrypto.js";
 import {
   createAuthMiddleware,
@@ -7419,6 +7420,13 @@ app.post("/api/accounting/entries", authMiddleware, requireAdmin, async (req, re
   if (req.body?.recurringInterval && !recurringInterval) {
     return res.status(400).json({ error: "recurringInterval must be MONTHLY, QUARTERLY, or YEARLY" });
   }
+  if (req.body?.autopayEnabled !== undefined && typeof req.body.autopayEnabled !== "boolean") {
+    return res.status(400).json({ error: "autopayEnabled must be a boolean" });
+  }
+  const autopayEnabled = req.body?.autopayEnabled === true;
+  if (autopayEnabled && (type !== "EXPENSE" || !recurringInterval)) {
+    return res.status(400).json({ error: "Autopay is available only for recurring expenses." });
+  }
 
   const organizationScope = await resolveOrganizationWriteScope({
     user: req.user,
@@ -7469,6 +7477,8 @@ app.post("/api/accounting/entries", authMiddleware, requireAdmin, async (req, re
         dueAt,
         source: "MANUAL",
         recurringInterval,
+        autopayEnabled,
+        recurrenceAnchorAt: autopayEnabled ? (dueAt || paidAt || new Date()) : null,
       },
       include: { organization: { select: { id: true, name: true, slug: true } } },
     });
@@ -7477,6 +7487,13 @@ app.post("/api/accounting/entries", authMiddleware, requireAdmin, async (req, re
     return createdEntry;
   });
 
+  if (autopayEnabled) {
+    try {
+      await processAutopayExpense(prisma, entry);
+    } catch (error) {
+      console.error("Autopay expense initial catch-up failed; scheduler will retry", error);
+    }
+  }
   res.status(201).json(serializeAccountingEntry(entry));
 });
 
@@ -7546,6 +7563,18 @@ app.patch("/api/accounting/entries/:id", authMiddleware, requireAdmin, async (re
   if (req.body?.recurringInterval !== undefined) {
     updateData.recurringInterval = recurringInterval;
   }
+  if (req.body?.autopayEnabled !== undefined) {
+    if (typeof req.body.autopayEnabled !== "boolean") {
+      return res.status(400).json({ error: "autopayEnabled must be a boolean" });
+    }
+    if (entry.recurrenceParentId != null) {
+      return res.status(400).json({ error: "Edit autopay settings on the original recurring expense." });
+    }
+    updateData.autopayEnabled = req.body.autopayEnabled;
+    if (req.body.autopayEnabled && !entry.autopayEnabled) {
+      updateData.recurrenceAnchorAt = entry.dueAt || entry.paidAt || entry.createdAt;
+    }
+  }
 
   if (req.body?.amount !== undefined) {
     const amountValue = Number(req.body.amount);
@@ -7602,6 +7631,21 @@ app.patch("/api/accounting/entries/:id", authMiddleware, requireAdmin, async (re
     updateData.dueAt = updateData.dueAt ?? new Date();
   }
 
+  const nextAutopay = updateData.autopayEnabled ?? entry.autopayEnabled;
+  const nextInterval = updateData.recurringInterval === undefined
+    ? entry.recurringInterval
+    : updateData.recurringInterval;
+  if (nextAutopay && ((updateData.type ?? entry.type) !== "EXPENSE" || !nextInterval)) {
+    return res.status(400).json({ error: "Autopay requires a recurring expense." });
+  }
+  if (entry.autopayEnabled && updateData.recurringInterval !== undefined &&
+      updateData.recurringInterval !== entry.recurringInterval) {
+    const children = await prisma.accountingEntry.count({ where: { recurrenceParentId: entry.id } });
+    if (children) return res.status(400).json({
+      error: "Disable this autopay series and create a new one to change its billing cadence.",
+    });
+  }
+
   const willTransitionToPaid = entry.status !== "PAID" && (updateData.status ?? entry.status) === "PAID";
 
   const updatedEntry = await prisma.$transaction(async (tx) => {
@@ -7620,6 +7664,13 @@ app.patch("/api/accounting/entries/:id", authMiddleware, requireAdmin, async (re
     return nextEntry;
   });
 
+  if (updatedEntry.autopayEnabled && updatedEntry.recurrenceParentId == null) {
+    try {
+      await processAutopayExpense(prisma, updatedEntry);
+    } catch (error) {
+      console.error("Autopay expense update catch-up failed; scheduler will retry", error);
+    }
+  }
   res.json(serializeAccountingEntry(updatedEntry));
 });
 
@@ -11531,7 +11582,7 @@ const buildNextRecurringAccountingDueAt = (entry, baseDateOverride = null) => {
 };
 
 const ensureNextRecurringAccountingEntry = async (client, entry, { baseDate } = {}) => {
-  if (!entry || entry.source !== "MANUAL" || entry.status !== "PAID" || !entry.recurringInterval) {
+  if (!entry || entry.source !== "MANUAL" || entry.status !== "PAID" || !entry.recurringInterval || entry.autopayEnabled || entry.recurrenceParentId != null) {
     return null;
   }
 
@@ -13079,6 +13130,10 @@ const serializeAccountingEntry = (entry) => ({
   serviceName: entry.serviceName,
   detail: entry.detail,
   recurringInterval: entry.recurringInterval ?? null,
+  autopayEnabled: entry.autopayEnabled ?? false,
+  recurrenceParentId: entry.recurrenceParentId ?? null,
+  recurrenceAnchorAt: entry.recurrenceAnchorAt?.toISOString() ?? null,
+  recurrencePeriodAt: entry.recurrencePeriodAt?.toISOString() ?? null,
   invoiceNumber: entry.invoiceNumber ?? null,
   archivedAt: entry.archivedAt ? entry.archivedAt.toISOString() : null,
   organization: entry.organization
@@ -14162,6 +14217,21 @@ const initializeBackgroundServices = async () => {
     scheduleWeeklyReportEmail();
     scheduleRentMonthlyUpdates();
     scheduleAccountingReminderEmails();
+    const catchUpAutopay = async () => {
+      try {
+        const summary = await runRecurringAutopaySweep(prisma, {
+          onError: (error, seriesId) => console.error(`Autopay expense series ${seriesId} failed`, error),
+        });
+        if (summary.created || summary.adopted || summary.paid || summary.errors) {
+          serverLogger.info({ summary }, "Recurring expense autopay reconciliation");
+        }
+      } catch (error) {
+        console.error("Recurring expense autopay reconciliation failed", error);
+      }
+    };
+    await catchUpAutopay();
+    const timer = setInterval(catchUpAutopay, 60 * 60 * 1000);
+    timer.unref?.();
   } else {
     console.warn("Background jobs are disabled until database connectivity is restored.");
   }
