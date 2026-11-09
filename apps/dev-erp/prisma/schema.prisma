@@ -1271,6 +1271,7 @@ enum AccountingStatus {
 
 enum AccountingSource {
   MANUAL
+  INVOICE_PAYMENT
   FAAKO_SUBSCRIPTION
 }
 
