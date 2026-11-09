@@ -17,6 +17,8 @@ const date = (value) => (value ? new Date(value).toLocaleString() : "—");
 export function ActivityList({
   items,
   title = "Activity history",
+  emptyTitle = "No matching activity",
+  emptyMessage = "Try a wider date range or another category.",
   renderAction,
 }) {
   const [copyError, setCopyError] = useState("");
@@ -90,8 +92,8 @@ export function ActivityList({
           rows={items}
           rowKey="id"
           state={items.length ? "ready" : "empty"}
-          emptyTitle="No matching activity"
-          emptyMessage="Try a wider date range or another category."
+          emptyTitle={emptyTitle}
+          emptyMessage={emptyMessage}
           columns={[
             {
               id: "action",
@@ -117,9 +119,10 @@ export function ActivityList({
             </article>
           ))
         ) : (
-          <p>
-            No matching activity. Try a wider date range or another category.
-          </p>
+          <div className="activity-empty">
+            <strong>{emptyTitle}</strong>
+            <p>{emptyMessage}</p>
+          </div>
         )}
       </div>
     </div>

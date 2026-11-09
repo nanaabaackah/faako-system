@@ -34,8 +34,20 @@
   margin-block: 0.5rem;
 }
 @media (max-width: 767px) {
+  .tutorial-footer {
+    margin-bottom: 0;
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  }
   .tutorial-footer-controls {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: stretch;
+  }
+  .tutorial-footer-controls > :first-child,
+  .tutorial-footer-controls > :last-child {
+    grid-column: 1 / -1;
+  }
+  .tutorial-footer-controls .ui-button {
+    width: 100%;
   }
 }

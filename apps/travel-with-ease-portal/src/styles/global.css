@@ -384,10 +384,10 @@ select:focus-visible {
   min-height: 44px;
   font-size: 14px;
 }
-.portal-shell nav button:hover {
+.portal-shell > .portal-sidebar nav button:hover {
   background: #15234b;
 }
-.portal-shell nav button[aria-current="page"] {
+.portal-shell > .portal-sidebar nav button[aria-current="page"] {
   background: var(--twe-cream);
   color: var(--twe-navy);
   text-decoration: none;
@@ -631,16 +631,16 @@ select:focus-visible {
   .portal-shell > aside {
     padding: 18px;
   }
-  .portal-shell nav {
+  .portal-shell > .portal-sidebar nav {
     margin-top: 18px;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  .portal-shell nav button {
+  .portal-shell > .portal-sidebar nav button {
     font-size: 12px;
     padding: 10px;
   }
   .portal-shell > .ui-page-shell {
-    padding: 20px 16px calc(110px + env(safe-area-inset-bottom));
+    padding: 20px 16px calc(132px + env(safe-area-inset-bottom));
   }
   .dashboard-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));

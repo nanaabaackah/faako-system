@@ -233,7 +233,7 @@ function StaffWorkspace() {
         ) : session ? (
           <div className="session-toolbar" aria-label="Your session">
             <span>
-              Signed in as
+              Signed in as{" "}
               <strong>{session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ")}</strong>
             </span>
             <Button

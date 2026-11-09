@@ -28,6 +28,9 @@ try {
       await mockWorkspaceApi(page, { role });
       await page.goto(origin);
       await page.locator(".session-toolbar").waitFor();
+      await expect(page.locator(".session-toolbar > span")).toContainText(
+        `Signed in as ${role === "platform_admin" ? "Superadmin" : role}`,
+      );
       const nav = page.getByRole("navigation", { name: "Workspace shortcuts" });
       if (width > 800) {
         await expect(nav).toBeHidden();
@@ -72,6 +75,21 @@ try {
         const drawer = page.getByRole("dialog", { name: "Travel With Ease menu" });
         await expect(drawer).toBeVisible();
         assert.equal(await nav.evaluate((node) => node.inert), true);
+        for (const item of await drawer.getByRole("navigation").getByRole("button").all()) {
+          assert.equal(await item.getAttribute("title"), null);
+          const box = await item.boundingBox();
+          assert.ok(box.width >= 120 && box.height >= 44);
+        }
+        const selected = drawer.locator('[aria-current="page"]');
+        await selected.hover();
+        assert.equal(
+          await selected.evaluate((node) => getComputedStyle(node).color),
+          "rgb(1, 12, 51)",
+        );
+        assert.equal(
+          await selected.evaluate((node) => getComputedStyle(node).backgroundColor),
+          "rgb(244, 237, 227)",
+        );
         await page.keyboard.press("Shift+Tab");
         assert.equal(await drawer.evaluate((node) => node.contains(document.activeElement)), true);
         for (const label of ["Staff", "Templates", "Activity"]) {
@@ -108,6 +126,10 @@ try {
         await nav.getByRole("button", { name: "Home", exact: true }).click();
         await expect(nav.getByRole("button", { name: "Home", exact: true })).toHaveAttribute("aria-current", "page");
         assert.ok(await page.locator(".portal-shell > .ui-page-shell").evaluate((node) => parseFloat(getComputedStyle(node).paddingBottom) >= 100));
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        const tutorialEnd = await page.getByRole("button", { name: "Mark tutorial completed", exact: true }).boundingBox();
+        const dock = await nav.boundingBox();
+        assert.ok(tutorialEnd.y + tutorialEnd.height <= dock.y - 8);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         if (role === "owner") await page.screenshot({ path: path.join(output, `owner-${width}.png`) });
       }

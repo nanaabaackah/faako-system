@@ -71,7 +71,6 @@ export default function PortalNavigation({
       className={mobile ? "twe-bottom-nav__tab" : undefined}
       aria-current={section === id ? "page" : undefined}
       aria-label={label}
-      title={label}
       onClick={() => choose(id)}
     >
       <NavigationIcon name={mobile && id === "settings" ? "staff" : id} />
