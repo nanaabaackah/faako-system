@@ -28,6 +28,7 @@ const matches = (row, where = {}) => Object.entries(where).every(([key, expected
   if (expected && typeof expected === "object" && !(expected instanceof Date)) {
     if ("not" in expected) return toTime(value) !== toTime(expected.not);
     if ("lte" in expected) return value && toTime(value) <= toTime(expected.lte);
+    if ("gt" in expected) return value && toTime(value) > toTime(expected.gt);
     if ("in" in expected) return expected.in.includes(value);
   }
   return toTime(value) === toTime(expected);
@@ -136,4 +137,31 @@ test("explicit exception records do not get auto-marked paid", async () => {
   const db = memoryDb([rootEntry(), corrected]);
   await processAutopayExpense(db, db.rows[0], { now: utc("2026-07-09") });
   assert.equal(db.rows.find((r) => r.id === 2).status, "OVERDUE");
+});
+
+test("updating a series price changes only next scheduled month, not paid history", async () => {
+  const root = rootEntry();
+  const db = memoryDb([root]);
+  await processAutopayExpense(db, root, { now: utc("2026-11-09") });
+  root.amount = 125;
+  await processAutopayExpense(db, root, { now: utc("2026-11-09") });
+  const june = db.rows.find((r) => r.recurrencePeriodAt?.toISOString() === utc("2026-06-01").toISOString());
+  const december = db.rows.find((r) => r.recurrencePeriodAt?.toISOString() === utc("2026-12-01").toISOString());
+  assert.equal(june.amount, 90);
+  assert.equal(december.amount, 125);
+  assert.equal(december.status, "SCHEDULED");
+});
+
+test("rerunning against a due previously scheduled occurrence settles it once", async () => {
+  const root = rootEntry();
+  const db = memoryDb([root]);
+  await processAutopayExpense(db, root, { now: utc("2026-05-09") });
+  const june = db.rows.find((r) => r.recurrencePeriodAt?.toISOString() === utc("2026-06-01").toISOString());
+  assert.equal(june.status, "SCHEDULED");
+  const first = await processAutopayExpense(db, root, { now: utc("2026-06-09") });
+  assert.equal(first.paid, 1);
+  assert.equal(june.status, "PAID");
+  assert.equal(june.paidAt.toISOString(), utc("2026-06-01").toISOString());
+  const second = await processAutopayExpense(db, root, { now: utc("2026-06-09") });
+  assert.equal(second.paid, 0);
 });
