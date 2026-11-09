@@ -27,6 +27,8 @@ model Organization {
   invoicePayments          InvoicePayment[]
   invoicePaymentLedger     InvoicePaymentLedgerEntry[]
   paymentIdempotencyClaims PaymentIdempotencyClaim[]
+  devErpPaystackIntents DevErpPaystackPaymentIntent[]
+  devErpStandaloneRequests DevErpStandalonePaymentRequest[]
   proposals                Proposal[]
   commercialCatalogueItems CommercialCatalogueItem[]
   commercialPackages       CommercialPackage[]
@@ -89,6 +91,8 @@ model User {
   verifiedInvoicePayments InvoicePayment[]            @relation("InvoicePaymentVerifiedBy")
   rejectedInvoicePayments InvoicePayment[]            @relation("InvoicePaymentRejectedBy")
   paymentLedgerEntries    InvoicePaymentLedgerEntry[] @relation("PaymentLedgerActor")
+  createdDevErpPaystackIntents DevErpPaystackPaymentIntent[] @relation("DevErpPaystackIntentCreatedBy")
+  createdDevErpStandaloneRequests DevErpStandalonePaymentRequest[] @relation("DevErpStandaloneCreatedBy")
 }
 
 model RefreshToken {
@@ -331,6 +335,7 @@ model Invoice {
   payments                 InvoicePayment[]
   paymentLedgerEntries     InvoicePaymentLedgerEntry[]
   paymentIdempotencyClaims PaymentIdempotencyClaim[]
+  devErpPaystackIntents DevErpPaystackPaymentIntent[]
 
   @@unique([organizationId, invoiceNumber])
   @@index([organizationId, status])
@@ -1591,4 +1596,74 @@ enum MaintenanceStatus {
   ACTIVE
   COMPLETED
   CANCELLED
+}
+
+ 
+// DEV ERP Paystack payment requests. These are workflow records, not financial postings.
+// The existing InvoicePaymentLedgerEntry remains authoritative for invoice settlement.
+model DevErpStandalonePaymentRequest {
+  id                Int       @id @default(autoincrement())
+  organizationId    Int
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  createdByUserId   Int
+  createdByUser     User      @relation("DevErpStandaloneCreatedBy", fields: [createdByUserId], references: [id])
+  customerName      String
+  customerEmail     String
+  customerPhone     String?
+  description       String
+  currency          CurrencyCode
+  requestedPesewas  BigInt
+  receivedPesewas   BigInt    @default(0)
+  status            String    @default("OPEN")
+  dueAt             DateTime?
+  cancelledAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  paymentIntents    DevErpPaystackPaymentIntent[]
+
+  @@index([organizationId, status, createdAt])
+}
+
+model DevErpPaystackPaymentIntent {
+  id                    Int       @id @default(autoincrement())
+  organizationId        Int
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  createdByUserId       Int
+  createdByUser         User      @relation("DevErpPaystackIntentCreatedBy", fields: [createdByUserId], references: [id])
+  type                  String
+  provider              String    @default("PAYSTACK")
+  reference             String    @unique
+  invoiceId             Int?
+  invoice               Invoice?  @relation(fields: [invoiceId], references: [id])
+  standalonePaymentId   Int?
+  standalonePayment     DevErpStandalonePaymentRequest? @relation(fields: [standalonePaymentId], references: [id])
+  customerEmail         String
+  amountPesewas         BigInt
+  currency              CurrencyCode
+  status                String    @default("PENDING")
+  checkoutUrl           String?
+  providerVerifiedAt    DateTime?
+  settledAt             DateTime?
+  expiresAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  providerEvents        DevErpPaystackProviderEvent[]
+
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, invoiceId])
+  @@index([organizationId, standalonePaymentId])
+}
+
+model DevErpPaystackProviderEvent {
+  id               Int       @id @default(autoincrement())
+  paymentIntentId  Int
+  paymentIntent    DevErpPaystackPaymentIntent @relation(fields: [paymentIntentId], references: [id])
+  eventFingerprint String    @unique
+  eventType        String
+  processingStatus String    @default("RECEIVED")
+  receivedAt       DateTime  @default(now())
+  processedAt      DateTime?
+  failureCode      String?
+
+  @@index([paymentIntentId, receivedAt])
 }
