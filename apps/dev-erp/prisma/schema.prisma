@@ -234,6 +234,12 @@ model AccountingEntry {
   source            AccountingSource    @default(MANUAL)
   sourceRef         String?
   recurringInterval AccountingInterval?
+  autopayEnabled    Boolean             @default(false)
+  recurrenceAnchorAt DateTime?
+  recurrenceParentId Int?
+  recurrencePeriodAt DateTime?
+  recurrenceParent  AccountingEntry?    @relation("AccountingAutopayOccurrences", fields: [recurrenceParentId], references: [id], onDelete: Restrict)
+  recurrenceChildren AccountingEntry[]  @relation("AccountingAutopayOccurrences")
   invoiceNumber     String?
   archivedAt        DateTime?
   currency          CurrencyCode
@@ -251,6 +257,8 @@ model AccountingEntry {
   @@index([organizationId, currency])
   @@index([organizationId, paidAt])
   @@index([organizationId, dueAt])
+  @@index([autopayEnabled, recurringInterval])
+  @@unique([recurrenceParentId, recurrencePeriodAt])
 }
 
 model ProductivityEntry {
