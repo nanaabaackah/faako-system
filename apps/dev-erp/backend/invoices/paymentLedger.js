@@ -155,7 +155,7 @@ const sumLedgerCents = async (tx, invoiceId) => {
 const syncAccountingProjection = async (tx, invoice, paidCents, effectiveAt) => {
   const paidAmount = decimalFromCents(paidCents);
   const existing = await tx.accountingEntry.findFirst({
-    where: { organizationId: invoice.organizationId, invoiceNumber: invoice.invoiceNumber, type: "REVENUE", source: "MANUAL", archivedAt: null },
+    where: { organizationId: invoice.organizationId, sourceRef: `invoice:${invoice.id}:payment-ledger`, type: "REVENUE", source: "INVOICE_PAYMENT", archivedAt: null },
     orderBy: { id: "asc" },
   });
   if (!existing && paidCents === 0n) return null;
@@ -163,7 +163,7 @@ const syncAccountingProjection = async (tx, invoice, paidCents, effectiveAt) => 
     organizationId: invoice.organizationId,
     type: "REVENUE",
     status: paidCents > 0n ? "PAID" : "PENDING",
-    source: "MANUAL",
+    source: "INVOICE_PAYMENT",
     sourceRef: `invoice:${invoice.id}:payment-ledger`,
     recurringInterval: null,
     invoiceNumber: invoice.invoiceNumber,
