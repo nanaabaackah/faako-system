@@ -7632,8 +7632,10 @@ app.patch("/api/accounting/entries/:id", authMiddleware, requireAdmin, async (re
   }
 
   const nextAutopay = updateData.autopayEnabled ?? entry.autopayEnabled;
-  if (nextAutopay && ((updateData.type ?? entry.type) !== "EXPENSE" ||
-      !(updateData.recurringInterval ?? entry.recurringInterval))) {
+  const nextInterval = updateData.recurringInterval === undefined
+    ? entry.recurringInterval
+    : updateData.recurringInterval;
+  if (nextAutopay && ((updateData.type ?? entry.type) !== "EXPENSE" || !nextInterval)) {
     return res.status(400).json({ error: "Autopay requires a recurring expense." });
   }
   if (entry.autopayEnabled && updateData.recurringInterval !== undefined &&
