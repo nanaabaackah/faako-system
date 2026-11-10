@@ -108,3 +108,53 @@ body .journal-reading .collection-reading > p:not(.collection-standfirst) {
     text-wrap: balance;
   }
 }
+
+/* Brand-derived hierarchy on cream/light reading surfaces. Never recolor dark
+   photo overlays, the navbar, or toast/system messages using these rules. */
+:root {
+  --twe-heading-color: var(--brand-navy);
+  --twe-copy-color: var(--muted);
+  --twe-label-color: #77551b; /* deep gold: legible on the brand cream */
+}
+body main :is(
+  .editorial-wrap, .published-content, .journey-introduction,
+  .cream-footprint, .travel-tips, .closing-copy, .service-panel__label,
+  .cinematic-enquiry__card
+) :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--twe-heading-color);
+}
+body main :is(
+  .editorial-wrap, .published-content, .journey-introduction,
+  .cream-footprint, .travel-tips, .closing-copy, .service-panel__label,
+  .cinematic-enquiry__card
+) :is(p, li):not(.eyebrow):not(.journal-card__metadata) {
+  color: var(--twe-copy-color);
+}
+body main :is(
+  .eyebrow, .package-section-label, .travel-tips__category,
+  .collection-detail-heading > p, .journal-card__metadata,
+  label, .ui-field__label
+) {
+  color: var(--twe-label-color);
+}
+/* Inverse palette on photographs and navy overlays, while the form panel
+   within the dark enquiry scene retains the light-surface hierarchy. */
+body main .cinematic-hero h1,
+body main .cinematic-hero .cinematic-hero__copy > p,
+body main .cinematic-enquiry__scene :is(h1, h2, h3, p),
+body main :is(.journal-card, .journey-card) :is(h1, h2, h3, h4, h5, h6, p, li) {
+  color: var(--brand-cream);
+}
+body main .cinematic-hero h1 .hero-signature {
+  color: var(--brand-gold);
+}
+body main .journal-card .journal-card__metadata {
+  color: var(--brand-gold);
+}
+/* The enquiry card is a cream surface nested inside a navy/photo section. */
+body main .cinematic-enquiry__card :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--twe-heading-color);
+}
+body main .cinematic-enquiry__card p {
+  color: var(--twe-copy-color);
+}
