@@ -2,12 +2,15 @@ import { createWorkspaceFixture } from './workspace.js';
 
 // Playwright-only HTTP boundary: the shipped portal always uses its real API
 // client. No synthetic identity or fixture adapter is reachable from src/.
-export async function mockWorkspaceApi(page, { role = 'owner', requests = [], templateDelay = 0, contentDelay = 0 } = {}) {
+export async function mockWorkspaceApi(page, { role = 'owner', requests = [], writes = [], templateDelay = 0, contentDelay = 0 } = {}) {
   const client = createWorkspaceFixture({ role });
   await page.route('**/api/**', async route => {
     const request = route.request();
     const url = new URL(request.url());
     requests.push(url.pathname);
+    if (request.method() === "POST" && /^\/api\/agent\/content\/[a-z-]+\/draft$/.test(url.pathname)) {
+      writes.push({ path: url.pathname, heading: request.postDataJSON()?.body?.heading });
+    }
     if (request.method() === "GET" && url.pathname.startsWith("/api/agent/templates/") && templateDelay) {
       await new Promise(resolve => setTimeout(resolve, templateDelay));
     }
