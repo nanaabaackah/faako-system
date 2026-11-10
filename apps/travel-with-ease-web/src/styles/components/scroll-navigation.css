@@ -45,7 +45,8 @@ body .site-header-shell .site-header.is-scrolled .brand__wordmark--light {
   height: 48px;
   padding: 0;
   object-fit: cover;
-  object-position: 50% 50%;
+  /* Crop the source's generous transparent padding without cutting the tagline. */
+  object-position: 50% 55%;
 }
 body .site-header-shell .site-header.is-scrolled {
   top: 12px;
