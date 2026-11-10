@@ -1,0 +1,340 @@
+/* TWE Option A: deliberately scoped to the four homepage editorial sections.
+   Preserve hero, navigation, featured packages, footprint, and footer as-is.
+   Use existing published content, approved imagery, and brand tokens only. */
+
+/* ABOUT — quiet split editorial treatment using the approved About photo. */
+.journey-introduction--option-a .journey-introduction__inner {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.95fr);
+  gap: clamp(24px, 5vw, 72px);
+  padding-block: clamp(40px, 6vw, 88px);
+}
+.journey-introduction--option-a .journey-introduction__story {
+  min-width: 0;
+}
+.journey-introduction--option-a h2 {
+  max-width: 15ch;
+  margin-bottom: clamp(20px, 3vw, 36px);
+  font-size: clamp(2.2rem, 4.3vw, 4.1rem);
+  text-transform: none;
+}
+.journey-introduction--option-a .journey-introduction__copy {
+  padding: 0;
+  border: 0;
+}
+.journey-introduction--option-a .journey-introduction__copy p {
+  max-width: 53ch;
+  line-height: 1.8;
+}
+.journey-introduction--option-a .journey-introduction__artwork {
+  position: relative;
+  min-width: 0;
+  padding: 0 0 18px 18px;
+}
+.journey-introduction--option-a .journey-introduction__artwork::before {
+  content: "";
+  position: absolute;
+  inset: 18px 18px 0 0;
+  border: 1px solid var(--brand-gold);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.journey-introduction--option-a .journey-introduction__artwork .placed-image {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+.journey-introduction--option-a .journey-introduction__photo {
+  display: block;
+  width: 100%;
+  height: clamp(320px, 37vw, 510px);
+  object-fit: cover;
+  object-position: 50% 40%;
+  border-radius: 8px;
+}
+.journey-introduction--option-a.journey-introduction--no-photo .journey-introduction__inner {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* SERVICES — approved fees and explanations, now four calm numbered cards. */
+.home-services--option-a {
+  padding-block: clamp(40px, 6vw, 80px);
+}
+.home-services--option-a .home-services__introduction {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(220px, 0.75fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+  margin-bottom: clamp(24px, 3vw, 36px);
+}
+.home-services--option-a .home-section-heading {
+  align-items: start;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+}
+.home-services--option-a .home-section-heading h2 {
+  margin-bottom: 14px;
+  max-width: 19ch;
+}
+.home-services--option-a .home-section-heading p {
+  max-width: 55ch;
+}
+.home-services--option-a .home-services__introduction > .placed-image {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 170px;
+}
+.home-services--option-a .home-services__photo,
+.home-services--option-a .home-services__introduction > .placed-image img {
+  display: block;
+  width: 100%;
+  height: 170px;
+  min-height: 0;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.home-services--option-a .home-services__list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(12px, 1.5vw, 20px);
+  margin: 0;
+  padding: 0;
+}
+.home-services--option-a .home-services__row,
+.home-services--option-a .home-services__row:first-child,
+.home-services--option-a .home-services__row:last-child {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 250px;
+  padding: clamp(18px, 2vw, 26px);
+  border: 1px solid rgb(1 12 51 / 16%);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 30%);
+}
+.home-services--option-a .home-services__number {
+  margin-bottom: 24px;
+  font-family: var(--font-impact);
+  font-weight: 800;
+  font-size: 0.875rem;
+  letter-spacing: 0.04em;
+  color: #77551b;
+}
+.home-services--option-a .home-services__row-heading {
+  display: block;
+}
+.home-services--option-a .home-services__row h3 {
+  margin: 0;
+  font-size: clamp(1.25rem, 1.8vw, 1.75rem);
+  line-height: 1.2;
+}
+.home-services--option-a .home-services__row .twe-content-link {
+  align-items: center;
+  min-height: 44px;
+}
+.home-services--option-a .home-services__summary {
+  flex: 1;
+  margin: 12px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.home-services--option-a .home-services__fee {
+  margin-top: 10px;
+  font-family: var(--font-impact);
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--brand-navy);
+}
+
+/* HOW IT WORKS — the original four approved steps, not an invented 3-step flow. */
+.home-journey-chapters .journey-process--option-a {
+  grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: center;
+  padding-block: clamp(40px, 6vw, 80px);
+}
+.journey-process--option-a .journey-process__photo,
+.journey-process--option-a > .placed-image {
+  width: 100%;
+  height: clamp(350px, 40vw, 490px);
+  object-fit: cover;
+  border-radius: 12px;
+}
+.journey-process--option-a .journey-process__steps {
+  min-width: 0;
+}
+.journey-process--option-a .journey-process__steps > h2 {
+  margin-bottom: clamp(16px, 3vw, 32px);
+  text-transform: none;
+  font-size: clamp(2rem, 3.5vw, 3.4rem);
+}
+.journey-process--option-a .journey-process__steps > ol {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(16px, 3vw, 38px);
+  row-gap: 14px;
+}
+.journey-process--option-a .journey-process__steps > ol > li {
+  display: block;
+  min-width: 0;
+  border: 0;
+  border-top: 1px solid rgb(1 12 51 / 18%);
+  padding: 18px 0 10px;
+}
+.journey-process--option-a .journey-process__number {
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0 0 12px;
+  border: 0;
+  border-radius: 0;
+  place-items: initial;
+  color: #77551b;
+  font-family: var(--font-impact);
+  font-weight: 800;
+  font-size: 1rem;
+}
+.journey-process--option-a .journey-process__steps h3 {
+  margin-bottom: 8px;
+  line-height: 1.25;
+}
+.journey-process--option-a .journey-process__steps p {
+  font-size: 0.925rem;
+  line-height: 1.65;
+}
+
+/* TRAVEL TIPS — an editorial heading beside three existing article cards. */
+.travel-tips--option-a {
+  display: grid;
+  grid-template-columns: minmax(190px, 0.8fr) minmax(0, 2.2fr);
+  gap: clamp(24px, 4vw, 58px);
+  align-items: start;
+}
+.travel-tips--option-a > .editorial-heading {
+  display: block;
+}
+.travel-tips--option-a > .editorial-heading h2 {
+  margin: 0;
+  font-size: clamp(2rem, 3.4vw, 3.3rem);
+  line-height: 1.12;
+  text-transform: none;
+}
+.travel-tips--option-a .travel-tips__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(12px, 1.7vw, 20px);
+}
+.travel-tips--option-a .travel-tips__grid article {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0 16px;
+  border: 1px solid rgb(1 12 51 / 14%);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 30%);
+  overflow: hidden;
+}
+.travel-tips--option-a .travel-tips__grid .travel-tips__featured {
+  grid-row: auto;
+}
+.travel-tips--option-a .travel-tips__grid .placed-image {
+  display: block;
+}
+.travel-tips--option-a .travel-tips__grid img {
+  display: block;
+  width: 100%;
+  height: clamp(135px, 16vw, 205px);
+  aspect-ratio: auto;
+  object-fit: cover;
+  border-radius: 0;
+  box-shadow: none;
+}
+.travel-tips--option-a .travel-tips__category {
+  margin: 12px 14px 0;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+body main .travel-tips--option-a .travel-tips__grid h3 {
+  margin: 8px 14px;
+  font-family: var(--font-journal) !important;
+  font-weight: 600 !important;
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  line-height: 1.12;
+  letter-spacing: 0;
+  -webkit-text-stroke: 0;
+}
+.travel-tips--option-a .travel-tips__grid article > p:last-child {
+  margin: 0 14px;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+.travel-tips--option-a .travel-tips__grid h3 .twe-content-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--brand-navy);
+  text-decoration: none;
+}
+
+@media (max-width: 1050px) {
+  .home-services--option-a .home-services__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .home-services--option-a .home-services__row,
+  .home-services--option-a .home-services__row:first-child,
+  .home-services--option-a .home-services__row:last-child {
+    min-height: 230px;
+  }
+  .travel-tips--option-a {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .journey-introduction--option-a .journey-introduction__inner {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+  .journey-introduction--option-a .journey-introduction__artwork {
+    max-width: 560px;
+    margin-inline: auto;
+  }
+  .journey-introduction--option-a .journey-introduction__photo {
+    height: clamp(280px, 80vw, 440px);
+  }
+  .home-services--option-a .home-services__introduction {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home-services--option-a .home-services__introduction > .placed-image,
+  .home-services--option-a .home-services__photo,
+  .home-services--option-a .home-services__introduction > .placed-image img {
+    height: clamp(160px, 43vw, 250px);
+  }
+  .home-journey-chapters .journey-process--option-a {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .journey-process--option-a .journey-process__photo,
+  .journey-process--option-a > .placed-image {
+    height: clamp(235px, 70vw, 400px);
+  }
+  .travel-tips--option-a .travel-tips__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .travel-tips--option-a .travel-tips__grid img {
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+}
+@media (max-width: 480px) {
+  .home-services--option-a .home-services__list,
+  .journey-process--option-a .journey-process__steps > ol {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home-services--option-a .home-services__row,
+  .home-services--option-a .home-services__row:first-child,
+  .home-services--option-a .home-services__row:last-child {
+    min-height: 0;
+  }
+}
