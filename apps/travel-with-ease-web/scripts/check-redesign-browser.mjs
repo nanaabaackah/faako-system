@@ -127,9 +127,25 @@ try {
     const heroFont = await page.locator(".cinematic-hero h1").evaluate(el=>({
       family:getComputedStyle(el).fontFamily,
       weight:getComputedStyle(el).fontWeight,
+      stroke:getComputedStyle(el).webkitTextStrokeWidth,
     }));
-    assert.match(heroFont.family, /Inter/);
-    assert.equal(heroFont.weight, "800");
+    assert.match(heroFont.family, /Poiret One/);
+    assert.equal(heroFont.weight, "400");
+    assert.ok(parseFloat(heroFont.stroke) >= 0.4, "Poiret headings are optically strengthened");
+    const signatureFont = await page.locator(".hero-signature").evaluate(el => ({
+      family:getComputedStyle(el).fontFamily,
+      stroke:getComputedStyle(el).webkitTextStrokeWidth,
+    }));
+    assert.match(signatureFont.family, /Sassy Frass/);
+    assert.equal(parseFloat(signatureFont.stroke), 0, "Signature remains handwritten without outlined stroke");
+    const editorialFont = await page.locator(".journey-introduction h2").evaluate(el => ({
+      family:getComputedStyle(el).fontFamily,
+      weight:getComputedStyle(el).fontWeight,
+      stroke:getComputedStyle(el).webkitTextStrokeWidth,
+    }));
+    assert.match(editorialFont.family, /Poiret One/);
+    assert.equal(editorialFont.weight, "400");
+    assert.ok(parseFloat(editorialFont.stroke) > 0);
     const signatureSize = await page.locator(".hero-signature").evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
     assert.ok(signatureSize >= (width <= 480 ? 68 : 64), "Signature is visibly larger");
     if (width <= 480) {

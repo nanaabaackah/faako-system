@@ -1,9 +1,10 @@
 /* Public TWE typography: Google Fonts, all under the SIL Open Font License.
-   Hero = Inter ExtraBold, editorial headings = Italiana, signature = Sassy Frass,
+   Display headings = Poiret One (regular with optical stroke), UI accents = Inter ExtraBold,
+   signature = Sassy Frass,
    journal headings and article body = Caveat, functional UI = Quicksand.
    Handwriting is scoped to journal content; navigation and forms stay readable. */
 :root {
-  --font-display: "Italiana", Georgia, serif;
+  --font-display: "Poiret One", "Trebuchet MS", Arial, sans-serif;
   --font-body: "Quicksand", "Trebuchet MS", Arial, sans-serif;
   --font-impact: "Inter", Arial, sans-serif;
   --font-signature: "Sassy Frass", cursive;
@@ -20,9 +21,13 @@ html, body { font-family: var(--font-body); }
 body { font-size: var(--text-body); font-weight: 400; line-height: 1.65; }
 
 /* Override historic Georgia font shorthands without changing layout or content. */
+/* Poiret One ships only at weight 400. Optically thicken its hairlines without
+   pretending a native ExtraBold file exists or synthetically loading 800. */
 body :is(h1, h2, h3) {
   font-family: var(--font-display) !important;
   font-weight: 400 !important;
+  -webkit-text-stroke: 0.024em currentColor;
+  paint-order: stroke fill;
   line-height: 1.12;
   letter-spacing: -0.025em;
 }
@@ -44,15 +49,16 @@ body :is(.eyebrow, .package-section-label) { font-family: var(--font-body); font
 body label, body .ui-field__label { font-family: var(--font-body); font-size: var(--text-small); font-weight: 600; }
 body :is(input, select, textarea, .ui-field__input, .ui-dropdown-field__trigger) { font-family: var(--font-body); font-size: var(--text-body); }
 
-/* A bold, assured hero distinct from Quicksand reading text. */
+/* Display heading keeps the brand's light Art Deco geometry with an
+   extra-strong optical stroke. Inter 800 remains on buttons and navigation. */
 body .cinematic-hero h1 {
   max-width: 23ch;
-  font-family: var(--font-impact) !important;
-  font-weight: 800 !important;
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
   font-size: clamp(2.1rem, 4.35vw, 4.5rem);
-  line-height: 1.08;
-  letter-spacing: -0.052em;
-  -webkit-text-stroke: 0;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  -webkit-text-stroke: 0.03em currentColor;
   text-transform: none;
 }
 body .cinematic-hero .hero-signature {
@@ -89,6 +95,7 @@ body .site-header-shell .site-header nav .nav-cta {
 body .journal-collection-grid .journal-card h2 {
   font-family: var(--font-journal) !important;
   font-weight: 600 !important;
+  -webkit-text-stroke: 0;
   font-size: clamp(1.85rem, 2.8vw, 2.55rem);
   line-height: 1.13;
   letter-spacing: 0;
@@ -102,6 +109,7 @@ body .journal-collection-grid .journal-card .journal-card__excerpt {
 body .journal-reading .collection-detail-heading h1 {
   font-family: var(--font-journal) !important;
   font-weight: 600 !important;
+  -webkit-text-stroke: 0;
   font-size: clamp(3rem, 6vw, 5.5rem);
   line-height: 1.05;
   letter-spacing: 0;
