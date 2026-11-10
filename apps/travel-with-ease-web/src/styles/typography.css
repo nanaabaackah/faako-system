@@ -1,11 +1,11 @@
 /* Public TWE typography: Google Fonts, all under the SIL Open Font License.
-   Hero = Montserrat ExtraBold, editorial headings = Italiana, signature = Sassy Frass,
-   journal headings/short excerpts = Caveat, reading/UI = Quicksand.
-   Keep functional and long-form journal text readable in Quicksand. */
+   Hero = Inter ExtraBold, editorial headings = Italiana, signature = Sassy Frass,
+   journal headings and article body = Caveat, functional UI = Quicksand.
+   Handwriting is scoped to journal content; navigation and forms stay readable. */
 :root {
   --font-display: "Italiana", Georgia, serif;
   --font-body: "Quicksand", "Trebuchet MS", Arial, sans-serif;
-  --font-impact: "Montserrat", Arial, sans-serif;
+  --font-impact: "Inter", Arial, sans-serif;
   --font-signature: "Sassy Frass", cursive;
   --font-journal: "Caveat", "Segoe Print", cursive;
   --text-h1: clamp(2.5rem, 4.5vw, 4rem);
@@ -84,7 +84,8 @@ body .site-header-shell .site-header nav .nav-cta {
   font-weight: 800;
 }
 
-/* Journal handwriting is an editorial accent, not the long-form reading font. */
+/* Journal handwriting covers both editorial headings and article paragraphs.
+   Functional controls and bylines remain in Quicksand. */
 body .journal-collection-grid .journal-card h2 {
   font-family: var(--font-journal) !important;
   font-weight: 600 !important;
@@ -112,16 +113,25 @@ body .journal-reading .collection-standfirst {
   line-height: 1.35;
 }
 body .journal-reading .collection-reading > p:not(.collection-standfirst) {
+  font-family: var(--font-journal);
+  font-size: clamp(1.55rem, 2.4vw, 1.9rem);
+  font-weight: 500;
+  line-height: 1.43;
+  letter-spacing: 0.005em;
+}
+body .journal-reading .collection-reading > p {
+  overflow-wrap: anywhere;
+}
+body .journal-reading :is(.collection-detail-heading > p, .breadcrumbs, .collection-related a) {
   font-family: var(--font-body);
-  font-size: var(--text-body);
-  line-height: 1.8;
 }
 @media (max-width: 480px) {
   body .cinematic-hero h1 { font-size: clamp(2.35rem, 10vw, 3.5rem); }
   body .cinematic-hero .hero-signature {
-    font-size: clamp(3rem, 12.5vw, 5.3rem);
+    font-size: clamp(4.25rem, 19vw, 6.25rem);
     max-width: 100%;
-    line-height: 1.08;
+    line-height: 1.05;
+    overflow-wrap: break-word;
     text-wrap: balance;
   }
 }

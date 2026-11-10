@@ -75,7 +75,7 @@ try {
         border:getComputedStyle(el).borderBottomWidth,
       }));
       assert.equal(firstNavStyle.weight, "800");
-      assert.match(firstNavStyle.font, /Montserrat/);
+      assert.match(firstNavStyle.font, /Inter/);
       assert.equal(firstNavStyle.border, "1px");
       const menuCta = primaryNav.locator(".nav-cta");
       assert.equal(await menuCta.evaluate(el=>getComputedStyle(el).backgroundColor), "rgb(216, 181, 106)");
@@ -128,10 +128,19 @@ try {
       family:getComputedStyle(el).fontFamily,
       weight:getComputedStyle(el).fontWeight,
     }));
-    assert.match(heroFont.family, /Montserrat/);
+    assert.match(heroFont.family, /Inter/);
     assert.equal(heroFont.weight, "800");
     const signatureSize = await page.locator(".hero-signature").evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
-    assert.ok(signatureSize >= (width <= 480 ? 48 : 64), "Signature is visibly larger");
+    assert.ok(signatureSize >= (width <= 480 ? 68 : 64), "Signature is visibly larger");
+    if (width <= 480) {
+      const signature = page.locator(".hero-signature");
+      const signatureBox = await signature.boundingBox();
+      const viewportWidth = page.viewportSize().width;
+      assert.ok(signatureBox && signatureBox.x >= 0 && signatureBox.x + signatureBox.width <= viewportWidth + 1,
+        "Larger mobile signature fits within viewport");
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true,
+        "Larger handwritten signature must not cause horizontal page overflow");
+    }
     const lightSection = page.locator(".journey-introduction");
     if (await lightSection.count()) {
       const lightColors = await lightSection.evaluate(el => ({
