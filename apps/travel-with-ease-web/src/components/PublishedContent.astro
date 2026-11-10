@@ -59,13 +59,13 @@ const story = page === "/about";
           accordion ? (
             <Accordion title={entry.heading}>
               <p>{entry.text}</p>
-              {entry.attribution && <p>{entry.attribution}</p>}
+              {entry.attribution && <p class={story ? "published-content__attribution" : undefined}>{entry.attribution}</p>}
             </Accordion>
           ) : (
             <section>
               <h2>{entry.heading}</h2>
               <p>{entry.text}</p>
-              {entry.attribution && <p>{entry.attribution}</p>}
+              {entry.attribution && <p class={story ? "published-content__attribution" : undefined}>{entry.attribution}</p>}
             </section>
           ),
         )}
