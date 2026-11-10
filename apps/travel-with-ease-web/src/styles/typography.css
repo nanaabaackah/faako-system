@@ -158,3 +158,15 @@ body main .cinematic-enquiry__card :is(h1, h2, h3, h4, h5, h6) {
 body main .cinematic-enquiry__card p {
   color: var(--twe-copy-color);
 }
+
+/* The shared enquiry form is rendered after <main> by BaseLayout, so explicitly
+   apply the same light-surface palette here without recoloring its dark scene. */
+body .cinematic-enquiry__card :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--twe-heading-color);
+}
+body .cinematic-enquiry__card :is(p, li) {
+  color: var(--twe-copy-color);
+}
+body .cinematic-enquiry__card :is(label, .ui-field__label) {
+  color: var(--twe-label-color);
+}
