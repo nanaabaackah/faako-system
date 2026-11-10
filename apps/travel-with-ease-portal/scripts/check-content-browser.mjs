@@ -29,7 +29,7 @@ try {
     const page = await context.newPage();
     const requests = [];
     const navigate=async(name)=>{let button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();if(!await button.count()){await page.getByRole('button',{name:/^Menu/}).click();button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();}await button.click();};
-    await mockWorkspaceApi(page, {role: "owner", requests, templateDelay: 100});
+    await mockWorkspaceApi(page, {role: "owner", requests, templateDelay: 100, contentDelay: 200});
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
     if (width <= 800) {
@@ -104,13 +104,19 @@ try {
       fullPage: true,
     });
     await select("privacy");
-    await page
-      .getByRole("button", { name: "Load approved copy", exact: true })
-      .click();
-    assert.equal(
-      await page.getByLabel(/^Heading/).inputValue(),
-      "Privacy notice",
-    );
+    // The section changes before its async draft is ready: the old draft must
+    // be locked and must not be written to the new or previous section.
+    const approvedCopy = page.getByRole("button", { name: "Load approved copy", exact: true });
+    await expect(approvedCopy).toBeDisabled();
+    await expect(page.getByLabel(/^Heading/)).toBeDisabled();
+    await expect(page.getByLabel(/^Heading/)).toHaveValue("Demo privacy");
+    await expect(approvedCopy).toBeEnabled();
+    await approvedCopy.click();
+    await expect(page.getByLabel(/^Heading/)).toHaveValue("Privacy notice");
+    assert.ok(requests.includes("/api/agent/content/privacy"), "Privacy draft fetched after section switch");
+    assert.ok(!requests.includes("/api/agent/content/travel-footprint/draft") ||
+      requests.includes("/api/agent/content/privacy/draft"),
+      "The approved privacy copy must not save into the prior footprint editor");
     await page.waitForFunction(() => document.querySelector(".draft-save-status")?.textContent.includes("Saved · version 2"));
     assert.equal(await page.getByRole("button", { name: "Publish saved changes", exact: true }).isEnabled(), true);
     await page.screenshot({
