@@ -7,7 +7,7 @@ test("public typography uses licensed Google Fonts with scoped hero and journal 
   const typography = read("../src/styles/typography.css");
   assert.match(typography, /--font-display: "Italiana"/);
   assert.match(typography, /--font-body: "Quicksand"/);
-  assert.match(typography, /--font-impact: "Montserrat"/);
+  assert.match(typography, /--font-impact: "Inter"/);
   assert.match(typography, /--font-signature: "Sassy Frass"/);
   assert.match(typography, /--font-journal: "Caveat"/);
   assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-weight: 800 !important/);
@@ -16,10 +16,12 @@ test("public typography uses licensed Google Fonts with scoped hero and journal 
   assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{/);
   assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\)/);
   const layout = read("../src/layouts/BaseLayout.astro");
-  for (const family of ["Caveat", "Italiana", "Montserrat", "Quicksand", "Sassy+Frass"])
+  for (const family of ["Caveat", "Italiana", "Inter", "Quicksand", "Sassy+Frass"])
     assert.ok(layout.includes(`family=${family}`) || layout.includes(`&family=${family}`));
   assert.match(layout, /display=swap/);
   assert.doesNotMatch(layout, /DM\+Sans|Instrument\+Serif/);
+  assert.doesNotMatch(layout, /Montserrat/);
+  assert.doesNotMatch(typography, /Montserrat/);
   const headers = read("../public/_headers");
   assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
   assert.match(headers, /font-src[^\n]*https:\/\/fonts.gstatic.com/);
@@ -98,7 +100,7 @@ test("mobile menu matches approved full-screen reference without hiding importan
   assert.match(css, /position: fixed;[\s\S]*?height: 100dvh/);
   assert.match(css, /border-bottom: 1px solid rgb\(244 237 227 \/ 18%\)/);
   assert.match(css, /\.nav-cta \{[\s\S]*?background: var\(--brand-gold\)/);
-  assert.match(hero, /--font-impact: "Montserrat"/);
+  assert.match(hero, /--font-impact: "Inter"/);
   assert.match(hero, /font-size: clamp\(4rem, 9vw, 8\.8rem\)/);
   assert.match(hero, /body \.site-header-shell \.site-header nav a \{[\s\S]*?font-weight: 800/);
   assert.match(layout, /twe-mobile-menu-open/);
