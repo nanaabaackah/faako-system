@@ -137,9 +137,9 @@
     gap: 0.5rem;
   }
   .cinematic-page .site-header nav {
-    padding: 1rem;
+    padding: 1rem 0;
     background: var(--brand-ink);
-    border: 1px solid var(--brand-grey);
+    border: 0;
   }
   .cinematic-page .site-header .menu-toggle {
     background: var(--brand-cream);
