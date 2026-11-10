@@ -4,13 +4,14 @@ This is the current public-website typography specification for `apps/travel-wit
 
 | Context | Typeface | Weight |
 | --- | --- | --- |
-| Homepage hero heading | Quicksand | 700 (heaviest official; subtle CSS stroke for extra-bold appearance) |
+| Homepage hero heading | Inter | 800 ExtraBold |
 | Homepage “A Little More You” signature | Sassy Frass | 400 |
 | Page and major section headings (h1–h3) | Italiana | 400 |
-| Navigation, buttons, inputs, ordinary body and full journal articles | Quicksand | 400–700 |
+| Navigation and primary hero CTA | Inter | 800 ExtraBold |
+| Buttons, inputs, ordinary body and full journal articles | Quicksand | 400–700 |
 | Journal card titles and short excerpts, article title and standfirst | Caveat | 400–700 |
 
-All four font families are open-source Google Fonts (SIL Open Font License); no paid commercial license is needed. Fonts load using a single Google Fonts CSS2 stylesheet in `BaseLayout.astro` with `display=swap`, and the public site's existing CSP permits Google Fonts stylesheets and font resources. Layout and published content remain untouched.
+All five font families are open-source Google Fonts (SIL Open Font License); no paid commercial license is needed. Fonts load using a single Google Fonts CSS2 stylesheet in `BaseLayout.astro` with `display=swap`, and the public site's existing CSP permits Google Fonts stylesheets and font resources. Layout and published content remain untouched.
 
 Journal body paragraphs, categories, dates, filter UI and accessible controls stay in Quicksand for legibility. Handwriting is reserved for editorial titles and short leads. CSS font tokens and scoped overrides live in `src/styles/typography.css`.
 
@@ -23,3 +24,7 @@ Review on both phone and desktop: hero wrapping/contrast, script baseline, secti
 - On screens 600px or narrower, the two hero actions stack vertically, share the same wider width and retain distinct cream filled/outlined treatments.
 - Cream-surface text hierarchy uses navy headings, muted slate paragraph copy and deep-gold labels (`#77551b`, a shade already used in TWE's journey design). Dark photo overlays retain cream copy and gold accent text, while the cream enquiry card stays on the light palette.
 - Regression coverage: responsive mobile navigation and hero CTA geometry; brand image asset presence; browser computed colors; unit assertions for palette and selectors.
+
+## Inter replacement — 2026-11-10
+
+The live public typography now uses **Inter ExtraBold (800)** in place of Montserrat for the homepage hero, navigation links, mobile-menu links, and the hero call-to-action. The menu layout, gold CTA, and larger Sassy Frass signature remain unchanged. Quicksand continues to serve body text and general UI; Italiana and Caveat remain editorial faces. Inter 700/800 loads through the existing Google Fonts stylesheet, which is already permitted by the public site's CSP. Tests inspect the declared family in CSS and computed browser fonts at mobile/desktop widths. The client CMS portal's separate font specification is outside this change.
