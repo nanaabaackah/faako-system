@@ -319,12 +319,16 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           value={page}
           disabled={state.loading}
           onChange={(event) => {
+            const nextPage = event.target.value;
+            // Reselecting the active section is a no-op. Otherwise we'd mark
+            // the editor loading without a page change to trigger a fresh load.
+            if (nextPage === page) return;
             if (!dirty || window.confirm("Discard unsaved changes?")) {
               // Close the gap between changing the section and its load effect.
               // Otherwise stale fields remain editable for one render, and an
               // approved-copy click can send the new section into the old writer.
               setState({ loading: true, error: "", message: "" });
-              setPage(event.target.value);
+              setPage(nextPage);
             }
           }}
         >
