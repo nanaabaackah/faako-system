@@ -91,9 +91,9 @@ test("mobile menu matches approved full-screen reference without hiding importan
   const layout = read("../src/layouts/BaseLayout.astro");
   const css = read("../src/styles/components/scroll-navigation.css");
   const hero = read("../src/styles/typography.css");
-  assert.match(layout, /\["\/", "Home"\]/);
-  assert.match(layout, /\["\/contact", "Contact"\]/);
-  assert.match(layout, /nav-mobile-only/);
+  assert.doesNotMatch(layout, /\["\/", "Home"\]/);
+  assert.doesNotMatch(layout, /\["\/contact", "Contact"\]/);
+  assert.match(layout, /\["\/journal", "Journal"\]/);
   assert.match(css, /nav\[data-collapsed="true"\] \{\s*display: none/);
   assert.match(css, /position: fixed;[\s\S]*?height: 100dvh/);
   assert.match(css, /border-bottom: 1px solid rgb\(244 237 227 \/ 18%\)/);
