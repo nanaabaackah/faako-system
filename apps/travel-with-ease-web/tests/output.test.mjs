@@ -22,7 +22,10 @@ test("approved local home contains discovery, shared footer and working intake U
   assert.match(html, /href="\/favicon-48.png"/);
   assert.match(html, /src="\/brand\/Primary gold\.png"/);
   const logo = await readFile(new URL("../dist/brand/Primary gold.png", import.meta.url));
-  assert.ok(logo.byteLength > 0, "Approved logo is present in the built output");
+  const whiteLogo = await readFile(new URL("../dist/brand/midnight primary.png", import.meta.url));
+  assert.ok(logo.byteLength > 0, "Approved gold logo is present in the built output");
+  assert.ok(whiteLogo.byteLength > 0, "Approved white logo is present in the built output");
+  assert.match(html, /src="\/brand\/midnight primary\.png"/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.equal((html.match(/property="og:image"/g) || []).length, 1);
   assert.match(html, /https:\/\/faako.nanaabaackah.com/);

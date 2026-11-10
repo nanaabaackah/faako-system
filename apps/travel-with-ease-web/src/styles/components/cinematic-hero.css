@@ -137,9 +137,9 @@
     gap: 0.5rem;
   }
   .cinematic-page .site-header nav {
-    padding: 1rem;
+    padding: 1rem 0;
     background: var(--brand-ink);
-    border: 1px solid var(--brand-grey);
+    border: 0;
   }
   .cinematic-page .site-header .menu-toggle {
     background: var(--brand-cream);
@@ -150,6 +150,34 @@
   }
   .cinematic-hero {
     padding-top: 13rem;
+  }
+}
+/* Small-screen actions are two equally prominent, easy-to-tap full-width choices. */
+@media (max-width: 600px) {
+  .cinematic-hero__actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: min(100%, 390px);
+    gap: 12px;
+    margin-inline: auto;
+  }
+  .cinematic-hero__actions .twe-content-link {
+    display: flex;
+    width: 100%;
+    min-height: 52px;
+    justify-content: center;
+    padding: 13px 20px;
+    text-align: center;
+  }
+  .cinematic-hero__actions .twe-content-link:not(.button) {
+    border: 1px solid var(--brand-cream);
+    border-radius: 99px;
+    color: var(--brand-cream);
+    text-decoration: none;
+  }
+  .cinematic-hero__actions .twe-content-link:not(.button):is(:hover, :focus-visible) {
+    border-color: var(--brand-gold);
+    color: var(--brand-gold);
   }
 }
 @media (max-width: 480px) {

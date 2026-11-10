@@ -3,18 +3,22 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("brand typography retains Bonheur hero and loads Instrument Serif and DM Sans", () => {
-  assert.equal(readFileSync(new URL("../public/fonts/bonheur-royale-latin-400.woff2", import.meta.url)).subarray(0, 4).toString(), "wOF2");
-  assert.match(read("../public/fonts/Bonheur-Royale-OFL.txt"), /SIL OPEN FONT LICENSE/);
+test("public typography uses licensed Google Fonts with scoped hero and journal handwriting", () => {
   const typography = read("../src/styles/typography.css");
-  assert.match(typography, /--font-display: "Instrument Serif"/);
-  assert.match(typography, /--font-body: "DM Sans"/);
-  assert.match(typography, /--font-signature: "Bonheur Royale"/);
-  assert.match(typography, /font-display: swap/);
-  assert.doesNotMatch(typography, /font-weight: 800/);
+  assert.match(typography, /--font-display: "Italiana"/);
+  assert.match(typography, /--font-body: "Quicksand"/);
+  assert.match(typography, /--font-signature: "Sassy Frass"/);
+  assert.match(typography, /--font-journal: "Caveat"/);
+  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-weight: 700 !important/);
+  assert.match(typography, /body \.cinematic-hero \.hero-signature \{/);
+  assert.match(typography, /body \.journal-collection-grid \.journal-card h2 \{/);
+  assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{/);
+  assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\)/);
   const layout = read("../src/layouts/BaseLayout.astro");
-  assert.match(layout, /fonts.googleapis.com\/css2\?family=DM\+Sans/);
-  assert.match(layout, /Instrument\+Serif:ital@0;1/);
+  for (const family of ["Caveat", "Italiana", "Quicksand", "Sassy+Frass"])
+    assert.ok(layout.includes(`family=${family}`) || layout.includes(`&family=${family}`));
+  assert.match(layout, /display=swap/);
+  assert.doesNotMatch(layout, /DM\+Sans|Instrument\+Serif/);
   const headers = read("../public/_headers");
   assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
   assert.match(headers, /font-src[^\n]*https:\/\/fonts.gstatic.com/);
@@ -39,4 +43,45 @@ test("privacy preferences use native modal semantics, Escape support and a singl
   assert.match(notice, /twe-cookie-consent-v1/);
   assert.doesNotMatch(notice, /twe-demo-cookie/);
   assert.doesNotMatch(read("../src/components/PublicFooter.astro"), /<TravelFootprint/);
+});
+
+test("public mobile menu uses an accessible icon and a borderless vertical layout", () => {
+  const layout = read("../src/layouts/BaseLayout.astro");
+  const nav = read("../src/styles/components/scroll-navigation.css");
+  assert.match(layout, /class="menu-toggle"[\s\S]*?aria-label="Menu"/);
+  assert.match(layout, /class="menu-toggle__open"[\s\S]*?aria-hidden="true"/);
+  assert.match(layout, /class="menu-toggle__close"[\s\S]*?aria-hidden="true"/);
+  assert.match(nav, /@media \(max-width: 900px\)/);
+  assert.match(nav, /flex-direction: column/);
+  assert.match(nav, /border: 0/);
+  assert.match(layout, /aria-expanded="false"/);
+  assert.match(layout, /if \(event.key === "Escape" && mobile.matches\)/);
+});
+
+test("scrolled header keeps the approved white mark and brand navy palette", () => {
+  const layout = read("../src/layouts/BaseLayout.astro");
+  const nav = read("../src/styles/components/scroll-navigation.css");
+  assert.match(layout, /src="\/brand\/Primary gold\.png"/);
+  assert.match(layout, /src="\/brand\/midnight primary\.png"/);
+  assert.match(nav, /\.site-header\.is-scrolled[\s\S]*?background: var\(--brand-navy\)/);
+  assert.match(nav, /\.brand__wordmark--light[\s\S]*?object-fit: cover/);
+  assert.match(nav, /\.site-header:not\(\.is-scrolled\) \.brand__wordmark--gold/);
+});
+
+test("brand color hierarchy and stacked hero actions preserve contrast", () => {
+  const typography = read("../src/styles/typography.css");
+  const hero = read("../src/styles/components/cinematic-hero.css");
+  for (const token of ["--twe-heading-color", "--twe-copy-color", "--twe-label-color"])
+    assert.ok(typography.includes(token));
+  assert.match(typography, /body main \.cinematic-hero h1 \.hero-signature/);
+  assert.match(typography, /body main \.journal-card \.journal-card__metadata/);
+  assert.match(typography, /body main \.cinematic-enquiry__card p/);
+  assert.match(typography, /body main \.featured-journeys \.journey-preview :is/);
+  assert.match(typography, /body main \.featured-journeys \.journey-preview \.featured-journeys__duration/);
+  // Do not reintroduce high-specificity :not() exclusions: they override
+  // the inverse cream/gold palette of cards nested in editorial wrappers.
+  assert.match(typography, /:where\(p, li\):not\(:where\(\.eyebrow, \.journal-card__metadata\)\)/);
+  assert.doesNotMatch(typography, /:is\(p, li\):not\(\.eyebrow\):not\(\.journal-card__metadata\)/);
+  assert.match(hero, /@media \(max-width: 600px\)[\s\S]*?flex-direction: column/);
+  assert.match(hero, /\.cinematic-hero__actions \.twe-content-link:not\(\.button\)/);
 });

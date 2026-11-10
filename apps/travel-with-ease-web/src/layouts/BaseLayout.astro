@@ -108,7 +108,7 @@ const navigation = [
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Italiana&family=Quicksand:wght@400;500;600;700&family=Sassy+Frass&display=swap" />
     <meta name="theme-color" content="#010c33" />
     {releaseSha && <meta name="twe-release" content={releaseSha} />}
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
@@ -166,19 +166,40 @@ const navigation = [
         href="/"
         aria-label="Travel With Ease home"
         ><img
-          class="brand__wordmark"
+          class="brand__wordmark brand__wordmark--gold"
           src="/brand/Primary gold.png"
           width="600"
           height="200"
           alt="Travel With Ease"
-        /><img class="brand__pin" src="/icon-192.png" width="44" height="44" alt="" /></a
+        /><img
+          class="brand__wordmark brand__wordmark--light"
+          src="/brand/midnight primary.png"
+          width="2000"
+          height="2000"
+          alt=""
+          aria-hidden="true"
+        /></a
       >
       <button
         type="button"
         class="menu-toggle"
         hidden
         aria-expanded="false"
-        aria-controls="primary-navigation">Menu</button
+        aria-controls="primary-navigation"
+        aria-label="Menu">
+        <svg class="menu-toggle__open" aria-hidden="true" focusable="false"
+          xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg class="menu-toggle__close" aria-hidden="true" focusable="false"
+          xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round">
+          <path d="M5 5l14 14M19 5L5 19" />
+        </svg>
+      </button
       >
       <nav id="primary-navigation" aria-label="Primary navigation">
         <div class="header-links">

@@ -24,8 +24,29 @@ body .site-header-shell .site-header {
 body.cinematic-page .site-header-shell .site-header:not(.is-scrolled) {
   background: transparent;
 }
-.site-header-shell .brand__pin {
+/* Approved horizontal artwork: gold at the top, white on the navy scrolled bar.
+   The white source has a square transparent canvas, so crop it inside a
+   fixed-height image box instead of letting it increase header height. */
+body .site-header-shell .site-header .brand__wordmark--gold {
+  display: block;
+  width: 160px;
+  height: auto;
+  padding: 0;
+}
+body .site-header-shell .site-header .brand__wordmark--light {
   display: none;
+}
+body .site-header-shell .site-header.is-scrolled .brand__wordmark--gold {
+  display: none;
+}
+body .site-header-shell .site-header.is-scrolled .brand__wordmark--light {
+  display: block;
+  width: 150px;
+  height: 48px;
+  padding: 0;
+  object-fit: cover;
+  /* Crop the source's generous transparent padding without cutting the tagline. */
+  object-position: 50% 55%;
 }
 body .site-header-shell .site-header.is-scrolled {
   top: 12px;
@@ -33,38 +54,50 @@ body .site-header-shell .site-header.is-scrolled {
   min-height: 72px;
   border-radius: 25px;
   padding: 10px 24px;
-  background: var(--brand-cream);
-  color: var(--brand-navy);
-  border: 1px solid var(--brand-grey);
-}
-.site-header.is-scrolled .brand__wordmark {
-  display: none;
-}
-body .site-header-shell .is-scrolled .brand__pin {
-  display: block;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  object-fit: contain;
-}
-body .site-header-shell .is-scrolled .nav-cta {
   background: var(--brand-navy);
   color: var(--brand-cream);
-  border-color: var(--brand-navy);
+  border: 0;
+}
+body .site-header-shell .is-scrolled .nav-cta {
+  background: var(--brand-gold);
+  color: var(--brand-navy);
+  border-color: var(--brand-gold);
   border-radius: 18px;
 }
 body .site-header-shell .is-scrolled nav a[aria-current="page"] {
-  color: var(--brand-navy);
-  border-bottom-color: #8a6729;
+  color: var(--brand-gold);
+  border-bottom-color: var(--brand-gold);
 }
+/* SVG menu/close icon: label remains accessible to screen readers. */
 body .site-header-shell .site-header .menu-toggle {
   margin: 0;
+  min-width: 44px;
   min-height: 44px;
-  border: 1px solid var(--brand-grey);
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
 }
-body .site-header-shell .is-scrolled .menu-toggle {
-  background: var(--brand-cream);
-  color: var(--brand-navy);
+body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
+  background: transparent;
+  color: inherit;
+}
+.site-header-shell .menu-toggle svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+.site-header-shell .menu-toggle .menu-toggle__close,
+.site-header-shell .menu-toggle[aria-expanded="true"] .menu-toggle__open {
+  display: none;
+}
+.site-header-shell .menu-toggle[aria-expanded="true"] .menu-toggle__close {
+  display: block;
 }
 @media (min-width: 901px) {
   body .site-header-shell .site-header > .brand {
@@ -100,14 +133,60 @@ body .site-header-shell .is-scrolled .menu-toggle {
     position: static;
     transform: none;
   }
+  /* Compact unscrolled mark leaves space for the accessible icon toggle. */
+  body .site-header-shell .site-header:not(.is-scrolled) .brand__wordmark--gold {
+    width: 116px;
+  }
+  body .site-header-shell .site-header.is-scrolled .brand__wordmark--light {
+    width: 122px;
+    height: 44px;
+  }
   body .site-header-shell .site-header nav {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     width: 100%;
-    padding: 16px;
+    gap: 8px;
+    padding: 16px 0;
     background: var(--brand-navy);
     color: var(--brand-cream);
-    border-radius: 12px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
     max-height: calc(100svh - 130px);
     overflow-y: auto;
+  }
+  /* This rule must outrank the open-panel layout when JavaScript collapses it. */
+  body .site-header-shell .site-header nav[data-collapsed="true"] {
+    display: none;
+  }
+  /* Always stack the menu links, including the final trip-planning action. */
+  body .site-header-shell .site-header .header-links {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+  }
+  body .site-header-shell .site-header nav a {
+    display: flex;
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 0;
+    text-align: left;
+  }
+  body .site-header-shell .site-header nav a[aria-current="page"] {
+    border: 0;
+    text-decoration: underline;
+    text-underline-offset: 0.3em;
+  }
+  body .site-header-shell .site-header nav .nav-cta {
+    width: 100%;
+    margin-top: 8px;
+    justify-content: center;
   }
   body .site-header-shell .site-header.is-scrolled {
     padding: 8px 16px;
@@ -120,12 +199,12 @@ body .site-header-shell .is-scrolled .menu-toggle {
     top: 10px;
     transform: translateX(-50%);
   }
-  body .site-header-shell .is-scrolled .menu-toggle {
+  body .site-header-shell .site-header .menu-toggle {
     margin-left: auto;
   }
   body .site-header-shell .is-scrolled nav {
-    background: var(--brand-cream);
-    color: var(--brand-navy);
+    background: var(--brand-navy);
+    color: var(--brand-cream);
   }
   body .site-header-shell .header-links {
     width: 100%;
