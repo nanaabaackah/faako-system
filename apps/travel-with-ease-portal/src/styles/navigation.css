@@ -89,7 +89,7 @@
 .twe-menu-drawer nav button[aria-current] {
   background: #f4ede3;
   color: #010c33;
-  box-shadow: inset 3px 0 #d8b56a;
+  box-shadow: none;
   font-weight: 700;
 }
 .portal-shell .twe-menu-drawer nav button:is(:hover, :focus-visible) {
