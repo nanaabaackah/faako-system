@@ -175,7 +175,11 @@ try {
       true,
     );
     await navigate("Content");
+    // Reselecting the already-active home section must not leave its controls
+    // disabled indefinitely (no page-change effect would run in that case).
+    await page.getByLabel(/^Heading/).waitFor();
     await select("home");
+    await expect(page.getByLabel(/^Heading/)).toBeEnabled();
     await page
       .getByRole("button", { name: "Choose image", exact: true })
       .click();
