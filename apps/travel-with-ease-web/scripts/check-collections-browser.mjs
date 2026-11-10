@@ -154,7 +154,7 @@ try {
     await page.locator(".service-panel").first().click({ position: { x: 25, y: 50 } });
     await page.waitForURL("**/services/travel-readiness-session");
     await page.getByRole("heading", { name: "Travel Readiness Session", exact: true }).waitFor();
-    assert.equal(await page.locator(".service-detail__fee").innerText(), "GHS 400");
+    assert.equal(await page.locator(".service-detail__fee").innerText(), "GH₵400");
     assert.equal(await page.getByRole("link", { name: "Enquire about this service", exact: true }).getAttribute("href"), "#plan");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-service-detail-${width}.png`), fullPage: true });
