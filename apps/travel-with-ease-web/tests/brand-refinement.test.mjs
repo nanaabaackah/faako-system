@@ -44,3 +44,16 @@ test("privacy preferences use native modal semantics, Escape support and a singl
   assert.doesNotMatch(notice, /twe-demo-cookie/);
   assert.doesNotMatch(read("../src/components/PublicFooter.astro"), /<TravelFootprint/);
 });
+
+test("public mobile menu uses an accessible icon and a borderless vertical layout", () => {
+  const layout = read("../src/layouts/BaseLayout.astro");
+  const nav = read("../src/styles/components/scroll-navigation.css");
+  assert.match(layout, /class="menu-toggle"[\s\S]*?aria-label="Menu"/);
+  assert.match(layout, /class="menu-toggle__open"[\s\S]*?aria-hidden="true"/);
+  assert.match(layout, /class="menu-toggle__close"[\s\S]*?aria-hidden="true"/);
+  assert.match(nav, /@media \(max-width: 900px\)/);
+  assert.match(nav, /flex-direction: column/);
+  assert.match(nav, /border: 0/);
+  assert.match(layout, /aria-expanded="false"/);
+  assert.match(layout, /if \(event.key === "Escape" && mobile.matches\)/);
+});
