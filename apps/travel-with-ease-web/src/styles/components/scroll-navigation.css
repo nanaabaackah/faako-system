@@ -24,8 +24,28 @@ body .site-header-shell .site-header {
 body.cinematic-page .site-header-shell .site-header:not(.is-scrolled) {
   background: transparent;
 }
-.site-header-shell .brand__pin {
+/* Approved horizontal artwork: gold at the top, white on the navy scrolled bar.
+   The white source has a square transparent canvas, so crop it inside a
+   fixed-height image box instead of letting it increase header height. */
+body .site-header-shell .site-header .brand__wordmark--gold {
+  display: block;
+  width: 160px;
+  height: auto;
+  padding: 0;
+}
+body .site-header-shell .site-header .brand__wordmark--light {
   display: none;
+}
+body .site-header-shell .site-header.is-scrolled .brand__wordmark--gold {
+  display: none;
+}
+body .site-header-shell .site-header.is-scrolled .brand__wordmark--light {
+  display: block;
+  width: 150px;
+  height: 48px;
+  padding: 0;
+  object-fit: cover;
+  object-position: 50% 50%;
 }
 body .site-header-shell .site-header.is-scrolled {
   top: 12px;
@@ -33,29 +53,19 @@ body .site-header-shell .site-header.is-scrolled {
   min-height: 72px;
   border-radius: 25px;
   padding: 10px 24px;
-  background: var(--brand-cream);
-  color: var(--brand-navy);
-  border: 1px solid var(--brand-grey);
-}
-.site-header.is-scrolled .brand__wordmark {
-  display: none;
-}
-body .site-header-shell .is-scrolled .brand__pin {
-  display: block;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  object-fit: contain;
-}
-body .site-header-shell .is-scrolled .nav-cta {
   background: var(--brand-navy);
   color: var(--brand-cream);
-  border-color: var(--brand-navy);
+  border: 0;
+}
+body .site-header-shell .is-scrolled .nav-cta {
+  background: var(--brand-gold);
+  color: var(--brand-navy);
+  border-color: var(--brand-gold);
   border-radius: 18px;
 }
 body .site-header-shell .is-scrolled nav a[aria-current="page"] {
-  color: var(--brand-navy);
-  border-bottom-color: #8a6729;
+  color: var(--brand-gold);
+  border-bottom-color: var(--brand-gold);
 }
 /* SVG menu/close icon: label remains accessible to screen readers. */
 body .site-header-shell .site-header .menu-toggle {
@@ -122,6 +132,14 @@ body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
     position: static;
     transform: none;
   }
+  /* Compact unscrolled mark leaves space for the accessible icon toggle. */
+  body .site-header-shell .site-header:not(.is-scrolled) .brand__wordmark--gold {
+    width: 116px;
+  }
+  body .site-header-shell .site-header.is-scrolled .brand__wordmark--light {
+    width: 122px;
+    height: 44px;
+  }
   body .site-header-shell .site-header nav {
     display: flex;
     flex-direction: column;
@@ -184,8 +202,8 @@ body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
     margin-left: auto;
   }
   body .site-header-shell .is-scrolled nav {
-    background: var(--brand-cream);
-    color: var(--brand-navy);
+    background: var(--brand-navy);
+    color: var(--brand-cream);
   }
   body .site-header-shell .header-links {
     width: 100%;
