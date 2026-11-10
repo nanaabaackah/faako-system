@@ -136,14 +136,15 @@
   .cinematic-page .site-header {
     gap: 0.5rem;
   }
+  /* Mobile navigation backdrop and toggle must retain the navy/cream menu
+     palette even when the hero itself is transparent at the top. */
   .cinematic-page .site-header nav {
-    padding: 1rem 0;
-    background: var(--brand-ink);
+    background: var(--brand-navy);
     border: 0;
   }
   .cinematic-page .site-header .menu-toggle {
-    background: var(--brand-cream);
-    color: var(--brand-navy);
+    background: transparent;
+    color: var(--brand-cream);
   }
   .cinematic-page .brand img {
     width: 140px;
