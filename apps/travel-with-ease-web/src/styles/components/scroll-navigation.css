@@ -100,9 +100,6 @@ body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
   display: block;
 }
 @media (min-width: 901px) {
-  body .site-header-shell .site-header nav .nav-mobile-only {
-    display: none;
-  }
   body .site-header-shell .site-header > .brand {
     position: absolute;
     left: 50%;
