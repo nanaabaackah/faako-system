@@ -3,21 +3,24 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("brand typography retains Bonheur hero and loads Instrument Serif and DM Sans", () => {
-  assert.equal(readFileSync(new URL("../public/fonts/bonheur-royale-latin-400.woff2", import.meta.url)).subarray(0, 4).toString(), "wOF2");
-  assert.match(read("../public/fonts/Bonheur-Royale-OFL.txt"), /SIL OPEN FONT LICENSE/);
-  const typography = read("../src/styles/typography.css");
-  assert.match(typography, /--font-display: "Instrument Serif"/);
-  assert.match(typography, /--font-body: "DM Sans"/);
-  assert.match(typography, /--font-signature: "Bonheur Royale"/);
-  assert.match(typography, /font-display: swap/);
-  assert.doesNotMatch(typography, /font-weight: 800/);
+test("Montserrat headings and Bonheur hero signature are self-hosted and licensed", () => {
+  for (const font of ["bonheur-royale-latin-400", "montserrat-latin-800"]) {
+    const asset = readFileSync(new URL(`../public/fonts/${font}.woff2`, import.meta.url));
+    assert.equal(asset.subarray(0, 4).toString(), "wOF2");
+  }
+  for (const licence of ["Bonheur-Royale-OFL", "Montserrat-OFL"]) {
+    assert.match(read(`../public/fonts/${licence}.txt`), /SIL OPEN FONT LICENSE/);
+  }
+  const css = read("../src/styles/typography.css");
+  assert.match(css, /font-family: "Montserrat"/);
+  assert.match(css, /font-weight: 800 !important/);
+  assert.match(css, /font-family: "Bonheur Royale"/);
+  assert.match(css, /font-display: swap/);
+  assert.doesNotMatch(css, /Instrument Serif|DM Sans/);
   const layout = read("../src/layouts/BaseLayout.astro");
-  assert.match(layout, /fonts.googleapis.com\/css2\?family=DM\+Sans/);
-  assert.match(layout, /Instrument\+Serif:ital@0;1/);
+  assert.doesNotMatch(layout, /fonts\\.googleapis\\.com|fonts\\.gstatic\\.com/);
   const headers = read("../public/_headers");
-  assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
-  assert.match(headers, /font-src[^\n]*https:\/\/fonts.gstatic.com/);
+  assert.doesNotMatch(headers, /fonts\\.googleapis\\.com|fonts\\.gstatic\\.com/);
   assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*A Little More You/);
 });
 
