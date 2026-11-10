@@ -34,3 +34,9 @@ The live public typography now uses **Inter ExtraBold (800)** in place of Montse
 - Full journal article paragraphs now use Caveat at a comfortable responsive 1.55–1.9rem and 1.43 line-height, matching the existing handwritten titles and leads. Metadata, breadcrumbs and functional links retain Quicksand.
 - The Sassy Frass “A Little More You” mobile signature now scales between 4.25rem and 6.25rem with a 19vw preferred size (previously 3rem–5.3rem at 12.5vw), balancing the text within the viewport.
 - Browser acceptance checks the actual journal article font, body size, line height, meta font, mobile signature size and horizontal overflow at narrow widths.
+
+## Poiret One display-heading trial — 2026-11-10
+
+- Primary public-site headings (H1–H3), including the homepage hero, now use **Poiret One**. The family only supplies **Regular 400**; the requested ExtraBold appearance is approximated with a restrained 0.024em CSS stroke (0.03em on the hero), not a nonexistent 800 font file.
+- **Inter ExtraBold 800 remains for navigation, buttons and hero calls to action.** Quicksand body copy, Sassy Frass hero signature and Caveat journal headings/body are unchanged. Journal titles explicitly reset heading strokes to preserve handwriting.
+- Existing page content, sections, mobile navigation and CMS remain unchanged. Browser tests cover computed display fonts/optical strokes alongside the existing mobile layout and accessibility suite.
