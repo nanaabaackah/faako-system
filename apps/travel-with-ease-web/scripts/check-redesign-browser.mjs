@@ -41,6 +41,36 @@ try {
     });
     await page.goto(origin, {waitUntil:"networkidle"});
     await page.getByRole("button",{name:"Essential only",exact:true}).click();
+    // Navigation: icon only, borderless panel, one vertical column at <=900px.
+    const menu = page.getByRole("button", {name:"Menu", exact:true});
+    const primaryNav = page.locator("#primary-navigation");
+    if (width <= 900) {
+      assert.equal(await menu.isVisible(), true);
+      assert.equal(await menu.innerText(), "", "Mobile toggle has an SVG, not visible Menu text");
+      assert.equal(await menu.locator('svg[aria-hidden="true"]').count(), 2);
+      assert.equal(await menu.getAttribute("aria-expanded"), "false");
+      assert.equal(await primaryNav.isVisible(), false);
+      assert.equal(await menu.evaluate(el=>getComputedStyle(el).borderTopWidth), "0px");
+      await menu.click();
+      assert.equal(await menu.getAttribute("aria-expanded"), "true");
+      assert.equal(await menu.locator(".menu-toggle__close").isVisible(), true);
+      assert.equal(await primaryNav.isVisible(), true);
+      assert.equal(await primaryNav.evaluate(el=>getComputedStyle(el).flexDirection), "column");
+      assert.equal(await primaryNav.evaluate(el=>getComputedStyle(el).borderTopWidth), "0px");
+      assert.equal(await primaryNav.locator(".header-links").evaluate(el=>getComputedStyle(el).flexDirection), "column");
+      const menuLinks = primaryNav.locator("a:visible");
+      const boxes = await Promise.all((await menuLinks.all()).map(link=>link.boundingBox()));
+      for (let i = 1; i < boxes.length; i++) {
+        assert.ok(boxes[i].y >= boxes[i-1].y + boxes[i-1].height - 1, "Mobile links stack vertically without overlap");
+      }
+      await menuLinks.first().focus();
+      await page.keyboard.press("Escape");
+      assert.equal(await menu.getAttribute("aria-expanded"), "false");
+      assert.equal(await primaryNav.isVisible(), false);
+      assert.equal(await menu.evaluate(el=>el===document.activeElement),true,"Escape returns focus to the icon");
+    } else {
+      assert.equal(await menu.isVisible(), false, "Desktop navigation does not show a menu toggle");
+    }
     assert.equal(await page.locator(".cinematic-hero").count(),1);
     assert.equal(await page.locator(".closing-cta .mockup").count(),3);
     assert.equal(await page.locator(".closing-scene").count(),1);
