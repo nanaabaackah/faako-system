@@ -18,9 +18,9 @@ test("Montserrat headings and Bonheur hero signature are self-hosted and license
   assert.match(css, /font-display: swap/);
   assert.doesNotMatch(css, /Instrument Serif|DM Sans/);
   const layout = read("../src/layouts/BaseLayout.astro");
-  assert.doesNotMatch(layout, /fonts\\.googleapis\\.com|fonts\\.gstatic\\.com/);
+  assert.doesNotMatch(layout, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
   const headers = read("../public/_headers");
-  assert.doesNotMatch(headers, /fonts\\.googleapis\\.com|fonts\\.gstatic\\.com/);
+  assert.doesNotMatch(headers, /fonts\.googleapis\.com|fonts\.gstatic\.com/);
   assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*A Little More You/);
 });
 
