@@ -127,7 +127,9 @@ body main :is(
   .editorial-wrap, .published-content, .journey-introduction,
   .cream-footprint, .travel-tips, .closing-copy, .service-panel__label,
   .cinematic-enquiry__card
-) :is(p, li):not(.eyebrow):not(.journal-card__metadata) {
+) :where(p, li):not(:where(.eyebrow, .journal-card__metadata)) {
+  /* Keep light-surface defaults intentionally low-specificity so navy
+     journey cards, editorial overlays and labels can override them. */
   color: var(--twe-copy-color);
 }
 body main :is(
