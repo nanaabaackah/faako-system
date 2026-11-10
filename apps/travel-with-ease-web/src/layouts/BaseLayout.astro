@@ -90,13 +90,11 @@ const visible = (href: string) =>
   (cinematic && href.startsWith("#")) ||
   Boolean(publishedPage(href === "/" ? "home" : href.slice(1)));
 const navigation = [
-  ["/", "Home"],
   ["/packages", "Packages"],
   ["/services", "Services"],
   ["/how-it-works", "How It Works"],
   ["/journal", "Journal"],
   ["/about", "About"],
-  ["/contact", "Contact"],
 ];
 ---
 
@@ -211,7 +209,6 @@ const navigation = [
               .map(([href, label]) => (
                 <a
                   href={href}
-                  class:list={{ "nav-mobile-only": href === "/" || href === "/contact" }}
                   aria-current={
                     (Astro.url.pathname.replace(/\/$/, "") || "/") === href
                       ? "page"
