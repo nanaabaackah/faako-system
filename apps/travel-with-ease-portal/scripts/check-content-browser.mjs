@@ -28,8 +28,9 @@ try {
     });
     const page = await context.newPage();
     const requests = [];
+    const writes = [];
     const navigate=async(name)=>{let button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();if(!await button.count()){await page.getByRole('button',{name:/^Menu/}).click();button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();}await button.click();};
-    await mockWorkspaceApi(page, {role: "owner", requests, templateDelay: 100, contentDelay: 200});
+    await mockWorkspaceApi(page, {role: "owner", requests, writes, templateDelay: 100, contentDelay: 200});
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
     if (width <= 800) {
@@ -113,11 +114,17 @@ try {
     await expect(approvedCopy).toBeEnabled();
     await approvedCopy.click();
     await expect(page.getByLabel(/^Heading/)).toHaveValue("Privacy notice");
-    assert.ok(requests.includes("/api/agent/content/privacy"), "Privacy draft fetched after section switch");
-    assert.ok(!requests.includes("/api/agent/content/travel-footprint/draft") ||
-      requests.includes("/api/agent/content/privacy/draft"),
-      "The approved privacy copy must not save into the prior footprint editor");
     await page.waitForFunction(() => document.querySelector(".draft-save-status")?.textContent.includes("Saved · version 2"));
+    assert.ok(requests.includes("/api/agent/content/privacy"), "Privacy draft fetched after section switch");
+    assert.ok(
+      writes.some(write => write.path === "/api/agent/content/privacy/draft" && write.heading === "Privacy notice"),
+      "Approved Privacy content saves to the Privacy draft",
+    );
+    assert.equal(
+      writes.some(write => write.path === "/api/agent/content/travel-footprint/draft" && write.heading === "Privacy notice"),
+      false,
+      "Approved Privacy content never writes to the Footprint draft",
+    );
     assert.equal(await page.getByRole("button", { name: "Publish saved changes", exact: true }).isEnabled(), true);
     await page.screenshot({
       path: path.join(output, `policy-${width}.png`),
