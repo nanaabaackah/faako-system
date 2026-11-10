@@ -221,12 +221,27 @@ try {
     assert.deepEqual(errors,[]);
     await context.close();
   }
-  const noJs=await browser.newContext({javaScriptEnabled:false,viewport:{width:390,height:844}});
+  // Keep the no-JavaScript regression deterministic: a native <summary>
+  // responds to Enter/Space even when the long FAQ page or fixed header makes
+  // an automated pointer click report "outside of the viewport".
+  const noJs=await browser.newContext({
+    javaScriptEnabled:false,
+    viewport:{width:390,height:844},
+    reducedMotion:"reduce",
+  });
   const page=await noJs.newPage();
-  await page.goto(origin+"/faqs");
-  const summary=page.locator(".twe-accordion summary").first();
-  await summary.click();
-  assert.equal(await page.locator(".twe-accordion").first().getAttribute("open"),"");
+  await page.goto(origin+"/faqs",{waitUntil:"domcontentloaded"});
+  const disclosure=page.locator(".twe-accordion").first();
+  const summary=disclosure.locator("summary");
+  await summary.focus();
+  assert.equal(await summary.evaluate(el=>el===document.activeElement),true,
+    "FAQ summary is keyboard-focusable without JavaScript");
+  await page.keyboard.press("Enter");
+  assert.equal(await disclosure.getAttribute("open"),"",
+    "Native FAQ opens with Enter when scripting is disabled");
+  await page.keyboard.press("Space");
+  assert.equal(await disclosure.getAttribute("open"),null,
+    "Native FAQ closes with Space when scripting is disabled");
   assert.ok(await page.locator("nav a").count()>0);
   await noJs.close();
   console.log(JSON.stringify({passed:true,widths:[320,375,390,768,1024,1440],accessibility:true,noJavaScript:true,screenshots:directory}));
