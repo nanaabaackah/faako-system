@@ -66,7 +66,7 @@ try {
         "Open mobile menu prevents document scrolling");
       const mobileLabels = await primaryNav.locator(".header-links a:visible").allTextContents();
       assert.deepEqual(mobileLabels.map(label=>label.trim()), [
-        "Home", "Packages", "Services", "How It Works", "Journal", "About", "Contact",
+        "Packages", "Services", "How It Works", "Journal", "About",
       ]);
       const firstNavLink = primaryNav.locator(".header-links a:visible").first();
       const firstNavStyle = await firstNavLink.evaluate(el=>({
