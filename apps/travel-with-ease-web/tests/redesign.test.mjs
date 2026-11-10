@@ -10,15 +10,15 @@ test("the brand links home without a redundant Home menu entry", () => {
   assert.doesNotMatch(layout, /\["\/", "Home"\]/);
 });
 
-test("shared CTA preserves the five supplied mockups, one action and no copied reference assets", () => {
+test("shared CTA preserves the selected three mockups, one action and no copied reference assets", () => {
   const component = source("components/ClosingCta.astro");
   assert.match(component, /astro:assets/);
-  assert.match(component, /widths=\{\[160, 320, 640, 960\]\}/);
+  assert.match(component, /widths=\{\[320, 640, 960\]\}/);
   assert.match(component, /loading="lazy"/);
   assert.match(component, /aria-hidden="true"/);
   assert.equal((component.match(/<ContentLink\b/g) || []).length, 1);
   assert.doesNotMatch(component, /<figcaption|framerusercontent|flyward.com/);
-  for (let index = 1; index <= 5; index++)
+  for (const index of [1, 2, 5])
     assert.match(component, new RegExp(`TWE_mockup${index}\\.png`));
   assert.match(
     component,

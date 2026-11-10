@@ -31,7 +31,6 @@
 }
 .home-services {
   padding-block: clamp(48px, 7vw, 104px);
-  color: var(--brand-navy);
 }
 .featured-journeys {
   padding-block: clamp(56px, 8vw, 112px);

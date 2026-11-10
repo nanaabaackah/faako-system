@@ -28,7 +28,6 @@
   color: var(--brand-navy, #010c33);
 }
 .travel-tips__notice {
-  border-left: 3px solid var(--brand-gold, #d8b56a);
   padding-inline-start: 16px;
 }
 .travel-tip-body {

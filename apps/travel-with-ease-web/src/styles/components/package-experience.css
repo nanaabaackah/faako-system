@@ -237,7 +237,7 @@
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
   .journey-preview {
-    transition: transform 200ms ease;
+    transition: transform 350ms ease;
   }
   .journey-preview:hover {
     transform: translateY(-4px);

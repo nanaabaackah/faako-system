@@ -42,7 +42,7 @@ try {
     await page.goto(origin, {waitUntil:"networkidle"});
     await page.getByRole("button",{name:"Essential only",exact:true}).click();
     assert.equal(await page.locator(".cinematic-hero").count(),1);
-    assert.equal(await page.locator(".closing-cta .mockup").count(),5);
+    assert.equal(await page.locator(".closing-cta .mockup").count(),3);
     assert.equal(await page.locator(".closing-scene").count(),1);
     assert.equal(await page.locator(".public-enquiry-form").count(),1);
     assert.equal(await page.locator("footer.twe-public-footer").count(),1);

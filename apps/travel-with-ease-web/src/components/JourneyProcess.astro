@@ -48,7 +48,6 @@ const summaries = [
 </section>
 {page && <section class="planning-example editorial-wrap" aria-labelledby="planning-example-heading">
   <div class="planning-example__intro">
-    <p class="planning-example__label">An example, not a booking</p>
     <h2 id="planning-example-heading">From “we’re thinking about it” to a clear plan.</h2>
     <p>{example ? `Imagine two friends considering ${example.duration?.toLowerCase() || "a trip"} in ${example.title}. Here is how they could use the process.` : "Imagine two friends planning a trip from Ghana. Here is how they could use the process."}</p>
     {example && <ContentLink href={`/packages/${example.slug}`}>Explore the {example.title} package</ContentLink>}

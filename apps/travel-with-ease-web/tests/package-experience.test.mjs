@@ -38,7 +38,6 @@ test("expanded process is page-only and examples do not claim to be a real clien
   const process = source("components/JourneyProcess.astro");
   assert.match(process, /page && practicalSteps\[index\]/);
   assert.match(process, /page && <section class="planning-example/);
-  assert.match(process, /An example, not a booking/);
   assert.match(process, /not a real client story or a confirmed offer/);
   assert.match(process, /publishedPage\("packages"\)/);
   assert.match(process, /Package deposit terms do not automatically apply/);

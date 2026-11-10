@@ -76,10 +76,10 @@ try {
     await page.keyboard.press("Escape");
     assert.equal(await firstPhoto.evaluate(node => node === document.activeElement), true);
     await page.getByText("Reference month: June 2027", { exact: true }).waitFor();
-    const quoteLinks = page.getByRole("link", { name: "Check dates & get a quote", exact: true });
+    const quoteLinks = page.getByRole("link", { name: "Check dates & Get a Quote", exact: true });
     await quoteLinks.first().waitFor();
-    assert.ok(await quoteLinks.count() >= 1, "A quote CTA is accessible at every viewport");
-    assert.equal(await page.locator('a[href="#plan"]').filter({ hasText: "Check dates & get a quote" }).count(), 2, "Desktop and mobile CTA variants remain in the document");
+    assert.equal(await quoteLinks.count(), 1, "The updated package detail has one accessible quote CTA at every viewport");
+    assert.equal(await quoteLinks.first().getAttribute("href"), "#plan", "The quote CTA points to the shared enquiry form");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-package-detail-${width}.png`), fullPage: true });
     await page.goto(origin + "/packages/singapore", { waitUntil: "domcontentloaded" });
