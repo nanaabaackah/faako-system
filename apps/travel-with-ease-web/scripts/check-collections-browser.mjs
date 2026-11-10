@@ -172,6 +172,26 @@ try {
     await page.goto(origin + "/journal", { waitUntil: "domcontentloaded" });
     assert.equal(await page.locator("[data-collection-item]").count(), 2);
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
+    await page.locator(".journal-card").first().click();
+    await page.waitForURL("**/journal/*");
+    const paragraphs = page.locator(".journal-reading .collection-reading > p");
+    assert.ok(await paragraphs.count() >= 2, "Journal has an introduction and article paragraphs");
+    for (const paragraph of await paragraphs.all()) {
+      const font = await paragraph.evaluate(el => {
+        const style = getComputedStyle(el);
+        return { family: style.fontFamily, size: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) };
+      });
+      assert.match(font.family, /Caveat/, "Full journal body uses the handwriting font");
+      assert.ok(font.size >= 24, "Journal handwriting is large enough for extended reading");
+      assert.ok(font.lineHeight >= 1.3 * font.size, "Handwriting retains generous line spacing");
+    }
+    assert.match(
+      await page.locator(".journal-reading .collection-detail-heading > p").first().evaluate(el => getComputedStyle(el).fontFamily),
+      /Quicksand/,
+      "Journal metadata remains in the UI font"
+    );
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: path.join(output, `approved-journal-reading-${width}.png`), fullPage: true });
     await page.goto(origin + "/", { waitUntil: "networkidle" });
     assert.equal(await page.locator(".public-enquiry-form").count(), 1);
     assert.equal(await page.getByText(/placeholder|Online enquiry.*not available|Enquiry availability/i).count(), 0);
