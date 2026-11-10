@@ -29,9 +29,9 @@ const summaries = [
 ];
 ---
 
-<section class:list={["journey-process editorial-wrap", { "planning-process": page }]} id="how-it-works" data-image-layout={photo.layout}>
+<section class:list={["journey-process editorial-wrap", { "planning-process": page, "journey-process--option-a": !page }]} id="how-it-works" data-image-layout={photo.layout}>
   <EditorialPhoto image={photography.park} placement={photo} class="journey-process__photo" />
-  <div>
+  <div class="journey-process__steps">
     {page ? <h1>{content.heading}</h1> : <h2>{content.heading}</h2>}
     {page && <p class="journey-process__introduction">{content.body}</p>}
     <ol>
