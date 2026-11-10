@@ -5,12 +5,14 @@ const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
 test("public typography uses licensed Google Fonts with scoped hero and journal handwriting", () => {
   const typography = read("../src/styles/typography.css");
-  assert.match(typography, /--font-display: "Italiana"/);
+  assert.match(typography, /--font-display: "Poiret One"/);
   assert.match(typography, /--font-body: "Quicksand"/);
   assert.match(typography, /--font-impact: "Inter"/);
   assert.match(typography, /--font-signature: "Sassy Frass"/);
   assert.match(typography, /--font-journal: "Caveat"/);
-  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-weight: 800 !important/);
+  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-family: var\(--font-display\) !important;[\s\S]*?font-weight: 400 !important/);
+  assert.match(typography, /-webkit-text-stroke: 0\.03em currentColor/);
+  assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{[\s\S]*?-webkit-text-stroke: 0/);
   assert.match(typography, /body \.cinematic-hero \.hero-signature \{/);
   assert.match(typography, /body \.journal-collection-grid \.journal-card h2 \{/);
   assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{/);
@@ -18,11 +20,12 @@ test("public typography uses licensed Google Fonts with scoped hero and journal 
   assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\) \{[\s\S]*?font-family: var\(--font-journal\)/);
   assert.match(typography, /font-size: clamp\(4\.25rem, 19vw, 6\.25rem\)/);
   const layout = read("../src/layouts/BaseLayout.astro");
-  for (const family of ["Caveat", "Italiana", "Inter", "Quicksand", "Sassy+Frass"])
+  for (const family of ["Caveat", "Inter", "Poiret+One", "Quicksand", "Sassy+Frass"])
     assert.ok(layout.includes(`family=${family}`) || layout.includes(`&family=${family}`));
   assert.match(layout, /display=swap/);
   assert.doesNotMatch(layout, /DM\+Sans|Instrument\+Serif/);
-  assert.doesNotMatch(layout, /Montserrat/);
+  assert.doesNotMatch(layout, /Montserrat|Italiana/);
+  assert.match(layout, /family=Poiret\+One/);
   assert.doesNotMatch(typography, /Montserrat/);
   const headers = read("../public/_headers");
   assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
