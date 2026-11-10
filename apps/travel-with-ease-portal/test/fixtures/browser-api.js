@@ -2,7 +2,7 @@ import { createWorkspaceFixture } from './workspace.js';
 
 // Playwright-only HTTP boundary: the shipped portal always uses its real API
 // client. No synthetic identity or fixture adapter is reachable from src/.
-export async function mockWorkspaceApi(page, { role = 'owner', requests = [], templateDelay = 0 } = {}) {
+export async function mockWorkspaceApi(page, { role = 'owner', requests = [], templateDelay = 0, contentDelay = 0 } = {}) {
   const client = createWorkspaceFixture({ role });
   await page.route('**/api/**', async route => {
     const request = route.request();
@@ -10,6 +10,10 @@ export async function mockWorkspaceApi(page, { role = 'owner', requests = [], te
     requests.push(url.pathname);
     if (request.method() === "GET" && url.pathname.startsWith("/api/agent/templates/") && templateDelay) {
       await new Promise(resolve => setTimeout(resolve, templateDelay));
+    }
+    // Deliberately slow one section to catch stale-editor interaction races.
+    if (request.method() === "GET" && /^\/api\/agent\/content\/privacy(?:\/revisions)?$/.test(url.pathname) && contentDelay) {
+      await new Promise(resolve => setTimeout(resolve, contentDelay));
     }
     if (/^\/api\/agent\/media\/[^/]+\/preview$/.test(url.pathname)) {
       return route.fulfill({ contentType: "image/svg+xml",
