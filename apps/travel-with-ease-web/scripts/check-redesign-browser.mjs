@@ -58,6 +58,29 @@ try {
       assert.equal(await primaryNav.evaluate(el=>getComputedStyle(el).flexDirection), "column");
       assert.equal(await primaryNav.evaluate(el=>getComputedStyle(el).borderTopWidth), "0px");
       assert.equal(await primaryNav.locator(".header-links").evaluate(el=>getComputedStyle(el).flexDirection), "column");
+      assert.equal(await primaryNav.evaluate(el=>getComputedStyle(el).position), "fixed");
+      const menuSize = await primaryNav.boundingBox();
+      assert.ok(menuSize.width >= width - 1, "Open menu spans the viewport");
+      assert.equal(await primaryNav.evaluate(el=>getComputedStyle(el).backgroundColor), "rgb(1, 12, 51)");
+      assert.equal(await page.locator("body").evaluate(el=>getComputedStyle(el).overflow), "hidden",
+        "Open mobile menu prevents document scrolling");
+      const mobileLabels = await primaryNav.locator(".header-links a:visible").allTextContents();
+      assert.deepEqual(mobileLabels.map(label=>label.trim()), [
+        "Home", "Packages", "Services", "How It Works", "Journal", "About", "Contact",
+      ]);
+      const firstNavLink = primaryNav.locator(".header-links a:visible").first();
+      const firstNavStyle = await firstNavLink.evaluate(el=>({
+        weight:getComputedStyle(el).fontWeight,
+        font:getComputedStyle(el).fontFamily,
+        border:getComputedStyle(el).borderBottomWidth,
+      }));
+      assert.equal(firstNavStyle.weight, "800");
+      assert.match(firstNavStyle.font, /Montserrat/);
+      assert.equal(firstNavStyle.border, "1px");
+      const menuCta = primaryNav.locator(".nav-cta");
+      assert.equal(await menuCta.evaluate(el=>getComputedStyle(el).backgroundColor), "rgb(216, 181, 106)");
+      assert.equal(await menuCta.evaluate(el=>getComputedStyle(el).fontWeight), "800");
+      assert.ok((await menuCta.boundingBox()).width >= width - 72, "Gold CTA fills the menu width");
       const menuLinks = primaryNav.locator("a:visible");
       const boxes = await Promise.all((await menuLinks.all()).map(link=>link.boundingBox()));
       for (let i = 1; i < boxes.length; i++) {
@@ -67,6 +90,8 @@ try {
       await page.keyboard.press("Escape");
       assert.equal(await menu.getAttribute("aria-expanded"), "false");
       assert.equal(await primaryNav.isVisible(), false);
+      assert.notEqual(await page.locator("body").evaluate(el=>getComputedStyle(el).overflow), "hidden",
+        "Closing mobile menu restores document scrolling");
       assert.equal(await menu.evaluate(el=>el===document.activeElement),true,"Escape returns focus to the icon");
     } else {
       assert.equal(await menu.isVisible(), false, "Desktop navigation does not show a menu toggle");
@@ -99,6 +124,14 @@ try {
     assert.equal(heroTextColors.heading, "rgb(244, 237, 227)");
     assert.equal(heroTextColors.paragraph, "rgb(244, 237, 227)");
     assert.equal(heroTextColors.signature, "rgb(216, 181, 106)");
+    const heroFont = await page.locator(".cinematic-hero h1").evaluate(el=>({
+      family:getComputedStyle(el).fontFamily,
+      weight:getComputedStyle(el).fontWeight,
+    }));
+    assert.match(heroFont.family, /Montserrat/);
+    assert.equal(heroFont.weight, "800");
+    const signatureSize = await page.locator(".hero-signature").evaluate(el=>parseFloat(getComputedStyle(el).fontSize));
+    assert.ok(signatureSize >= (width <= 480 ? 48 : 64), "Signature is visibly larger");
     const lightSection = page.locator(".journey-introduction");
     if (await lightSection.count()) {
       const lightColors = await lightSection.evaluate(el => ({
