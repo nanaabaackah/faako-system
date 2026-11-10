@@ -319,8 +319,13 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           value={page}
           disabled={state.loading}
           onChange={(event) => {
-            if (!dirty || window.confirm("Discard unsaved changes?"))
+            if (!dirty || window.confirm("Discard unsaved changes?")) {
+              // Close the gap between changing the section and its load effect.
+              // Otherwise stale fields remain editable for one render, and an
+              // approved-copy click can send the new section into the old writer.
+              setState({ loading: true, error: "", message: "" });
               setPage(event.target.value);
+            }
           }}
         >
           {pages.map((name) => (
