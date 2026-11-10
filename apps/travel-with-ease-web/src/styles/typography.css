@@ -101,5 +101,10 @@ body .journal-reading .collection-reading > p:not(.collection-standfirst) {
   line-height: 1.8;
 }
 @media (max-width: 480px) {
-  body .cinematic-hero .hero-signature { font-size: clamp(2.6rem, 10vw, 4.1rem); }
+  body .cinematic-hero h1 { font-size: clamp(2.35rem, 10vw, 3.5rem); }
+  body .cinematic-hero .hero-signature {
+    font-size: clamp(2.2rem, 8.5vw, 3.7rem);
+    max-width: 100%;
+    text-wrap: balance;
+  }
 }
