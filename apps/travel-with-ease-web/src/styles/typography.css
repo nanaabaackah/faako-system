@@ -1,11 +1,11 @@
 /* Public TWE typography: Google Fonts, all under the SIL Open Font License.
-   Hero = Montserrat ExtraBold, editorial headings = Italiana, signature = Sassy Frass,
+   Hero = Inter ExtraBold, editorial headings = Italiana, signature = Sassy Frass,
    journal headings/short excerpts = Caveat, reading/UI = Quicksand.
    Keep functional and long-form journal text readable in Quicksand. */
 :root {
   --font-display: "Italiana", Georgia, serif;
   --font-body: "Quicksand", "Trebuchet MS", Arial, sans-serif;
-  --font-impact: "Montserrat", Arial, sans-serif;
+  --font-impact: "Inter", Arial, sans-serif;
   --font-signature: "Sassy Frass", cursive;
   --font-journal: "Caveat", "Segoe Print", cursive;
   --text-h1: clamp(2.5rem, 4.5vw, 4rem);
