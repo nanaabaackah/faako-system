@@ -1,10 +1,11 @@
 /* Public TWE typography: Google Fonts, all under the SIL Open Font License.
-   Hero = Quicksand, editorial headings = Italiana, signature = Sassy Frass,
+   Hero = Montserrat ExtraBold, editorial headings = Italiana, signature = Sassy Frass,
    journal headings/short excerpts = Caveat, reading/UI = Quicksand.
    Keep functional and long-form journal text readable in Quicksand. */
 :root {
   --font-display: "Italiana", Georgia, serif;
   --font-body: "Quicksand", "Trebuchet MS", Arial, sans-serif;
+  --font-impact: "Montserrat", Arial, sans-serif;
   --font-signature: "Sassy Frass", cursive;
   --font-journal: "Caveat", "Segoe Print", cursive;
   --text-h1: clamp(2.5rem, 4.5vw, 4rem);
@@ -43,29 +44,44 @@ body :is(.eyebrow, .package-section-label) { font-family: var(--font-body); font
 body label, body .ui-field__label { font-family: var(--font-body); font-size: var(--text-small); font-weight: 600; }
 body :is(input, select, textarea, .ui-field__input, .ui-dropdown-field__trigger) { font-family: var(--font-body); font-size: var(--text-body); }
 
-/* Home hero uses Quicksand Bold 700 (its heaviest published weight).
-   A slight stroke gives the extra-bold visual appearance without synthesising 800. */
+/* A bold, assured hero distinct from Quicksand reading text. */
 body .cinematic-hero h1 {
   max-width: 23ch;
-  font-family: var(--font-body) !important;
-  font-weight: 700 !important;
-  font-size: clamp(2rem, 4.3vw, 4.4rem);
-  line-height: 1.07;
-  letter-spacing: -0.045em;
-  -webkit-text-stroke: 0.01em currentColor;
+  font-family: var(--font-impact) !important;
+  font-weight: 800 !important;
+  font-size: clamp(2.1rem, 4.35vw, 4.5rem);
+  line-height: 1.08;
+  letter-spacing: -0.052em;
+  -webkit-text-stroke: 0;
   text-transform: none;
 }
 body .cinematic-hero .hero-signature {
   display: block;
-  margin-top: 0.15em;
+  max-width: 100%;
+  margin-top: 0.06em;
   font-family: var(--font-signature);
-  font-size: clamp(2.8rem, 7.4vw, 6.4rem);
+  font-size: clamp(4rem, 9vw, 8.8rem);
   font-weight: 400;
-  line-height: 1.15;
+  line-height: 1.08;
   letter-spacing: 0;
   color: var(--brand-gold);
   -webkit-text-stroke: 0;
   text-transform: none;
+  text-wrap: balance;
+}
+body .cinematic-hero__actions .twe-content-link {
+  font-family: var(--font-impact);
+  font-weight: 800;
+}
+
+/* Keep navigation and its CTA genuinely ExtraBold, without affecting Quicksand body copy. */
+body .site-header-shell .site-header nav a {
+  font-family: var(--font-impact);
+  font-weight: 800;
+}
+body .site-header-shell .site-header nav .nav-cta {
+  font-family: var(--font-impact);
+  font-weight: 800;
 }
 
 /* Journal handwriting is an editorial accent, not the long-form reading font. */
@@ -103,8 +119,9 @@ body .journal-reading .collection-reading > p:not(.collection-standfirst) {
 @media (max-width: 480px) {
   body .cinematic-hero h1 { font-size: clamp(2.35rem, 10vw, 3.5rem); }
   body .cinematic-hero .hero-signature {
-    font-size: clamp(2.2rem, 8.5vw, 3.7rem);
+    font-size: clamp(3rem, 12.5vw, 5.3rem);
     max-width: 100%;
+    line-height: 1.08;
     text-wrap: balance;
   }
 }
