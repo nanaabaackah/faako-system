@@ -3,18 +3,22 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("brand typography retains Bonheur hero and loads Instrument Serif and DM Sans", () => {
-  assert.equal(readFileSync(new URL("../public/fonts/bonheur-royale-latin-400.woff2", import.meta.url)).subarray(0, 4).toString(), "wOF2");
-  assert.match(read("../public/fonts/Bonheur-Royale-OFL.txt"), /SIL OPEN FONT LICENSE/);
+test("public typography uses licensed Google Fonts with scoped hero and journal handwriting", () => {
   const typography = read("../src/styles/typography.css");
-  assert.match(typography, /--font-display: "Instrument Serif"/);
-  assert.match(typography, /--font-body: "DM Sans"/);
-  assert.match(typography, /--font-signature: "Bonheur Royale"/);
-  assert.match(typography, /font-display: swap/);
-  assert.doesNotMatch(typography, /font-weight: 800/);
+  assert.match(typography, /--font-display: "Italiana"/);
+  assert.match(typography, /--font-body: "Quicksand"/);
+  assert.match(typography, /--font-signature: "Sassy Frass"/);
+  assert.match(typography, /--font-journal: "Caveat"/);
+  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-weight: 700 !important/);
+  assert.match(typography, /body \.cinematic-hero \.hero-signature \{/);
+  assert.match(typography, /body \.journal-collection-grid \.journal-card h2 \{/);
+  assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{/);
+  assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\)/);
   const layout = read("../src/layouts/BaseLayout.astro");
-  assert.match(layout, /fonts.googleapis.com\/css2\?family=DM\+Sans/);
-  assert.match(layout, /Instrument\+Serif:ital@0;1/);
+  for (const family of ["Caveat", "Italiana", "Quicksand", "Sassy+Frass"])
+    assert.ok(layout.includes(`family=${family}`) || layout.includes(`&family=${family}`));
+  assert.match(layout, /display=swap/);
+  assert.doesNotMatch(layout, /DM\+Sans|Instrument\+Serif/);
   const headers = read("../public/_headers");
   assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
   assert.match(headers, /font-src[^\n]*https:\/\/fonts.gstatic.com/);
