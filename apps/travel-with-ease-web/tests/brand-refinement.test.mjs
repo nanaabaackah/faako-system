@@ -57,3 +57,25 @@ test("public mobile menu uses an accessible icon and a borderless vertical layou
   assert.match(layout, /aria-expanded="false"/);
   assert.match(layout, /if \(event.key === "Escape" && mobile.matches\)/);
 });
+
+test("scrolled header keeps the approved white mark and brand navy palette", () => {
+  const layout = read("../src/layouts/BaseLayout.astro");
+  const nav = read("../src/styles/components/scroll-navigation.css");
+  assert.match(layout, /src="\/brand\/Primary gold\.png"/);
+  assert.match(layout, /src="\/brand\/midnight primary\.png"/);
+  assert.match(nav, /\.site-header\.is-scrolled[\s\S]*?background: var\(--brand-navy\)/);
+  assert.match(nav, /\.brand__wordmark--light[\s\S]*?object-fit: cover/);
+  assert.match(nav, /\.site-header:not\(\.is-scrolled\) \.brand__wordmark--gold/);
+});
+
+test("brand color hierarchy and stacked hero actions preserve contrast", () => {
+  const typography = read("../src/styles/typography.css");
+  const hero = read("../src/styles/components/cinematic-hero.css");
+  for (const token of ["--twe-heading-color", "--twe-copy-color", "--twe-label-color"])
+    assert.ok(typography.includes(token));
+  assert.match(typography, /body main \.cinematic-hero h1 \.hero-signature/);
+  assert.match(typography, /body main \.journal-card \.journal-card__metadata/);
+  assert.match(typography, /body main \.cinematic-enquiry__card p/);
+  assert.match(hero, /@media \(max-width: 600px\)[\s\S]*?flex-direction: column/);
+  assert.match(hero, /\.cinematic-hero__actions \.twe-content-link:not\(\.button\)/);
+});
