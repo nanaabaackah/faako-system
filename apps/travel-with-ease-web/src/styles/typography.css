@@ -1,15 +1,12 @@
-/* TWE public typography: preserve the homepage Bonheur Royale signature. */
-@font-face {
-  font-family: "Bonheur Royale";
-  src: url("/fonts/bonheur-royale-latin-400.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
+/* Public TWE typography: Google Fonts, all under the SIL Open Font License.
+   Hero = Quicksand, editorial headings = Italiana, signature = Sassy Frass,
+   journal headings/short excerpts = Caveat, reading/UI = Quicksand.
+   Keep functional and long-form journal text readable in Quicksand. */
 :root {
-  --font-display: "Instrument Serif", Georgia, serif;
-  --font-body: "DM Sans", Arial, sans-serif;
-  --font-signature: "Bonheur Royale", cursive;
+  --font-display: "Italiana", Georgia, serif;
+  --font-body: "Quicksand", "Trebuchet MS", Arial, sans-serif;
+  --font-signature: "Sassy Frass", cursive;
+  --font-journal: "Caveat", "Segoe Print", cursive;
   --text-h1: clamp(2.5rem, 4.5vw, 4rem);
   --text-h2: clamp(2.125rem, 3.5vw, 3rem);
   --text-h3: clamp(1.625rem, 2.5vw, 1.875rem);
@@ -20,14 +17,15 @@
 }
 html, body { font-family: var(--font-body); }
 body { font-size: var(--text-body); font-weight: 400; line-height: 1.65; }
-/* Specificity beats legacy Georgia font shorthands while retaining section sizes. */
-body :is(h1, h2) {
+
+/* Override historic Georgia font shorthands without changing layout or content. */
+body :is(h1, h2, h3) {
   font-family: var(--font-display) !important;
   font-weight: 400 !important;
-  line-height: 1.1;
+  line-height: 1.12;
   letter-spacing: -0.025em;
 }
-body :is(h3, h4, h5, h6) {
+body :is(h4, h5, h6) {
   font-family: var(--font-body) !important;
   font-weight: 600 !important;
   line-height: 1.25;
@@ -44,15 +42,64 @@ body .twe-content-link:not(.button) { font-family: var(--font-body); font-size: 
 body :is(.eyebrow, .package-section-label) { font-family: var(--font-body); font-size: var(--text-caption); font-weight: 600; letter-spacing: 0.12em; }
 body label, body .ui-field__label { font-family: var(--font-body); font-size: var(--text-small); font-weight: 600; }
 body :is(input, select, textarea, .ui-field__input, .ui-dropdown-field__trigger) { font-family: var(--font-body); font-size: var(--text-body); }
-/* Home hero remains distinctive, including its exact hand-lettered signature. */
-body .cinematic-hero h1 { max-width: 23ch; font-size: clamp(2rem, 4.3vw, 4.4rem); text-transform: none; }
+
+/* Home hero uses Quicksand Bold 700 (its heaviest published weight).
+   A slight stroke gives the extra-bold visual appearance without synthesising 800. */
+body .cinematic-hero h1 {
+  max-width: 23ch;
+  font-family: var(--font-body) !important;
+  font-weight: 700 !important;
+  font-size: clamp(2rem, 4.3vw, 4.4rem);
+  line-height: 1.07;
+  letter-spacing: -0.045em;
+  -webkit-text-stroke: 0.01em currentColor;
+  text-transform: none;
+}
 body .cinematic-hero .hero-signature {
   display: block;
   margin-top: 0.15em;
   font-family: var(--font-signature);
-  font-size: clamp(3.1rem, 8vw, 7rem);
+  font-size: clamp(2.8rem, 7.4vw, 6.4rem);
   font-weight: 400;
   line-height: 1.15;
   letter-spacing: 0;
+  color: var(--brand-gold);
+  -webkit-text-stroke: 0;
   text-transform: none;
+}
+
+/* Journal handwriting is an editorial accent, not the long-form reading font. */
+body .journal-collection-grid .journal-card h2 {
+  font-family: var(--font-journal) !important;
+  font-weight: 600 !important;
+  font-size: clamp(1.85rem, 2.8vw, 2.55rem);
+  line-height: 1.13;
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+}
+body .journal-collection-grid .journal-card .journal-card__excerpt {
+  font-family: var(--font-journal);
+  font-size: clamp(1.3rem, 1.75vw, 1.55rem);
+  line-height: 1.22;
+}
+body .journal-reading .collection-detail-heading h1 {
+  font-family: var(--font-journal) !important;
+  font-weight: 600 !important;
+  font-size: clamp(3rem, 6vw, 5.5rem);
+  line-height: 1.05;
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+}
+body .journal-reading .collection-standfirst {
+  font-family: var(--font-journal);
+  font-size: clamp(1.7rem, 2.5vw, 2.2rem);
+  line-height: 1.35;
+}
+body .journal-reading .collection-reading > p:not(.collection-standfirst) {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.8;
+}
+@media (max-width: 480px) {
+  body .cinematic-hero .hero-signature { font-size: clamp(2.6rem, 10vw, 4.1rem); }
 }
