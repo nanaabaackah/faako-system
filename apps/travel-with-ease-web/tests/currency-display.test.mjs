@@ -10,12 +10,20 @@ test("only explicit GHS amounts become display prices and original wording remai
   const text = "From GHS 2,500; each additional traveller is GHS 250. No booking yet.";
   const segments = moneySegments(text);
   assert.equal(segments.map(item => item.text).join(""), text);
+  assert.deepEqual(segments.filter(item => item.minor).map(item => item.displayText), ["GH₵2,500", "GH₵250"]);
+  assert.equal(moneySegments("GHS 1.05")[0].displayText, "GH₵1.05");
   assert.deepEqual(segments.filter(item => item.minor).map(item => item.minor), [250000, 25000]);
   assert.equal(moneySegments("GHS 1.05")[0].minor, 105);
   assert.equal(moneySegments("Price coming soon")[0].text, "Price coming soon");
   assert.equal(moneySegments("GHS 9999999999999999999999").some(item => item.minor), false);
   assert.equal(moneySegments("GHS 400.999").some(item => item.minor), false);
   assert.equal(supportedCurrency("<script>"), false);
+  // Display-only transformation: retain GHS for calculations, policy and API identity.
+  const moneyComponent = readFileSync(new URL("../src/components/MoneyText.astro", import.meta.url), "utf8");
+  assert.match(moneyComponent, /segment\.displayText/g);
+  const publishedContent = readFileSync(new URL("../src/components/PublishedContent.astro", import.meta.url), "utf8");
+  assert.match(publishedContent, /<MoneyText text=\{entry\.text\}/);
+  assert.match(publishedContent, /<MoneyText text=\{content\.body\}/);
 });
 
 test("display conversion uses exact integer rounding and unambiguous ISO labels", () => {

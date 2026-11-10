@@ -24,7 +24,8 @@ export function moneySegments(text) {
     if (!Number.isSafeInteger(minor) || minor <= 0) continue;
     if (match.index > cursor)
       result.push({ text: source.slice(cursor, match.index) });
-    result.push({ text: match[0], minor });
+    // Keep approved ISO-code source text; present the dedicated cedi sign to visitors.
+    result.push({ text: match[0], displayText: `GH₵${match[1]}`, minor });
     cursor = match.index + match[0].length;
   }
   if (cursor < source.length) result.push({ text: source.slice(cursor) });
