@@ -28,3 +28,9 @@ Review on both phone and desktop: hero wrapping/contrast, script baseline, secti
 ## Inter replacement — 2026-11-10
 
 The live public typography now uses **Inter ExtraBold (800)** in place of Montserrat for the homepage hero, navigation links, mobile-menu links, and the hero call-to-action. The menu layout, gold CTA, and larger Sassy Frass signature remain unchanged. Quicksand continues to serve body text and general UI; Italiana and Caveat remain editorial faces. Inter 700/800 loads through the existing Google Fonts stylesheet, which is already permitted by the public site's CSP. Tests inspect the declared family in CSS and computed browser fonts at mobile/desktop widths. The client CMS portal's separate font specification is outside this change.
+
+## Handwritten journal body and mobile signature — 2026-11-10
+
+- Full journal article paragraphs now use Caveat at a comfortable responsive 1.55–1.9rem and 1.43 line-height, matching the existing handwritten titles and leads. Metadata, breadcrumbs and functional links retain Quicksand.
+- The Sassy Frass “A Little More You” mobile signature now scales between 4.25rem and 6.25rem with a 19vw preferred size (previously 3rem–5.3rem at 12.5vw), balancing the text within the viewport.
+- Browser acceptance checks the actual journal article font, body size, line height, meta font, mobile signature size and horizontal overflow at narrow widths.
