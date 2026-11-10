@@ -7,15 +7,16 @@ test("public typography uses licensed Google Fonts with scoped hero and journal 
   const typography = read("../src/styles/typography.css");
   assert.match(typography, /--font-display: "Italiana"/);
   assert.match(typography, /--font-body: "Quicksand"/);
+  assert.match(typography, /--font-impact: "Montserrat"/);
   assert.match(typography, /--font-signature: "Sassy Frass"/);
   assert.match(typography, /--font-journal: "Caveat"/);
-  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-weight: 700 !important/);
+  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-weight: 800 !important/);
   assert.match(typography, /body \.cinematic-hero \.hero-signature \{/);
   assert.match(typography, /body \.journal-collection-grid \.journal-card h2 \{/);
   assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{/);
   assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\)/);
   const layout = read("../src/layouts/BaseLayout.astro");
-  for (const family of ["Caveat", "Italiana", "Quicksand", "Sassy+Frass"])
+  for (const family of ["Caveat", "Italiana", "Montserrat", "Quicksand", "Sassy+Frass"])
     assert.ok(layout.includes(`family=${family}`) || layout.includes(`&family=${family}`));
   assert.match(layout, /display=swap/);
   assert.doesNotMatch(layout, /DM\+Sans|Instrument\+Serif/);
@@ -84,4 +85,21 @@ test("brand color hierarchy and stacked hero actions preserve contrast", () => {
   assert.doesNotMatch(typography, /:is\(p, li\):not\(\.eyebrow\):not\(\.journal-card__metadata\)/);
   assert.match(hero, /@media \(max-width: 600px\)[\s\S]*?flex-direction: column/);
   assert.match(hero, /\.cinematic-hero__actions \.twe-content-link:not\(\.button\)/);
+});
+
+test("mobile menu matches approved full-screen reference without hiding important pages", () => {
+  const layout = read("../src/layouts/BaseLayout.astro");
+  const css = read("../src/styles/components/scroll-navigation.css");
+  const hero = read("../src/styles/typography.css");
+  assert.match(layout, /\["\/", "Home"\]/);
+  assert.match(layout, /\["\/contact", "Contact"\]/);
+  assert.match(layout, /nav-mobile-only/);
+  assert.match(css, /nav\[data-collapsed="true"\] \{\s*display: none/);
+  assert.match(css, /position: fixed;[\s\S]*?height: 100dvh/);
+  assert.match(css, /border-bottom: 1px solid rgb\(244 237 227 \/ 18%\)/);
+  assert.match(css, /\.nav-cta \{[\s\S]*?background: var\(--brand-gold\)/);
+  assert.match(hero, /--font-impact: "Montserrat"/);
+  assert.match(hero, /font-size: clamp\(4rem, 9vw, 8\.8rem\)/);
+  assert.match(hero, /body \.site-header-shell \.site-header nav a \{[\s\S]*?font-weight: 800/);
+  assert.match(layout, /twe-mobile-menu-open/);
 });
