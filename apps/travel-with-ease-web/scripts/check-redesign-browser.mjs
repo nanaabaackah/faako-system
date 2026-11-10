@@ -71,7 +71,43 @@ try {
     } else {
       assert.equal(await menu.isVisible(), false, "Desktop navigation does not show a menu toggle");
     }
+    const header = page.locator(".site-header");
+    const goldLogo = header.locator(".brand__wordmark--gold");
+    const whiteLogo = header.locator(".brand__wordmark--light");
+    assert.equal(await goldLogo.isVisible(), true, "Unscrolled header uses the gold wordmark");
+    assert.equal(await whiteLogo.isVisible(), false, "White logo is reserved for the scrolled state");
+    if (width <= 900) {
+      assert.ok((await goldLogo.boundingBox()).width <= 118, "Mobile gold logo is compact");
+    }
+    if (width <= 600) {
+      const actions = page.locator(".cinematic-hero__actions > .twe-content-link");
+      assert.equal(await actions.count(), 2);
+      const first = await actions.nth(0).boundingBox();
+      const second = await actions.nth(1).boundingBox();
+      assert.ok(first && second && second.y >= first.y + first.height, "Hero actions stack on small screens");
+      assert.ok(first.width >= 0.8 * width && second.width >= 0.8 * width,
+        "Hero actions have generous mobile width");
+      assert.ok(Math.abs(first.width - second.width) <= 1,
+        "Hero actions share an equal width");
+    }
     assert.equal(await page.locator(".cinematic-hero").count(),1);
+    const heroTextColors = await page.locator(".cinematic-hero").evaluate(el=>({
+      heading:getComputedStyle(el.querySelector("h1")).color,
+      paragraph:getComputedStyle(el.querySelector(".cinematic-hero__copy > p")).color,
+      signature:getComputedStyle(el.querySelector(".hero-signature")).color,
+    }));
+    assert.equal(heroTextColors.heading, "rgb(244, 237, 227)");
+    assert.equal(heroTextColors.paragraph, "rgb(244, 237, 227)");
+    assert.equal(heroTextColors.signature, "rgb(216, 181, 106)");
+    const lightSection = page.locator(".journey-introduction");
+    if (await lightSection.count()) {
+      const lightColors = await lightSection.evaluate(el => ({
+        heading:getComputedStyle(el.querySelector("h2")).color,
+        paragraph:getComputedStyle(el.querySelector("p")).color,
+      }));
+      assert.equal(lightColors.heading, "rgb(1, 12, 51)");
+      assert.equal(lightColors.paragraph, "rgb(93, 99, 114)");
+    }
     assert.equal(await page.locator(".closing-cta .mockup").count(),3);
     assert.equal(await page.locator(".closing-scene").count(),1);
     assert.equal(await page.locator(".public-enquiry-form").count(),1);
@@ -80,6 +116,20 @@ try {
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     await page.evaluate(()=>scrollTo(0,600));
     await page.waitForFunction(()=>document.querySelector(".site-header")?.classList.contains("is-scrolled"));
+    assert.equal(await header.evaluate(el=>getComputedStyle(el).backgroundColor), "rgb(1, 12, 51)",
+      "Scrolled navbar uses brand navy");
+    assert.equal(await whiteLogo.isVisible(), true, "Scrolled navbar shows approved white wordmark");
+    assert.equal(await goldLogo.isVisible(), false, "Scrolled navbar hides gold wordmark");
+    const logoSrc = await whiteLogo.getAttribute("src");
+    assert.equal(logoSrc, "/brand/midnight primary.png");
+    assert.ok((await whiteLogo.boundingBox()).height <= 48);
+    await page.locator(".site-header nav").evaluate(el => el.scrollTop = 0);
+    if (width <= 900) {
+      await menu.click();
+      assert.equal(await primaryNav.evaluate(el=>getComputedStyle(el).backgroundColor),
+        "rgb(1, 12, 51)", "Expanded scrolled nav remains navy");
+      await menu.click();
+    }
     assert.equal(await page.locator(".closing-scene__image").evaluate(node=>getComputedStyle(node).objectPosition),
       width<=760?"50% 50%":"50% 60%");
     await page.addScriptTag({path:axe});
