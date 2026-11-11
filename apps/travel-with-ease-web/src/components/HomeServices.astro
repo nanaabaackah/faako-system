@@ -46,10 +46,11 @@ const servicePhotos = [photography.park, photography.coast, photography.garden, 
       const [title, ...priceParts] = entry.heading.split(" · ");
       const price = priceParts.join(" · ");
       const summary = entry.text.split(/(?<=[.!?])\s+/)[0];
+      const cardImage = entry.imagePlacement?.image || servicePhotos[index % servicePhotos.length];
       return (
         <li class="home-services__item home-services__row">
           <div class="home-services__image-effect" aria-hidden="true">
-            <ServiceTiltBackground imageSrc={servicePhotos[index % servicePhotos.length].src} client:visible />
+            <ServiceTiltBackground imageSrc={cardImage.src} client:visible />
           </div>
           <div class="home-services__row-heading">
             <h3><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
