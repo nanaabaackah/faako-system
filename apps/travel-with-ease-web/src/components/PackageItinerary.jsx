@@ -16,9 +16,10 @@ export default function PackageItinerary({ days = [] }) {
     <div className="twe-package-itinerary" aria-label="Day-by-day itinerary">
       <AnimatedList
         items={items}
-        initialSelectedIndex={0}
+        semantic="list"
+        initialSelectedIndex={-1}
         selectOnHover={false}
-        enableArrowNavigation
+        enableArrowNavigation={false}
         animation="fade"
         animateOnce
         stagger={0.035}
