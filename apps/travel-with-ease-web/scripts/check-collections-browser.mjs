@@ -38,8 +38,14 @@ try {
     if (await publicConsent.isVisible()) await publicConsent.click();
     await page.getByRole("status").filter({ hasText: "4 entries shown" }).waitFor();
     assert.equal(await page.locator("[data-collection-item]").count(), 4);
-    assert.notEqual(await page.locator(".journey-card").first().evaluate(element => getComputedStyle(element).boxShadow), "none");
-    assert.equal(await page.locator("[data-collection-item] > .placed-image > img").count(), 4);
+    const tickets = page.locator("[data-collection-item] .twe-package-ticket");
+    assert.equal(await tickets.count(), 4, "All published packages render as tickets");
+    assert.equal(await tickets.locator(".tilted-card__img").count(), 4,
+      "Each package retains its approved photograph");
+    assert.equal(await tickets.locator(".twe-ticket__barcode").count(), 4,
+      "Each package has the ticket stub design");
+    assert.equal(await tickets.locator(".twe-ticket--front h2 a").count(), 4,
+      "All ticket fronts expose direct native package links");
     const fieldStyle = await page.getByRole("button", { name: "Destination", exact: true }).evaluate(element => {
       const style = getComputedStyle(element);
       return { border: parseFloat(style.borderTopWidth), font: parseFloat(style.fontSize) };
@@ -59,8 +65,13 @@ try {
     await page.getByRole("option", { name: "All occasions", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "4 entries shown" }).waitFor();
     await page.screenshot({ path: path.join(output, `approved-packages-${width}.png`), fullPage: true });
-    // The image area, not only the title, activates one native card link.
-    await page.locator("[data-collection-item]").first().click({ position: { x: 20, y: 20 } });
+    const firstTicket = tickets.first().locator(".tilted-card");
+    await firstTicket.locator(".twe-ticket--front .twe-ticket__flip").click();
+    await expect(firstTicket).toHaveAttribute("data-flipped", "");
+    await expect(firstTicket.locator(".twe-ticket--back .twe-ticket__description")).toContainText("Zanzibar");
+    await firstTicket.locator(".twe-ticket--back .twe-ticket__flip").click();
+    await expect(firstTicket).not.toHaveAttribute("data-flipped");
+    await firstTicket.locator(".twe-ticket--front h2 a").click();
     await page.waitForURL("**/packages/zanzibar");
     await page.getByRole("heading", { name: "Zanzibar", exact: true }).waitFor();
     // Package detail now has the approved static day-by-day content inside
