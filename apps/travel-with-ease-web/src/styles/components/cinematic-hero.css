@@ -27,7 +27,8 @@
   background: rgb(0 10 31 / 62%);
 }
 .cinematic-hero__copy {
-  max-width: 720px;
+  width: 100%;
+  min-width: 0;
   text-align: center;
 }
 .cinematic-hero h1 {
@@ -37,7 +38,8 @@
     serif;
   letter-spacing: -0.035em;
   text-transform: uppercase;
-  max-width: 20ch;
+  width: 100%;
+  max-width: none;
   text-wrap: balance;
 }
 .cinematic-hero__copy > p {
