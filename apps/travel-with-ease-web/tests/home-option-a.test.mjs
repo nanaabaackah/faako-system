@@ -9,6 +9,8 @@ const process = read("../src/components/JourneyProcess.astro");
 const tips = read("../src/components/TravelTips.astro");
 const css = read("../src/styles/components/home-option-a.css");
 const stepper = read("../src/components/HomeJourneyStepper.jsx");
+const serviceTilt = read("../src/components/ServiceTiltBackground.jsx");
+const reactBitsTilt = read("../src/components/reactbits/TiltedCard.jsx");
 const stepperSkin = read("../src/styles/components/home-journey-stepper.css");
 const reactBits = read("../src/components/reactbits/Stepper.jsx");
 const globalCSS = read("../src/styles/global.css");
@@ -46,7 +48,7 @@ test("About uses the approved story content and available media, without new cla
 });
 
 test("services keep published labels, prices, currency formatting and direct links", () => {
-  assert.match(services, /entries\.map\(\(entry\) =>/);
+  assert.match(services, /entries\.map\(\(entry, index\) =>/);
   assert.match(services, /serviceSlug\(entry\.heading\)/);
   assert.match(services, /<MoneyText text=\{price\} \/>/);
   assert.match(services, /<MoneyText text=\{summary\} \/>/);
@@ -102,4 +104,18 @@ test("all public controls and surface families use compact, shared radius tokens
   assert.match(controlsCSS, /border-radius: var\(--twe-radius-control\)/);
   assert.match(navigationCSS, /border-radius: var\(--twe-radius-nav\)/);
   assert.doesNotMatch(css, /home-services__number/);
+});
+
+test("services use approved photo-backed TiltedCard without hiding native published links", () => {
+  assert.match(services, /servicePhotos = \[photography\.park, photography\.coast, photography\.garden, photography\.elephants\]/);
+  assert.match(services, /<ServiceTiltBackground[\s\S]*?client:visible/);
+  assert.match(services, /<ContentLink href=\{\`\/services\/\$\{serviceSlug\(entry\.heading\)\}\`\}/);
+  assert.match(serviceTilt, /import TiltedCard from "\.\/reactbits\/TiltedCard\.jsx"/);
+  assert.match(serviceTilt, /rotateAmplitude=\{2\.5\}/);
+  assert.match(serviceTilt, /gyroscope=\{false\}/);
+  assert.match(serviceTilt, /glare=\{0\}/);
+  assert.match(reactBitsTilt, /const TiltedCard =/);
+  assert.match(css, /home-services__image-effect/);
+  assert.match(css, /background: rgb\(1 12 51 \/ 78%\)/);
+  assert.match(css, /prefers-reduced-motion: reduce/);
 });
