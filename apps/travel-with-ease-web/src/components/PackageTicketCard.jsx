@@ -21,7 +21,7 @@ function PackageFee({ text }) {
   );
 }
 
-/** @param {{ title: string, duration: string, price: string, tagline: string, overview: string, href: string, imageSrc?: string, imageSrcSet?: string, imageSizes?: string, mobileImageSrcSet?: string, imagePosition?: string, mobileImagePosition?: string, index?: number, headingLevel?: "h2"|"h3" }} props */
+/** @param {{ title: string, duration?: string, price: string, tagline: string, overview: string, href: string, imageSrc?: string, imageSrcSet?: string, imageSizes?: string, mobileImageSrcSet?: string, imagePosition?: string, mobileImagePosition?: string, index?: number, headingLevel?: "h2"|"h3" }} props */
 export default function PackageTicketCard({
   title, duration, price, tagline, overview, href, imageSrc, imageSrcSet,
   imageSizes, mobileImageSrcSet, imagePosition, mobileImagePosition,
@@ -37,7 +37,7 @@ export default function PackageTicketCard({
     (flipped ? backToggleRef : frontToggleRef).current?.focus({ preventScroll: true });
   }, [flipped]);
   // Like the ticket demo, the blank ticket surface also flips when clicked;
-  // service links and explicit flip buttons retain their own actions.
+  // package links and explicit flip buttons retain their own actions.
   const flipSurface = (event, next) => {
     if (event.target.closest("a, button")) return;
     setFlipped(next);
