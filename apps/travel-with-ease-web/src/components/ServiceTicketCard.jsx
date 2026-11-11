@@ -59,8 +59,7 @@ export default function ServiceTicketCard({ title, price, summary, description, 
         parallax={0.55}
         gyroscope={false}
         floating={false}
-        intro
-        introDelay={index * 85}
+        intro={false}
         flipped={flipped}
         flipOnClick={false}
         backContent={
