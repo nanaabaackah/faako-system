@@ -75,8 +75,10 @@ body .cinematic-hero .hero-signature {
   color: var(--brand-gold);
   -webkit-text-stroke: 0;
   text-transform: none;
-  white-space: nowrap;
-  text-wrap: nowrap;
+  /* Let the large handwritten text use the full row but wrap at word
+     boundaries instead of enlarging the document's scrollable width. */
+  white-space: normal;
+  text-wrap: balance;
 }
 body .cinematic-hero__actions .twe-content-link {
   font-family: var(--font-impact);
