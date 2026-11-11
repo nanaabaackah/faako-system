@@ -1,7 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
-import MoneyText from "./MoneyText.astro";
+import PackageTicketCard from "./PackageTicketCard.jsx";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import CollectionFilters from "./CollectionFilters.jsx";
 import { packageStartingPrice } from "../lib/package-pricing.js";
@@ -52,40 +52,26 @@ const {
         <div class="package-collection-grid">
           {items.map((item) => (
             <article
-              class="journey-card"
+              class="package-ticket-frame"
               data-collection-item
               data-category={item.destination}
               data-occasions={(item.occasions || []).join(" ")}
               data-group-friendly={item.groupFriendly ? "true" : "false"}
               data-search={`${item.title} ${item.destination} ${item.category || ""}`.toLocaleLowerCase()}
             >
-              {item.image && (
-                <PlacedImage image={item.image} placement={item.imagePlacement}
-                  src={item.image.src}
-                  srcset={item.image.sources
-                    ?.map((source) => `${source.src} ${source.width}w`)
-                    .join(", ")}
-                  sizes="(max-width: 760px) 90vw, 44vw"
-                  width={item.image.width}
-                  height={item.image.height}
-                  alt={item.image.alt}
-                  loading="lazy"
-                />
-              )}
-              <div>
-                <p class="journey-card__duration">{item.duration}</p>
-                <h2>
-                  <ContentLink
-                    class="journey-card__link"
-                    href={`${prefix}/${item.slug}`}
-                  >
-                    {item.title}
-                  </ContentLink>
-                </h2>
-                <p class="journey-card__summary">{item.tagline || item.overview.slice(0, 160)}</p>
-                <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
-                <span class="journey-card__explore" aria-hidden="true">Explore this journey</span>
-              </div>
+              <PackageTicketCard
+                title={item.title}
+                duration={item.duration}
+                summary={item.tagline || item.overview.slice(0, 160)}
+                description={item.overview || item.tagline || item.destination}
+                price={packageStartingPrice(item)}
+                href={`${prefix}/${item.slug}`}
+                imageSrc={item.imagePlacement?.image?.src || item.image?.src || item.imagePlacement?.mobileImage?.src || ""}
+                imageAlt={item.imagePlacement?.alt || item.imagePlacement?.image?.alt || item.image?.alt || ""}
+                groupFriendly={item.groupFriendly}
+                headingLevel="h2"
+                client:visible
+              />
             </article>
           ))}
         </div>
