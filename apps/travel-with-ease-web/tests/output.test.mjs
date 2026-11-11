@@ -69,3 +69,14 @@ test("unapproved foundation builds fail closed for indexing", async () => {
   assert.equal(robots, "User-agent: *\nDisallow: /\n");
   await assert.rejects(readFile(new URL("../dist/sitemap-index.xml", import.meta.url), "utf8"));
 });
+
+test("published package itinerary stays visible in static HTML and gallery keeps image links", async () => {
+  const html = await readFile(new URL("../dist/packages/zanzibar/index.html", import.meta.url), "utf8");
+  assert.match(html, /id="package-itinerary"/);
+  assert.match(html, /Arrive on the north coast/);
+  assert.match(html, /Meet your airport transfer/);
+  assert.match(html, /twe-package-itinerary/);
+  assert.match(html, /twe-package-gallery__fallback/);
+  assert.match(html, /View larger image/);
+  assert.match(html, /\/media\/zanzibar-/);
+});
