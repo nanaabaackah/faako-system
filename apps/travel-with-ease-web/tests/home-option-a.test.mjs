@@ -9,8 +9,8 @@ const process = read("../src/components/JourneyProcess.astro");
 const tips = read("../src/components/TravelTips.astro");
 const css = read("../src/styles/components/home-option-a.css");
 const stepper = read("../src/components/HomeJourneyStepper.jsx");
-const serviceTicket = read("../src/components/ServiceTicketCard.jsx");
-const ticketSkin = read("../src/styles/components/service-ticket.css");
+const packageTicket = read("../src/components/PackageTicketCard.jsx");
+const ticketSkin = read("../src/styles/components/package-ticket.css");
 const reactBitsTilt = read("../src/components/reactbits/TiltedCard.jsx");
 const stepperSkin = read("../src/styles/components/home-journey-stepper.css");
 const reactBits = read("../src/components/reactbits/Stepper.jsx");
@@ -49,10 +49,10 @@ test("About uses the approved story content and available media, without new cla
 });
 
 test("services keep published labels, prices, currency formatting and direct links", () => {
-  assert.match(services, /entries\.map\(\(entry, index\) =>/);
+  assert.match(services, /entries\.map\(\(entry\) =>/);
   assert.match(services, /serviceSlug\(entry\.heading\)/);
-  assert.match(services, /price=\{price\}/);
-  assert.match(services, /summary=\{summary\}/);
+  assert.match(services, /<MoneyText text=\{price\}/);
+  assert.match(services, /<p class="home-services__summary">\{summary\}<\/p>/);
   assert.match(services, /<CurrencyAttribution \/>/);
   assert.match(services, /<ul class="home-services__list">/);
   assert.doesNotMatch(services, /home-services__number|padStart\(2/);
@@ -107,43 +107,37 @@ test("all public controls and surface families use compact, shared radius tokens
   assert.doesNotMatch(css, /home-services__number/);
 });
 
-test("services use the real React Bits ticket demo, preserving published content and access", () => {
-  assert.match(services, /servicePhotos = \[photography\.park, photography\.coast, photography\.garden, photography\.elephants\]/);
-  assert.match(services, /cardImage = entry\.imagePlacement\?\.image \|\| servicePhotos/);
-  assert.match(services, /<ServiceTicketCard[\s\S]*?client:load/);
-  assert.match(services, /href=\{`\/services\/\$\{serviceSlug\(entry\.heading\)\}`\}/);
-  assert.match(services, /description=\{entry\.text\}/);
-  assert.match(serviceTicket, /import TiltedCard, \{ TiltedCardLayer \} from "\.\/reactbits\/TiltedCard\.jsx"/);
-  assert.match(serviceTicket, /moneySegments\(text\)/);
-  assert.match(serviceTicket, /data-twe-money=\{segment\.minor\}/);
-  assert.match(serviceTicket, /backContent=\{/);
-  assert.match(serviceTicket, /rotateAmplitude=\{9\}/);
-  assert.match(serviceTicket, /glare=\{0\.22\}/);
-  assert.match(serviceTicket, /flipped=\{flipped\}/);
-  assert.match(serviceTicket, /<a[\s\S]*?href=\{href\}[\s\S]*?className="twe-ticket__link"/);
-  assert.match(serviceTicket, /import \{ ArrowRight4 \} from "@faako\/ui"/);
-  assert.match(serviceTicket, /<h3><a href=\{href\}>\{title\}<\/a><\/h3>/);
-  assert.match(serviceTicket, /aria-label=\{`View \$\{title\} details`\}/);
-  assert.match(serviceTicket, /aria-label=\{`Back to \$\{title\} ticket`\}/);
-  assert.match(serviceTicket, /aria-label=\{`Explore \$\{title\} service`\}/);
-  assert.match(serviceTicket, /<ArrowRight4 size=\{20\}/);
-  assert.doesNotMatch(serviceTicket, /Travel With Ease · Your planning pass|Your journey, your way|twe-ticket__label|twe-ticket__back-label|↗|twe-ticket__monogram|twe-ticket__stub-text/);
-  assert.match(ticketSkin, /twe-ticket__main \.twe-ticket__content h3/);
-  assert.match(ticketSkin, /twe-ticket__flip--back svg/);
+test("home services use unnumbered ordinary cards with native links and approved copy", () => {
+  assert.match(services, /<h3><ContentLink href=\{\`\/services\/\$\{serviceSlug\(entry.heading\)\}\`\}>\{title\}<\/ContentLink><\/h3>/);
+  assert.match(services, /<MoneyText text=\{price\}/);
+  assert.match(services, /class="home-services__summary"/);
+  assert.doesNotMatch(services, /<ServiceTicketCard|<PackageTicketCard|tilted-card|home-services__number/);
+  assert.doesNotMatch(css, /twe-service-ticket|\.tilted-card__body/);
+});
+
+test("package tickets reuse the React Bits ticket with visible headings, currency and icons", () => {
+  const featured = read("../src/components/FeaturedJourneys.astro");
+  const listing = read("../src/components/PackageListing.astro");
+  for (const component of [featured, listing]) {
+    assert.match(component, /<PackageTicketCard[\s\S]*?client:load/);
+    assert.match(component, /imageSrc=\{photo\?\.src\}/);
+    assert.match(component, /mobileImageSrcSet=\{/);
+    assert.match(component, /price=\{packageStartingPrice\(item\)\}/);
+  }
+  assert.match(packageTicket, /import TiltedCard, \{ TiltedCardLayer \} from "\.\/reactbits\/TiltedCard\.jsx"/);
+  assert.match(packageTicket, /moneySegments\(text\)/);
+  assert.match(packageTicket, /data-twe-money=\{segment.minor\}/);
+  assert.match(packageTicket, /backContent=\{/);
+  assert.match(packageTicket, /rotateAmplitude=\{9\}/);
+  assert.match(packageTicket, /flipped=\{flipped\}/);
+  assert.match(packageTicket, /<Heading><a href=\{href\}>\{title\}<\/a><\/Heading>/);
+  assert.match(packageTicket, /import \{ ArrowRight4 \} from "@faako\/ui"/);
+  assert.match(packageTicket, /aria-label=\{\`Explore \$\{title\} package\`\}/);
+  assert.doesNotMatch(packageTicket, /Your planning pass|Your journey, your way|↗|twe-ticket__label/);
   assert.match(ticketSkin, /twe-ticket__barcode/);
   assert.match(ticketSkin, /-webkit-mask: none/);
-  assert.match(ticketSkin, /mask: none/);
-  assert.match(ticketSkin, /tilted-card__face::before/);
-  assert.match(ticketSkin, /tilted-card__face::after/);
   assert.match(ticketSkin, /background-color: var\(--brand-navy\)/);
   assert.match(ticketSkin, /background-color: var\(--brand-cream\)/);
-  assert.match(ticketSkin, /twe-ticket--front \.twe-ticket__main h3 a/);
-  assert.match(ticketSkin, /twe-ticket--back \.twe-ticket__back-main h3/);
-  assert.match(serviceTicket, /intro=\{false\}/);
-  assert.doesNotMatch(ticketSkin, /mask-composite:/);
-  assert.match(ticketSkin, /border-left: 1px dashed/);
-  assert.match(ticketSkin, /--twe-radius-card/);
+  assert.match(ticketSkin, /twe-package-ticket/);
   assert.match(reactBitsTilt, /const TiltedCard =/);
-  assert.match(css, /twe-service-ticket/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
 });
