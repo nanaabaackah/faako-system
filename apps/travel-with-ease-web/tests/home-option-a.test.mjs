@@ -120,7 +120,7 @@ test("services use the real React Bits ticket demo, preserving published content
   assert.match(serviceTicket, /rotateAmplitude=\{9\}/);
   assert.match(serviceTicket, /glare=\{0\.22\}/);
   assert.match(serviceTicket, /flipped=\{flipped\}/);
-  assert.match(serviceTicket, /<a href=\{href\}>/);
+  assert.match(serviceTicket, /<a[\s\S]*?href=\{href\}[\s\S]*?className="twe-ticket__link"/);
   assert.match(serviceTicket, /import \{ ArrowRight4 \} from "@faako\/ui"/);
   assert.match(serviceTicket, /<h3><a href=\{href\}>\{title\}<\/a><\/h3>/);
   assert.match(serviceTicket, /aria-label=\{`View \$\{title\} details`\}/);
