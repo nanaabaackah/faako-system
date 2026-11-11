@@ -74,7 +74,7 @@ try {
       const island = document.querySelector("#package-itinerary astro-island");
       return Boolean(island && !island.hasAttribute("ssr"));
     }, null, { timeout: 20000 });
-    const daysViewport = itinerary.locator(".animated-list__viewport");
+    const daysViewport = itinerary; // role=list is AnimatedList's scroll viewport
     await expect(daysViewport).toHaveCSS("overflow-y", "auto");
     assert.equal(await daysViewport.evaluate(el => el.scrollHeight > el.clientHeight), true,
       "The published itinerary has a dedicated scroll window for the fade reveal");
