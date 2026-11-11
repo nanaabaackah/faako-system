@@ -191,6 +191,7 @@ try {
     // Scroll into view to hydrate Astro's client:visible island before asserting controls.
     const process = page.locator(".journey-process--option-a");
     await process.scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => document.querySelector(".journey-process--option-a astro-island")?.hasAttribute("hydrated"), {timeout:15000});
     const journeyStepper = process.locator(".journey-process__interactive");
     const indicators = journeyStepper.locator(".stepper__segment");
     await indicators.first().waitFor({state:"visible",timeout:15000});
