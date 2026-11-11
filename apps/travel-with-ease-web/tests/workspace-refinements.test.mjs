@@ -12,7 +12,7 @@ test("homepage keeps the approved editorial image and semantic service-ticket de
   assert.match(component, /client:load/);
   assert.match(source("components/ServiceTicketCard.jsx"), /moneySegments\(text\)/);
   assert.match(source("components/ServiceTicketCard.jsx"), /data-twe-money/);
-  assert.match(source("components/ServiceTicketCard.jsx"), /<a href=\{href\}>/);
+  assert.match(source("components/ServiceTicketCard.jsx"), /<a[\s\S]*?href=\{href\}[\s\S]*?className="twe-ticket__link"/);
   assert.doesNotMatch(component, /figcaption|home-services__grid/);
   const css = source("styles/components/home-services.css");
   assert.match(css, /box-shadow: none/);
