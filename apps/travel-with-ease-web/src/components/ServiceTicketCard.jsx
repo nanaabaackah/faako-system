@@ -29,6 +29,12 @@ export default function ServiceTicketCard({ title, price, summary, description, 
     if (!initializedRef.current) { initializedRef.current = true; return; }
     (flipped ? backToggleRef : frontToggleRef).current?.focus({ preventScroll: true });
   }, [flipped]);
+  // Like the ticket demo, the blank ticket surface also flips when clicked;
+  // service links and explicit flip buttons retain their own actions.
+  const flipSurface = (event, next) => {
+    if (event.target.closest("a, button")) return;
+    setFlipped(next);
+  };
   return (
     <div className="twe-service-ticket" data-ticket-index={index}>
       <TiltedCard
@@ -57,7 +63,7 @@ export default function ServiceTicketCard({ title, price, summary, description, 
         flipped={flipped}
         flipOnClick={false}
         backContent={
-          <div className="twe-ticket twe-ticket--back">
+          <div className="twe-ticket twe-ticket--back" onClick={event => flipSurface(event, false)}>
             <div className="twe-ticket__stub twe-ticket__stub--back" aria-hidden="true">
               <span className="twe-ticket__monogram">TWE</span>
             </div>
@@ -75,7 +81,7 @@ export default function ServiceTicketCard({ title, price, summary, description, 
           </div>
         }
       >
-        <div className="twe-ticket twe-ticket--front">
+        <div className="twe-ticket twe-ticket--front" onClick={event => flipSurface(event, true)}>
           <TiltedCardLayer depth={18} className="twe-ticket__main">
             <span className="twe-ticket__label">Travel With Ease · Your planning pass</span>
             <div className="twe-ticket__content">
