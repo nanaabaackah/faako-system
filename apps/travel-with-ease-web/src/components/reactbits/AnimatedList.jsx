@@ -110,6 +110,7 @@ const AnimatedList = ({
   items = DEFAULT_ITEMS,
   onItemSelect,
   renderItem,
+  semantic = 'listbox',
   initialSelectedIndex = -1,
   selectOnHover = true,
   enableArrowNavigation = true,
@@ -131,6 +132,7 @@ const AnimatedList = ({
   itemClassName = '',
   style
 }) => {
+  const listMode = semantic === 'list';
   const rootRef = useRef(null);
   const viewportRef = useRef(null);
   const trackRef = useRef(null);
@@ -147,7 +149,7 @@ const AnimatedList = ({
     onItemSelect,
     selected,
     selectOnHover,
-    enableArrowNavigation,
+    enableArrowNavigation: !listMode && enableArrowNavigation,
     loop,
     animation,
     animateOnce,
@@ -493,9 +495,9 @@ const AnimatedList = ({
       <div
         ref={viewportRef}
         className={`animated-list__viewport${displayScrollbar ? '' : ' animated-list__viewport--bare'}`}
-        role="listbox"
-        tabIndex={0}
-        aria-activedescendant={selected >= 0 && selected < items.length ? `${baseId}-${selected}` : undefined}
+        role={listMode ? 'list' : 'listbox'}
+        tabIndex={listMode ? undefined : 0}
+        aria-activedescendant={!listMode && selected >= 0 && selected < items.length ? `${baseId}-${selected}` : undefined}
         style={{
           maxHeight: size(maxHeight),
           maskImage: showGradients ? FADE_MASK : undefined,
@@ -514,12 +516,12 @@ const AnimatedList = ({
                 }}
                 id={`${baseId}-${index}`}
                 className={`animated-list__item ${itemClassName}`.trim()}
-                role="option"
-                aria-selected={isSelected}
+                role={listMode ? 'listitem' : 'option'}
+                aria-selected={listMode ? undefined : isSelected}
                 data-index={index}
                 data-selected={isSelected ? '' : undefined}
-                onPointerEnter={selectOnHover ? () => hover(index) : undefined}
-                onClick={() => choose(item, index)}
+                onPointerEnter={!listMode && selectOnHover ? () => hover(index) : undefined}
+                onClick={listMode ? undefined : () => choose(item, index)}
               >
                 {renderItem ? (
                   renderItem(item, index, isSelected)
