@@ -1,0 +1,262 @@
+/* Ticket demo from React Bits, adapted to TWE: perforated edges, stub, depth and flip.
+   Typography, colors and corner radii come from the established brand system. */
+.twe-package-ticket {
+  --twe-ticket-stub: clamp(64px, 17%, 88px);
+  position: relative;
+  width: 100%;
+  height: clamp(345px, 34vw, 390px);
+  min-width: 0;
+  isolation: isolate;
+}
+.twe-package-ticket .tilted-card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+.twe-package-ticket .tilted-card__body {
+  width: 100%;
+  height: 100%;
+}
+/* Never mask an entire 3-D face: Safari's mask compositing can hide the
+   ticket and all its text. The 3-D card always has an opaque fallback. */
+.twe-package-ticket .tilted-card__front,
+.twe-package-ticket .tilted-card__back {
+  border-radius: var(--twe-radius-card);
+  -webkit-mask: none;
+  mask: none;
+}
+.twe-package-ticket .tilted-card__front { background-color: var(--brand-navy); }
+.twe-package-ticket .tilted-card__back { background-color: var(--brand-cream); }
+/* The page-coloured semicircles simulate ticket perforations without clipping content. */
+.twe-package-ticket .tilted-card__face::before,
+.twe-package-ticket .tilted-card__face::after {
+  content: "";
+  position: absolute;
+  left: calc(100% - var(--twe-ticket-stub));
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-cream);
+  transform: translateX(-50%);
+  z-index: 8;
+  pointer-events: none;
+}
+.twe-package-ticket .tilted-card__face::before { top: -9px; }
+.twe-package-ticket .tilted-card__face::after { bottom: -9px; }
+.twe-package-ticket .tilted-card__back::before,
+.twe-package-ticket .tilted-card__back::after { left: var(--twe-ticket-stub); }
+
+.twe-package-ticket .tilted-card__img {
+  z-index: 0;
+  opacity: .9;
+  filter: saturate(.72);
+}
+.twe-ticket {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--twe-ticket-stub);
+  color: var(--brand-cream);
+}
+.twe-ticket--front {
+  color: var(--brand-cream);
+  background: linear-gradient(115deg, rgb(1 12 51 / 76%), rgb(1 12 51 / 88%) 70%, rgb(1 12 51 / 96%));
+}
+.twe-package-ticket .twe-ticket__main {
+  position: relative;
+  inset: auto;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 13px;
+  padding: clamp(16px, 2.4vw, 26px);
+}
+.twe-ticket__content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.twe-ticket__main .twe-ticket__content :is(h2,h3) {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  line-height: 1.12;
+  margin: 0;
+}
+
+.twe-ticket__main :is(h2,h3),
+.twe-ticket__back-main :is(h2,h3) {
+  font-family: var(--font-display, "Poiret One", sans-serif);
+  font-weight: 800;
+  font-size: clamp(1.42rem, 2.25vw, 2.05rem);
+  line-height: 1.15;
+  letter-spacing: -.015em;
+  margin: 0 0 10px;
+  color: inherit;
+  -webkit-text-stroke: .015em currentColor;
+}
+.twe-package-ticket .twe-ticket--front .twe-ticket__main :is(h2,h3),
+.twe-package-ticket .twe-ticket--front .twe-ticket__main :is(h2,h3) a {
+  color: var(--brand-cream);
+}
+.twe-ticket__main :is(h2,h3) a { text-decoration: none; }
+.twe-ticket__main :is(h2,h3) a:hover,
+.twe-ticket__main :is(h2,h3) a:focus-visible,
+.twe-ticket__link:hover,
+.twe-ticket__link:focus-visible { text-decoration: underline; text-underline-offset: 4px; }
+.twe-package-ticket .twe-ticket--front .twe-ticket__duration {
+  margin: 0;
+  color: var(--brand-gold);
+  font: 700 .86rem/1.4 var(--font-impact, Inter, sans-serif);
+}
+.twe-ticket__summary {
+  color: var(--brand-cream);
+}
+.twe-ticket__summary {
+  max-width: 49ch;
+  font: 500 .94rem/1.55 var(--font-body, Quicksand, sans-serif);
+  margin: 0;
+  color: var(--brand-cream);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.twe-ticket__bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.twe-ticket__fee {
+  margin: 0;
+  color: var(--brand-gold);
+  font: 800 .88rem/1.3 var(--font-impact, Inter, sans-serif);
+}
+/* Higher specificity than the global editorial paragraph/money rules.
+   Fees on a navy ticket must never fall back to muted grey. */
+.twe-package-ticket .twe-ticket--front .twe-ticket__fee,
+.twe-package-ticket .twe-ticket--front .twe-ticket__fee .twe-money,
+.twe-package-ticket .twe-ticket--front .twe-ticket__fee [data-money-value] {
+  color: var(--brand-gold);
+}
+
+.twe-ticket__flip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  border: 1px solid rgb(244 237 227 / 65%);
+  border-radius: var(--twe-radius-button);
+  background: rgb(244 237 227 / 10%);
+  color: var(--brand-cream);
+  font: 800 .78rem/1.25 var(--font-impact, Inter, sans-serif);
+  cursor: pointer;
+  text-decoration: none;
+}
+.twe-ticket__flip:hover { background: rgb(244 237 227 / 22%); }
+.twe-ticket__flip svg, .twe-ticket__link svg { display: block; flex: none; }
+.twe-ticket__flip--back svg { transform: rotate(180deg); }
+.twe-ticket__flip:focus-visible,
+.twe-ticket a:focus-visible { outline: 3px solid var(--brand-sky); outline-offset: 3px; }
+.twe-package-ticket .twe-ticket__stub {
+  position: relative;
+  inset: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  gap: 12px;
+  padding: 18px 6px;
+  background: var(--brand-cream);
+  color: var(--brand-navy);
+  border-left: 1px dashed rgb(1 12 51 / 37%);
+}
+.twe-ticket__barcode { width: 35px; height: 85px; fill: var(--brand-navy); opacity: .9; }
+.twe-ticket--back {
+  grid-template-columns: var(--twe-ticket-stub) minmax(0, 1fr);
+  background: var(--brand-cream);
+  color: var(--brand-navy);
+}
+.twe-package-ticket .twe-ticket--back .twe-ticket__back-main :is(h2,h3),
+.twe-package-ticket .twe-ticket--back .twe-ticket__back-main p,
+.twe-package-ticket .twe-ticket--back .twe-ticket__link {
+  color: var(--brand-navy);
+}
+.twe-package-ticket .twe-ticket__stub--back {
+  border: 0;
+  border-right: 1px dashed rgb(1 12 51 / 32%);
+  background: #e1d4c2;
+  color: var(--brand-navy);
+}
+.twe-ticket__back-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: clamp(14px, 2vw, 23px);
+}
+.twe-ticket__back-main :is(h2,h3) { margin-bottom: 0; font-size: clamp(1.3rem, 2vw, 1.7rem); }
+.twe-ticket__description {
+  margin: 0;
+  max-height: 155px;
+  overflow-y: auto;
+  color: var(--brand-navy);
+  font: 500 .85rem/1.5 var(--font-body, Quicksand, sans-serif);
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+.twe-ticket__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.twe-ticket__back-main .twe-ticket__flip {
+  color: var(--brand-navy);
+  border-color: rgb(1 12 51 / 45%);
+  background: rgb(1 12 51 / 4%);
+}
+.twe-ticket__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgb(1 12 51 / 45%);
+  border-radius: var(--twe-radius-button);
+  background: rgb(1 12 51 / 4%);
+  color: var(--brand-navy);
+  text-decoration: none;
+}
+.twe-ticket__link:hover { background: rgb(1 12 51 / 11%); }
+@media (max-width: 580px) {
+  .twe-package-ticket { --twe-ticket-stub: 64px; height: 355px; }
+  .twe-package-ticket .twe-ticket__main { padding: 17px; }
+  .twe-ticket__main .twe-ticket__content :is(h2,h3) { font-size: clamp(1.65rem, 6.3vw, 1.95rem); }
+  .twe-ticket__summary { font-size: .84rem; }
+  .twe-ticket__description { max-height: 99px; font-size: .8rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twe-package-ticket .tilted-card__body,
+  .twe-package-ticket .tilted-card__shadow { transition: none !important; }
+}
+
+/* Scope prevents old package-card positioning rules from obscuring the new
+   React ticket. Service cards do not inherit this treatment. */
+.featured-journeys .twe-package-ticket,
+.package-catalogue .twe-package-ticket {
+  width: 100%;
+  max-width: 100%;
+}
+.twe-package-ticket .tilted-card__img { object-position: var(--tc-position, 50% 50%); }
+@media (max-width: 760px) {
+  .twe-package-ticket .tilted-card__img { object-position: var(--tc-mobile-position, var(--tc-position, 50% 50%)); }
+}
