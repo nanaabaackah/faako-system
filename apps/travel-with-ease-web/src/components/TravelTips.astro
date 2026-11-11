@@ -38,7 +38,7 @@ const items = homepage ? ordered.slice(0, 3) : ordered;
 {
   items.length > 0 && (
     <section
-      class="editorial-wrap travel-tips editorial-rule"
+      class:list={["editorial-wrap travel-tips editorial-rule", { "travel-tips--option-a": homepage }]}
       aria-label="Travel tips"
     >
       <div class="editorial-heading">

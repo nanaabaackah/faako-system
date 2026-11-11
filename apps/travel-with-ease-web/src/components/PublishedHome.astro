@@ -1,5 +1,6 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import EditorialPhoto from "./EditorialPhoto.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
 import TravelTips from "./TravelTips.astro";
@@ -10,6 +11,7 @@ import JourneyProcess from "./JourneyProcess.astro";
 import { publishedPage } from "../lib/published.js";
 import "../styles/components/home-sections.css";
 import "../styles/components/journey-editorial.css";
+import "../styles/components/home-option-a.css";
 const { content } = Astro.props;
 const about = publishedPage("about");
 const services = publishedPage("services");
@@ -23,13 +25,25 @@ const footprint = publishedPage("travel-footprint");
 <CinematicHero heading={content.heading} body={content.body} image={content.image} placement={content.imagePlacements?.hero} />
 <div class="home-journey-chapters">
   {about && (
-    <section id="about" class="journey-introduction">
+    <section id="about" class:list={["journey-introduction", "journey-introduction--option-a", { "journey-introduction--no-photo": !about.image }]}>
       <div class="editorial-wrap journey-introduction__inner">
-        <h2>{about.heading}</h2>
-        <div class="journey-introduction__copy">
-          <p>{about.body}</p>
-          <ContentLink href="/about">Meet Travel With Ease</ContentLink>
+        <div class="journey-introduction__story">
+          <h2>{about.heading}</h2>
+          <div class="journey-introduction__copy">
+            <p>{about.body}</p>
+            <ContentLink href="/about">Meet Travel With Ease</ContentLink>
+          </div>
         </div>
+        {about.image && (
+          <div class="journey-introduction__artwork">
+            <EditorialPhoto
+              image={about.image}
+              placement={about.imagePlacements?.feature}
+              class="journey-introduction__photo"
+              sizes="(max-width: 760px) 90vw, 42vw"
+            />
+          </div>
+        )}
       </div>
     </section>
   )}

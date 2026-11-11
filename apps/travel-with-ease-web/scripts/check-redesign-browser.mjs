@@ -166,6 +166,44 @@ try {
       assert.equal(lightColors.heading, "rgb(1, 12, 51)");
       assert.equal(lightColors.paragraph, "rgb(93, 99, 114)");
     }
+    // Option A is scoped to four homepage sections; the protected packages,
+    // travel footprint, hero, navigation, and closing/footer remain present.
+    const about = page.locator(".journey-introduction--option-a");
+    assert.equal(await about.count(), 1);
+    assert.equal(await about.locator("h2").count(), 1);
+    assert.equal(await about.locator(".journey-introduction__photo").count(), 1,
+      "About uses the approved published photo");
+    const cards = page.locator(".home-services--option-a .home-services__row");
+    assert.equal(await cards.count(), 4, "All four published service choices remain available");
+    assert.equal(await page.locator(".home-services--option-a .home-services__fee").count(), 4,
+      "Published service fees remain visible");
+    assert.equal(await page.locator(".home-services--option-a .home-services__list").evaluate(el => getComputedStyle(el).display), "grid");
+    const serviceBoxes = await Promise.all((await cards.all()).map(el => el.boundingBox()));
+    assert.ok(serviceBoxes.every(Boolean));
+    if (width <= 480) {
+      assert.ok(serviceBoxes.slice(1).every(box => Math.abs(box.x - serviceBoxes[0].x) < 1),
+        "Small phone service choices stay in a single column");
+    } else if (width >= 1100) {
+      assert.ok(serviceBoxes.slice(1).every(box => Math.abs(box.y - serviceBoxes[0].y) < 1),
+        "Desktop service choices stay in one clean editorial row");
+    }
+    const steps = page.locator(".journey-process--option-a .journey-process__steps > ol > li");
+    assert.equal(await steps.count(), 4, "Keep the existing four planning steps");
+    const tips = page.locator(".travel-tips--option-a");
+    assert.equal(await tips.count(), 1);
+    assert.equal(await tips.locator(".travel-tips__grid article").count(), 3,
+      "Three published travel tips remain visible");
+    if (width <= 760) {
+      const tipBoxes = await Promise.all((await tips.locator(".travel-tips__grid article").all()).map(el => el.boundingBox()));
+      assert.ok(tipBoxes.slice(1).every(box => Math.abs(box.x - tipBoxes[0].x) < 1),
+        "Travel tips stack cleanly on mobile");
+    }
+    assert.equal(await page.locator("#our-world.cream-footprint .travel-footprint").count(), 1,
+      "Keep the existing verified footprint section");
+    assert.equal(await page.locator("#our-world .footprint-map").count(), 1,
+      "Preserve the interactive map");
+    assert.equal(await page.locator(".featured-journeys").count(), 1,
+      "Keep the published package section");
     assert.equal(await page.locator(".closing-cta .mockup").count(),3);
     assert.equal(await page.locator(".closing-scene").count(),1);
     assert.equal(await page.locator(".public-enquiry-form").count(),1);
