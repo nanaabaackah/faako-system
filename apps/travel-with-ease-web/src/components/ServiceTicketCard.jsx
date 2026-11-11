@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import TiltedCard, { TiltedCardLayer } from "./reactbits/TiltedCard.jsx";
 import { moneySegments } from "../lib/currency-display.js";
 import "../styles/components/service-ticket.css";
@@ -22,6 +22,13 @@ function ServiceFee({ text }) {
 /** @param {{ title: string, price: string, summary: string, description: string, href: string, imageSrc: string, index: number }} props */
 export default function ServiceTicketCard({ title, price, summary, description, href, imageSrc, index = 0 }) {
   const [flipped, setFlipped] = useState(false);
+  const frontToggleRef = useRef(null);
+  const backToggleRef = useRef(null);
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!initializedRef.current) { initializedRef.current = true; return; }
+    (flipped ? backToggleRef : frontToggleRef).current?.focus({ preventScroll: true });
+  }, [flipped]);
   return (
     <div className="twe-service-ticket" data-ticket-index={index}>
       <TiltedCard
@@ -59,7 +66,7 @@ export default function ServiceTicketCard({ title, price, summary, description, 
               <h3>{title}</h3>
               <p className="twe-ticket__description">{description}</p>
               <div className="twe-ticket__actions">
-                <button type="button" className="twe-ticket__flip" onClick={() => setFlipped(false)}>
+                <button ref={backToggleRef} type="button" className="twe-ticket__flip" onClick={() => setFlipped(false)}>
                   Back to ticket
                 </button>
                 <a href={href} className="twe-ticket__link">Explore service <span aria-hidden="true">↗</span></a>
@@ -77,7 +84,7 @@ export default function ServiceTicketCard({ title, price, summary, description, 
             </div>
             <div className="twe-ticket__bottom">
               <p className="twe-ticket__fee"><ServiceFee text={price} /></p>
-              <button type="button" className="twe-ticket__flip" onClick={() => setFlipped(true)}>
+              <button ref={frontToggleRef} type="button" className="twe-ticket__flip" onClick={() => setFlipped(true)}>
                 View details <span aria-hidden="true">↗</span>
               </button>
             </div>
