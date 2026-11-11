@@ -70,6 +70,16 @@ try {
     assert.equal(await itinerary.locator('[role="listitem"]').count(), 6);
     await expect(itinerary).toContainText("Arrive on the north coast");
     await expect(itinerary).toContainText("Homeward");
+    await page.waitForFunction(() => {
+      const island = document.querySelector("#package-itinerary astro-island");
+      return Boolean(island && !island.hasAttribute("ssr"));
+    }, null, { timeout: 20000 });
+    const daysViewport = itinerary; // role=list is AnimatedList's scroll viewport
+    await expect(daysViewport).toHaveCSS("overflow-y", "auto");
+    assert.equal(await daysViewport.evaluate(el => el.scrollHeight > el.clientHeight), true,
+      "The published itinerary has a dedicated scroll window for the fade reveal");
+    await daysViewport.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    await expect(itinerary.locator('[role="listitem"]').last()).toHaveAttribute("data-state", "in");
     // Masonry hydrates after its island becomes visible; its SSR gallery links
     // remain readable and clickable while the layout and images load.
     const gallery = page.locator(".twe-package-gallery");

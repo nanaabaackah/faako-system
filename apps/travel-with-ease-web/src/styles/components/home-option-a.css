@@ -96,7 +96,7 @@
 }
 .home-services--option-a .home-services__list {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: clamp(12px, 1.5vw, 20px);
   margin: 0;
   padding: 0;
@@ -140,69 +140,31 @@
   color: var(--brand-navy);
 }
 
-/* PHOTO-BACKED SERVICES — React Bits TiltedCard is decorative only.
-   All approved text, prices, and native links remain in Astro. */
-.home-services--option-a .home-services__row {
-  isolation: isolate;
-  overflow: hidden;
-  background: var(--brand-navy);
-  border-color: rgb(1 12 51 / 12%);
-  color: var(--brand-cream);
+/* Actual perforated ticket layout. TiltedCard owns the entire interactive
+   ticket, rather than only the background image. */
+.home-services--option-a .home-services__row,
+.home-services--option-a .home-services__row:first-child,
+.home-services--option-a .home-services__row:last-child {
+  display: block;
+  min-height: 290px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--twe-radius-card);
+  background: transparent;
+  overflow: visible;
+  box-shadow: none;
 }
-.home-services--option-a .home-services__row::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: rgb(1 12 51 / 78%);
-}
-.home-services--option-a .home-services__image-effect {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  border-radius: inherit;
-}
-.home-services--option-a .home-services__image-effect astro-island,
-.home-services--option-a .home-services__image-effect .twe-service-tilt {
+.home-services--option-a .home-services__row > astro-island {
   display: block;
   width: 100%;
-  height: 100%;
+  min-width: 0;
 }
-.home-services--option-a .home-services__image-effect .tilted-card__body,
-.home-services--option-a .home-services__image-effect .tilted-card__face {
-  width: 100%;
-  height: 100%;
-}
-.home-services--option-a .home-services__row-heading,
-.home-services--option-a .home-services__summary {
-  position: relative;
-  z-index: 2;
-  pointer-events: none;
-}
-.home-services--option-a .home-services__row-heading a {
-  position: relative;
+.home-services--option-a .twe-service-ticket__tilt:hover {
   z-index: 3;
-  pointer-events: auto;
-  color: var(--brand-cream);
 }
-.home-services--option-a .home-services__row .twe-content-link,
-.home-services--option-a .home-services__fee,
-.home-services--option-a .home-services__summary {
-  color: var(--brand-cream);
-}
-.home-services--option-a .home-services__row .twe-content-link:focus-visible {
-  outline: 3px solid var(--brand-sky);
-  outline-offset: 3px;
-}
-.home-services--option-a .home-services__fee {
-  font-weight: 800;
-}
-/* No movement or alternate content on touch or reduced motion. */
-@media (hover: none), (prefers-reduced-motion: reduce) {
-  .home-services--option-a .home-services__image-effect .tilted-card__body {
-    transform: none !important;
+@media (prefers-reduced-motion: reduce) {
+  .home-services--option-a .tilted-card__body {
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -333,7 +295,7 @@ body main .travel-tips--option-a .travel-tips__grid h3 {
   .home-services--option-a .home-services__row,
   .home-services--option-a .home-services__row:first-child,
   .home-services--option-a .home-services__row:last-child {
-    min-height: 210px;
+    min-height: 290px;
   }
   .travel-tips--option-a {
     grid-template-columns: minmax(0, 1fr);
@@ -382,6 +344,6 @@ body main .travel-tips--option-a .travel-tips__grid h3 {
   .home-services--option-a .home-services__row,
   .home-services--option-a .home-services__row:first-child,
   .home-services--option-a .home-services__row:last-child {
-    min-height: 0;
+    min-height: 280px;
   }
 }

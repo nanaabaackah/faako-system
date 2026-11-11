@@ -71,6 +71,12 @@ test("approved package itineraries use restrained AnimatedList and remain server
   assert.match(island, /showGradients=\{false\}/);
   assert.match(island, /frame=\{false\}/);
   assert.match(island, /animation="fade"/);
+  assert.match(island, /gap=\{6\}/);
+  assert.match(island, /maxHeight=\{460\}/);
+  assert.match(island, /stagger=\{0\.05\}/);
+  assert.match(style, /overflow-y: auto/);
+  assert.match(style, /background: var\(--al-tile\)/);
+  assert.match(style, /max-height: 460px/);
   assert.match(style, /animated-list\[data-animated\].*item:not\(\[data-state\]\) \{ opacity: 1; \}/);
   assert.equal(approved.pages.packages.packages.find(item => item.slug === "zanzibar").itinerary.length, 6);
   assert.equal(approved.pages.packages.packages.find(item => item.slug === "nairobi").itinerary.length, 4);

@@ -22,16 +22,16 @@ export default function PackageItinerary({ days = [] }) {
         enableArrowNavigation={false}
         animation="fade"
         animateOnce
-        stagger={0.035}
+        stagger={0.05}
         showGradients={false}
         displayScrollbar={false}
         frame={false}
         theme="light"
         accentColor="#010c33"
         radius={8}
-        gap={0}
+        gap={6}
         width="100%"
-        maxHeight="none"
+        maxHeight={460}
         className="twe-package-itinerary__list"
         itemClassName="twe-package-itinerary__item"
         renderItem={item => (
@@ -46,13 +46,13 @@ export default function PackageItinerary({ days = [] }) {
         style={{
           "--al-ink": "var(--brand-navy)",
           "--al-muted": "#5d6372",
-          "--al-tile": "transparent",
-          "--al-tile-edge": "transparent",
-          "--al-tile-highlight": "transparent",
+          "--al-tile": "rgba(255, 255, 255, 0.52)",
+          "--al-tile-edge": "rgb(1 12 51 / 12%)",
+          "--al-tile-highlight": "rgb(255 255 255 / 38%)",
           "--al-tile-shadow": "none",
           "--al-well": "transparent",
           "--al-ring": "var(--brand-navy)",
-          "--al-ring-fill": "rgb(1 12 51 / 4%)"
+          "--al-ring-fill": "rgb(1 12 51 / 6%)"
         }}
       />
     </div>

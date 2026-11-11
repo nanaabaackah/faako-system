@@ -186,7 +186,7 @@ const AnimatedList = ({
     const mode = () => {
       const chosen = settingsRef.current.animation;
       if (chosen === 'none' || !HIDDEN[chosen]) return 'none';
-      return reduced ? 'fade' : chosen;
+      return reduced ? 'none' : chosen;
     };
 
     const apply = (element, state) => {

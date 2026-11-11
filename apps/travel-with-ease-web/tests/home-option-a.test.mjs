@@ -9,7 +9,8 @@ const process = read("../src/components/JourneyProcess.astro");
 const tips = read("../src/components/TravelTips.astro");
 const css = read("../src/styles/components/home-option-a.css");
 const stepper = read("../src/components/HomeJourneyStepper.jsx");
-const serviceTilt = read("../src/components/ServiceTiltBackground.jsx");
+const serviceTicket = read("../src/components/ServiceTicketCard.jsx");
+const ticketSkin = read("../src/styles/components/service-ticket.css");
 const reactBitsTilt = read("../src/components/reactbits/TiltedCard.jsx");
 const stepperSkin = read("../src/styles/components/home-journey-stepper.css");
 const reactBits = read("../src/components/reactbits/Stepper.jsx");
@@ -50,12 +51,12 @@ test("About uses the approved story content and available media, without new cla
 test("services keep published labels, prices, currency formatting and direct links", () => {
   assert.match(services, /entries\.map\(\(entry, index\) =>/);
   assert.match(services, /serviceSlug\(entry\.heading\)/);
-  assert.match(services, /<MoneyText text=\{price\} \/>/);
-  assert.match(services, /<MoneyText text=\{summary\} \/>/);
+  assert.match(services, /price=\{price\}/);
+  assert.match(services, /summary=\{summary\}/);
   assert.match(services, /<CurrencyAttribution \/>/);
   assert.match(services, /<ul class="home-services__list">/);
   assert.doesNotMatch(services, /home-services__number|padStart\(2/);
-  assert.match(css, /\.home-services--option-a \.home-services__list[\s\S]*?grid-template-columns: repeat\(4/);
+  assert.match(css, /\.home-services--option-a \.home-services__list[\s\S]*?grid-template-columns: repeat\(2/);
 });
 
 test("process keeps all approved steps and detailed page layout separate", () => {
@@ -106,17 +107,25 @@ test("all public controls and surface families use compact, shared radius tokens
   assert.doesNotMatch(css, /home-services__number/);
 });
 
-test("services use approved photo-backed TiltedCard without hiding native published links", () => {
+test("services use the real React Bits ticket demo, preserving published content and access", () => {
   assert.match(services, /servicePhotos = \[photography\.park, photography\.coast, photography\.garden, photography\.elephants\]/);
   assert.match(services, /cardImage = entry\.imagePlacement\?\.image \|\| servicePhotos/);
-  assert.match(services, /<ServiceTiltBackground[\s\S]*?client:visible/);
-  assert.match(services, /<ContentLink href=\{`\/services\/\$\{serviceSlug\(entry\.heading\)\}`\}/);
-  assert.match(serviceTilt, /import TiltedCard from "\.\/reactbits\/TiltedCard\.jsx"/);
-  assert.match(serviceTilt, /rotateAmplitude=\{2\.5\}/);
-  assert.match(serviceTilt, /gyroscope=\{false\}/);
-  assert.match(serviceTilt, /glare=\{0\}/);
+  assert.match(services, /<ServiceTicketCard[\s\S]*?client:load/);
+  assert.match(services, /href=\{`\/services\/\$\{serviceSlug\(entry\.heading\)\}`\}/);
+  assert.match(services, /description=\{entry\.text\}/);
+  assert.match(serviceTicket, /import TiltedCard, \{ TiltedCardLayer \} from "\.\/reactbits\/TiltedCard\.jsx"/);
+  assert.match(serviceTicket, /moneySegments\(text\)/);
+  assert.match(serviceTicket, /data-twe-money=\{segment\.minor\}/);
+  assert.match(serviceTicket, /backContent=\{/);
+  assert.match(serviceTicket, /rotateAmplitude=\{9\}/);
+  assert.match(serviceTicket, /glare=\{0\.22\}/);
+  assert.match(serviceTicket, /flipped=\{flipped\}/);
+  assert.match(serviceTicket, /<a href=\{href\}>/);
+  assert.match(ticketSkin, /twe-ticket__barcode/);
+  assert.match(ticketSkin, /mask-composite: intersect/);
+  assert.match(ticketSkin, /border-left: 1px dashed/);
+  assert.match(ticketSkin, /--twe-radius-card/);
   assert.match(reactBitsTilt, /const TiltedCard =/);
-  assert.match(css, /home-services__image-effect/);
-  assert.match(css, /background: rgb\(1 12 51 \/ 78%\)/);
+  assert.match(css, /twe-service-ticket/);
   assert.match(css, /prefers-reduced-motion: reduce/);
 });

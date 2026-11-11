@@ -175,7 +175,7 @@ try {
       "About uses the approved published photo");
     const cards = page.locator(".home-services--option-a .home-services__row");
     assert.equal(await cards.count(), 4, "All four published service choices remain available");
-    assert.equal(await page.locator(".home-services--option-a .home-services__fee").count(), 4,
+    assert.equal(await page.locator(".home-services--option-a .twe-ticket__fee").count(), 4,
       "Published service fees remain visible");
     assert.equal(await page.locator(".home-services--option-a .home-services__list").evaluate(el => getComputedStyle(el).display), "grid");
     const serviceBoxes = await Promise.all((await cards.all()).map(el => el.boundingBox()));
@@ -183,10 +183,24 @@ try {
     if (width <= 480) {
       assert.ok(serviceBoxes.slice(1).every(box => Math.abs(box.x - serviceBoxes[0].x) < 1),
         "Small phone service choices stay in a single column");
-    } else if (width >= 1100) {
-      assert.ok(serviceBoxes.slice(1).every(box => Math.abs(box.y - serviceBoxes[0].y) < 1),
-        "Desktop service choices stay in one clean editorial row");
+    } else {
+      assert.ok(Math.abs(serviceBoxes[1].y - serviceBoxes[0].y) < 1 &&
+        Math.abs(serviceBoxes[2].x - serviceBoxes[0].x) < 1 &&
+        serviceBoxes[2].y > serviceBoxes[0].y,
+        "Tablet and desktop tickets form two tidy rows of two");
     }
+    const firstTicket = cards.first().locator(".twe-service-ticket .tilted-card");
+    await firstTicket.scrollIntoViewIfNeeded();
+    await firstTicket.locator(".twe-ticket--front .twe-ticket__flip").click();
+    assert.equal(await firstTicket.getAttribute("data-flipped"), "",
+      "Ticket flips to reveal the published service details");
+    assert.equal(await firstTicket.locator(".twe-ticket--back .twe-ticket__description").count(), 1);
+    await firstTicket.locator(".twe-ticket--back .twe-ticket__flip").click();
+    assert.equal(await firstTicket.getAttribute("data-flipped"), null,
+      "Ticket flips back to its original face");
+    assert.equal(await firstTicket.locator(".twe-ticket--front h3 a").getAttribute("href"),
+      "/services/travel-readiness-session");
+    assert.equal(await firstTicket.locator(".twe-ticket__barcode").count(), 1);
     // The homepage process uses the branded React Bits Stepper, not four static list items.
     // Scroll into view to hydrate Astro's client:visible island before asserting controls.
     const process = page.locator(".journey-process--option-a");
