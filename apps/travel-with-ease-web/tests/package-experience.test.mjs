@@ -71,9 +71,9 @@ test("approved package itineraries use restrained AnimatedList and remain server
   assert.match(island, /showGradients=\{false\}/);
   assert.match(island, /frame=\{false\}/);
   assert.match(island, /animation="fade"/);
-  assert.match(island, /gap={6}/);
-  assert.match(island, /maxHeight={460}/);
-  assert.match(island, /stagger={0\.05}/);
+  assert.match(island, /gap=\{6\}/);
+  assert.match(island, /maxHeight=\{460\}/);
+  assert.match(island, /stagger=\{0\.05\}/);
   assert.match(style, /overflow-y: auto/);
   assert.match(style, /background: var\(--al-tile\)/);
   assert.match(style, /max-height: 460px/);
