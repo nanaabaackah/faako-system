@@ -174,84 +174,69 @@ try {
     assert.equal(await about.locator(".journey-introduction__photo").count(), 1,
       "About uses the approved published photo");
     const cards = page.locator(".home-services--option-a .home-services__row");
-    assert.equal(await cards.count(), 4, "All four published service choices remain available");
-    assert.equal(await page.locator(".home-services--option-a .twe-ticket__fee").count(), 4,
-      "Published service fees remain visible");
-    assert.equal(await page.locator(".home-services--option-a .home-services__list").evaluate(el => getComputedStyle(el).display), "grid");
+    assert.equal(await cards.count(), 4, "Keep all four published service choices");
+    assert.equal(await page.locator(".home-services--option-a .home-services__fee").count(), 4,
+      "Keep service prices in simple cards");
+    assert.equal(await page.locator(".home-services--option-a .twe-package-ticket, .home-services--option-a .tilted-card").count(), 0,
+      "Services must no longer use the ticket treatment");
+    assert.equal(await page.locator(".home-services--option-a .home-services__photo").count(), 1,
+      "Keep the approved editorial service photo");
     const serviceBoxes = await Promise.all((await cards.all()).map(el => el.boundingBox()));
     assert.ok(serviceBoxes.every(Boolean));
     if (width <= 480) {
       assert.ok(serviceBoxes.slice(1).every(box => Math.abs(box.x - serviceBoxes[0].x) < 1),
-        "Small phone service choices stay in a single column");
+        "Service choices remain single-column on small phones");
     } else {
       assert.ok(Math.abs(serviceBoxes[1].y - serviceBoxes[0].y) < 1 &&
-        Math.abs(serviceBoxes[2].x - serviceBoxes[0].x) < 1 &&
-        serviceBoxes[2].y > serviceBoxes[0].y,
-        "Tablet and desktop tickets form two tidy rows of two");
+        Math.abs(serviceBoxes[2].x - serviceBoxes[0].x) < 1,
+        "Services remain a restrained two-column grid");
     }
-    // Browser-level regression: every ticket face must paint and its content
-    // must use the intended foreground colour, including 320px mobile.
-    const ticketStyles = await cards.evaluateAll(rows => rows.map(row => {
-      const ticket = row.querySelector(".twe-service-ticket");
-      const body = ticket.querySelector(".tilted-card__body");
-      const front = ticket.querySelector(".tilted-card__front");
-      const back = ticket.querySelector(".tilted-card__back");
-      const title = ticket.querySelector(".twe-ticket--front h3 a");
-      const summary = ticket.querySelector(".twe-ticket--front .twe-ticket__summary");
-      const fee = ticket.querySelector(".twe-ticket--front .twe-ticket__fee");
-      const backTitle = ticket.querySelector(".twe-ticket--back h3");
-      const backDescription = ticket.querySelector(".twe-ticket--back .twe-ticket__description");
+    assert.equal(await cards.first().locator("h3 .twe-content-link").getAttribute("href"),
+      "/services/travel-readiness-session", "Plain service cards retain native detail links");
+    const featured = page.locator(".featured-journeys .featured-journeys__card");
+    assert.equal(await featured.count(), 2, "Only the two featured published packages appear on home");
+    const ticketStyles = await featured.evaluateAll(rows => rows.map(row => {
+      const ticket = row.querySelector(".twe-package-ticket");
+      const body = ticket?.querySelector(".tilted-card__body");
+      const front = ticket?.querySelector(".tilted-card__front");
+      const back = ticket?.querySelector(".tilted-card__back");
+      const title = ticket?.querySelector(".twe-ticket--front h3 a");
+      const fee = ticket?.querySelector(".twe-ticket--front .twe-ticket__fee");
+      const backTitle = ticket?.querySelector(".twe-ticket--back h3");
       const titleBox = title?.getBoundingClientRect();
       return {
-        opacity:getComputedStyle(body).opacity,
-        frontMask:getComputedStyle(front).maskImage,
-        backMask:getComputedStyle(back).maskImage,
-        frontBackground:getComputedStyle(front).backgroundColor,
-        backBackground:getComputedStyle(back).backgroundColor,
-        titleColor:getComputedStyle(title).color,
-        summaryColor:getComputedStyle(summary).color,
-        feeColor:getComputedStyle(fee).color,
-        feeValueColor:getComputedStyle(fee.querySelector("[data-money-value]") ?? fee).color,
-        backTitleColor:getComputedStyle(backTitle).color,
-        backDescriptionColor:getComputedStyle(backDescription).color,
-        titleWidth:titleBox?.width ?? 0,
-        titleHeight:titleBox?.height ?? 0
+        opacity:body && getComputedStyle(body).opacity,
+        frontMask:front && getComputedStyle(front).maskImage,
+        backMask:back && getComputedStyle(back).maskImage,
+        titleColor:title && getComputedStyle(title).color,
+        priceColor:fee && getComputedStyle(fee).color,
+        priceValueColor:fee && getComputedStyle(fee.querySelector("[data-money-value]") ?? fee).color,
+        backTitleColor:backTitle && getComputedStyle(backTitle).color,
+        titleWidth:titleBox?.width ?? 0, titleHeight:titleBox?.height ?? 0
       };
     }));
-    assert.equal(ticketStyles.length, 4);
+    assert.equal(ticketStyles.length, 2);
     for (const ticket of ticketStyles) {
-      assert.equal(ticket.opacity, "1", "Tickets must not begin transparent");
-      assert.equal(ticket.frontMask, "none", "Front content must not be clipped by a face mask");
-      assert.equal(ticket.backMask, "none", "Back content must not be clipped by a face mask");
-      assert.equal(ticket.frontBackground, "rgb(1, 12, 51)");
-      assert.equal(ticket.backBackground, "rgb(244, 237, 227)");
-      assert.equal(ticket.titleColor, "rgb(244, 237, 227)", "Front title contrasts against navy");
-      assert.equal(ticket.summaryColor, "rgb(244, 237, 227)", "Front description contrasts against navy");
-      assert.equal(ticket.feeColor, "rgb(216, 181, 106)", "Published fee uses visible brand gold");
-      assert.equal(ticket.feeValueColor, "rgb(216, 181, 106)", "Actual rendered currency text must also remain gold");
-      assert.equal(ticket.backTitleColor, "rgb(1, 12, 51)", "Reverse title contrasts against cream");
-      assert.equal(ticket.backDescriptionColor, "rgb(1, 12, 51)", "Reverse description contrasts against cream");
-      assert.ok(ticket.titleWidth > 20 && ticket.titleHeight > 12, "Ticket title must occupy a visible painted area");
+      assert.equal(ticket.opacity, "1", "Package ticket cannot start transparent");
+      assert.equal(ticket.frontMask, "none", "Package ticket front must never be masked away");
+      assert.equal(ticket.backMask, "none", "Package ticket back must never be masked away");
+      assert.equal(ticket.titleColor, "rgb(244, 237, 227)", "Package title must contrast with navy");
+      assert.equal(ticket.priceColor, "rgb(216, 181, 106)", "Price must be TWE gold");
+      assert.equal(ticket.priceValueColor, "rgb(216, 181, 106)", "Currency text must also be gold");
+      assert.equal(ticket.backTitleColor, "rgb(1, 12, 51)", "Reverse title must contrast with cream");
+      assert.ok(ticket.titleWidth > 20 && ticket.titleHeight > 12, "Package heading must paint");
     }
-    const firstTicket = cards.first().locator(".twe-service-ticket .tilted-card");
+    const firstTicket = featured.first().locator(".twe-package-ticket .tilted-card");
     await firstTicket.scrollIntoViewIfNeeded();
     const front = firstTicket.locator(".twe-ticket--front");
-    assert.equal((await front.locator("h3 a").textContent()).trim(), "Travel Readiness Session",
-      "Published service name is the prominent front-facing ticket title");
-    assert.equal(await front.locator(".twe-ticket__flip svg").count(), 1,
-      "Front ticket uses the shared ArrowRight4 SVG rather than text or emoji");
-    assert.equal(await firstTicket.locator(".twe-ticket__label, .twe-ticket__back-label, .twe-ticket__stub-text").count(), 0,
-      "No added eyebrow or decorative labels remain");
+    assert.equal((await front.locator("h3 a").textContent()).trim(), "Zanzibar");
+    assert.equal(await front.locator(".twe-ticket__flip svg").count(), 1);
     await front.locator(".twe-ticket__flip").click();
-    assert.equal(await firstTicket.getAttribute("data-flipped"), "",
-      "Ticket flips to reveal the published service details");
+    assert.equal(await firstTicket.getAttribute("data-flipped"), "");
     assert.equal(await firstTicket.locator(".twe-ticket--back .twe-ticket__description").count(), 1);
     await firstTicket.locator(".twe-ticket--back .twe-ticket__flip").click();
-    assert.equal(await firstTicket.getAttribute("data-flipped"), null,
-      "Ticket flips back to its original face");
-    assert.equal(await firstTicket.locator(".twe-ticket--front h3 a").getAttribute("href"),
-      "/services/travel-readiness-session");
-    assert.equal(await firstTicket.locator(".twe-ticket__barcode").count(), 1);
+    assert.equal(await firstTicket.getAttribute("data-flipped"), null);
+    assert.equal(await front.locator("h3 a").getAttribute("href"), "/packages/zanzibar");
     // The homepage process uses the branded React Bits Stepper, not four static list items.
     // Scroll into view to hydrate Astro's client:visible island before asserting controls.
     const process = page.locator(".journey-process--option-a");

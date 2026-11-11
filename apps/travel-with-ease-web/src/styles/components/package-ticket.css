@@ -1,35 +1,35 @@
 /* Ticket demo from React Bits, adapted to TWE: perforated edges, stub, depth and flip.
    Typography, colors and corner radii come from the established brand system. */
-.twe-service-ticket {
+.twe-package-ticket {
   --twe-ticket-stub: clamp(64px, 17%, 88px);
   position: relative;
   width: 100%;
-  height: 290px;
+  height: clamp(345px, 34vw, 390px);
   min-width: 0;
   isolation: isolate;
 }
-.twe-service-ticket .tilted-card {
+.twe-package-ticket .tilted-card {
   width: 100%;
   height: 100%;
   position: relative;
 }
-.twe-service-ticket .tilted-card__body {
+.twe-package-ticket .tilted-card__body {
   width: 100%;
   height: 100%;
 }
 /* Never mask an entire 3-D face: Safari's mask compositing can hide the
    ticket and all its text. The 3-D card always has an opaque fallback. */
-.twe-service-ticket .tilted-card__front,
-.twe-service-ticket .tilted-card__back {
+.twe-package-ticket .tilted-card__front,
+.twe-package-ticket .tilted-card__back {
   border-radius: var(--twe-radius-card);
   -webkit-mask: none;
   mask: none;
 }
-.twe-service-ticket .tilted-card__front { background-color: var(--brand-navy); }
-.twe-service-ticket .tilted-card__back { background-color: var(--brand-cream); }
+.twe-package-ticket .tilted-card__front { background-color: var(--brand-navy); }
+.twe-package-ticket .tilted-card__back { background-color: var(--brand-cream); }
 /* The page-coloured semicircles simulate ticket perforations without clipping content. */
-.twe-service-ticket .tilted-card__face::before,
-.twe-service-ticket .tilted-card__face::after {
+.twe-package-ticket .tilted-card__face::before,
+.twe-package-ticket .tilted-card__face::after {
   content: "";
   position: absolute;
   left: calc(100% - var(--twe-ticket-stub));
@@ -41,14 +41,14 @@
   z-index: 8;
   pointer-events: none;
 }
-.twe-service-ticket .tilted-card__face::before { top: -9px; }
-.twe-service-ticket .tilted-card__face::after { bottom: -9px; }
-.twe-service-ticket .tilted-card__back::before,
-.twe-service-ticket .tilted-card__back::after { left: var(--twe-ticket-stub); }
+.twe-package-ticket .tilted-card__face::before { top: -9px; }
+.twe-package-ticket .tilted-card__face::after { bottom: -9px; }
+.twe-package-ticket .tilted-card__back::before,
+.twe-package-ticket .tilted-card__back::after { left: var(--twe-ticket-stub); }
 
-.twe-service-ticket .tilted-card__img {
+.twe-package-ticket .tilted-card__img {
   z-index: 0;
-  opacity: .7;
+  opacity: .9;
   filter: saturate(.72);
 }
 .twe-ticket {
@@ -61,9 +61,9 @@
 }
 .twe-ticket--front {
   color: var(--brand-cream);
-  background: linear-gradient(115deg, rgb(1 12 51 / 92%), rgb(1 12 51 / 95%) 75%, rgb(1 12 51 / 99%));
+  background: linear-gradient(115deg, rgb(1 12 51 / 76%), rgb(1 12 51 / 88%) 70%, rgb(1 12 51 / 96%));
 }
-.twe-service-ticket .twe-ticket__main {
+.twe-package-ticket .twe-ticket__main {
   position: relative;
   inset: auto;
   display: flex;
@@ -79,14 +79,14 @@
   flex-direction: column;
   gap: 12px;
 }
-.twe-ticket__main .twe-ticket__content h3 {
+.twe-ticket__main .twe-ticket__content :is(h2,h3) {
   font-size: clamp(1.8rem, 3vw, 2.5rem);
   line-height: 1.12;
   margin: 0;
 }
 
-.twe-ticket__main h3,
-.twe-ticket__back-main h3 {
+.twe-ticket__main :is(h2,h3),
+.twe-ticket__back-main :is(h2,h3) {
   font-family: var(--font-display, "Poiret One", sans-serif);
   font-weight: 800;
   font-size: clamp(1.42rem, 2.25vw, 2.05rem);
@@ -96,16 +96,22 @@
   color: inherit;
   -webkit-text-stroke: .015em currentColor;
 }
-.twe-service-ticket .twe-ticket--front .twe-ticket__main h3,
-.twe-service-ticket .twe-ticket--front .twe-ticket__main h3 a {
+.twe-package-ticket .twe-ticket--front .twe-ticket__main :is(h2,h3),
+.twe-package-ticket .twe-ticket--front .twe-ticket__main :is(h2,h3) a {
   color: var(--brand-cream);
 }
-.twe-ticket__main h3 a { text-decoration: none; }
-.twe-ticket__main h3 a:hover,
-.twe-ticket__main h3 a:focus-visible,
+.twe-ticket__main :is(h2,h3) a { text-decoration: none; }
+.twe-ticket__main :is(h2,h3) a:hover,
+.twe-ticket__main :is(h2,h3) a:focus-visible,
 .twe-ticket__link:hover,
 .twe-ticket__link:focus-visible { text-decoration: underline; text-underline-offset: 4px; }
-.twe-service-ticket .twe-ticket--front .twe-ticket__summary {
+.twe-package-ticket .twe-ticket--front .twe-ticket__duration {
+  margin: 0;
+  color: var(--brand-gold);
+  font: 700 .86rem/1.4 var(--font-impact, Inter, sans-serif);
+}
+.twe-package-ticket .twe-ticket--front .twe-ticket__summary,
+.twe-package-ticket .twe-ticket--front .twe-ticket__summary a {
   color: var(--brand-cream);
 }
 .twe-ticket__summary {
@@ -125,6 +131,12 @@
   flex-wrap: wrap;
   gap: 8px 12px;
 }
+.twe-ticket__price-group { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
+.twe-package-ticket .twe-ticket__price-note {
+  display: block;
+  font: 500 .72rem/1.3 var(--font-body, Quicksand, sans-serif);
+  color: var(--brand-cream);
+}
 .twe-ticket__fee {
   margin: 0;
   color: var(--brand-gold);
@@ -132,9 +144,12 @@
 }
 /* Higher specificity than the global editorial paragraph/money rules.
    Fees on a navy ticket must never fall back to muted grey. */
-body main .home-services--option-a .twe-ticket--front .twe-ticket__fee,
-body main .home-services--option-a .twe-ticket--front .twe-ticket__fee .twe-money,
-body main .home-services--option-a .twe-ticket--front .twe-ticket__fee [data-money-value] {
+.featured-journeys .twe-package-ticket .twe-ticket--front .twe-ticket__fee,
+.featured-journeys .twe-package-ticket .twe-ticket--front .twe-ticket__fee .twe-money,
+.featured-journeys .twe-package-ticket .twe-ticket--front .twe-ticket__fee [data-money-value],
+.package-catalogue .twe-package-ticket .twe-ticket--front .twe-ticket__fee,
+.package-catalogue .twe-package-ticket .twe-ticket--front .twe-ticket__fee .twe-money,
+.package-catalogue .twe-package-ticket .twe-ticket--front .twe-ticket__fee [data-money-value] {
   color: var(--brand-gold);
 }
 
@@ -159,7 +174,7 @@ body main .home-services--option-a .twe-ticket--front .twe-ticket__fee [data-mon
 .twe-ticket__flip--back svg { transform: rotate(180deg); }
 .twe-ticket__flip:focus-visible,
 .twe-ticket a:focus-visible { outline: 3px solid var(--brand-sky); outline-offset: 3px; }
-.twe-service-ticket .twe-ticket__stub {
+.twe-package-ticket .twe-ticket__stub {
   position: relative;
   inset: auto;
   display: flex;
@@ -178,12 +193,12 @@ body main .home-services--option-a .twe-ticket--front .twe-ticket__fee [data-mon
   background: var(--brand-cream);
   color: var(--brand-navy);
 }
-.twe-service-ticket .twe-ticket--back .twe-ticket__back-main h3,
-.twe-service-ticket .twe-ticket--back .twe-ticket__back-main p,
-.twe-service-ticket .twe-ticket--back .twe-ticket__link {
+.twe-package-ticket .twe-ticket--back .twe-ticket__back-main :is(h2,h3),
+.twe-package-ticket .twe-ticket--back .twe-ticket__back-main p,
+.twe-package-ticket .twe-ticket--back .twe-ticket__link {
   color: var(--brand-navy);
 }
-.twe-service-ticket .twe-ticket__stub--back {
+.twe-package-ticket .twe-ticket__stub--back {
   border: 0;
   border-right: 1px dashed rgb(1 12 51 / 32%);
   background: #e1d4c2;
@@ -197,10 +212,10 @@ body main .home-services--option-a .twe-ticket--front .twe-ticket__fee [data-mon
   gap: 8px;
   padding: clamp(14px, 2vw, 23px);
 }
-.twe-ticket__back-main h3 { margin-bottom: 0; font-size: clamp(1.3rem, 2vw, 1.7rem); }
+.twe-ticket__back-main :is(h2,h3) { margin-bottom: 0; font-size: clamp(1.3rem, 2vw, 1.7rem); }
 .twe-ticket__description {
   margin: 0;
-  max-height: 108px;
+  max-height: 155px;
   overflow-y: auto;
   color: var(--brand-navy);
   font: 500 .85rem/1.5 var(--font-body, Quicksand, sans-serif);
@@ -233,13 +248,29 @@ body main .home-services--option-a .twe-ticket--front .twe-ticket__fee [data-mon
 }
 .twe-ticket__link:hover { background: rgb(1 12 51 / 11%); }
 @media (max-width: 580px) {
-  .twe-service-ticket { --twe-ticket-stub: 64px; height: 280px; }
-  .twe-service-ticket .twe-ticket__main { padding: 17px; }
-  .twe-ticket__main .twe-ticket__content h3 { font-size: clamp(1.65rem, 6.3vw, 1.95rem); }
+  .twe-package-ticket { --twe-ticket-stub: 64px; height: 355px; }
+  .twe-package-ticket .twe-ticket__main { padding: 17px; }
+  .twe-ticket__main .twe-ticket__content :is(h2,h3) { font-size: clamp(1.65rem, 6.3vw, 1.95rem); }
   .twe-ticket__summary { font-size: .84rem; }
   .twe-ticket__description { max-height: 99px; font-size: .8rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .twe-service-ticket .tilted-card__body,
-  .twe-service-ticket .tilted-card__shadow { transition: none !important; }
+  .twe-package-ticket .tilted-card__body,
+  .twe-package-ticket .tilted-card__shadow { transition: none !important; }
 }
+
+/* Scope prevents old package-card positioning rules from obscuring the new
+   React ticket. Service cards do not inherit this treatment. */
+.featured-journeys .twe-package-ticket,
+.package-catalogue .twe-package-ticket {
+  width: 100%;
+  max-width: 100%;
+}
+.twe-package-ticket .tilted-card__img { object-position: var(--tc-position, 50% 50%); }
+@media (max-width: 760px) {
+  .twe-package-ticket .tilted-card__img { object-position: var(--tc-mobile-position, var(--tc-position, 50% 50%)); }
+}
+
+.package-ticket-entry { min-width: 0; }
+.package-ticket-entry > astro-island,
+.featured-journeys__card > astro-island { display: block; min-width: 0; }

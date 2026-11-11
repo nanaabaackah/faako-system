@@ -208,12 +208,16 @@ body .cinematic-enquiry__card :is(label, .ui-field__label) {
   color: var(--twe-label-color);
 }
 
-/* Featured journey previews sit on navy cards inside a light editorial-wrap.
-   Restore the inverse palette there; the general light-surface rule must not
-   turn their descriptions slate on navy (WCAG contrast regression). */
-body main .featured-journeys .journey-preview :is(h1, h2, h3, h4, p, li) {
+/* Package tickets are navy photographic surfaces inside otherwise light
+   editorial sections. Target only their visible face, never the reverse. */
+body main :is(.featured-journeys, .package-catalogue) .twe-package-ticket .twe-ticket--front :is(h2, h3, p, a) {
   color: var(--brand-cream);
 }
-body main .featured-journeys .journey-preview .featured-journeys__duration {
+body main :is(.featured-journeys, .package-catalogue) .twe-package-ticket .twe-ticket--front :is(
+  .twe-ticket__duration, .twe-ticket__fee, .twe-ticket__fee .twe-money, .twe-ticket__fee [data-money-value]
+) {
   color: var(--brand-gold);
+}
+body main :is(.featured-journeys, .package-catalogue) .twe-package-ticket .twe-ticket--back :is(h2, h3, p, a) {
+  color: var(--brand-navy);
 }

@@ -84,8 +84,8 @@ test("brand color hierarchy and stacked hero actions preserve contrast", () => {
   assert.match(typography, /body main \.cinematic-hero h1 \.hero-signature/);
   assert.match(typography, /body main \.journal-card \.journal-card__metadata/);
   assert.match(typography, /body main \.cinematic-enquiry__card p/);
-  assert.match(typography, /body main \.featured-journeys \.journey-preview :is/);
-  assert.match(typography, /body main \.featured-journeys \.journey-preview \.featured-journeys__duration/);
+  assert.match(typography, /body main :is\(\.featured-journeys, \.package-catalogue\) \.twe-package-ticket \.twe-ticket--front :is/);
+  assert.match(typography, /\.twe-ticket__duration, \.twe-ticket__fee/);
   // Do not reintroduce high-specificity :not() exclusions: they override
   // the inverse cream/gold palette of cards nested in editorial wrappers.
   assert.match(typography, /:where\(p, li\):not\(:where\(\.eyebrow, \.journal-card__metadata\)\)/);

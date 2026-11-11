@@ -1,7 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
+import PackageTicketCard from './PackageTicketCard.jsx';
 import ContentLink from "./ContentLink.astro";
-import MoneyText from "./MoneyText.astro";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import CollectionFilters from "./CollectionFilters.jsx";
 import { packageStartingPrice } from "../lib/package-pricing.js";
@@ -50,44 +50,40 @@ const {
           </p>
         </noscript>
         <div class="package-collection-grid">
-          {items.map((item) => (
-            <article
-              class="journey-card"
-              data-collection-item
-              data-category={item.destination}
-              data-occasions={(item.occasions || []).join(" ")}
-              data-group-friendly={item.groupFriendly ? "true" : "false"}
-              data-search={`${item.title} ${item.destination} ${item.category || ""}`.toLocaleLowerCase()}
-            >
-              {item.image && (
-                <PlacedImage image={item.image} placement={item.imagePlacement}
-                  src={item.image.src}
-                  srcset={item.image.sources
-                    ?.map((source) => `${source.src} ${source.width}w`)
-                    .join(", ")}
-                  sizes="(max-width: 760px) 90vw, 44vw"
-                  width={item.image.width}
-                  height={item.image.height}
-                  alt={item.image.alt}
-                  loading="lazy"
+          {items.map((item, index) => {
+            const placement = item.imagePlacement;
+            const photo = placement?.image || item.image;
+            const mobile = placement?.mobileImage;
+            return (
+              <article
+                class="package-ticket-entry"
+                data-collection-item
+                data-category={item.destination}
+                data-occasions={(item.occasions || []).join(" ")}
+                data-group-friendly={item.groupFriendly ? "true" : "false"}
+                data-search={`${item.title} ${item.destination} ${item.category || ""}`.toLocaleLowerCase()}
+              >
+                <PackageTicketCard
+                  title={item.title}
+                  duration={item.duration}
+                  price={packageStartingPrice(item)}
+                  priceNote={item.pricingStatus === "indicative" ? "per person sharing" : undefined}
+                  tagline={item.tagline || item.overview.slice(0, 160)}
+                  overview={item.overview}
+                  href={`${prefix}/${item.slug}`}
+                  imageSrc={photo?.src}
+                  imageSrcSet={photo?.sources?.map(source => `${source.src} ${source.width}w`).join(", ")}
+                  imageSizes="(max-width: 760px) 90vw, 44vw"
+                  mobileImageSrcSet={mobile?.sources?.map(source => `${source.src} ${source.width}w`).join(", ") || mobile?.src}
+                  imagePosition={`${placement?.focalX ?? 50}% ${placement?.focalY ?? 50}%`}
+                  mobileImagePosition={`${placement?.mobileFocalX ?? placement?.focalX ?? 50}% ${placement?.mobileFocalY ?? placement?.focalY ?? 50}%`}
+                  headingLevel="h2"
+                  index={index}
+                  client:load
                 />
-              )}
-              <div>
-                <p class="journey-card__duration">{item.duration}</p>
-                <h2>
-                  <ContentLink
-                    class="journey-card__link"
-                    href={`${prefix}/${item.slug}`}
-                  >
-                    {item.title}
-                  </ContentLink>
-                </h2>
-                <p class="journey-card__summary">{item.tagline || item.overview.slice(0, 160)}</p>
-                <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
-                <span class="journey-card__explore" aria-hidden="true">Explore this journey</span>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
         <CurrencyAttribution />
       </>

@@ -140,34 +140,6 @@
   color: var(--brand-navy);
 }
 
-/* Actual perforated ticket layout. TiltedCard owns the entire interactive
-   ticket, rather than only the background image. */
-.home-services--option-a .home-services__row,
-.home-services--option-a .home-services__row:first-child,
-.home-services--option-a .home-services__row:last-child {
-  display: block;
-  min-height: 290px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--twe-radius-card);
-  background: transparent;
-  overflow: visible;
-  box-shadow: none;
-}
-.home-services--option-a .home-services__row > astro-island {
-  display: block;
-  width: 100%;
-  min-width: 0;
-}
-.home-services--option-a .twe-service-ticket__tilt:hover {
-  z-index: 3;
-}
-@media (prefers-reduced-motion: reduce) {
-  .home-services--option-a .tilted-card__body {
-    transition-duration: 0.01ms !important;
-  }
-}
-
 /* HOW IT WORKS — four approved CMS steps, now navigated with a branded React Bits stepper. */
 .home-journey-chapters .journey-process--option-a {
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
@@ -295,7 +267,7 @@ body main .travel-tips--option-a .travel-tips__grid h3 {
   .home-services--option-a .home-services__row,
   .home-services--option-a .home-services__row:first-child,
   .home-services--option-a .home-services__row:last-child {
-    min-height: 290px;
+    min-height: 218px;
   }
   .travel-tips--option-a {
     grid-template-columns: minmax(0, 1fr);
@@ -344,6 +316,6 @@ body main .travel-tips--option-a .travel-tips__grid h3 {
   .home-services--option-a .home-services__row,
   .home-services--option-a .home-services__row:first-child,
   .home-services--option-a .home-services__row:last-child {
-    min-height: 280px;
+    min-height: 0;
   }
 }
