@@ -67,6 +67,7 @@ const {
                   title={item.title}
                   duration={item.duration}
                   price={packageStartingPrice(item)}
+                  priceNote={item.pricingStatus === "indicative" ? "per person sharing" : undefined}
                   tagline={item.tagline || item.overview.slice(0, 160)}
                   overview={item.overview}
                   href={`${prefix}/${item.slug}`}
