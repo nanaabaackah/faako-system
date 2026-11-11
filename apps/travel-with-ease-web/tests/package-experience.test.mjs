@@ -56,3 +56,38 @@ test("enquiry selects explicitly bind Faako values without depending on a native
     assert.doesNotMatch(select, /onChange=\{update\}/);
   }
 });
+
+test("approved package itineraries use restrained AnimatedList and remain server-rendered", () => {
+  const detail = source("components/PackageDetail.astro");
+  const island = source("components/PackageItinerary.jsx");
+  const style = source("styles/components/package-itinerary-interactive.css");
+  assert.match(detail, /<PackageItinerary[\s\S]*?client:visible/);
+  assert.match(detail, /\.sort\(\(a, b\) => a\.day - b\.day\)/);
+  assert.doesNotMatch(detail, /<Accordion/);
+  assert.match(island, /import AnimatedList from "\.\/reactbits\/AnimatedList\.jsx"/);
+  assert.match(island, /renderItem=\{item =>/);
+  assert.match(island, /showGradients=\{false\}/);
+  assert.match(island, /frame=\{false\}/);
+  assert.match(island, /animation="fade"/);
+  assert.match(style, /animated-list\[data-animated\].*item:not\(\[data-state\]\) \{ opacity: 1; \}/);
+  assert.equal(approved.pages.packages.packages.find(item => item.slug === "zanzibar").itinerary.length, 6);
+  assert.equal(approved.pages.packages.packages.find(item => item.slug === "nairobi").itinerary.length, 4);
+});
+
+test("existing approved package photographs use Masonry without drag, with native link fallback", () => {
+  const detail = source("components/PackageDetail.astro");
+  const gallery = source("components/PackageMasonryGallery.astro");
+  const masonry = source("components/PackageMasonry.jsx");
+  const style = source("styles/components/package-masonry.css");
+  assert.match(detail, /<PackageMasonryGallery images=\{item\.gallery \|\| \[\]\} \/>/);
+  assert.match(gallery, /<PackageMasonry[\s\S]*?client:visible/);
+  assert.match(gallery, /twe-package-gallery__fallback/);
+  assert.match(gallery, /href=\{image\.src\}/);
+  assert.match(gallery, /alt=\{image\.alt\}/);
+  assert.match(masonry, /import Masonry from "\.\/reactbits\/Masonry\.jsx"/);
+  assert.match(masonry, /draggable=\{false\}/);
+  assert.match(masonry, /hoverEffect="none"/);
+  assert.match(masonry, /lightbox/);
+  assert.match(style, /astro-island\[ssr\] \{ display: block; min-height: 1px; \}/);
+  assert.ok(approved.pages.packages.packages.some(item => item.gallery?.length > 0));
+});
