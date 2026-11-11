@@ -1,6 +1,8 @@
 /* React Bits masonry, scoped to approved package photography. */
 .twe-package-gallery { width: 100%; min-width: 0; }
-.twe-package-gallery astro-island[ssr] { display: none; }
+/* Keep the SSR island measurable so client:visible can hydrate; the static
+   links remain usable until Masonry has laid out its tiles. */
+.twe-package-gallery astro-island[ssr] { display: block; min-height: 1px; }
 .twe-package-gallery astro-island:not([ssr]):has(.masonry__item) + .twe-package-gallery__fallback { display: none; }
 .twe-package-gallery__fallback { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
 .twe-package-gallery__fallback a { display: block; min-width: 0; overflow: hidden; border-radius: var(--twe-radius-media); }
