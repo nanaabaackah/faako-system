@@ -120,7 +120,16 @@ test("services use the real React Bits ticket demo, preserving published content
   assert.match(serviceTicket, /rotateAmplitude=\{9\}/);
   assert.match(serviceTicket, /glare=\{0\.22\}/);
   assert.match(serviceTicket, /flipped=\{flipped\}/);
-  assert.match(serviceTicket, /<a href=\{href\}>/);
+  assert.match(serviceTicket, /<a[\s\S]*?href=\{href\}[\s\S]*?className="twe-ticket__link"/);
+  assert.match(serviceTicket, /import \{ ArrowRight4 \} from "@faako\/ui"/);
+  assert.match(serviceTicket, /<h3><a href=\{href\}>\{title\}<\/a><\/h3>/);
+  assert.match(serviceTicket, /aria-label=\{`View \$\{title\} details`\}/);
+  assert.match(serviceTicket, /aria-label=\{`Back to \$\{title\} ticket`\}/);
+  assert.match(serviceTicket, /aria-label=\{`Explore \$\{title\} service`\}/);
+  assert.match(serviceTicket, /<ArrowRight4 size=\{20\}/);
+  assert.doesNotMatch(serviceTicket, /Travel With Ease · Your planning pass|Your journey, your way|twe-ticket__label|twe-ticket__back-label|↗|twe-ticket__monogram|twe-ticket__stub-text/);
+  assert.match(ticketSkin, /twe-ticket__main \.twe-ticket__content h3/);
+  assert.match(ticketSkin, /twe-ticket__flip--back svg/);
   assert.match(ticketSkin, /twe-ticket__barcode/);
   assert.match(ticketSkin, /mask-composite: intersect/);
   assert.match(ticketSkin, /border-left: 1px dashed/);

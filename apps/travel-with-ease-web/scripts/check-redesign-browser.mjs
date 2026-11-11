@@ -191,7 +191,14 @@ try {
     }
     const firstTicket = cards.first().locator(".twe-service-ticket .tilted-card");
     await firstTicket.scrollIntoViewIfNeeded();
-    await firstTicket.locator(".twe-ticket--front .twe-ticket__flip").click();
+    const front = firstTicket.locator(".twe-ticket--front");
+    assert.equal((await front.locator("h3 a").textContent()).trim(), "Travel Readiness Session",
+      "Published service name is the prominent front-facing ticket title");
+    assert.equal(await front.locator(".twe-ticket__flip svg").count(), 1,
+      "Front ticket uses the shared ArrowRight4 SVG rather than text or emoji");
+    assert.equal(await firstTicket.locator(".twe-ticket__label, .twe-ticket__back-label, .twe-ticket__stub-text").count(), 0,
+      "No added eyebrow or decorative labels remain");
+    await front.locator(".twe-ticket__flip").click();
     assert.equal(await firstTicket.getAttribute("data-flipped"), "",
       "Ticket flips to reveal the published service details");
     assert.equal(await firstTicket.locator(".twe-ticket--back .twe-ticket__description").count(), 1);

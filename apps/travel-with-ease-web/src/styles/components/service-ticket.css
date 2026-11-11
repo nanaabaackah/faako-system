@@ -64,13 +64,18 @@
   gap: 13px;
   padding: clamp(16px, 2.4vw, 26px);
 }
-.twe-ticket__label {
-  display: block;
-  font: 700 .72rem/1.4 var(--font-impact, Inter, sans-serif);
-  letter-spacing: .015em;
-  color: var(--brand-gold);
+.twe-ticket__content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
-.twe-ticket__content { min-width: 0; }
+.twe-ticket__main .twe-ticket__content h3 {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  line-height: 1.12;
+  margin: 0;
+}
+
 .twe-ticket__main h3,
 .twe-ticket__back-main h3 {
   font-family: var(--font-display, "Poiret One", sans-serif);
@@ -113,8 +118,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 40px;
-  padding: 7px 10px;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
   border: 1px solid rgb(244 237 227 / 65%);
   border-radius: var(--twe-radius-button);
   background: rgb(244 237 227 / 10%);
@@ -124,6 +131,8 @@
   text-decoration: none;
 }
 .twe-ticket__flip:hover { background: rgb(244 237 227 / 22%); }
+.twe-ticket__flip svg, .twe-ticket__link svg { display: block; flex: none; }
+.twe-ticket__flip--back svg { transform: rotate(180deg); }
 .twe-ticket__flip:focus-visible,
 .twe-ticket a:focus-visible { outline: 3px solid var(--brand-sky); outline-offset: 3px; }
 .twe-service-ticket .twe-ticket__stub {
@@ -140,12 +149,6 @@
   border-left: 1px dashed rgb(1 12 51 / 37%);
 }
 .twe-ticket__barcode { width: 35px; height: 85px; fill: var(--brand-navy); opacity: .9; }
-.twe-ticket__stub-text,
-.twe-ticket__monogram {
-  color: var(--brand-navy);
-  font: 800 .72rem/1 var(--font-impact, Inter, sans-serif);
-  letter-spacing: .12em;
-}
 .twe-ticket--back {
   grid-template-columns: var(--twe-ticket-stub) minmax(0, 1fr);
   background: var(--brand-cream);
@@ -165,7 +168,6 @@
   gap: 8px;
   padding: clamp(14px, 2vw, 23px);
 }
-.twe-ticket__back-label { margin: 0; font: 700 .72rem/1.3 var(--font-impact, Inter, sans-serif); color: #4d5366; }
 .twe-ticket__back-main h3 { margin-bottom: 0; font-size: clamp(1.3rem, 2vw, 1.7rem); }
 .twe-ticket__description {
   margin: 0;
@@ -189,13 +191,22 @@
   background: rgb(1 12 51 / 4%);
 }
 .twe-ticket__link {
-  font: 800 .78rem/1.3 var(--font-impact, Inter, sans-serif);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgb(1 12 51 / 45%);
+  border-radius: var(--twe-radius-button);
+  background: rgb(1 12 51 / 4%);
   color: var(--brand-navy);
+  text-decoration: none;
 }
+.twe-ticket__link:hover { background: rgb(1 12 51 / 11%); }
 @media (max-width: 580px) {
   .twe-service-ticket { --twe-ticket-stub: 64px; height: 280px; }
   .twe-service-ticket .twe-ticket__main { padding: 17px; }
-  .twe-ticket__main h3 { font-size: clamp(1.4rem, 6vw, 1.75rem); }
+  .twe-ticket__main .twe-ticket__content h3 { font-size: clamp(1.65rem, 6.3vw, 1.95rem); }
   .twe-ticket__summary { font-size: .84rem; }
   .twe-ticket__description { max-height: 99px; font-size: .8rem; }
 }
