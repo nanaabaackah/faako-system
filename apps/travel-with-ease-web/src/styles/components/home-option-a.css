@@ -140,6 +140,72 @@
   color: var(--brand-navy);
 }
 
+/* PHOTO-BACKED SERVICES — React Bits TiltedCard is decorative only.
+   All approved text, prices, and native links remain in Astro. */
+.home-services--option-a .home-services__row {
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--brand-navy);
+  border-color: rgb(1 12 51 / 12%);
+  color: var(--brand-cream);
+}
+.home-services--option-a .home-services__row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: rgb(1 12 51 / 78%);
+}
+.home-services--option-a .home-services__image-effect {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.home-services--option-a .home-services__image-effect astro-island,
+.home-services--option-a .home-services__image-effect .twe-service-tilt {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.home-services--option-a .home-services__image-effect .tilted-card__body,
+.home-services--option-a .home-services__image-effect .tilted-card__face {
+  width: 100%;
+  height: 100%;
+}
+.home-services--option-a .home-services__row-heading,
+.home-services--option-a .home-services__summary {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+.home-services--option-a .home-services__row-heading a {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+  color: var(--brand-cream);
+}
+.home-services--option-a .home-services__row .twe-content-link,
+.home-services--option-a .home-services__fee,
+.home-services--option-a .home-services__summary {
+  color: var(--brand-cream);
+}
+.home-services--option-a .home-services__row .twe-content-link:focus-visible {
+  outline: 3px solid var(--brand-sky);
+  outline-offset: 3px;
+}
+.home-services--option-a .home-services__fee {
+  font-weight: 800;
+}
+/* No movement or alternate content on touch or reduced motion. */
+@media (hover: none), (prefers-reduced-motion: reduce) {
+  .home-services--option-a .home-services__image-effect .tilted-card__body {
+    transform: none !important;
+  }
+}
+
 /* HOW IT WORKS — four approved CMS steps, now navigated with a branded React Bits stepper. */
 .home-journey-chapters .journey-process--option-a {
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);

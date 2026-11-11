@@ -66,13 +66,13 @@ test("public mobile menu uses an accessible icon and a borderless vertical layou
   assert.match(layout, /if \(event.key === "Escape" && mobile.matches\)/);
 });
 
-test("scrolled header keeps the approved white mark and brand navy palette", () => {
+test("scrolled header uses the approved dark-mode symbol on brand navy", () => {
   const layout = read("../src/layouts/BaseLayout.astro");
   const nav = read("../src/styles/components/scroll-navigation.css");
   assert.match(layout, /src="\/brand\/Primary gold\.png"/);
-  assert.match(layout, /src="\/brand\/midnight primary\.png"/);
+  assert.match(layout, /src="\/brand\/dark mode symbol\.png"/);
   assert.match(nav, /\.site-header\.is-scrolled[\s\S]*?background: var\(--brand-navy\)/);
-  assert.match(nav, /\.brand__wordmark--light[\s\S]*?object-fit: cover/);
+  assert.match(nav, /\.brand__symbol--scrolled[\s\S]*?object-fit: contain/);
   assert.match(nav, /\.site-header:not\(\.is-scrolled\) \.brand__wordmark--gold/);
 });
 

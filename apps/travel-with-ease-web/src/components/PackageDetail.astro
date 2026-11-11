@@ -3,10 +3,10 @@ import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
 import Breadcrumbs from "./Breadcrumbs.astro";
 import MoneyText from "./MoneyText.astro";
-import Accordion from "./Accordion.astro";
+import PackageItinerary from "./PackageItinerary.jsx";
 import ClosingCta from "./ClosingCta.astro";
 import { publishedPage } from "../lib/published.js";
-import ImageGallery from "./ImageGallery.astro";
+import PackageMasonryGallery from "./PackageMasonryGallery.astro";
 import PackagePrices from "./PackagePrices.astro";
 import { packageStartingPrice } from "../lib/package-pricing.js";
 import type { TravelPackage, JournalArticle } from "../lib/collections";
@@ -140,13 +140,10 @@ const enquiry = "#plan";
           (item.itinerary?.length || 0) > 0 && (
             <section id="package-itinerary">
               <h2>Your itinerary</h2>
-              {[...(item.itinerary || [])]
-                .sort((a, b) => a.day - b.day)
-                .map((day) => (
-                  <Accordion title={`Day ${day.day} · ${day.title}`}>
-                    <p>{day.text}</p>
-                  </Accordion>
-                ))}
+              <PackageItinerary
+                days={[...(item.itinerary || [])].sort((a, b) => a.day - b.day)}
+                client:visible
+              />
             </section>
           )
         }
@@ -155,7 +152,7 @@ const enquiry = "#plan";
             <section>
               <>
                 <h2>A closer look</h2>
-                <ImageGallery images={item.gallery || []} />
+                <PackageMasonryGallery images={item.gallery || []} />
               </>
             </section>
           )

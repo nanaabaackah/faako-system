@@ -24,30 +24,28 @@ body .site-header-shell .site-header {
 body.cinematic-page .site-header-shell .site-header:not(.is-scrolled) {
   background: transparent;
 }
-/* Approved horizontal artwork: gold at the top, white on the navy scrolled bar.
-   The white source has a square transparent canvas, so crop it inside a
-   fixed-height image box instead of letting it increase header height. */
+/* Full approved gold wordmark at the top; dark-mode symbol on scroll. */
 body .site-header-shell .site-header .brand__wordmark--gold {
   display: block;
   width: 160px;
   height: auto;
   padding: 0;
 }
-body .site-header-shell .site-header .brand__wordmark--light {
+body .site-header-shell .site-header .brand__symbol--scrolled {
   display: none;
 }
 body .site-header-shell .site-header.is-scrolled .brand__wordmark--gold {
   display: none;
 }
-body .site-header-shell .site-header.is-scrolled .brand__wordmark--light {
+body .site-header-shell .site-header.is-scrolled .brand__symbol--scrolled {
   display: block;
-  width: 150px;
+  width: 48px;
   height: 48px;
   padding: 0;
-  object-fit: cover;
-  /* Crop the source's generous transparent padding without cutting the tagline. */
-  object-position: 50% 55%;
+  object-fit: contain;
+  object-position: center;
 }
+
 body .site-header-shell .site-header.is-scrolled {
   top: 12px;
   width: min(1120px, calc(100% - 32px));
@@ -147,8 +145,8 @@ body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
   body .site-header-shell .site-header:not(.is-scrolled) .brand__wordmark--gold {
     width: 116px;
   }
-  body .site-header-shell .site-header.is-scrolled .brand__wordmark--light {
-    width: 122px;
+  body .site-header-shell .site-header.is-scrolled .brand__symbol--scrolled {
+    width: 44px;
     height: 44px;
   }
   body .site-header-shell .site-header.is-scrolled {
