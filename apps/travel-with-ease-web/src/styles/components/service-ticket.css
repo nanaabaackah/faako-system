@@ -130,6 +130,14 @@
   color: var(--brand-gold);
   font: 800 .88rem/1.3 var(--font-impact, Inter, sans-serif);
 }
+/* Higher specificity than the global editorial paragraph/money rules.
+   Fees on a navy ticket must never fall back to muted grey. */
+body main .home-services--option-a .twe-ticket--front .twe-ticket__fee,
+body main .home-services--option-a .twe-ticket--front .twe-ticket__fee .twe-money,
+body main .home-services--option-a .twe-ticket--front .twe-ticket__fee [data-money-value] {
+  color: var(--brand-gold);
+}
+
 .twe-ticket__flip {
   display: inline-flex;
   align-items: center;
