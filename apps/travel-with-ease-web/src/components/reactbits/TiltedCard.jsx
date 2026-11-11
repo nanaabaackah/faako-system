@@ -52,6 +52,11 @@ export const TiltedCardLayer = ({ depth = 20, className = '', style, children })
 
 const TiltedCard = ({
   imageSrc,
+  imageSrcSet,
+  imageSizes,
+  mobileImageSrcSet,
+  imagePosition,
+  imageMobilePosition,
   altText = 'Tilted card image',
   captionText = '',
   containerHeight = '300px',
@@ -520,21 +525,30 @@ const TiltedCard = ({
       >
         <div className="tilted-card__face tilted-card__front" aria-hidden={isFlipped} inert={isFlipped}>
           {imageSrc && (
-            <img
-              className="tilted-card__img"
-              src={imageSrc}
-              alt={altText}
-              loading="lazy"
-              decoding="async"
-              draggable={false}
-              style={{
-                '--tc-depth': -24,
-                top: `-${bleed}px`,
-                left: `-${bleed}px`,
-                width: `calc(100% + ${bleed * 2}px)`,
-                height: `calc(100% + ${bleed * 2}px)`
-              }}
-            />
+            <picture>
+              {mobileImageSrcSet && (
+                <source media="(max-width: 760px)" srcSet={mobileImageSrcSet} sizes={imageSizes} />
+              )}
+              <img
+                className="tilted-card__img"
+                src={imageSrc}
+                srcSet={imageSrcSet}
+                sizes={imageSizes}
+                alt={altText}
+                loading="lazy"
+                decoding="async"
+                draggable={false}
+                style={{
+                  '--tc-depth': -24,
+                  '--tc-position': imagePosition || '50% 50%',
+                  '--tc-mobile-position': imageMobilePosition || imagePosition || '50% 50%',
+                  top: `-${bleed}px`,
+                  left: `-${bleed}px`,
+                  width: `calc(100% + ${bleed * 2}px)`,
+                  height: `calc(100% + ${bleed * 2}px)`
+                }}
+              />
+            </picture>
           )}
           {children}
           <span className="tilted-card__glare" aria-hidden="true" />
