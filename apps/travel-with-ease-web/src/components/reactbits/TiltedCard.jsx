@@ -523,6 +523,8 @@ const TiltedCard = ({
               className="tilted-card__img"
               src={imageSrc}
               alt={altText}
+              loading="lazy"
+              decoding="async"
               draggable={false}
               style={{
                 '--tc-depth': -24,
