@@ -17,42 +17,51 @@
   width: 100%;
   height: 100%;
 }
+/* Never mask an entire 3-D face: Safari's mask compositing can hide the
+   ticket and all its text. The 3-D card always has an opaque fallback. */
 .twe-service-ticket .tilted-card__front,
 .twe-service-ticket .tilted-card__back {
   border-radius: var(--twe-radius-card);
-  -webkit-mask:
-    radial-gradient(circle 9px at calc(100% - var(--twe-ticket-stub)) 0, #0000 8.5px, #000 9.5px),
-    radial-gradient(circle 9px at calc(100% - var(--twe-ticket-stub)) 100%, #0000 8.5px, #000 9.5px);
-  -webkit-mask-composite: source-in;
-  mask:
-    radial-gradient(circle 9px at calc(100% - var(--twe-ticket-stub)) 0, #0000 8.5px, #000 9.5px),
-    radial-gradient(circle 9px at calc(100% - var(--twe-ticket-stub)) 100%, #0000 8.5px, #000 9.5px);
-  mask-composite: intersect;
+  -webkit-mask: none;
+  mask: none;
 }
-.twe-service-ticket .tilted-card__back {
-  -webkit-mask:
-    radial-gradient(circle 9px at var(--twe-ticket-stub) 0, #0000 8.5px, #000 9.5px),
-    radial-gradient(circle 9px at var(--twe-ticket-stub) 100%, #0000 8.5px, #000 9.5px);
-  -webkit-mask-composite: source-in;
-  mask:
-    radial-gradient(circle 9px at var(--twe-ticket-stub) 0, #0000 8.5px, #000 9.5px),
-    radial-gradient(circle 9px at var(--twe-ticket-stub) 100%, #0000 8.5px, #000 9.5px);
-  mask-composite: intersect;
+.twe-service-ticket .tilted-card__front { background-color: var(--brand-navy); }
+.twe-service-ticket .tilted-card__back { background-color: var(--brand-cream); }
+/* The page-coloured semicircles simulate ticket perforations without clipping content. */
+.twe-service-ticket .tilted-card__face::before,
+.twe-service-ticket .tilted-card__face::after {
+  content: "";
+  position: absolute;
+  left: calc(100% - var(--twe-ticket-stub));
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-cream);
+  transform: translateX(-50%);
+  z-index: 8;
+  pointer-events: none;
 }
+.twe-service-ticket .tilted-card__face::before { top: -9px; }
+.twe-service-ticket .tilted-card__face::after { bottom: -9px; }
+.twe-service-ticket .tilted-card__back::before,
+.twe-service-ticket .tilted-card__back::after { left: var(--twe-ticket-stub); }
+
 .twe-service-ticket .tilted-card__img {
-  opacity: .8;
+  z-index: 0;
+  opacity: .7;
   filter: saturate(.72);
 }
 .twe-ticket {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--twe-ticket-stub);
   color: var(--brand-cream);
 }
 .twe-ticket--front {
-  background: linear-gradient(115deg, rgb(1 12 51 / 80%), rgb(1 12 51 / 93%) 75%, rgb(1 12 51 / 98%));
+  color: var(--brand-cream);
+  background: linear-gradient(115deg, rgb(1 12 51 / 92%), rgb(1 12 51 / 95%) 75%, rgb(1 12 51 / 99%));
 }
 .twe-service-ticket .twe-ticket__main {
   position: relative;
@@ -87,11 +96,18 @@
   color: inherit;
   -webkit-text-stroke: .015em currentColor;
 }
-.twe-ticket__main h3 a { color: inherit; text-decoration: none; }
+.twe-service-ticket .twe-ticket--front .twe-ticket__main h3,
+.twe-service-ticket .twe-ticket--front .twe-ticket__main h3 a {
+  color: var(--brand-cream);
+}
+.twe-ticket__main h3 a { text-decoration: none; }
 .twe-ticket__main h3 a:hover,
 .twe-ticket__main h3 a:focus-visible,
 .twe-ticket__link:hover,
 .twe-ticket__link:focus-visible { text-decoration: underline; text-underline-offset: 4px; }
+.twe-service-ticket .twe-ticket--front .twe-ticket__summary {
+  color: var(--brand-cream);
+}
 .twe-ticket__summary {
   max-width: 49ch;
   font: 500 .94rem/1.55 var(--font-body, Quicksand, sans-serif);
@@ -152,6 +168,11 @@
 .twe-ticket--back {
   grid-template-columns: var(--twe-ticket-stub) minmax(0, 1fr);
   background: var(--brand-cream);
+  color: var(--brand-navy);
+}
+.twe-service-ticket .twe-ticket--back .twe-ticket__back-main h3,
+.twe-service-ticket .twe-ticket--back .twe-ticket__back-main p,
+.twe-service-ticket .twe-ticket--back .twe-ticket__link {
   color: var(--brand-navy);
 }
 .twe-service-ticket .twe-ticket__stub--back {
