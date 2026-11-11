@@ -238,7 +238,9 @@ try {
     assert.equal(await page.locator('[aria-label="Travel tips"] article').count(), 3);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-home-${width}.png`), fullPage: true });
-    await page.locator(".journey-preview").first().click({ position: { x: 30, y: 30 } });
+    const featuredTickets = page.locator(".featured-journeys__card .twe-package-ticket");
+    assert.equal(await featuredTickets.count(), 2, "Homepage shows both published featured package tickets");
+    await featuredTickets.first().locator(".twe-ticket--front h3 a").click();
     await page.waitForURL("**/packages/zanzibar");
     assert.deepEqual(errors, []);
     await context.close();

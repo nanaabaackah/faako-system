@@ -311,19 +311,18 @@ try {
     }
     assert.equal(await page.locator(".closing-scene__image").evaluate(node=>getComputedStyle(node).objectPosition),
       width<=760?"50% 50%":"50% 60%");
-    // Regression: the featured journey cards are navy inside a light
-    // editorial wrapper; paragraph colors must not inherit the slate palette.
-    const featuredCards = page.locator(".featured-journeys .journey-preview");
-    if (await featuredCards.count()) {
-      const cardColors = await featuredCards.first().evaluate(el=>({
-        duration:getComputedStyle(el.querySelector(".featured-journeys__duration")).color,
-        tagline:getComputedStyle(el.querySelector(".journey-preview__tagline")).color,
-        heading:getComputedStyle(el.querySelector("h3")).color,
-      }));
-      assert.equal(cardColors.duration, "rgb(216, 181, 106)");
-      assert.equal(cardColors.tagline, "rgb(244, 237, 227)");
-      assert.equal(cardColors.heading, "rgb(244, 237, 227)");
-    }
+    // Ticket fronts must maintain their gold duration and cream summary/title
+    // even inside the lighter homepage editorial wrapper.
+    const featuredCards = page.locator(".featured-journeys__card .twe-package-ticket");
+    assert.equal(await featuredCards.count(), 2, "The ticket appearance check must run on both featured packages");
+    const cardColors = await featuredCards.first().evaluate(el=>({
+      duration:getComputedStyle(el.querySelector(".twe-ticket--front .twe-ticket__duration")).color,
+      tagline:getComputedStyle(el.querySelector(".twe-ticket--front .twe-ticket__summary")).color,
+      heading:getComputedStyle(el.querySelector(".twe-ticket--front h3 a")).color,
+    }));
+    assert.equal(cardColors.duration, "rgb(216, 181, 106)");
+    assert.equal(cardColors.tagline, "rgb(244, 237, 227)");
+    assert.equal(cardColors.heading, "rgb(244, 237, 227)");
     // Complete in-flight stepper transitions before measuring color contrast.
     await page.waitForFunction(() => {
       const root = document.querySelector(".journey-process__interactive");

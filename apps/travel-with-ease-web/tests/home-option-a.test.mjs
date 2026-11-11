@@ -108,7 +108,7 @@ test("all public controls and surface families use compact, shared radius tokens
 });
 
 test("home services use unnumbered ordinary cards with native links and approved copy", () => {
-  assert.match(services, /<h3><ContentLink href=\{\`\/services\/\$\{serviceSlug\(entry.heading\)\}\`\}>\{title\}<\/ContentLink><\/h3>/);
+  assert.match(services, /<h3><ContentLink href=\{`\/services\/\$\{serviceSlug\(entry.heading\)\}`\}>\{title\}<\/ContentLink><\/h3>/);
   assert.match(services, /<MoneyText text=\{price\}/);
   assert.match(services, /class="home-services__summary"/);
   assert.doesNotMatch(services, /<ServiceTicketCard|<PackageTicketCard|tilted-card|home-services__number/);
@@ -132,7 +132,7 @@ test("package tickets reuse the React Bits ticket with visible headings, currenc
   assert.match(packageTicket, /flipped=\{flipped\}/);
   assert.match(packageTicket, /<Heading><a href=\{href\}>\{title\}<\/a><\/Heading>/);
   assert.match(packageTicket, /import \{ ArrowRight4 \} from "@faako\/ui"/);
-  assert.match(packageTicket, /aria-label=\{\`Explore \$\{title\} package\`\}/);
+  assert.match(packageTicket, /aria-label=\{`Explore \$\{title\} package`\}/);
   assert.doesNotMatch(packageTicket, /Your planning pass|Your journey, your way|↗|twe-ticket__label/);
   assert.match(ticketSkin, /twe-ticket__barcode/);
   assert.match(ticketSkin, /-webkit-mask: none/);

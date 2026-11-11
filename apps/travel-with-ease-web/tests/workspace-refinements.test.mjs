@@ -17,7 +17,7 @@ test("homepage services keep a single approved editorial image and native non-ti
   const ticket = source("components/PackageTicketCard.jsx");
   assert.match(ticket, /moneySegments\(text\)/);
   assert.match(ticket, /data-twe-money/);
-  assert.match(ticket, /aria-label=\{\`Explore \$\{title\} package\`\}/);
+  assert.match(ticket, /aria-label=\{`Explore \$\{title\} package`\}/);
 });
 
 test("all detail families share semantic, wrapping breadcrumbs with decorative Iconsax separators", () => {
