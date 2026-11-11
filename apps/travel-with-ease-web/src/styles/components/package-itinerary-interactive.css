@@ -1,0 +1,27 @@
+/* React Bits AnimatedList, restrained to TWE's editorial itinerary language. */
+.twe-package-itinerary-wrap { min-width: 0; }
+.twe-package-itinerary-wrap astro-island[ssr] { display: none; }
+.twe-package-itinerary-wrap astro-island:not([ssr]) + .twe-package-itinerary__fallback { display: none; }
+.twe-package-itinerary__fallback { list-style: none; margin: 0; padding: 0; }
+.twe-package-itinerary__fallback > li { display: grid; grid-template-columns: minmax(72px, .18fr) minmax(0, 1fr); gap: 12px 22px; padding: 22px 12px; border-top: 1px solid rgb(1 12 51 / 20%); }
+.twe-package-itinerary__fallback h3 { margin: 0 0 8px; font-family: var(--font-display); color: var(--brand-navy); }
+.twe-package-itinerary__fallback p { margin: 0; color: var(--brand-navy); }
+.twe-package-itinerary__fallback .twe-package-itinerary__day { font: 800 .84rem var(--font-impact, Inter, sans-serif); white-space: nowrap; color: var(--brand-navy); }
+.twe-package-itinerary .animated-list { font-family: var(--font-body, Quicksand, sans-serif); }
+.twe-package-itinerary .animated-list__viewport { padding: 0; overflow: visible; max-height: none !important; }
+.twe-package-itinerary .animated-list__item { display: block; min-height: 0; padding: 0; margin: 0; background: transparent; box-shadow: none; border-top: 1px solid rgb(1 12 51 / 20%); border-radius: var(--twe-radius-card); color: var(--brand-navy); user-select: text; }
+.twe-package-itinerary .animated-list__rim { box-shadow: none; }
+.twe-package-itinerary .animated-list__ring { border-radius: var(--twe-radius-card); background: rgb(1 12 51 / 4%); }
+.twe-package-itinerary .twe-package-itinerary__entry { display: grid; grid-template-columns: minmax(72px, .18fr) minmax(0, 1fr); gap: 12px 22px; padding: 22px 12px; }
+.twe-package-itinerary .twe-package-itinerary__day { font: 800 .84rem var(--font-impact, Inter, sans-serif); color: var(--brand-navy); white-space: nowrap; padding-top: 5px; }
+.twe-package-itinerary .twe-package-itinerary__copy { min-width: 0; }
+.twe-package-itinerary .twe-package-itinerary__copy h3 { font: 400 clamp(1.25rem, 2.2vw, 1.8rem)/1.24 var(--font-display, "Poiret One", sans-serif); -webkit-text-stroke: .02em; color: var(--brand-navy); margin: 0 0 10px; }
+.twe-package-itinerary .twe-package-itinerary__copy p { margin: 0; color: var(--brand-navy); font-size: .97rem; line-height: 1.75; max-width: 58ch; white-space: pre-line; }
+.twe-package-itinerary .animated-list__viewport:focus-visible { outline: 3px solid var(--brand-sky); outline-offset: 3px; }
+@media (max-width: 480px) {
+  .twe-package-itinerary .twe-package-itinerary__entry,
+  .twe-package-itinerary__fallback > li { grid-template-columns: minmax(0,1fr); gap: 6px; padding: 18px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twe-package-itinerary .animated-list__item { transition: none !important; opacity: 1 !important; transform: none; }
+}
