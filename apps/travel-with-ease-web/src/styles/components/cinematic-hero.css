@@ -54,7 +54,7 @@
   margin: 2rem 0 1rem;
 }
 .cinematic-page .cinematic-hero .twe-content-link.button {
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
   background: var(--brand-cream);
   color: var(--brand-ink);
   border-color: var(--brand-cream);
@@ -100,7 +100,7 @@
   background: transparent;
   color: var(--brand-cream);
   border-color: var(--brand-cream);
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
   font-weight: 600;
 }
 @media (min-width: 901px) {
@@ -172,7 +172,7 @@
   }
   .cinematic-hero__actions .twe-content-link:not(.button) {
     border: 1px solid var(--brand-cream);
-    border-radius: 99px;
+    border-radius: var(--twe-radius-button);
     color: var(--brand-cream);
     text-decoration: none;
   }

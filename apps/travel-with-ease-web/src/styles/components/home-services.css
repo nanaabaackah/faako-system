@@ -12,7 +12,7 @@
   min-height: 540px;
   object-fit: cover;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: var(--twe-radius-media);
   min-width: 0;
 }
 .home-services__photo img {

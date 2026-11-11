@@ -35,7 +35,7 @@
   position: absolute;
   inset: 18px 18px 0 0;
   border: 1px solid var(--brand-gold);
-  border-radius: 8px;
+  border-radius: var(--twe-radius-media);
   pointer-events: none;
 }
 .journey-introduction--option-a .journey-introduction__artwork .placed-image {
@@ -55,7 +55,7 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-/* SERVICES — approved fees and explanations, now four calm numbered cards. */
+/* SERVICES — four calm, unnumbered cards retaining published copy and fees. */
 .home-services--option-a {
   padding-block: clamp(40px, 6vw, 80px);
 }
@@ -92,7 +92,7 @@
   height: 170px;
   min-height: 0;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--twe-radius-media);
 }
 .home-services--option-a .home-services__list {
   display: grid;
@@ -108,19 +108,11 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 250px;
+  min-height: 218px;
   padding: clamp(18px, 2vw, 26px);
   border: 1px solid rgb(1 12 51 / 16%);
-  border-radius: 12px;
+  border-radius: var(--twe-radius-card);
   background: rgb(255 255 255 / 30%);
-}
-.home-services--option-a .home-services__number {
-  margin-bottom: 24px;
-  font-family: var(--font-impact);
-  font-weight: 800;
-  font-size: 0.875rem;
-  letter-spacing: 0.04em;
-  color: #77551b;
 }
 .home-services--option-a .home-services__row-heading {
   display: block;
@@ -148,7 +140,7 @@
   color: var(--brand-navy);
 }
 
-/* HOW IT WORKS — the original four approved steps, not an invented 3-step flow. */
+/* HOW IT WORKS — four approved CMS steps, now navigated with a branded React Bits stepper. */
 .home-journey-chapters .journey-process--option-a {
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
   gap: clamp(28px, 4vw, 64px);
@@ -160,7 +152,7 @@
   width: 100%;
   height: clamp(350px, 40vw, 490px);
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--twe-radius-card);
 }
 .journey-process--option-a .journey-process__steps {
   min-width: 0;
@@ -170,39 +162,28 @@
   text-transform: none;
   font-size: clamp(2rem, 3.5vw, 3.4rem);
 }
-.journey-process--option-a .journey-process__steps > ol {
+.journey-process--option-a .journey-process__steps {
+  min-width: 0;
+}
+.journey-process--option-a .journey-process__fallback {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: clamp(16px, 3vw, 38px);
-  row-gap: 14px;
+  gap: 20px;
 }
-.journey-process--option-a .journey-process__steps > ol > li {
+.journey-process--option-a .journey-process__fallback > li {
   display: block;
-  min-width: 0;
+  padding: 18px 0;
   border: 0;
   border-top: 1px solid rgb(1 12 51 / 18%);
-  padding: 18px 0 10px;
 }
-.journey-process--option-a .journey-process__number {
-  display: block;
+.journey-process--option-a .journey-process__fallback .journey-process__number {
+  display: inline-block;
   width: auto;
   height: auto;
-  margin: 0 0 12px;
+  margin-bottom: 12px;
   border: 0;
   border-radius: 0;
-  place-items: initial;
-  color: #77551b;
-  font-family: var(--font-impact);
   font-weight: 800;
-  font-size: 1rem;
-}
-.journey-process--option-a .journey-process__steps h3 {
-  margin-bottom: 8px;
-  line-height: 1.25;
-}
-.journey-process--option-a .journey-process__steps p {
-  font-size: 0.925rem;
-  line-height: 1.65;
 }
 
 /* TRAVEL TIPS — an editorial heading beside three existing article cards. */
@@ -232,7 +213,7 @@
   flex-direction: column;
   padding: 0 0 16px;
   border: 1px solid rgb(1 12 51 / 14%);
-  border-radius: 10px;
+  border-radius: var(--twe-radius-media);
   background: rgb(255 255 255 / 30%);
   overflow: hidden;
 }
@@ -286,7 +267,7 @@ body main .travel-tips--option-a .travel-tips__grid h3 {
   .home-services--option-a .home-services__row,
   .home-services--option-a .home-services__row:first-child,
   .home-services--option-a .home-services__row:last-child {
-    min-height: 230px;
+    min-height: 210px;
   }
   .travel-tips--option-a {
     grid-template-columns: minmax(0, 1fr);
@@ -329,7 +310,7 @@ body main .travel-tips--option-a .travel-tips__grid h3 {
 }
 @media (max-width: 480px) {
   .home-services--option-a .home-services__list,
-  .journey-process--option-a .journey-process__steps > ol {
+  .journey-process--option-a .journey-process__fallback {
     grid-template-columns: minmax(0, 1fr);
   }
   .home-services--option-a .home-services__row,

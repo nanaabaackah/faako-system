@@ -52,7 +52,7 @@ body .site-header-shell .site-header.is-scrolled {
   top: 12px;
   width: min(1120px, calc(100% - 32px));
   min-height: 72px;
-  border-radius: 25px;
+  border-radius: var(--twe-radius-nav);
   padding: 10px 24px;
   background: var(--brand-navy);
   color: var(--brand-cream);
@@ -62,7 +62,7 @@ body .site-header-shell .is-scrolled .nav-cta {
   background: var(--brand-gold);
   color: var(--brand-navy);
   border-color: var(--brand-gold);
-  border-radius: 18px;
+  border-radius: var(--twe-radius-button);
 }
 body .site-header-shell .is-scrolled nav a[aria-current="page"] {
   color: var(--brand-gold);
@@ -247,7 +247,7 @@ body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
     justify-content: center;
     gap: 12px;
     border: 0;
-    border-radius: 18px;
+    border-radius: var(--twe-radius-button);
     background: var(--brand-gold);
     color: var(--brand-navy);
     font-size: clamp(1.05rem, 4.6vw, 1.3rem);

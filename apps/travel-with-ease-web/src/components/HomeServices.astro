@@ -38,14 +38,13 @@ const { heading, body, entries } = Astro.props;
       sizes="(max-width: 760px) 90vw, 32vw"
     />
   </div>
-  <ol class="home-services__list">
-    {entries.map((entry, index) => {
+  <ul class="home-services__list">
+    {entries.map((entry) => {
       const [title, ...priceParts] = entry.heading.split(" · ");
       const price = priceParts.join(" · ");
       const summary = entry.text.split(/(?<=[.!?])\s+/)[0];
       return (
         <li class="home-services__item home-services__row">
-          <span class="home-services__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
           <div class="home-services__row-heading">
             <h3><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
             {price && <p class="home-services__fee"><MoneyText text={price} /></p>}
@@ -54,6 +53,6 @@ const { heading, body, entries } = Astro.props;
         </li>
       );
     })}
-  </ol>
+  </ul>
   <CurrencyAttribution />
 </section>

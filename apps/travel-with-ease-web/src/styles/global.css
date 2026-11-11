@@ -7,7 +7,12 @@
   --brand-ink: #000a1f;
   --text: #091331;
   --muted: #5d6372;
-  --radius: 1.4rem;
+  --twe-radius-button: 6px;
+  --twe-radius-control: 6px;
+  --twe-radius-card: 8px;
+  --twe-radius-media: 8px;
+  --twe-radius-nav: 8px;
+  --radius: var(--twe-radius-card);
   --shadow: 0 24px 70px rgba(0, 10, 31, 0.12);
   font-family: Inter, Avenir, "Segoe UI", sans-serif;
   color: var(--text);
@@ -84,7 +89,7 @@ a {
 .nav-cta {
   border: 1px solid var(--brand-gold);
   padding: 0.65rem 1rem;
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
   color: var(--brand-gold);
 }
 .hero {
@@ -143,7 +148,7 @@ p {
 button {
   display: inline-flex;
   border: 0;
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
   padding: 0.9rem 1.35rem;
   background: var(--brand-gold);
   color: var(--brand-ink);
@@ -293,7 +298,7 @@ select,
 textarea {
   width: 100%;
   border: 1px solid #687386;
-  border-radius: 0.7rem;
+  border-radius: var(--twe-radius-control);
   background: #fbf9f5;
   padding: 0.82rem;
   font: inherit;

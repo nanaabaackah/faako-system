@@ -12,7 +12,7 @@ body .ui-field__control,
 body .ui-dropdown-field__trigger,
 body .ui-combobox-field__control {
   border: 1px solid #858a94;
-  border-radius: 8px;
+  border-radius: var(--twe-radius-control);
   background: #fffdfa;
   color: var(--brand-navy);
   min-height: 50px;
@@ -60,7 +60,7 @@ body .ui-combobox-field__popover {
   background: var(--brand-cream);
   color: var(--brand-navy);
   border: 1px solid #858a94;
-  border-radius: 10px;
+  border-radius: var(--twe-radius-card);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   box-shadow: 0 4px 16px rgb(0 10 31 / 10%);

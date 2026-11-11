@@ -8,6 +8,12 @@ const services = read("../src/components/HomeServices.astro");
 const process = read("../src/components/JourneyProcess.astro");
 const tips = read("../src/components/TravelTips.astro");
 const css = read("../src/styles/components/home-option-a.css");
+const stepper = read("../src/components/HomeJourneyStepper.jsx");
+const stepperSkin = read("../src/styles/components/home-journey-stepper.css");
+const reactBits = read("../src/components/reactbits/Stepper.jsx");
+const globalCSS = read("../src/styles/global.css");
+const controlsCSS = read("../src/styles/components/public-controls.css");
+const navigationCSS = read("../src/styles/components/scroll-navigation.css");
 
 test("Option A changes four editorial homepage sections only", () => {
   assert.match(home, /journey-introduction--option-a/);
@@ -40,20 +46,23 @@ test("About uses the approved story content and available media, without new cla
 });
 
 test("services keep published labels, prices, currency formatting and direct links", () => {
-  assert.match(services, /entries\.map\(\(entry, index\) =>/);
+  assert.match(services, /entries\.map\(\(entry\) =>/);
   assert.match(services, /serviceSlug\(entry\.heading\)/);
   assert.match(services, /<MoneyText text=\{price\} \/>/);
   assert.match(services, /<MoneyText text=\{summary\} \/>/);
   assert.match(services, /<CurrencyAttribution \/>/);
-  assert.match(services, /aria-hidden="true">\{String\(index \+ 1\)\.padStart\(2, "0"\)\}/);
+  assert.match(services, /<ul class="home-services__list">/);
+  assert.doesNotMatch(services, /home-services__number|padStart\(2/);
   assert.match(css, /\.home-services--option-a \.home-services__list[\s\S]*?grid-template-columns: repeat\(4/);
 });
 
 test("process keeps all approved steps and detailed page layout separate", () => {
   assert.match(process, /content\.entries\.map\(\(step, index\) =>/);
-  assert.match(process, /page \? step\.text : summaries\[index\] \|\| step\.text/);
+  assert.match(process, /steps=\{content\.entries\.map/);
+  assert.match(process, /summaries\[index\] \|\| step\.text/);
   assert.match(process, /"planning-process": page/);
-  assert.match(css, /\.journey-process--option-a \.journey-process__steps > ol/);
+  assert.match(process, /<HomeJourneyStepper[\s\S]*?client:visible/);
+  assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
   assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 });
 
@@ -72,4 +81,25 @@ test("responsive cards and editorial layouts retain single-column mobile reflow"
   assert.match(css, /\.journey-introduction--option-a \.journey-introduction__inner/);
   assert.match(css, /\.home-services--option-a \.home-services__list/);
   assert.match(css, /\.travel-tips--option-a \.travel-tips__grid/);
+});
+
+test("React Bits stepper uses original CMS copy, accessible controls and TWE styling", () => {
+  assert.match(stepper, /import Stepper, \{ Step \} from "\.\/reactbits\/Stepper\.jsx"/);
+  assert.match(stepper, /steps\.map\(\(entry, index\) =>/);
+  assert.match(stepper, /accentColor="#010c33"/);
+  assert.match(stepper, /frame=\{false\}/);
+  assert.match(stepper, /theme="light"/);
+  assert.match(stepper, /href="#plan"/);
+  assert.match(stepperSkin, /--twe-radius-button/);
+  assert.match(stepperSkin, /--font-display/);
+  assert.match(reactBits, /@hugeicons\/react/);
+  assert.match(reactBits, /@hugeicons\/core-free-icons/);
+});
+test("all public controls and surface families use compact, shared radius tokens", () => {
+  assert.match(globalCSS, /--twe-radius-button: 6px/);
+  assert.match(globalCSS, /--twe-radius-card: 8px/);
+  assert.match(globalCSS, /--twe-radius-control: 6px/);
+  assert.match(controlsCSS, /border-radius: var\(--twe-radius-control\)/);
+  assert.match(navigationCSS, /border-radius: var\(--twe-radius-nav\)/);
+  assert.doesNotMatch(css, /home-services__number/);
 });

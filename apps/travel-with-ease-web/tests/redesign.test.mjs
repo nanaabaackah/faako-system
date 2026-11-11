@@ -26,7 +26,7 @@ test("shared CTA preserves the selected three mockups, one action and no copied 
   );
   assert.match(
     source("styles/components/closing-cta.css"),
-    /border-radius: 99px/,
+    /border-radius: var\(--twe-radius-button\)/,
   );
 });
 
