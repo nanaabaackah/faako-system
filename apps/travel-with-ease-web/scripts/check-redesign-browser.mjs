@@ -175,7 +175,7 @@ try {
       "About uses the approved published photo");
     const cards = page.locator(".home-services--option-a .home-services__row");
     assert.equal(await cards.count(), 4, "All four published service choices remain available");
-    assert.equal(await page.locator(".home-services--option-a .home-services__fee").count(), 4,
+    assert.equal(await page.locator(".home-services--option-a .twe-ticket__fee").count(), 4,
       "Published service fees remain visible");
     assert.equal(await page.locator(".home-services--option-a .home-services__list").evaluate(el => getComputedStyle(el).display), "grid");
     const serviceBoxes = await Promise.all((await cards.all()).map(el => el.boundingBox()));
