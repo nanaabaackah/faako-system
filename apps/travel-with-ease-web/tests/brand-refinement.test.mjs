@@ -34,7 +34,7 @@ test("public typography uses licensed Google Fonts with scoped hero and journal 
   assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*A Little More You/);
   assert.match(read("../src/styles/components/cinematic-hero.css"), /\.cinematic-hero__copy \{\s*width: 100%;/);
   assert.match(typography, /body \.cinematic-hero h1 \{\s*width: 100%;\s*max-width: none;/);
-  assert.match(typography, /body \.cinematic-hero \.hero-signature \{[\s\S]*?width: 100%;[\s\S]*?white-space: nowrap;/);
+  assert.match(typography, /body \.cinematic-hero \.hero-signature \{[\s\S]*?width: 100%;[\s\S]*?white-space: normal;[\s\S]*?text-wrap: balance;/);
 });
 
 test("About attribution italic styling is scoped to the story page", () => {
