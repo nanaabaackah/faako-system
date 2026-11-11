@@ -66,6 +66,8 @@ test("approved package itineraries use restrained AnimatedList and remain server
   assert.doesNotMatch(detail, /<Accordion/);
   assert.match(island, /import AnimatedList from "\.\/reactbits\/AnimatedList\.jsx"/);
   assert.match(island, /renderItem=\{item =>/);
+  assert.match(island, /semantic="list"/);
+  assert.match(source("components/reactbits/AnimatedList.jsx"), /role=\{listMode \? 'listitem' : 'option'\}/);
   assert.match(island, /showGradients=\{false\}/);
   assert.match(island, /frame=\{false\}/);
   assert.match(island, /animation="fade"/);
