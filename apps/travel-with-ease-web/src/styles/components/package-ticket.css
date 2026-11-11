@@ -110,7 +110,8 @@
   color: var(--brand-gold);
   font: 700 .86rem/1.4 var(--font-impact, Inter, sans-serif);
 }
-.twe-ticket__summary {
+.twe-package-ticket .twe-ticket--front .twe-ticket__summary,
+.twe-package-ticket .twe-ticket--front .twe-ticket__summary a {
   color: var(--brand-cream);
 }
 .twe-ticket__summary {
@@ -137,9 +138,12 @@
 }
 /* Higher specificity than the global editorial paragraph/money rules.
    Fees on a navy ticket must never fall back to muted grey. */
-.twe-package-ticket .twe-ticket--front .twe-ticket__fee,
-.twe-package-ticket .twe-ticket--front .twe-ticket__fee .twe-money,
-.twe-package-ticket .twe-ticket--front .twe-ticket__fee [data-money-value] {
+.featured-journeys .twe-package-ticket .twe-ticket--front .twe-ticket__fee,
+.featured-journeys .twe-package-ticket .twe-ticket--front .twe-ticket__fee .twe-money,
+.featured-journeys .twe-package-ticket .twe-ticket--front .twe-ticket__fee [data-money-value],
+.package-catalogue .twe-package-ticket .twe-ticket--front .twe-ticket__fee,
+.package-catalogue .twe-package-ticket .twe-ticket--front .twe-ticket__fee .twe-money,
+.package-catalogue .twe-package-ticket .twe-ticket--front .twe-ticket__fee [data-money-value] {
   color: var(--brand-gold);
 }
 
@@ -260,3 +264,7 @@
 @media (max-width: 760px) {
   .twe-package-ticket .tilted-card__img { object-position: var(--tc-mobile-position, var(--tc-position, 50% 50%)); }
 }
+
+.package-ticket-entry { min-width: 0; }
+.package-ticket-entry > astro-island,
+.featured-journeys__card > astro-island { display: block; min-width: 0; }
