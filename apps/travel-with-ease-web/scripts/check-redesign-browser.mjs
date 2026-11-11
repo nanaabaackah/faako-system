@@ -211,6 +211,7 @@ try {
         titleColor:getComputedStyle(title).color,
         summaryColor:getComputedStyle(summary).color,
         feeColor:getComputedStyle(fee).color,
+        feeValueColor:getComputedStyle(fee.querySelector("[data-money-value]") ?? fee).color,
         backTitleColor:getComputedStyle(backTitle).color,
         backDescriptionColor:getComputedStyle(backDescription).color,
         titleWidth:titleBox?.width ?? 0,
@@ -227,6 +228,7 @@ try {
       assert.equal(ticket.titleColor, "rgb(244, 237, 227)", "Front title contrasts against navy");
       assert.equal(ticket.summaryColor, "rgb(244, 237, 227)", "Front description contrasts against navy");
       assert.equal(ticket.feeColor, "rgb(216, 181, 106)", "Published fee uses visible brand gold");
+      assert.equal(ticket.feeValueColor, "rgb(216, 181, 106)", "Actual rendered currency text must also remain gold");
       assert.equal(ticket.backTitleColor, "rgb(1, 12, 51)", "Reverse title contrasts against cream");
       assert.equal(ticket.backDescriptionColor, "rgb(1, 12, 51)", "Reverse description contrasts against cream");
       assert.ok(ticket.titleWidth > 20 && ticket.titleHeight > 12, "Ticket title must occupy a visible painted area");
