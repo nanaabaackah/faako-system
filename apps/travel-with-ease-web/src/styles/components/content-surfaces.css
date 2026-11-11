@@ -1,7 +1,7 @@
 /* User-approved refinement: rounded content photography and gentle elevation.
    Brand assets, hero/closing backgrounds and device artwork retain their shapes. */
 :root {
-  --content-radius: 14px;
+  --content-radius: var(--twe-radius-card);
   --content-shadow: 0 6px 20px rgb(0 10 31 / 10%);
 }
 main
