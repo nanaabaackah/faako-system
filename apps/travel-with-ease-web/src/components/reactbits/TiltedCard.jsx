@@ -178,7 +178,7 @@ const TiltedCard = ({
       time += dt;
       let busy = false;
 
-      const amplitude = s.amplitude * (reduced ? 0.3 : 1);
+      const amplitude = reduced ? 0 : s.amplitude;
       const hovering = pointer.inside && pointer.mouse;
       const touching = press.active && !pointer.mouse;
       const following = hovering || touching || (s.trackWindow && pointer.seen && !coarse);
@@ -220,7 +220,8 @@ const TiltedCard = ({
           dt
         ) || busy;
       busy = step(state, 'lift', lifted, omega, Math.max(zeta, 0.85), dt) || busy;
-      busy = step(state, 'flip', s.flipped ? 180 : 0, reduced ? 18 : 9.5, 0.72, dt) || busy;
+      if (reduced) { state.flip = s.flipped ? 180 : 0; state.vflip = 0; }
+      else busy = step(state, 'flip', s.flipped ? 180 : 0, 9.5, 0.72, dt) || busy;
       busy = step(state, 'press', press.active && !press.moved && s.interactive ? 1 : 0, 26, 0.8, dt) || busy;
       if (settle && opacity < 1) {
         opacity = Math.min(1, opacity + dt / 0.45);
@@ -517,7 +518,7 @@ const TiltedCard = ({
           '--tc-glare-rgb': glareRgb
         }}
       >
-        <div className="tilted-card__face tilted-card__front">
+        <div className="tilted-card__face tilted-card__front" aria-hidden={isFlipped} inert={isFlipped}>
           {imageSrc && (
             <img
               className="tilted-card__img"
@@ -541,7 +542,7 @@ const TiltedCard = ({
           <span className="tilted-card__edge" aria-hidden="true" />
         </div>
         {backContent && (
-          <div className="tilted-card__face tilted-card__back" aria-hidden={!isFlipped}>
+          <div className="tilted-card__face tilted-card__back" aria-hidden={!isFlipped} inert={!isFlipped}>
             {backContent}
             <span className="tilted-card__glare" aria-hidden="true" />
             <span className="tilted-card__rim" aria-hidden="true" />
