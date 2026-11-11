@@ -159,7 +159,13 @@ try {
     const services = page.locator("#services");
     await services.scrollIntoViewIfNeeded();
     assert.equal(await services.locator(".home-services__item").count(), 4);
-    assert.equal(await services.locator("img").count(), 1);
+    assert.equal(await services.locator("img.home-services__photo").count(), 1,
+      "Keep the original approved editorial photo");
+    const backgrounds = services.locator(".home-services__image-effect .tilted-card__img");
+    assert.equal(await backgrounds.count(), 4,
+      "Each service retains its approved decorative photo background");
+    assert.deepEqual(await backgrounds.evaluateAll(images => images.map(image => image.getAttribute("alt"))),
+      ["", "", "", ""], "Decorative service photographs must not duplicate screen-reader content");
     assert.equal(
       await services
         .locator(".home-services__row")
