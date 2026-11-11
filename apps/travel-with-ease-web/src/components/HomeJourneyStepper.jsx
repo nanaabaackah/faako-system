@@ -2,6 +2,7 @@ import Stepper, { Step } from "./reactbits/Stepper.jsx";
 import "../styles/components/home-journey-stepper.css";
 
 /* Keep the CMS-authored process copy; this is presentation only. */
+/** @param {{ steps: { title: string, text: string }[] }} props */
 export default function HomeJourneyStepper({ steps = [] }) {
   if (!steps.length) return null;
 
