@@ -235,7 +235,7 @@ export default function Stepper({
     const leaving = leavingRef.current;
     const id = view.id;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const mode = transition === 'none' ? 'none' : reduced ? 'fade' : transition;
+    const mode = reduced ? 'none' : transition;
     const finish = () => setView(state => (state.id === id ? { ...state, previous: null } : state));
     if (leaving && pane && leaving.contains(document.activeElement)) pane.focus({ preventScroll: true });
     if (!viewport || typeof viewport.animate !== 'function' || mode === 'none') {
