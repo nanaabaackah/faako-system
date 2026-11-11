@@ -108,6 +108,7 @@ test("all public controls and surface families use compact, shared radius tokens
 
 test("services use approved photo-backed TiltedCard without hiding native published links", () => {
   assert.match(services, /servicePhotos = \[photography\.park, photography\.coast, photography\.garden, photography\.elephants\]/);
+  assert.match(services, /cardImage = entry\.imagePlacement\?\.image \|\| servicePhotos/);
   assert.match(services, /<ServiceTiltBackground[\s\S]*?client:visible/);
   assert.match(services, /<ContentLink href=\{\`\/services\/\$\{serviceSlug\(entry\.heading\)\}\`\}/);
   assert.match(serviceTilt, /import TiltedCard from "\.\/reactbits\/TiltedCard\.jsx"/);
