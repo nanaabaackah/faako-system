@@ -1,8 +1,7 @@
 ---
 import ContentLink from "./ContentLink.astro";
-import MoneyText from "./MoneyText.astro";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
-import ServiceTiltBackground from "./ServiceTiltBackground.jsx";
+import ServiceTicketCard from "./ServiceTicketCard.jsx";
 import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
 import { serviceSlug } from "../lib/services.js";
@@ -49,14 +48,16 @@ const servicePhotos = [photography.park, photography.coast, photography.garden, 
       const cardImage = entry.imagePlacement?.image || servicePhotos[index % servicePhotos.length];
       return (
         <li class="home-services__item home-services__row">
-          <div class="home-services__image-effect" aria-hidden="true">
-            <ServiceTiltBackground imageSrc={cardImage.src} client:visible />
-          </div>
-          <div class="home-services__row-heading">
-            <h3><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
-            {price && <p class="home-services__fee"><MoneyText text={price} /></p>}
-          </div>
-          <p class="home-services__summary"><MoneyText text={summary} /></p>
+          <ServiceTicketCard
+            title={title}
+            price={price}
+            summary={summary}
+            description={entry.text}
+            href={`/services/${serviceSlug(entry.heading)}`}
+            imageSrc={cardImage.src}
+            index={index}
+            client:visible
+          />
         </li>
       );
     })}
