@@ -274,6 +274,11 @@ try {
       assert.equal(cardColors.tagline, "rgb(244, 237, 227)");
       assert.equal(cardColors.heading, "rgb(244, 237, 227)");
     }
+    // Complete in-flight stepper transitions before measuring color contrast.
+    await page.waitForFunction(() => {
+      const root = document.querySelector(".journey-process__interactive");
+      return !root || root.getAnimations({subtree:true}).every(animation => animation.playState !== "running");
+    }, null, {timeout:5000});
     await page.addScriptTag({path:axe});
     const violations = await page.evaluate(async()=> (await window.axe.run(document,{
       runOnly:{type:"tag",values:["wcag2a","wcag2aa","wcag21aa"]},
