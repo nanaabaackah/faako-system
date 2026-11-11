@@ -110,7 +110,7 @@ test("services use approved photo-backed TiltedCard without hiding native publis
   assert.match(services, /servicePhotos = \[photography\.park, photography\.coast, photography\.garden, photography\.elephants\]/);
   assert.match(services, /cardImage = entry\.imagePlacement\?\.image \|\| servicePhotos/);
   assert.match(services, /<ServiceTiltBackground[\s\S]*?client:visible/);
-  assert.match(services, /<ContentLink href=\{\`\/services\/\$\{serviceSlug\(entry\.heading\)\}\`\}/);
+  assert.match(services, /<ContentLink href=\{`\/services\/\$\{serviceSlug\(entry\.heading\)\}`\}/);
   assert.match(serviceTilt, /import TiltedCard from "\.\/reactbits\/TiltedCard\.jsx"/);
   assert.match(serviceTilt, /rotateAmplitude=\{2\.5\}/);
   assert.match(serviceTilt, /gyroscope=\{false\}/);
