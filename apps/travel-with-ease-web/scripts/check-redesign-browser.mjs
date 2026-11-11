@@ -187,8 +187,36 @@ try {
       assert.ok(serviceBoxes.slice(1).every(box => Math.abs(box.y - serviceBoxes[0].y) < 1),
         "Desktop service choices stay in one clean editorial row");
     }
-    const steps = page.locator(".journey-process--option-a .journey-process__steps > ol > li");
-    assert.equal(await steps.count(), 4, "Keep the existing four planning steps");
+    // The homepage process uses the branded React Bits Stepper, not four static list items.
+    // Scroll into view to hydrate Astro's client:visible island before asserting controls.
+    const process = page.locator(".journey-process--option-a");
+    await process.scrollIntoViewIfNeeded();
+    const journeyStepper = process.locator(".journey-process__interactive");
+    const indicators = journeyStepper.locator(".stepper__segment");
+    await indicators.first().waitFor({state:"visible",timeout:15000});
+    assert.equal(await indicators.count(), 4, "Keep all four published planning steps");
+    assert.equal(await indicators.first().getAttribute("aria-current"), "step");
+    assert.equal(await journeyStepper.locator(".journey-process__step-copy h3").last().isVisible(), true);
+    const next = journeyStepper.locator(".stepper__button--next");
+    const back = journeyStepper.locator(".stepper__button--back");
+    await next.click();
+    assert.equal(await indicators.nth(1).getAttribute("aria-current"), "step",
+      "Next advances to the second published planning step");
+    await back.click();
+    assert.equal(await indicators.first().getAttribute("aria-current"), "step",
+      "Back returns to the first step");
+    for (let index = 1; index < 4; index++) {
+      await next.click();
+      assert.equal(await indicators.nth(index).getAttribute("aria-current"), "step");
+    }
+    await next.click();
+    const finalAction = journeyStepper.getByRole("link", {name:"Plan my trip"});
+    await finalAction.waitFor({state:"visible"});
+    assert.equal(await finalAction.getAttribute("href"), "#plan",
+      "Completing the four steps opens the existing enquiry CTA");
+    await indicators.first().click();
+    assert.equal(await indicators.first().getAttribute("aria-current"), "step",
+      "Visitors can revisit the guide after completion");
     const tips = page.locator(".travel-tips--option-a");
     assert.equal(await tips.count(), 1);
     assert.equal(await tips.locator(".travel-tips__grid article").count(), 3,
@@ -281,6 +309,9 @@ try {
   assert.equal(await disclosure.getAttribute("open"),null,
     "Native FAQ closes with Space when scripting is disabled");
   assert.ok(await page.locator("nav a").count()>0);
+  await page.goto(origin, {waitUntil:"domcontentloaded"});
+  assert.equal(await page.locator(".journey-process--option-a .journey-process__fallback > li").count(), 4,
+    "All four published planning steps remain readable without JavaScript");
   await noJs.close();
   console.log(JSON.stringify({passed:true,widths:[320,375,390,768,1024,1440],accessibility:true,noJavaScript:true,screenshots:directory}));
 } finally {
