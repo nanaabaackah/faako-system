@@ -1,12 +1,8 @@
 /* React Bits AnimatedList, restrained to TWE's editorial itinerary language. */
-.twe-package-itinerary-wrap { min-width: 0; }
-.twe-package-itinerary-wrap astro-island[ssr] { display: none; }
-.twe-package-itinerary-wrap astro-island:not([ssr]) + .twe-package-itinerary__fallback { display: none; }
-.twe-package-itinerary__fallback { list-style: none; margin: 0; padding: 0; }
-.twe-package-itinerary__fallback > li { display: grid; grid-template-columns: minmax(72px, .18fr) minmax(0, 1fr); gap: 12px 22px; padding: 22px 12px; border-top: 1px solid rgb(1 12 51 / 20%); }
-.twe-package-itinerary__fallback h3 { margin: 0 0 8px; font-family: var(--font-display); color: var(--brand-navy); }
-.twe-package-itinerary__fallback p { margin: 0; color: var(--brand-navy); }
-.twe-package-itinerary__fallback .twe-package-itinerary__day { font: 800 .84rem var(--font-impact, Inter, sans-serif); white-space: nowrap; color: var(--brand-navy); }
+.twe-package-itinerary { width: 100%; min-width: 0; }
+/* Astro SSR renders the complete itinerary even before this island hydrates.
+   Do not let React Bits hide these days when scripting is unavailable. */
+.twe-package-itinerary .animated-list[data-animated] .animated-list__item:not([data-state]) { opacity: 1; }
 .twe-package-itinerary .animated-list { font-family: var(--font-body, Quicksand, sans-serif); }
 .twe-package-itinerary .animated-list__viewport { padding: 0; overflow: visible; max-height: none !important; }
 .twe-package-itinerary .animated-list__item { display: block; min-height: 0; padding: 0; margin: 0; background: transparent; box-shadow: none; border-top: 1px solid rgb(1 12 51 / 20%); border-radius: var(--twe-radius-card); color: var(--brand-navy); user-select: text; }
@@ -19,8 +15,7 @@
 .twe-package-itinerary .twe-package-itinerary__copy p { margin: 0; color: var(--brand-navy); font-size: .97rem; line-height: 1.75; max-width: 58ch; white-space: pre-line; }
 .twe-package-itinerary .animated-list__viewport:focus-visible { outline: 3px solid var(--brand-sky); outline-offset: 3px; }
 @media (max-width: 480px) {
-  .twe-package-itinerary .twe-package-itinerary__entry,
-  .twe-package-itinerary__fallback > li { grid-template-columns: minmax(0,1fr); gap: 6px; padding: 18px 10px; }
+  .twe-package-itinerary .twe-package-itinerary__entry { grid-template-columns: minmax(0,1fr); gap: 6px; padding: 18px 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .twe-package-itinerary .animated-list__item { transition: none !important; opacity: 1 !important; transform: none; }
