@@ -63,18 +63,33 @@ try {
     await page.locator("[data-collection-item]").first().click({ position: { x: 20, y: 20 } });
     await page.waitForURL("**/packages/zanzibar");
     await page.getByRole("heading", { name: "Zanzibar", exact: true }).waitFor();
-    const itinerary = page.locator(".twe-accordion").first();
-    await itinerary.locator("summary").focus();
-    await page.keyboard.press("Enter");
-    assert.equal(await itinerary.getAttribute("open"), "");
-    const firstPhoto = page.locator("[data-gallery-index]").first();
-    await page.locator('[data-image-gallery][data-gallery-ready="true"]').waitFor();
+    // Package detail now has the approved static day-by-day content inside
+    // a semantic React Bits AnimatedList, rather than accordion disclosures.
+    const itinerary = page.locator(".twe-package-itinerary [role=list]");
+    await itinerary.scrollIntoViewIfNeeded();
+    assert.equal(await itinerary.locator('[role="listitem"]').count(), 6);
+    await expect(itinerary).toContainText("Arrive on the north coast");
+    await expect(itinerary).toContainText("Homeward");
+    // Masonry hydrates after its island becomes visible; its SSR gallery links
+    // remain readable and clickable while the layout and images load.
+    const gallery = page.locator(".twe-package-gallery");
+    await gallery.locator("astro-island").scrollIntoViewIfNeeded();
+    const firstPhoto = gallery.locator(".masonry__item [data-card]").first();
+    await firstPhoto.waitFor({ state: "visible", timeout: 20000 });
+    assert.equal(await gallery.locator(".masonry__item").count(), 3);
     await firstPhoto.click();
-    await page.getByRole("dialog", { name: "Photo gallery", exact: true }).waitFor();
+    const lightbox = page.locator(".masonry-lightbox[role=dialog]");
+    await lightbox.waitFor();
+    await expect(lightbox.locator("[data-box-image]")).toHaveAttribute(
+      "src", "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp"
+    );
     await page.keyboard.press("ArrowRight");
-    await page.getByText("Photo 2 of 3", { exact: true }).waitFor();
+    await expect(lightbox.locator("[data-box-image]")).toHaveAttribute(
+      "src", "/media/zanzibar-pool-da78a2948608-1242.webp"
+    );
     await page.keyboard.press("Escape");
-    assert.equal(await firstPhoto.evaluate(node => node === document.activeElement), true);
+    await lightbox.waitFor({ state: "detached" });
+    await expect(firstPhoto).toBeFocused();
     await page.getByText("Reference month: June 2027", { exact: true }).waitFor();
     const quoteLinks = page.getByRole("link", { name: "Check dates & Get a Quote", exact: true });
     await quoteLinks.first().waitFor();
@@ -213,9 +228,11 @@ try {
   await published.goto(origin + "/packages");
   assert.equal(await published.locator("[data-collection-item]").count(), 4);
   await published.goto(origin + "/packages/nairobi");
-  assert.equal(await published.locator("details").count(), 4);
-  await published.locator("details summary").first().click();
-  assert.equal(await published.locator("details").first().getAttribute("open"), "");
+  assert.equal(await published.locator(".twe-package-itinerary [role=listitem]").count(), 4,
+    "All four Nairobi itinerary days remain readable without scripting");
+  assert.equal(await published.locator(".twe-package-gallery__fallback a").count(), 3,
+    "Approved package photographs remain accessible as native links without scripting");
+  await expect(published.locator(".twe-package-itinerary")).toContainText("Arrive in Nairobi");
   await published.goto(origin + "/how-it-works");
   assert.equal(await published.locator(".planning-example__steps li").count(), 4);
   await published.getByRole("link", { name: "Explore the Nairobi package", exact: true }).click();
