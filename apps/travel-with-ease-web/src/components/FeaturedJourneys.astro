@@ -1,8 +1,7 @@
 ---
 import ContentLink from "./ContentLink.astro";
-import MoneyText from "./MoneyText.astro";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
-import PlacedImage from "./PlacedImage.astro";
+import PackageTicketCard from "./PackageTicketCard.jsx";
 import { packageStartingPrice } from "../lib/package-pricing.js";
 import type { TravelPackage } from "../lib/collections";
 import "../styles/components/home-features.css";
@@ -30,23 +29,32 @@ const featured = items
         <ContentLink href="/packages">Explore all packages</ContentLink>
       </div>
       <div class="featured-journeys__grid">
-        {featured.map((item) => (
-          <article class="featured-journeys__card journey-preview">
-            <div class="featured-journeys__photo">
-              {item.image && <PlacedImage image={item.image} placement={item.imagePlacement} sizes="(max-width: 760px) 100vw, 50vw" loading="lazy" />}
-            </div>
-            <div class="featured-journeys__details">
-              <p class="featured-journeys__duration">{item.duration}</p>
-              <h3><ContentLink href={`/packages/${item.slug}`}>{item.title}</ContentLink></h3>
-              <p class="journey-preview__tagline">{item.tagline || item.destination}</p>
-              <p
-                class="featured-journeys__price"
-                aria-label={`Starting price ${packageStartingPrice(item)} per person sharing`}
-              ><MoneyText text={packageStartingPrice(item)} /></p>
-              <span class="journey-preview__explore" aria-hidden="true">View the journey</span>
-            </div>
-          </article>
-        ))}
+        {featured.map((item, index) => {
+          const placement = item.imagePlacement;
+          const photo = placement?.image || item.image;
+          const mobile = placement?.mobileImage;
+          return (
+            <article class="featured-journeys__card">
+              <PackageTicketCard
+                title={item.title}
+                duration={item.duration}
+                price={packageStartingPrice(item)}
+                tagline={item.tagline || item.destination}
+                overview={item.overview}
+                href={`/packages/${item.slug}`}
+                imageSrc={photo?.src}
+                imageSrcSet={photo?.sources?.map(source => `${source.src} ${source.width}w`).join(", ")}
+                imageSizes="(max-width: 760px) 90vw, 46vw"
+                mobileImageSrcSet={mobile?.sources?.map(source => `${source.src} ${source.width}w`).join(", ") || mobile?.src}
+                imagePosition={`${placement?.focalX ?? 50}% ${placement?.focalY ?? 50}%`}
+                mobileImagePosition={`${placement?.mobileFocalX ?? placement?.focalX ?? 50}% ${placement?.mobileFocalY ?? placement?.focalY ?? 50}%`}
+                headingLevel="h3"
+                index={index}
+                client:load
+              />
+            </article>
+          );
+        })}
       </div>
       <CurrencyAttribution />
     </div>
