@@ -131,7 +131,16 @@ test("services use the real React Bits ticket demo, preserving published content
   assert.match(ticketSkin, /twe-ticket__main \.twe-ticket__content h3/);
   assert.match(ticketSkin, /twe-ticket__flip--back svg/);
   assert.match(ticketSkin, /twe-ticket__barcode/);
-  assert.match(ticketSkin, /mask-composite: intersect/);
+  assert.match(ticketSkin, /-webkit-mask: none/);
+  assert.match(ticketSkin, /mask: none/);
+  assert.match(ticketSkin, /tilted-card__face::before/);
+  assert.match(ticketSkin, /tilted-card__face::after/);
+  assert.match(ticketSkin, /background-color: var\(--brand-navy\)/);
+  assert.match(ticketSkin, /background-color: var\(--brand-cream\)/);
+  assert.match(ticketSkin, /twe-ticket--front \.twe-ticket__main h3 a/);
+  assert.match(ticketSkin, /twe-ticket--back \.twe-ticket__back-main h3/);
+  assert.match(serviceTicket, /intro=\{false\}/);
+  assert.doesNotMatch(ticketSkin, /mask-composite:/);
   assert.match(ticketSkin, /border-left: 1px dashed/);
   assert.match(ticketSkin, /--twe-radius-card/);
   assert.match(reactBitsTilt, /const TiltedCard =/);
