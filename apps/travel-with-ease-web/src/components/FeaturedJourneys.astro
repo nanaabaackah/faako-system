@@ -1,8 +1,7 @@
 ---
 import ContentLink from "./ContentLink.astro";
-import MoneyText from "./MoneyText.astro";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
-import PlacedImage from "./PlacedImage.astro";
+import PackageTicketCard from "./PackageTicketCard.jsx";
 import { packageStartingPrice } from "../lib/package-pricing.js";
 import type { TravelPackage } from "../lib/collections";
 import "../styles/components/home-features.css";
@@ -31,20 +30,20 @@ const featured = items
       </div>
       <div class="featured-journeys__grid">
         {featured.map((item) => (
-          <article class="featured-journeys__card journey-preview">
-            <div class="featured-journeys__photo">
-              {item.image && <PlacedImage image={item.image} placement={item.imagePlacement} sizes="(max-width: 760px) 100vw, 50vw" loading="lazy" />}
-            </div>
-            <div class="featured-journeys__details">
-              <p class="featured-journeys__duration">{item.duration}</p>
-              <h3><ContentLink href={`/packages/${item.slug}`}>{item.title}</ContentLink></h3>
-              <p class="journey-preview__tagline">{item.tagline || item.destination}</p>
-              <p
-                class="featured-journeys__price"
-                aria-label={`Starting price ${packageStartingPrice(item)} per person sharing`}
-              ><MoneyText text={packageStartingPrice(item)} /></p>
-              <span class="journey-preview__explore" aria-hidden="true">View the journey</span>
-            </div>
+          <article class="featured-journeys__card package-ticket-frame">
+            <PackageTicketCard
+              title={item.title}
+              duration={item.duration}
+              summary={item.tagline || item.destination}
+              description={item.overview || item.tagline || item.destination}
+              price={packageStartingPrice(item)}
+              href={`/packages/${item.slug}`}
+              imageSrc={item.imagePlacement?.image?.src || item.image?.src || item.imagePlacement?.mobileImage?.src || ""}
+              imageAlt={item.imagePlacement?.alt || item.imagePlacement?.image?.alt || item.image?.alt || ""}
+              groupFriendly={item.groupFriendly}
+              headingLevel="h3"
+              client:visible
+            />
           </article>
         ))}
       </div>
