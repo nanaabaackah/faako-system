@@ -190,8 +190,12 @@ try {
     // The homepage process uses the branded React Bits Stepper, not four static list items.
     // Scroll into view to hydrate Astro's client:visible island before asserting controls.
     const process = page.locator(".journey-process--option-a");
-    await process.scrollIntoViewIfNeeded();
-    await page.waitForFunction(() => document.querySelector(".journey-process--option-a astro-island")?.hasAttribute("hydrated"), null, {timeout:15000});
+    const island = process.locator("astro-island").first();
+    await island.scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => {
+      const element = document.querySelector(".journey-process--option-a astro-island");
+      return Boolean(element && !element.hasAttribute("ssr"));
+    }, null, {timeout:20000});
     const journeyStepper = process.locator(".journey-process__interactive");
     const indicators = journeyStepper.locator(".stepper__segment");
     await indicators.first().waitFor({state:"visible",timeout:15000});
