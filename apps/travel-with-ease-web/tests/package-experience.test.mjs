@@ -36,7 +36,10 @@ test("package details expose the published facts, price tiers, inclusions and co
 
 test("expanded process is page-only and examples do not claim to be a real client booking", () => {
   const process = source("components/JourneyProcess.astro");
-  assert.match(process, /page && practicalSteps\[index\]/);
+  assert.match(process, /\{page \? \(/);
+  assert.match(process, /\{practicalSteps\[index\] &&/);
+  assert.match(process, /<HomeJourneyStepper[\s\S]*?client:visible/);
+  assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
   assert.match(process, /page && <section class="planning-example/);
   assert.match(process, /not a real client story or a confirmed offer/);
   assert.match(process, /publishedPage\("packages"\)/);
