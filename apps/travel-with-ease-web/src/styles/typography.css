@@ -138,6 +138,13 @@ body .journal-reading :is(.collection-detail-heading > p, .breadcrumbs, .collect
 }
 @media (max-width: 480px) {
   body .cinematic-hero h1 { font-size: clamp(2.35rem, 10vw, 3.5rem); }
+  /* Keep the large approved mobile lettering while allowing natural word
+     wrapping when a single line would spill outside the viewport. */
+  body .cinematic-hero .hero-signature {
+    font-size: clamp(4.25rem, 19vw, 6.25rem);
+    white-space: normal;
+    text-wrap: balance;
+  }
 }
 
 /* Brand-derived hierarchy on cream/light reading surfaces. Never recolor dark
