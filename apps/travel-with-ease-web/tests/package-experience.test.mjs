@@ -11,6 +11,16 @@ test("published package cards retain native links to generated detail routes", (
   const home = source("components/FeaturedJourneys.astro");
   assert.match(listing, /href=\{`\$\{prefix\}\/\$\{item.slug\}`\}/);
   assert.match(home, /href=\{`\/packages\/\$\{item.slug\}`\}/);
+  for (const component of [listing, home]) {
+    assert.match(component, /<PackageTicketCard[\s\S]*?client:load/);
+    assert.match(component, /imageSrcSet=\{/);
+    assert.match(component, /mobileImageSrcSet=\{/);
+  }
+  const ticket = source("components/PackageTicketCard.jsx");
+  assert.match(ticket, /<Heading><a href=\{href\}>\{title\}<\/a><\/Heading>/);
+  assert.match(ticket, /aria-label=\{`Explore \$\{title\} package`\}/);
+  assert.match(ticket, /moneySegments\(text\)/);
+  assert.match(ticket, /backContent=\{/);
   assert.match(detailRoute, /getStaticPaths/);
   assert.match(detailRoute, /params: \{ slug: item.slug \}/);
   for (const item of approved.pages.packages.packages) {
