@@ -189,6 +189,48 @@ try {
         serviceBoxes[2].y > serviceBoxes[0].y,
         "Tablet and desktop tickets form two tidy rows of two");
     }
+    // Browser-level regression: every ticket face must paint and its content
+    // must use the intended foreground colour, including 320px mobile.
+    const ticketStyles = await cards.evaluateAll(rows => rows.map(row => {
+      const ticket = row.querySelector(".twe-service-ticket");
+      const body = ticket.querySelector(".tilted-card__body");
+      const front = ticket.querySelector(".tilted-card__front");
+      const back = ticket.querySelector(".tilted-card__back");
+      const title = ticket.querySelector(".twe-ticket--front h3 a");
+      const summary = ticket.querySelector(".twe-ticket--front .twe-ticket__summary");
+      const fee = ticket.querySelector(".twe-ticket--front .twe-ticket__fee");
+      const backTitle = ticket.querySelector(".twe-ticket--back h3");
+      const backDescription = ticket.querySelector(".twe-ticket--back .twe-ticket__description");
+      const titleBox = title?.getBoundingClientRect();
+      return {
+        opacity:getComputedStyle(body).opacity,
+        frontMask:getComputedStyle(front).maskImage,
+        backMask:getComputedStyle(back).maskImage,
+        frontBackground:getComputedStyle(front).backgroundColor,
+        backBackground:getComputedStyle(back).backgroundColor,
+        titleColor:getComputedStyle(title).color,
+        summaryColor:getComputedStyle(summary).color,
+        feeColor:getComputedStyle(fee).color,
+        backTitleColor:getComputedStyle(backTitle).color,
+        backDescriptionColor:getComputedStyle(backDescription).color,
+        titleWidth:titleBox?.width ?? 0,
+        titleHeight:titleBox?.height ?? 0
+      };
+    }));
+    assert.equal(ticketStyles.length, 4);
+    for (const ticket of ticketStyles) {
+      assert.equal(ticket.opacity, "1", "Tickets must not begin transparent");
+      assert.equal(ticket.frontMask, "none", "Front content must not be clipped by a face mask");
+      assert.equal(ticket.backMask, "none", "Back content must not be clipped by a face mask");
+      assert.equal(ticket.frontBackground, "rgb(1, 12, 51)");
+      assert.equal(ticket.backBackground, "rgb(244, 237, 227)");
+      assert.equal(ticket.titleColor, "rgb(244, 237, 227)", "Front title contrasts against navy");
+      assert.equal(ticket.summaryColor, "rgb(244, 237, 227)", "Front description contrasts against navy");
+      assert.equal(ticket.feeColor, "rgb(216, 181, 106)", "Published fee uses visible brand gold");
+      assert.equal(ticket.backTitleColor, "rgb(1, 12, 51)", "Reverse title contrasts against cream");
+      assert.equal(ticket.backDescriptionColor, "rgb(1, 12, 51)", "Reverse description contrasts against cream");
+      assert.ok(ticket.titleWidth > 20 && ticket.titleHeight > 12, "Ticket title must occupy a visible painted area");
+    }
     const firstTicket = cards.first().locator(".twe-service-ticket .tilted-card");
     await firstTicket.scrollIntoViewIfNeeded();
     const front = firstTicket.locator(".twe-ticket--front");
