@@ -148,7 +148,7 @@ const Masonry = ({
   const previousRef = useRef(new Map());
   const boxRef = useRef(null);
   const tokenRef = useRef(0);
-  const lastShownRef = useRef(null);
+  const lightboxOpenerRef = useRef(null);
   const [width, setWidth] = useState(0);
   const [order, setOrder] = useState(null);
   const [measured, setMeasured] = useState({});
@@ -703,6 +703,9 @@ const Masonry = ({
     if (event.defaultPrevented) return;
     if (s.lightbox) {
       event.preventDefault();
+      // Remember the tile that opened the lightbox, not the last photo viewed.
+      // Arrow navigation must not change where keyboard focus is restored.
+      lightboxOpenerRef.current = event.currentTarget;
       tokenRef.current += 1;
       setClosing(false);
       setOpenId(keyOf(item));
@@ -828,17 +831,17 @@ const Masonry = ({
     }
   }, [openId]);
 
-  if (openId) lastShownRef.current = openId;
   const isOpen = Boolean(openId);
   useEffect(() => {
     if (!isOpen) return undefined;
     const previous = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
     boxRef.current?.querySelector('[data-box-close]')?.focus({ preventScroll: true });
-    const map = nodes.current;
     return () => {
       document.documentElement.style.overflow = previous;
-      map.get(lastShownRef.current)?.querySelector('[data-card]')?.focus({ preventScroll: true });
+      const opener = lightboxOpenerRef.current;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+      lightboxOpenerRef.current = null;
     };
   }, [isOpen]);
 
