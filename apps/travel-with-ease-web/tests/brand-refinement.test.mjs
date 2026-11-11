@@ -19,6 +19,7 @@ test("public typography uses licensed Google Fonts with scoped hero and journal 
   assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\)/);
   assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\) \{[\s\S]*?font-family: var\(--font-journal\)/);
   assert.match(typography, /font-size: clamp\(2\.65rem, 13vw, 15rem\)/);
+  assert.match(typography, /font-size: clamp\(4\.25rem, 19vw, 6\.25rem\)/);
   const layout = read("../src/layouts/BaseLayout.astro");
   for (const family of ["Caveat", "Inter", "Poiret+One", "Quicksand", "Sassy+Frass"])
     assert.ok(layout.includes(`family=${family}`) || layout.includes(`&family=${family}`));
