@@ -98,9 +98,9 @@ try {
     }
     const header = page.locator(".site-header");
     const goldLogo = header.locator(".brand__wordmark--gold");
-    const whiteLogo = header.locator(".brand__wordmark--light");
+    const scrollSymbol = header.locator(".brand__symbol--scrolled");
     assert.equal(await goldLogo.isVisible(), true, "Unscrolled header uses the gold wordmark");
-    assert.equal(await whiteLogo.isVisible(), false, "White logo is reserved for the scrolled state");
+    assert.equal(await scrollSymbol.isVisible(), false, "Dark-mode symbol is reserved for the scrolled state");
     if (width <= 900) {
       assert.ok((await goldLogo.boundingBox()).width <= 118, "Mobile gold logo is compact");
     }
@@ -247,11 +247,11 @@ try {
     await page.waitForFunction(()=>document.querySelector(".site-header")?.classList.contains("is-scrolled"));
     assert.equal(await header.evaluate(el=>getComputedStyle(el).backgroundColor), "rgb(1, 12, 51)",
       "Scrolled navbar uses brand navy");
-    assert.equal(await whiteLogo.isVisible(), true, "Scrolled navbar shows approved white wordmark");
+    assert.equal(await scrollSymbol.isVisible(), true, "Scrolled navbar shows approved dark-mode symbol");
     assert.equal(await goldLogo.isVisible(), false, "Scrolled navbar hides gold wordmark");
-    const logoSrc = await whiteLogo.getAttribute("src");
-    assert.equal(logoSrc, "/brand/midnight primary.png");
-    assert.ok((await whiteLogo.boundingBox()).height <= 48);
+    const logoSrc = await scrollSymbol.getAttribute("src");
+    assert.equal(logoSrc, "/brand/dark mode symbol.png");
+    assert.ok((await scrollSymbol.boundingBox()).height <= 48);
     await page.locator(".site-header nav").evaluate(el => el.scrollTop = 0);
     if (width <= 900) {
       await menu.click();
