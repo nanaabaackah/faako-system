@@ -1,0 +1,158 @@
+/* TWE skin for the locally vendored React Bits Stepper.
+   Quiet editorial treatment — no frost, gradients, oversized pills or shadow. */
+.journey-process__interactive {
+  width: 100%;
+  min-width: 0;
+}
+.journey-process__interactive .stepper {
+  font-family: var(--font-body, Quicksand, sans-serif);
+  color: var(--brand-navy);
+}
+.journey-process__interactive .stepper__track {
+  background: transparent;
+  gap: 4px;
+  padding: 0;
+}
+.journey-process__interactive .stepper__glider {
+  border: 1px solid rgb(1 12 51 / 18%);
+  border-radius: var(--twe-radius-control, 6px);
+}
+.journey-process__interactive .stepper__segment {
+  min-height: 52px;
+  height: auto;
+  padding: 8px 6px;
+  gap: 6px;
+  border-radius: var(--twe-radius-control, 6px);
+}
+.journey-process__interactive .stepper__badge {
+  font-family: var(--font-body, Quicksand, sans-serif);
+  font-weight: 700;
+  width: 26px;
+  height: 26px;
+  font-size: 0.78rem;
+}
+.journey-process__interactive .stepper__badge[data-status='active'] {
+  box-shadow: inset 0 0 0 1.5px var(--brand-navy);
+}
+.journey-process__interactive .stepper__title {
+  font-family: var(--font-body, Quicksand, sans-serif);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.journey-process__interactive .stepper__body {
+  padding: clamp(22px, 3vw, 38px) 0 0;
+}
+.journey-process__interactive .stepper__viewport {
+  margin: -6px 0;
+  min-width: 0;
+}
+.journey-process__interactive .stepper__pane {
+  padding: 6px 0;
+}
+.journey-process__interactive .journey-process__step-copy {
+  min-height: 165px;
+  padding: clamp(14px, 2vw, 24px) 0 10px;
+  border-top: 1px solid rgb(1 12 51 / 20%);
+}
+.journey-process__interactive .journey-process__step-copy h3,
+.journey-process__interactive .journey-process__finished h3 {
+  margin: 0 0 14px;
+  color: var(--brand-navy);
+  font-family: var(--font-display, "Poiret One", sans-serif);
+  font-size: clamp(1.65rem, 2.8vw, 2.6rem);
+  line-height: 1.2;
+  font-weight: 400;
+  -webkit-text-stroke: 0.024em;
+}
+.journey-process__interactive .journey-process__step-copy p,
+.journey-process__interactive .journey-process__finished p {
+  max-width: 52ch;
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-body, Quicksand, sans-serif);
+  font-size: clamp(1rem, 1.3vw, 1.125rem);
+  line-height: 1.7;
+}
+.journey-process__interactive .stepper__footer {
+  padding-top: 22px;
+  gap: 14px;
+}
+.journey-process__interactive .stepper__button,
+.journey-process__interactive .journey-process__action {
+  min-height: 44px;
+  padding: 12px 20px;
+  border: 1px solid var(--brand-navy);
+  border-radius: var(--twe-radius-button, 6px);
+  font-family: var(--font-body, Quicksand, sans-serif);
+  font-size: 0.91rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  box-shadow: none;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.journey-process__interactive .stepper__button--next,
+.journey-process__interactive .journey-process__action {
+  background: var(--brand-navy);
+  color: var(--brand-cream);
+}
+.journey-process__interactive .stepper__button--back {
+  background: transparent;
+  color: var(--brand-navy);
+}
+@media (hover: hover) {
+  .journey-process__interactive .stepper__button--next:not(:disabled):hover,
+  .journey-process__interactive .journey-process__action:hover {
+    background: #233158;
+    color: var(--brand-cream);
+    filter: none;
+  }
+  .journey-process__interactive .stepper__button--back:not(:disabled):hover {
+    background: rgb(1 12 51 / 8%);
+    color: var(--brand-navy);
+    filter: none;
+  }
+}
+.journey-process__interactive .stepper__button:focus-visible,
+.journey-process__interactive .stepper__segment:focus-visible,
+.journey-process__interactive .journey-process__action:focus-visible {
+  outline: 3px solid var(--brand-sky);
+  outline-offset: 3px;
+}
+.journey-process__interactive .journey-process__finished {
+  min-height: 180px;
+  padding: 18px 0 8px;
+  border-top: 1px solid rgb(1 12 51 / 20%);
+}
+.journey-process__interactive .journey-process__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 22px;
+}
+@media (max-width: 480px) {
+  .journey-process__interactive .stepper__track {
+    gap: 2px;
+  }
+  .journey-process__interactive .stepper__segment {
+    padding: 8px 2px;
+  }
+  .journey-process__interactive .stepper__title {
+    font-size: 0.73rem;
+  }
+  .journey-process__interactive .journey-process__step-copy {
+    min-height: 190px;
+  }
+  .journey-process__interactive .stepper__footer {
+    gap: 10px;
+  }
+}
+@media (scripting: none) {
+  .journey-process__interactive { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey-process__interactive .stepper__glider,
+  .journey-process__interactive .stepper__button {
+    transition-duration: 0.01ms;
+  }
+}
