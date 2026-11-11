@@ -21,9 +21,9 @@ function PackageFee({ text }) {
   );
 }
 
-/** @param {{ title: string, duration?: string, price: string, tagline: string, overview: string, href: string, imageSrc?: string, imageSrcSet?: string, imageSizes?: string, mobileImageSrcSet?: string, imagePosition?: string, mobileImagePosition?: string, index?: number, headingLevel?: "h2"|"h3" }} props */
+/** @param {{ title: string, duration?: string, price: string, priceNote?: string, tagline: string, overview: string, href: string, imageSrc?: string, imageSrcSet?: string, imageSizes?: string, mobileImageSrcSet?: string, imagePosition?: string, mobileImagePosition?: string, index?: number, headingLevel?: "h2"|"h3" }} props */
 export default function PackageTicketCard({
-  title, duration, price, tagline, overview, href, imageSrc, imageSrcSet,
+  title, duration, price, priceNote, tagline, overview, href, imageSrc, imageSrcSet,
   imageSizes, mobileImageSrcSet, imagePosition, mobileImagePosition,
   index = 0, headingLevel = "h3"
 }) {
@@ -112,7 +112,10 @@ export default function PackageTicketCard({
               <p className="twe-ticket__summary">{tagline}</p>
             </div>
             <div className="twe-ticket__bottom">
-              <p className="twe-ticket__fee"><PackageFee text={price} /></p>
+              <div className="twe-ticket__price-group">
+                <p className="twe-ticket__fee"><PackageFee text={price} /></p>
+                {priceNote && <small className="twe-ticket__price-note">{priceNote}</small>}
+              </div>
               <button
                 ref={frontToggleRef}
                 type="button"
