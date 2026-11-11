@@ -845,9 +845,25 @@ const Masonry = ({
   useEffect(() => {
     if (!openId) return undefined;
     const onKey = event => {
-      if (event.key === 'Escape') closeBox();
-      else if (event.key === 'ArrowRight') stepBox(1);
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeBox();
+      } else if (event.key === 'ArrowRight') stepBox(1);
       else if (event.key === 'ArrowLeft') stepBox(-1);
+      else if (event.key === 'Tab') {
+        // Keep keyboard focus inside the modal lightbox until it is closed.
+        const focusable = [...(boxRef.current?.querySelectorAll('button:not([disabled]), a[href]') ?? [])]
+          .filter(node => node.getClientRects().length > 0);
+        if (!focusable.length) return;
+        const current = focusable.indexOf(document.activeElement);
+        if (event.shiftKey && current <= 0) {
+          event.preventDefault();
+          focusable[focusable.length - 1].focus();
+        } else if (!event.shiftKey && (current < 0 || current === focusable.length - 1)) {
+          event.preventDefault();
+          focusable[0].focus();
+        }
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
