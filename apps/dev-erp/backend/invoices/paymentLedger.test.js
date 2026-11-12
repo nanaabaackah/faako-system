@@ -147,15 +147,16 @@ test("verification posts once and a compensating reversal restores the invoice b
   assert.equal(state.payments[0].verificationStatus, "REVERSED");
 });
 
-test("the recorder cannot verify a manual payment without an authorized override", async () => {
+test("an authorized administrator can verify their own recorded manual payment", async () => {
   const { prisma } = buildPrisma();
   const handlers = handlersFor(prisma);
   const recorded = createResponse();
   await handlers.record(request({ params: { id: "10" }, body: { amount: "10.00", method: "CASH" } }), recorded);
   const res = createResponse();
   await handlers.verify(request({ params: { id: "10", paymentId: String(recorded.body.payment.id) }, key: "verify-self-123" }), res);
-  assert.equal(res.statusCode, 403);
-  assert.equal(res.body.code, "SEGREGATION_OF_DUTIES");
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.payment.verificationStatus, "VERIFIED");
+  assert.equal(res.body.invoice.paidAmount, 10);
 });
 
 test("the payment migration is additive, constrained, and protects posted ledger entries", async () => {

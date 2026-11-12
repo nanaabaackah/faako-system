@@ -42,7 +42,7 @@ try {
       if (await scroll.count()) {
         await scroll.locator("a").focus();
         assert.equal(await scroll.locator(".scroll-expand__overlay").evaluate(el => getComputedStyle(el).opacity), "1");
-        if ((width < 700 || reducedMotion === "reduce") && await scroll.locator(".scroll-expand__media").count()) assert.equal(await scroll.locator(".scroll-expand__media").first().evaluate(el => getComputedStyle(el).transform), "none");
+        if (reducedMotion === "reduce" && await scroll.locator(".scroll-expand__media").count()) assert.equal(await scroll.locator(".scroll-expand__media").first().evaluate(el => getComputedStyle(el).transform), "none");
       }
       if (path === '/') {
         const row=page.locator('.programme-row').first();
@@ -73,6 +73,50 @@ try {
     }
     await context.close();
     console.log(`Checked ${width}px / ${reducedMotion}`);
+  }
+
+  // Confirm that the CTA actually expands and reverses while scrolling on all layouts.
+  for (const path of ["/", "/about", "/programmes", "/events"]) {
+    for (const width of [390, 768, 1440]) {
+      const context = await browser.newContext({
+        viewport: { width, height: 900 },
+        reducedMotion: "no-preference",
+      });
+      const page = await context.newPage();
+      await page.route("https://**/*", route => route.abort());
+      await page.goto(server.origin + path, { waitUntil: "load" });
+      const scroll = page.locator("scroll-expand-section").first();
+      assert.equal(await scroll.count(), 1, path + " must contain a scroll-expand CTA");
+      await page.waitForFunction(() => document.querySelector("scroll-expand-section")?.dataset.ready === "true");
+      const measureAt = async fraction => {
+        await scroll.evaluate((element, progress) => {
+          const track = element.querySelector(".scroll-expand__track");
+          const stage = element.querySelector(".scroll-expand__stage");
+          const top = window.scrollY + track.getBoundingClientRect().top;
+          window.scrollTo({ top: top + stage.getBoundingClientRect().height * 1.1 * progress, behavior: "instant" });
+        }, fraction);
+        await page.waitForTimeout(130);
+        return scroll.evaluate(element => {
+          const frame = element.querySelector(".scroll-expand__frame");
+          const overlay = element.querySelector(".scroll-expand__overlay");
+          const media = element.querySelector(".scroll-expand__media");
+          return {
+            inset: parseFloat(frame.style.clipPath.slice(6)),
+            overlay: Number(getComputedStyle(overlay).opacity),
+            scale: media ? parseFloat(media.style.transform.slice(6)) : null,
+          };
+        });
+      };
+      const start = await measureAt(0);
+      const middle = await measureAt(0.5);
+      const end = await measureAt(1);
+      const reverse = await measureAt(0);
+      assert.ok(start.inset > middle.inset && middle.inset > end.inset, `${path}/${width}: frame expands with scroll`);
+      assert.ok(start.overlay < 0.1 && end.overlay > 0.99, `${path}/${width}: CTA reveals after expansion`);
+      assert.ok(Math.abs(reverse.inset - start.inset) < 0.5, `${path}/${width}: expansion reverses while scrolling up`);
+      if (start.scale !== null) assert.ok(start.scale > middle.scale && middle.scale > end.scale, `${path}/${width}: photo scale responds to scroll`);
+      await context.close();
+    }
   }
   // No-JS content and signature CTA remain readable.
   const nojs = await browser.newContext({ javaScriptEnabled: false });

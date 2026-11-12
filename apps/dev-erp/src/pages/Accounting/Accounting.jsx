@@ -145,6 +145,7 @@ const Accounting = () => {
   const [invoiceError, setInvoiceError] = useState("");
   const [isInvoicePreparing, setIsInvoicePreparing] = useState(false);
   const [isInvoiceDownloading, setIsInvoiceDownloading] = useState(false);
+  const [editingRecurrenceChild, setEditingRecurrenceChild] = useState(false);
   const [formState, setFormState] = useState({
     type: "EXPENSE",
     status: "PENDING",
@@ -154,6 +155,7 @@ const Accounting = () => {
     detail: "",
     date: buildTodayDate(),
     recurringInterval: "",
+    autopayEnabled: false,
     organizationId: userOrgId || "",
   });
 
@@ -168,6 +170,7 @@ const Accounting = () => {
         detail: "",
         date: buildTodayDate(),
         recurringInterval: "",
+        autopayEnabled: false,
         organizationId: userOrgId || "",
         ...overrides,
       });
@@ -181,6 +184,7 @@ const Accounting = () => {
         ? selectedOrganizationId
         : userOrgId || "";
     resetFormState({ organizationId: defaultOrgId });
+    setEditingRecurrenceChild(false);
     setShowForm(true);
   }, [resetFormState, selectedOrganizationId, userOrgId]);
 
@@ -436,7 +440,8 @@ const Accounting = () => {
         detail: formState.detail.trim() || undefined,
         paidAt: formState.status === "PAID" ? formState.date : undefined,
         dueAt: formState.status !== "PAID" ? formState.date : undefined,
-        recurringInterval: formState.recurringInterval || undefined,
+        recurringInterval: editingEntryId ? (formState.recurringInterval || null) : (formState.recurringInterval || undefined),
+        ...(editingRecurrenceChild ? {} : { autopayEnabled: formState.type === "EXPENSE" && Boolean(formState.recurringInterval) && formState.autopayEnabled }),
         organizationId: organizationId || undefined,
       };
 
@@ -451,6 +456,7 @@ const Accounting = () => {
 
       setShowForm(false);
       setEditingEntryId(null);
+      setEditingRecurrenceChild(false);
       resetFormState();
       loadEntries({ silent: true });
       setActionNotice(editingEntryId ? "Entry updated." : "Entry created.");
@@ -533,6 +539,7 @@ const Accounting = () => {
     setOpenActionId(null);
     setShowForm(true);
     setEditingEntryId(entry.id);
+    setEditingRecurrenceChild(entry.recurrenceParentId != null);
     const dateValue = resolveEntryDate(entry);
     resetFormState({
       type: entry.type || "EXPENSE",
@@ -543,6 +550,7 @@ const Accounting = () => {
       detail: entry.detail || "",
       date: dateValue ? String(dateValue).slice(0, 10) : buildTodayDate(),
       recurringInterval: entry.recurringInterval || "",
+      autopayEnabled: entry.autopayEnabled || false,
       organizationId: entry.organization?.id ? String(entry.organization.id) : userOrgId || "",
     });
   };
@@ -770,6 +778,7 @@ const Accounting = () => {
     const cadenceLabel = entry.recurringInterval
       ? `Recurring ${entry.recurringInterval.toLowerCase()}`
       : null;
+    const autopayLabel = entry.autopayEnabled || entry.recurrenceParentId != null ? "Autopay (assumed)" : null;
     const invoiceLabel = entry.invoiceNumber ? `Invoice ${entry.invoiceNumber}` : null;
     const sourceLabel = SOURCE_LABELS[entry.source] || entry.source?.replace(/_/g, " ") || null;
     const organizationLabel = entry.organization?.name ? `Org: ${entry.organization.name}` : null;
@@ -785,7 +794,7 @@ const Accounting = () => {
       <>
         <span className="table-strong">{entry.serviceName}</span>
         <span className="muted">
-          {[entry.detail, sourceLabel, cadenceLabel, invoiceLabel].filter(Boolean).join(" • ") || "—"}
+          {[entry.detail, sourceLabel, cadenceLabel, autopayLabel, invoiceLabel].filter(Boolean).join(" • ") || "—"}
         </span>
         {organizationLabel ? <span className="muted">{organizationLabel}</span> : null}
       </>
@@ -1081,6 +1090,20 @@ const Accounting = () => {
                         </option>
                       ))}
                   </SelectField>
+                  {formState.type === "EXPENSE" && Boolean(formState.recurringInterval) && !editingRecurrenceChild ? (
+                    <label className="form-field">
+                      <span>Automatic payment recording</span>
+                      <span className="muted">
+                        <input
+                          type="checkbox"
+                          checked={formState.autopayEnabled}
+                          onChange={(event) => setFormState((prev) => ({ ...prev, autopayEnabled: event.target.checked }))}
+                        />{" "}
+                        Mark each recurring expense as paid on its billing date
+                      </span>
+                      <span className="muted">For external autopay subscriptions; payment is assumed, not provider-verified.</span>
+                    </label>
+                  ) : null}
                 </div>
                 <div className="stack">
                   <label className="form-field">
