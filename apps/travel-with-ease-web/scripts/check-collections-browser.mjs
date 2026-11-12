@@ -236,6 +236,20 @@ try {
     await page.keyboard.press("Enter");
     await page.locator(".footprint-detail").filter({ hasText: "United Kingdom: 25+ visits" }).waitFor();
     assert.equal(await page.locator('[aria-label="Travel tips"] article').count(), 3);
+    const travellerReviews = page.locator("#traveller-reviews");
+    await travellerReviews.getByRole("heading", { name: "What Travellers Say" }).waitFor();
+    assert.equal(await travellerReviews.locator("article").count(), 3,
+      "The homepage renders three anonymous traveller testimonials");
+    assert.equal(await travellerReviews.locator("img").count(), 0,
+      "Reviewer portraits are not included");
+    await travellerReviews.locator("article").nth(1).locator("summary").click();
+    await expect(travellerReviews.locator("article").nth(1)).toContainText("Kenya Airways cancellation");
+    if (width <= 900) {
+      const dots = travellerReviews.locator("[data-review-jump]");
+      assert.equal(await dots.count(), 3);
+      await dots.nth(2).click();
+      await expect(dots.nth(2)).toHaveAttribute("aria-current", "true");
+    }
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-home-${width}.png`), fullPage: true });
     const featuredTickets = page.locator(".featured-journeys__card .twe-package-ticket");
