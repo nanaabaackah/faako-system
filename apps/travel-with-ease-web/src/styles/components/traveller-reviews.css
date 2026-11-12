@@ -1,0 +1,144 @@
+/* Homepage testimonials: TWE tokens and typography, without author attribution. */
+.traveller-reviews {
+  background: var(--brand-cream);
+  color: var(--brand-navy);
+  border-top: 1px solid rgb(1 12 51 / 14%);
+}
+.traveller-reviews__inner {
+  padding-block: clamp(56px, 7vw, 100px);
+}
+.traveller-reviews__header {
+  margin-bottom: clamp(24px, 3vw, 38px);
+}
+.traveller-reviews__header h2 {
+  margin: 0;
+  font-size: clamp(2rem, 3.7vw, 3.6rem);
+  line-height: 1.14;
+  text-transform: none;
+}
+.traveller-reviews__track {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(14px, 2vw, 24px);
+}
+.traveller-reviews__card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(22px, 2.5vw, 34px);
+  border: 1px solid rgb(1 12 51 / 15%);
+  border-radius: var(--twe-radius-card);
+  background: rgb(255 255 255 / 36%);
+  color: var(--brand-navy);
+}
+.traveller-reviews__quote-mark {
+  display: block;
+  height: 55px;
+  font-family: Georgia, serif;
+  font-size: 5rem;
+  line-height: 1;
+  color: var(--brand-navy);
+}
+.traveller-reviews__quote {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: clamp(0.98rem, 1.25vw, 1.08rem);
+  line-height: 1.75;
+}
+.traveller-reviews__quote p {
+  margin: 0 0 1rem;
+  color: inherit;
+}
+.traveller-reviews__quote p:last-child {
+  margin-bottom: 0;
+}
+.traveller-reviews__details {
+  margin-top: auto;
+  padding-top: 24px;
+}
+.traveller-reviews__details summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--brand-navy);
+  cursor: pointer;
+  font-family: var(--font-impact);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--brand-gold);
+  text-underline-offset: 6px;
+}
+.traveller-reviews__details summary:hover {
+  text-decoration-thickness: 2px;
+}
+.traveller-reviews__continuation {
+  padding-top: 10px;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.traveller-reviews__continuation p {
+  margin: 0 0 16px;
+  color: inherit;
+}
+.traveller-reviews__pagination {
+  display: none;
+}
+@media (max-width: 900px) {
+  .traveller-reviews__track {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0;
+    scrollbar-width: none;
+  }
+  .traveller-reviews__track::-webkit-scrollbar {
+    display: none;
+  }
+  .traveller-reviews__card {
+    flex: 0 0 min(76vw, 440px);
+    scroll-snap-align: start;
+  }
+  .traveller-reviews__pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .traveller-reviews__dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .traveller-reviews__dot span {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #b6b1a9;
+  }
+  .traveller-reviews__dot[aria-current="true"] span {
+    background: var(--brand-navy);
+  }
+}
+@media (max-width: 600px) {
+  .traveller-reviews__card {
+    flex-basis: 100%;
+  }
+  .traveller-reviews__quote {
+    font-size: 1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .traveller-reviews__track {
+    scroll-behavior: auto;
+  }
+}
