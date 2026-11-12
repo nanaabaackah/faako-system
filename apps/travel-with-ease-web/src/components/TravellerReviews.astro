@@ -1,0 +1,117 @@
+---
+import "../styles/components/traveller-reviews.css";
+
+// First-hand testimonials supplied for the TWE homepage. Three accounts;
+// the four Instagram story frames form one continuous testimonial.
+const reviews = [
+  {
+    preview: [
+      "I had an exceptional experience with TWE. From booking the tickets for me and my bosses to keeping in touch with us 24/7, you made sure we were updated and well taken care of every step of the way.",
+    ],
+    more: [
+      "Your professionalism, warmth, and attention to detail were truly outstanding. I’m grateful to have met such a wonderful person and will highly recommend your services!",
+    ],
+  },
+  {
+    preview: [
+      "Overall, I really enjoyed my Rwanda trip and I genuinely loved using Travel with Ease.",
+      "The itinerary was very helpful and made it easy to keep track of what I was doing each day.",
+    ],
+    more: [
+      "I loved that everything was already booked and paid for, which made the trip stress-free and convenient.",
+      "The complimentary massage and pool access at the hotel were especially appreciated after long days and wedding activities.",
+      "The drivers and tours were great, and having transportation and lunch arranged made everything much easier.",
+      "I particularly enjoyed Kivu and the city tour.",
+      "The Kenya Airways cancellation and long Nairobi layover were inconvenient, especially because I missed some pre-wedding activities, but I know that was completely outside your control.",
+      "One thing I would suggest is having fewer generic activities like the market visit and incorporating more memorable experiences such as nice dinner reservations, nightlife, sunset experiences or unique activities.",
+      "I really appreciated that the package was well-organized and reasonably priced. I never felt like I was overpaying.",
+      "Overall, Travel with Ease made my life so much easier and allowed me to actually enjoy my trip without stressing about logistics. I would definitely recommend your services and use you again!",
+    ],
+  },
+  {
+    preview: [
+      "When I got my visa, I honestly didn't know where to start. But as soon as I saw Abena's post about Travel with Ease, I knew she would handle it perfectly.",
+    ],
+    more: [
+      "When I arrived at my first hotel — wow. It was absolutely beautiful. That was the moment I thought, yes, this was completely worth it.",
+      "From start to finish, she made everything easy. I told her what I wanted, she knew my taste, and she delivered.",
+      "It's a 10 out of 10 from me. Honestly one of the best and most relaxing trips I've ever had.",
+      "I will definitely use Travel with Ease again — already have my eye on Mauritius, so I'll be letting Travel with Ease work on that one too!",
+    ],
+  },
+];
+---
+
+<section id="traveller-reviews" class="traveller-reviews" aria-labelledby="traveller-reviews-heading">
+  <div class="editorial-wrap traveller-reviews__inner">
+    <header class="traveller-reviews__header">
+      <h2 id="traveller-reviews-heading">What Travellers Say</h2>
+    </header>
+
+    <div class="traveller-reviews__track" data-traveller-reviews-track>
+      {reviews.map((review, index) => (
+        <article class="traveller-reviews__card" id={`traveller-review-${index + 1}`} aria-label={`Traveller review ${index + 1} of ${reviews.length}`}>
+          <span class="traveller-reviews__quote-mark" aria-hidden="true">“</span>
+          <blockquote class="traveller-reviews__quote">
+            {review.preview.map(text => <p>{text}</p>)}
+          </blockquote>
+          <details class="traveller-reviews__details">
+            <summary>Read full review</summary>
+            <div class="traveller-reviews__continuation">
+              {review.more.map(text => <p>{text}</p>)}
+            </div>
+          </details>
+        </article>
+      ))}
+    </div>
+    <nav class="traveller-reviews__pagination" aria-label="Traveller review navigation">
+      {reviews.map((_, index) => (
+        <button type="button" class="traveller-reviews__dot" data-review-jump={index} aria-label={`Show review ${index + 1}`} aria-current={index === 0 ? "true" : undefined}>
+          <span aria-hidden="true"></span>
+        </button>
+      ))}
+    </nav>
+  </div>
+</section>
+
+<script>
+  const track = document.querySelector<HTMLElement>("[data-traveller-reviews-track]");
+  if (track) {
+    const cards = [...track.querySelectorAll<HTMLElement>(".traveller-reviews__card")];
+    const dots = [...document.querySelectorAll<HTMLButtonElement>(".traveller-reviews__dot")];
+    const update = () => {
+      let active = 0;
+      let nearest = Infinity;
+      cards.forEach((card, index) => {
+        const distance = Math.abs(card.getBoundingClientRect().left - track.getBoundingClientRect().left);
+        if (distance < nearest) {
+          nearest = distance;
+          active = index;
+        }
+      });
+      dots.forEach((dot, index) => {
+        if (index === active) dot.setAttribute("aria-current", "true");
+        else dot.removeAttribute("aria-current");
+      });
+    };
+    dots.forEach((dot, index) => {
+      dot.addEventListener("click", () => {
+        track.scrollTo({ left: cards[index].offsetLeft - track.offsetLeft, behavior: "smooth" });
+        dots.forEach((item, itemIndex) => {
+          if (itemIndex === index) item.setAttribute("aria-current", "true");
+          else item.removeAttribute("aria-current");
+        });
+      });
+    });
+    let pending = false;
+    track.addEventListener("scroll", () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => {
+        update();
+        pending = false;
+      });
+    }, { passive: true });
+    window.addEventListener("resize", update, { passive: true });
+  }
+</script>
