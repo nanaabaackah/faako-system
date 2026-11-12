@@ -17,5 +17,16 @@ test("disclosures use native keyboard and no-JavaScript semantics", () => {
 test("FAQ entries opt in without converting other published content", () => {
   assert.match(read("../src/pages/[contentPage].astro"), /accordion=\{Astro.params.contentPage === "faqs"\}/);
   assert.match(read("../src/components/PublishedContent.astro"), /accordion = false/);
-  assert.doesNotMatch(read("../src/components/DemoWebsite.astro"), /<details|<summary/);
+});
+
+test("no-JavaScript FAQ browser smoke uses native keyboard activation, not flaky pointer clicks", () => {
+  const browser = read("../scripts/check-redesign-browser.mjs");
+  const noJs = browser.slice(browser.indexOf("const noJs=await browser.newContext("));
+  assert.match(noJs, /javaScriptEnabled:false/);
+  assert.match(noJs, /reducedMotion:"reduce"/);
+  assert.match(noJs, /await summary\.focus\(\)/);
+  assert.match(noJs, /await page\.keyboard\.press\("Enter"\)/);
+  assert.match(noJs, /await page\.keyboard\.press\("Space"\)/);
+  assert.match(noJs, /assert\.equal\(await disclosure\.getAttribute\("open"\),null/);
+  assert.doesNotMatch(noJs, /await summary\.click\(\)/);
 });

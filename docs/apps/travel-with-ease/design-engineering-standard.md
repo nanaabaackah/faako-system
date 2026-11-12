@@ -1,5 +1,21 @@
 # Travel With Ease design and engineering standard
 
+2026-11-04 CMS refinement:
+[roles, image placement, activity views and navigation](./cms-access-imagery-activity-2026-11-04.md).
+Use Faako controls/tables/dialogs, desktop tables and compact mobile event cards.
+Five mobile shortcuts keep Overview centred; complete navigation lives in the
+accessible drawer. Image overrides use reviewed slots/crops, not arbitrary CSS
+or page restructuring. Preserve the approved continuous footer and mockup row.
+
+2026-11-02 client-approved refinement:
+[Journey Chapters decisions](journey-chapters-2026-11-02.md).
+Use the third selected concept below the unchanged hero, real additional Drive
+photography, smaller Journal overlay cards and 14px content-image/card corners
+with a soft shadow. This specific later approval supersedes the earlier default
+of square imagery/no elevation for these surfaces. Preserve the CTA artwork and
+continuous footer. Public controls have one light boundary and solid cream
+dropdowns; the scroll navigation is centred with 25px corners and the real pin.
+
 2026-10-31 latest refinement: enquiry heading/guidance and form share a responsive
 two-column card, stacked on mobile. Keep one continuous photograph behind the
 enquiry and footer. The signature matches the four-sided end-of-page gutter;
@@ -277,8 +293,8 @@ The trade-offs are deliberate: authentic imagery needs licensing/content ownersh
 - Public WhatsApp is bottom left and back-to-top bottom right, using local Iconsax
   assets and minimum 44px targets. Text precedes icons where labels are shown.
   Hide these controls while the cookie preference panel is open.
-- Demo cookie choices use separate storage and never enable Google Analytics.
-  Shared public components apply to demos; synthetic records remain labelled.
+- Public cookie preferences use one consent store. Runtime demos are retired;
+  synthetic interface fixtures are test-only and never enter browser bundles.
 - Journal articles are semantic Astro content. Verified footprint records feed the
   homepage and dedicated map from one approved publication, not the footer.
 - Policy starter copy and company facts have distinct approval status. TIDS marks

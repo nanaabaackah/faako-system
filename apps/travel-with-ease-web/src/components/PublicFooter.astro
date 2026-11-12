@@ -1,12 +1,16 @@
 ---
 import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
-import ContentLink from "./ContentLink.astro";
-import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
+import CurrencySwitcher from "./CurrencySwitcher.jsx";
+import { displayCurrencyPolicyHeading } from "../lib/currency-display.js";
+import { publishedPage } from "../lib/published.js";
 import photography from "../lib/assigned-photography.json";
-const { demo = false, cinematic = false } = Astro.props;
+const { cinematic = false } = Astro.props;
 const visible = (slug: string) =>
-  demo || !publicationSnapshotPath() || Boolean(publishedPage(slug));
-const contact = demo ? null : publishedPage("contact");
+  Boolean(publishedPage(slug));
+const contact = publishedPage("contact");
+const currencyNoticePublished = publishedPage("terms")?.entries?.some(
+  (entry: { heading: string }) => entry.heading === displayCurrencyPolicyHeading,
+);
 const closingPhoto = photography.footer;
 const email =
   contact?.contactEmail &&
@@ -50,36 +54,30 @@ const phone =
     <div class="footer-brand-block">
       <a
         class="brand"
-        href={demo ? "/demo" : "/"}
+        href="/"
         aria-label="Travel With Ease home"
         ><img
-          src="/brand/Primary gold.png"
+          src="/brand/midnight primary.png"
           width="640"
           height="248"
           alt="Travel With Ease"
           loading="lazy"
         /></a
-      >{
-        visible("contact") && (
-          <ContentLink button href={demo ? "#demo-plan" : "/contact"}>
-            {demo ? "Try the enquiry demo" : "Plan a trip"}
-          </ContentLink>
-        )
-      }
+      >
     </div>
     <div class="footer-links">
       <nav aria-label="Explore">
         <h2>Explore</h2>{
-          visible("destinations") && (
-            <a href={demo ? "#demo-packages" : "/destinations"}>Destinations</a>
+          (visible("packages") || visible("destinations")) && (
+            <a href="/packages">Packages</a>
           )
         }{
           visible("services") && (
-            <a href={demo ? "#demo-process" : "/services"}>Services</a>
+            <a href="/services">Services</a>
           )
-        }{visible("about") && !demo && <a href="/about">About TWE</a>}{
+        }{visible("about") && <a href="/about">About TWE</a>}{
           visible("journal") && (
-            <a href={demo ? "#demo-journal" : "/journal"}>Travel journal</a>
+            <a href="/journal">Travel journal</a>
           )
         }
       </nav>
@@ -95,10 +93,10 @@ const phone =
       </nav>
       <nav aria-label="Help and contact">
         <h2>Let’s talk</h2>{
-          visible("faqs") && <a href={demo ? "#demo-faqs" : "/faqs"}>FAQs</a>
+          visible("faqs") && <a href="/faqs">FAQs</a>
         }{
           visible("contact") && (
-            <a href={demo ? "#demo-plan" : "/contact"}>Contact</a>
+            <a href="/contact">Contact</a>
           )
         }{email && <a href={"mailto:" + email}>{email}</a>}{
           phone && <a href={"tel:" + phone.replace(/[^+\d]/g, "")}>{phone}</a>
@@ -107,15 +105,13 @@ const phone =
     </div>
   </div>
   <div class="footer-legal">
-    <span
-      >{
-        demo
-          ? "Website demonstration · sample offers not bookable"
-          : "Travel With Ease"
-      }</span
-    ><nav aria-label="Legal and preferences">
+    <p class="footer-company-details">
+      Travel with Ease is a trading name of TWE Concierge, registration
+      BN045370826. IATA TIDS 96245096. Certified Group Travel Specialist,
+      The Travel Institute. Accra, Ghana.
+    </p><nav aria-label="Legal and preferences">
       {
-        !demo && (
+        (
           <>
             {visible("privacy") && <a href="/privacy">Privacy</a>}
             {visible("terms") && <a href="/terms">Terms</a>}
@@ -123,8 +119,8 @@ const phone =
           </>
         )
       }<button type="button" data-cookie-settings
-        >{demo ? "Demo cookie settings" : "Cookie settings"}</button
-      ><a href="#top">Back to top</a>
+        >Cookie settings</button
+      >{currencyNoticePublished && <CurrencySwitcher client:load />}<a href="#top">Back to top</a>
     </nav>
   </div>
   <SharedFaakoFooter />

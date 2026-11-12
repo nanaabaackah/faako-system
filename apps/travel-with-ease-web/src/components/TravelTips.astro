@@ -1,0 +1,87 @@
+---
+import PlacedImage from './PlacedImage.astro';
+import ContentLink from "./ContentLink.astro";
+import "../styles/components/travel-tips.css";
+interface Tip {
+  slug: string;
+  title: string;
+  excerpt: string;
+  category: string;
+  featured?: boolean;
+  order?: number;
+  imagePlacement?: import('../lib/collections').ImagePlacement;
+  image?: {
+    src: string;
+    alt: string;
+    width: number;
+    height: number;
+    sources?: { src: string; width: number }[];
+  } | null;
+}
+interface Props {
+  tips: Tip[];
+  homepage?: boolean;
+}
+const {
+  tips,
+  homepage = true,
+} = Astro.props;
+const ordered = [...tips].sort(
+  (a, b) =>
+    Number(Boolean(b.featured)) - Number(Boolean(a.featured)) ||
+    (a.order || 0) - (b.order || 0) ||
+    a.slug.localeCompare(b.slug),
+);
+const items = homepage ? ordered.slice(0, 3) : ordered;
+---
+
+{
+  items.length > 0 && (
+    <section
+      class:list={["editorial-wrap travel-tips editorial-rule", { "travel-tips--option-a": homepage }]}
+      aria-label="Travel tips"
+    >
+      <div class="editorial-heading">
+        <h2>A little advice goes a long way.</h2>
+      </div>
+      <div class="travel-tips__grid">
+        {items.map((tip, index) => (
+          <article
+            class:list={[
+              "twe-action-card",
+              { "travel-tips__featured": homepage && index === 0 },
+            ]}
+          >
+            {tip.image && (
+              <PlacedImage image={tip.image} placement={tip.imagePlacement}
+                src={tip.image.src}
+                srcset={tip.image.sources
+                  ?.map((source) => `${source.src} ${source.width}w`)
+                  .join(", ")}
+                sizes={
+                  homepage && index === 0
+                    ? "(max-width: 760px) 90vw, 50vw"
+                    : "(max-width: 760px) 90vw, 25vw"
+                }
+                alt={tip.image.alt}
+                width={tip.image.width}
+                height={tip.image.height}
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+            <p class="travel-tips__category">{tip.category}</p>
+            <h3>
+              <ContentLink
+                href={`/travel-tips/${tip.slug}`}
+              >
+                {tip.title}
+              </ContentLink>
+            </h3>
+            <p>{tip.excerpt}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}

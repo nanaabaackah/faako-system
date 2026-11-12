@@ -1,34 +1,23 @@
 ---
-import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
-const { demo = false } = Astro.props;
+import { publishedPage } from "../lib/published.js";
 const privacyAvailable =
-  demo || !publicationSnapshotPath() || Boolean(publishedPage("privacy"));
+  Boolean(publishedPage("privacy"));
 ---
 
 <dialog
   class="cookie-notice cookie-preferences-dialog"
   data-cookie-notice
-  data-cookie-storage={demo
-    ? "twe-demo-cookie-consent-v1"
-    : "twe-cookie-consent-v1"}
+  data-cookie-storage="twe-cookie-consent-v1"
   aria-labelledby="cookie-preferences-title"
   aria-describedby="cookie-purpose"
 >
   <h2 id="cookie-preferences-title">Cookie preferences</h2>
   <p class="cookie-notice__introduction">Your privacy, your choice.</p>
-  {
-    demo && (
-      <p>
-        Demo preferences only. No analytics or advertising tracking runs in this
-        demo.
-      </p>
-    )
-  }
   <p id="cookie-purpose">
     Essential browser storage remembers your preference. Advertising cookies are
     not used.
     {
-      privacyAvailable && !demo && (
+      privacyAvailable && (
         <>
           {" "}
           Optional Google Analytics helps us understand visits only when you

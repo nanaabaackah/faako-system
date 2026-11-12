@@ -48,7 +48,7 @@
   background: var(--brand-gold);
   color: var(--brand-ink);
   border-color: var(--brand-gold);
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
   margin-block: 1rem;
 }
 .cinematic-enquiry__note {
@@ -76,6 +76,16 @@
   min-width: 0;
 }
 @media (max-width: 760px) {
+  .closing-scene__image {
+    /* One portrait photograph fills the entire shared enquiry/footer scene.
+       Do not repeat it or restart the crop at the footer boundary. */
+    object-fit: cover;
+    object-position: center;
+  }
+  .cinematic-enquiry__scene {
+    min-height: 0;
+    padding: 32px 5%;
+  }
   .cinematic-enquiry__card {
     grid-template-columns: minmax(0, 1fr);
   }

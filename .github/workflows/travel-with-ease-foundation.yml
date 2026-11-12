@@ -47,6 +47,8 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+      - name: Keep generated files out of source control
+        run: node scripts/check-repository-hygiene.mjs
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -68,25 +70,42 @@ jobs:
           pnpm --filter @faako/ui lint
           pnpm --filter @faako/ui typecheck
           pnpm --filter @faako/ui test
-      - name: Guided workspace, content demo, website and email browser acceptance
+      - name: Guided workspace, CMS, website and email browser acceptance
         run: |
           pnpm --filter @faako/stroane-web exec playwright install --with-deps chromium
           pnpm --filter @faako/travel-with-ease-portal exec vite --host 127.0.0.1 --port 5197 > "$RUNNER_TEMP/twe-onboarding-vite.log" 2>&1 &
           node apps/travel-with-ease-portal/scripts/check-onboarding-browser.mjs
-          node apps/travel-with-ease-portal/scripts/check-content-demo-browser.mjs
+          node apps/travel-with-ease-portal/scripts/check-content-browser.mjs
+          node apps/travel-with-ease-portal/scripts/check-cms-management-browser.mjs
+          node apps/travel-with-ease-portal/scripts/check-mobile-navigation-browser.mjs
           node apps/travel-with-ease-web/scripts/check-public-followup.mjs
           node apps/travel-with-ease-web/scripts/check-redesign-browser.mjs
+          node apps/travel-with-ease-web/scripts/check-collections-browser.mjs
+          node apps/travel-with-ease-web/scripts/check-currency-browser.mjs
+          node apps/travel-with-ease-api/scripts/check-private-preview-browser.mjs
+      - name: Isolated local workspace and public detail acceptance
+        run: |
+          pnpm run dev:twe > "$RUNNER_TEMP/twe-local-workspace.log" 2>&1 &
+          workspace_pid=$!
+          trap 'kill "$workspace_pid" 2>/dev/null || true' EXIT
+          node apps/travel-with-ease-portal/scripts/check-local-workspace-browser.mjs
       - name: Retain synthetic design acceptance screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: twe-content-email-demo-screenshots
+          name: twe-content-email-screenshots
           retention-days: 7
           if-no-files-found: ignore
           path: |
-            /tmp/twe-content-demo-*/*.png
+            /tmp/twe-content-browser-*/*.png
+            /tmp/twe-cms-management-*/*.png
+            /tmp/twe-mobile-navigation-*/*.png
             /tmp/twe-public-followup-*/*.png
             /tmp/twe-redesign-*/*.png
+            /tmp/twe-collections-*/*.png
+            /tmp/twe-currency-*/*.png
+            /tmp/twe-workspace-refinements-*/*.png
+            /tmp/twe-private-preview-browser-*/*.png
       - name: Required isolated PostgreSQL integration tests
         run: pnpm --filter @faako/travel-with-ease-api run test:db
         env:

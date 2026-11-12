@@ -1,0 +1,14 @@
+{
+  "sources": [
+    "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_tiny_countries.geojson",
+    "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_tiny_countries.geojson"
+  ],
+  "licence": "Natural Earth public domain",
+  "projection": "x = (longitude + 180) * 2; y = (90 - latitude) * 2; 720x300",
+  "countries": [
+    { "code": "MT", "name": "Malta", "longitude": 14.438179, "latitude": 35.882081 },
+    { "code": "MU", "name": "Mauritius", "longitude": 57.58566, "latitude": -20.302275 },
+    { "code": "SC", "name": "Seychelles", "longitude": 46.441629, "latitude": -9.402058 },
+    { "code": "MC", "name": "Monaco", "longitude": 7.397135, "latitude": 43.75027 }
+  ]
+}

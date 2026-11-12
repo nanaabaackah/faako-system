@@ -1,0 +1,58 @@
+---
+import ContentLink from "./ContentLink.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
+import MoneyText from "./MoneyText.astro";
+import EditorialPhoto from "./EditorialPhoto.astro";
+import photography from "../lib/journey-photography.json";
+import { serviceSlug } from "../lib/services.js";
+import type { ImagePlacement } from "../lib/collections";
+import "../styles/components/home-features.css";
+import "../styles/components/home-services.css";
+
+interface ServiceEntry {
+  heading: string;
+  text: string;
+  imagePlacement?: ImagePlacement;
+}
+interface Props {
+  heading: string;
+  body: string;
+  entries: ServiceEntry[];
+}
+const { heading, body, entries } = Astro.props;
+---
+
+<section id="services" class="home-services home-services--option-a editorial-wrap" aria-labelledby="home-services-heading">
+  <div class="home-services__introduction">
+    <div class="home-section-heading">
+      <div>
+        <h2 id="home-services-heading">{heading}</h2>
+        <p>{body}</p>
+      </div>
+      <ContentLink href="/services">Explore all services</ContentLink>
+    </div>
+    <EditorialPhoto
+      image={photography.garden}
+      placement={entries[0]?.imagePlacement}
+      class="home-services__photo"
+      sizes="(max-width: 760px) 90vw, 32vw"
+    />
+  </div>
+  <ul class="home-services__list">
+    {entries.map((entry) => {
+      const [title, ...priceParts] = entry.heading.split(" · ");
+      const price = priceParts.join(" · ");
+      const summary = entry.text.split(/(?<=[.!?])\s+/)[0];
+      return (
+        <li class="home-services__item home-services__row">
+          <div class="home-services__row-heading">
+            <h3><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
+          </div>
+          <p class="home-services__summary">{summary}</p>
+          {price && <p class="home-services__fee"><MoneyText text={price} /></p>}
+        </li>
+      );
+    })}
+  </ul>
+  <CurrencyAttribution />
+</section>

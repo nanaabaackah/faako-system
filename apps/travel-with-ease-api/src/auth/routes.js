@@ -42,6 +42,9 @@ export function createStaffAuth({ store, provider, settings, limiter, logger, ad
       try {
         const identity = await verifiedAccess(req);
         if (identity.issuer !== session.issuer || identity.subject !== session.subject || identity.audience !== session.access_audience || identity.assertionHash !== session.access_assertion_hash) throw new Error("Session identity mismatch");
+        // Server-only verified identity context for exceptional two-party flows.
+        // It is never included in the session response or browser storage.
+        req.staffIdentity = identity;
       } catch {
         await store.recordDenied(req.requestId);
         return reject(req, res, 401, "authentication_error", "Access identity could not be verified. Sign in again.");

@@ -1,11 +1,11 @@
-import { mkdir, writeFile, cp } from "node:fs/promises";
+import { mkdir, writeFile, cp, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { manifestDigest } from "./publication.js";
 import { contentForPage, pageSchema } from "./schema.js";
 import sharp from "sharp";
 
-export async function preparePublication(job, media, directory) {
+export async function preparePublication(job, media, directory, { approvedBaseline = false } = {}) {
   const publicDirectory = path.join(directory, "public");
   await cp(
     fileURLToPath(
@@ -15,23 +15,20 @@ export async function preparePublication(job, media, directory) {
     { recursive: true },
   );
   await mkdir(path.join(publicDirectory, "media"), { recursive: true });
-  const pages = {};
-  for (const item of job.manifest.pages) {
-    pageSchema.parse(item.slug);
-    if (!item.body) {
-      pages[item.slug] = null;
-      continue;
-    }
-    const body = contentForPage(item.slug, item.body);
-    let image = null;
-    let socialImage = null;
-    if (body.imageId) {
-      const stored = await media.get(body.imageId);
+  // Missing CMS rows preserve the version-controlled, approved release pinned
+  // by the worker's source SHA. Explicit null rows still unpublish a section.
+  const approvedPages=JSON.parse(await readFile(new URL("../../../travel-with-ease-web/content/approved-public-release.json", import.meta.url), "utf8")).pages;
+  const pages = approvedBaseline ? structuredClone(approvedPages) : {};
+  const imageFor = async (imageId,fallback) => {
+    let image = fallback?.image||null;
+    let socialImage = fallback?.socialImage||null;
+    if (imageId) {
+      const stored = await media.get(imageId);
       if (stored.archived_at) throw new Error("Selected media is archived.");
-      const filename = `${body.imageId}.webp`;
+      const filename = `${imageId}.webp`;
       const sources = [];
       for (const variant of stored.derivatives) {
-        const variantFilename = `${body.imageId}-${variant.variant}.webp`;
+        const variantFilename = `${imageId}-${variant.variant}.webp`;
         await writeFile(
           path.join(publicDirectory, "media", variantFilename),
           await media.store.get(variant.key),
@@ -55,7 +52,7 @@ export async function preparePublication(job, media, directory) {
         height: variant.height,
         sources,
       };
-      const socialFilename = `${body.imageId}-social.jpg`;
+      const socialFilename = `${imageId}-social.jpg`;
       await sharp(source)
         .rotate()
         .resize(1200, 630, { fit: "cover", position: "centre" })
@@ -68,7 +65,52 @@ export async function preparePublication(job, media, directory) {
         height: 630,
       };
     }
-    pages[item.slug] = { ...body, image, socialImage };
+
+    return { image, socialImage };
+  };
+  for (const item of job.manifest.pages) {
+    pageSchema.parse(item.slug);
+    if (!item.body) {
+      pages[item.slug] = null;
+      continue;
+    }
+    const body = contentForPage(item.slug, item.body);
+    const placementFor=async placement=>placement?{...placement,image:(await imageFor(placement.imageId)).image,mobileImage:(await imageFor(placement.mobileImageId)).image}:undefined;
+    const imagePlacements=Object.fromEntries(await Promise.all(Object.entries(body.imagePlacements).map(async([key,value])=>[key,await placementFor(value)])));
+    const entries=await Promise.all(body.entries.map(async entry=>({...entry,imagePlacement:await placementFor(entry.imagePlacement)})));
+    const { image, socialImage } = await imageFor(body.imageId,approvedPages[item.slug]);
+    const tips = await Promise.all(
+      body.tips.map(async (tip) => ({
+        ...tip,
+        ...(await imageFor(tip.imagePlacement?.imageId||tip.imageId,approvedPages[item.slug]?.tips?.find(record=>record.slug===tip.slug))),
+        imagePlacement:await placementFor(tip.imagePlacement),
+      })),
+    );
+    const records = async (items,key) =>
+      Promise.all(
+        items.map(async (record) => ({
+          ...record,
+          ...(await imageFor(record.imagePlacement?.imageId||record.imageId,approvedPages[item.slug]?.[key]?.find(approved=>approved.id===record.id||approved.slug===record.slug))),
+          imagePlacement:await placementFor(record.imagePlacement),
+          gallery: await Promise.all(
+            record.galleryImageIds.map(
+              async (id) => (await imageFor(id)).image,
+            ),
+          ),
+        })),
+      );
+    const packages = await records(body.packages,'packages');
+    const articles = await records(body.articles,'articles');
+    pages[item.slug] = {
+      ...body,
+      entries,
+      imagePlacements,
+      tips,
+      packages,
+      articles,
+      image,
+      socialImage,
+    };
   }
   const marker = {
     jobId: job.id,

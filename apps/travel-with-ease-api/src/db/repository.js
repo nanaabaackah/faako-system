@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { transaction, verifyDatabaseIdentity } from "./database.js";
+import { submissionRecord, replaySubmission } from "../enquiries/submission.js";
 
 export class PostgresLeadRepository {
   constructor(pool, { organisationId, environment }) {
@@ -15,6 +16,28 @@ export class PostgresLeadRepository {
     if (!rows.length) throw new Error("Organisation is not provisioned.");
   }
 
+  async createNativeEnquiry(data) {
+    const record = submissionRecord(data);
+    return transaction(this.pool, async client => {
+      // Serialize only this tenant/submission pair. No new table or destructive
+      // migration: idempotency metadata is stored in the existing JSON details.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))",
+        [this.organisationId, record.submissionId]);
+      const prior = await client.query(
+        "SELECT id, details->>'submissionFingerprint' AS fingerprint FROM twe.enquiries WHERE organisation_id = $1 AND details->>'submissionId' = $2",
+        [this.organisationId, record.submissionId]);
+      if (prior.rows[0]) return replaySubmission(prior.rows[0], record.fingerprint);
+      await client.query(
+        `INSERT INTO twe.enquiries (id, organisation_id, kind, contact, details, notice_at)
+         VALUES ($1, $2, 'personalised', $3, $4, $5)`,
+        [record.id, this.organisationId, record.contact, record.details, record.noticeAt]);
+      await client.query(
+        "INSERT INTO twe.notification_outbox (id, organisation_id, enquiry_id) VALUES ($1, $2, $3)",
+        [randomUUID(), this.organisationId, record.id]);
+      return { inquiryId: record.id, status: "received", replayed: false };
+    });
+  }
+
   // Compatibility adapter for the deferred estimator. New enquiry screens and
   // delivery workers are deliberately not part of this adapter.
   async createLeadWithInquiry(record) {
@@ -28,23 +51,6 @@ export class PostgresLeadRepository {
         VALUES ($1, $2, $3)`, [randomUUID(), this.organisationId, record.inquiry.id]);
       return record;
     });
-  }
-
-  // Staging demo submissions are visible in the protected traveller inbox.
-  // No notification outbox item or booking/payment is ever created here.
-  async createDemoEnquiry(data) {
-    if (!["staging", "test"].includes(this.environment)) throw new Error("Demo enquiries are restricted to staging.");
-    const id = randomUUID();
-    const now = new Date().toISOString();
-    await this.pool.query(`INSERT INTO twe.enquiries
-      (id, organisation_id, kind, contact, details, notice_at, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $6, $6)`,
-    [id, this.organisationId, data.kind,
-      { name: data.name, email: data.email, phone: data.phone },
-      { source: "staging_demo", demo: true, destination: data.destination,
-        travelStyle: data.travelStyle, travellers: data.travellers, notes: data.notes },
-      now]);
-    return { inquiryId: id, status: "received", demo: true };
   }
 
   async listLeads() {

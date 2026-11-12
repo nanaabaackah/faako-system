@@ -9,6 +9,7 @@ const issue = z
   .object({
     subject: z.string().trim().min(1).max(255),
     approvalReference: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/),
+    role: z.enum(['owner','editor']).default('editor'),
   })
   .strict();
 export function invitationRoutes(service, auth) {
@@ -81,7 +82,7 @@ export function invitationRoutes(service, auth) {
   router.get(
     "/invitations",
     auth.requireStaff,
-    auth.requireOwner,
+    auth.requirePermission('staff.manage'),
     async (req, res) =>
       send(req, res, { items: await service.list(req.staff) }),
   );
@@ -89,7 +90,7 @@ export function invitationRoutes(service, auth) {
     "/invitations",
     auth.requireStaff,
     auth.requireMutation,
-    auth.requireOwner,
+    auth.requirePermission('staff.manage'),
     async (req, res) =>
       send(
         req,
@@ -105,7 +106,7 @@ export function invitationRoutes(service, auth) {
     "/invitations/:id/revoke",
     auth.requireStaff,
     auth.requireMutation,
-    auth.requireOwner,
+    auth.requirePermission('staff.manage'),
     async (req, res) =>
       send(
         req,

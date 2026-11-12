@@ -1,0 +1,53 @@
+.tutorial-footer {
+  margin-block: 2rem 6rem;
+  padding-block: 1.25rem;
+  border-top: 1px solid #b6b1a9;
+}
+.tutorial-footer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tutorial-welcome {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  border-left: 4px solid #d8b56a;
+  background: #f4ede3;
+  color: #010c33;
+}
+.tutorial-welcome h2 {
+  font-size: 1.5rem;
+}
+.tutorial-welcome p {
+  max-width: 65ch;
+  line-height: 1.6;
+}
+.tutorial-list {
+  list-style: none;
+  padding: 0;
+}
+.tutorial-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-block: 0.5rem;
+}
+@media (max-width: 767px) {
+  .tutorial-footer {
+    margin-bottom: 0;
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  }
+  .tutorial-footer-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .tutorial-footer-controls > :first-child,
+  .tutorial-footer-controls > :last-child {
+    grid-column: 1 / -1;
+  }
+  .tutorial-footer-controls .ui-button {
+    width: 100%;
+  }
+}

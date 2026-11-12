@@ -1,214 +1,78 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import EditorialPhoto from "./EditorialPhoto.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
-import Accordion from "./Accordion.astro";
+import TravelTips from "./TravelTips.astro";
 import CinematicHero from "./CinematicHero.astro";
-import photography from "../lib/assigned-photography.json";
+import HomeServices from "./HomeServices.astro";
+import FeaturedJourneys from "./FeaturedJourneys.astro";
+import JourneyProcess from "./JourneyProcess.astro";
 import { publishedPage } from "../lib/published.js";
-import photos from "../lib/approved-preview-media.json";
+import "../styles/components/home-sections.css";
+import "../styles/components/journey-editorial.css";
+import "../styles/components/home-option-a.css";
 const { content } = Astro.props;
-// Staging presents neutral unapproved modules for visual review only.
-// Production renders only modules with approved publication snapshots.
-const stagingReview =
-  import.meta.env.DEV || import.meta.env.PUBLIC_APP_ENV === "staging";
-const destinations = publishedPage("destinations");
+const about = publishedPage("about");
+const services = publishedPage("services");
+const packages = publishedPage("packages");
+const process = publishedPage("how-it-works");
 const contact = publishedPage("contact");
-const journal = publishedPage("journal");
-const faqs = publishedPage("faqs");
+const tips = publishedPage("travel-tips");
+const footprint = publishedPage("travel-footprint");
 ---
 
-<CinematicHero
-  heading={content.heading}
-  body={content.body}
-  image={content.image}
-/>
-{
-  content.entries.length > 0 && (
-    <section class="editorial-wrap editorial-rule">
-      {content.entries.map(
-        (entry: { heading: string; text: string; attribution: string }) => (
-          <article>
-            <h2>{entry.heading}</h2>
-            <p>{entry.text}</p>
-            {entry.attribution && <p>{entry.attribution}</p>}
-          </article>
-        ),
-      )}
-      {content.ctaLabel && (
-        <ContentLink button href={content.ctaPath}>
-          {content.ctaLabel}
-        </ContentLink>
-      )}
-    </section>
-  )
-}
-{
-  (destinations || stagingReview) && (
-    <section class="editorial-wrap editorial-rule">
-      <div class="editorial-heading">
-        <h2>Your next journey</h2>
-        {destinations && (
-          <ContentLink href="/destinations">View packages</ContentLink>
-        )}
-      </div>
-      <div class="review-empty">
-        <p>No published package collection is connected to this page yet.</p>
-        {stagingReview && (
-          <p>
-            Placeholder — approved destinations, dates, inclusions and
-            indicative starting prices will appear here. No offer can be booked.
-          </p>
-        )}
-      </div>
-      {stagingReview && !destinations && (
-        <div
-          class="review-journey-images"
-          aria-label="Approved travel photography — not package offers"
-        >
-          {photos
-            .filter((photo) =>
-              ["wildlife", "closing"].includes(photo.placement),
-            )
-            .map((photo) => (
-              <figure>
-                <img
-                  src={photo.sources.at(-1)!.src}
-                  srcset={photo.sources
-                    .map((source) => `${source.src} ${source.width}w`)
-                    .join(", ")}
-                  sizes="(max-width: 760px) 90vw, 45vw"
-                  alt={photo.alt}
-                  width={photo.width}
-                  height={photo.height}
-                  loading="lazy"
-                />
-                <figcaption>
-                  {photo.country} · photography preview, not an offer
-                </figcaption>
-              </figure>
-            ))}
+<CinematicHero heading={content.heading} body={content.body} image={content.image} placement={content.imagePlacements?.hero} />
+<div class="home-journey-chapters">
+  {about && (
+    <section id="about" class:list={["journey-introduction", "journey-introduction--option-a", { "journey-introduction--no-photo": !about.image }]}>
+      <div class="editorial-wrap journey-introduction__inner">
+        <div class="journey-introduction__story">
+          <h2>{about.heading}</h2>
+          <div class="journey-introduction__copy">
+            <p>{about.body}</p>
+            <ContentLink href="/about">Meet Travel With Ease</ContentLink>
+          </div>
         </div>
-      )}
+        {about.image && (
+          <div class="journey-introduction__artwork">
+            <EditorialPhoto
+              image={about.image}
+              placement={about.imagePlacements?.feature}
+              class="journey-introduction__photo"
+              sizes="(max-width: 760px) 90vw, 42vw"
+            />
+          </div>
+        )}
+      </div>
     </section>
-  )
-}
+  )}
+</div>
+{services?.entries?.length > 0 && (
+  <div class="home-journey-chapters">
+    <HomeServices heading={services.heading} body={services.body} entries={services.entries} />
+  </div>
+)}
+{packages?.packages?.length > 0 && <FeaturedJourneys items={packages.packages} />}
+{process && (
+  <div class="home-journey-chapters">
+    <JourneyProcess content={process} />
+  </div>
+)}
 <section id="our-world" class="cream-footprint">
-  <div class="editorial-wrap"><TravelFootprint /></div>
-</section>
-{
-  (contact || stagingReview) && (
-    <section class="editorial-wrap editorial-split editorial-rule">
-      <div>
-        <>
-          <h2>
-            From an idea
-            <br />
-            to a plan.
-          </h2>
-          <p>
-            {stagingReview && !contact
-              ? "Preview of the proposed enquiry journey. Forms are not connected in this preview."
-              : "Share your travel preferences and discuss the details directly with the agency."}
-          </p>
-        </>
-      </div>
-      <ol class="editorial-process">
-        {[
-          {
-            heading: "Tell us what you have in mind",
-            text: "Explore the journey that fits your travel plans.",
-            photo: photography.howItWorks[0],
-          },
-          {
-            heading: "Talk through the details",
-            text: "Dates, preferences and practical questions.",
-            photo: photography.howItWorks[1],
-          },
-          {
-            heading: "Review your options",
-            text: "Confirm details directly with the agency. An enquiry is not a booking.",
-            photo: null,
-          },
-        ].map((step) => (
-          <li>
-            {step.photo && (
-              <img
-                class="how-it-works-photo"
-                src={step.photo.src}
-                srcset={step.photo.sources
-                  .map((source) => `${source.src} ${source.width}w`)
-                  .join(", ")}
-                sizes="(max-width: 760px) 85vw, 43vw"
-                width={step.photo.width}
-                height={step.photo.height}
-                alt={step.photo.alt}
-                loading="lazy"
-                decoding="async"
-              />
-            )}
-            <strong>{step.heading}</strong>
-            {step.text}
-          </li>
-        ))}
-      </ol>
-    </section>
-  )
-}
-{
-  (journal || stagingReview) && (
-    <section class="editorial-wrap editorial-rule" data-twe-reveal>
-      <div class="editorial-heading">
-        <h2>Travel Journal</h2>
-        {journal && (
-          <ContentLink href="/journal">Explore the journal</ContentLink>
-        )}
-      </div>
-      <p>
-        {journal
-          ? "Read available destination stories and travel information."
-          : "Placeholder — original travel stories and approved photographs will be added here."}
-      </p>
-      {journal?.articles
-        ?.slice(0, 2)
-        .map((article: { slug: string; title: string; excerpt: string }) => (
-          <article class="twe-action-card">
-            <h3>
-              <ContentLink href={`/journal/${article.slug}`}>
-                {article.title}
-              </ContentLink>
-            </h3>
-            <p>{article.excerpt}</p>
-          </article>
-        ))}
-    </section>
-  )
-}
-{
-  (faqs || stagingReview) && (
-    <section class="editorial-wrap editorial-rule editorial-faqs">
-      <div class="faq-introduction">
-        <h2>Questions before you travel?</h2>
-        {faqs && (
-          <ContentLink href="/faqs">Frequently asked questions</ContentLink>
-        )}
-        <p>
-          {faqs
-            ? "Travel information and answers to common questions."
-            : "Placeholder — FAQs and client testimonials will appear after approval."}
-        </p>
-      </div>
-      {faqs && (
-        <div class="faq-questions">
-          {faqs.entries.map((entry: { heading: string; text: string }) => (
-            <Accordion title={entry.heading}>
-              <p>{entry.text}</p>
-            </Accordion>
+  <div class="editorial-wrap">
+    <TravelFootprint heading={footprint?.heading} description={footprint?.body}>
+      {footprint && (
+        <ul class="footprint-totals">
+          {footprint.entries.map((entry: { heading: string; text: string }) => (
+            <li><strong>{entry.heading}</strong><span>{entry.text}</span></li>
           ))}
-        </div>
+        </ul>
       )}
-    </section>
-  )
-}
-<!-- Brand CTA artwork is approved independently of business-content publication. -->
+    </TravelFootprint>
+  </div>
+</section>
+{tips?.tips?.length > 0 && <TravelTips tips={tips.tips} />}
+<!-- Packages and Journal retain their dedicated listing and detail pages. -->
+<!-- The supplied mockup CTA and continuous enquiry/footer are unchanged. -->
 <ClosingCta enquiryAvailable={Boolean(contact)} />

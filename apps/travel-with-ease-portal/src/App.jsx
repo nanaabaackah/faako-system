@@ -1,8 +1,7 @@
-import Button from "./ActionButton.jsx";
+import Button from "./components/ActionButton.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
 import {
-  ErpMobileBottomNavFrame,
   useToast,
   InlineNotice,
   PageHeader,
@@ -12,40 +11,25 @@ import {
 } from "@faako/ui";
 import "@faako/ui/twe-feedback.css";
 import appSystem from "../appSystem.js";
-import WebsiteContent from "./WebsiteContent.jsx";
-import MediaLibrary from "./MediaLibrary.jsx";
-import EmailTemplates from "./EmailTemplates.jsx";
-import SystemAdministration from "./SystemAdministration.jsx";
-import StaffAccess from "./StaffAccess.jsx";
-import Enquiries from "./Enquiries.jsx";
-import { createSessionLoader } from "./session.js";
-import { createDemoClient, demoEnabled } from "./demo.js";
-import Dashboard from "./Dashboard.jsx";
-import NavigationIcon from "./NavigationIcon.jsx";
-import TutorialWorkspace from "./TutorialWorkspace.jsx";
-import Activation from "./Activation.jsx";
-import AccountSettings from "./AccountSettings.jsx";
-import Invitations from "./Invitations.jsx";
-import brandLogo from "../../travel-with-ease-web/public/brand/Primary gold.png";
+import WebsiteContent from "./components/WebsiteContent.jsx";
+import MediaLibrary from "./components/MediaLibrary.jsx";
+import EmailTemplates from "./components/EmailTemplates.jsx";
+import SystemAdministration from "./components/SystemAdministration.jsx";
+import StaffAccess from "./components/StaffAccess.jsx";
+import Enquiries from "./components/Enquiries.jsx";
+import { createSessionLoader } from "./lib/session.js";
+import Dashboard from "./components/Dashboard.jsx";
+import PortalNavigation from './components/PortalNavigation.jsx';
+import ActivityView from './components/ActivityView.jsx';
+import TutorialWorkspace from "./components/TutorialWorkspace.jsx";
+import Activation from "./components/Activation.jsx";
+import AccountSettings from "./components/AccountSettings.jsx";
+import Invitations from "./components/Invitations.jsx";
 
 // Staff authentication is same-origin in both Vite development and hosted mode.
 // Never embed an API origin that bypasses the Access-aware portal server.
 const baseUrl = "";
-const localDemoAllowed =
-  import.meta.env.DEV && import.meta.env.TWE_LOCAL_DEMO_ALLOWED === true;
-const stagingDemoAllowed =
-  import.meta.env.TWE_STAGING_PORTAL_DEMO_ALLOWED === true;
-const isDemo = demoEnabled({
-  allowed: localDemoAllowed,
-  stagingAllowed: stagingDemoAllowed,
-  hostname: window.location.hostname,
-  pathname: window.location.pathname,
-  search: window.location.search,
-});
-const demoRestartUrl = stagingDemoAllowed ? "/demo" : "/?demo=1";
-const baseApi = isDemo
-  ? createDemoClient()
-  : createBrowserApiClient({ baseUrl, credentials: "include" });
+const baseApi = createBrowserApiClient({ baseUrl, credentials: "include" });
 const loadSession = createSessionLoader(baseApi);
 
 function StaffWorkspace() {
@@ -54,19 +38,21 @@ function StaffWorkspace() {
     () => ({
       ...baseApi,
       post: async (...args) => {
+        if (args[1]?.silent === true) {
+          const options = { ...args[1] }; delete options.silent;
+          return baseApi.post(args[0], options);
+        }
         const id = pushToast({
           tone: "loading",
-          title: isDemo ? "Updating demo" : "Working",
+          title: "Working",
           message: "Please wait for confirmation.",
         });
         try {
           const result = await baseApi.post(...args);
           updateToast(id, {
             tone: "success",
-            title: isDemo ? "Demo updated" : "Request completed",
-            message: isDemo
-              ? "Only simulated demo data changed in this tab. No server change was made."
-              : "The server confirmed the action. Publication requests still require a successful deployment.",
+            title: "Request completed",
+            message: "The server confirmed the action. Publication requests still require a successful deployment.",
           });
           return result;
         } catch (error) {
@@ -130,7 +116,7 @@ function StaffWorkspace() {
       });
       let activeSession = null;
       setActivation(null);
-      if (!isDemo && status.configured && status.mode === "cloudflare_access") {
+      if (status.configured && status.mode === "cloudflare_access") {
         const account = await baseApi.get("/api/auth/activation", {
           responseMode: "data",
         });
@@ -195,7 +181,8 @@ function StaffWorkspace() {
     ["content", "Content", session?.user.permissions?.includes("content.read")],
     ["media", "Media", session?.user.permissions?.includes("media.read")],
     ["templates", "Templates", session?.user.permissions?.includes("templates.manage")],
-    ["staff", "Staff", session?.user.role === "owner"],
+    ["staff", "Staff", session?.user.permissions?.includes("staff.manage")],
+    ['activity','Activity',session?.user.permissions?.includes('audit.business.read')],
     [
       "system",
       "System",
@@ -203,60 +190,10 @@ function StaffWorkspace() {
         session?.user.permissions?.includes("system.read"),
     ],
   ].filter(([, , visible]) => visible);
-  // Equal-width groups keep Overview physically centred even when a role has
-  // a different number of available modules. DOM and keyboard order agree.
-  const mobileModules = navigation.filter(([id]) => id !== "overview");
-  const mobileSplit = Math.ceil(mobileModules.length / 2);
-  const navButton = ([id, label]) => (
-    <button
-      key={id}
-      type="button"
-      className={id === "overview" ? "nav-overview" : ""}
-      aria-current={section === id ? "page" : undefined}
-      onClick={() => navigate(id)}
-    >
-      <NavigationIcon name={id} />
-      <span>{label}</span>
-    </button>
-  );
   return (
     <div className="portal-shell">
-      <aside>
-        <div className="portal-brand">
-          <img src={brandLogo} alt="Travel With Ease" width="184" height="72" />
-          <small>Staff workspace</small>
-        </div>
-        <nav aria-label="Staff navigation">{navigation.map(navButton)}</nav>
-      </aside>
+      <PortalNavigation navigation={navigation} section={section} navigate={navigate} session={session}/>
       <PageShell>
-        {isDemo ? (
-          <aside
-            className="demo-notice"
-            aria-label="Synthetic portal demonstration"
-          >
-            <strong>
-              {stagingDemoAllowed ? "Staging portal demo" : "Local portal demo"}{" "}
-              — synthetic data only
-            </strong>
-            <p>
-              This is an interactive preview, not a real staff login. The sample
-              enquiries and drafts reset on reload; no real customer records,
-              database, emails, uploads or published website content are
-              changed.
-            </p>
-            <a href="/">Exit demo and open staff login</a>
-          </aside>
-        ) : (
-          localDemoAllowed &&
-          ["localhost", "127.0.0.1", "[::1]"].includes(
-            window.location.hostname,
-          ) && (
-            <aside className="demo-notice">
-              <p>Preview the updated staff workspace using synthetic data.</p>
-              <a href="/?demo=1">Open local demo workspace</a>
-            </aside>
-          )
-        )}
         <PageHeader
           title={
             session
@@ -269,6 +206,7 @@ function StaffWorkspace() {
                     media: "Media library",
                     templates: "Email templates",
                     staff: "Staff access",
+                    activity: 'Workspace activity',
                     system: "System administration",
                   }[section]
               : "Staff sign-in"
@@ -295,8 +233,8 @@ function StaffWorkspace() {
         ) : session ? (
           <div className="session-toolbar" aria-label="Your session">
             <span>
-              {isDemo ? "Simulating role " : "Signed in as "}
-              <strong>{session.user.role.replaceAll("_", " ")}</strong>
+              Signed in as{" "}
+              <strong>{session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ")}</strong>
             </span>
             <Button
               icon="logout"
@@ -304,9 +242,9 @@ function StaffWorkspace() {
               type="button"
               onClick={() => logout()}
             >
-              {isDemo ? "End demo session" : "Sign out"}
+              Sign out
             </Button>
-            {!isDemo && (
+            {(
               <Button
                 type="button"
                 onClick={() => {
@@ -324,12 +262,6 @@ function StaffWorkspace() {
           </div>
         ) : activation && activation.status !== "active" ? (
           <Activation status={activation} api={baseApi} onActivated={load} />
-        ) : isDemo ? (
-          <section>
-            <h2>Demo session ended</h2>
-            <p>No real staff session was created.</p>
-            <a href={demoRestartUrl}>Restart demo</a>
-          </section>
         ) : state.configured && accountLinks.mode === "cloudflare_access" ? (
           <section
             className="signin-panel"
@@ -446,7 +378,15 @@ function StaffWorkspace() {
             activation?.canIssueOwner &&
             section === "overview" && <Invitations api={baseApi} installer />}
           {!state.loading && session && section === "settings" && (
-            <AccountSettings session={session} onLogout={logout} />
+            <AccountSettings
+              api={api}
+              session={session}
+              onLogout={logout}
+              onHandoverCompleted={() => {
+                setSession(null);
+                window.location.assign("/cdn-cgi/access/logout");
+              }}
+            />
           )}
           {!state.loading &&
             session?.user.permissions?.includes("content.read") &&
@@ -462,12 +402,6 @@ function StaffWorkspace() {
               api={api}
               session={session}
               onNavigate={navigate}
-              isDemo={isDemo}
-              demoWebsiteUrl={
-                stagingDemoAllowed
-                  ? "https://staging.travelwitheasegh.com/demo"
-                  : "http://127.0.0.1:4328/demo"
-              }
             />
           )}
           {!state.loading &&
@@ -484,11 +418,12 @@ function StaffWorkspace() {
           {!state.loading && session && section === "system" && (
             <SystemAdministration api={api} session={session} />
           )}
+          {!state.loading&&session?.user.permissions?.includes('audit.business.read')&&section==='activity'&&<ActivityView api={api}/>}
           {!state.loading &&
-            session?.user.role === "owner" &&
+            session?.user.permissions?.includes("staff.manage") &&
             section === "staff" && <StaffAccess api={api} session={session} />}
         </div>
-        {!state.loading && session && !isDemo && (
+        {!state.loading && session && (
           <TutorialWorkspace
             key={session.user.id}
             api={baseApi}
@@ -503,17 +438,6 @@ function StaffWorkspace() {
           </Button>
         )}
       </PageShell>
-      {session && (
-        <ErpMobileBottomNavFrame className="twe-bottom-nav">
-          <div className="twe-bottom-nav__group">
-            {mobileModules.slice(0, mobileSplit).map(navButton)}
-          </div>
-          {navButton(navigation.find(([id]) => id === "overview"))}
-          <div className="twe-bottom-nav__group">
-            {mobileModules.slice(mobileSplit).map(navButton)}
-          </div>
-        </ErpMobileBottomNavFrame>
-      )}
     </div>
   );
 }

@@ -16,7 +16,7 @@
   :where(a[href],button,summary,[role="button"]):not(:disabled):not([aria-disabled="true"]):hover {
     filter: brightness(.88);
   }
-  :where(a[href]):not(.button):not(.header-logo):hover {
+  :where(a[href]):not(.button):not(.header-logo):not(:where(.glass-card,.bubble-card,.motion-card,.event-card,.news-card,.programme-row,.content-entry,.team-member,.glass-card *,.bubble-card *,.motion-card *,.event-card *,.news-card *,.programme-row *,.content-entry *,.team-member *)):hover {
     text-decoration: underline;
     text-underline-offset: .25em;
     text-decoration-thickness: 2px;
@@ -25,6 +25,11 @@
     translate: 0 -2px;
   }
   :where(a[href],button):hover>.ttngh-icon { translate: 3px 0; }
+}
+/* Cards use motion, colour and focus outlines instead of underlined copy. */
+:is(.glass-card,.bubble-card,.motion-card,.event-card,.news-card,.programme-row,.content-entry,.team-member),
+:is(.glass-card,.bubble-card,.motion-card,.event-card,.news-card,.programme-row,.content-entry,.team-member) :is(a,.text-link) {
+  text-decoration: none;
 }
 :where(a[href],button,summary,[role="button"]):not(:disabled):not([aria-disabled="true"]):active { filter: brightness(.8); }
 .ttngh-icon { transition: translate var(--motion-ui) var(--ease-out); }

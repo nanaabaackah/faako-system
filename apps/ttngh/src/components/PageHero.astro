@@ -7,5 +7,5 @@ const image = images[0];
 ---
 <section class:list={["page-hero", `page-hero--${variant}`, { "page-hero--with-image": image && variant !== "formal" }]} aria-labelledby="page-title">
   <div class="page-hero-copy"><h1 id="page-title">{title}{accent && <><br /><span class="page-hero-accent">{accent}</span></>}</h1>{intro && <p class="lead">{intro}</p>}{links.length > 0 && <nav class="page-section-nav" aria-label="Explore this page">{links.map(([label, href]) => <a href={href}>{label}<Icon name="arrow-right" /></a>)}</nav>}</div>
-  {image && variant !== "formal" && <figure><EditorialImage src={image.src} alt={image.alt} sizes={variant === "immersive" ? "100vw" : "(max-width: 780px) 100vw, 45vw"} loading="eager" fetchpriority="high" style={image.position ? `object-position:${image.position}` : undefined} />{image.caption && <figcaption>{image.caption}</figcaption>}</figure>}
+  {image && variant !== "formal" && <figure><EditorialImage src={image.src} alt={image.alt} sizes={variant === "immersive" ? "100vw" : "(max-width: 780px) 100vw, 45vw"} loading="eager" fetchpriority="high" style={image.position ? `object-position:${image.position}` : undefined} /></figure>}
 </section>

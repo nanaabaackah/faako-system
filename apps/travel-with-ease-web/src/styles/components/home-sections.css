@@ -1,0 +1,46 @@
+.home-journey-chapters {
+  border-bottom: 1px solid var(--brand-grey);
+}
+
+.footprint-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(16px, 4vw, 48px);
+  list-style: none;
+  padding: 0;
+  margin: 32px 0 40px;
+}
+.footprint-totals li {
+  border-top: 1px solid var(--brand-grey);
+  padding-top: 20px;
+}
+
+.footprint-totals strong {
+  display: block;
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1.1;
+  color: var(--brand-navy);
+}
+
+.footprint-totals span {
+  display: block;
+  margin-top: 12px;
+  font-size: 1rem;
+}
+
+.home-journey-chapters + .cream-footprint .footprint-heading {
+  max-width: 75ch;
+}
+
+.home-journey-chapters + .cream-footprint .footprint-heading h2 {
+  font-size: clamp(1.8rem, 3vw, 2.75rem);
+}
+
+@media (max-width: 390px) {
+  .footprint-totals {
+    gap: 12px;
+  }
+  .footprint-totals span {
+    font-size: 0.875rem;
+  }
+}

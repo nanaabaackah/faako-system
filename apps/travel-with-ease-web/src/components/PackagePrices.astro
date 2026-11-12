@@ -1,0 +1,54 @@
+---
+import type { TravelPackage } from "../lib/collections";
+import MoneyText from "./MoneyText.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
+import {
+  formatGhsMinor,
+  packageStartingPrice,
+  referenceMonthLabel,
+} from "../lib/package-pricing.js";
+interface Props {
+  item: TravelPackage;
+}
+const { item } = Astro.props;
+const priced = item.pricingStatus === "indicative";
+const reference = referenceMonthLabel(item.referenceMonth);
+---
+
+<section id="package-pricing" class="package-prices" aria-label="Package pricing">
+  <h2>{priced ? "Choose your level of comfort" : "Price coming soon"}</h2>
+  {
+    priced && (
+      <p class="package-price"><MoneyText text={packageStartingPrice(item)} /> per person sharing</p>
+    )
+  }
+  {reference && priced && <p>Reference month: {reference}</p>}
+  {
+    (item.tiers || []).length > 0 && (
+      <dl class="package-tiers">
+        {(item.tiers || []).map((tier) => (
+          <div>
+            <dt>{tier.label}</dt>
+            <dd>
+              {priced && tier.amountMinor !== null && (
+                <strong>From <MoneyText text={formatGhsMinor(tier.amountMinor)} /> per person sharing</strong>
+              )}
+              <p>{tier.description}</p>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    )
+  }
+  {
+    priced && item.priceDisclaimer && (
+      <p class="package-price-disclaimer">{item.priceDisclaimer}</p>
+    )
+  }
+  {
+    !priced && (
+      <p>Inclusions are shown for planning. Request a live quote when pricing is available.</p>
+    )
+  }
+</section>
+<CurrencyAttribution />

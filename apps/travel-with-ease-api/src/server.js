@@ -23,11 +23,13 @@ import { PostgresAuthStore } from "./auth/store.js";
 import { createStaffAuth } from "./auth/routes.js";
 import { ContentRepository } from "./content/repository.js";
 import { PublicationRepository } from "./content/publication.js";
+import { PreviewService } from "./content/preview.js";
 import { MediaService } from "./media/service.js";
 import { readR2Config, R2Store } from "./media/r2.js";
 import { readDriveConfig, DriveReader } from "./media/drive.js";
 import { prepareHostedStartup } from "./staging-startup.js";
 import { readHostedPrerequisites, readinessFailureCode } from "./portal/readiness.js";
+import { createTurnstileVerifier } from "./enquiries/turnstile.js";
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { environment, deployed, allowedOrigins, port } = readConfig();
@@ -91,10 +93,16 @@ try {
   logger.warn({ eventName: "media.drive_configuration_invalid" }, "Google Drive media import is unavailable; review its server-only configuration.");
 }
 const mediaService = pool ? new MediaService(pool, process.env.TWE_ORGANISATION_ID, mediaSettings ? new R2Store(mediaSettings) : null, logger, driveReader) : null;
-const app = createApp({ repository, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
-  portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist,
-    stagingDemoEnabled: environment === "staging" && process.env.TWE_STAGING_PORTAL_DEMO_ENABLED === "true" } : null,
-  demoOrigin: process.env.TWE_DEMO_ORIGIN || "",
+const previewService = pool && process.env.TWE_CMS_PREVIEW_ENABLED === "true" ? new PreviewService({
+  repository: contentRepository, media: mediaService, organisationId: process.env.TWE_ORGANISATION_ID,
+  environment, siteOrigin: process.env.TWE_PUBLIC_SITE_ORIGIN || (environment === "production" ? "https://travelwitheasegh.com" : "https://staging.travelwitheasegh.com"),
+  apiOrigin: process.env.TWE_PUBLIC_API_ORIGIN || "",
+}) : null;
+const app = createApp({ repository, currencyService, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, previewService, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
+  turnstileVerifier: createTurnstileVerifier({
+    secret: process.env.TWE_TURNSTILE_SECRET_KEY, environment,
+  }),
+  portal: deployed ? { settings: authSettings, verifier: accessVerifier, distDirectory: portalDist } : null,
 });
 const server = app.listen(port, deployed ? undefined : "127.0.0.1", () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;

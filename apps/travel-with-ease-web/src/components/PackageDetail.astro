@@ -1,0 +1,220 @@
+---
+import PlacedImage from './PlacedImage.astro';
+import ContentLink from "./ContentLink.astro";
+import Breadcrumbs from "./Breadcrumbs.astro";
+import MoneyText from "./MoneyText.astro";
+import PackageItinerary from "./PackageItinerary.jsx";
+import ClosingCta from "./ClosingCta.astro";
+import { publishedPage } from "../lib/published.js";
+import PackageMasonryGallery from "./PackageMasonryGallery.astro";
+import PackagePrices from "./PackagePrices.astro";
+import { packageStartingPrice } from "../lib/package-pricing.js";
+import type { TravelPackage, JournalArticle } from "../lib/collections";
+import "../styles/components/collections.css";
+import "../styles/components/package-experience.css";
+interface Props {
+  item: TravelPackage;
+  relatedPackages?: TravelPackage[];
+  stories?: JournalArticle[];
+  prefix?: string;
+  journalPrefix?: string;
+}
+const {
+  item,
+  relatedPackages = [],
+  stories = [],
+  prefix = "/packages",
+  journalPrefix = "/journal",
+} = Astro.props;
+const canEnquire = !["closed", "sold_out"].includes(item.availability || "");
+const enquiry = "#plan";
+---
+
+<article class="collection-detail package-experience">
+  <div class="editorial-wrap">
+    <Breadcrumbs collection="Packages" href={prefix} title={item.title} />
+    <div class="package-experience__hero">
+      <header class="collection-detail-heading">
+        <p class="package-section-label">{item.destination}</p><h1>{item.title}</h1>
+        <p class="package-experience__tagline">{item.tagline || item.overview}</p>
+        <dl class="package-experience__facts">
+          {item.duration && <div><dt>Your time away</dt><dd>{item.duration}</dd></div>}
+          <div><dt>{item.pricingStatus === "indicative" ? "Starting price" : "Pricing"}</dt><dd><MoneyText text={packageStartingPrice(item)} /></dd></div>
+        </dl>
+        {item.dates && <p>{item.dates}</p>}
+        {item.pricingStatus === "indicative" && <p class="package-price-disclaimer">Indicative, per person sharing · return flights from Accra included. Review the full pricing details below.</p>}
+        <ContentLink href="#package-pricing">Explore the details</ContentLink>
+      </header>
+    {
+      item.image && (
+        <PlacedImage image={item.image} placement={item.imagePlacement}
+          class="collection-hero"
+          src={item.image.src}
+          srcset={item.image.sources
+            ?.map((source) => `${source.src} ${source.width}w`)
+            .join(", ")}
+          sizes="90vw"
+          width={item.image.width}
+          height={item.image.height}
+          alt={item.image.alt}
+          fetchpriority="high"
+        />
+      )
+    }
+    </div>
+    <nav class="package-section-nav" aria-label="Package sections">
+      <a href="#package-overview">Overview</a>
+      <a href="#package-pricing">Prices &amp; stays</a>
+      {(item.inclusions?.length || 0) > 0 && <a href="#package-inclusions">What’s included</a>}
+      {(item.itinerary?.length || 0) > 0 && <a href="#package-itinerary">Day by day</a>}
+    </nav>
+    <div class="package-detail-grid">
+      <div class="collection-reading">
+        <section id="package-overview">
+          <h2>The journey</h2><p class="preserve-lines">{item.overview}</p>
+        </section>
+        {
+          (item.highlights?.length || 0) > 0 && (
+            <section>
+              <>
+                <h2>Trip highlights</h2>
+                <ul>
+                  {(item.highlights || []).map((text) => (
+                    <li>{text}</li>
+                  ))}
+                </ul>
+              </>
+            </section>
+          )
+        }
+        <PackagePrices item={item} />
+        {
+          (item.inclusions?.length || 0) > 0 && (
+            <section id="package-inclusions" class="package-inclusions">
+              <>
+                <h2>What is included</h2>
+                <ul>
+                  {(item.inclusions || []).map((text) => (
+                    <li>{text}</li>
+                  ))}
+                </ul>
+              </>
+            </section>
+          )
+        }
+        {
+          (item.exclusions?.length || 0) > 0 && (
+            <section>
+              <>
+                <h2>Not included</h2>
+                <ul>
+                  {(item.exclusions || []).map((text) => (
+                    <li>{text}</li>
+                  ))}
+                </ul>
+              </>
+            </section>
+          )
+        }
+        {
+          item.transport && (
+            <section>
+              <>
+                <h2>Flights and transport</h2>
+                <p>{item.transport}</p>
+              </>
+            </section>
+          )
+        }
+        {
+          item.accommodation && (
+            <section>
+              <>
+                <h2>Where you stay</h2>
+                <p>{item.accommodation}</p>
+              </>
+            </section>
+          )
+        }
+        {
+          (item.itinerary?.length || 0) > 0 && (
+            <section id="package-itinerary">
+              <h2>Your itinerary</h2>
+              <PackageItinerary
+                days={[...(item.itinerary || [])].sort((a, b) => a.day - b.day)}
+                client:visible
+              />
+            </section>
+          )
+        }
+        {
+          (item.gallery?.length || 0) > 0 && (
+            <section>
+              <>
+                <h2>A closer look</h2>
+                <PackageMasonryGallery images={item.gallery || []} />
+              </>
+            </section>
+          )
+        }
+        {
+          item.important && (
+            <section>
+              <>
+                <h2>Before you enquire</h2>
+                <p>{item.important}</p>
+              </>
+            </section>
+          )
+        }
+      </div><aside class="package-enquiry-panel" aria-label="Enquire about this package">
+        <h2>Interested in this trip?</h2>{
+          <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
+        }<p>
+          An enquiry is not a booking. Confirm offer, dates, price and terms
+          directly with us.
+        </p>{
+          canEnquire ? (
+            <ContentLink button href={enquiry}>
+              Check dates &amp; Get a Quote
+            </ContentLink>
+          ) : (
+            <p>Enquiries for this trip are currently closed.</p>
+          )
+        }{
+          (
+            <p>
+              Mention “{item.title}” in your enquiry. Your final dates,
+              arrangements and price will be confirmed with a quote.
+            </p>
+          )
+        }
+      </aside>
+    </div>
+    {
+      relatedPackages.length > 0 && (
+        <section class="collection-related">
+          <h2>Other journeys to consider</h2>
+          {relatedPackages.map((other) => (
+            <ContentLink href={`${prefix}/${other.slug}`}>
+              {other.title}
+            </ContentLink>
+          ))}
+        </section>
+      )
+    }
+    {
+      stories.length > 0 && (
+        <section class="collection-related">
+          <h2>From the Journal</h2>
+          {stories.map((story) => (
+            <ContentLink href={`${journalPrefix}/${story.slug}`}>
+              {story.title}
+            </ContentLink>
+          ))}
+        </section>
+      )
+    }
+  </div>
+</article>
+<ClosingCta standalone enquiryAvailable={Boolean(publishedPage("contact"))} />

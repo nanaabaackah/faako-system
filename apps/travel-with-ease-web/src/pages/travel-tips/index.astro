@@ -1,0 +1,22 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TravelTips from "../../components/TravelTips.astro";
+import PlacedImage from '../../components/PlacedImage.astro';
+import { publishedPage } from "../../lib/published.js";
+const content = publishedPage("travel-tips");
+---
+
+<BaseLayout
+  title={content?.seoTitle || "Travel tips | Travel With Ease"}
+  description={content?.seoDescription ||
+    "Travel advice will appear after approval."}
+  noIndex={!content}
+>
+  <section class="editorial-wrap">
+    <h1>{content?.heading || "Travel tips"}</h1><p>
+      {content?.body || "Approved travel advice is not available yet."}
+    </p>
+    <PlacedImage placement={content?.imagePlacements?.header} class="collection-header-photo" sizes="90vw"/>
+  </section>
+  <TravelTips tips={content?.tips || []} homepage={false} />
+</BaseLayout>

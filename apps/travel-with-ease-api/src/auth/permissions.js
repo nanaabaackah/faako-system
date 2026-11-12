@@ -1,8 +1,9 @@
-// Application policy, not a role hierarchy. Keep technical authority separate
-// from business access; never accept organisation or grants from request input.
+// Explicit application policy approved by the November 1 launch brief. The
+// platform_admin identifier remains stable; it is displayed as Superadmin.
+// This grants TWE application authority, never other tenants or infrastructure.
 export const ROLE_PERMISSIONS = Object.freeze({
-  platform_admin: Object.freeze(["system.read", "security.read", "staff.stage", "staff.revoke", "maintenance.revoke_sessions", "support.request"]),
-  owner: Object.freeze(["content.read", "content.write", "content.publish", "media.read", "media.write", "enquiries.read", "enquiries.write", "staff.manage", "support.approve", "templates.manage"]),
+  platform_admin: Object.freeze(["system.read", "security.read", "staff.stage", "staff.revoke", "staff.roles.manage", "audit.business.read", "maintenance.revoke_sessions", "support.request", "content.read", "content.write", "content.publish", "media.read", "media.write", "enquiries.read", "enquiries.write", "staff.manage", "templates.manage"]),
+  owner: Object.freeze(["content.read", "content.write", "content.publish", "media.read", "media.write", "enquiries.read", "enquiries.write", "staff.manage", "audit.business.read", "support.approve", "templates.manage"]),
   editor: Object.freeze(["content.read", "content.write", "media.read", "media.write", "enquiries.read", "enquiries.write"]),
 });
 

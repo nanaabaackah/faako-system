@@ -1,0 +1,290 @@
+// Test-only synthetic fixtures. Never imported by application code or builds.
+import { defaultTemplateCopies, renderEmailTemplate } from "../../../travel-with-ease-api/src/notifications/template-catalogue.js";
+import { ROLE_PERMISSIONS } from "../../../travel-with-ease-api/src/auth/permissions.js";
+export function createWorkspaceFixture({role='owner', interactivePreview=false}={}) {
+  if(!Object.hasOwn(ROLE_PERMISSIONS,role))role='owner';
+  const templates = new Map(Object.entries(defaultTemplateCopies).map(([slug, defaults]) => [slug, { version: 0, draft: { ...defaults }, active: { ...defaults }, active_version: null }]));
+  const session = {
+    user: { id: "demo-owner", organisationId: "synthetic-workspace", role, permissions: [...ROLE_PERMISSIONS[role]] },
+    csrfToken: "synthetic-not-a-credential",
+  };
+  const timestamp = "2026-10-27T09:00:00.000Z";
+  const enquiries = [
+    {
+      id: "10000000-0000-4000-8000-000000000001",
+      kind: "personalised",
+      status: "new",
+      version: 1,
+      contact: {
+        name: "Demo Traveller",
+        email: "traveller@example.invalid",
+        phone: "",
+      },
+      details: {
+        destination: "Example destination",
+        notes: "Synthetic enquiry for interface testing only.",
+      },
+      created_at: timestamp,
+    },
+    {
+      id: "10000000-0000-4000-8000-000000000002",
+      kind: "package",
+      status: "contacted",
+      version: 1,
+      contact: {
+        name: "Sample Guest",
+        email: "guest@example.invalid",
+        phone: "",
+      },
+      details: { package: "Example package — not an actual offer" },
+      created_at: timestamp,
+    },
+  ];
+  const pages = new Map();
+  const history = new Map();
+  const demoMedia = [];
+  const staff=[{id:'demo-editor',role:'editor',active:true},{id:'demo-owner',role,active:true}];
+  const events=[{id:'demo-event-1',action:'content.saved',actor_id:'demo-owner',record_id:'demo-home',request_id:'synthetic-request',created_at:timestamp}];
+  let signedIn = true;
+  const fail = (status, message) => {
+    throw Object.assign(new Error(message), { status });
+  };
+  const copy = (value) => structuredClone(value);
+  const pageBody = (page) => ({
+    heading: `Demo ${page}`,
+    body: "Synthetic draft. Changes stay in this browser tab and disappear on reload.",
+    ctaLabel: "",
+    ctaPath: "/#plan",
+    seoTitle: `Demo ${page}`,
+    seoDescription: "Local demonstration only.",
+    imageId: null,
+    entries: page==='services'?[{id:'30000000-0000-4000-8000-000000000009',heading:'Sample service',text:'Synthetic service for image editing practice.',attribution:''}]:[],
+    contactEmail: "",
+    contactPhone: "",
+    articles:
+      page === "journal"
+        ? [
+            {
+              slug: "sample-travel-guide",
+              title: "Sample travel guide",
+              excerpt: "Synthetic editorial for the demo workspace.",
+              body: "Prepare your dates, destination ideas and budget before making an enquiry. This is demonstration content, not a published TWE article.",
+              date: "2026-10-30",
+            },
+          ]
+        : [],
+    tips: page === "travel-tips" ? [{
+      slug: "demo-preparation-checklist",
+      title: "Demo preparation checklist",
+      excerpt: "Synthetic advice for exploring the editor, not approved travel guidance.",
+      body: "Use this sample to try editing, image selection and draft preview. Changes stay in this tab; nothing is published.",
+      category: "Before You Go", featured: true, order: 0, imageId: null, relatedArticle: "sample-travel-guide",
+    }] : [],
+    packages: page === "packages" ? [{
+      id: "30000000-0000-4000-8000-000000000001", slug: "sample-journey", title: "Sample journey", destination: "Example destination", overview: "Synthetic package for editing practice. Not a real offer.", availability: "enquiry", category: "", duration: "", dates: "", priceFrom: "", priceDisclosure: "", imageId: null, galleryImageIds: [], highlights: [], inclusions: [], exclusions: [], transport: "", accommodation: "", important: "", itinerary: [], relatedArticles: [], relatedPackageSlugs: [],
+    }] : [],
+    footprint:
+      page === "travel-footprint"
+        ? [
+            { countryCode: "KE", total: 12, status: "verified" },
+            { countryCode: "TZ", total: 4, status: "verified" },
+            { countryCode: "GH", total: 2, status: "verified" },
+          ]
+        : [],
+  });
+  return {
+    async get(path) {
+      const url = new URL(path, "http://demo.invalid");
+      if (url.pathname === "/api/auth/status")
+        return { configured: true, mode: "cloudflare_access" };
+      if (url.pathname === "/api/auth/activation") return { status: "active" };
+      if (url.pathname === "/api/auth/tutorials") return { progress: { status: "completed", enabled: false, completed: [], revision: 1 }, catalogue: [], version: 1 };
+      if (url.pathname === "/api/auth/session")
+        return signedIn
+          ? copy(session)
+          : fail(401, "Demo signed out. Reload to start again.");
+      if (!signedIn) return fail(401, "Demo signed out.");
+      if (url.pathname === "/api/agent/inquiries") {
+        const items = enquiries.filter(
+          (item) =>
+            (!url.searchParams.get("status") ||
+              item.status === url.searchParams.get("status")) &&
+            (!url.searchParams.get("kind") ||
+              item.kind === url.searchParams.get("kind")),
+        );
+        return copy({ items, nextOffset: null });
+      }
+      if (url.pathname.startsWith("/api/agent/inquiries/"))
+        return (
+          copy(
+            enquiries.find(
+              (item) => item.id === url.pathname.split("/").at(-1),
+            ),
+          ) || fail(404, "Demo enquiry not found.")
+        );
+      if (/^\/api\/agent\/templates(?:\/[^/]+)?$/.test(url.pathname)) {
+        const slug = url.pathname.split("/")[4] || "enquiry-acknowledgement";
+        if (!templates.has(slug)) return fail(400, "Unknown email template.");
+        return copy(templates.get(slug));
+      }
+      if (url.pathname === "/api/agent/media")
+        return copy({
+          items: demoMedia,
+          configured: false,
+          driveConfigured: true,
+        });
+      if (url.pathname === "/api/agent/media/drive")
+        return copy({
+          configured: true,
+          nextPageToken: "",
+          items: [
+            {
+              id: "synthetic_drive_photo",
+              name: "Demo photo — no Drive connection",
+              mimeType: "image/webp",
+              size: 1024,
+              version: "1",
+              importedId: demoMedia[0]?.id || null,
+              archived: false,
+            },
+          ],
+        });
+      if (url.pathname === "/api/agent/administration/staff")
+        return copy({items:staff});
+      if(url.pathname==='/api/auth/invitations')return {items:[]};
+      if(url.pathname==='/api/agent/administration/staff-events')return {items:[]};
+      if(['/api/agent/administration/activity','/api/agent/administration/security-activity'].includes(url.pathname))
+        return copy({items:events.filter(event=>!url.searchParams.get('category')||url.searchParams.get('category')==='all'||event.action.startsWith(url.searchParams.get('category')+'.')),nextCursor:null});
+      if(url.pathname==='/api/agent/administration/diagnostics')return {environment:'local demo',database:'Simulated — no database connection',authentication:'Synthetic session',hostedAcceptance:'Not evaluated in demo',publication:[],notifications:[]};
+      if (url.pathname === "/api/agent/content/publication-jobs")
+        return { items: [] };
+      if (url.pathname === "/api/agent/content")
+        return {
+          items: ["home", "about", "services"].map((slug) => ({
+            id: slug,
+            slug,
+            version: pages.get(slug)?.version || 1,
+            draft_revision_id: `demo-${slug}-draft`,
+            published_revision_id: null,
+          })),
+        };
+      const match = url.pathname.match(
+        /^\/api\/agent\/content\/([a-z]+(?:-[a-z]+)*)(?:\/(preview|revisions))?$/,
+      );
+      if (match) {
+        const page = match[1];
+        if (!pages.has(page))
+          pages.set(page, { version: 1, body: pageBody(page) });
+        return copy(
+          match[2] === "revisions"
+            ? { items: history.get(page) || [] }
+            : pages.get(page),
+        );
+      }
+      return fail(404, "This operation is not part of the local demo.");
+    },
+    async post(path, { json } = {}) {
+      // Rendering is separately tested against real Astro private previews.
+      if (path.endsWith("/visual-preview")) return null;
+      if (path === "/api/auth/logout" || path === "/api/auth/logout-all") {
+        signedIn = false;
+        return { signedOut: true };
+      }
+      if (!signedIn) return fail(401, "Demo signed out.");
+      const restoration = path.match(/^\/api\/agent\/content\/([a-z]+(?:-[a-z]+)*)\/revert\/([^/]+)$/);
+      if (interactivePreview && restoration) {
+        const page = restoration[1], current = pages.get(page);
+        const revision = history.get(page)?.find(item => item.id === restoration[2]);
+        if (!revision?.body) return fail(404, "Synthetic revision not found.");
+        if (current?.version !== json.expectedVersion) return fail(409, "Synthetic draft changed. Refresh.");
+        const restored = { version: current.version + 1, body: copy(revision.body) };
+        const id = `demo-revision-${restored.version}`;
+        pages.set(page, restored);
+        history.set(page, [{ id, version: restored.version, body: copy(restored.body), created_at: new Date().toISOString() }, ...history.get(page)]);
+        return copy({ ...restored, revisionId: id });
+      }
+      const staffAction=path.match(/^\/api\/agent\/administration\/staff\/([^/]+)\/(role|status|revoke-sessions)$/);
+      if(staffAction){
+        const target=staff.find(user=>user.id===staffAction[1]);
+        if(!target)return fail(404,'Demo account not found.');
+        if(staffAction[2]==='role'){
+          if(role!=='platform_admin'||!['owner','editor'].includes(json.role))return fail(403,'Role management requires Superadmin.');
+          if(target.role!==json.expectedRole)return fail(409,'Refresh the changed demo role.');
+          const previous=target.role;target.role=json.role;
+          events.unshift({id:`demo-event-${events.length+1}`,action:'staff.role_changed',actor_id:'demo-owner',record_id:target.id,previous_role:previous,next_role:target.role,approval_reference:json.approvalReference,created_at:new Date().toISOString()});
+        }else if(staffAction[2]==='status')target.active=json.active;
+        return copy(target);
+      }
+      const templateAction = path.match(/^\/api\/agent\/templates\/(?:(enquiry-acknowledgement|staff-invitation)\/)?(preview|draft|activate)$/);
+      if (templateAction) {
+        const slug = templateAction[1] || "enquiry-acknowledgement";
+        let template = templates.get(slug);
+        if (templateAction[2] === "preview") return { ...renderEmailTemplate(slug, json), preview: true, demo: true };
+        if (json.expectedVersion !== template.version) return fail(409, "Reload the changed demo template.");
+        const activate = path.endsWith("/activate");
+        template = { ...template, ...(activate ? { active: copy(template.draft), active_version: template.version } : { draft: copy(json.copy) }), version: template.version + 1 };
+        templates.set(slug, template);
+        return copy(template);
+      }
+      if (path === "/api/agent/media/drive/import") {
+        if (
+          json?.fileId !== "synthetic_drive_photo" ||
+          json?.version !== "1" ||
+          !json?.alt?.trim()
+        )
+          return fail(
+            400,
+            "Choose the synthetic image and complete its alt text.",
+          );
+        const unchanged = demoMedia.length > 0;
+        if (!unchanged)
+          demoMedia.push({
+            id: "20000000-0000-4000-8000-000000000001",
+            alt_text: json.alt,
+            rights: "TWE-owned photography; approved Drive folder.",
+            width: 1280,
+            height: 720,
+            byte_size: 1024,
+            created_at: timestamp,
+          });
+        return { id: demoMedia[0].id, unchanged, demo: true };
+      }
+      const enquiry = path.match(/^\/api\/agent\/inquiries\/([^/]+)\/status$/);
+      if (enquiry) {
+        const item = enquiries.find((value) => value.id === enquiry[1]);
+        if (!item || item.version !== json.expectedVersion)
+          return fail(409, "Demo enquiry changed. Refresh.");
+        if (!["new", "contacted", "closed"].includes(json.status))
+          return fail(400, "Invalid demo status.");
+        item.status = json.status;
+        item.version++;
+        return copy(item);
+      }
+      const draft = path.match(
+        /^\/api\/agent\/content\/([a-z]+(?:-[a-z]+)*)\/draft$/,
+      );
+      if (draft) {
+        const page = draft[1],
+          current = pages.get(page);
+        if (current?.version !== json.expectedVersion)
+          return fail(409, "Demo draft changed. Refresh.");
+        const item = { version: current.version + 1, body: copy(json.body) };
+        pages.set(page, item);
+        history.set(page, [
+          {
+            id: `demo-revision-${item.version}`,
+            version: item.version,
+            ...(interactivePreview ? { body: copy(item.body) } : {}),
+            created_at: timestamp,
+          },
+          ...(history.get(page) || []),
+        ]);
+        return copy(item);
+      }
+      return fail(
+        503,
+        "Demo only: publishing, uploads, staff provisioning and history restoration require the authenticated backend. No action was performed.",
+      );
+    },
+  };
+}

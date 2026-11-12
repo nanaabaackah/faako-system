@@ -1,0 +1,63 @@
+---
+import ContentLink from "./ContentLink.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
+import PackageTicketCard from "./PackageTicketCard.jsx";
+import { packageStartingPrice } from "../lib/package-pricing.js";
+import type { TravelPackage } from "../lib/collections";
+import "../styles/components/home-features.css";
+import "../styles/components/package-experience.css";
+
+interface Props {
+  items: TravelPackage[];
+}
+const { items } = Astro.props;
+const approvedOrder = ["zanzibar", "nairobi"];
+const featured = items
+  .filter((item) => approvedOrder.includes(item.slug))
+  .sort((a, b) => approvedOrder.indexOf(a.slug) - approvedOrder.indexOf(b.slug))
+  .slice(0, 2);
+---
+
+{featured.length > 0 && (
+  <section id="featured-journeys" class="featured-journeys" aria-labelledby="featured-journeys-heading">
+    <div class="editorial-wrap">
+      <div class="home-section-heading">
+        <div>
+          <h2 id="featured-journeys-heading">Discover Journeys worth exploring.</h2>
+          <p>Start with a destination that speaks to you. We'll help shape the details around your dates.</p>
+        </div>
+        <ContentLink href="/packages">Explore all packages</ContentLink>
+      </div>
+      <div class="featured-journeys__grid">
+        {featured.map((item, index) => {
+          const placement = item.imagePlacement;
+          const photo = placement?.image || item.image;
+          const mobile = placement?.mobileImage;
+          return (
+            <article class="featured-journeys__card">
+              <PackageTicketCard
+                title={item.title}
+                duration={item.duration}
+                price={packageStartingPrice(item)}
+                priceNote={item.pricingStatus === "indicative" ? "per person sharing" : undefined}
+                tagline={item.tagline || item.destination}
+                overview={item.overview}
+                href={`/packages/${item.slug}`}
+                imageSrc={photo?.src}
+                imageSrcSet={photo?.sources?.map(source => `${source.src} ${source.width}w`).join(", ")}
+                imageSizes="(max-width: 760px) 90vw, 46vw"
+                mobileImageSrcSet={mobile?.sources?.map(source => `${source.src} ${source.width}w`).join(", ") || mobile?.src}
+                imagePosition={`${placement?.focalX ?? 50}% ${placement?.focalY ?? 50}%`}
+                mobileImagePosition={`${placement?.mobileFocalX ?? placement?.focalX ?? 50}% ${placement?.mobileFocalY ?? placement?.focalY ?? 50}%`}
+                headingLevel="h3"
+                index={index}
+                client:load
+              />
+            </article>
+          );
+        })}
+      </div>
+      <CurrencyAttribution />
+    </div>
+  </section>
+)}

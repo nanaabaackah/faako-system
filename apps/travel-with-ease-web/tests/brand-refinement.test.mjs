@@ -3,30 +3,48 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("requested fonts are self-hosted licensed WOFF2 assets with a case-preserving signature", () => {
-  for (const font of ["bonheur-royale-latin-400", "montserrat-latin-800"])
-    assert.equal(readFileSync(new URL(`../public/fonts/${font}.woff2`, import.meta.url)).subarray(0, 4).toString(), "wOF2");
-  for (const licence of ["Bonheur-Royale-OFL", "Montserrat-OFL"])
-    assert.match(read(`../public/fonts/${licence}.txt`), /SIL OPEN FONT LICENSE/);
+test("public typography uses licensed Google Fonts with scoped hero and journal handwriting", () => {
   const typography = read("../src/styles/typography.css");
-  assert.match(typography, /font-weight: 800/);
-  assert.match(typography, /font-display: swap/);
-  assert.doesNotMatch(typography, /https:\/\/fonts\./);
+  assert.match(typography, /--font-display: "Poiret One"/);
+  assert.match(typography, /--font-body: "Quicksand"/);
+  assert.match(typography, /--font-impact: "Inter"/);
+  assert.match(typography, /--font-signature: "Sassy Frass"/);
+  assert.match(typography, /--font-journal: "Caveat"/);
+  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-family: var\(--font-display\) !important;[\s\S]*?font-weight: 400 !important/);
+  assert.match(typography, /-webkit-text-stroke: 0\.03em currentColor/);
+  assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{[\s\S]*?-webkit-text-stroke: 0/);
+  assert.match(typography, /body \.cinematic-hero \.hero-signature \{/);
+  assert.match(typography, /body \.journal-collection-grid \.journal-card h2 \{/);
+  assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{/);
+  assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\)/);
+  assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\) \{[\s\S]*?font-family: var\(--font-journal\)/);
+  assert.match(typography, /font-size: clamp\(2\.65rem, 13vw, 15rem\)/);
+  assert.match(typography, /font-size: clamp\(4\.25rem, 19vw, 6\.25rem\)/);
+  const layout = read("../src/layouts/BaseLayout.astro");
+  for (const family of ["Caveat", "Inter", "Poiret+One", "Quicksand", "Sassy+Frass"])
+    assert.ok(layout.includes(`family=${family}`) || layout.includes(`&family=${family}`));
+  assert.match(layout, /display=swap/);
+  assert.doesNotMatch(layout, /DM\+Sans|Instrument\+Serif/);
+  assert.doesNotMatch(layout, /Montserrat|Italiana/);
+  assert.match(layout, /family=Poiret\+One/);
+  assert.doesNotMatch(typography, /Montserrat/);
+  const headers = read("../public/_headers");
+  assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
+  assert.match(headers, /font-src[^\n]*https:\/\/fonts.gstatic.com/);
   assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*A Little More You/);
+  assert.match(read("../src/styles/components/cinematic-hero.css"), /\.cinematic-hero__copy \{\s*width: 100%;/);
+  assert.match(typography, /body \.cinematic-hero h1 \{\s*width: 100%;\s*max-width: none;/);
+  assert.match(typography, /body \.cinematic-hero \.hero-signature \{[\s\S]*?width: 100%;[\s\S]*?white-space: normal;[\s\S]*?text-wrap: balance;/);
 });
 
-test("full-card links preserve native activation, motion fallback and pre-hydration intent", () => {
-  const demo = read("../src/components/DemoWebsite.astro");
-  assert.match(demo, /class="journey-card__link"/);
-  assert.match(demo, /href="#demo-enquiry-form"/);
-  assert.match(demo, /demoEnquiryDestination/);
-  const css = read("../src/styles/components/demo-website.css");
-  assert.match(css, /journey-card__link::after/);
-  assert.match(css, /prefers-reduced-motion: reduce/);
-  assert.doesNotMatch(demo, /DemoEmailPreview/);
+test("About attribution italic styling is scoped to the story page", () => {
+  const component = read("../src/components/PublishedContent.astro");
+  const css = read("../src/styles/components/published-content.css");
+  assert.match(component, /story \? "published-content__attribution" : undefined/);
+  assert.match(css, /\.published-content--story \.published-content__attribution \{\s*font-style: italic;/);
 });
 
-test("privacy preferences use native modal semantics, Escape support and distinct demo storage", () => {
+test("privacy preferences use native modal semantics, Escape support and a single consent preference", () => {
   const notice = read("../src/components/CookieNotice.astro");
   assert.match(notice, /<dialog/);
   assert.match(notice, /aria-labelledby="cookie-preferences-title"/);
@@ -34,6 +52,65 @@ test("privacy preferences use native modal semantics, Escape support and distinc
   assert.match(notice, /if \(!savedChoice\(\)\) show\(\)/);
   assert.doesNotMatch(notice, /<aside/);
   assert.match(notice, /Close without saving/);
-  assert.match(notice, /twe-demo-cookie-consent-v1/);
+  assert.match(notice, /twe-cookie-consent-v1/);
+  assert.doesNotMatch(notice, /twe-demo-cookie/);
   assert.doesNotMatch(read("../src/components/PublicFooter.astro"), /<TravelFootprint/);
+});
+
+test("public mobile menu uses an accessible icon and a borderless vertical layout", () => {
+  const layout = read("../src/layouts/BaseLayout.astro");
+  const nav = read("../src/styles/components/scroll-navigation.css");
+  assert.match(layout, /class="menu-toggle"[\s\S]*?aria-label="Menu"/);
+  assert.match(layout, /class="menu-toggle__open"[\s\S]*?aria-hidden="true"/);
+  assert.match(layout, /class="menu-toggle__close"[\s\S]*?aria-hidden="true"/);
+  assert.match(nav, /@media \(max-width: 900px\)/);
+  assert.match(nav, /flex-direction: column/);
+  assert.match(nav, /border: 0/);
+  assert.match(layout, /aria-expanded="false"/);
+  assert.match(layout, /if \(event.key === "Escape" && mobile.matches\)/);
+});
+
+test("scrolled header uses the approved dark-mode symbol on brand navy", () => {
+  const layout = read("../src/layouts/BaseLayout.astro");
+  const nav = read("../src/styles/components/scroll-navigation.css");
+  assert.match(layout, /src="\/brand\/Primary gold\.png"/);
+  assert.match(layout, /src="\/brand\/dark mode symbol\.png"/);
+  assert.match(nav, /\.site-header\.is-scrolled[\s\S]*?background: var\(--brand-navy\)/);
+  assert.match(nav, /\.brand__symbol--scrolled[\s\S]*?object-fit: contain/);
+  assert.match(nav, /\.site-header:not\(\.is-scrolled\) \.brand__wordmark--gold/);
+});
+
+test("brand color hierarchy and stacked hero actions preserve contrast", () => {
+  const typography = read("../src/styles/typography.css");
+  const hero = read("../src/styles/components/cinematic-hero.css");
+  for (const token of ["--twe-heading-color", "--twe-copy-color", "--twe-label-color"])
+    assert.ok(typography.includes(token));
+  assert.match(typography, /body main \.cinematic-hero h1 \.hero-signature/);
+  assert.match(typography, /body main \.journal-card \.journal-card__metadata/);
+  assert.match(typography, /body main \.cinematic-enquiry__card p/);
+  assert.match(typography, /body main :is\(\.featured-journeys, \.package-catalogue\) \.twe-package-ticket \.twe-ticket--front :is/);
+  assert.match(typography, /\.twe-ticket__duration, \.twe-ticket__fee/);
+  // Do not reintroduce high-specificity :not() exclusions: they override
+  // the inverse cream/gold palette of cards nested in editorial wrappers.
+  assert.match(typography, /:where\(p, li\):not\(:where\(\.eyebrow, \.journal-card__metadata\)\)/);
+  assert.doesNotMatch(typography, /:is\(p, li\):not\(\.eyebrow\):not\(\.journal-card__metadata\)/);
+  assert.match(hero, /@media \(max-width: 600px\)[\s\S]*?flex-direction: column/);
+  assert.match(hero, /\.cinematic-hero__actions \.twe-content-link:not\(\.button\)/);
+});
+
+test("mobile menu matches approved full-screen reference without hiding important pages", () => {
+  const layout = read("../src/layouts/BaseLayout.astro");
+  const css = read("../src/styles/components/scroll-navigation.css");
+  const hero = read("../src/styles/typography.css");
+  assert.doesNotMatch(layout, /\["\/", "Home"\]/);
+  assert.doesNotMatch(layout, /\["\/contact", "Contact"\]/);
+  assert.match(layout, /\["\/journal", "Journal"\]/);
+  assert.match(css, /nav\[data-collapsed="true"\] \{\s*display: none/);
+  assert.match(css, /position: fixed;[\s\S]*?height: 100dvh/);
+  assert.match(css, /border-bottom: 1px solid rgb\(244 237 227 \/ 18%\)/);
+  assert.match(css, /\.nav-cta \{[\s\S]*?background: var\(--brand-gold\)/);
+  assert.match(hero, /--font-impact: "Inter"/);
+  assert.match(hero, /font-size: clamp\(2\.65rem, 13vw, 15rem\)/);
+  assert.match(hero, /body \.site-header-shell \.site-header nav a \{[\s\S]*?font-weight: 800/);
+  assert.match(layout, /twe-mobile-menu-open/);
 });

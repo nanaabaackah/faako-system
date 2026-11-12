@@ -299,7 +299,7 @@ test("Drive routes enforce media permissions, CSRF, input validation and platfor
     role = current;
     assert.equal(
       (await fetch(origin + "/drive")).status,
-      current === "platform_admin" ? 403 : 200,
+      200,
     );
   }
   const body = JSON.stringify({
@@ -315,7 +315,7 @@ test("Drive routes enforce media permissions, CSRF, input validation and platfor
   assert.equal(
     (await fetch(origin + "/drive/import", { method: "POST", headers, body }))
       .status,
-    403,
+    201,
   );
   role = "owner";
   assert.equal(
@@ -343,5 +343,5 @@ test("Drive routes enforce media permissions, CSRF, input validation and platfor
       .status,
     201,
   );
-  assert.equal(imports, 1);
+  assert.equal(imports, 2);
 });

@@ -1,0 +1,28 @@
+.image-placements {
+  display: grid;
+  gap: 16px;
+}
+.image-placement-focus {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.image-placement-preview {
+  background: #f4ede3;
+  border: 1px solid #ddd7cd;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 100px;
+}
+.image-placement-preview img {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+@media (max-width: 600px) {
+  .image-placement-focus {
+    grid-template-columns: 1fr;
+  }
+}

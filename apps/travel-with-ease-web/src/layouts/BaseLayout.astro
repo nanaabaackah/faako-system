@@ -2,7 +2,10 @@
 import "../styles/global.css";
 import "../styles/editorial.css";
 import "../styles/typography.css";
-import PublicFooter from "../components/PublicFooter.astro";
+import "../styles/components/public-controls.css";
+import "../styles/components/scroll-navigation.css";
+import "../styles/components/content-surfaces.css";
+import CinematicEnquiry from "../components/CinematicEnquiry.astro";
 import ContentLink from "../components/ContentLink.astro";
 import EditorialMotion from "../components/EditorialMotion.astro";
 import { canonicalUrl, serializeJsonLd } from "@faako/discovery";
@@ -10,7 +13,7 @@ import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import CookieNotice from "../components/CookieNotice.astro";
 import FloatingActions from "../components/FloatingActions.astro";
 import { sharingMetadata } from "../lib/sharing.js";
-import { publishedPage, publicationSnapshotPath } from "../lib/published.js";
+import { publishedPage } from "../lib/published.js";
 
 const {
   title,
@@ -19,17 +22,10 @@ const {
   type = "website",
   noIndex = false,
 } = Astro.props;
-const demo =
-  Astro.props.demo === true &&
-  (import.meta.env.DEV ||
-    (import.meta.env.PUBLIC_APP_ENV === "staging" &&
-      import.meta.env.PUBLIC_STAGING_DEMO_ENABLED === "true"));
 const cinematic = Astro.props.cinematic === true;
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
-const pageContent = demo
-  ? undefined
-  : publishedPage(path.replace(/^\/|\/$/g, "") || "home");
+const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
 const sharing = sharingMetadata({
   site: site.href,
   image:
@@ -83,8 +79,6 @@ const breadcrumbJson = breadcrumbs.length
   : null;
 const googleSiteVerification =
   import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION || "";
-const review = !publicationSnapshotPath();
-const stagingReview = import.meta.env.PUBLIC_APP_ENV === "staging";
 // Public source identifier only; never emit arbitrary environment values.
 const releaseSha = [
   process.env.CF_PAGES_COMMIT_SHA,
@@ -92,27 +86,16 @@ const releaseSha = [
   process.env.TWE_RELEASE_SHA,
 ].find((value) => typeof value === "string" && /^[a-f0-9]{40}$/i.test(value));
 const visible = (href: string) =>
-  demo ||
-  review ||
+  href === "/journal" ||
   (cinematic && href.startsWith("#")) ||
-  Boolean(publishedPage(href.slice(1)));
-const navigation = demo
-  ? [
-      ["#demo-packages", "Destinations"],
-      ["#demo-process", "How it works"],
-      ["#demo-journal", "Journal"],
-      ["#demo-footprint", "Travel footprint"],
-    ]
-  : [
-      ["/destinations", "Destinations"],
-      ["/services", "Services"],
-      ["/about", "About"],
-      ["/journal", "Journal"],
-      ["/travel-footprint", "Travel footprint"],
-    ];
-if (cinematic && !demo) {
-  navigation.splice(4, 1, ["#our-world", "Our world"]);
-}
+  Boolean(publishedPage(href === "/" ? "home" : href.slice(1)));
+const navigation = [
+  ["/packages", "Packages"],
+  ["/services", "Services"],
+  ["/how-it-works", "How It Works"],
+  ["/journal", "Journal"],
+  ["/about", "About"],
+];
 ---
 
 <!doctype html>
@@ -123,6 +106,9 @@ if (cinematic && !demo) {
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@700;800&family=Poiret+One&family=Quicksand:wght@400;500;600;700&family=Sassy+Frass&display=swap" />
     <meta name="theme-color" content="#010c33" />
     {releaseSha && <meta name="twe-release" content={releaseSha} />}
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
@@ -173,16 +159,25 @@ if (cinematic && !demo) {
   </head>
   <body id="top" class:list={{ "cinematic-page": cinematic }}>
     <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="site-header-shell">
     <header class="site-header">
       <a
         class="brand"
-        href={demo ? "/demo" : "/"}
+        href="/"
         aria-label="Travel With Ease home"
         ><img
+          class="brand__wordmark brand__wordmark--gold"
           src="/brand/Primary gold.png"
-          width="640"
-          height="248"
+          width="600"
+          height="200"
           alt="Travel With Ease"
+        /><img
+          class="brand__symbol brand__symbol--scrolled"
+          src="/brand/dark mode symbol.png"
+          width="200"
+          height="200"
+          alt=""
+          aria-hidden="true"
         /></a
       >
       <button
@@ -190,7 +185,21 @@ if (cinematic && !demo) {
         class="menu-toggle"
         hidden
         aria-expanded="false"
-        aria-controls="primary-navigation">Menu</button
+        aria-controls="primary-navigation"
+        aria-label="Menu">
+        <svg class="menu-toggle__open" aria-hidden="true" focusable="false"
+          xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg class="menu-toggle__close" aria-hidden="true" focusable="false"
+          xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round">
+          <path d="M5 5l14 14M19 5L5 19" />
+        </svg>
+      </button
       >
       <nav id="primary-navigation" aria-label="Primary navigation">
         <div class="header-links">
@@ -201,7 +210,7 @@ if (cinematic && !demo) {
                 <a
                   href={href}
                   aria-current={
-                    Astro.url.pathname.replace(/\/$/, "") === href
+                    (Astro.url.pathname.replace(/\/$/, "") || "/") === href
                       ? "page"
                       : undefined
                   }
@@ -212,51 +221,47 @@ if (cinematic && !demo) {
           }
         </div>
         {
-          (cinematic || visible("/contact")) && (
+          (
             <ContentLink
               button
               class="nav-cta"
-              href={demo ? "#demo-plan" : cinematic ? "#plan" : "/contact"}
+              href="#plan"
             >
-              Plan a trip
+              Plan My Trip
             </ContentLink>
           )
         }
       </nav>
     </header>
-    {
-      demo ? (
-        <p class="review-banner">
-          Website demo · sample packages are not available to book.{" "}
-          {import.meta.env.PUBLIC_APP_ENV === "staging"
-            ? "Enquiries are saved to the staging test inbox only."
-            : "Local preview: enquiries are not submitted."}{" "}
-          <a href="/">Exit demo</a>
-        </p>
-      ) : stagingReview ? (
-        <p class="review-banner">
-          Staging design preview · placeholder sections are not live packages,
-          bookings or enquiries.
-        </p>
-      ) : (
-        review && (
-          <p class="review-banner">
-            Design preview · placeholder content · enquiries and offers are not
-            live.
-          </p>
-        )
-      )
-    }
+    </div>
     <main id="main-content"><slot /></main>
     <slot name="closing" />
-    {!cinematic && <PublicFooter demo={demo} />}
+    {!Astro.slots.has("closing") && (
+      <CinematicEnquiry enquiryAvailable={Boolean(publishedPage("contact"))} />
+    )}
     <FloatingActions />
     <EditorialMotion />
-    <CookieNotice demo={demo} />
-    {!demo && <AnalyticsConsent />}
+    <CookieNotice />
+    <AnalyticsConsent />
   </body>
 </html>
 <script>
+  const header = document.querySelector<HTMLElement>(".site-header");
+  if (header) {
+    let scheduled = false;
+    const updateHeader = () => {
+      header.classList.toggle("is-scrolled", window.scrollY > 40);
+      scheduled = false;
+    };
+    updateHeader();
+    window.addEventListener("scroll", () => {
+      if (!scheduled) {
+        scheduled = true;
+        requestAnimationFrame(updateHeader);
+      }
+    }, { passive: true });
+    window.addEventListener("pageshow", updateHeader);
+  }
   const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle");
   const nav = document.querySelector<HTMLElement>("#primary-navigation");
   if (toggle && nav) {
@@ -264,6 +269,7 @@ if (cinematic && !demo) {
     const setOpen = (open: boolean) => {
       toggle.setAttribute("aria-expanded", String(open));
       nav.dataset.collapsed = String(!open && mobile.matches);
+      document.body.classList.toggle("twe-mobile-menu-open", open && mobile.matches);
     };
     toggle.hidden = false;
     setOpen(false);

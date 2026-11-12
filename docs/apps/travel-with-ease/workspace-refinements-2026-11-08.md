@@ -1,0 +1,219 @@
+# TWE workspace preview, structure and delivery — 8 November 2026
+
+## Source layout and approved boundaries
+
+The staff portal is React/Vite, not Astro. Its application entrypoints remain
+`src/App.jsx` and `src/main.jsx`; feature UI lives in `src/components/`,
+CSS in `src/styles/` and state/transport helpers in `src/lib/`.
+The public website retains Astro routes, components and external styles.
+TWE-owned CSS was mechanically formatted without reordering declarations or
+changing selector specificity; functional design changes are a separate commit.
+Historical file inventories retain their original paths and are not current maps.
+
+No provider, real session model, permission matrix, migration or tenant boundary
+has been replaced. No new dependencies. The developer remains an Owner until
+the reviewed real staging handover is actually executed.
+
+## See the portal locally
+
+From the regular repository root:
+
+```sh
+pnpm run dev:twe
+```
+
+Open the portal at http://127.0.0.1:5188 and the approved public website at
+http://127.0.0.1:4328. The isolated fixture API listens only on 127.0.0.1:3090.
+One command starts all three processes; do not start a second workspace stack.
+`dev:twe:workspace` remains a compatible alias. Stop any existing public/API
+stack first because both modes use the same ports. The launcher stops its owned
+child process groups on exit.
+
+The preview opens as Owner without Google or Cloudflare login. The persistent
+**Local workspace preview** toolbar offers Owner, Editor and Superadmin,
+plus Reset preview. Changing role resets the synthetic workspace after
+confirmation. Reloading retains in-memory edits until reset/server restart.
+This is not the old `/demo` route or `?demo=1` flag.
+
+Actual portal components and the shared API client talk to a loopback-only
+development server reusing test fixtures. It supports draft editing/autosave,
+saved-content previews, revision restoration, synthetic enquiry changes, media
+practice and tutorial progress. Owner/Editor/Superadmin permissions are filtered
+and checked at this isolated HTTP boundary. Unsupported operations fail visibly;
+publishing and real staff invitations never report completion.
+
+The website displays approved content, not these synthetic CMS drafts. This
+preview does not synchronise draft changes into the public site. Use the
+authenticated real Astro preview for that acceptance.
+
+No database, real Drive/R2 connection, mail transport or publishing provider
+exists in this fixture process. Local preview rejects hosted environments,
+deployment-provider markers, database URLs and Resend credentials. The launcher
+forwards only a small environment allowlist, never hosted .env files. Foreign
+Host/Origin, forwarded hosting headers and cross-site requests are rejected;
+mutations require JSON and explicit local-only headers. Fixture code stays
+outside application source, and hosted bundles exclude it and the controls.
+
+`pnpm run dev:twe:public` retains the credential-isolated public/API development mode;
+it does not enable staff login. Use staging for real MFA, activation and
+persistence acceptance. Never enter actual customer data in the fixture workspace.
+
+## Mobile navigation update — 9 November 2026
+
+The mobile shortcut bar is now a floating dark pill with one white active
+capsule. Its order is Home (the existing overview section), Enquiries, Content,
+Media and Account (settings). Only permitted entries are rendered; inactive
+entries retain accessible names without visible labels. Side-menu-only sections
+do not falsely activate Home. The desktop sidebar and role-filtered Menu drawer
+remain available. Unsaved-change rejection preserves the current section and
+edits. Bottom-tab selection retains focus; drawer navigation restores Menu focus.
+
+The scoped browser check is
+`node apps/travel-with-ease-portal/scripts/check-mobile-navigation-browser.mjs`
+against the isolated portal at 127.0.0.1:5197 (or `TWE_TEST_PORTAL_ORIGIN`).
+It covers Owner, Editor and Superadmin at 320, 375, 390, 428, 768 and 1024px,
+plus restricted permissions and signed-out sessions. Chromium checks passed
+locally; native Safari/Android device acceptance is not implied.
+
+## Enquiry email diagnosis and Railway worker
+
+Repository evidence: PostgreSQL enquiry creation queues an outbox record
+transactionally. The API does not drain it. The existing `notifications:once`
+process claims at most one job and exits. A Resend key does not schedule it.
+This explains a possible queued-but-unsent path; it does not prove the cause
+of the reported staging submission without inspecting its outbox/provider evidence.
+
+The new `notifications:worker` command validates its environment/database,
+then processes one leased job at a time. It waits 600ms between attempted
+deliveries and five seconds when idle. SIGTERM stops further claims, allows
+the current bounded operation to finish and closes the pool. Existing
+idempotency, pinned payloads, retry backoff and 23-hour safety window remain.
+Templates are read at each claim. Configuration/provider failures use only
+allowlisted diagnostic reasons; raw provider response bodies are never logged.
+
+Create a **separate staging Railway worker service** from this repository.
+Keep the monorepo root as its root directory, with these service settings:
+
+| Setting | Value |
+| --- | --- |
+| Source branch | develop, after the checked PR merges |
+| Build command | `pnpm --filter @faako/travel-with-ease-api typecheck` |
+| Start command | `pnpm --filter @faako/travel-with-ease-api notifications:worker` |
+| Replicas | 1 |
+| HTTP healthcheck / public domain | None: this is not an HTTP service |
+| Cron / serverless sleeping | Disabled; keep the worker running |
+| Restart | On failure, up to 10 retries |
+| Pre-deploy migrations | None on worker; API migrations must already be verified |
+
+Set these through Railway's service settings. Current
+[Railway configuration guidance](https://docs.railway.com/config-as-code)
+says new services cannot opt into legacy Config as Code. This change therefore
+does not introduce another legacy railway.worker.json or alter the existing API
+service's deployment configuration. A platform-wide IaC migration is separate work.
+
+Use same-environment reference variables rather than copying credentials:
+
+| Variable | Requirement |
+| --- | --- |
+| `APP_ENV` | staging |
+| `NODE_ENV` | production |
+| `DATABASE_URL` | The staging runtime-role connection, not migration credentials |
+| `TWE_ORGANISATION_ID` | The same verified staging organisation as the API |
+| `TWE_DATABASE_TLS`, `TWE_DATABASE_CA` | Existing verified database TLS settings |
+| `TWE_NOTIFICATION_WORKER_ENABLED` | true |
+| `TWE_RESEND_API_KEY` | Secret, configured directly in Railway |
+| `TWE_EMAIL_FROM` | Resend-verified sender |
+
+Do not give this worker Access assertions, migration credentials, R2/Drive
+credentials or production database access. Staging sends only to
+testing@travelwitheasegh.com, regardless of the submitted address. Production
+routing remains customer To plus notifications@travelwitheasegh.com CC.
+
+Read a redacted queue summary in the configured staging backend terminal:
+
+```sh
+pnpm --filter @faako/travel-with-ease-api notifications:status
+```
+
+It verifies database identity and reports counts, oldest timestamps and safe
+error groups, not email addresses/bodies. `workerEnabledHere` describes the
+current terminal's service configuration, not a remote worker heartbeat.
+Check Railway worker start logs for
+`notification.worker_ready`, distinguish pending/processing/failed/sent, and
+review Resend acceptance separately from inbox receipt. Do not blindly retry
+expired jobs, clear leases or change pinned payloads to force a delivery.
+
+Staging acceptance: submit one explicitly labelled synthetic enquiry using a
+controlled .invalid customer address; check saved enquiry/outbox, worker claim,
+provider ID/status and receipt at the testing mailbox. Do not perform this
+against production. These hosted actions remain pending verified operator access.
+
+## Approved staging developer handover
+
+The client account is activated for the staging-only handover. Migration 014
+must be reviewed and deployed before the portal flow is enabled. Review the
+current staff ledger for an existing Superadmin. Do not infer issuer/subject
+from email, copy Cloudflare Access assertions, or change roles with direct SQL.
+
+The authenticated developer Owner selects the active client Editor in **Staff
+access**, enters the approved reference, and requests approval. The request is
+bound to the developer's verified application session and expires after ten
+minutes. The named client signs in independently, reviews the request in
+**Account settings**, and explicitly approves it. No assertion or application
+session token is displayed, copied or shared.
+
+The transaction establishes client Owner, converts the verified developer to
+Superadmin, preserves IDs/content/tutorials, invalidates affected access and
+records immutable history. An existing Superadmin blocks this bootstrap.
+Both application sessions are invalidated and both users sign in again; verify
+Owner cannot self-promote and Superadmin can access the authorised technical/staff
+controls. If the result is uncertain,
+inspect the ledger before retrying. Production is unchanged.
+
+Only synthetic PostgreSQL handover tests have run here. Real handover remains
+pending reviewed migration deployment, independent portal sign-ins and explicit
+client approval. It must not be executed automatically.
+
+## Website and release checks
+
+Homepage services now use one approved, responsive photograph beside four
+compact rows. Each row has approved title, fee and concise source-derived
+description, linking to its service detail page. Existing image placements and
+currency display are preserved. Mobile stacks the photograph above the list;
+service rows have no card shadow/blue background. Package shadows, hero, CTA
+mockups and continuous enquiry/footer remain unchanged.
+
+Package, service, Journal and Tips details share semantic Astro breadcrumbs:
+Home, collection and non-linked current title. Genuine decorative Iconsax
+ArrowRight4 separators have no separate focus target. Links wrap, retain touch
+targets and show keyboard focus without JavaScript.
+
+Automated verification and live verification are distinct. See the progress log
+and PR for final results. No production deployment, real email receipt or actual
+staging role change is implied by passing CI. Roll back code by reverting the
+focused functional/structure commits; stop the worker before reverting its
+runtime. No schema migration or shared data reset is required. Role handover is
+not undone by a code rollback: any subsequent role recovery requires separate,
+audited approval.
+
+Local evidence: portal tests 18/18, website tests 56/56, API regression suite
+119/119, shared UI tests 10/10 and
+isolated PostgreSQL tests 10/10 passed. All TWE lint/type checks passed; Astro
+checked 91 files with no diagnostics and built 29 routes. Portal and embedded
+API CMS builds passed; the deployed bundle contains no preview controls,
+synthetic identity token or fixture adapter. Chrome acceptance passed all four
+widths and public no-JavaScript navigation. Browser evidence is retained outside
+source control; CI uploads its own screenshot artifacts.
+
+The first PR foundation run exposed a genuine deferred-focus race in the shared
+Faako SelectField while choosing enquiry planning support. A narrow required
+shared-primitive fix preserves an option/next-control focus already established
+before an animation frame, while retaining normal focus restoration. No unrelated
+application was edited. The strengthened collections browser test checks focus
+after both deferred frames, visible selection, controlled value and the submitted
+synthetic payload; it passed all four viewports against the focused built site.
+
+The regular workspace contains additional user CTA/imagery/copy edits, preserved
+but excluded from this focused branch. Focused-branch results do not claim those
+separate edits pass every existing source assertion. CSS/folder changes and new
+features are mirrored into the regular workspace without resetting its history.

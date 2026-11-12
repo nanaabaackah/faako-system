@@ -1,9 +1,10 @@
 import express from "express";
+import { pageNames } from "../content/schema.js";
 import { createErrorResponse, errorCodeForStatus, resolveRequestId } from "@faako/api-contracts";
 import { buildSecurityHeaders } from "@faako/security";
 
 const id = "[a-fA-F0-9-]{36}";
-const page = "(?:home|about|services|how-it-works|faqs|testimonials|contact|journal|travel-footprint|privacy|terms|cookies)";
+const page = `(?:${pageNames.join("|")})`;
 const routes = [
   ["GET", /^\/api\/auth\/(activation|invitations)$/],
   ["POST", /^\/api\/auth\/(invitations|activation\/preview|activation\/claim|activation\/owner-invitation)$/],
@@ -15,11 +16,14 @@ const routes = [
   ["GET", /^\/api\/agent\/leads$/],
   ["GET", /^\/api\/agent\/inquiries(?:\/[a-fA-F0-9-]{36})?$/],
   ["POST", /^\/api\/agent\/inquiries\/[a-fA-F0-9-]{36}\/status$/],
-  ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff|staff-events)$/],
-  ["POST", /^\/api\/agent\/administration\/(staff|support-grants)$/],
-  ["POST", new RegExp(`^/api/agent/administration/staff/${id}/(?:status|revoke-sessions)$`)],
+  ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff|staff-events|activity|security-activity|handover)$/],
+  ["POST", /^\/api\/agent\/administration\/(staff|support-grants|handover)$/],
+  ["POST", new RegExp(`^/api/agent/administration/handover/${id}/approve$`)],
+  ["POST", new RegExp(`^/api/agent/administration/staff/${id}/(?:status|role|revoke-sessions)$`)],
   ["POST", new RegExp(`^/api/agent/administration/support-grants/${id}/revoke$`)],
   ["GET", new RegExp(`^/api/agent/content(?:/publication-jobs|/${page}(?:/(?:preview|revisions))?)?/?$`)],
+  ["GET", new RegExp(`^/api/agent/content/previews/${id}(?:/files/(?!.*(?:\\.\\.|//))(?:[a-zA-Z0-9_./-]|%20){1,500})?$`)],
+  ["POST", new RegExp(`^/api/agent/content/${page}/visual-preview$`)],
   ["POST", new RegExp(`^/api/agent/content/(?:publication-jobs/${id}/retry|${page}/(?:draft|publish|unpublish|revert/${id}))$`)],
   ["GET", new RegExp(`^/api/agent/media(?:/${id}/preview)?/?$`)],
   ["POST", new RegExp(`^/api/agent/media/(?:upload|${id}/(?:replace|archive))$`)],
@@ -103,6 +107,11 @@ export function createPortalApp({ settings, upstream, distDirectory, verifier, l
       }
       for (const name of ["content-type", "content-disposition", "retry-after"]) {
         if (response.headers.has(name)) res.setHeader(name, response.headers.get(name));
+      }
+      if (/^\/api\/agent\/content\/previews\//.test(req.url)) {
+        for (const name of ["content-security-policy", "x-frame-options", "x-robots-tag"]) {
+          if (response.headers.has(name)) res.setHeader(name, response.headers.get(name));
+        }
       }
       const setCookies = response.headers.getSetCookie().filter(value => value.startsWith(`${cookieName}=`));
       if (setCookies.length) res.setHeader("Set-Cookie", setCookies);

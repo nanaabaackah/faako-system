@@ -9,7 +9,9 @@ import { enquiriesRoutes } from "./enquiries/routes.js";
 import { mediaRoutes } from "./media/routes.js";
 import { EmailTemplates, emailTemplateRoutes } from "./notifications/templates.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
-import { estimateSchema, inquirySchema, demoInquirySchema } from "./validation.js";
+import { estimateSchema, inquirySchema, nativeInquirySchema } from "./validation.js";
+import { TurnstileError } from "./enquiries/turnstile.js";
+import { currencyDisplayRoutes } from "./currency/display-routes.js";
 
 const safeEqual = (left, right) => {
   const a = Buffer.from(String(left));
@@ -44,19 +46,12 @@ export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Da
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, contentRepository, publicationRepository, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, demoOrigin = "", environment = "test", logger = createLogger("travel-with-ease-api") }) => {
+export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, logger = createLogger("travel-with-ease-api") }) => {
   assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt });
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
   if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
   // This route must never be enabled on production, even if copied env vars exist.
-  if (demoOrigin) {
-    let parsed;
-    try { parsed = new URL(demoOrigin); } catch { throw new Error("TWE_DEMO_ORIGIN must be an exact staging HTTPS origin."); }
-    if (environment !== "staging" || parsed.origin !== demoOrigin ||
-        parsed.protocol !== "https:" || !allowedOrigins.includes(demoOrigin)) {
-      throw new Error("Staging demo origin must be an explicitly allowed HTTPS origin and is forbidden in production.");
-    }
-  }
+
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", false);
@@ -70,7 +65,7 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
   app.use(createSecurityHeaders({ allowedOrigins }));
   const inlinePortal = portal ? createInlinePortal({ ...portal, logger }) : null;
   if (inlinePortal) app.use(inlinePortal.guard);
-  app.options("*splat", (_req, res) => res.sendStatus(204));
+  app.options(/^\/.*$/, (_req, res) => res.sendStatus(204));
   app.use(express.json({ limit: "32kb" }));
   if (staffAuth) {
     app.use("/api/auth", staffAuth.router);
@@ -79,7 +74,7 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
     if (staffAuth.administrationRouter) app.use("/api/agent/administration", staffAuth.administrationRouter);
   }
   if (contentRepository && repository?.pool && repository?.organisationId && staffAuth) app.use("/api/agent/inquiries", enquiriesRoutes({ pool: repository.pool, organisationId: repository.organisationId, auth: staffAuth }));
-  if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, publication: publicationRepository, auth: staffAuth }));
+  if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, publication: publicationRepository, preview: previewService, auth: staffAuth }));
   if (mediaService) app.use("/api/agent/media", mediaRoutes({ service: mediaService, auth: staffAuth }));
   if (repository?.pool && staffAuth) app.use("/api/agent/templates", emailTemplateRoutes(new EmailTemplates(repository.pool, repository.organisationId), staffAuth));
 
@@ -95,6 +90,43 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
   });
 
   const publicLimiter = createLimiter({ limit: 40, windowMs: 10 * 60_000 });
+  app.use("/api/public/currency", createLimiter({ limit: 60, windowMs: 10 * 60_000 }), currencyDisplayRoutes(currencyService));
+  const verifyEnquiryChallenge = async (req, token) => {
+    if (["staging", "production"].includes(environment) && !turnstileVerifier) {
+      throw new TurnstileError(503, "service_unavailable",
+        "Enquiry security verification is not configured. Please contact us on WhatsApp.");
+    }
+    if (turnstileVerifier) await turnstileVerifier({ token, origin: req.headers.origin });
+  };
+  app.post("/api/public/enquiries", createLimiter({ limit: 10, windowMs: 10 * 60_000 }), async (req, res) => {
+    if (!allowedOrigins.includes(req.headers.origin) || !req.is("application/json")) {
+      return res.status(403).json(createErrorResponse({
+        code: "permission_error", message: "Submit your enquiry from the Travel With Ease website.",
+      }, { requestId: req.requestId }));
+    }
+    const parsed = nativeInquirySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json(createErrorResponse({
+      code: "validation_error", message: "Please check your enquiry details.", issues: issuesFor(parsed.error),
+    }, { requestId: req.requestId }));
+    if (parsed.data.website) return res.status(202).json(createSuccessResponse({ received: true }, { requestId: req.requestId }));
+    try {
+      await verifyEnquiryChallenge(req, parsed.data.turnstileToken);
+      if (typeof repository?.createNativeEnquiry !== "function") throw new Error("Enquiry adapter unavailable.");
+      const result = await repository.createNativeEnquiry(parsed.data);
+      return res.status(result.replayed ? 200 : 201).json(createSuccessResponse(result, { requestId: req.requestId }));
+    } catch (error) {
+      if (error instanceof TurnstileError) return res.status(error.status).json(createErrorResponse({
+        code: error.code, message: error.message,
+      }, { requestId: req.requestId }));
+      if (error.code === "enquiry_submission_conflict") return res.status(409).json(createErrorResponse({
+        code: "conflict", message: "This submission reference was already used for different details. Start a new enquiry.",
+      }, { requestId: req.requestId }));
+      logger.error?.({ requestId: req.requestId, eventName: "enquiry.creation_failed" }, "Enquiry could not be saved");
+      return res.status(503).json(createErrorResponse({
+        code: "service_unavailable", message: "We could not confirm your enquiry. Keep this form open and try again, or contact us on WhatsApp.",
+      }, { requestId: req.requestId }));
+    }
+  });
   app.post("/api/public/estimate", publicLimiter, async (req, res) => {
     const parsed = estimateSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(createErrorResponse({ code: "validation_error", message: "Check the trip details.", issues: issuesFor(parsed.error) }, { requestId: req.requestId }));
@@ -111,6 +143,7 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
     if (!parsed.success) return res.status(400).json(createErrorResponse({ code: "validation_error", message: "Check the inquiry details.", issues: issuesFor(parsed.error) }, { requestId: req.requestId }));
     if (parsed.data.website) return res.status(202).json(createSuccessResponse({ received: true }, { requestId: req.requestId }));
     try {
+      await verifyEnquiryChallenge(req, parsed.data.turnstileToken);
       const estimate = await estimatorService.estimate(parsed.data);
       const now = new Date().toISOString();
       const record = {
@@ -126,36 +159,12 @@ export const createApp = ({ repository, estimatorService, contentRepository, pub
       };
       await repository.createLeadWithInquiry(record);
       return res.status(201).json(createSuccessResponse({ inquiryId: record.inquiry.id, status: "received" }, { requestId: req.requestId }));
-    } catch {
+    } catch (error) {
+      if (error instanceof TurnstileError) return res.status(error.status).json(createErrorResponse({
+        code: error.code, message: error.message,
+      }, { requestId: req.requestId }));
       logger.error?.({ requestId: req.requestId, eventName: "inquiry.failed" }, "Inquiry creation failed");
       return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "We could not save your inquiry. Please try again." }, { requestId: req.requestId }));
-    }
-  });
-
-  // Public staging-demo enquiry: explicitly labelled, persisted in the staging
-  // tenant inbox, without generating production bookings, quotes, or emails.
-  // Exact Origin and existing CORS, JSON, validation, anti-bot and IP limits apply.
-  app.post("/api/public/demo-inquiries", publicLimiter, async (req, res) => {
-    if (environment !== "staging" || !demoOrigin) return res.status(404).json(
-      createErrorResponse({ code: "not_found", message: "Route not found." }, { requestId: req.requestId }));
-    if (req.get("Origin") !== demoOrigin) return res.status(403).json(
-      createErrorResponse({ code: "permission_error", message: "This enquiry form is available only on the staging website." }, { requestId: req.requestId }));
-    const parsed = demoInquirySchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json(createErrorResponse(
-      { code: "validation_error", message: "Please check the demo enquiry details.", issues: issuesFor(parsed.error) },
-      { requestId: req.requestId }));
-    if (parsed.data.website) return res.status(202).json(createSuccessResponse(
-      { received: true, demo: true }, { requestId: req.requestId }));
-    if (typeof repository.createDemoEnquiry !== "function") return res.status(503).json(
-      createErrorResponse({ code: "service_unavailable", message: "Demo enquiries are not available." }, { requestId: req.requestId }));
-    try {
-      const result = await repository.createDemoEnquiry(parsed.data);
-      return res.status(201).json(createSuccessResponse(result, { requestId: req.requestId }));
-    } catch {
-      logger.error?.({ eventName: "demo.inquiry.failed", requestId: req.requestId }, "Staging demo enquiry could not be saved");
-      return res.status(503).json(createErrorResponse(
-        { code: "service_unavailable", message: "The test enquiry could not be saved. Please try again." },
-        { requestId: req.requestId }));
     }
   });
 

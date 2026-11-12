@@ -15,6 +15,7 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Administration } from "../../src/auth/administration.js";
+import { readActivity } from "../../src/auth/activity.js";
 import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
@@ -54,6 +55,40 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await pool.query("SELECT to_regclass('twe.must_rollback') AS table_name")).rows[0].table_name, null);
   assert.deepEqual(await migrate(pool, options), []);
   await verifyDatabaseIdentity(pool, options);
+
+  await context.test("native intake and outbox are atomic, idempotent and tenant-scoped", async () => {
+    const repository = new PostgresLeadRepository(pool, options);
+    const data = {
+      submissionId: randomUUID(), enquiryType: "gift", service: "full_planning",
+      destination: "Synthetic destination", travelTimeframe: "Flexible",
+      travellers: 2, budget: "", name: "Synthetic Traveller",
+      email: "synthetic@example.invalid", phone: "+233200000000",
+      notes: "", consent: true, website: "",
+    };
+    const [first, replay] = await Promise.all([
+      repository.createNativeEnquiry(data), repository.createNativeEnquiry(data),
+    ]);
+    assert.equal(first.inquiryId, replay.inquiryId);
+    const rows = await pool.query(
+      "SELECT details, kind FROM twe.enquiries WHERE organisation_id = $1 AND id = $2",
+      [organisationId, first.inquiryId]);
+    assert.equal(rows.rows[0].details.enquiryType, "gift");
+    assert.equal(rows.rows[0].kind, "personalised");
+    assert.equal((await pool.query(
+      "SELECT count(*)::int AS n FROM twe.notification_outbox WHERE organisation_id = $1 AND enquiry_id = $2",
+      [organisationId, first.inquiryId])).rows[0].n, 1);
+    await assert.rejects(repository.createNativeEnquiry({ ...data, notes: "Changed" }),
+      error => error.code === "enquiry_submission_conflict");
+    const other = new PostgresLeadRepository(pool, { ...options, organisationId: otherOrg });
+    const otherReceipt = await other.createNativeEnquiry(data);
+    assert.notEqual(otherReceipt.inquiryId, first.inquiryId);
+    // Remove only this synthetic subtest's rows; later outbox lease tests
+    // intentionally start with exactly one independently created job.
+    for (const id of [first.inquiryId, otherReceipt.inquiryId]) {
+      await pool.query("DELETE FROM twe.notification_outbox WHERE enquiry_id = $1", [id]);
+      await pool.query("DELETE FROM twe.enquiries WHERE id = $1", [id]);
+    }
+  });
 
   await context.test("activation is identity-bound, atomic, single-use and audited; tutorials survive service recreation", async () => {
     const issuer = "https://activation.example.invalid";
@@ -117,31 +152,146 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [otherOrg])).rows[0].n, 2);
   });
 
+  await context.test("Issue 02: installer authority closes after first Owner, including races and inactive-Owner recovery", async () => {
+    const scope = randomUUID();
+    const settings = {
+      issuer: "https://issue02.example.invalid",
+      audience: "c".repeat(64),
+    };
+    const identity = (subject) => ({ ...settings, subject });
+    const installer = identity("synthetic-installer");
+    await pool.query(
+      "INSERT INTO twe.organisations(id,name) VALUES($1,'Synthetic installer lifecycle')",
+      [scope],
+    );
+    // Each concurrent claim gets its own connection and restricted runtime role.
+    const clients = await Promise.all([pool.connect(), pool.connect()]);
+    try {
+      for (const client of clients) {
+        await client.query("SET ROLE twe_test_runtime");
+        assert.equal((await client.query("SELECT current_user")).rows[0].current_user, "twe_test_runtime");
+      }
+      const runtimePools = clients.map((client) => {
+        const query = (...args) => client.query(...args);
+        return { query, connect: async () => ({ query, release() {} }) };
+      });
+      const makeService = (runtimePool, config = settings, environment = "test", installerSubject = installer.subject, tenant = scope) =>
+        new Invitations(runtimePool, tenant, config, environment, installerSubject);
+      const service = makeService(runtimePools[0]);
+      const input = (subject) => ({
+        identity: installer, subject, approvalReference: "ISSUE02-SYNTHETIC",
+        requestId: "issue02-lifecycle",
+      });
+      assert.equal((await service.identityStatus(installer)).canIssueOwner, true);
+      await assert.rejects(makeService(runtimePools[0], settings, "test", "").issue(input(randomUUID())), { status: 403 });
+      for (const change of [
+        { issuer: "https://other.example.invalid" },
+        { audience: "d".repeat(64) },
+        { subject: "not-the-installer", email: "approved@example.invalid" },
+      ]) {
+        await assert.rejects(service.issue({ ...input(randomUUID()), identity: { ...installer, ...change } }), { status: 403 });
+      }
+
+      const expiredSubject = randomUUID();
+      const expired = await service.issue(input(expiredSubject));
+      await pool.query(
+        "UPDATE twe.staff_invitations SET created_at=now()-interval '2 hours',expires_at=now()-interval '1 hour' WHERE id=$1",
+        [expired.id],
+      );
+      await assert.rejects(service.claim(identity(expiredSubject), expired.code, "issue02-expired"), { status: 403 });
+
+      const revokedSubject = randomUUID();
+      const revoked = await service.issue(input(revokedSubject));
+      await service.revoke({ identity: installer, id: revoked.id, requestId: "issue02-revoke" });
+      await assert.rejects(service.claim(identity(revokedSubject), revoked.code, "issue02-revoked"), { status: 403 });
+
+      const replacementSubject = randomUUID();
+      const superseded = await service.issue(input(replacementSubject));
+      const replacement = await service.issue(input(replacementSubject));
+      assert.notEqual(superseded.code, replacement.code);
+      assert.match(replacement.code, /^[A-Za-z0-9_-]{43}$/);
+      const stored = (await pool.query(
+        "SELECT token_hash,purpose,role,created_by FROM twe.staff_invitations WHERE id=$1",
+        [replacement.id],
+      )).rows[0];
+      assert.equal(stored.purpose, "initial_owner");
+      assert.equal(stored.role, "owner");
+      assert.equal(stored.created_by, null);
+      assert.notEqual(stored.token_hash, replacement.code);
+      assert.match(stored.token_hash, /^[a-f0-9]{64}$/);
+      await assert.rejects(service.claim(identity(replacementSubject), superseded.code, "issue02-superseded"), { status: 403 });
+      await assert.rejects(
+        makeService(runtimePools[0], settings, "staging").claim(identity(replacementSubject), replacement.code, "issue02-wrong-environment"),
+        { status: 403 },
+      );
+      await assert.rejects(
+        makeService(runtimePools[0], settings, "test", installer.subject, organisationId).claim(identity(replacementSubject), replacement.code, "issue02-wrong-tenant"),
+        { status: 403 },
+      );
+
+      // An identity provisioned separately after issuance must not be overwritten
+      // or silently reactivated/upgraded by a still-unclaimed Owner invitation.
+      const existingSubject = randomUUID();
+      const existingInvite = await service.issue(input(existingSubject));
+      const existingId = randomUUID();
+      await pool.query(
+        "INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role,active) VALUES($1,$2,$3,$4,$5,'editor',false)",
+        [existingId, scope, settings.issuer, existingSubject, settings.audience],
+      );
+      await assert.rejects(service.claim(identity(existingSubject), existingInvite.code, "issue02-no-replacement"), { status: 403 });
+      assert.deepEqual((await pool.query(
+        "SELECT id,role,active FROM twe.staff_users WHERE id=$1", [existingId],
+      )).rows[0], { id: existingId, role: "editor", active: false });
+
+      const subjects = [randomUUID(), randomUUID()];
+      const invites = [];
+      for (const subject of subjects) invites.push(await service.issue(input(subject)));
+      const race = await Promise.allSettled(invites.map((invite, index) =>
+        makeService(runtimePools[index]).claim(identity(subjects[index]), invite.code, `issue02-concurrent-${index}`),
+      ));
+      assert.equal(race.filter((result) => result.status === "fulfilled").length, 1);
+      assert.equal(race.filter((result) => result.status === "rejected").length, 1);
+      const winnerIndex = race.findIndex((result) => result.status === "fulfilled");
+      const owners = (await pool.query(
+        "SELECT id,subject,role,active FROM twe.staff_users WHERE organisation_id=$1 AND role='owner'", [scope],
+      )).rows;
+      assert.equal(owners.length, 1);
+      const owner = owners[0];
+      assert.equal(owner.subject, subjects[winnerIndex]);
+      assert.equal(owner.active, true);
+      assert.equal((await pool.query(
+        "SELECT 1 FROM twe.tutorial_progress WHERE organisation_id=$1 AND user_id=$2", [scope, owner.id],
+      )).rowCount, 1);
+      assert.equal((await pool.query(
+        "SELECT 1 FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [scope],
+      )).rowCount, 1);
+
+      assert.equal((await service.identityStatus(installer)).canIssueOwner, false);
+      await assert.rejects(service.issue(input(randomUUID())), { status: 403 });
+      await assert.rejects(service.revoke({ identity: installer, id: replacement.id, requestId: "issue02-installer-closed" }), { status: 403 });
+      await assert.rejects(service.preview(identity(replacementSubject), replacement.code), { status: 403 });
+      await assert.rejects(service.claim(identity(replacementSubject), replacement.code, "issue02-pending-closed"), { status: 403 });
+      await assert.rejects(service.claim(identity(owner.subject), invites[winnerIndex].code, "issue02-replay"), { status: 403 });
+
+      // Isolated fault injection, not a supported live deactivation procedure:
+      // losing access to the Owner must never reopen public bootstrap/recovery.
+      await pool.query("UPDATE twe.staff_users SET active=false WHERE id=$1", [owner.id]);
+      assert.equal((await service.identityStatus(installer)).canIssueOwner, false);
+      await assert.rejects(service.issue(input(randomUUID())), { status: 403 });
+      await assert.rejects(service.claim(identity(replacementSubject), replacement.code, "issue02-disabled-owner"), { status: 403 });
+      assert.deepEqual((await pool.query(
+        "SELECT id,subject,role,active FROM twe.staff_users WHERE organisation_id=$1 AND role='owner'", [scope],
+      )).rows, [{ ...owner, active: false }]);
+    } finally {
+      for (const client of clients) {
+        try { await client.query("RESET ROLE"); } finally { client.release(); }
+      }
+    }
+  });
+
   const repository = new PostgresLeadRepository(pool, options);
   await repository.ready();
-  // The staging demo uses the real tenant inbox, without queuing an automated
-  // notification, external email or booking.
-  const demoResult = await repository.createDemoEnquiry({
-    kind: "package", destination: "Zanzibar", travelStyle: "A slower pace",
-    travellers: "2", name: "Synthetic demo visitor",
-    email: "staging-demo@example.invalid", phone: "+233240000000",
-    notes: "Demo test, no payment", consent: true,
-  });
-  assert.equal(demoResult.demo, true);
-  const demoRow = (await pool.query(
-    "SELECT organisation_id, kind, contact, details, status FROM twe.enquiries WHERE id=$1",
-    [demoResult.inquiryId],
-  )).rows[0];
-  assert.equal(demoRow.organisation_id, organisationId);
-  assert.equal(demoRow.kind, "package");
-  assert.equal(demoRow.status, "new");
-  assert.equal(demoRow.details.source, "staging_demo");
-  assert.equal(demoRow.details.demo, true);
-  assert.equal(demoRow.contact.name, "Synthetic demo visitor");
-  assert.equal((await pool.query(
-    "SELECT count(*)::int AS count FROM twe.notification_outbox WHERE enquiry_id=$1",
-    [demoResult.inquiryId],
-  )).rows[0].count, 0);
+  assert.equal(typeof repository.createDemoEnquiry, "undefined", "Retired staging writes are unavailable");
   const id = randomUUID();
   const now = new Date().toISOString();
   const record = { id: randomUUID(), createdAt: now, contact: { name: "Synthetic traveller", email: "test@example.invalid" }, inquiry: { id, consentAt: now, destination: "Test destination" } };
@@ -178,13 +328,109 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   const auth = new PostgresAuthStore(pool, organisationId);
   const accessSettings={issuer:"https://synthetic.cloudflareaccess.com",audience:"a".repeat(64)};
   const platformId=randomUUID();
+  await context.test("portal-session handover is expiring, two-party, atomic, audited and single-use",async()=>{
+    const developerId=randomUUID(),clientId=randomUUID();
+    for(const [id,subject,role] of [[developerId,'handover-developer','owner'],[clientId,'handover-client','editor']])
+      await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,$4,$5,$6)",[id,organisationId,accessSettings.issuer,subject,accessSettings.audience,role]);
+    const service=new Administration(pool,organisationId,accessSettings,'test');
+    await assert.rejects(new Administration(pool,organisationId,accessSettings,'production').handoverStatus({id:developerId,organisationId}),{status:404});
+    const developer={id:developerId,role:'owner',organisationId},client={id:clientId,role:'editor',organisationId};
+    const expiresAt=new Date(Date.now()+60_000);
+    const developerIdentity={...accessSettings,subject:'handover-developer',email:'dev.nanaabaackah@gmail.com',expiresAt,assertionHash:'7'.repeat(64)};
+    const clientIdentity={...accessSettings,subject:'handover-client',email:'client@example.invalid',expiresAt,assertionHash:'8'.repeat(64)};
+    const developerSession='9'.repeat(64),clientSession='0'.repeat(64);
+    await auth.createSession(developerIdentity,developerSession,'5'.repeat(64),'handover-developer-login');
+    await auth.createSession(clientIdentity,clientSession,'6'.repeat(64),'handover-client-login');
+    const input={clientId,approvalReference:'HANDOVER-TEST'};
+    await assert.rejects(service.requestHandover(developer,{hash:developerSession},{...developerIdentity,subject:'email-only-attacker'},input,'handover-forged'));
+    const expired=await service.requestHandover(developer,{hash:developerSession},developerIdentity,input,'handover-expiring');
+    await pool.query("UPDATE twe.staff_handover_requests SET created_at=now()-interval '20 minutes',expires_at=now()-interval '10 minutes' WHERE id=$1",[expired.id]);
+    await assert.rejects(service.approveHandover(client,{hash:clientSession},clientIdentity,expired.id,'handover-expired'),{status:409});
+    const pending=await service.requestHandover(developer,{hash:developerSession},developerIdentity,input,'handover-request');
+    assert.equal((await service.handoverStatus(client)).can_approve,true);
+    assert.equal((await service.handoverStatus(developer)).can_approve,false);
+    await assert.rejects(service.requestHandover(developer,{hash:developerSession},developerIdentity,input,'handover-duplicate'),{status:409});
+    await assert.rejects(service.approveHandover(developer,{hash:developerSession},developerIdentity,pending.id,'handover-self-approval'),{status:403});
+    await assert.rejects(service.approveHandover(client,{hash:clientSession},{...clientIdentity,assertionHash:'9'.repeat(64)},pending.id,'handover-wrong-session'),{status:409});
+    const result=await service.approveHandover(client,{hash:clientSession},clientIdentity,pending.id,'handover-approved');
+    assert.deepEqual(result,{completed:true,sessionsInvalidated:true});
+    const roles=(await pool.query("SELECT id,role FROM twe.staff_users WHERE id=ANY($1::uuid[])",[[developerId,clientId]])).rows;
+    assert.equal(roles.find(row=>row.id===developerId).role,'platform_admin');
+    assert.equal(roles.find(row=>row.id===clientId).role,'owner');
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.staff_users WHERE organisation_id=$1 AND active=true AND role='owner'",[organisationId])).rows[0].n>=1,true);
+    assert.equal(await auth.getSession(developerSession),undefined);
+    assert.equal(await auth.getSession(clientSession),undefined);
+    await assert.rejects(service.approveHandover(client,{hash:clientSession},clientIdentity,pending.id,'handover-replay'),{status:409});
+    const approval=await pool.query("SELECT approved_by,approved_at FROM twe.staff_handover_requests WHERE id=$1",[pending.id]);
+    assert.equal(approval.rows[0].approved_by,clientId);
+    assert.ok(approval.rows[0].approved_at);
+    const events=await pool.query("SELECT action,actor_id FROM twe.audit_records WHERE record_id=$1 ORDER BY created_at",[pending.id]);
+    assert.deepEqual(events.rows.map(row=>row.action),['staff.bootstrap.handover_requested','staff.bootstrap.handover_approved']);
+    assert.equal(events.rows[1].actor_id,clientId);
+    await assert.rejects(pool.query("DELETE FROM twe.staff_role_changes WHERE user_id=$1",[developerId]),/append-only/);
+  });
   await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,'platform',$4,'platform_admin')",[platformId,organisationId,accessSettings.issuer,accessSettings.audience]);
   const platform={id:platformId,role:"platform_admin",organisationId};
   const owner={id:userId,role:"owner",organisationId};
   const admin=new Administration(pool,organisationId,accessSettings,"test");
+  await context.test("roles, ordinary Owner invitations, stale writes and last-Owner concurrency are enforced",async()=>{
+    const scope=randomUUID();
+    await pool.query("INSERT INTO twe.organisations(id,name) VALUES($1,'Role test')",[scope]);
+    const scoped=new Administration(pool,scope,accessSettings,'test');
+    const ids=[randomUUID(),randomUUID(),randomUUID(),randomUUID()];
+    for(const [index,role] of ['platform_admin','owner','owner','editor'].entries())
+      await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,$4,$5,$6)",[ids[index],scope,accessSettings.issuer,'role-'+index,accessSettings.audience,role]);
+    const superadmin={id:ids[0],organisationId:scope,role:'platform_admin'},businessOwner={id:ids[1],organisationId:scope,role:'owner'};
+    const input={role:'editor',expectedRole:'owner',approvalReference:'ROLE-TEST'};
+    await assert.rejects(scoped.changeRole(businessOwner,ids[2],input,'forged'),{status:403});
+    await assert.rejects(scoped.changeRole({...superadmin,organisationId:otherOrg},ids[2],input,'cross'),{status:403});
+    await assert.rejects(scoped.changeRole(superadmin,ids[3],input,'stale'),{status:409});
+    await assert.rejects(scoped.changeRole(superadmin,ids[3],{...input,role:'platform_admin'},'escalation'),{status:403});
+    const invitations=new Invitations(pool,scope,accessSettings,'test');
+    const scopedAuth=new PostgresAuthStore(pool,scope);
+    for(const index of [1,2]){
+      await scopedAuth.createSession({...accessSettings,subject:'role-'+index,expiresAt:new Date(Date.now()+60000),assertionHash:String(index).repeat(64)},String(index+3).repeat(64),'a'.repeat(64),'session-before-role');
+      await invitations.issue({actor:{id:ids[index],role:'owner',organisationId:scope},subject:'pending-'+index,approvalReference:'ROLE-PENDING',requestId:'pending-role'});
+      await scoped.grantSupport({id:ids[index],role:'owner',organisationId:scope},{userId:ids[0],minutes:5,reasonReference:'SUP-ROLE'},'support-before-role');
+    }
+    await assert.rejects(scoped.changeRole(superadmin,ids[1],{...input,approvalReference:null},'rollback-role'));
+    assert.equal((await scopedAuth.getSession('4'.repeat(64))).role,'owner','Failed ledger write rolls back role and revocation');
+    await assert.rejects(invitations.issue({actor:businessOwner,role:'owner',subject:'denied-owner',approvalReference:'ROLE-TEST',requestId:'denied-owner'}));
+    const invitation=await invitations.issue({actor:superadmin,role:'owner',subject:'invited-owner',approvalReference:'ROLE-TEST',requestId:'owner-invite'});
+    assert.equal((await invitations.preview({...accessSettings,subject:'invited-owner'},invitation.code)).role,'owner');
+    await invitations.claim({...accessSettings,subject:'invited-owner'},invitation.code,'owner-claim');
+    const invited=(await pool.query("SELECT id FROM twe.staff_users WHERE organisation_id=$1 AND subject='invited-owner'",[scope])).rows[0];
+    await scoped.changeStaff(superadmin,invited.id,false,'revoke-invited-owner');
+    const results=await Promise.allSettled([scoped.changeRole(superadmin,ids[1],input,'demote-owner'),scoped.changeStaff(superadmin,ids[2],false,'disable-owner')]);
+    assert.equal(results.filter(result=>result.status==='fulfilled').length,1);
+    assert.equal(results.find(result=>result.status==='rejected').reason.status,409);
+    const lostIndex=results[0].status==='fulfilled'?1:2;
+    assert.equal(await scopedAuth.getSession(String(lostIndex+3).repeat(64)),undefined);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.staff_invitations WHERE created_by=$1 AND revoked_at IS NOT NULL",[ids[lostIndex]])).rows[0].n,1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.support_grants WHERE approved_by=$1 AND revoked_at IS NOT NULL",[ids[lostIndex]])).rows[0].n,1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.staff_users WHERE organisation_id=$1 AND active AND role='owner'",[scope])).rows[0].n,1);
+    await pool.query("UPDATE twe.staff_users SET active=false WHERE id=$1",[ids[0]]);
+    await assert.rejects(scoped.changeRole(superadmin,ids[3],{...input,expectedRole:'editor',role:'owner'},'inactive'),{status:403});
+  });
+  await context.test("business activity is paginated, tenant scoped, filtered and separated from security",async()=>{
+    for(let i=0;i<55;i++)await pool.query("INSERT INTO twe.audit_records(id,organisation_id,actor_id,action,request_id) VALUES($1,$2,$3,'content.saved',$4)",[randomUUID(),organisationId,userId,'activity-'+i]);
+    await pool.query("INSERT INTO twe.audit_records(id,organisation_id,actor_id,action,request_id) VALUES($1,$2,$3,'auth.synthetic','private-event')",[randomUUID(),organisationId,userId]);
+    const page=await readActivity(admin,owner,{});
+    assert.equal(page.items.length,50);assert.ok(page.nextCursor);
+    const next=await readActivity(admin,owner,{cursor:page.nextCursor});
+    assert.ok(next.items.length);assert.equal(next.items.some(row=>page.items.some(first=>first.id===row.id)),false);
+    assert.equal([...page.items,...next.items].some(row=>row.action.startsWith('auth.')||row.action.startsWith('staff.bootstrap.')),false);
+    assert.equal((await admin.staffEvents(owner)).some(row=>row.action.startsWith('staff.bootstrap.')),false);
+    await assert.rejects(readActivity(admin,owner,{},true),{status:403});
+    await assert.rejects(readActivity(admin,{...owner,organisationId:otherOrg},{}),{status:403});
+    await assert.rejects(readActivity(admin,owner,{category:'auth'}),{status:400});
+    await assert.rejects(readActivity(admin,owner,{cursor:'forged'}),{status:400});
+    assert.equal((await readActivity(admin,owner,{from:'2099-01-01'})).items.length,0);
+    assert.ok((await readActivity(admin,platform,{category:'auth'},true)).items.some(row=>row.action==='auth.synthetic'));
+  });
   const staged=await admin.provision(platform,{subject:"staged-editor"},"test-staff-stage");
-  assert.equal(staged.active,false);
-  await assert.rejects(admin.changeStaff(platform,staged.id,true,"test-escalation"),{status:403});
+  assert.equal(staged.active,true);
+  assert.equal((await admin.changeStaff(platform,staged.id,true,"test-superadmin-activate")).active,true);
   await assert.rejects(admin.changeStaff(owner,platformId,false,"test-platform-change"),{status:403});
   await assert.rejects(admin.provision({...platform,organisationId:otherOrg},{subject:"other"},"test-cross-tenant"),{status:403});
   assert.equal((await admin.changeStaff(owner,staged.id,true,"test-owner-activate")).active,true);
@@ -254,6 +500,11 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal(objects.size, 3);
   assert.equal((await media.list()).items.some((item) => item.id === asset.id), true);
   assert.equal((await sharp(await media.preview(asset.id)).metadata()).format, "webp");
+  const tipBody = { ...body, tips: [{ slug: "fixture-tip", title: "Fixture tip", excerpt: "Synthetic only", body: "Test advice", category: "Before You Go", imageId: asset.id }] };
+  const tipDraft = await content.save("travel-tips", tipBody, 0, actor, "tip-save");
+  assert.equal((await content.get("travel-tips")).body.tips[0].imageId, asset.id);
+  assert.equal((await pool.query("SELECT media_id FROM twe.content_media WHERE organisation_id=$1 AND revision_id=$2", [organisationId, tipDraft.revisionId])).rows[0].media_id, asset.id);
+  await assert.rejects(content.save("travel-tips", { ...tipBody, tips: [{ ...tipBody.tips[0], imageId: randomUUID() }] }, tipDraft.version, actor, "tip-missing-media"), /available image/);
   await assert.rejects(new MediaService(pool, otherOrg, storage).preview(asset.id), { status: 404 });
   const home = await content.get("home");
   await content.save("home", { ...body, imageId: asset.id }, home.version, actor, "image-selected");
@@ -263,6 +514,26 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await content.get("home")).body.imageId, asset.id);
   await media.archive(replacement.id, actor, "archive-unused");
   assert.equal((await media.list()).items.some((item) => item.id === replacement.id), false);
+  await context.test("placement references survive revisions and public artifacts, reject archived and foreign media",async()=>{
+    const entryId=randomUUID();
+    const input={...body,entries:[{id:entryId,heading:'Service fixture',text:'Test',imagePlacement:{imageId:asset.id,mobileImageId:asset.id}}]};
+    const saved=await content.save('services',input,0,actor,'placement-save');
+    const changed=await content.save('services',{...input,entries:[{...input.entries[0],heading:'Changed title'}]},saved.version,actor,'placement-title');
+    assert.equal(changed.body.entries[0].id,entryId);
+    const reverted=await content.revert('services',saved.revisionId,changed.version,actor,'placement-revert');
+    assert.equal(reverted.body.entries[0].imagePlacement.imageId,asset.id);
+    await assert.rejects(content.save('services',{...input,entries:[{...input.entries[0],imagePlacement:{imageId:replacement.id}}]},reverted.version,actor,'archived-placement'),/available image/);
+    const foreignActor={id:(await pool.query("SELECT id FROM twe.staff_users WHERE organisation_id=$1 LIMIT 1",[otherOrg])).rows[0].id,organisationId:otherOrg};
+    await assert.rejects(new ContentRepository(pool,otherOrg).save('site-appearance',{...body,imagePlacements:{'footer-background':{imageId:asset.id}}},0,foreignActor,'foreign-placement'),/available image/);
+    const globals=await content.save('site-appearance',{...body,imagePlacements:{'footer-background':{imageId:asset.id,mobileImageId:asset.id,focalY:20},'cta-laptop':{imageId:asset.id}}},0,actor,'shared-images');
+    const directory=await mkdtemp(path.join(tmpdir(),'twe-image-placement-'));
+    const artifact=await preparePublication({id:randomUUID(),source_sha:'1'.repeat(40),manifest:{version:1,pages:[{slug:'services',body:reverted.body},{slug:'site-appearance',body:globals.body}]}},media,directory);
+    const snapshot=JSON.parse(await readFile(artifact.snapshot,'utf8'));
+    assert.equal(snapshot.pages.services.entries[0].imagePlacement.image.src,`/media/${asset.id}.webp`);
+    assert.equal(snapshot.pages['site-appearance'].imagePlacements['footer-background'].focalY,20);
+    assert.ok(snapshot.pages['site-appearance'].imagePlacements['cta-laptop'].image);
+    await assert.rejects(media.archive(asset.id,actor,'protected-placement'),{status:409});
+  });
   await context.test("email template drafts, activation and audit survive recreation under runtime grants", async () => {
     const client = await pool.connect();
     try {
@@ -372,7 +643,8 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.notEqual(reclaimed.lease_token, claimed.lease_token);
   assert.deepEqual(reclaimed.delivery_payload, payload);
   assert.equal(await outbox.finish(claimed, "stale-worker"), false);
-  await outbox.fail(reclaimed);
+  await outbox.fail(reclaimed, "provider_rejected");
+  assert.equal((await pool.query("SELECT last_error FROM twe.notification_outbox WHERE id = $1", [reclaimed.id])).rows[0].last_error, "provider_rejected");
   assert.equal(await outbox.claim(payload), undefined, "Backoff prevents immediate retry");
   await pool.query("UPDATE twe.notification_outbox SET first_attempt_at = now() - interval '25 hours', available_at = now() WHERE id = $1", [claimed.id]);
   assert.equal(await outbox.claim(payload), undefined);
@@ -394,6 +666,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal(await content.get("home", true), null);
   await assert.rejects(publication.enqueue("home", latestHome.version, false, actor, "duplicate-publish"), { status: 409 });
   const build = await publication.claim();
+  assert.equal(build.manifest.pages.some(item => item.slug === "travel-tips"), false, "Never-published sibling drafts must not withdraw the approved baseline");
   assert.equal(await publication.claim(), undefined);
   await assert.rejects(pool.query("UPDATE twe.publication_jobs SET manifest = '{}' WHERE id = $1", [build.id]), /immutable/);
   await assert.rejects(publication.confirm(build.id, randomUUID(), "synthetic-deployment", manifestDigest(build.manifest)));
@@ -435,7 +708,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     const job = await publication.claim();
     await publication.confirm(queued.id, job.build_token, "synthetic-content", manifestDigest(job.manifest));
     const published = await content.get(slug, true);
-    assert.deepEqual(published.body[slug === "journal" ? "articles" : "footprint"], extension[slug === "journal" ? "articles" : "footprint"]);
+    assert.deepEqual(published.body[slug === "journal" ? "articles" : "footprint"], draft.body[slug === "journal" ? "articles" : "footprint"]);
     await publication.enqueue(slug, draft.version, true, actor, `withdraw-${slug}`);
     const withdrawn = await publication.claim();
     await publication.confirm(withdrawn.id, withdrawn.build_token, "synthetic-withdrawal", manifestDigest(withdrawn.manifest));
@@ -449,5 +722,42 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await runtimeContent.get("privacy", true)).body.heading, "Synthetic privacy");
   assert.equal((await publicationQuery("SELECT count(*)::int AS n FROM twe.audit_records WHERE record_id=$1 AND action='content.publish_requested'", [queuedPrivacy.id])).rows[0].n, 1);
   await assert.rejects(publication.enqueue("privacy", privacy.version, false, {...actor, organisationId: otherOrg}, "cross-tenant-runtime"), {status:403});
+  await context.test("individual collection publication isolates siblings and persists exact live bodies across service recreation", async () => {
+    const cases = [
+      ["packages", "packages", slug => ({ id: randomUUID(), slug, title: slug, destination: "Synthetic", overview: "Test only" })],
+      ["journal", "articles", slug => ({ slug, title: slug, excerpt: "Test only", body: "Synthetic", date: "2026-11-02" })],
+      ["travel-tips", "tips", slug => ({ slug, title: slug, excerpt: "Test only", body: "Synthetic", category: "Before You Go" })],
+    ];
+    for (const [page, key, record] of cases) {
+      const previous = await runtimeContent.get(page);
+      const draft = await runtimeContent.save(page, { ...body, imageId: null, [key]: [record("record-one"), record("record-two")] }, previous?.version || 0, actor, "individual-draft");
+      const item = (await runtimeContent.list()).find(value => value.slug === page);
+      if (!item.publication_initialized) await assert.rejects(publication.enqueue(page, draft.version, false, actor, "missing-collection-baseline", "record-one"), { status: 409 });
+      await publication.enqueue(page, draft.version, false, actor, "accept-approved-collection-baseline");
+      const baseline = await publication.claim();
+      await publication.confirm(baseline.id, baseline.build_token, "synthetic-baseline", manifestDigest(baseline.manifest));
+      await publication.enqueue(page, draft.version, false, actor, "publish-record-one", "record-one");
+      const first = await publication.claim();
+      assert.deepEqual(first.manifest.pages.find(item => item.slug === page).body[key].map(item => item.slug).sort(), ["record-one", "record-two"]);
+      await publication.transition(first.id, first.build_token, "building", "deploying");
+      await assert.rejects(publication.enqueue(page, draft.version, false, actor, "blocked-while-deploying"), { status: 409 });
+      await publication.transition(first.id, first.build_token, "deploying", "verifying");
+      await publication.confirm(first.id, first.build_token, "synthetic-one", manifestDigest(first.manifest));
+      const saved = await runtimeContent.save(page, { ...draft.body, [key]: draft.body[key].map(item => ({ ...item, title: "Unpublished " + item.slug })) }, draft.version, actor, "unrelated-edits");
+      await publication.enqueue(page, saved.version, false, actor, "publish-record-two", "record-two");
+      const second = await publication.claim();
+      const exact = second.manifest.pages.find(item => item.slug === page).body[key];
+      assert.equal(exact.find(item => item.slug === "record-one").title, "record-one");
+      assert.equal(exact.find(item => item.slug === "record-two").title, "Unpublished record-two");
+      await publication.confirm(second.id, second.build_token, "synthetic-two", manifestDigest(second.manifest));
+      const recreated = new ContentRepository(publicationPool, organisationId);
+      assert.deepEqual((await recreated.get(page, true)).body[key], exact);
+      assert.equal((await recreated.get(page)).body[key][0].title, "Unpublished record-one");
+      await publication.enqueue(page, saved.version, true, actor, "unpublish-record-two", "record-two");
+      const removal = await publication.claim();
+      await publication.confirm(removal.id, removal.build_token, "synthetic-record-removal", manifestDigest(removal.manifest));
+      assert.deepEqual((await recreated.get(page, true)).body[key].map(item => item.slug), ["record-one"]);
+    }
+  });
   } finally { await publicationClient.query("RESET ROLE"); publicationClient.release(); }
 });

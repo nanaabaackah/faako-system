@@ -7,7 +7,12 @@
   --brand-ink: #000a1f;
   --text: #091331;
   --muted: #5d6372;
-  --radius: 1.4rem;
+  --twe-radius-button: 6px;
+  --twe-radius-control: 6px;
+  --twe-radius-card: 8px;
+  --twe-radius-media: 8px;
+  --twe-radius-nav: 8px;
+  --radius: var(--twe-radius-card);
   --shadow: 0 24px 70px rgba(0, 10, 31, 0.12);
   font-family: Inter, Avenir, "Segoe UI", sans-serif;
   color: var(--text);
@@ -84,7 +89,7 @@ a {
 .nav-cta {
   border: 1px solid var(--brand-gold);
   padding: 0.65rem 1rem;
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
   color: var(--brand-gold);
 }
 .hero {
@@ -143,7 +148,7 @@ p {
 button {
   display: inline-flex;
   border: 0;
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
   padding: 0.9rem 1.35rem;
   background: var(--brand-gold);
   color: var(--brand-ink);
@@ -284,7 +289,7 @@ button {
 label {
   display: grid;
   gap: 0.4rem;
-  font-size: 0.82rem;
+  font-size: 1rem;
   font-weight: 700;
   margin-bottom: 1rem;
 }
@@ -292,12 +297,35 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid #cbc4b8;
-  border-radius: 0.7rem;
+  border: 1px solid #687386;
+  border-radius: var(--twe-radius-control);
   background: #fbf9f5;
   padding: 0.82rem;
   font: inherit;
   color: var(--text);
+}
+/* Faako inputs and portalled listboxes retain the public site's body size.
+   The visible control, not its wrapper, owns the contrast boundary. */
+body .ui-field__input,
+body .ui-dropdown-field__trigger,
+body .ui-combobox-field__input,
+body .ui-dropdown-field__option,
+body .ui-field__label,
+body .ui-dropdown-field__value {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+body .ui-field__input,
+body .ui-dropdown-field__trigger,
+body .ui-combobox-field__input {
+  border: 1px solid #687386;
+  min-height: 48px;
+  background: #fffdfa;
+  color: #010c33;
+}
+body .ui-dropdown-field__popover,
+body .ui-combobox-field__popover {
+  border: 1px solid #687386;
 }
 input:focus,
 select:focus,

@@ -1,5 +1,5 @@
 :root {
-  --radius: 6px;
+  --radius: var(--twe-radius-card);
   --shadow: none;
 }
 .twe-action-card {
@@ -17,12 +17,16 @@
   outline-offset: 4px;
 }
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .twe-action-card { transition: transform 200ms ease-out; }
-  .twe-action-card:hover { transform: translateY(-3px); }
+  .twe-action-card {
+    transition: transform 200ms ease-out;
+  }
+  .twe-action-card:hover {
+    transform: translateY(-3px);
+  }
 }
 .brand img {
   display: block;
-  width: 175px;
+  width: 160px;
   height: auto;
   background: none;
   padding: 8px;
@@ -69,7 +73,7 @@ body {
 .button,
 button,
 .nav-cta {
-  border-radius: 4px;
+  border-radius: var(--twe-radius-button);
   min-height: 44px;
   align-items: center;
   justify-content: center;
@@ -125,6 +129,7 @@ a:focus .link-arrow {
   min-width: 0;
 }
 .editorial-hero > img,
+.editorial-hero > .placed-image > img,
 .editorial-hero > figure img {
   display: block;
   width: 100%;
@@ -348,9 +353,9 @@ a:focus .link-arrow {
 .twe-content-link.button {
   min-height: 44px;
   padding: 13px 20px;
-  border-radius: 7px;
-  background: #010c33;
-  color: #f4ede3;
+  border-radius: var(--twe-radius-button);
+  background: var(--brand-cream);
+  color: var(--brand-navy);
   border: 1px solid #010c33;
   text-decoration: none;
   font-size: 14px;
@@ -397,8 +402,6 @@ a:focus .link-arrow {
   width: 100%;
 }
 .cream-footprint > .editorial-wrap,
-.cream-footprint > .demo-wrap,
-.travel-demo .cream-footprint > .demo-wrap,
 .editorial-wrap.footprint-full-width {
   width: 100%;
   max-width: none;

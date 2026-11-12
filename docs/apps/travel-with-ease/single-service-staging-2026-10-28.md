@@ -1,5 +1,9 @@
 # Travel With Ease — single Railway service and visual preview
 
+> 2026-11-06: Demo routes, flags and simulated sessions described here are
+> retired. Preserve this historical context, but use the current
+> [cleanup and verification guide](./repository-cleanup-2026-11-06.md), not the old demo instructions.
+
 **Status:** feature branch pending tests, CI, review, and real hosted validation. **Not production approved.**
 
 ## Change

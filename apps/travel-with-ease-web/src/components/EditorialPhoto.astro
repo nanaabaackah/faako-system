@@ -1,0 +1,14 @@
+---
+import type { PublicImage } from "../lib/collections";
+import PlacedImage from './PlacedImage.astro';
+interface Props {
+  image: PublicImage;
+  class?: string;
+  sizes?: string;
+  eager?: boolean;
+  placement?: {image?:PublicImage|null;mobileImage?:PublicImage|null;focalX?:number;focalY?:number;mobileFocalX?:number;mobileFocalY?:number;alt?:string};
+}
+const { image, placement, class: className, sizes = "(max-width: 760px) 100vw, 50vw", eager = false } = Astro.props;
+---
+
+<PlacedImage image={image} placement={placement} class={className} sizes={sizes} eager={eager}/>

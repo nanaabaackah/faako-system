@@ -1,5 +1,14 @@
 # TWE enquiry acknowledgement and email test flow
 
+## Continuous worker — 2026-11-08
+
+`notifications:worker` now runs the existing outbox continuously with graceful
+shutdown; `notifications:once` remains one-job diagnostics and
+`notifications:status` reports redacted queue/configuration state.
+The API alone still does not deliver queued mail. Follow the
+[dedicated staging worker settings and acceptance checklist](./workspace-refinements-2026-11-08.md#enquiry-email-diagnosis-and-railway-worker).
+Actual provisioning, Resend acceptance and testing-mailbox receipt remain pending.
+
 ## Routing (supersedes the earlier To/CC instructions)
 
 | Environment | To | CC |
@@ -45,6 +54,6 @@ mocked transport. No live preview has been sent for this template revision yet.
 Use synthetic data on the real staging enquiry path, then run `notifications:once`
 with that same staging database for the full flow. Demo paths remain no-send.
 Automatic staff invitation email is not implemented by this change.
-Continuous delivery requires the existing worker command to be scheduled or
-supervised in the approved environment. A Resend key alone does not drain the
-outbox. Worker/scheduler hosting configuration is not changed by this branch.
+Continuous delivery requires the new worker command to be supervised in the
+approved environment. A Resend key alone does not drain the outbox. Repository
+implementation does not itself provision the Railway service.

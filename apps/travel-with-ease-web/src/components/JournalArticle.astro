@@ -1,0 +1,89 @@
+---
+import PlacedImage from './PlacedImage.astro';
+import ContentLink from "./ContentLink.astro";
+import Breadcrumbs from "./Breadcrumbs.astro";
+import ClosingCta from "./ClosingCta.astro";
+import { publishedPage } from "../lib/published.js";
+import ImageGallery from "./ImageGallery.astro";
+import type { JournalArticle, TravelPackage } from "../lib/collections";
+import "../styles/components/collections.css";
+interface Props {
+  item: JournalArticle;
+  related?: JournalArticle[];
+  packages?: TravelPackage[];
+  prefix?: string;
+  packagePrefix?: string;
+}
+const {
+  item,
+  related = [],
+  packages = [],
+  prefix = "/journal",
+  packagePrefix = "/packages",
+} = Astro.props;
+---
+
+<article class="editorial-wrap collection-detail journal-reading">
+  <Breadcrumbs collection="Travel Journal" href={prefix} title={item.title} />
+
+  <header class="collection-detail-heading">
+    <p>{item.category || "Travel stories"}</p><h1>{item.title}</h1><p>
+      <time datetime={item.date}>{item.date}</time>{
+        item.author && ` · ${item.author}`
+      }
+    </p>
+  </header>
+  {
+    item.image && (
+      <PlacedImage image={item.image} placement={item.imagePlacement}
+        class="collection-hero"
+        src={item.image.src}
+        srcset={item.image.sources
+          ?.map((source) => `${source.src} ${source.width}w`)
+          .join(", ")}
+        sizes="90vw"
+        width={item.image.width}
+        height={item.image.height}
+        alt={item.image.alt}
+        fetchpriority="high"
+      />
+    )
+  }
+  <div class="collection-reading">
+    <p class="collection-standfirst">{item.excerpt}</p>{
+      item.body.split("\n\n").map((paragraph) => (
+        <p>{paragraph}</p>
+      ))
+    }
+  </div>
+  {
+    (item.gallery?.length || 0) > 0 && (
+      <ImageGallery images={item.gallery || []} />
+    )
+  }
+  {
+    packages.length > 0 && (
+      <section class="collection-related">
+        <h2>Explore related journeys</h2>
+        {packages.map((other) => (
+          <ContentLink href={`${packagePrefix}/${other.slug}`}>
+            {other.title}
+          </ContentLink>
+        ))}
+      </section>
+    )
+  }
+  {
+    related.length > 0 && (
+      <section class="collection-related">
+        <h2>Keep reading</h2>
+        {related.map((other) => (
+          <ContentLink href={`${prefix}/${other.slug}`}>
+            {other.title}
+          </ContentLink>
+        ))}
+      </section>
+    )
+  }
+</article>
+<ClosingCta standalone enquiryAvailable={Boolean(publishedPage("contact"))} />

@@ -27,6 +27,15 @@ test("media decodes and re-encodes bounded images without enlargement or origina
   await assert.rejects(prepareImage(Buffer.alloc(MAX_UPLOAD_BYTES + 1), "image/png"), { status: 413 });
 });
 
+test("transparent mockups retain alpha without enlarging low-resolution images",async()=>{
+  const bytes=await sharp({create:{width:32,height:24,channels:4,background:{r:1,g:12,b:51,alpha:.4}}}).png().withMetadata().toBuffer();
+  for(const output of await prepareImage(bytes,'image/png')){
+    const meta=await sharp(output.bytes).metadata();
+    assert.equal(meta.hasAlpha,true);assert.equal(meta.width,32);
+    assert.equal(meta.exif,undefined);
+  }
+});
+
 test("R2 is optional, rejects partial configuration and enforces environment bucket isolation", () => {
   assert.equal(readR2Config({}), null);
   assert.throws(() => readR2Config({ TWE_R2_PRIVATE_BUCKET: "twe-development-media" }));

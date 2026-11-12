@@ -45,3 +45,140 @@
 .journal-article .body-copy {
   max-width: 68ch;
 }
+.published-content--editorial {
+  max-width: 1320px;
+  padding-inline: clamp(20px, 5vw, 64px);
+  margin-block: clamp(32px, 6vw, 80px);
+}
+.published-content--editorial .published-content__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 64px);
+  margin-bottom: clamp(32px, 5vw, 64px);
+}
+.published-content--editorial .published-content__header img {
+  display: block;
+  margin: 0;
+  width: 100%;
+  height: clamp(300px, 45vw, 540px);
+  object-fit: cover;
+}
+.published-content--editorial h1 {
+  font-size: clamp(2rem, 4vw, 3.6rem);
+}
+.published-content--editorial .body-copy {
+  font-size: 1.125rem;
+  line-height: 1.8;
+}
+.published-content--editorial .published-content__sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px clamp(24px, 5vw, 64px);
+}
+.published-content__sections > section {
+  border-top: 1px solid #b6b1a9;
+  padding-block: 24px;
+}
+.published-content__sections > section:only-child {
+  grid-column: 1 / -1;
+  max-width: 75ch;
+}
+.published-content__sections h2 {
+  font-size: clamp(1.2rem, 2.3vw, 1.6rem);
+}
+.published-content--faq .published-content__sections {
+  display: block;
+  max-width: 85ch;
+  margin-inline: auto;
+}
+@media (max-width: 760px) {
+  .published-content--editorial .published-content__header,
+  .published-content--editorial .published-content__sections {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Journey Chapters: page-specific composition, not a repeated split-page template. */
+.published-content--services .published-content__header,
+.published-content--story .published-content__header {
+  display: block;
+}
+.published-content--services .published-content__header > div,
+.published-content--story .published-content__header > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 72px);
+}
+.published-content--services h1,
+.published-content--story h1 {
+  margin: 0;
+}
+.published-content--services .body-copy,
+.published-content--story .body-copy {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.published-content--story .published-content__story-photo {
+  display: block;
+  width: 100%;
+  height: clamp(320px, 45vw, 580px);
+  object-fit: cover;
+  object-position: 50% 75%;
+  margin: 0 0 48px;
+}
+.published-content--story .published-content__sections > section:only-child {
+  max-width: none;
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 0 clamp(24px, 6vw, 96px);
+}
+.published-content--story .published-content__sections h2 {
+  grid-row: span 2;
+  max-width: 20ch;
+}
+.published-content--story .published-content__sections p {
+  margin-top: 0;
+  line-height: 1.8;
+  max-width: 65ch;
+}
+.published-content--faq {
+  max-width: 1200px;
+  margin-block: 64px;
+}
+.published-content--faq .published-content__header {
+  max-width: 60ch;
+  margin-bottom: 40px;
+}
+.published-content--faq .published-content__sections {
+  max-width: none;
+}
+.published-content--services .service-panels {
+  margin-top: 40px;
+}
+.published-content:not(.published-content--editorial):not(
+    .published-content--faq
+  )
+  .published-content__sections
+  h2 {
+  font-size: 1.35rem;
+  margin-block: 0 16px;
+}
+@media (max-width: 760px) {
+  .published-content--services .published-content__header > div,
+  .published-content--story .published-content__header > div,
+  .published-content--story .published-content__sections > section:only-child {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .published-content--story .published-content__sections h2 {
+    grid-row: auto;
+    max-width: none;
+  }
+}
+
+/* Only the About story's founder/client attribution receives italic styling. */
+.published-content--story .published-content__attribution {
+  font-style: italic;
+}

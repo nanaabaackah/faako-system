@@ -6,14 +6,14 @@ import { analyticsMeasurementId, TWE_MEASUREMENT_ID } from "../src/lib/analytics
 
 const source = (file) => readFileSync(new URL("../src/" + file, import.meta.url), "utf8");
 
-test("production privacy and cookie notices are explicitly approved without promoting unapproved pages", () => {
+test("production privacy and cookie notices reflect the approved enquiry-enabled release", () => {
   assert.ok(approved.pages.privacy?.entries?.length > 0);
   assert.ok(approved.pages.cookies?.entries?.length > 0);
-  assert.equal(approved.pages.contact, null);
-  assert.equal(approved.pages.terms, null);
-  assert.equal(approved.pages.services, null);
-  assert.match(JSON.stringify(approved.pages.privacy), /WhatsApp, email or telephone/);
-  assert.doesNotMatch(JSON.stringify(approved.pages.privacy), /The enquiry form collects/);
+  for (const page of ["contact", "terms", "services"]) {
+    assert.ok(approved.pages[page], `${page} is included in the approved website release`);
+  }
+  assert.match(JSON.stringify(approved.pages.privacy), /The enquiry form collects/);
+  assert.doesNotMatch(JSON.stringify(approved.pages.privacy), /currently uses contact by WhatsApp, email or telephone/);
 });
 
 test("production GA4 is gated by the published privacy notice and never defaults on staging", () => {

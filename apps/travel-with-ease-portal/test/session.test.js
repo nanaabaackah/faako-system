@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createSessionLoader } from "../src/session.js";
+import { createSessionLoader } from "../src/lib/session.js";
 
 test("concurrent initial loads create only one Access session and then read it", async () => {
   let reads = 0, writes = 0;

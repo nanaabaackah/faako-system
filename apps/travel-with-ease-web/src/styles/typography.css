@@ -1,34 +1,228 @@
-@font-face {
-  font-family: "Bonheur Royale";
-  src: url("/fonts/bonheur-royale-latin-400.woff2") format("woff2");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
+/* Public TWE typography: Google Fonts, all under the SIL Open Font License.
+   Display headings = Poiret One (regular with optical stroke), UI accents = Inter ExtraBold,
+   signature = Sassy Frass,
+   journal headings and article body = Caveat, functional UI = Quicksand.
+   Handwriting is scoped to journal content; navigation and forms stay readable. */
+:root {
+  --font-display: "Poiret One", "Trebuchet MS", Arial, sans-serif;
+  --font-body: "Quicksand", "Trebuchet MS", Arial, sans-serif;
+  --font-impact: "Inter", Arial, sans-serif;
+  --font-signature: "Sassy Frass", cursive;
+  --font-journal: "Caveat", "Segoe Print", cursive;
+  --text-h1: clamp(2.5rem, 4.5vw, 4rem);
+  --text-h2: clamp(2.125rem, 3.5vw, 3rem);
+  --text-h3: clamp(1.625rem, 2.5vw, 1.875rem);
+  --text-h4: 1.375rem;
+  --text-body: 1rem;
+  --text-small: 0.875rem;
+  --text-caption: 0.8125rem;
 }
-@font-face {
-  font-family: "Montserrat";
-  src: url("/fonts/montserrat-latin-800.woff2") format("woff2");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
+html, body { font-family: var(--font-body); }
+body { font-size: var(--text-body); font-weight: 400; line-height: 1.65; }
+
+/* Override historic Georgia font shorthands without changing layout or content. */
+/* Poiret One ships only at weight 400. Optically thicken its hairlines without
+   pretending a native ExtraBold file exists or synthetically loading 800. */
+body :is(h1, h2, h3) {
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  -webkit-text-stroke: 0.024em currentColor;
+  paint-order: stroke fill;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
 }
-/* Unlayered brand rules override component-specific historical serif headings. */
-body :is(h1, h2, h3, h4, h5, h6) {
-  font-family: "Montserrat", Arial, sans-serif !important;
-  font-weight: 800 !important;
+body :is(h4, h5, h6) {
+  font-family: var(--font-body) !important;
+  font-weight: 600 !important;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
+body h1 { font-size: var(--text-h1); }
+body h2 { font-size: var(--text-h2); }
+body h3 { font-size: var(--text-h3); }
+body h4 { font-size: var(--text-h4); }
+body :is(button, input, select, textarea) { font-family: var(--font-body); }
+body .site-header nav a { font-family: var(--font-body); font-size: var(--text-small); font-weight: 500; }
+body :is(.twe-content-link.button, .nav-cta, .button) { font-family: var(--font-body); font-size: var(--text-small); font-weight: 600; }
+body .twe-content-link:not(.button) { font-family: var(--font-body); font-size: 1rem; font-weight: 500; text-underline-offset: 0.25em; }
+body :is(.eyebrow, .package-section-label) { font-family: var(--font-body); font-size: var(--text-caption); font-weight: 600; letter-spacing: 0.12em; }
+body label, body .ui-field__label { font-family: var(--font-body); font-size: var(--text-small); font-weight: 600; }
+body :is(input, select, textarea, .ui-field__input, .ui-dropdown-field__trigger) { font-family: var(--font-body); font-size: var(--text-body); }
+
+/* Display heading keeps the brand's light Art Deco geometry with an
+   extra-strong optical stroke. Inter 800 remains on buttons and navigation. */
 body .cinematic-hero h1 {
-  max-width: 23ch;
-  font-size: clamp(2rem, 4.3vw, 4.4rem);
+  width: 100%;
+  max-width: none;
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  font-size: clamp(2.1rem, 4.35vw, 4.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  -webkit-text-stroke: 0.03em currentColor;
   text-transform: none;
 }
 body .cinematic-hero .hero-signature {
   display: block;
-  margin-top: 0.15em;
-  font-family: "Bonheur Royale", cursive;
-  font-size: clamp(3.1rem, 8vw, 7rem);
+  width: 100%;
+  max-width: none;
+  margin-top: 0.06em;
+  font-family: var(--font-signature);
+  font-size: clamp(2.65rem, 13vw, 15rem);
   font-weight: 400;
-  line-height: 1.15;
+  line-height: 1.08;
   letter-spacing: 0;
+  color: var(--brand-gold);
+  -webkit-text-stroke: 0;
   text-transform: none;
+  /* Let the large handwritten text use the full row but wrap at word
+     boundaries instead of enlarging the document's scrollable width. */
+  white-space: normal;
+  text-wrap: balance;
+}
+body .cinematic-hero__actions .twe-content-link {
+  font-family: var(--font-impact);
+  font-weight: 800;
+}
+
+/* Keep navigation and its CTA genuinely ExtraBold, without affecting Quicksand body copy. */
+body .site-header-shell .site-header nav a {
+  font-family: var(--font-impact);
+  font-weight: 800;
+}
+body .site-header-shell .site-header nav .nav-cta {
+  font-family: var(--font-impact);
+  font-weight: 800;
+}
+
+/* Journal handwriting covers both editorial headings and article paragraphs.
+   Functional controls and bylines remain in Quicksand. */
+body .journal-collection-grid .journal-card h2 {
+  font-family: var(--font-journal) !important;
+  font-weight: 600 !important;
+  -webkit-text-stroke: 0;
+  font-size: clamp(1.85rem, 2.8vw, 2.55rem);
+  line-height: 1.13;
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+}
+body .journal-collection-grid .journal-card .journal-card__excerpt {
+  font-family: var(--font-journal);
+  font-size: clamp(1.3rem, 1.75vw, 1.55rem);
+  line-height: 1.22;
+}
+body .journal-reading .collection-detail-heading h1 {
+  font-family: var(--font-journal) !important;
+  font-weight: 600 !important;
+  -webkit-text-stroke: 0;
+  font-size: clamp(3rem, 6vw, 5.5rem);
+  line-height: 1.05;
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+}
+body .journal-reading .collection-standfirst {
+  font-family: var(--font-journal);
+  font-size: clamp(1.7rem, 2.5vw, 2.2rem);
+  line-height: 1.35;
+}
+body .journal-reading .collection-reading > p:not(.collection-standfirst) {
+  font-family: var(--font-journal);
+  font-size: clamp(1.55rem, 2.4vw, 1.9rem);
+  font-weight: 500;
+  line-height: 1.43;
+  letter-spacing: 0.005em;
+}
+body .journal-reading .collection-reading > p {
+  overflow-wrap: anywhere;
+}
+body .journal-reading :is(.collection-detail-heading > p, .breadcrumbs, .collection-related a) {
+  font-family: var(--font-body);
+}
+@media (max-width: 480px) {
+  body .cinematic-hero h1 { font-size: clamp(2.35rem, 10vw, 3.5rem); }
+  /* Keep the large approved mobile lettering while allowing natural word
+     wrapping when a single line would spill outside the viewport. */
+  body .cinematic-hero .hero-signature {
+    font-size: clamp(4.25rem, 19vw, 6.25rem);
+    white-space: normal;
+    text-wrap: balance;
+  }
+}
+
+/* Brand-derived hierarchy on cream/light reading surfaces. Never recolor dark
+   photo overlays, the navbar, or toast/system messages using these rules. */
+:root {
+  --twe-heading-color: var(--brand-navy);
+  --twe-copy-color: var(--muted);
+  --twe-label-color: #77551b; /* deep gold: legible on the brand cream */
+}
+body main :is(
+  .editorial-wrap, .published-content, .journey-introduction,
+  .cream-footprint, .travel-tips, .closing-copy, .service-panel__label,
+  .cinematic-enquiry__card
+) :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--twe-heading-color);
+}
+body main :is(
+  .editorial-wrap, .published-content, .journey-introduction,
+  .cream-footprint, .travel-tips, .closing-copy, .service-panel__label,
+  .cinematic-enquiry__card
+) :where(p, li):not(:where(.eyebrow, .journal-card__metadata)) {
+  /* Keep light-surface defaults intentionally low-specificity so navy
+     journey cards, editorial overlays and labels can override them. */
+  color: var(--twe-copy-color);
+}
+body main :is(
+  .eyebrow, .package-section-label, .travel-tips__category,
+  .collection-detail-heading > p, .journal-card__metadata,
+  label, .ui-field__label
+) {
+  color: var(--twe-label-color);
+}
+/* Inverse palette on photographs and navy overlays, while the form panel
+   within the dark enquiry scene retains the light-surface hierarchy. */
+body main .cinematic-hero h1,
+body main .cinematic-hero .cinematic-hero__copy > p,
+body main .cinematic-enquiry__scene :is(h1, h2, h3, p),
+body main :is(.journal-card, .journey-card) :is(h1, h2, h3, h4, h5, h6, p, li) {
+  color: var(--brand-cream);
+}
+body main .cinematic-hero h1 .hero-signature {
+  color: var(--brand-gold);
+}
+body main .journal-card .journal-card__metadata {
+  color: var(--brand-gold);
+}
+/* The enquiry card is a cream surface nested inside a navy/photo section. */
+body main .cinematic-enquiry__card :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--twe-heading-color);
+}
+body main .cinematic-enquiry__card p {
+  color: var(--twe-copy-color);
+}
+
+/* The shared enquiry form is rendered after <main> by BaseLayout, so explicitly
+   apply the same light-surface palette here without recoloring its dark scene. */
+body .cinematic-enquiry__card :is(h1, h2, h3, h4, h5, h6) {
+  color: var(--twe-heading-color);
+}
+body .cinematic-enquiry__card :is(p, li) {
+  color: var(--twe-copy-color);
+}
+body .cinematic-enquiry__card :is(label, .ui-field__label) {
+  color: var(--twe-label-color);
+}
+
+/* Package tickets are navy photographic surfaces inside otherwise light
+   editorial sections. Target only their visible face, never the reverse. */
+body main :is(.featured-journeys, .package-catalogue) .twe-package-ticket .twe-ticket--front :is(h2, h3, p, a) {
+  color: var(--brand-cream);
+}
+body main :is(.featured-journeys, .package-catalogue) .twe-package-ticket .twe-ticket--front :is(
+  .twe-ticket__duration, .twe-ticket__fee, .twe-ticket__fee .twe-money, .twe-ticket__fee [data-money-value]
+) {
+  color: var(--brand-gold);
+}
+body main :is(.featured-journeys, .package-catalogue) .twe-package-ticket .twe-ticket--back :is(h2, h3, p, a) {
+  color: var(--brand-navy);
 }

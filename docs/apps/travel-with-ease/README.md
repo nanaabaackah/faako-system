@@ -1,20 +1,55 @@
 # Travel With Ease documentation
 
+## Latest implementation — 2026-11-08
+
+Use [workspace preview, source structure, notification worker and staging handover](./workspace-refinements-2026-11-08.md)
+for the new local command, current folder map, services/breadcrumb changes and
+explicit remaining hosted acceptance steps. This supersedes older claims below
+about missing collection pages, autosave, Astro previews and the role matrix.
+Implemented and locally tested does not mean deployed or authenticated acceptance.
+
+Latest CMS extension: [roles, imagery, activity and responsive navigation](./cms-access-imagery-activity-2026-11-04.md).
+Migration 013, real handover and authenticated staging acceptance are explicit
+rollout steps, not implied by local tests.
+
+## Historical status review — 2026-11-01
+
+Start with the [implementation status and hosted evidence](./completion-status-2026-11-01.md),
+[release readiness gates](./readiness-check.md) and
+[incremental completion sequence](./implementation-plan.md#feature-completion-sequence--2026-11-01).
+The [root monorepo README](../../../README.md#travel-with-ease) now describes the
+actual workspace inventory, TWE architecture, commands, environments and gaps.
+
+The broader completion brief is not finished. Packages/detail pages, Travel Tips,
+advanced Journal, autosave, actual Astro draft previews and automatic deployment
+remain implementation work. Current manual CMS/revisions/media/onboarding and
+publication preparation are not evidence of those missing features. The new
+Superadmin policy also differs from the current restricted platform_admin matrix.
+
+Staging website/API health was observed over HTTPS; portal roots redirect to
+sign-in. Production API health timed out and deployed website SHAs could not be
+verified from publication markers. See the dated evidence rather than inferring
+authenticated acceptance, email receipt or production readiness.
+
+The links below retain the historical decisions and operating detail; date-specific
+claims are superseded by this status review where they conflict.
+
 Media configuration and image changes: [Drive → private R2 → publication](./drive-r2-sync.md).
 
 Latest visual work: [Flyward reference correction — 2026-10-30](./reference-correction-2026-10-30.md).
 Earlier implementation/release gates: [editorial redesign](./editorial-redesign-2026-10-30.md).
 
-Current follow-up: [company content, enquiry email and demos](./content-and-email-followup.md).
+Current cleanup: [demo retirement and repository hygiene](./repository-cleanup-2026-11-06.md).
+Historical content/email decisions: [follow-up record](./content-and-email-followup.md).
 Company source: [public facts and outstanding approvals](./company-content-source.md).
 Email configuration: [final test/production routing](./email-test-flow.md).
 
 Database deployment: [pre-deploy migrations and first-time setup](./predeploy-migrations-2026-10-27.md).
 
-Latest update: [approved initial public release and PostgreSQL compatibility](./public-release-2026-10-26.md).
+Initial public release: [approved initial release and PostgreSQL compatibility](./public-release-2026-10-26.md).
 
-Current release source of truth: [readiness check — reviewed 2026-10-25](./readiness-check.md).
-Latest implementation: [hosted API startup — 2026-10-25](./hosted-startup-2026-10-25.md).
+Current release source of truth: [readiness check — reviewed 2026-11-01](./readiness-check.md).
+Historical startup decision: [hosted API startup — 2026-10-25](./hosted-startup-2026-10-25.md).
 
 Staff login deployment: [portal hosting preparation](./portal-hosting-preparation-2026-10-23.md).
 
@@ -40,7 +75,12 @@ Staff login deployment: [portal hosting preparation](./portal-hosting-preparatio
 - [Visual audit — 2026-10-10](./audits/2026-10-10/visual-audit.md) — original screenshot-supported design audit, preserved as dated evidence.
 - [Progress/change log](./progress-log.md) — dated work and actual verification results.
 
-Current verified status: local implementation/tests and conditional staging API startup guard; no complete hosted staging acceptance or production certification. Production API and background workers remain blocked pending a separate release review. Do not confuse readiness preflight, DNS/Access redirects or local tests with observed MFA/UAT/backup verification. Use [the readiness check](./readiness-check.md) for active gates and [Prompt 03 handoff](./implementation-plan.md#prompt-03-handoff-scope) for remaining acceptance.
+Current verified status: both hosted API environments support validated startup;
+publication/notification worker executables remain separately gated. Staging
+health and public HTTPS are observed, not full authenticated acceptance or
+production certification. Do not confuse readiness preflight, DNS/Access redirects
+or synthetic tests with observed MFA/UAT/email/backup verification. Use
+[the readiness check](./readiness-check.md) for active gates.
 
 The public website uses the shared consent-controlled GA4 integration. Production
 defaults to the user-approved stream `G-GVJ2HGT6YN`; `PUBLIC_GA_MEASUREMENT_ID` is
@@ -54,4 +94,4 @@ privacy page, so live analytics stays off until the Owner publishes that notice.
 Rebuild/deploy after configuration/publication, then follow
 `docs/architecture/google-analytics-architecture.md`'s hosted verification checklist.
 Local browser checks intercept Google requests; production receipt in GA4 is not
-verified by those checks. Staff portals and demos do not load analytics.
+verified by those checks. Staff portals do not load analytics. Synthetic demo routes have been retired.

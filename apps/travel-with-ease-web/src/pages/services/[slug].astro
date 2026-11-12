@@ -1,0 +1,58 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ContentLink from "../../components/ContentLink.astro";
+import Breadcrumbs from "../../components/Breadcrumbs.astro";
+import MoneyText from "../../components/MoneyText.astro";
+import CurrencyAttribution from "../../components/CurrencyAttribution.astro";
+import EditorialPhoto from "../../components/EditorialPhoto.astro";
+import photography from "../../lib/journey-photography.json";
+import { publishedPage } from "../../lib/published.js";
+import { publishedServices } from "../../lib/services.js";
+import type { ImagePlacement } from "../../lib/collections";
+import "../../styles/components/service-experience.css";
+
+interface Props {
+  service: { slug: string; title: string; fee: string; text: string; index: number; imagePlacement?: ImagePlacement };
+}
+export function getStaticPaths() {
+  return publishedServices(publishedPage("services")).map((service: Props["service"]) => ({
+    params: { slug: service.slug },
+    props: { service },
+  }));
+}
+const { service } = Astro.props;
+const images = [photography.hippos, photography.coast, photography.garden, photography.elephants];
+const others: Props["service"][] = publishedServices(publishedPage("services")).filter((item: Props["service"]) => item.slug !== service.slug);
+---
+
+<BaseLayout title={`${service.title} | Travel With Ease`} description={service.text.slice(0, 180)}>
+  <article class="service-detail editorial-wrap">
+    <Breadcrumbs collection="Services" href="/services" title={service.title} />
+    <header class="service-detail__hero">
+      <div>
+        <h1>{service.title}</h1>
+        {service.fee && <p class="service-detail__fee"><MoneyText text={service.fee} /></p>}
+        <p class="service-detail__summary"><MoneyText text={service.text} /></p>
+        <CurrencyAttribution />
+        <ContentLink button href="#plan">Enquire about this service</ContentLink>
+      </div>
+      <EditorialPhoto image={images[service.index % images.length]} placement={service.imagePlacement} class="service-detail__photo" eager />
+    </header>
+    <div class="service-detail__preparation">
+      <section aria-labelledby="service-start-heading">
+        <h2 id="service-start-heading">Let’s start with your plans.</h2>
+        <p>Tell us you are interested in {service.title}, where you would like to go and when. If you are still deciding, share the ideas you have so far.</p>
+        <ul><li>Your preferred dates or travel month</li><li>How many people are travelling</li><li>Your approximate budget and the support you need</li></ul>
+      </section>
+      <aside aria-labelledby="service-next-heading">
+        <h2 id="service-next-heading">Know what comes next.</h2>
+        <p>Discuss the scope, price and terms with us before proceeding. An enquiry is not a booking; your agreed service determines the support included.</p>
+        <ContentLink href="/how-it-works">See the planning process</ContentLink>
+      </aside>
+    </div>
+    {others.length > 0 && <section class="service-detail__others" aria-labelledby="other-services-heading">
+      <h2 id="other-services-heading">A different level of support?</h2>
+      <div>{others.map(other => <ContentLink href={`/services/${other.slug}`}>{other.title}</ContentLink>)}</div>
+    </section>}
+  </article>
+</BaseLayout>

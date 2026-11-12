@@ -1,6 +1,7 @@
 ---
 import ContentLink from "./ContentLink.astro";
 import photos from "../lib/approved-preview-media.json";
+import PlacedImage from './PlacedImage.astro';
 import "../styles/components/cinematic-hero.css";
 interface Props {
   heading: string;
@@ -12,37 +13,28 @@ interface Props {
     height: number;
     sources?: { src: string; width: number }[];
   } | null;
-  demo?: boolean;
+  placement?: import('../lib/collections').ImagePlacement;
 }
-const { heading, body, image, demo = false } = Astro.props;
+const { heading, body, image, placement={} } = Astro.props;
 const signature = /a little more you\.?/i;
 const parts = heading.split(signature);
 const approved = photos.find((photo) => photo.placement === "hero")!;
-const photo = image || { ...approved, src: approved.sources.at(-1)!.src };
+const photo = placement.image || image || { ...approved, src: approved.sources.at(-1)!.src };
 const variants = photos.find((item) =>
   item.sources.some((source) => source.src === photo.src),
 );
 ---
 
 <section
-  class:list={["cinematic-hero", { "cinematic-hero--text": !image && !demo }]}
+  class:list={["cinematic-hero", { "cinematic-hero--text": !image && !placement.image }]}
   aria-labelledby="hero-heading"
 >
   {
-    (image || demo) && (
-      <img
+    (image || placement.image) && (
+      <PlacedImage image={{...photo,sources:photo.sources||variants?.sources}} placement={placement}
         class="cinematic-hero__image"
-        src={photo.src}
-        srcset={(photo.sources || variants?.sources || [])
-          .map((source) => `${source.src} ${source.width}w`)
-          .join(", ")}
         sizes="100vw"
-        width={photo.width}
-        height={photo.height}
-        alt={photo.alt}
-        fetchpriority="high"
-        loading="eager"
-        decoding="async"
+        eager
       />
     )
   }
@@ -64,20 +56,16 @@ const variants = photos.find((item) =>
     <div class="cinematic-hero__actions">
       <ContentLink
         button
-        href={demo ? "#demo-plan" : "#plan"}
-        data-demo-personalised={demo ? "" : undefined}
-        >{demo ? "Try planning a trip" : "Plan your trip"}</ContentLink
+        href="#plan"
+        >Plan your trip</ContentLink
       >
-      <ContentLink href={demo ? "#demo-packages" : "#our-world"}
-        >{
-          demo ? "Explore sample journeys" : "Our travel footprint"
-        }</ContentLink
+      <ContentLink href="/packages"
+        >Explore Packages</ContentLink
       >
     </div>
-    {demo && <small>Design demonstration · not bookable offers.</small>}
   </div>
   <a
     class="cinematic-hero__scroll"
-    href={demo ? "#demo-packages" : "#our-world"}>Discover more</a
+    href="#about">Discover more</a
   >
 </section>

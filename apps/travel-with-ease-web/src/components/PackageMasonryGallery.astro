@@ -1,0 +1,31 @@
+---
+import type { PublicImage } from "../lib/collections";
+import PackageMasonry from "./PackageMasonry.jsx";
+import "../styles/components/package-masonry.css";
+interface Props {
+  images: PublicImage[];
+}
+const { images } = Astro.props;
+---
+
+{images.length > 0 && (
+  <div class="twe-package-gallery" aria-label="Package photographs">
+    <PackageMasonry images={images.map(image => ({
+      src: image.src, alt: image.alt, width: image.width, height: image.height
+    }))} client:visible />
+    <div class="twe-package-gallery__fallback" aria-label="View package photographs">
+      {images.map(image => (
+        <a href={image.src} target="_blank" rel="noopener noreferrer" aria-label={`View larger image: ${image.alt}`}>
+          <img
+            src={image.src}
+            width={image.width}
+            height={image.height}
+            alt={image.alt}
+            loading="lazy"
+            decoding="async"
+          />
+        </a>
+      ))}
+    </div>
+  </div>
+)}

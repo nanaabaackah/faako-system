@@ -1,0 +1,105 @@
+---
+import PlacedImage from './PlacedImage.astro';
+import PackageTicketCard from './PackageTicketCard.jsx';
+import ContentLink from "./ContentLink.astro";
+import CurrencyAttribution from "./CurrencyAttribution.astro";
+import CollectionFilters from "./CollectionFilters.jsx";
+import { packageStartingPrice } from "../lib/package-pricing.js";
+import { packageOccasions } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
+import type { TravelPackage } from "../lib/collections";
+import "../styles/components/collections.css";
+import "../styles/components/package-experience.css";
+interface Props {
+  items: TravelPackage[];
+  prefix?: string;
+  heading?: string;
+  headerPlacement?:import('../lib/collections').ImagePlacement;
+}
+const {
+  items,
+  prefix = "/packages",
+  heading = "Find your next journey.",
+  headerPlacement,
+} = Astro.props;
+---
+
+<section class="editorial-wrap collection-page package-catalogue" id="package-collection">
+  <header class="collection-introduction package-catalogue__introduction">
+    <div><h1>{heading}</h1></div>
+    <div><p>A beach escape, a wildlife-filled few days, or two cities in one trip.
+      Find your starting point. We’ll work through dates and details with you.</p>
+      <ContentLink href="#plan">Prefer something personalised?</ContentLink>
+    </div>
+  </header>
+  <PlacedImage placement={headerPlacement} class="collection-header-photo" sizes="90vw"/>
+
+  {
+    items.length > 0 ? (
+      <>
+        <CollectionFilters
+          client:load
+          scope="package-collection"
+          options={[...new Set(items.map((item) => item.destination))]}
+          label="Destination"
+          occasions={packageOccasions}
+        />
+        <noscript>
+          <p>
+            All packages are listed below. Search and filters require
+            JavaScript.
+          </p>
+        </noscript>
+        <div class="package-collection-grid">
+          {items.map((item, index) => {
+            const placement = item.imagePlacement;
+            const photo = placement?.image || item.image;
+            const mobile = placement?.mobileImage;
+            return (
+              <article
+                class="package-ticket-entry"
+                data-collection-item
+                data-category={item.destination}
+                data-occasions={(item.occasions || []).join(" ")}
+                data-group-friendly={item.groupFriendly ? "true" : "false"}
+                data-search={`${item.title} ${item.destination} ${item.category || ""}`.toLocaleLowerCase()}
+              >
+                <PackageTicketCard
+                  title={item.title}
+                  duration={item.duration}
+                  price={packageStartingPrice(item)}
+                  priceNote={item.pricingStatus === "indicative" ? "per person sharing" : undefined}
+                  tagline={item.tagline || item.overview.slice(0, 160)}
+                  overview={item.overview}
+                  href={`${prefix}/${item.slug}`}
+                  imageSrc={photo?.src}
+                  imageSrcSet={photo?.sources?.map(source => `${source.src} ${source.width}w`).join(", ")}
+                  imageSizes="(max-width: 760px) 90vw, 44vw"
+                  mobileImageSrcSet={mobile?.sources?.map(source => `${source.src} ${source.width}w`).join(", ") || mobile?.src}
+                  imagePosition={`${placement?.focalX ?? 50}% ${placement?.focalY ?? 50}%`}
+                  mobileImagePosition={`${placement?.mobileFocalX ?? placement?.focalX ?? 50}% ${placement?.mobileFocalY ?? placement?.focalY ?? 50}%`}
+                  headingLevel="h2"
+                  index={index}
+                  client:load
+                />
+              </article>
+            );
+          })}
+        </div>
+        <CurrencyAttribution />
+      </>
+    ) : (
+      <div class="review-empty">
+        <>
+          <h2>No packages are currently published.</h2>
+          <p>
+            Approved destinations, dates and package details will appear here.
+            We do not display illustrative offers as real packages.
+          </p>
+          <ContentLink href="/contact">
+            Personalised travel enquiries
+          </ContentLink>
+        </>
+      </div>
+    )
+  }
+</section>
