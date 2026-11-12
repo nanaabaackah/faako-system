@@ -31,7 +31,7 @@ test("review section has exactly three anonymous first-hand testimonials with ex
 
 test("review navigation respects mobile scroll snapping and keeps the accessible dots functional", () => {
   assert.match(reviews, /aria-labelledby="traveller-reviews-heading"/);
-  assert.match(reviews, /aria-label=\{`Show review \$\{index \+ 1\}\`\}/);
+  assert.ok(reviews.includes('aria-label={`Show review ${index + 1}`}'));
   assert.match(reviews, /track\.scrollTo/);
   assert.match(reviews, /aria-current/);
   assert.match(styles, /grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/);
