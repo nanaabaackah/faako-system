@@ -52,7 +52,8 @@ body :is(input, select, textarea, .ui-field__input, .ui-dropdown-field__trigger)
 /* Display heading keeps the brand's light Art Deco geometry with an
    extra-strong optical stroke. Inter 800 remains on buttons and navigation. */
 body .cinematic-hero h1 {
-  max-width: 23ch;
+  width: 100%;
+  max-width: none;
   font-family: var(--font-display) !important;
   font-weight: 400 !important;
   font-size: clamp(2.1rem, 4.35vw, 4.5rem);
@@ -63,16 +64,20 @@ body .cinematic-hero h1 {
 }
 body .cinematic-hero .hero-signature {
   display: block;
-  max-width: 100%;
+  width: 100%;
+  max-width: none;
   margin-top: 0.06em;
   font-family: var(--font-signature);
-  font-size: clamp(4rem, 9vw, 8.8rem);
+  font-size: clamp(2.65rem, 13vw, 15rem);
   font-weight: 400;
   line-height: 1.08;
   letter-spacing: 0;
   color: var(--brand-gold);
   -webkit-text-stroke: 0;
   text-transform: none;
+  /* Let the large handwritten text use the full row but wrap at word
+     boundaries instead of enlarging the document's scrollable width. */
+  white-space: normal;
   text-wrap: balance;
 }
 body .cinematic-hero__actions .twe-content-link {
@@ -135,11 +140,11 @@ body .journal-reading :is(.collection-detail-heading > p, .breadcrumbs, .collect
 }
 @media (max-width: 480px) {
   body .cinematic-hero h1 { font-size: clamp(2.35rem, 10vw, 3.5rem); }
+  /* Keep the large approved mobile lettering while allowing natural word
+     wrapping when a single line would spill outside the viewport. */
   body .cinematic-hero .hero-signature {
     font-size: clamp(4.25rem, 19vw, 6.25rem);
-    max-width: 100%;
-    line-height: 1.05;
-    overflow-wrap: break-word;
+    white-space: normal;
     text-wrap: balance;
   }
 }

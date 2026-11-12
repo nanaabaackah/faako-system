@@ -138,6 +138,15 @@ try {
     }));
     assert.match(signatureFont.family, /Sassy Frass/);
     assert.equal(parseFloat(signatureFont.stroke), 0, "Signature remains handwritten without outlined stroke");
+    const signatureLayout = await page.locator(".hero-signature").evaluate(el => {
+      const signature = el.getBoundingClientRect();
+      const copy = el.closest(".cinematic-hero__copy").getBoundingClientRect();
+      return { signatureWidth: signature.width, copyWidth: copy.width };
+    });
+    assert.ok(signatureLayout.copyWidth >= width * 0.84,
+      "Hero copy uses the full padded hero width instead of a narrow text column");
+    assert.ok(Math.abs(signatureLayout.signatureWidth - signatureLayout.copyWidth) <= 1,
+      "A Little More You spans the available hero copy width");
     const editorialFont = await page.locator(".journey-introduction h2").evaluate(el => ({
       family:getComputedStyle(el).fontFamily,
       weight:getComputedStyle(el).fontWeight,

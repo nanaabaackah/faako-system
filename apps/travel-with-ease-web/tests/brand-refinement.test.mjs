@@ -18,6 +18,7 @@ test("public typography uses licensed Google Fonts with scoped hero and journal 
   assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{/);
   assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\)/);
   assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\) \{[\s\S]*?font-family: var\(--font-journal\)/);
+  assert.match(typography, /font-size: clamp\(2\.65rem, 13vw, 15rem\)/);
   assert.match(typography, /font-size: clamp\(4\.25rem, 19vw, 6\.25rem\)/);
   const layout = read("../src/layouts/BaseLayout.astro");
   for (const family of ["Caveat", "Inter", "Poiret+One", "Quicksand", "Sassy+Frass"])
@@ -31,6 +32,9 @@ test("public typography uses licensed Google Fonts with scoped hero and journal 
   assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
   assert.match(headers, /font-src[^\n]*https:\/\/fonts.gstatic.com/);
   assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*A Little More You/);
+  assert.match(read("../src/styles/components/cinematic-hero.css"), /\.cinematic-hero__copy \{\s*width: 100%;/);
+  assert.match(typography, /body \.cinematic-hero h1 \{\s*width: 100%;\s*max-width: none;/);
+  assert.match(typography, /body \.cinematic-hero \.hero-signature \{[\s\S]*?width: 100%;[\s\S]*?white-space: normal;[\s\S]*?text-wrap: balance;/);
 });
 
 test("About attribution italic styling is scoped to the story page", () => {
@@ -106,7 +110,7 @@ test("mobile menu matches approved full-screen reference without hiding importan
   assert.match(css, /border-bottom: 1px solid rgb\(244 237 227 \/ 18%\)/);
   assert.match(css, /\.nav-cta \{[\s\S]*?background: var\(--brand-gold\)/);
   assert.match(hero, /--font-impact: "Inter"/);
-  assert.match(hero, /font-size: clamp\(4rem, 9vw, 8\.8rem\)/);
+  assert.match(hero, /font-size: clamp\(2\.65rem, 13vw, 15rem\)/);
   assert.match(hero, /body \.site-header-shell \.site-header nav a \{[\s\S]*?font-weight: 800/);
   assert.match(layout, /twe-mobile-menu-open/);
 });
