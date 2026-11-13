@@ -2,16 +2,25 @@ import Button from "./ActionButton.jsx";
 import { useEffect, useState } from "react";
 import {
   SelectField,
+  TextField,
   StatusPill,
   KpiCard,
   InlineNotice,
   AnimatedLoadingState,
 } from "@faako/ui";
+import { enquiryAnswerSections, formatEnquiryAnswer, legacyEnquiryFields } from "../lib/enquiryView.js";
 
 const statuses = ["new", "contacted", "closed"];
+const serviceOptions = [
+  ["readiness", "Travel Readiness Session"], ["full_planning", "Full Trip Planning"],
+  ["premium", "Premium Concierge"], ["group", "Group Trip Planning"],
+];
 export default function Enquiries({ api, session }) {
   const [status, setStatus] = useState("");
-  const [kind, setKind] = useState("");
+  const [category, setCategory] = useState("");
+  const [service, setService] = useState("");
+  const [packageFilter, setPackageFilter] = useState("");
+  const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [result, setResult] = useState({ items: [], nextOffset: null });
   const [selectedId, setSelectedId] = useState(null);
@@ -28,7 +37,10 @@ export default function Enquiries({ api, session }) {
     const query = new URLSearchParams({
       offset: String(offset),
       ...(status ? { status } : {}),
-      ...(kind ? { kind } : {}),
+      ...(category ? { category } : {}),
+      ...(service ? { service } : {}),
+      ...(packageFilter ? { package: packageFilter } : {}),
+      ...(search ? { search } : {}),
     });
     const request = selectedId
       ? api.get(`/api/agent/inquiries/${selectedId}`, { responseMode: "data" })
@@ -49,7 +61,7 @@ export default function Enquiries({ api, session }) {
     return () => {
       active = false;
     };
-  }, [api, offset, status, kind, selectedId, revision]);
+  }, [api, offset, status, category, service, packageFilter, search, selectedId, revision]);
   async function changeStatus(nextStatus) {
     setSaving(true);
     setError("");
@@ -126,22 +138,13 @@ export default function Enquiries({ api, session }) {
               <div className="detail-columns">
                 <section className="workspace-panel" aria-label="Trip request">
                   <h4>Trip request</h4>
-                  <p className="workspace-caption">
-                    Details supplied by the traveller.
-                  </p>
                   <dl className="detail-fields">
-                    {Object.entries(selected.details || {}).map(
-                      ([key, value]) => (
-                        <div key={key}>
-                          <dt>{key.replaceAll("_", " ")}</dt>
-                          <dd className="preserve-lines">
-                            {typeof value === "object"
-                              ? JSON.stringify(value, null, 2)
-                              : String(value ?? "")}
-                          </dd>
-                        </div>
-                      ),
-                    )}
+                    <div><dt>Enquiry category</dt><dd>{selected.category}</dd></div>
+                    <div><dt>Source page</dt><dd>{selected.details?.sourcePath || selected.details?.source || "Legacy enquiry"}</dd></div>
+                    {selected.service && <div><dt>Service</dt><dd>{selected.service}</dd></div>}
+                    {selected.package && <div><dt>Package</dt><dd>{selected.package}</dd></div>}
+                    {selected.details?.questionnaireVersion && <div><dt>Questionnaire version</dt><dd>{selected.details.questionnaireVersion}</dd></div>}
+                    {!selected.details?.questionSnapshots && legacyEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}
                   </dl>
                 </section>
                 <aside className="workspace-panel enquiry-contact">
@@ -175,6 +178,10 @@ export default function Enquiries({ api, session }) {
                   </p>
                 </aside>
               </div>
+              {enquiryAnswerSections(selected.details).map((section) => <section className="workspace-panel enquiry-answers" key={section.title}>
+                <h4>{section.title}</h4>
+                <dl className="detail-fields">{section.items.map((item) => <div key={item.id}><dt>{item.label}</dt><dd className="preserve-lines">{formatEnquiryAnswer(item.value)}</dd></div>)}</dl>
+              </section>)}
               <section className="workspace-panel enquiry-progress">
                 <h4>Follow-up status</h4>
                 <p className="workspace-caption">
@@ -224,18 +231,25 @@ export default function Enquiries({ api, session }) {
               ))}
             </SelectField>
             <SelectField
-              label="Enquiry type"
-              value={kind}
+              label="Enquiry category"
+              value={category}
               onChange={(event) => {
-                setKind(event.target.value);
+                setCategory(event.target.value);
                 setOffset(0);
               }}
             >
-              <option value="">All types</option>
-              <option value="personalised">Personalised trip</option>
+              <option value="">All categories</option>
+              <option value="general">General</option>
+              <option value="service">Service</option>
               <option value="package">Package</option>
-              <option value="legacy_estimator">Legacy estimator</option>
+              <option value="direct">Direct</option>
             </SelectField>
+            <SelectField label="Service" value={service} onChange={(event) => { setService(event.target.value); setOffset(0); }}>
+              <option value="">All services</option>
+              {serviceOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </SelectField>
+            <TextField label="Package" value={packageFilter} onChange={(event) => { setPackageFilter(event.target.value); setOffset(0); }} placeholder="Package name or ID" />
+            <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
           </div>
           {!busy && !error && (
             <div className="workspace-kpis">
@@ -262,6 +276,7 @@ export default function Enquiries({ api, session }) {
                     {item.demo ? "[STAGING DEMO] " : ""}
                     {item.contact.name || "Traveller"}
                   </button>
+                  <span className="enquiry-summary">{item.package || item.service || item.category}</span>
                   <span className="enquiry-meta">
                     <StatusPill
                       tone={

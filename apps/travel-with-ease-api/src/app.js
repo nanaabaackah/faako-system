@@ -9,7 +9,7 @@ import { enquiriesRoutes } from "./enquiries/routes.js";
 import { mediaRoutes } from "./media/routes.js";
 import { EmailTemplates, emailTemplateRoutes } from "./notifications/templates.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
-import { estimateSchema, inquirySchema, nativeInquirySchema } from "./validation.js";
+import { estimateSchema, inquirySchema, nativeInquirySchema, smartEnquirySchema } from "./validation.js";
 import { TurnstileError } from "./enquiries/turnstile.js";
 import { currencyDisplayRoutes } from "./currency/display-routes.js";
 
@@ -104,7 +104,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
         code: "permission_error", message: "Submit your enquiry from the Travel With Ease website.",
       }, { requestId: req.requestId }));
     }
-    const parsed = nativeInquirySchema.safeParse(req.body);
+    const parsed = (req.body?.questionnaireId ? smartEnquirySchema : nativeInquirySchema).safeParse(req.body);
     if (!parsed.success) return res.status(400).json(createErrorResponse({
       code: "validation_error", message: "Please check your enquiry details.", issues: issuesFor(parsed.error),
     }, { requestId: req.requestId }));

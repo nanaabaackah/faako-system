@@ -27,7 +27,7 @@ const {
   journalPrefix = "/journal",
 } = Astro.props;
 const canEnquire = !["closed", "sold_out"].includes(item.availability || "");
-const enquiry = "#plan";
+const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
 ---
 
 <article class="collection-detail package-experience">

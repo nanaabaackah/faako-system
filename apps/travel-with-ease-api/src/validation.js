@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { emailSchema, phoneSchema, isoDateSchema } from "@faako/validation";
 import { enquiryTypes } from "./content/catalogue-constants.js";
+export { smartEnquirySchema } from "./enquiries/questionnaire-validation.js";
 
 // A short first-contact intake, independent of the deferred price estimator.
 // Never collect passport numbers, document uploads or payment data here.
-export const nativeInquirySchema = z.object({
+export const legacyNativeInquirySchema = z.object({
   submissionId: z.string().uuid(),
   turnstileToken: z.string().max(2048).default(""),
   enquiryType: z.enum(enquiryTypes.map(item => item.value)),
@@ -20,6 +21,7 @@ export const nativeInquirySchema = z.object({
   consent: z.literal(true),
   website: z.string().max(200).default(""),
 }).strict();
+export const nativeInquirySchema = legacyNativeInquirySchema;
 
 export const estimateSchema = z.object({
   destination: z.string().trim().min(2).max(120),

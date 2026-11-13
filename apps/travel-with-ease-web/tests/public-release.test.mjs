@@ -60,7 +60,8 @@ test("production build publishes approved content without preview copy or unpubl
   assert.match(home, /Make room for(?:<br\s*\/?>|\s)+your next journey/);
   assert.doesNotMatch(home, /Online enquiry forms are not available yet|Enquiry availability/);
   assert.match(home, /public-enquiry-form/);
-  assert.match(home, /Send enquiry/);
+  assert.match(home, /Choose your support/);
+  assert.match(home, /What kind of help are you looking for right now\?/);
   assert.match(home, /closing-photos/);
   assert.match(home, /TWE_mockup[1-5][^"\s]*\.webp/);
   for (const slug of ["testimonials", "destinations"]) {

@@ -79,6 +79,14 @@ test("enquiry inbox uses scoped queries, CSRF, version matching and an atomic au
     assert.equal(list.status, 200);
     assert.match(list.text, /Synthetic traveller/);
     assert.doesNotMatch(list.text, /Synthetic place/); // Details only in single-record view.
+    const filtered = await request("/api/agent/inquiries?category=package&service=full_planning&package=Zanzibar&search=Synthetic");
+    assert.equal(filtered.status, 200);
+    const filteredQuery = queries.findLast((item) => item.sql.includes("LIMIT 26"));
+    assert.match(filteredQuery.sql, /details->>'entryType'/);
+    assert.match(filteredQuery.sql, /details->>'selectedServiceId'/);
+    assert.match(filteredQuery.sql, /details->>'selectedPackageTitle'/);
+    assert.match(filteredQuery.sql, /contact->>'name'/);
+    assert.deepEqual(filteredQuery.values.slice(1, 5), ["package", "full_planning", "%Zanzibar%", "%Synthetic%"]);
     const detailed = await request(`/api/agent/inquiries/${enquiry}`);
     assert.equal(detailed.status, 200);
     assert.match(detailed.text, /Synthetic place/);

@@ -14,6 +14,7 @@ import CookieNotice from "../components/CookieNotice.astro";
 import FloatingActions from "../components/FloatingActions.astro";
 import { sharingMetadata } from "../lib/sharing.js";
 import { publishedPage } from "../lib/published.js";
+import { publishedEnquiryCatalogue } from "../lib/enquiry-catalogue.js";
 
 const {
   title,
@@ -26,6 +27,7 @@ const cinematic = Astro.props.cinematic === true;
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
 const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
+const enquiryCatalogue = publishedEnquiryCatalogue();
 const sharing = sharingMetadata({
   site: site.href,
   image:
@@ -213,7 +215,7 @@ const navigation = [
     <main id="main-content"><slot /></main>
     <slot name="closing" />
     {!Astro.slots.has("closing") && (
-      <CinematicEnquiry enquiryAvailable={Boolean(publishedPage("contact"))} />
+      <CinematicEnquiry enquiryAvailable={Boolean(publishedPage("contact"))} catalogue={enquiryCatalogue} />
     )}
     <FloatingActions />
     <EditorialMotion />

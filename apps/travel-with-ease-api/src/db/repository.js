@@ -29,8 +29,8 @@ export class PostgresLeadRepository {
       if (prior.rows[0]) return replaySubmission(prior.rows[0], record.fingerprint);
       await client.query(
         `INSERT INTO twe.enquiries (id, organisation_id, kind, contact, details, notice_at)
-         VALUES ($1, $2, 'personalised', $3, $4, $5)`,
-        [record.id, this.organisationId, record.contact, record.details, record.noticeAt]);
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [record.id, this.organisationId, record.kind, record.contact, record.details, record.noticeAt]);
       await client.query(
         "INSERT INTO twe.notification_outbox (id, organisation_id, enquiry_id) VALUES ($1, $2, $3)",
         [randomUUID(), this.organisationId, record.id]);

@@ -13,7 +13,8 @@ test("approved local home contains discovery, shared footer and working intake U
   assert.match(html, /cinematic-hero__image/);
   assert.match(html, /Pelicans lifting from the water of a lake in Kenya/);
   assert.match(html, /public-enquiry-form/);
-  assert.match(html, /Send enquiry/);
+  assert.match(html, /Choose your support/);
+  assert.match(html, /What kind of help are you looking for right now\?/);
   assert.match(html, /TRAVEL WITH EASE/);
   assert.match(html, /href="#plan"/);
   assert.match(html, /srcset="\/media\/kenya-/);

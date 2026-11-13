@@ -34,7 +34,7 @@ const others: Props["service"][] = publishedServices(publishedPage("services")).
         {service.fee && <p class="service-detail__fee"><MoneyText text={service.fee} /></p>}
         <p class="service-detail__summary"><MoneyText text={service.text} /></p>
         <CurrencyAttribution />
-        <ContentLink button href="#plan">Enquire about this service</ContentLink>
+        <ContentLink button href={`?service=${service.slug}#plan`}>Enquire about this service</ContentLink>
       </div>
       <EditorialPhoto image={images[service.index % images.length]} placement={service.imagePlacement} class="service-detail__photo" eager />
     </header>

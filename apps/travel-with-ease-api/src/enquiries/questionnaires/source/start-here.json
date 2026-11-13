@@ -1,0 +1,140 @@
+{
+  "title": "Start Here — Plan Your Trip with Ease",
+  "exportedAt": "2026-11-09T15:33:20.507Z",
+  "items": [
+    {
+      "id": "1682611937",
+      "order": 1,
+      "sectionId": "1682611937",
+      "type": "PAGE_BREAK",
+      "title": "Start Here — What Support Do You Need?",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "1428564940",
+      "order": 2,
+      "sectionId": "1682611937",
+      "type": "MULTIPLE_CHOICE",
+      "title": "What kind of help are you looking for right now?",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "I need general travel advice to get ready (documents, budget, airport flow)",
+          "navigation": "GO_TO_PAGE",
+          "targetSectionId": "639298880"
+        },
+        {
+          "label": "I want full trip planning (itinerary, accommodation, activities, bookings)",
+          "navigation": "GO_TO_PAGE",
+          "targetSectionId": "48437184"
+        },
+        {
+          "label": "I’m not sure yet — please guide me",
+          "navigation": "GO_TO_PAGE",
+          "targetSectionId": "2078055476"
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "1997323435",
+      "order": 3,
+      "sectionId": "1682611937",
+      "type": "CHECKBOX",
+      "title": "Which of these apply to you? (Optional)",
+      "description": "",
+      "required": false,
+      "options": [
+        {
+          "label": "I already have dates or a rough timeline",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I know my destination (or have 1–2 in mind)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I’m flexible and open to suggestions",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I want to understand expected costs first",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "This is my first international trip",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "639298880",
+      "order": 4,
+      "sectionId": "639298880",
+      "type": "PAGE_BREAK",
+      "title": "You’re a Great Fit for Our Travel Readiness Session",
+      "description": "Based on your answers, the Travel Readiness Session (GHS400) is the perfect starting point for your trip.\nIn this personalised 45‑minute 1‑on‑1 session (Google Meet or WhatsApp), I’ll help you:\nConfirm destination suitability\nReceive your non‑visa travel document checklist\nUnderstand airport & transit flow\nAvoid common first‑time traveler mistakes\nGet budget guidance and clear next steps\nThis session is designed to help you feel confident, prepared, and stress‑free.\n\n👉 Step 1: Complete this quick intake form (1–2 minutes)\nThis gives me the essential details I need to tailor your session.\n🔗 Travel Readiness Intake Form\nTravel Readiness Session\n\n\n👉 Step 2: Make payment to confirm your session\nAfter you submit the intake, you’ll see a confirmation page containing your Mobile Money payment details.\nYou’ll also receive the same payment details via WhatsApp for convenience.\n\n👉 Step 3: Book your session time\nOnce payment is confirmed, you’ll receive a private booking link to choose your preferred date and time.\nPlease note: Your session will be scheduled within 48 hours of payment confirmation. Your summary pack will be delivered within 48 hours of your session.\nThank you for choosing Travel With Ease — Your Guide to Stress‑Free Travel.\nI look forward to helping you prepare for your journey with clarity and confidence \n",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "48437184",
+      "order": 5,
+      "sectionId": "48437184",
+      "type": "PAGE_BREAK",
+      "title": "You’re a Great Fit for Full Trip Planning",
+      "description": "Amazing — I'll handle everything end-to-end so you can simply arrive and enjoy.\n\nFull Trip Planning covers the complete journey — destination research, itinerary design, flight and hotel booking, activity and transfer arrangements, and your personalised Travel Pack PDF. Your planning fee covers our service. Actual flight, hotel and activity costs are funded separately via a travel fund request once your itinerary is approved.\n\nPackage options:\nFull Trip Planning — GHS 2,000\nFull end-to-end research, booking and execution for up to 2 destinations. Includes your Travel Pack PDF and one round of revisions.\nPremium Concierge — GHS 3,000\nEverything in Full Trip Planning, plus up to 4 destinations, priority handling, active WhatsApp support throughout your trip, restaurant reservations (up to 3), and one special occasion arrangement. Unlimited revisions included.\nYou'll select your package inside the intake form.\nNeed anything extra? The following add-ons are available and can be selected inside the intake form:\nAdditional destination — GHS 200 per destination\nRestaurant reservation — GHS 100 per reservation\nSpecial Occasion Planning (birthday, anniversary, proposal) — GHS 500\nWhatsApp Support Basic — GHS 200 (reactive, within a few hours)\nWhatsApp Support Active — GHS 400 (daily check-ins throughout your trip)\nSteps:\n👉 Step 1: Open the Full Trip Planning Intake Form\nShare your trip details so we can tailor your plan. You'll select Full Trip Planning or Premium Concierge inside the form.\n🔗 Open the Full Trip Planning Intake Form → Full trip planning form\n👉 Step 2: Intake Review\nI'll review your form and respond via WhatsApp with:\nYour planning timeline\n50% deposit amount\nTelecel Cash payment instructions\nNext steps to begin\n👉 Step 3: Confirm with 50% Deposit\nPlanning begins after your deposit is received. You'll get a confirmation message and your start date via WhatsApp within 1 working day.\n👉 Step 4: Travel Fund Request\nOnce your itinerary is approved, I'll send you a travel fund request covering the total cost of your flights, hotels, activities and transfers. Bookings are made once funds are received.\n👉 Step 5: Receive Your Travel Pack\nYour completed Travel Pack PDF — itinerary, booking confirmations, budget breakdown, destination notes and tips — will be delivered within 7–10 working days of your planning start date.\nThe remaining 50% balance is due before delivery.\nPremium Concierge clients receive priority handling with delivery in 5–7 working days.\nNote:\nYour planning start date is confirmed via WhatsApp within 1 working day of deposit. All bookings are made by Travel with Ease on your behalf once your travel fund is received. We do not make any bookings without your written approval of the itinerary first.",
+      "previousSectionNavigation": {
+        "action": "SUBMIT",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "2078055476",
+      "order": 6,
+      "sectionId": "2078055476",
+      "type": "PAGE_BREAK",
+      "title": "Not Sure? I’ll Help You Decide — In One Step",
+      "description": "No worries — here’s a quick guide:\nChoose Travel Readiness Session if you want advice on destination fit, documents, budget ranges, airport/transit, and mistakes to avoid. (45 min call + summary pack)\n\nChoose Full Trip Planning if you want me to plan the entire experience (itinerary, stays, experiences, logistics, concierge options).",
+      "previousSectionNavigation": {
+        "action": "SUBMIT",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "1653151808",
+      "order": 7,
+      "sectionId": "2078055476",
+      "type": "MULTIPLE_CHOICE",
+      "title": "What feels most true for you right now?",
+      "description": "",
+      "required": false,
+      "options": [
+        {
+          "label": "I mainly need expert advice to feel ready and confident",
+          "navigation": "GO_TO_PAGE",
+          "targetSectionId": "639298880"
+        },
+        {
+          "label": "I want everything planned for me so I just show up and enjoy",
+          "navigation": "GO_TO_PAGE",
+          "targetSectionId": "48437184"
+        }
+      ],
+      "allowOther": false
+    }
+  ]
+}
