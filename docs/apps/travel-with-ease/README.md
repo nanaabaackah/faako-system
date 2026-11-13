@@ -1,5 +1,11 @@
 # Travel With Ease documentation
 
+## Smart enquiry review — 2026-11-13
+
+Use [the Smart Enquiry System handoff](./smart-enquiry-system-2026-11-13.md)
+for the versioned questionnaire architecture, source mapping, privacy deferrals,
+local verification and explicit staging approval gates.
+
 ## Latest implementation — 2026-11-08
 
 Use [workspace preview, source structure, notification worker and staging handover](./workspace-refinements-2026-11-08.md)

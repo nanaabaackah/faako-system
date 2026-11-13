@@ -10,6 +10,7 @@ import "../styles/components/cinematic-enquiry.css";
 const photo = photography.footer;
 const selected=publishedPage('site-appearance')?.imagePlacements?.['footer-background'];
 const placement={focalY:60,mobileFocalY:50,mobileImage:!selected?.image&&!selected?.mobileImage?{src:'/media/zanzibar-beach-club-b60ec1e6297a-1920.webp',width:1920,height:3413,alt:''}:null,...selected};
+const catalogue = Astro.props.catalogue || { services: [], packages: [] };
 ---
 
 <div class="closing-scene">
@@ -39,7 +40,7 @@ const placement={focalY:60,mobileFocalY:50,mobileImage:!selected?.image&&!select
         {
           (
             <div class="cinematic-enquiry__form">
-              <EnquiryForm client:load />
+              <EnquiryForm client:load catalogue={catalogue} />
             </div>
           )
         }

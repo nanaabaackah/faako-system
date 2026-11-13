@@ -79,16 +79,12 @@ const reviews = [
   if (track) {
     const cards = [...track.querySelectorAll<HTMLElement>(".traveller-reviews__card")];
     const dots = [...document.querySelectorAll<HTMLButtonElement>(".traveller-reviews__dot")];
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => {
-      let active = 0;
-      let nearest = Infinity;
-      cards.forEach((card, index) => {
-        const distance = Math.abs(card.getBoundingClientRect().left - track.getBoundingClientRect().left);
-        if (distance < nearest) {
-          nearest = distance;
-          active = index;
-        }
-      });
+      const scrollRange = Math.max(0, track.scrollWidth - track.clientWidth);
+      const active = scrollRange > 0
+        ? Math.round((track.scrollLeft / scrollRange) * (cards.length - 1))
+        : 0;
       dots.forEach((dot, index) => {
         if (index === active) dot.setAttribute("aria-current", "true");
         else dot.removeAttribute("aria-current");
@@ -96,7 +92,10 @@ const reviews = [
     };
     dots.forEach((dot, index) => {
       dot.addEventListener("click", () => {
-        track.scrollTo({ left: cards[index].offsetLeft - track.offsetLeft, behavior: "smooth" });
+        track.scrollTo({
+          left: cards[index].offsetLeft - track.offsetLeft,
+          behavior: reducedMotion.matches ? "auto" : "smooth",
+        });
         dots.forEach((item, itemIndex) => {
           if (itemIndex === index) item.setAttribute("aria-current", "true");
           else item.removeAttribute("aria-current");

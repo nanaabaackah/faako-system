@@ -14,6 +14,38 @@
   padding: 0;
   margin-block-end: 1.5rem;
 }
+.smart-enquiry-form { display: grid; gap: 1rem; }
+.enquiry-context {
+  margin: 0; padding: 0.75rem 1rem; border-radius: 1rem;
+  background: color-mix(in srgb, #ffffff 86%, #d4ac59);
+}
+.enquiry-progress {
+  display: grid; grid-template-columns: auto minmax(8rem, 1fr);
+  align-items: center; gap: 0.75rem; font-size: 0.9rem;
+}
+.enquiry-progress progress { width: 100%; accent-color: #010c33; }
+.question-field { display: grid; gap: 0.5rem; margin-block: 0 1.25rem; }
+.question-field > label, .question-field > legend { font-weight: 700; }
+.question-field input:not([type="radio"]):not([type="checkbox"]),
+.question-field textarea {
+  box-sizing: border-box; width: 100%; min-height: 48px;
+  border: 1px solid #687386; border-radius: 0.75rem;
+  background: #fff; color: #010c33; padding: 0.75rem; font: inherit;
+}
+.question-field textarea { min-height: 7rem; resize: vertical; }
+.question-field input:focus-visible,
+.question-field textarea:focus-visible,
+.question-options input:focus-visible { outline: 3px solid #d4ac59; outline-offset: 2px; }
+.question-options { display: grid; gap: 0.65rem; }
+.question-options label {
+  display: flex; align-items: start; gap: 0.65rem; min-height: 44px;
+  padding: 0.65rem 0.75rem; border-radius: 0.75rem;
+  background: color-mix(in srgb, #fff 92%, #010c33);
+}
+.question-options input { width: 1.2rem; height: 1.2rem; flex: 0 0 auto; margin-top: 0.2rem; }
+.question-hint { margin: 0; color: #4f596c; font-size: 0.92rem; }
+.question-error { margin: 0; color: #9b1c1c; font-weight: 700; }
+.enquiry-actions { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; }
 .enquiry-fields-pair {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -78,4 +110,6 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 0;
   }
+  .enquiry-progress { grid-template-columns: 1fr; gap: 0.25rem; }
+  .enquiry-actions .ui-button { flex: 1 1 8rem; justify-content: center; }
 }

@@ -4,10 +4,12 @@ import CinematicEnquiry from "../components/CinematicEnquiry.astro";
 import PublishedHome from "../components/PublishedHome.astro";
 import PublishedContent from "../components/PublishedContent.astro";
 import { publishedPage } from "../lib/published.js";
+import { publishedEnquiryCatalogue } from "../lib/enquiry-catalogue.js";
 const published = publishedPage("home");
 const contact = publishedPage("contact");
 // Same reviewed content/components locally and hosted; never revive unpublished content.
 const content = published;
+const enquiryCatalogue = publishedEnquiryCatalogue();
 ---
 
 <BaseLayout
@@ -29,6 +31,7 @@ const content = published;
       content && (
         <CinematicEnquiry
           enquiryAvailable={Boolean(contact)}
+          catalogue={enquiryCatalogue}
         />
       )
     }

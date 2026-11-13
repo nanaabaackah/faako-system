@@ -115,10 +115,11 @@ try {
     const quoteLinks = page.getByRole("link", { name: "Check dates & Get a Quote", exact: true });
     await quoteLinks.first().waitFor();
     assert.equal(await quoteLinks.count(), 1, "The updated package detail has one accessible quote CTA at every viewport");
-    assert.equal(await quoteLinks.first().getAttribute("href"), "#plan", "The quote CTA points to the shared enquiry form");
+    assert.equal(await quoteLinks.first().getAttribute("href"), "?package=zanzibar#plan",
+      "The quote CTA points to the shared enquiry form with validated package context");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-package-detail-${width}.png`), fullPage: true });
-    await page.goto(origin + "/packages/singapore", { waitUntil: "domcontentloaded" });
+    await page.goto(origin + "/packages/singapore?package=singapore#plan", { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: "Price coming soon", exact: true }).waitFor();
     assert.equal(await page.locator(".package-tiers").innerText().then(text => /GHS/.test(text)), false);
     let submissions = 0;
@@ -134,10 +135,14 @@ try {
       }
       submissions++;
       const body = route.request().postDataJSON();
-      assert.equal(body.name, "Synthetic Browser Traveller");
-      assert.equal(body.enquiryType, "group");
-      assert.equal(body.service, "full_planning");
-      assert.equal(body.travellers, 2);
+      assert.equal(body.questionnaireId, "twe-smart-enquiry");
+      assert.equal(body.questionnaireVersion, "2026-11-09.1");
+      assert.equal(body.entryType, "package");
+      assert.equal(body.context.packageId, "4740cb7b-fded-4c68-a12d-aa9a73a2ba03");
+      assert.equal(body.context.packageTitle, "Singapore");
+      assert.equal(body.answers["541981576"], "Singapore");
+      assert.equal(body.answers["836507955"], "2");
+      assert.equal(body.contact.name, "Synthetic Browser Traveller");
       assert.equal(body.consent, true);
       assert.ok(body.submissionId);
       await route.fulfill({ status: 201, headers, contentType: "application/json",
@@ -146,41 +151,24 @@ try {
           meta: { requestId: "synthetic-browser-only" } }) });
     });
     const form = page.locator(".public-enquiry-form");
-    await page.waitForFunction(() => {
-      const submit = document.querySelector(".public-enquiry-form button[type=submit]");
-      return submit instanceof HTMLButtonElement && !submit.disabled;
-    });
-    // Faako SelectField emits a value, not a native event with target.name.
-    // Assert the visible label AND submitted state so a silently reset select fails.
-    await form.getByRole("button", { name: "Enquiry type", exact: true }).click();
-    await page.getByRole("option", { name: "Group", exact: true }).click();
-    assert.equal(await form.locator('select[name="enquiryType"]').inputValue(), "group");
-    await form.getByRole("button", { name: "Planning support", exact: true }).focus();
-    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    await expect(form.getByRole("button", { name: "Planning support", exact: true })).toBeFocused();
-    await page.keyboard.press("Enter");
-    const planningOption = page.getByRole("option", { name: "Full Trip Planning", exact: true });
-    await planningOption.focus();
-    // Let the select's deferred initial-focus frame run. It must not steal
-    // an option focus already established by keyboard/assistive navigation.
-    await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    await expect(planningOption).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(form.locator('select[name="service"]')).toHaveValue("full_planning");
-    await expect(form.getByRole("button", { name: "Planning support", exact: true })).toContainText("Full Trip Planning");
-    await form.locator('input[name="destination"]').fill("Help me choose");
-    await form.locator('input[name="travelTimeframe"]').fill("Exploring next year");
-    await form.locator('input[name="name"]').fill("Synthetic Browser Traveller");
-    await form.locator('input[name="email"]').fill("browser@example.invalid");
-    await form.locator('input[name="phone"]').fill("+233200000000");
-    assert.equal(await form.locator('select[name="enquiryType"]').inputValue(), "group");
-    assert.equal(await form.locator('select[name="service"]').inputValue(), "full_planning");
-    await form.locator('input[name="consent"]').check();
+    await form.getByText("Enquiring about Singapore", { exact: true }).waitFor();
+    await expect(form.getByRole("group", { name: "Your trip" })).toBeVisible();
+    await form.getByLabel("Destination(s) you are considering").fill("Singapore");
+    await form.getByLabel("Proposed travel dates (or flexible timeframe)").fill("Exploring next year");
+    await form.getByLabel("Leisure/Holiday").check();
+    await form.getByLabel(/How many people are currently planning to travel/).fill("2");
+    await form.getByLabel("No", { exact: true }).check();
+    await form.getByRole("button", { name: /Continue/ }).click();
+    await form.getByRole("group", { name: "Additional details" }).waitFor();
+    await form.getByRole("button", { name: /Continue/ }).click();
+    await form.getByLabel("Full Name").fill("Synthetic Browser Traveller");
+    await form.getByLabel("Phone Number (WhatsApp preferred)").fill("+233200000000");
+    await form.getByLabel("Email address").fill("browser@example.invalid");
+    await form.getByLabel(/I agree that Travel With Ease/).check();
     await form.getByRole("button", { name: "Send enquiry", exact: true }).click();
     await form.getByRole("status").filter({ hasText: "Your enquiry is received" }).waitFor();
     assert.equal(submissions, 1);
-    assert.equal(await form.locator('select[name="enquiryType"]').inputValue(), "trip");
-    assert.equal(await form.locator('select[name="service"]').inputValue(), "not_sure");
+    assert.equal(await form.getByRole("group", { name: "Your trip" }).isVisible(), true);
     await page.goto(origin + "/services", { waitUntil: "networkidle" });
     assert.equal(await page.locator(".service-panel").count(), 4);
     assert.equal(await page.locator(".service-panel").first().evaluate(element => getComputedStyle(element).boxShadow), "none");
@@ -191,7 +179,8 @@ try {
     await page.waitForURL("**/services/travel-readiness-session");
     await page.getByRole("heading", { name: "Travel Readiness Session", exact: true }).waitFor();
     assert.equal(await page.locator(".service-detail__fee").innerText(), "GH₵400");
-    assert.equal(await page.getByRole("link", { name: "Enquire about this service", exact: true }).getAttribute("href"), "#plan");
+    assert.equal(await page.getByRole("link", { name: "Enquire about this service", exact: true }).getAttribute("href"),
+      "?service=travel-readiness-session#plan");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-service-detail-${width}.png`), fullPage: true });
     for (const slug of ["full-trip-planning", "premium-concierge", "group-trip-planning"]) {
