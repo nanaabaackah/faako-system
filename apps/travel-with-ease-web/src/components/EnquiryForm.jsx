@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
-// eslint-disable-next-line no-unused-vars -- JSX components
 import { Button, IconsaxIcon, AnimatedLoadingState, InlineNotice } from "@faako/ui";
 import {
   QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds,
   questionnaireRoute, questionnaireSteps, questions, selectedServiceFromAnswers,
 } from "../../../travel-with-ease-api/src/enquiries/questionnaires/index.js";
-// eslint-disable-next-line no-unused-vars -- JSX component
 import TurnstileChallenge from "./TurnstileChallenge.jsx";
 import "../styles/components/enquiry-form.css";
 
@@ -40,7 +38,6 @@ function questionError(question, value, answers) {
   return "";
 }
 
-// eslint-disable-next-line no-unused-vars -- JSX component
 function Question({ question, value, onChange, error }) {
   const describedBy = `${question.id}-hint${error ? ` ${question.id}-error` : ""}`;
   if (question.type === "CHECKBOX") {
