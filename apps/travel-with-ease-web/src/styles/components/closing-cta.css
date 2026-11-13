@@ -55,5 +55,5 @@ p {
 }
 
 .closing-copy :global(.button) {
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
 }

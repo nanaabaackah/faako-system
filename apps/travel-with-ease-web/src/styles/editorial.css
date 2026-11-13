@@ -1,5 +1,5 @@
 :root {
-  --radius: 6px;
+  --radius: var(--twe-radius-card);
   --shadow: none;
 }
 .twe-action-card {
@@ -73,7 +73,7 @@ body {
 .button,
 button,
 .nav-cta {
-  border-radius: 4px;
+  border-radius: var(--twe-radius-button);
   min-height: 44px;
   align-items: center;
   justify-content: center;
@@ -353,7 +353,7 @@ a:focus .link-arrow {
 .twe-content-link.button {
   min-height: 44px;
   padding: 13px 20px;
-  border-radius: 7px;
+  border-radius: var(--twe-radius-button);
   background: var(--brand-cream);
   color: var(--brand-navy);
   border: 1px solid #010c33;

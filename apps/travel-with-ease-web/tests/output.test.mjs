@@ -23,7 +23,10 @@ test("approved local home contains discovery, shared footer and working intake U
   assert.match(html, /href="\/favicon-48.png"/);
   assert.match(html, /src="\/brand\/Primary gold\.png"/);
   const logo = await readFile(new URL("../dist/brand/Primary gold.png", import.meta.url));
-  assert.ok(logo.byteLength > 0, "Approved logo is present in the built output");
+  const scrollSymbol = await readFile(new URL("../dist/brand/dark mode symbol.png", import.meta.url));
+  assert.ok(logo.byteLength > 0, "Approved gold logo is present in the built output");
+  assert.ok(scrollSymbol.byteLength > 0, "Approved dark-mode symbol is present in the built output");
+  assert.match(html, /src="\/brand\/dark mode symbol\.png"/);
   assert.match(html, /name="twitter:card" content="summary_large_image"/);
   assert.equal((html.match(/property="og:image"/g) || []).length, 1);
   assert.match(html, /https:\/\/faako.nanaabaackah.com/);
@@ -66,4 +69,15 @@ test("unapproved foundation builds fail closed for indexing", async () => {
   assert.match(html, /name="robots" content="noindex, nofollow"/);
   assert.equal(robots, "User-agent: *\nDisallow: /\n");
   await assert.rejects(readFile(new URL("../dist/sitemap-index.xml", import.meta.url), "utf8"));
+});
+
+test("published package itinerary stays visible in static HTML and gallery keeps image links", async () => {
+  const html = await readFile(new URL("../dist/packages/zanzibar/index.html", import.meta.url), "utf8");
+  assert.match(html, /id="package-itinerary"/);
+  assert.match(html, /Arrive on the north coast/);
+  assert.match(html, /Meet your airport transfer/);
+  assert.match(html, /twe-package-itinerary/);
+  assert.match(html, /twe-package-gallery__fallback/);
+  assert.match(html, /View larger image/);
+  assert.match(html, /\/media\/zanzibar-/);
 });

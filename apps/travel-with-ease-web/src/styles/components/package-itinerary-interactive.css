@@ -1,0 +1,86 @@
+/* React Bits AnimatedList simple/fade preset, adapted to TWE's published itinerary.
+   Scroll-reveal stays visible; all days stay in server-rendered HTML without JS. */
+.twe-package-itinerary { width: 100%; min-width: 0; }
+.twe-package-itinerary .animated-list[data-animated] .animated-list__item:not([data-state]) { opacity: 1; }
+.twe-package-itinerary .animated-list {
+  font-family: var(--font-body, Quicksand, sans-serif);
+  max-width: 100%;
+}
+.twe-package-itinerary .animated-list__viewport {
+  padding: 4px;
+  max-height: 460px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  border-radius: var(--twe-radius-card);
+}
+.twe-package-itinerary .animated-list__viewport::-webkit-scrollbar { display: none; }
+.twe-package-itinerary .animated-list__item {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: var(--twe-radius-card);
+  background: var(--al-tile);
+  box-shadow: none;
+  color: var(--brand-navy);
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: default;
+}
+.twe-package-itinerary .animated-list__rim {
+  box-shadow: inset 0 0 0 1px rgb(1 12 51 / 13%);
+}
+.twe-package-itinerary .animated-list__item:hover {
+  filter: none;
+  background: #eae1d4;
+}
+.twe-package-itinerary .animated-list__indicator { display: none; }
+.twe-package-itinerary .twe-package-itinerary__entry {
+  display: grid;
+  grid-template-columns: minmax(76px, .18fr) minmax(0, 1fr);
+  gap: 12px 20px;
+  padding: 19px 21px;
+}
+.twe-package-itinerary .twe-package-itinerary__day {
+  font: 800 .85rem/1.35 var(--font-impact, Inter, sans-serif);
+  color: var(--brand-navy);
+  padding-top: 4px;
+  white-space: nowrap;
+}
+.twe-package-itinerary .twe-package-itinerary__copy { min-width: 0; }
+.twe-package-itinerary .twe-package-itinerary__copy h3 {
+  font: 800 clamp(1.25rem, 2.1vw, 1.8rem)/1.22 var(--font-display, "Poiret One", sans-serif);
+  -webkit-text-stroke: .02em currentColor;
+  color: var(--brand-navy);
+  margin: 0 0 8px;
+}
+.twe-package-itinerary .twe-package-itinerary__copy p {
+  margin: 0;
+  color: var(--brand-navy);
+  font-size: .95rem;
+  line-height: 1.65;
+  max-width: 60ch;
+  white-space: pre-line;
+}
+.twe-package-itinerary .animated-list__viewport:focus-visible {
+  outline: 3px solid var(--brand-sky);
+  outline-offset: 3px;
+}
+@media (max-width: 480px) {
+  .twe-package-itinerary .animated-list__viewport { max-height: 440px; }
+  .twe-package-itinerary .twe-package-itinerary__entry {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+    padding: 17px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twe-package-itinerary .animated-list__item {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

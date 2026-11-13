@@ -38,8 +38,14 @@ try {
     if (await publicConsent.isVisible()) await publicConsent.click();
     await page.getByRole("status").filter({ hasText: "4 entries shown" }).waitFor();
     assert.equal(await page.locator("[data-collection-item]").count(), 4);
-    assert.notEqual(await page.locator(".journey-card").first().evaluate(element => getComputedStyle(element).boxShadow), "none");
-    assert.equal(await page.locator("[data-collection-item] > .placed-image > img").count(), 4);
+    const tickets = page.locator("[data-collection-item] .twe-package-ticket");
+    assert.equal(await tickets.count(), 4, "All published packages render as tickets");
+    assert.equal(await tickets.locator(".tilted-card__img").count(), 4,
+      "Each package retains its approved photograph");
+    assert.equal(await tickets.locator(".twe-ticket__barcode").count(), 4,
+      "Each package has the ticket stub design");
+    assert.equal(await tickets.locator(".twe-ticket--front h2 a").count(), 4,
+      "All ticket fronts expose direct native package links");
     const fieldStyle = await page.getByRole("button", { name: "Destination", exact: true }).evaluate(element => {
       const style = getComputedStyle(element);
       return { border: parseFloat(style.borderTopWidth), font: parseFloat(style.fontSize) };
@@ -59,27 +65,57 @@ try {
     await page.getByRole("option", { name: "All occasions", exact: true }).click();
     await page.getByRole("status").filter({ hasText: "4 entries shown" }).waitFor();
     await page.screenshot({ path: path.join(output, `approved-packages-${width}.png`), fullPage: true });
-    // The image area, not only the title, activates one native card link.
-    await page.locator("[data-collection-item]").first().click({ position: { x: 20, y: 20 } });
+    const firstTicket = tickets.first().locator(".tilted-card");
+    await firstTicket.locator(".twe-ticket--front .twe-ticket__flip").click();
+    await expect(firstTicket).toHaveAttribute("data-flipped", "");
+    await expect(firstTicket.locator(".twe-ticket--back .twe-ticket__description")).toContainText("Zanzibar");
+    await firstTicket.locator(".twe-ticket--back .twe-ticket__flip").click();
+    await expect(firstTicket).not.toHaveAttribute("data-flipped");
+    await firstTicket.locator(".twe-ticket--front h2 a").click();
     await page.waitForURL("**/packages/zanzibar");
     await page.getByRole("heading", { name: "Zanzibar", exact: true }).waitFor();
-    const itinerary = page.locator(".twe-accordion").first();
-    await itinerary.locator("summary").focus();
-    await page.keyboard.press("Enter");
-    assert.equal(await itinerary.getAttribute("open"), "");
-    const firstPhoto = page.locator("[data-gallery-index]").first();
-    await page.locator('[data-image-gallery][data-gallery-ready="true"]').waitFor();
+    // Package detail now has the approved static day-by-day content inside
+    // a semantic React Bits AnimatedList, rather than accordion disclosures.
+    const itinerary = page.locator(".twe-package-itinerary [role=list]");
+    await itinerary.scrollIntoViewIfNeeded();
+    assert.equal(await itinerary.locator('[role="listitem"]').count(), 6);
+    await expect(itinerary).toContainText("Arrive on the north coast");
+    await expect(itinerary).toContainText("Homeward");
+    await page.waitForFunction(() => {
+      const island = document.querySelector("#package-itinerary astro-island");
+      return Boolean(island && !island.hasAttribute("ssr"));
+    }, null, { timeout: 20000 });
+    const daysViewport = itinerary; // role=list is AnimatedList's scroll viewport
+    await expect(daysViewport).toHaveCSS("overflow-y", "auto");
+    assert.equal(await daysViewport.evaluate(el => el.scrollHeight > el.clientHeight), true,
+      "The published itinerary has a dedicated scroll window for the fade reveal");
+    await daysViewport.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    await expect(itinerary.locator('[role="listitem"]').last()).toHaveAttribute("data-state", "in");
+    // Masonry hydrates after its island becomes visible; its SSR gallery links
+    // remain readable and clickable while the layout and images load.
+    const gallery = page.locator(".twe-package-gallery");
+    await gallery.locator("astro-island").scrollIntoViewIfNeeded();
+    const firstPhoto = gallery.locator(".masonry__item [data-card]").first();
+    await firstPhoto.waitFor({ state: "visible", timeout: 20000 });
+    assert.equal(await gallery.locator(".masonry__item").count(), 3);
     await firstPhoto.click();
-    await page.getByRole("dialog", { name: "Photo gallery", exact: true }).waitFor();
+    const lightbox = page.locator(".masonry-lightbox[role=dialog]");
+    await lightbox.waitFor();
+    await expect(lightbox.locator("[data-box-image]")).toHaveAttribute(
+      "src", "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp"
+    );
     await page.keyboard.press("ArrowRight");
-    await page.getByText("Photo 2 of 3", { exact: true }).waitFor();
+    await expect(lightbox.locator("[data-box-image]")).toHaveAttribute(
+      "src", "/media/zanzibar-pool-da78a2948608-1242.webp"
+    );
     await page.keyboard.press("Escape");
-    assert.equal(await firstPhoto.evaluate(node => node === document.activeElement), true);
+    await lightbox.waitFor({ state: "detached" });
+    await expect(firstPhoto).toBeFocused();
     await page.getByText("Reference month: June 2027", { exact: true }).waitFor();
-    const quoteLinks = page.getByRole("link", { name: "Check dates & get a quote", exact: true });
+    const quoteLinks = page.getByRole("link", { name: "Check dates & Get a Quote", exact: true });
     await quoteLinks.first().waitFor();
-    assert.ok(await quoteLinks.count() >= 1, "A quote CTA is accessible at every viewport");
-    assert.equal(await page.locator('a[href="#plan"]').filter({ hasText: "Check dates & get a quote" }).count(), 2, "Desktop and mobile CTA variants remain in the document");
+    assert.equal(await quoteLinks.count(), 1, "The updated package detail has one accessible quote CTA at every viewport");
+    assert.equal(await quoteLinks.first().getAttribute("href"), "#plan", "The quote CTA points to the shared enquiry form");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-package-detail-${width}.png`), fullPage: true });
     await page.goto(origin + "/packages/singapore", { waitUntil: "domcontentloaded" });
@@ -154,7 +190,7 @@ try {
     await page.locator(".service-panel").first().click({ position: { x: 25, y: 50 } });
     await page.waitForURL("**/services/travel-readiness-session");
     await page.getByRole("heading", { name: "Travel Readiness Session", exact: true }).waitFor();
-    assert.equal(await page.locator(".service-detail__fee").innerText(), "GHS 400");
+    assert.equal(await page.locator(".service-detail__fee").innerText(), "GH₵400");
     assert.equal(await page.getByRole("link", { name: "Enquire about this service", exact: true }).getAttribute("href"), "#plan");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-service-detail-${width}.png`), fullPage: true });
@@ -172,6 +208,26 @@ try {
     await page.goto(origin + "/journal", { waitUntil: "domcontentloaded" });
     assert.equal(await page.locator("[data-collection-item]").count(), 2);
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
+    await page.locator(".journal-card").first().click();
+    await page.waitForURL("**/journal/*");
+    const paragraphs = page.locator(".journal-reading .collection-reading > p");
+    assert.ok(await paragraphs.count() >= 2, "Journal has an introduction and article paragraphs");
+    for (const paragraph of await paragraphs.all()) {
+      const font = await paragraph.evaluate(el => {
+        const style = getComputedStyle(el);
+        return { family: style.fontFamily, size: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) };
+      });
+      assert.match(font.family, /Caveat/, "Full journal body uses the handwriting font");
+      assert.ok(font.size >= 24, "Journal handwriting is large enough for extended reading");
+      assert.ok(font.lineHeight >= 1.3 * font.size, "Handwriting retains generous line spacing");
+    }
+    assert.match(
+      await page.locator(".journal-reading .collection-detail-heading > p").first().evaluate(el => getComputedStyle(el).fontFamily),
+      /Quicksand/,
+      "Journal metadata remains in the UI font"
+    );
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.screenshot({ path: path.join(output, `approved-journal-reading-${width}.png`), fullPage: true });
     await page.goto(origin + "/", { waitUntil: "networkidle" });
     assert.equal(await page.locator(".public-enquiry-form").count(), 1);
     assert.equal(await page.getByText(/placeholder|Online enquiry.*not available|Enquiry availability/i).count(), 0);
@@ -180,9 +236,25 @@ try {
     await page.keyboard.press("Enter");
     await page.locator(".footprint-detail").filter({ hasText: "United Kingdom: 25+ visits" }).waitFor();
     assert.equal(await page.locator('[aria-label="Travel tips"] article').count(), 3);
+    const travellerReviews = page.locator("#traveller-reviews");
+    await travellerReviews.getByRole("heading", { name: "What Travellers Say" }).waitFor();
+    assert.equal(await travellerReviews.locator("article").count(), 3,
+      "The homepage renders three anonymous traveller testimonials");
+    assert.equal(await travellerReviews.locator("img").count(), 0,
+      "Reviewer portraits are not included");
+    await travellerReviews.locator("article").nth(1).locator("summary").click();
+    await expect(travellerReviews.locator("article").nth(1)).toContainText("Kenya Airways cancellation");
+    if (width <= 900) {
+      const dots = travellerReviews.locator("[data-review-jump]");
+      assert.equal(await dots.count(), 3);
+      await dots.nth(2).click();
+      await expect(dots.nth(2)).toHaveAttribute("aria-current", "true");
+    }
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-home-${width}.png`), fullPage: true });
-    await page.locator(".journey-preview").first().click({ position: { x: 30, y: 30 } });
+    const featuredTickets = page.locator(".featured-journeys__card .twe-package-ticket");
+    assert.equal(await featuredTickets.count(), 2, "Homepage shows both published featured package tickets");
+    await featuredTickets.first().locator(".twe-ticket--front h3 a").click();
     await page.waitForURL("**/packages/zanzibar");
     assert.deepEqual(errors, []);
     await context.close();
@@ -193,9 +265,11 @@ try {
   await published.goto(origin + "/packages");
   assert.equal(await published.locator("[data-collection-item]").count(), 4);
   await published.goto(origin + "/packages/nairobi");
-  assert.equal(await published.locator("details").count(), 4);
-  await published.locator("details summary").first().click();
-  assert.equal(await published.locator("details").first().getAttribute("open"), "");
+  assert.equal(await published.locator(".twe-package-itinerary [role=listitem]").count(), 4,
+    "All four Nairobi itinerary days remain readable without scripting");
+  assert.equal(await published.locator(".twe-package-gallery__fallback a").count(), 3,
+    "Approved package photographs remain accessible as native links without scripting");
+  await expect(published.locator(".twe-package-itinerary")).toContainText("Arrive in Nairobi");
   await published.goto(origin + "/how-it-works");
   assert.equal(await published.locator(".planning-example__steps li").count(), 4);
   await published.getByRole("link", { name: "Explore the Nairobi package", exact: true }).click();

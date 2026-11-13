@@ -24,47 +24,78 @@ body .site-header-shell .site-header {
 body.cinematic-page .site-header-shell .site-header:not(.is-scrolled) {
   background: transparent;
 }
-.site-header-shell .brand__pin {
+/* Full approved gold wordmark at the top; dark-mode symbol on scroll. */
+body .site-header-shell .site-header .brand__wordmark--gold {
+  display: block;
+  width: 160px;
+  height: auto;
+  padding: 0;
+}
+body .site-header-shell .site-header .brand__symbol--scrolled {
   display: none;
 }
+body .site-header-shell .site-header.is-scrolled .brand__wordmark--gold {
+  display: none;
+}
+body .site-header-shell .site-header.is-scrolled .brand__symbol--scrolled {
+  display: block;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  object-fit: contain;
+  object-position: center;
+}
+
 body .site-header-shell .site-header.is-scrolled {
   top: 12px;
   width: min(1120px, calc(100% - 32px));
   min-height: 72px;
-  border-radius: 25px;
+  border-radius: var(--twe-radius-nav);
   padding: 10px 24px;
-  background: var(--brand-cream);
-  color: var(--brand-navy);
-  border: 1px solid var(--brand-grey);
-}
-.site-header.is-scrolled .brand__wordmark {
-  display: none;
-}
-body .site-header-shell .is-scrolled .brand__pin {
-  display: block;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  object-fit: contain;
-}
-body .site-header-shell .is-scrolled .nav-cta {
   background: var(--brand-navy);
   color: var(--brand-cream);
-  border-color: var(--brand-navy);
-  border-radius: 18px;
+  border: 0;
+}
+body .site-header-shell .is-scrolled .nav-cta {
+  background: var(--brand-gold);
+  color: var(--brand-navy);
+  border-color: var(--brand-gold);
+  border-radius: var(--twe-radius-button);
 }
 body .site-header-shell .is-scrolled nav a[aria-current="page"] {
-  color: var(--brand-navy);
-  border-bottom-color: #8a6729;
+  color: var(--brand-gold);
+  border-bottom-color: var(--brand-gold);
 }
+/* SVG menu/close icon: label remains accessible to screen readers. */
 body .site-header-shell .site-header .menu-toggle {
   margin: 0;
+  min-width: 44px;
   min-height: 44px;
-  border: 1px solid var(--brand-grey);
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
 }
-body .site-header-shell .is-scrolled .menu-toggle {
-  background: var(--brand-cream);
-  color: var(--brand-navy);
+body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
+  background: transparent;
+  color: inherit;
+}
+.site-header-shell .menu-toggle svg {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+.site-header-shell .menu-toggle .menu-toggle__close,
+.site-header-shell .menu-toggle[aria-expanded="true"] .menu-toggle__open {
+  display: none;
+}
+.site-header-shell .menu-toggle[aria-expanded="true"] .menu-toggle__close {
+  display: block;
 }
 @media (min-width: 901px) {
   body .site-header-shell .site-header > .brand {
@@ -92,44 +123,159 @@ body .site-header-shell .is-scrolled .menu-toggle {
   .site-header-shell {
     height: 90px;
   }
+  /* Avoid a transformed ancestor so the expanded fixed menu can truly fill
+     the viewport rather than being positioned relative to a floating pill. */
   body .site-header-shell .site-header {
+    left: 0;
+    transform: none;
     min-height: 90px;
     gap: 8px;
   }
   body .site-header-shell .site-header > .brand {
-    position: static;
+    position: relative;
+    z-index: 3;
     transform: none;
   }
-  body .site-header-shell .site-header nav {
-    width: 100%;
-    padding: 16px;
-    background: var(--brand-navy);
+  body .site-header-shell .site-header .menu-toggle {
+    position: relative;
+    z-index: 3;
+    margin-left: auto;
     color: var(--brand-cream);
-    border-radius: 12px;
-    max-height: calc(100svh - 130px);
-    overflow-y: auto;
+  }
+  body .site-header-shell .site-header:not(.is-scrolled) .brand__wordmark--gold {
+    width: 116px;
+  }
+  body .site-header-shell .site-header.is-scrolled .brand__symbol--scrolled {
+    width: 44px;
+    height: 44px;
   }
   body .site-header-shell .site-header.is-scrolled {
+    left: 12px;
     padding: 8px 16px;
     min-height: 64px;
     width: calc(100% - 24px);
   }
   body .site-header-shell .site-header.is-scrolled > .brand {
-    position: absolute;
-    left: 50%;
-    top: 10px;
-    transform: translateX(-50%);
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
   }
-  body .site-header-shell .is-scrolled .menu-toggle {
-    margin-left: auto;
+  /* The opened dropdown is a full-screen navy menu, not a narrow box
+     nested inside the scrolled rounded header. */
+  body .site-header-shell .site-header:has(nav[data-collapsed="false"]) {
+    top: 0;
+    left: 0;
+    width: 100%;
+    min-height: 90px;
+    padding: 12px clamp(20px, 5vw, 32px);
+    border: 0;
+    border-radius: 0;
+    background: var(--brand-navy);
+    color: var(--brand-cream);
   }
-  body .site-header-shell .is-scrolled nav {
+  body .site-header-shell .site-header nav {
+    position: fixed;
+    z-index: 2;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    padding: calc(90px + env(safe-area-inset-top)) clamp(20px, 5vw, 36px)
+      calc(20px + env(safe-area-inset-bottom));
+    gap: 0;
+    background: var(--brand-navy);
+    color: var(--brand-cream);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  body .site-header-shell .site-header nav[data-collapsed="true"] {
+    display: none;
+  }
+  body .site-header-shell .site-header .header-links {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+  }
+  body .site-header-shell .site-header nav a:not(.nav-cta) {
+    display: flex;
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 65px;
+    padding: 16px 4px;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    border: 0;
+    border-bottom: 1px solid rgb(244 237 227 / 18%);
+    border-radius: 0;
+    color: var(--brand-cream);
+    font-size: clamp(1.12rem, 5.1vw, 1.55rem);
+    font-weight: 800;
+    line-height: 1.3;
+    text-decoration: none;
+    letter-spacing: -0.025em;
+  }
+  body .site-header-shell .site-header nav a[aria-current="page"]:not(.nav-cta) {
+    color: var(--brand-gold);
+    border-bottom-color: rgb(244 237 227 / 18%);
+    text-decoration: none;
+  }
+  body .site-header-shell .site-header nav a:not(.nav-cta):is(:hover, :focus-visible) {
+    color: var(--brand-gold);
+  }
+  body .site-header-shell .site-header nav .nav-cta {
+    display: flex;
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 66px;
+    margin-top: 28px;
+    padding: 18px 20px;
+    justify-content: center;
+    gap: 12px;
+    border: 0;
+    border-radius: var(--twe-radius-button);
+    background: var(--brand-gold);
+    color: var(--brand-navy);
+    font-size: clamp(1.05rem, 4.6vw, 1.3rem);
+    font-weight: 800;
+    text-align: center;
+  }
+  body .site-header-shell .site-header nav .nav-cta:is(:hover, :focus-visible) {
     background: var(--brand-cream);
     color: var(--brand-navy);
   }
-  body .site-header-shell .header-links {
-    width: 100%;
-    gap: 8px 24px;
+  body.twe-mobile-menu-open {
+    overflow: hidden;
+  }
+  /* The normal open-menu presentation stays navy even on cinematic routes. */
+  body.cinematic-page .site-header-shell .site-header:has(nav[data-collapsed="false"]) {
+    background: var(--brand-navy);
+  }
+  body.cinematic-page .site-header-shell .site-header nav {
+    background: var(--brand-navy);
+  }
+  /* Don't turn an unstyled no-JS mobile site into an inaccessible fixed overlay. */
+  @media (scripting: none) {
+    body .site-header-shell .site-header nav {
+      position: static;
+      height: auto;
+      width: 100%;
+      max-height: none;
+      overflow: visible;
+      padding: 16px 0;
+    }
   }
 }
 @media (prefers-reduced-motion: no-preference) {

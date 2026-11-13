@@ -159,7 +159,17 @@ try {
     const services = page.locator("#services");
     await services.scrollIntoViewIfNeeded();
     assert.equal(await services.locator(".home-services__item").count(), 4);
-    assert.equal(await services.locator("img").count(), 1);
+    assert.equal(await services.locator("img.home-services__photo").count(), 1,
+      "Keep the original approved editorial photo");
+    assert.equal(await services.locator(".tilted-card").count(), 0,
+      "Services are now normal cards rather than tickets");
+    const featured = page.locator(".featured-journeys");
+    await featured.scrollIntoViewIfNeeded();
+    const backgrounds = featured.locator(".twe-package-ticket .tilted-card__img");
+    assert.equal(await backgrounds.count(), 2,
+      "Approved featured packages use photographic ticket faces");
+    assert.deepEqual(await backgrounds.evaluateAll(images => images.map(image => image.getAttribute("alt"))),
+      ["", ""], "Decorative package photographs must not duplicate screen-reader headings");
     assert.equal(
       await services
         .locator(".home-services__row")

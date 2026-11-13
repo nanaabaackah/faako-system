@@ -48,7 +48,7 @@
   background: var(--brand-gold);
   color: var(--brand-ink);
   border-color: var(--brand-gold);
-  border-radius: 99px;
+  border-radius: var(--twe-radius-button);
   margin-block: 1rem;
 }
 .cinematic-enquiry__note {

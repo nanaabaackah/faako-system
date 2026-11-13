@@ -5,6 +5,7 @@ import { imagePlacement } from '../lib/image-placements.js';
 import "../styles/components/journey-editorial.css";
 import "../styles/components/planning-process.css";
 import ContentLink from "./ContentLink.astro";
+import HomeJourneyStepper from "./HomeJourneyStepper.jsx";
 import { publishedPage } from "../lib/published.js";
 import type { TravelPackage } from "../lib/collections";
 interface Props {
@@ -29,21 +30,40 @@ const summaries = [
 ];
 ---
 
-<section class:list={["journey-process editorial-wrap", { "planning-process": page }]} id="how-it-works" data-image-layout={photo.layout}>
+<section class:list={["journey-process editorial-wrap", { "planning-process": page, "journey-process--option-a": !page }]} id="how-it-works" data-image-layout={photo.layout}>
   <EditorialPhoto image={photography.park} placement={photo} class="journey-process__photo" />
-  <div>
+  <div class="journey-process__steps">
     {page ? <h1>{content.heading}</h1> : <h2>{content.heading}</h2>}
     {page && <p class="journey-process__introduction">{content.body}</p>}
-    <ol>
-      {content.entries.map((step, index) => (
-        <li>
-          <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-          <div><h3>{step.heading}</h3><p>{page ? step.text : summaries[index] || step.text}</p>
-            {page && practicalSteps[index] && <div class="planning-process__guidance"><h4>{practicalSteps[index].heading}</h4><p>{practicalSteps[index].text}</p></div>}
-          </div>
-        </li>
-      ))}
-    </ol>
+    {page ? (
+      <ol>
+        {content.entries.map((step, index) => (
+          <li>
+            <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+            <div><h3>{step.heading}</h3><p>{step.text}</p>
+              {practicalSteps[index] && <div class="planning-process__guidance"><h4>{practicalSteps[index].heading}</h4><p>{practicalSteps[index].text}</p></div>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    ) : (
+      <>
+        <HomeJourneyStepper
+          steps={content.entries.map((step, index) => ({ title: step.heading, text: summaries[index] || step.text }))}
+          client:visible
+        />
+        <noscript>
+          <ol class="journey-process__fallback">
+            {content.entries.map((step, index) => (
+              <li>
+                <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                <div><h3>{step.heading}</h3><p>{summaries[index] || step.text}</p></div>
+              </li>
+            ))}
+          </ol>
+        </noscript>
+      </>
+    )}
   </div>
 </section>
 {page && <section class="planning-example editorial-wrap" aria-labelledby="planning-example-heading">

@@ -30,7 +30,13 @@ test("contact preserves token checks, duplicate guard, reset and manual verifica
 test("signature motion and calendar failure behaviour remain", () => {
   assert.match(read("components/ScrollExpandSection.astro"), /requestAnimationFrame/);
   assert.match(read("components/ScrollExpandSection.astro"), /passive: true/);
-  assert.match(read("styles/components/scroll-expand.css"), /prefers-reduced-motion: reduce/);
+  const scrollScript = read("components/ScrollExpandSection.astro");
+  const scrollCss = read("styles/components/scroll-expand.css");
+  assert.match(scrollCss, /prefers-reduced-motion: reduce/);
+  assert.doesNotMatch(scrollCss, /max-width: 699px/);
+  assert.match(scrollScript, /track\.style\.height = reduceMotion \?/);
+  assert.doesNotMatch(scrollScript, /reduceMotion \|\| mobile|reduceMotion \|\| mobile \|\| frameId/);
+  assert.match(scrollScript, /observer\?\.disconnect\(\)/);
   assert.match(read("styles/components/photo-ribbon.css"), /85s linear infinite/);
   assert.match(read("components/EventGalleryRail.astro"), /aria-hidden="true" inert/);
   assert.match(read("scripts/month-calendar.ts"), /retry.addEventListener/);

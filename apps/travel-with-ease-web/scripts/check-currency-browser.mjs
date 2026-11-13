@@ -83,11 +83,11 @@ try {
     failure = true;
     await choose("EUR");
     await page.getByRole("button", { name: "Retry conversion", exact: true }).waitFor();
-    assert.equal(await page.locator("[data-money-value]").first().innerText(), "GHS 25,000");
+    assert.equal(await page.locator("[data-money-value]").first().innerText(), "GH₵25,000");
     failure = false; expired = true;
     await choose("CAD");
     await page.locator(".footer-currency [role=status]").filter({ hasText: "CAD conversion is unavailable" }).waitFor();
-    assert.equal(await page.locator("[data-money-value]").first().innerText(), "GHS 25,000");
+    assert.equal(await page.locator("[data-money-value]").first().innerText(), "GH₵25,000");
     expired = false; stale = true;
     await page.getByRole("button", { name: "Retry conversion", exact: true }).click();
     await page.locator(".footer-currency [role=status]").filter({ hasText: "cached rate" }).waitFor();
@@ -96,7 +96,7 @@ try {
     await choose("GHS");
     await page.locator(".footer-currency [role=status]").filter({ hasText: "Prices are shown in Ghanaian cedi" }).waitFor();
     await page.waitForTimeout(400);
-    assert.equal(await page.locator("[data-money-value]").first().innerText(), "GHS 25,000");
+    assert.equal(await page.locator("[data-money-value]").first().innerText(), "GH₵25,000");
     assert.equal(await page.evaluate(() => localStorage.getItem("twe-display-currency-v1")), "GHS");
     assert.deepEqual(errors, []);
     await context.close();
@@ -118,12 +118,12 @@ try {
   await expiryPage.locator(".footer-currency [role=status]").filter({ hasText: /^USD estimates/ }).waitFor();
   await expiryPage.clock.fastForward(72 * 3_600_000 + 60_000);
   await expiryPage.locator(".footer-currency [role=status]").filter({ hasText: "rate has expired" }).waitFor();
-  assert.equal(await expiryPage.locator("[data-money-value]").first().innerText(), "GHS 25,000");
+  assert.equal(await expiryPage.locator("[data-money-value]").first().innerText(), "GH₵25,000");
   await expiryContext.close();
   const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 900 } });
   const page = await noJs.newPage();
   await page.goto(origin + "/packages/zanzibar");
-  assert.equal(await page.locator("[data-money-value]").first().innerText(), "GHS 25,000");
+  assert.equal(await page.locator("[data-money-value]").first().innerText(), "GH₵25,000");
   assert.ok(await page.getByRole("button", { name: "Display currency", exact: true }).isDisabled());
   await noJs.close();
   const policy = await browser.newPage();

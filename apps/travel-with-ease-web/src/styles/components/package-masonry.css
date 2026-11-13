@@ -1,0 +1,21 @@
+/* React Bits masonry, scoped to approved package photography. */
+.twe-package-gallery { width: 100%; min-width: 0; }
+/* Keep the SSR island measurable so client:visible can hydrate; the static
+   links remain usable until Masonry has laid out its tiles. */
+.twe-package-gallery astro-island[ssr] { display: block; min-height: 1px; }
+.twe-package-gallery astro-island:not([ssr]):has(.masonry__item) + .twe-package-gallery__fallback { display: none; }
+.twe-package-gallery__fallback { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.twe-package-gallery__fallback a { display: block; min-width: 0; overflow: hidden; border-radius: var(--twe-radius-media); }
+.twe-package-gallery__fallback img { display: block; width: 100%; height: auto; object-fit: cover; }
+.twe-package-masonry .masonry { min-width: 0; }
+.twe-package-masonry .masonry__item { will-change: auto; }
+.twe-package-masonry .masonry__card { border-radius: var(--twe-radius-media); }
+.twe-package-masonry .masonry__media { border-radius: var(--twe-radius-media); background: rgb(1 12 51 / 8%); }
+.twe-package-masonry .masonry__image { transition: opacity 180ms ease; }
+.twe-package-masonry .masonry__card:focus-visible { outline: 3px solid var(--brand-sky); outline-offset: 3px; }
+.masonry-lightbox { color: var(--brand-cream); }
+.masonry-lightbox__backdrop { background: rgb(0 10 31 / 94%); }
+.masonry-lightbox__button { border-radius: var(--twe-radius-button); background: var(--brand-navy); color: var(--brand-cream); }
+.masonry-lightbox__caption { font-family: var(--font-body, Quicksand, sans-serif); }
+@media (max-width: 480px) { .twe-package-gallery__fallback { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .twe-package-masonry *, .masonry-lightbox * { transition: none !important; animation: none !important; } }

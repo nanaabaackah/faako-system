@@ -2,6 +2,7 @@
 import Accordion from "./Accordion.astro";
 import ContentLink from "./ContentLink.astro";
 import ServicePanels from "./ServicePanels.astro";
+import MoneyText from "./MoneyText.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
 import PlacedImage from './PlacedImage.astro';
@@ -44,7 +45,7 @@ const story = page === "/about";
         <header class="published-content__header">
           <div>
             <h1>{content.heading}</h1>
-            <p class="body-copy">{content.body}</p>
+            <p class="body-copy"><MoneyText text={content.body} /></p>
           </div>
         {(content.image || content.imagePlacements?.header?.image || content.imagePlacements?.header?.mobileImage) && !story && (
           <PlacedImage image={content.image} placement={content.imagePlacements?.header}
@@ -58,14 +59,14 @@ const story = page === "/about";
         {content.entries.map((entry) =>
           accordion ? (
             <Accordion title={entry.heading}>
-              <p>{entry.text}</p>
-              {entry.attribution && <p>{entry.attribution}</p>}
+              <p><MoneyText text={entry.text} /></p>
+              {entry.attribution && <p class={story ? "published-content__attribution" : undefined}>{entry.attribution}</p>}
             </Accordion>
           ) : (
             <section>
-              <h2>{entry.heading}</h2>
-              <p>{entry.text}</p>
-              {entry.attribution && <p>{entry.attribution}</p>}
+              <h2><MoneyText text={entry.heading} /></h2>
+              <p><MoneyText text={entry.text} /></p>
+              {entry.attribution && <p class={story ? "published-content__attribution" : undefined}>{entry.attribution}</p>}
             </section>
           ),
         )}
