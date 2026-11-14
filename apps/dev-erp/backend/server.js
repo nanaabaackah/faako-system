@@ -12475,6 +12475,39 @@ const fetchFaakoSubscriptionEntries = async ({ start, end }) => {
   }
 };
 
+// An authenticated, capability-gated directory of configured public app URLs.
+// The module capability middleware assigns /api/monitoring/* to System Health.
+app.get("/api/monitoring/published-apps", authMiddleware, async (_req, res) => {
+  let sites = SITE_PAGES;
+  try {
+    const snapshot = await getSiteStatus();
+    if (Array.isArray(snapshot?.data)) sites = snapshot.data;
+  } catch {
+    // Retain the trusted configured directory even if live health checks fail.
+  }
+  const exposedCategories = new Set(["portal", "erp", "marketing", "commerce", "client", "portfolio"]);
+  const apps = sites.flatMap((site) => {
+    if (!exposedCategories.has(String(site.category || "").toLowerCase())) return [];
+    if (site.configured === false || !site.baseUrl) return [];
+    try {
+      const url = new URL(site.baseUrl);
+      if (url.protocol !== "https:" || url.username || url.password) return [];
+      const pages = Array.isArray(site.pages) ? site.pages : [];
+      return [{
+        id: String(site.id || site.appKey || url.hostname),
+        name: String(site.title || site.name || url.hostname),
+        url: url.origin,
+        category: String(site.category),
+        status: getAggregateSiteStatus(pages),
+        checkedAt: pages.find((page) => page?.checkedAt)?.checkedAt || null,
+      }];
+    } catch {
+      return [];
+    }
+  });
+  res.json({ apps });
+});
+
 app.get("/api/bookings", authMiddleware, async (req, res) => {
   const { from, to } = req.query;
   const where = { organizationId: req.user.organizationId };
