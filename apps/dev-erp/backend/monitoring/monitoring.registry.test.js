@@ -29,7 +29,7 @@ test("dependency traversal identifies circular definitions", () => {
 
 test("TWE and TTNGH web/API checks are included and unconfigured endpoints stay unknown", () => {
   const { services } = buildMonitoringRegistry({ APP_ENV: "production" });
-  for (const key of ["twe-web", "twe-api", "ttngh-web", "ttngh-api"]) {
+  for (const key of ["twe-web", "twe-api", "twe-portal", "ttngh-web", "ttngh-api", "ttngh-studio"]) {
     const service = services.find((item) => item.key === key);
     assert.ok(service, `missing ${key}`);
     assert.equal(service.runtimeTarget, null);
@@ -50,4 +50,17 @@ test("TWE and TTNGH configured targets resolve to their public health endpoints"
   assert.equal(endpoints["ttngh-web"], "https://www.example-ttngh.test/");
   assert.equal(endpoints["ttngh-api"], "https://api.example-ttngh.test/healthz");
   assert.equal(validateRegistry(services).length, 0);
+});
+
+test("staff portal and CMS Studio only use explicitly approved health endpoints", () => {
+  const { services } = buildMonitoringRegistry({
+    APP_ENV: "production",
+    TRAVEL_WITH_EASE_PORTAL_BASE_URL: "https://private.example.test",
+    TTNGH_STUDIO_BASE_URL: "https://studio.example.test",
+    MONITOR_TWE_PORTAL_HEALTH_URL: "https://status.example.test/twe/portal",
+    MONITOR_TTNGH_STUDIO_HEALTH_URL: "https://status.example.test/ttngh/studio",
+  });
+  const targets = Object.fromEntries(services.map((service) => [service.key, service.runtimeTarget]));
+  assert.equal(targets["twe-portal"], "https://status.example.test/twe/portal");
+  assert.equal(targets["ttngh-studio"], "https://status.example.test/ttngh/studio");
 });
