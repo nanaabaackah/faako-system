@@ -96,7 +96,7 @@ const buildStartDate = (dateValue, timeValue) => {
 const PublicBooking = () => {
   const { orgSlug: orgParam } = useParams();
   const orgSlug = (orgParam || DEFAULT_ORG_SLUG).trim();
-  const [, setSettings] = useState({
+  const [settings, setSettings] = useState({
     organizationName: "",
     bookingLink: "",
     defaultLocation: "",
