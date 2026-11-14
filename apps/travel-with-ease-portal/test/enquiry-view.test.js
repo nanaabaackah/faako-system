@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { enquiryAnswerSections, legacyEnquiryFields } from "../src/lib/enquiryView.js";
+import { enquiryAnswerSections, initialEnquiryFields, legacyEnquiryFields } from "../src/lib/enquiryView.js";
 
 test("versioned enquiry answers render by stored section and never expose contact duplicates", () => {
   const details = {
@@ -25,6 +25,18 @@ test("versioned enquiry answers render by stored section and never expose contac
 test("legacy enquiries stay readable while private idempotency metadata stays hidden", () => {
   const fields = legacyEnquiryFields({ destination: "Accra", travellers: 2, submissionId: "private", submissionFingerprint: "private", nested: { hidden: true } });
   assert.deepEqual(fields, [["destination", "Accra"], ["travellers", 2]]);
+});
+
+test("progressive enquiries retain the initial intake while hiding continuation credentials", () => {
+  const details = {
+    enquiryType: "trip", destination: "Nairobi", travellers: 2,
+    continuationSubmissionId: "private", continuationSubmissionFingerprint: "private",
+    questionnaireCompletedAt: "2026-11-13T10:00:00.000Z",
+  };
+  assert.deepEqual(initialEnquiryFields(details), [
+    ["enquiryType", "trip"], ["destination", "Nairobi"], ["travellers", 2],
+  ]);
+  assert.equal(legacyEnquiryFields(details).some(([key]) => key.startsWith("continuationSubmission")), false);
 });
 
 test("Traveller inbox provides tenant API filters and no raw JSON presentation", () => {

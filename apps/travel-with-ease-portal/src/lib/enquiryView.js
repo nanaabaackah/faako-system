@@ -1,4 +1,8 @@
-const privateMetadata = new Set(["submissionId", "submissionFingerprint", "source"]);
+const privateMetadata = new Set([
+  "submissionId", "submissionFingerprint", "continuationSubmissionId",
+  "continuationSubmissionFingerprint", "source",
+]);
+const initialFields = new Set(["enquiryType", "service", "destination", "travelTimeframe", "travellers", "budget", "notes"]);
 
 export const formatEnquiryAnswer = (value) => Array.isArray(value) ? value.join(" · ") : String(value ?? "");
 
@@ -18,4 +22,8 @@ export function enquiryAnswerSections(details = {}) {
 
 export function legacyEnquiryFields(details = {}) {
   return Object.entries(details).filter(([key, value]) => !privateMetadata.has(key) && value !== null && typeof value !== "object");
+}
+
+export function initialEnquiryFields(details = {}) {
+  return Object.entries(details).filter(([key, value]) => initialFields.has(key) && value !== null && value !== "");
 }

@@ -30,6 +30,7 @@ import { readDriveConfig, DriveReader } from "./media/drive.js";
 import { prepareHostedStartup } from "./staging-startup.js";
 import { readHostedPrerequisites, readinessFailureCode } from "./portal/readiness.js";
 import { createTurnstileVerifier } from "./enquiries/turnstile.js";
+import { createContinuationLinks, readContinuationConfig } from "./enquiries/continuation-links.js";
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { environment, deployed, allowedOrigins, port } = readConfig();
@@ -98,7 +99,10 @@ const previewService = pool && process.env.TWE_CMS_PREVIEW_ENABLED === "true" ? 
   environment, siteOrigin: process.env.TWE_PUBLIC_SITE_ORIGIN || (environment === "production" ? "https://travelwitheasegh.com" : "https://staging.travelwitheasegh.com"),
   apiOrigin: process.env.TWE_PUBLIC_API_ORIGIN || "",
 }) : null;
+const continuationSettings = readContinuationConfig(process.env);
+const continuationLinks = continuationSettings ? createContinuationLinks(continuationSettings) : null;
 const app = createApp({ repository, currencyService, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, previewService, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
+  continuationLinks,
   turnstileVerifier: createTurnstileVerifier({
     secret: process.env.TWE_TURNSTILE_SECRET_KEY, environment,
   }),

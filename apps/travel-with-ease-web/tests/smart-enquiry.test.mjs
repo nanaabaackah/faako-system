@@ -27,16 +27,23 @@ test("general, readiness, planning and package routes reach contact without defe
   assert.equal(questions["1444304495"].maxSelections, 3);
 });
 
-test("public form deep links validate catalogue entries and preserve browser navigation", () => {
+test("short public form validates catalogue context and private wizard uses fragment-only continuation", () => {
   const form = source("components/EnquiryForm.jsx");
+  const wizard = source("components/EnquiryWizard.jsx");
+  const page = source("pages/plan-your-trip.astro");
   const service = source("pages/services/[slug].astro");
   const packageDetail = source("components/PackageDetail.astro");
   assert.match(form, /catalogue\.packages\.find/);
   assert.match(form, /catalogue\.services\.find/);
   assert.match(form, /opened a general enquiry instead/);
-  assert.match(form, /window\.history\.pushState/);
-  assert.match(form, /popstate/);
-  assert.doesNotMatch(form, /localStorage|sessionStorage/);
+  assert.match(form, /Check your email for a private, optional link/);
+  assert.match(wizard, /window\.location\.hash/);
+  assert.match(wizard, /URLSearchParams\(window\.location\.hash\.slice\(1\)\)\.get\("continue"\)/);
+  assert.match(wizard, /window\.history\.replaceState/);
+  assert.match(page, /noIndex/);
+  assert.match(page, /<EnquiryWizard client:load/);
+  assert.doesNotMatch(page, /continuationToken|#continue=/);
+  assert.doesNotMatch(form + wizard, /localStorage|sessionStorage/);
   assert.match(service, /\?service=\$\{service\.slug\}#plan/);
   assert.match(packageDetail, /\?package=\$\{encodeURIComponent\(item\.slug\)\}#plan/);
 });

@@ -56,14 +56,17 @@ test("expanded process is page-only and examples do not claim to be a real clien
   assert.match(process, /Package deposit terms do not automatically apply/);
 });
 
-test("enquiry uses the shared versioned questionnaire and catalogue-aware entry context", () => {
+test("short enquiry preserves catalogue context while the private page owns the versioned questionnaire", () => {
   const enquiry = source("components/EnquiryForm.jsx");
-  assert.match(enquiry, /QUESTIONNAIRE_VERSION/);
-  assert.match(enquiry, /applicableQuestionIds/);
+  const wizard = source("components/EnquiryWizard.jsx");
   assert.match(enquiry, /resolveEntry\(catalogue\)/);
   assert.match(enquiry, /packageSlug/);
   assert.match(enquiry, /serviceSlug/);
-  assert.doesNotMatch(enquiry, /localStorage/);
+  assert.match(wizard, /QUESTIONNAIRE_VERSION/);
+  assert.match(wizard, /applicableQuestionIds/);
+  assert.match(wizard, /continuation\/context/);
+  assert.match(wizard, /continuation\/complete/);
+  assert.doesNotMatch(enquiry + wizard, /localStorage|sessionStorage/);
 });
 
 test("approved package itineraries use restrained AnimatedList and remain server-rendered", () => {

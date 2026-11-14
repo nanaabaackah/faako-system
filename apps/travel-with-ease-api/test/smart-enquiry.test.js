@@ -77,7 +77,7 @@ test("not-sure branch requires its decision and package context is paired", () =
   assert.equal(smartEnquirySchema.safeParse({ ...base, entryType: "service", context: { serviceId: "premium", serviceTitle: "Wrong title" } }).success, false);
 });
 
-test("public intake accepts the versioned route and rejects deferred answer injection", async (context) => {
+test("public intake rejects the versioned questionnaire without a private continuation", async (context) => {
   const origin = "http://localhost:4328";
   const writes = [];
   const app = createApp({
@@ -97,11 +97,60 @@ test("public intake accepts the versioned route and rejects deferred answer inje
     body: JSON.stringify(body),
   });
 
-  assert.equal((await post(planningPayload())).status, 201);
-  assert.equal(writes.length, 1);
-  assert.equal(writes[0].questionnaireVersion, QUESTIONNAIRE_VERSION);
+  assert.equal((await post(planningPayload())).status, 400);
+  assert.equal(writes.length, 0);
   const injected = planningPayload();
   injected.answers["1811901185"] = "Sensitive health data";
   assert.equal((await post(injected)).status, 400);
-  assert.equal(writes.length, 1);
+  assert.equal(writes.length, 0);
+});
+
+test("continuation endpoints require exact origin and a verified one-time link", async (context) => {
+  const origin = "http://localhost:4328";
+  const token = "v1." + "x".repeat(100);
+  const enquiryId = randomUUID();
+  const completions = [];
+  let available = true;
+  const repository = {
+    continuationContext: async (id) => available && id === enquiryId ? {
+      inquiryId: id,
+      contact: { name: "Synthetic Traveller", phone: "+233200000000", email: "synthetic@example.invalid" },
+      entryType: "general", context: {},
+    } : null,
+    completeEnquiryContinuation: async (id, data) => {
+      completions.push({ id, data });
+      available = false;
+      return { inquiryId: id, status: "completed", replayed: false };
+    },
+  };
+  const app = createApp({
+    repository, allowedOrigins: [origin], logger: { error() {} },
+    continuationLinks: {
+      verify: (candidate) => candidate === token
+        ? { enquiryId, expiresAt: "2026-11-27T10:00:00.000Z" }
+        : null,
+    },
+  });
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  context.after(() => new Promise((resolve) => server.close(resolve)));
+  const post = (path, body, requestOrigin = origin) => fetch(`http://127.0.0.1:${server.address().port}${path}`, {
+    method: "POST", headers: { "Content-Type": "application/json", Origin: requestOrigin },
+    body: JSON.stringify(body),
+  });
+
+  assert.equal((await post("/api/public/enquiries/continuation/context", { continuationToken: "invalid" })).status, 410);
+  assert.equal((await post("/api/public/enquiries/continuation/context", { continuationToken: token }, "https://attacker.invalid")).status, 403);
+  const opened = await post("/api/public/enquiries/continuation/context", { continuationToken: token });
+  assert.equal(opened.status, 200);
+  assert.equal((await opened.json()).data.contact.email, "synthetic@example.invalid");
+  const completion = planningPayload();
+  const completed = await post("/api/public/enquiries/continuation/complete", {
+    ...completion, continuationToken: token,
+  });
+  assert.equal(completed.status, 201);
+  assert.equal(completions.length, 1);
+  assert.equal(completions[0].id, enquiryId);
+  assert.equal("continuationToken" in completions[0].data, false);
+  assert.equal((await post("/api/public/enquiries/continuation/context", { continuationToken: token })).status, 410);
 });

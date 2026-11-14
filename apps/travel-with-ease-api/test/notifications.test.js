@@ -4,8 +4,9 @@ import {
   readNotificationConfig,
   ResendSender,
 } from "../src/notifications/resend.js";
-import { enquiryTemplate } from "../src/notifications/enquiry-template.js";
+import { defaultEnquiryCopy, enquiryTemplate } from "../src/notifications/enquiry-template.js";
 import { deliverOne } from "../src/notifications/outbox.js";
+import { createContinuationLinks } from "../src/enquiries/continuation-links.js";
 
 const env = {
   APP_ENV: "staging",
@@ -99,6 +100,30 @@ test("production acknowledges customer and CCs notifications with stable retries
   await assert.rejects(
     sender.send({ ...job, delivery_payload: { ...payload, cc: [] } }),
   );
+});
+test("acknowledgement creates a private expiring questionnaire fragment without enquiry answers", () => {
+  const sender = new ResendSender(
+    readNotificationConfig({ ...env, APP_ENV: "production" }),
+    null,
+    { ...defaultEnquiryCopy, message: "Received.", ctaLabel: "Old label" },
+    createContinuationLinks({
+      secret: "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+      origin: "https://travelwitheasegh.com",
+      clock: () => Date.parse("2026-11-13T10:00:00.000Z"),
+    }),
+  );
+  const payload = sender.payload({
+    id: "57f9be65-c7aa-4bf8-97ce-e60fdb8e3c33",
+    createdAt: "2026-11-13T10:00:00.000Z",
+    contact: { name: "Traveller", email: "traveller@example.invalid" },
+    answers: { passport: "must-not-appear" },
+  });
+  for (const output of [payload.html, payload.text]) {
+    assert.match(output, /Complete your trip details/);
+    assert.match(output, /plan-your-trip#continue=v1\./);
+    assert.match(output, /expires after 14 days/);
+    assert.doesNotMatch(output, /must-not-appear|passport/);
+  }
 });
 test("template includes public company identity, escaped greeting and plaintext", () => {
   const template = enquiryTemplate({ name: '<img src=x onerror="alert(1)">' });

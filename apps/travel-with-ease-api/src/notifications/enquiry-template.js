@@ -31,6 +31,8 @@ export function enquiryTemplate({
   name = "",
   test = false,
   copy = defaultEnquiryCopy,
+  ctaUrl = "https://travelwitheasegh.com",
+  continuation = false,
 } = {}) {
   const greeting = name.trim()
     ? `Hello ${name.trim().slice(0, 160)},`
@@ -38,13 +40,17 @@ export function enquiryTemplate({
   const heading = test ? "Email delivery preview" : copy.heading;
   const message = test
     ? "This is a test of the Travel With Ease email template. No enquiry, booking or payment was created by this preview."
-    : `${copy.message}\n\nThis acknowledgement is not a booking or payment confirmation.`;
+    : `${copy.message}${continuation ? "\n\nIf you would like, use the private button below to add your full trip details. The link expires after 14 days and becomes unavailable once completed." : ""}\n\nThis acknowledgement is not a booking or payment confirmation.`;
+  const effectiveCopy = continuation
+    ? { ...copy, ctaLabel: "Complete your trip details" }
+    : copy;
   return brandedEmail({
     heading,
     message,
     greeting,
-    copy,
+    copy: effectiveCopy,
     subject: test ? "Travel With Ease — email delivery preview" : copy.subject,
+    ctaUrl,
   });
 }
 
