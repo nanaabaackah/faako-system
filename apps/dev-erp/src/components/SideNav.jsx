@@ -59,26 +59,10 @@ const SideNav = ({
     }
     let active = true;
     setPublishedAppsLoading(true);
-    apiGet("/api/dashboard", { fallbackMessage: "Unable to load published apps" })
+    apiGet("/api/monitoring/published-apps", { fallbackMessage: "Unable to load published apps" })
       .then((payload) => {
         if (!active) return;
-        const sites = Array.isArray(payload?.siteStatus?.sites) ? payload.siteStatus.sites : [];
-        const allowedCategories = new Set(["portal", "erp", "marketing", "commerce", "client", "portfolio"]);
-        const filtered = sites.filter((site) => {
-          if (!allowedCategories.has(String(site.category || "").toLowerCase())) return false;
-          if (!Array.isArray(site.pages) || !site.pages.some((p) => p.status !== "not_configured")) return false;
-          try {
-            return new URL(site.baseUrl).protocol === "https:";
-          } catch {
-            return false;
-          }
-        }).map((site) => ({
-          id: String(site.id || site.title),
-          name: String(site.title || site.name || "Published application"),
-          url: new URL(site.baseUrl).origin,
-          status: getAggregateSiteStatus(site.pages),
-        }));
-        setPublishedApps(filtered);
+        setPublishedApps(Array.isArray(payload?.apps) ? payload.apps : []);
       })
       .catch(() => { if (active) setPublishedApps([]); })
       .finally(() => { if (active) setPublishedAppsLoading(false); });
