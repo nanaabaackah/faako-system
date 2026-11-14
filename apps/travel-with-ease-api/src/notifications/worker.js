@@ -23,9 +23,20 @@ if (!config) throw new Error("Notification delivery is not configured.");
 const continuationSettings = readContinuationConfig(process.env);
 if (!continuationSettings) throw new Error("Enquiry continuation links are not configured.");
 const continuationLinks = createContinuationLinks(continuationSettings);
-const invitationConfig = readInvitationDeliveryConfig(process.env);
-const invitationPortalOrigin = invitationConfig ? readInvitationPortalOrigin(process.env) : null;
 const logger = createLogger("twe-notification-worker", { environment });
+let invitationConfig = null;
+let invitationPortalOrigin = null;
+try {
+  invitationConfig = readInvitationDeliveryConfig(process.env);
+  invitationPortalOrigin = invitationConfig ? readInvitationPortalOrigin(process.env) : null;
+} catch {
+  // Invalid optional invitation settings must not interrupt customer enquiry
+  // acknowledgements. Never log secret contents or portal configuration values.
+  invitationConfig = null;
+  invitationPortalOrigin = null;
+  logger.error({ eventName: "invitation.delivery_configuration_invalid" },
+    "Optional staff invitation delivery disabled; review its environment configuration");
+}
 const pool = createDatabase(process.env, "DATABASE_URL", logger);
 try {
   await verifyDatabaseIdentity(pool, { environment, organisationId: process.env.TWE_ORGANISATION_ID });
