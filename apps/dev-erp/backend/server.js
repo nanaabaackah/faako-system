@@ -11070,23 +11070,6 @@ const INVOICE_STATUS_VALUES = new Set([
   "VOID",
 ]);
 const RENT_TENANT_STATUS_VALUES = new Set(["ACTIVE", "INACTIVE"]);
-const PRODUCTIVITY_TODO_PRIORITY_VALUES = new Set(["low", "medium", "high"]);
-const PRODUCTIVITY_RANGE_DAYS = {
-  "7d": 7,
-  "14d": 14,
-  "30d": 30,
-  "90d": 90,
-};
-const JOB_WORK_TYPES = new Set(["freelance", "contract", "full_time"]);
-const ARBEITNOW_PAGE_LIMIT = Math.min(
-  Math.max(Number(process.env.ARBEITNOW_PAGE_LIMIT ?? 2), 1),
-  4
-);
-const AI_PROMPT_MAX_LENGTH = 2000;
-const AI_TODOS_CONTEXT_LIMIT = 8;
-const AI_JOBS_CONTEXT_LIMIT = 6;
-const AI_ENTRY_BLOCKERS_MAX_LENGTH = 320;
-
 const parseDateValue = (value) => {
   if (!value) return null;
   const date = new Date(value);
