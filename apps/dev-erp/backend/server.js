@@ -13812,6 +13812,10 @@ app.get("/api/debug/faako", authMiddleware, requireGlobalAdmin, async (req, res)
 });
 
 app.get("/api/bookings/settings", authMiddleware, requireAdmin, async (req, res) => {
+  const organization = await prisma.organization.findUnique({
+    where: { id: req.user.organizationId },
+    select: { slug: true },
+  });
   const settings = await prisma.bookingSettings.findUnique({
     where: { organizationId: req.user.organizationId },
   });
@@ -13819,6 +13823,7 @@ app.get("/api/bookings/settings", authMiddleware, requireAdmin, async (req, res)
     where: { organizationId: req.user.organizationId, provider: "GOOGLE_CALENDAR" },
   });
   res.json({
+    organizationSlug: organization?.slug || "",
     bookingLink: sanitizeExternalUrl(settings?.bookingLink) ?? "",
     calendarEmail: settings?.calendarEmail ?? "",
     defaultLocation: settings?.defaultLocation ?? "",
