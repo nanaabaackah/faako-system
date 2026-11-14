@@ -217,7 +217,8 @@ export const getTopbarLabel = (pathname) => {
     case "/settings":
       return "Settings";
     default:
-      return "Workspace";
+      // Unknown or not-yet-titled routes should never render a generic page placeholder.
+      return null;
   }
 };
 
