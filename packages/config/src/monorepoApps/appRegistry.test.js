@@ -95,3 +95,23 @@ test("monorepo monitoring keeps Faako API optional until an API host is configur
   assert.equal(configured.baseUrl, "https://api.faako.example.com");
   assert.equal(configured.configured, true);
 });
+
+test("TWE and TTNGH appear in the monitoring directory when their explicit monitor URLs are configured", () => {
+  const sites = getMonorepoMonitoringSites({
+    MONITOR_TWE_WEB_URL: "https://twe.example.test",
+    MONITOR_TWE_API_URL: "https://twe-api.example.test",
+    MONITOR_TTNGH_WEB_URL: "https://ttngh.example.test",
+    MONITOR_TTNGH_API_URL: "https://ttngh-api.example.test",
+  });
+  for (const [key, url] of Object.entries({
+    "travel-with-ease-web": "https://twe.example.test",
+    "travel-with-ease-api": "https://twe-api.example.test",
+    ttngh: "https://ttngh.example.test",
+    "ttngh-api": "https://ttngh-api.example.test",
+  })) {
+    const site = findSite(sites, key);
+    assert.ok(site, `monitoring site missing: ${key}`);
+    assert.equal(site.baseUrl, url);
+    assert.equal(site.configured, true);
+  }
+});
