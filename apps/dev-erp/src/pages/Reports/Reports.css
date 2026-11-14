@@ -25,8 +25,8 @@
 .report-card.is-collapsed:hover,
 .report-card.is-collapsed:focus-visible {
   transform: translateY(-1px);
-  border-color: color-mix(in oklab, var(--accent), var(--border) 50%);
-  box-shadow: 0 14px 28px rgba(59, 47, 47, 0.16);
+  border-color: var(--border);
+  box-shadow: var(--card-shadow-hover);
   outline: none;
 }
 
