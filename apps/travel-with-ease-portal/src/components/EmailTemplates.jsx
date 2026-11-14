@@ -103,7 +103,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
               ? "Draft saved. Outgoing emails have not changed."
               : definition.automated
                 ? "Template activated for newly prepared enquiry emails. Existing queued email payloads are unchanged."
-                : "Invitation template approved and saved. No invitations were created or sent. Share activation codes through the existing Staff access process.",
+                : "Invitation template approved and saved. No invitations were created or sent. Use Staff access for email invitations when enabled, or for manually shared codes.",
         );
       }
     } catch (error) {

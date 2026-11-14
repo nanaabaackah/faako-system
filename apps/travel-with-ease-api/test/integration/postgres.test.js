@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createDatabase, transaction, verifyDatabaseIdentity } from "../../src/db/database.js";
 import { migrate, readMigrations } from "../../src/db/migrations.js";
 import { PostgresLeadRepository } from "../../src/db/repository.js";
@@ -18,6 +18,8 @@ import { Administration } from "../../src/auth/administration.js";
 import { readActivity } from "../../src/auth/activity.js";
 import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
+import { invitationEmailCode, readInvitationDeliveryConfig } from "../../src/onboarding/invitation-email.js";
+import { InvitationDeliveryOutbox } from "../../src/notifications/invitations.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
 import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
 import { smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
@@ -197,6 +199,56 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       const invited = await runtimeInvitations.issue({ actor, subject: "runtime-editor", approvalReference: "TEST-RUNTIME", requestId: "test-runtime" });
       assert.equal((await runtimeInvitations.preview(identity("runtime-editor"), invited.code)).role, "editor");
       await runtimeInvitations.claim(identity("runtime-editor"), invited.code, "test-runtime-claim");
+
+      // Invitation-email delivery is a separate durable queue; prove migration
+      // grants and worker claim/lease/failure/retry using the actual runtime role.
+      const deliveryConfig = readInvitationDeliveryConfig({
+        TWE_INVITATION_DELIVERY_ENABLED: "true",
+        TWE_INVITATION_DELIVERY_SECRET: randomBytes(32).toString("base64url"),
+      });
+      const emailService = new Invitations(runtimePool, otherOrg, settings, "test", "", deliveryConfig);
+      const emailInput = (subject) => ({
+        actor, subject, role: "editor", sendEmail: true,
+        recipientEmail: "synthetic-staff@example.invalid",
+        approvalReference: "TEST-EMAIL", requestId: "test-email-delivery",
+      });
+      const emailed = await emailService.issue(emailInput("runtime-emailed-editor"));
+      assert.equal(emailed.code, undefined);
+      assert.equal(emailed.delivery, "queued");
+      const { rows: [pending] } = await query(
+        "SELECT status,recipient_email,template_snapshot FROM twe.staff_invitation_deliveries WHERE invitation_id=$1",
+        [emailed.id],
+      );
+      assert.equal(pending.status, "pending");
+      assert.equal(pending.recipient_email, "synthetic-staff@example.invalid");
+      assert.equal(pending.template_snapshot, null);
+      const code = invitationEmailCode(deliveryConfig, {
+        id: emailed.id, organisationId: otherOrg, environment: "test",
+        subject: "runtime-emailed-editor",
+      });
+      const { rows: [stored] } = await query("SELECT token_hash FROM twe.staff_invitations WHERE id=$1", [emailed.id]);
+      assert.equal(stored.token_hash, createHash("sha256").update(code).digest("hex"));
+      const emailOutbox = new InvitationDeliveryOutbox(runtimePool, otherOrg, "test");
+      const firstDelivery = await emailOutbox.claim(defaultInvitationCopy);
+      assert.equal(firstDelivery.invitation_id, emailed.id);
+      assert.equal(firstDelivery.subject, "runtime-emailed-editor");
+      assert.deepEqual(firstDelivery.template_snapshot, defaultInvitationCopy);
+      assert.equal(await emailOutbox.isStillValid(firstDelivery), true);
+      await emailOutbox.fail(firstDelivery, "provider_rejected");
+      await query("UPDATE twe.staff_invitation_deliveries SET available_at=now()-interval '1 second' WHERE invitation_id=$1", [emailed.id]);
+      const retry = await emailOutbox.claim({ ...defaultInvitationCopy, heading: "Changed after first attempt" });
+      assert.equal(retry.invitation_id, emailed.id);
+      assert.deepEqual(retry.template_snapshot, defaultInvitationCopy, "retry retains original approved email copy");
+      assert.equal(await emailOutbox.finish(retry, "synthetic-provider-id"), true);
+      await emailService.revoke({ actor, id: emailed.id, requestId: "test-email-revoke" });
+      await assert.rejects(emailService.claim(identity("runtime-emailed-editor"), code, "test-email-revoked"));
+      const cancelled = await emailService.issue(emailInput("runtime-email-revoked-before-delivery"));
+      await emailService.revoke({ actor, id: cancelled.id, requestId: "test-email-cancel" });
+      assert.equal(await emailOutbox.claim(defaultInvitationCopy), undefined);
+      const { rows: [cancelState] } = await query(
+        "SELECT status FROM twe.staff_invitation_deliveries WHERE invitation_id=$1", [cancelled.id],
+      );
+      assert.equal(cancelState.status, "cancelled");
       const { rows: [editor] } = await query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND subject='runtime-editor'", [otherOrg]);
       runtimeEditor = { ...editor, organisationId: otherOrg };
       const editorTours = await new TutorialService(runtimePool, otherOrg).run(runtimeEditor);

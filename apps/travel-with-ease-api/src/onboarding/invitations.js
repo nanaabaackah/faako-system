@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { transaction } from "../db/database.js";
 import { appendAudit } from "../audit.js";
 import { ContentError } from "../content/schema.js";
+import { invitationEmailCode } from "./invitation-email.js";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 const deny = () => {
@@ -18,6 +19,7 @@ export class Invitations {
     settings,
     environment,
     installerSubject = "",
+    deliveryConfig = null,
   ) {
     if (
       typeof installerSubject !== "string" ||
@@ -33,6 +35,7 @@ export class Invitations {
       settings,
       environment,
       installerSubject,
+      deliveryConfig,
     });
   }
   matches(identity) {
@@ -116,11 +119,14 @@ export class Invitations {
       requestId,
     });
   }
-  async issue({ actor, identity, subject, approvalReference, requestId, role: requestedRole = 'editor' }) {
+  async issue({ actor, identity, subject, approvalReference, requestId, role: requestedRole = 'editor', sendEmail = false, recipientEmail = null }) {
     return transaction(this.pool, async (client) => {
       await this.lock(client);
       const role = actor ? requestedRole : "owner";
       if (!['owner','editor'].includes(role)) deny();
+      if (sendEmail && (!actor || !this.deliveryConfig || typeof recipientEmail !== "string"))
+        throw new ContentError(503, "invitation_email_unavailable",
+          "Automatic invitation emails are not configured. Use the manual invitation code instead.");
       if (actor) await this.checkOwner(client, actor,role);
       else if (!this.installer(identity) || (await this.ownerExists(client)))
         deny();
@@ -133,8 +139,14 @@ export class Invitations {
         "UPDATE twe.staff_invitations SET revoked_at=now() WHERE organisation_id=$1 AND subject=$2 AND accepted_at IS NULL AND revoked_at IS NULL",
         [this.organisationId, subject],
       );
-      const id = randomUUID(),
-        code = randomBytes(32).toString("base64url");
+      await client.query(
+        "UPDATE twe.staff_invitation_deliveries SET status='cancelled',lease_token=NULL,lease_until=NULL,last_error='invitation_revoked' WHERE organisation_id=$1 AND invitation_id IN (SELECT id FROM twe.staff_invitations WHERE organisation_id=$1 AND subject=$2 AND revoked_at IS NOT NULL) AND status IN ('pending','processing')",
+        [this.organisationId, subject],
+      );
+      const id = randomUUID();
+      const code = sendEmail
+        ? invitationEmailCode(this.deliveryConfig, { id, organisationId: this.organisationId, environment: this.environment, subject })
+        : randomBytes(32).toString("base64url");
       const expiresAt = new Date(
         Date.now() + (actor ? 24 : 1) * 3600000,
       ).toISOString();
@@ -161,6 +173,12 @@ export class Invitations {
           actor ? 'staff' : 'initial_owner',
         ],
       );
+      if (sendEmail) {
+        await client.query(
+          "INSERT INTO twe.staff_invitation_deliveries(invitation_id,organisation_id,environment,recipient_email) VALUES($1,$2,$3,$4)",
+          [id, this.organisationId, this.environment, recipientEmail],
+        );
+      }
       await this.audit(
         client,
         actor?.id || null,
@@ -170,7 +188,7 @@ export class Invitations {
         id,
         requestId,
       );
-      return { id, code, role, expiresAt };
+      return { id, ...(sendEmail ? { delivery: "queued" } : { code }), role, expiresAt };
     });
   }
   async list(actor) {
@@ -178,7 +196,7 @@ export class Invitations {
       await this.checkOwner(client, actor);
       return (
         await client.query(
-          "SELECT id,role,created_at,expires_at,accepted_at,revoked_at FROM twe.staff_invitations WHERE organisation_id=$1 ORDER BY created_at DESC LIMIT 100",
+          "SELECT i.id,i.role,i.created_at,i.expires_at,i.accepted_at,i.revoked_at,d.status AS delivery_status FROM twe.staff_invitations i LEFT JOIN twe.staff_invitation_deliveries d ON d.invitation_id=i.id AND d.organisation_id=i.organisation_id WHERE i.organisation_id=$1 ORDER BY i.created_at DESC LIMIT 100",
           [this.organisationId],
         )
       ).rows;
@@ -196,6 +214,10 @@ export class Invitations {
         [this.organisationId, id, allowedRole,actor ? 'staff' : 'initial_owner'],
       );
       if (!result.rowCount) deny();
+      await client.query(
+        "UPDATE twe.staff_invitation_deliveries SET status='cancelled',lease_token=NULL,lease_until=NULL,last_error='invitation_revoked' WHERE organisation_id=$1 AND invitation_id=$2 AND status IN ('pending','processing')",
+        [this.organisationId, id],
+      );
       await this.audit(
         client,
         actor?.id || null,

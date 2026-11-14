@@ -18,7 +18,7 @@ export const emailTemplateOptions = Object.freeze([
     slug: "staff-invitation",
     label: "Staff invitation",
     description:
-      "Prepare invitation copy for your staff. Activation codes are still issued and shared separately in Staff access; no automatic invitation delivery is connected.",
+      "Prepare invitation copy for your staff. When enabled, a verified administrator can queue a secure invitation email from Staff access. Otherwise codes are shared privately.",
     automated: false,
   },
 ]);
