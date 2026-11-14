@@ -71,7 +71,7 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
         fallbackMessage: "We could not confirm your enquiry. Your details remain here so you can try again.",
       });
       if (data?.status !== "received" || !/^[a-f0-9-]{36}$/i.test(data.inquiryId || "")) throw new Error("The service did not confirm your enquiry. Please try again.");
-      setStatus({ state: "success", message: `Your enquiry is received. Reference: ${data.inquiryId.slice(0, 8).toUpperCase()}. Check your email for a private, optional link to add your full trip details. This is not a booking.` });
+      setStatus({ state: "success", message: `Your enquiry is received. Reference: ${data.inquiryId.slice(0, 8).toUpperCase()}. Note that this is not a booking.` });
       setForm({ ...initial, ...entry.preset });
       operation.current = null;
     } catch (error) {

@@ -87,4 +87,45 @@
       { once: true },
     );
   }
+
+  // Reuse only the package-ticket pointer tilt on the site's other card
+  // surfaces. Their existing colours, borders, shadows and layout stay intact.
+  const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
+  const tiltCards = [
+    ...document.querySelectorAll<HTMLElement>(
+      ".twe-action-card, .service-panel, .journey-card, .estimate-card, .traveller-reviews__card, .gallery-panel, .cinematic-enquiry__card, .enquiry-wizard-page__card, .package-enquiry-panel",
+    ),
+  ].filter((card) => !card.closest(".tilted-card"));
+  const tiltCleanups = tiltCards.map((card) => {
+    let frame = 0;
+    const reset = () => {
+      cancelAnimationFrame(frame);
+      card.style.removeProperty("--twe-card-tilt-x");
+      card.style.removeProperty("--twe-card-tilt-y");
+      card.removeAttribute("data-twe-card-tilting");
+    };
+    const move = (event: PointerEvent) => {
+      if (reduce.matches || !finePointer.matches) return reset();
+      const bounds = card.getBoundingClientRect();
+      const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
+      const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        card.style.setProperty("--twe-card-tilt-x", `${(-y * 4).toFixed(2)}deg`);
+        card.style.setProperty("--twe-card-tilt-y", `${(x * 4).toFixed(2)}deg`);
+        card.setAttribute("data-twe-card-tilting", "");
+      });
+    };
+    card.classList.add("twe-card-tilt");
+    card.addEventListener("pointermove", move);
+    card.addEventListener("pointerleave", reset);
+    card.addEventListener("pointercancel", reset);
+    return () => {
+      reset();
+      card.removeEventListener("pointermove", move);
+      card.removeEventListener("pointerleave", reset);
+      card.removeEventListener("pointercancel", reset);
+    };
+  });
+  addEventListener("pagehide", () => tiltCleanups.forEach((cleanup) => cleanup()), { once: true });
 </script>

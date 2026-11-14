@@ -132,7 +132,7 @@ test("template includes public company identity, escaped greeting and plaintext"
   for (const output of [template.html, template.text]) {
     for (const value of [
       "Travel With Ease",
-      "nana@travelwitheasegh.com",
+      "info@travelwitheasegh.com",
       "233208387020",
       "travelwitheaseghana",
       "sent automatically",
