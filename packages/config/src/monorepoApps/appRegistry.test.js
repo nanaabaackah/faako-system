@@ -6,11 +6,11 @@ import { getMonorepoAppByKey, getMonorepoMonitoringSites } from "./appRegistry.j
 const findSite = (sites, id) => sites.find((site) => site.id === id);
 const pagePaths = (site) => new Set((site?.pages ?? []).map((page) => page.path));
 
-test("TTNGH remains registered while its application workspace is deferred", () => {
+test("TTNGH tracked application is registered for monitoring", () => {
   const ttngh = getMonorepoAppByKey("ttngh");
 
   assert.ok(ttngh, "expected TTNGH registry metadata");
-  assert.equal(ttngh.workspaceRequired, false);
+  assert.notEqual(ttngh.workspaceRequired, false);
   assert.equal(ttngh.monitoringOptional, true);
 });
 
