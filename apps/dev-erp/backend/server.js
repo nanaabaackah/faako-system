@@ -623,7 +623,12 @@ if (hasGoogleOAuthCredentials && !oauthTokenCrypto) {
     "Google Calendar integration disabled: set OAUTH_TOKEN_ENCRYPTION_KEY to a valid 32-byte key."
   );
 }
-const googleNightlySyncEnabled = ["true", "1", "yes", "on"].includes(
+// Native DEV ERP bookings are authoritative. Legacy imports require explicit
+// temporary opt-in for controlled migration; existing synced records remain stored.
+const legacyGoogleCalendarImportEnabled = ["true", "1", "yes", "on"].includes(
+  String(process.env.LEGACY_GOOGLE_CALENDAR_IMPORT_ENABLED ?? "").trim().toLowerCase()
+);
+const googleNightlySyncEnabled = legacyGoogleCalendarImportEnabled && ["true", "1", "yes", "on"].includes(
   String(process.env.GOOGLE_NIGHTLY_SYNC_ENABLED ?? "").trim().toLowerCase()
 );
 const googleNightlySyncHour = Number(process.env.GOOGLE_NIGHTLY_SYNC_HOUR ?? 2);
@@ -13057,6 +13062,9 @@ app.post("/api/bookings/settings", authMiddleware, requireAdmin, async (req, res
 });
 
 app.post("/api/bookings/sync/google", authMiddleware, requireAdmin, async (req, res) => {
+  if (!legacyGoogleCalendarImportEnabled) {
+    return res.status(410).json({ error: "Google Calendar sync has been retired. Use the native DEV ERP appointment schedule." });
+  }
   if (!isGoogleConfigured()) {
     return res.status(500).json({ error: "Google Calendar integration is not configured." });
   }
@@ -13122,6 +13130,9 @@ app.post("/api/integrations/google/disconnect", authMiddleware, requireAdmin, as
 });
 
 app.get("/api/integrations/google/init", authMiddleware, requireAdmin, (req, res) => {
+  if (!legacyGoogleCalendarImportEnabled) {
+    return res.status(410).json({ error: "Calendar connection is retired for native DEV ERP bookings." });
+  }
   if (!isGoogleConfigured()) {
     return res.status(500).json({ error: "Missing Google Calendar credentials." });
   }
@@ -13140,6 +13151,7 @@ app.get("/api/integrations/google/init", authMiddleware, requireAdmin, (req, res
 });
 
 app.get("/api/integrations/google/callback", async (req, res) => {
+  if (!legacyGoogleCalendarImportEnabled) return res.status(410).send("Calendar connection is retired.");
   if (!isGoogleConfigured()) {
     return res.status(500).send("Google Calendar credentials missing.");
   }
@@ -13242,6 +13254,7 @@ app.get("/api/integrations/google/callback", async (req, res) => {
 });
 
 app.post("/api/webhooks/google-calendar", async (req, res) => {
+  if (!legacyGoogleCalendarImportEnabled) return res.status(202).end();
   const channelId = req.header("x-goog-channel-id");
   const resourceId = req.header("x-goog-resource-id");
   const channelToken = req.header("x-goog-channel-token");
