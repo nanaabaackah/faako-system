@@ -13266,7 +13266,7 @@ const serializeProductivityTodo = (todo) => ({
 // creating overlapping appointments between an availability check and an insert.
 const createNativeBooking = async ({ organizationId, startAt, endAt, data }) =>
   prisma.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(90143, ${organizationId})`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(90143, ${organizationId}::integer)`;
     if (data.status !== "CANCELED") {
       const overlap = await tx.booking.findFirst({
         where: {
