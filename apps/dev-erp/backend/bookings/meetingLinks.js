@@ -33,5 +33,8 @@ export const validateMeetingLink = (provider, rawLink) => {
 
 export const meetingLinkState = (booking) => {
   if (!booking?.meetingLink) return "PENDING_LINK";
-  return booking.meetingLinkDeliveryStatus === "SENT" ? "SENT" : "READY";
+  if (booking.meetingLinkDeliveryStatus === "SENT") return "SENT";
+  if (booking.meetingLinkDeliveryStatus === "FAILED") return "FAILED";
+  if (booking.meetingLinkDeliveryStatus === "TEST_REROUTED") return "TEST_REROUTED";
+  return "READY";
 };
