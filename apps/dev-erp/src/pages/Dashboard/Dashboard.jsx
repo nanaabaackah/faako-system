@@ -11,7 +11,7 @@ import {
   getMonitoringTone,
 } from "../../components/MonitoringSparkline/monitoringSparklineUtils";
 import { HealthTimeline } from "../SystemHealth/SystemHealthComponents";
-import { buildHealthTimeline } from "../SystemHealth/monitoringConfig";
+
 import useDashboardData from "../../hooks/useDashboardData";
 import VerseWidget from "../../components/VerseWidget/VerseWidget";
 import WeatherWidget from "../../components/WeatherWidget/WeatherWidget";
@@ -424,9 +424,38 @@ const Dashboard = () => {
   const isAdmin = storedUser?.role?.name === "Admin";
   const canUseBookings = hasModuleAccess(storedUser, "bookings");
   const canUseAccounting = hasModuleAccess(storedUser, "accounting");
+  const canSeeMonitoring = hasModuleAccess(storedUser, "system-health");
+  const [recordedMonitoring, setRecordedMonitoring] = useState([]);
   const [timeRange] = useState("7d");
   const [briefDateKey] = useState(() => buildTodayDate());
   const { data: kpiData, loading, error } = useDashboardData({ range: timeRange });
+  // All dashboard history bars come from persisted checks; there is no synthetic
+  // successful history for a service that has never been checked.
+  useEffect(() => {
+    if (!canSeeMonitoring) {
+      setRecordedMonitoring([]);
+      return undefined;
+    }
+    let active = true;
+    const refresh = async () => {
+      try {
+        const result = await apiGet("/api/monitoring/summary?range=7d", {
+          cache: "no-store", fallbackMessage: "Monitoring history unavailable.",
+        });
+        if (active) setRecordedMonitoring(Array.isArray(result?.services) ? result.services : []);
+      } catch {
+        if (active) setRecordedMonitoring([]);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 60_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [canSeeMonitoring]);
+  const monitoringHistoryByKey = new Map(recordedMonitoring.map((service) => [service.key, service.timeline || []]));
+  const timelineFor = (key) => monitoringHistoryByKey.get(key) || [];
+
   const [availabilityBookings, setAvailabilityBookings] = useState([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(canUseBookings);
   const [availabilityError, setAvailabilityError] = useState("");
@@ -896,7 +925,6 @@ const Dashboard = () => {
   const activeRange = RANGE_OPTIONS.find((option) => option.value === timeRange) || RANGE_OPTIONS[1];
   const rangeDescription = activeRange.description;
   const rangeWindowMs = activeRange.hours * 60 * 60 * 1000;
-  const monitoringTimelineRange = timeRange === "24h" ? "day" : timeRange === "30d" ? "month" : "week";
 
   const renderStatusPill = (status) => {
     const tone = getStatusTone(status);
@@ -995,12 +1023,15 @@ const Dashboard = () => {
       summary,
       score,
       tone: getMonitoringTone(aggregateStatus),
-      timeline: buildHealthTimeline({
-        id: `dashboard-site-${site.id}`,
-        status: aggregateStatus,
-        latencyMs: pages.find((page) => Number.isFinite(Number(page?.responseTimeMs)))?.responseTimeMs,
-        range: monitoringTimelineRange,
-      }),
+      timeline: timelineFor({
+        "dev-erp": "client-portal",
+        "dev-erp-api": "dev-erp-api",
+        "travel-with-ease-web": "twe-web",
+        "travel-with-ease-api": "twe-api",
+        ttngh: "ttngh-web",
+        "ttngh-api": "ttngh-api",
+        "reebs-api": "reebs-api",
+      }[site.id] || site.id),
     };
   });
   const orderedSites = [...siteOverview].sort((left, right) => {
@@ -1034,12 +1065,12 @@ const Dashboard = () => {
         subject: entry.label,
         note: entry.note,
       }),
-      timeline: buildHealthTimeline({
-        id: `dashboard-system-${entry.id}`,
-        status: entry.status,
-        latencyMs: null,
-        range: monitoringTimelineRange,
-      }),
+      timeline: timelineFor({
+        portfolio: "dev-erp-postgresql",
+        reebs: "reebs-postgresql",
+        faako: "faako-api",
+        stroane: "stroane-postgresql",
+      }[entry.id] || entry.id),
     }))
     .sort((left, right) => right.severity - left.severity || left.label.localeCompare(right.label));
   const siteIssueRows = siteOverview
@@ -1877,7 +1908,7 @@ const Dashboard = () => {
                       </div>
                       <span className="muted">{row.note}</span>
                       {row.severity ? <p>{row.issueReason}</p> : null}
-                      <HealthTimeline timeline={row.timeline} serviceName={row.label} compact />
+                      {row.timeline.length ? <HealthTimeline timeline={row.timeline} serviceName={row.label} compact /> : <small className="muted">No recorded monitoring history</small>}
                     </div>
                   </div>
                 ))}
@@ -1954,11 +1985,9 @@ const Dashboard = () => {
                           <span>surface score</span>
                         </div>
                         <div className="site-card__spark site-card__timeline">
-                          <HealthTimeline
-                            timeline={site.timeline}
-                            serviceName={site.title}
-                            compact
-                          />
+                          {site.timeline.length ? (
+                            <HealthTimeline timeline={site.timeline} serviceName={site.title} compact />
+                          ) : <span className="muted">No recorded monitoring history</span>}
                         </div>
                       </div>
                       <div className="site-card__chips" aria-label={`${site.title} endpoint mix`}>
