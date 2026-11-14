@@ -456,9 +456,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         </ErpPageContent>
       </div>
       {isCommandOpen && (
-        <div className="erp-command-overlay" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setIsCommandOpen(false);
-        }}>
+        <div className="erp-command-overlay">
           <section className="erp-command-dialog" role="dialog" aria-modal="true" aria-labelledby="erp-command-heading">
             <div className="erp-command-dialog__search">
               <FiSearch aria-hidden="true" />
