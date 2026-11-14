@@ -12,6 +12,7 @@ import { OfflineStatusBadge, useOnlineStatus } from "@faako/offline-sync";
 import {
   HambergerMenu,
 } from "iconsax-react";
+import { FiSearch, FiBell, FiX } from "react-icons/fi";
 import ThemeToggle from "./components/ThemeToggle";
 import ErrorBoundary from "./components/ErrorBoundary";
 import SideNav from "./components/SideNav";
@@ -124,6 +125,27 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const [navSwipeOffset, setNavSwipeOffset] = useState(0);
   const [isNavDragging, setIsNavDragging] = useState(false);
   const [navNotifications, setNavNotifications] = useState({});
+  const [isCommandOpen, setIsCommandOpen] = useState(false);
+  const [commandQuery, setCommandQuery] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
+  const commandInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!isCommandOpen) return undefined;
+    const frame = window.requestAnimationFrame(() => commandInputRef.current?.focus());
+    return () => window.cancelAnimationFrame(frame);
+  }, [isCommandOpen]);
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsCommandOpen(false);
+        setShowNotifications(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const isOnline = useOnlineStatus();
   const isOffline = !isOnline;
   const shellRef = useRef(null);
@@ -327,6 +349,12 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const sidebarStyle =
     isNavOpen && navSwipeOffset !== 0 ? { transform: `translateX(${navSwipeOffset}px)` } : undefined;
   const topbarLabel = getTopbarLabel(location.pathname);
+  const commandItems = visibleNavItems.filter((item) =>
+    !commandQuery.trim() ||
+    [item.label, item.module].some((value) => String(value || "").toLowerCase().includes(commandQuery.trim().toLowerCase()))
+  );
+  const notificationItems = visibleNavItems.filter((item) => Number(navNotifications[item.to] || 0) > 0);
+  const notificationCount = notificationItems.reduce((total, item) => total + Number(navNotifications[item.to] || 0), 0);
 
   return (
     <div
@@ -353,6 +381,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         onToggleCollapsed={() => setIsSidebarCollapsed((currentValue) => !currentValue)}
         onExpand={() => setIsSidebarCollapsed(false)}
         onSignOut={handleSignOut}
+        onOpenCommand={() => { setCommandQuery(""); setIsCommandOpen(true); }}
         onTouchStart={handleSidebarTouchStart}
         onTouchMove={handleSidebarTouchMove}
         onTouchEnd={handleSidebarTouchEnd}
@@ -382,7 +411,36 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
             </button>
           )}
           actions={(
-            <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            <div className="erp-workspace-actions">
+              <button className="erp-workspace-search" type="button"
+                onClick={() => { setCommandQuery(""); setIsCommandOpen(true); }}
+                aria-label="Search workspace and open commands">
+                <FiSearch aria-hidden="true" />
+                <span>Search modules and actions</span>
+                <kbd>⌘ K</kbd>
+              </button>
+              <div className="erp-workspace-alerts">
+                <button className="erp-workspace-alerts__trigger" type="button"
+                  onClick={() => setShowNotifications((current) => !current)}
+                  aria-label={`Notifications, ${notificationCount} alerts`}
+                  aria-expanded={showNotifications}>
+                  <FiBell aria-hidden="true" />
+                  {notificationCount > 0 ? <span className="erp-workspace-alerts__count">{formatNotificationCount(notificationCount)}</span> : null}
+                </button>
+                {showNotifications && (
+                  <div className="erp-workspace-alerts__popover">
+                    <strong>Notifications</strong>
+                    {notificationItems.length ? notificationItems.map((item) => (
+                      <button key={item.to} type="button" onClick={() => { setShowNotifications(false); navigate(item.to); }}>
+                        <span>{item.label}</span>
+                        <span>{formatNotificationCount(navNotifications[item.to])} requiring attention</span>
+                      </button>
+                    )) : <p>No outstanding module alerts.</p>}
+                  </div>
+                )}
+              </div>
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            </div>
           )}
         />
         {isOffline ? (
@@ -397,6 +455,35 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
           </div>
         </ErpPageContent>
       </div>
+      {isCommandOpen && (
+        <div className="erp-command-overlay" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setIsCommandOpen(false);
+        }}>
+          <section className="erp-command-dialog" role="dialog" aria-modal="true" aria-labelledby="erp-command-heading">
+            <div className="erp-command-dialog__search">
+              <FiSearch aria-hidden="true" />
+              <input type="search" ref={commandInputRef} value={commandQuery}
+                placeholder="Search modules or navigate…" aria-label="Search Faako workspace"
+                onChange={(event) => setCommandQuery(event.target.value)} />
+              <button type="button" aria-label="Close search" onClick={() => setIsCommandOpen(false)}><FiX aria-hidden="true" /></button>
+            </div>
+            <h2 id="erp-command-heading">Go to</h2>
+            <div className="erp-command-dialog__results">
+              {commandItems.length ? commandItems.map((item) => (
+                <button key={item.to} type="button" onClick={() => {
+                  setIsCommandOpen(false);
+                  setCommandQuery("");
+                  navigate(item.to);
+                }}>
+                  <item.Icon size={18} color="currentColor" variant="Linear" aria-hidden="true" />
+                  <span>{item.label}</span>
+                  <span className="erp-command-dialog__arrow" aria-hidden="true">↗</span>
+                </button>
+              )) : <p>No matching module. Try a different search.</p>}
+            </div>
+          </section>
+        </div>
+      )}
       <ErpMobileBottomNavFrame className="mobile-tabbar">
         {visibleMobileTabItems.map((item) => {
           const count = Number(navNotifications[item.to] || 0);
