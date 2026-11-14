@@ -26,6 +26,8 @@
 .health-summary-card.is-success { --summary-tone: var(--success); }
 .health-summary-card.is-warning { --summary-tone: var(--warning); }
 .health-summary-card.is-danger { --summary-tone: var(--danger); }
+.health-summary-card__heading { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.health-summary-card__icon { flex: none; color: var(--summary-tone); }
 .health-summary-card span { color: var(--muted); font-size: .72rem; font-weight: 700; }
 .health-summary-card strong { color: var(--ink); font-size: clamp(1.2rem, 2vw, 1.65rem); overflow-wrap: anywhere; }
 
