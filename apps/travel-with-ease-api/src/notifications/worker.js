@@ -6,6 +6,8 @@ import { NotificationOutbox, deliverOne } from "./outbox.js";
 import { EmailTemplates } from "./templates.js";
 import { verifyHostedDatabase } from "../portal/readiness.js";
 import { runNotificationLoop } from "./loop.js";
+import { InvitationDeliveryOutbox, InvitationEmailSender, deliverOneInvitation } from "./invitations.js";
+import { readInvitationDeliveryConfig, readInvitationPortalOrigin } from "../onboarding/invitation-email.js";
 import { createContinuationLinks, readContinuationConfig } from "../enquiries/continuation-links.js";
 
 const continuous = process.argv[2] === "--continuous";
@@ -21,6 +23,8 @@ if (!config) throw new Error("Notification delivery is not configured.");
 const continuationSettings = readContinuationConfig(process.env);
 if (!continuationSettings) throw new Error("Enquiry continuation links are not configured.");
 const continuationLinks = createContinuationLinks(continuationSettings);
+const invitationConfig = readInvitationDeliveryConfig(process.env);
+const invitationPortalOrigin = invitationConfig ? readInvitationPortalOrigin(process.env) : null;
 const logger = createLogger("twe-notification-worker", { environment });
 const pool = createDatabase(process.env, "DATABASE_URL", logger);
 try {
@@ -28,9 +32,17 @@ try {
   if (deployed) await verifyHostedDatabase(pool, { environment, organisationId: process.env.TWE_ORGANISATION_ID });
   const templates = new EmailTemplates(pool, process.env.TWE_ORGANISATION_ID);
   const outbox = new NotificationOutbox(pool, process.env.TWE_ORGANISATION_ID);
+  const invitationOutbox = invitationConfig
+    ? new InvitationDeliveryOutbox(pool, process.env.TWE_ORGANISATION_ID, environment) : null;
+  const invitationSender = invitationConfig
+    ? new InvitationEmailSender(config, invitationConfig, invitationPortalOrigin) : null;
   const tick = async () => {
+    // Process both queues each tick; staff invitations cannot starve enquiries.
+    const invitationAttempted = invitationOutbox
+      ? await deliverOneInvitation(invitationOutbox, invitationSender, await templates.activeCopy("staff-invitation"), logger) : false;
     const copy = await templates.activeCopy();
-    return deliverOne(outbox, new ResendSender(config, fetch, copy, continuationLinks), logger);
+    const enquiryAttempted = await deliverOne(outbox, new ResendSender(config, fetch, copy, continuationLinks), logger);
+    return invitationAttempted || enquiryAttempted;
   };
   logger.info({ eventName: "notification.worker_ready", continuous }, "Notification worker verified its environment and database.");
   if (continuous) await runNotificationLoop({ tick, signal: shutdown.signal });
