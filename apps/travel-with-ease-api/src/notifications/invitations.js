@@ -101,7 +101,8 @@ export class InvitationEmailSender {
   payload(job) {
     const production = this.config.environment === "production";
     if (job.environment !== this.config.environment || !job.template_snapshot ||
-        !job.recipient_email || !job.subject)
+        typeof job.recipient_email !== "string" || job.recipient_email.length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(job.recipient_email) || !job.subject)
       throw new Error("delivery_configuration_changed");
     const code = invitationEmailCode(this.deliveryConfig, {
       id: job.invitation_id, organisationId: job.organisation_id,
