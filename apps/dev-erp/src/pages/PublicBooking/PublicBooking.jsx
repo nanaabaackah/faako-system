@@ -246,7 +246,6 @@ const PublicBooking = () => {
     }
   }, [form.date, days]);
 
-  const locationLabel = settings.defaultLocation || "Meeting link sent after appointment";
   const safeMeetingLink = getSafeExternalUrl(confirmation?.meetingLink);
   const isReadyToSubmit = useMemo(() => {
     return (
