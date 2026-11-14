@@ -1,6 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "../api/client";
-import { getAggregateSiteStatus } from "../utils/siteStatus";
 import { ErpStatusBadge, SidebarEdgeToggle } from "@faako/ui";
 import { NavLink } from "react-router-dom";
 import {
