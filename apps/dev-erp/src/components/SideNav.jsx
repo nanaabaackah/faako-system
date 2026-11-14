@@ -187,6 +187,38 @@ const SideNav = ({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchCancel}
       >
+        <div className="erp-sidebar__rail">
+          <NavLink className="erp-sidebar__rail-brand" to="/dashboard" title="Faako dashboard" onClick={handleSelect} aria-label="Faako dashboard">
+            <img src="/imgs/dev-logo.png" alt="" />
+          </NavLink>
+          <nav className="erp-sidebar__rail-nav" aria-label="Quick module navigation">
+            {visibleNavItems.filter((item) => [
+              "dashboard", "projects", "rent", "accounting", "invoicing",
+              "bookings", "customers", "system-health", "reports"
+            ].includes(item.key)).map((item) => (
+              <NavLink
+                key={item.key}
+                to={item.to}
+                end={item.to === "/dashboard"}
+                onClick={handleSelect}
+                title={item.label}
+                aria-label={item.label}
+                className={({ isActive }) => isActive ? "is-active" : ""}
+              >
+                <item.Icon size={21} color="currentColor" variant="Linear" aria-hidden="true" />
+              </NavLink>
+            ))}
+          </nav>
+          <button
+            type="button"
+            className="erp-sidebar__rail-toggle"
+            onClick={onToggleCollapsed}
+            aria-label={isDesktopCollapsed ? "Expand navigation sidebar" : "Collapse navigation sidebar"}
+            title={isDesktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isDesktopCollapsed ? "›" : "‹"}
+          </button>
+        </div>
         <div className="erp-sidebar__panel">
           <div className="erp-sidebar__header">
             <div className="erp-sidebar__brand">
