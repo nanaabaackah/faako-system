@@ -14,6 +14,7 @@ export default function Invitations({ api, session, installer = false }) {
   const [role,setRole]=useState('editor');
   const [deliveryMethod, setDeliveryMethod] = useState("email");
   const [recipientEmail, setRecipientEmail] = useState("");
+  const [emailAvailable, setEmailAvailable] = useState(false);
   const canInviteOwner=!installer&&session?.user.permissions?.includes('staff.roles.manage');
   const path = installer
     ? "/api/auth/activation/owner-invitation"
@@ -25,7 +26,11 @@ export default function Invitations({ api, session, installer = false }) {
     if (!installer)
       api
         .get("/api/auth/invitations", { responseMode: "data" })
-        .then((result) => setItems(result.items))
+        .then((result) => {
+          setItems(result.items);
+          setEmailAvailable(result.emailAvailable === true);
+          setDeliveryMethod(result.emailAvailable === true ? "email" : "manual");
+        })
         .catch(() => setError("Invitations could not be loaded."));
     if (!installer)
       api
@@ -44,8 +49,11 @@ export default function Invitations({ api, session, installer = false }) {
       });
       if (result.code || result.delivery === "queued") setIssued(result);
       else if (issued && url.includes(issued.id)) setIssued(null);
-      if (!installer)
-        setItems((await api.get(path, { responseMode: "data" })).items);
+      if (!installer) {
+        const list = await api.get(path, { responseMode: "data" });
+        setItems(list.items);
+        setEmailAvailable(list.emailAvailable === true);
+      }
       if (!installer)
         setEvents(
           (
@@ -110,9 +118,12 @@ export default function Invitations({ api, session, installer = false }) {
               label="Invitation delivery"
               value={deliveryMethod}
               onChange={(event) => setDeliveryMethod(event.target.value)}
-              options={[{ value: "email", label: "Email invitation" }, { value: "manual", label: "Manual activation code" }]}
+              options={emailAvailable
+                ? [{ value: "email", label: "Email invitation" }, { value: "manual", label: "Manual activation code" }]
+                : [{ value: "manual", label: "Manual activation code" }]}
             />
-            {deliveryMethod === "email" && (
+            {!emailAvailable && <p>Automatic invitation emails are not enabled in this environment. Create a manual code until the verified email worker is configured.</p>}
+            {emailAvailable && deliveryMethod === "email" && (
               <TextField
                 label="Recipient email"
                 type="email"
