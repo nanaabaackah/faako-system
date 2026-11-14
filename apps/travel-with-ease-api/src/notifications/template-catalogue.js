@@ -19,7 +19,7 @@ export const emailTemplateOptions = Object.freeze([
     label: "Staff invitation",
     description:
       "Prepare invitation copy for your staff. When enabled, a verified administrator can queue a secure invitation email from Staff access. Otherwise codes are shared privately.",
-    automated: true,
+    automated: false,
   },
 ]);
 export const defaultTemplateCopies = Object.freeze({
