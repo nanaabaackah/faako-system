@@ -374,10 +374,10 @@ const PublicBooking = () => {
     <section className="page public-booking">
       <header className="public-booking__hero">
         <p className="eyebrow">Appointments</p>
-        <h1>Dev Dashboard</h1>
+        <h1>{settings.organizationName || "Faako DEV ERP"}</h1>
         <h2>Book an Appointment</h2>
         <p className="muted">
-          Choose a time that works for you. We’ll confirm details and send a calendar invite.
+          Select an available time and your preferred meeting platform. Your appointment is managed directly in Faako.
         </p>
       </header>
 
@@ -393,7 +393,7 @@ const PublicBooking = () => {
           <p className="muted">
             {confirmation.title || "Appointment"} · {formatDateTime(confirmation.startAt)}
           </p>
-          <p className="muted">Preferred platform: {confirmation.meetingPlatform || "To be confirmed"}</p>
+          <p className="muted">Preferred platform: {{ GOOGLE_MEET: "Google Meet", ZOOM: "Zoom", WHATSAPP: "WhatsApp call", FACETIME: "FaceTime" }[confirmation.meetingPlatform] || "To be confirmed"}</p>
           <p className="muted">{safeMeetingLink ? "Meeting link ready." : "Joining details will be shared once available."}</p>
           {safeMeetingLink ? (
             <a className="button button-primary" href={safeMeetingLink} target="_blank" rel="noreferrer">
