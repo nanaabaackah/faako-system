@@ -81,10 +81,17 @@ export const buildMonitoringRegistry = (env = process.env) => {
   const faakoApi = env.MONITOR_FAAKO_API_URL || env.FAAKO_API_BASE_URL;
   const stroaneApi = env.MONITOR_STROANE_API_URL || env.STROANE_API_BASE_URL;
   const reebsApi = env.MONITOR_REEBS_API_URL || env.REEBS_API_BASE_URL;
+  // Never infer staging or production addresses; unconfigured checks remain UNKNOWN.
+  const tweWeb = env.MONITOR_TWE_WEB_URL || env.TRAVEL_WITH_EASE_WEB_BASE_URL;
+  const tweApi = env.MONITOR_TWE_API_URL || env.TRAVEL_WITH_EASE_API_BASE_URL;
+  const ttnghWeb = env.MONITOR_TTNGH_WEB_URL || env.TTNGH_BASE_URL || env.TTNGH_URL;
+  const ttnghApi = env.MONITOR_TTNGH_API_URL || env.TTNGH_API_BASE_URL;
   const frontendUrl = env.MONITOR_DEV_ERP_FRONTEND_URL || env.FRONTEND_URL;
 
   const services = [
     httpDefinition(options, { key: "client-portal", name: "Client Portal", category: "BUSINESS", environment, provider: "Cloudflare", dependencies: ["dev-erp-api", "cloudflare", "dns", "ssl"], critical: true }, frontendUrl, "/"),
+    httpDefinition(options, { key: "twe-web", name: "Travel With Ease Website", category: "BUSINESS", environment, provider: "Cloudflare", dependencies: ["twe-api", "cloudflare"] }, tweWeb, "/"),
+    httpDefinition(options, { key: "ttngh-web", name: "The Thriving Network GH Website", category: "BUSINESS", environment, provider: "Cloudflare", dependencies: ["ttngh-api", "cloudflare"] }, ttnghWeb, "/"),
     httpDefinition(options, { key: "bookings", name: "Bookings", category: "BUSINESS", environment, provider: "Dev ERP", dependencies: ["dev-erp-api", "dev-erp-postgresql"], critical: true }, devApi, "/healthz"),
     httpDefinition(options, { key: "payments", name: "Payments", category: "BUSINESS", environment, provider: "Paystack", dependencies: ["paystack", "dev-erp-api"], critical: true }, env.MONITOR_PAYSTACK_STATUS_URL),
     httpDefinition(options, { key: "inventory", name: "Inventory", category: "BUSINESS", environment, provider: "REEBS", dependencies: ["reebs-api", "reebs-postgresql"] }, reebsApi, "/health"),
@@ -95,6 +102,11 @@ export const buildMonitoringRegistry = (env = process.env) => {
     httpDefinition(options, { key: "faako-api", name: "Faako API", category: "API", environment, provider: "Railway" }, faakoApi, "/health"),
     httpDefinition(options, { key: "stroane-api", name: "Stroane API", category: "API", environment, provider: "Railway", dependencies: ["stroane-postgresql"] }, stroaneApi, "/health"),
     httpDefinition(options, { key: "reebs-api", name: "REEBS API", category: "API", environment, provider: "Railway", dependencies: ["reebs-postgresql"] }, reebsApi, "/health"),
+    // Travel With Ease and TTNGH use stable, public readiness probes.
+    // Staff portal and Sanity Studio can be behind access controls, so their
+    // authenticated pages are not treated as public HTTP health checks.
+    httpDefinition(options, { key: "twe-api", name: "Travel With Ease API", category: "API", environment, provider: "Railway" }, tweApi, "/healthz"),
+    httpDefinition(options, { key: "ttngh-api", name: "The Thriving Network GH API", category: "API", environment, provider: "Railway" }, ttnghApi, "/healthz"),
 
     baseDefinition(options, { key: "dev-erp-postgresql", name: "Dev ERP PostgreSQL", category: "DATABASE", environment, provider: "PostgreSQL", checkType: "DATABASE", critical: true, safeTargetLabel: env.DATABASE_URL || env.DATABASE_URL_DEVELOPMENT || env.DATABASE_URL_PRODUCTION ? "Dev ERP database" : null, runtimeTarget: env.DATABASE_URL || env.DATABASE_URL_DEVELOPMENT || env.DATABASE_URL_PRODUCTION ? { queryKey: "dev-erp" } : null }),
     httpDefinition(options, { key: "stroane-postgresql", name: "Stroane PostgreSQL", category: "DATABASE", environment, provider: "PostgreSQL" }, stroaneApi, "/health"),
