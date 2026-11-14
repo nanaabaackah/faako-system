@@ -43,16 +43,13 @@ Range metrics include current, minimum, maximum, average, P95, trend, and uptime
 
 ## APIs and authorization
 
-- `GET /api/monitoring/summary`
-- `GET /api/monitoring/services`
-- `GET /api/monitoring/services/:id`
-- `GET /api/monitoring/services/:id/history`
-- `GET /api/monitoring/services/:id/incidents`
-- `GET /api/monitoring/incidents`
-- `GET /api/monitoring/dependencies`
-- `POST /api/monitoring/services/:id/run-check`
+The current DEV ERP System Health and Dashboard use two monitoring routes:
 
-All routes require authentication and System Health capability through the shared middleware. Manual checks additionally require the Admin role, shared CSRF protection, and a route-specific process-local rate limit; successful checks write a sanitized audit event. IDs and ranges are validated, and 404/error responses do not expose raw errors or targets.
+- `GET /api/monitoring/summary` — monitored services, measured timeline buckets, incident context, and dependencies in one response.
+- `POST /api/monitoring/services/:id/run-check` — administrator-only manual check, rate-limited and audit logged.
+
+The previous GET routes for individual service, history, incident list, dependencies and services duplicated the summary payload and had no first-party consumers. They were removed during the November 2026 route audit. Incident management has its own authorized routes and remains available. No underlying monitoring checks, incident records or dependencies were deleted.
+
 
 ## Frontend
 
