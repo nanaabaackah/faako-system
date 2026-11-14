@@ -195,7 +195,7 @@ try {
     await wizard.getByRole("button", { name: /Continue/ }).click();
     await wizard.getByRole("button", { name: /Continue/ }).click();
     await wizard.getByLabel(/I agree that Travel With Ease/).check();
-    await wizard.getByRole("button", { name: "Add details to my enquiry", exact: true }).click();
+    await wizard.getByRole("button", { name: "Submit", exact: true }).click();
     await page.getByText("Trip details received", { exact: true }).waitFor();
     assert.equal(completions, 1);
     assert.equal(new URL(page.url()).hash, "");
