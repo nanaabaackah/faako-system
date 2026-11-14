@@ -61,14 +61,6 @@
   line-height: 1;
 }
 
-.projects-summary-card.is-success {
-  border-color: color-mix(in oklab, var(--success), var(--border) 52%);
-}
-
-.projects-summary-card.is-warning {
-  border-color: color-mix(in oklab, var(--warning), var(--border) 52%);
-}
-
 .projects-board {
   display: grid;
   grid-template-columns: repeat(5, minmax(230px, 1fr));
@@ -126,10 +118,9 @@
   min-height: 300px;
   padding: 0.95rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--card), white 3%), var(--card));
-  box-shadow: 0 18px 36px color-mix(in oklab, var(--ink), transparent 91%);
+  border-radius: var(--radius);
+  background: color-mix(in oklab, var(--card), var(--surface) 10%);
+  box-shadow: var(--card-shadow);
   cursor: grab;
 }
 
@@ -151,22 +142,13 @@
 
 .project-card:hover,
 .project-card:focus-visible {
-  border-color: color-mix(in oklab, var(--accent), var(--border) 38%);
-  box-shadow: 0 20px 42px color-mix(in oklab, var(--accent), transparent 86%);
+  border-color: var(--border);
+  box-shadow: var(--card-shadow-hover);
 }
 
 .project-card:focus-visible {
   outline: 3px solid color-mix(in oklab, var(--accent), transparent 60%);
   outline-offset: 2px;
-}
-
-.project-card.is-high,
-.project-card.is-urgent {
-  border-color: color-mix(in oklab, var(--warning), var(--border) 40%);
-}
-
-.project-card.is-urgent {
-  box-shadow: 0 18px 36px color-mix(in oklab, var(--danger), transparent 86%);
 }
 
 .project-card--empty {

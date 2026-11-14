@@ -92,7 +92,7 @@
 .dashboard-module-panel:focus-within {
   transform: translateY(-2px);
   box-shadow: 0 18px 36px rgba(59, 47, 47, 0.18);
-  border-color: color-mix(in oklab, var(--accent), var(--border) 56%);
+  border-color: var(--border);
 }
 
 .dashboard-module-panel__link {
@@ -165,7 +165,7 @@
 .dashboard-operations-brief {
   --dashboard-status-tone: var(--info);
   --dashboard-status-soft: var(--info-soft);
-  border-color: color-mix(in oklab, var(--dashboard-status-tone), var(--border) 62%);
+  border-color: var(--border);
 }
 
 .dashboard-operations-brief.is-success {
@@ -413,18 +413,6 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   background: color-mix(in oklab, var(--card), var(--surface) 16%);
-}
-
-.site-card__row.is-success {
-  border-color: color-mix(in oklab, var(--success), var(--border) 60%);
-}
-
-.site-card__row.is-warning {
-  border-color: color-mix(in oklab, var(--warning), var(--border) 58%);
-}
-
-.site-card__row.is-danger {
-  border-color: color-mix(in oklab, var(--danger), var(--border) 56%);
 }
 
 .dashboard-productivity {
