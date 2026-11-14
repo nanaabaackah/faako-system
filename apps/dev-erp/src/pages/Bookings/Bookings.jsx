@@ -5,6 +5,7 @@ import { formatDateTime } from "../../utils/formatters";
 import { getHolidayLabelsForDate, listUpcomingHolidays } from "../../utils/holidays";
 import { getSafeExternalUrl } from "../../utils/safeUrl";
 import "./Bookings.css";
+import NewAppointmentDrawer from "./NewAppointmentDrawer";
 
 const PROVIDERS = [
   { value: "GOOGLE_MEET", label: "Google Meet" },
@@ -50,6 +51,7 @@ const Bookings = () => {
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [copyLabel, setCopyLabel] = useState("Copy booking link");
+  const [creating, setCreating] = useState(false);
   const days = useMemo(nextWeek, []);
   const holidayBlocks = useMemo(() => listUpcomingHolidays({ startDate: new Date(), days: 45 }), []);
   const selectedBooking = bookings.find((item) => item.id === selectedBookingId) || null;
@@ -148,6 +150,7 @@ const Bookings = () => {
           <p className="muted">Manage your appointments and send meeting links directly from Faako.</p>
         </div>
         <div className="header-actions">
+          <button type="button" className="button button-primary" onClick={() => setCreating(true)}>+ New appointment</button>
           {bookingUrl ? (
             <>
               <a className="button button-primary" href={bookingUrl} target="_blank" rel="noopener noreferrer">Open booking page</a>
@@ -254,6 +257,14 @@ const Bookings = () => {
           ))}
         </div>
       </article>
+
+      {creating && <NewAppointmentDrawer onClose={() => setCreating(false)} onCreated={(booking) => {
+        setBookings((all) => [...all, booking]);
+        setCreating(false);
+        setSelectedDay(null);
+        openBooking(booking);
+        setStatus({ tone: "success", message: "Appointment created. Attach its meeting link and send it to the client." });
+      }} />}
 
       {selectedBooking && (
         <div className="bookings-drawer-backdrop">
