@@ -1,5 +1,12 @@
 # Travel With Ease documentation
 
+## Optional CMS invitation emails — implementation 2026-11-14
+
+[Staff invitation email implementation and staged acceptance](./cms-invitation-email-delivery-2026-11-14.md).
+This is a separate approved migration and worker configuration gate, not an
+automatic staging or production activation. The existing manual activation
+workflow remains the fallback.
+
 ## CI and staging notification operations — 2026-11-14
 
 Monorepo CI and Travel With Ease foundation now expose stable aggregate checks
