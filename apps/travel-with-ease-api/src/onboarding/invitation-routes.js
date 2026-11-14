@@ -10,8 +10,12 @@ const issue = z
     subject: z.string().trim().min(1).max(255),
     approvalReference: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/),
     role: z.enum(['owner','editor']).default('editor'),
+    sendEmail: z.boolean().default(false),
+    recipientEmail: z.string().trim().email().max(254).optional(),
   })
-  .strict();
+  .strict()
+  .refine((input) => input.sendEmail ? Boolean(input.recipientEmail) : input.recipientEmail === undefined,
+    { path: ["recipientEmail"], message: "Recipient email is required only for email delivery." });
 export function invitationRoutes(service, auth) {
   const router = Router();
   const send = (req, res, result) =>
