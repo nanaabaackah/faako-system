@@ -26,4 +26,6 @@ test("link state is derived from saved fields", () => {
   assert.equal(meetingLinkState({}), "PENDING_LINK");
   assert.equal(meetingLinkState({ meetingLink: "https://meet.google.com/a", meetingLinkDeliveryStatus: "NOT_SENT" }), "READY");
   assert.equal(meetingLinkState({ meetingLink: "https://meet.google.com/a", meetingLinkDeliveryStatus: "SENT" }), "SENT");
+  assert.equal(meetingLinkState({ meetingLink: "https://meet.google.com/a", meetingLinkDeliveryStatus: "FAILED" }), "FAILED");
+  assert.equal(meetingLinkState({ meetingLink: "https://meet.google.com/a", meetingLinkDeliveryStatus: "TEST_REROUTED" }), "TEST_REROUTED");
 });
