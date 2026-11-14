@@ -33,6 +33,7 @@ const SideNav = ({
   onToggleCollapsed,
   onExpand,
   onSignOut,
+  onOpenCommand,
   onTouchStart,
   onTouchMove,
   onTouchEnd,
@@ -123,6 +124,10 @@ const SideNav = ({
     const handleKeyDown = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (onOpenCommand) {
+          onOpenCommand();
+          return;
+        }
         pendingSearchFocusRef.current = true;
         if (isMobile && !isOpen) {
           onOpen?.();
@@ -140,7 +145,7 @@ const SideNav = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isCollapsed, isMobile, isOpen, onExpand, onOpen]);
+  }, [isCollapsed, isMobile, isOpen, onExpand, onOpen, onOpenCommand]);
 
   useEffect(() => {
     if (!pendingSearchFocusRef.current) return;
