@@ -13266,7 +13266,7 @@ const serializeProductivityTodo = (todo) => ({
 // creating overlapping appointments between an availability check and an insert.
 const createNativeBooking = async ({ organizationId, startAt, endAt, data }) =>
   prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(90143, ${organizationId}::integer)::text AS acquired`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(90143, ${organizationId}::integer)`;
     if (data.status !== "CANCELED") {
       const overlap = await tx.booking.findFirst({
         where: {
@@ -13749,10 +13749,44 @@ app.patch("/api/bookings/:id", authMiddleware, requireAdmin, async (req, res) =>
     updates.endAt = endDate;
   }
 
-  const updated = await prisma.booking.update({
-    where: { id: booking.id },
-    data: updates,
-  });
+  let updated;
+  try {
+    // All native booking writes share the same organization-scoped transaction lock.
+    // Recheck the authoritative row and overlapping interval inside the lock.
+    updated = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(90143, ${req.user.organizationId}::integer)`;
+      const current = await tx.booking.findFirst({
+        where: { id: booking.id, organizationId: req.user.organizationId },
+      });
+      if (!current || current.source !== "MANUAL") {
+        const changed = new Error("Appointment is no longer editable.");
+        changed.code = "BOOKING_CHANGED";
+        throw changed;
+      }
+      if (nextStatus !== "CANCELED") {
+        const overlap = await tx.booking.findFirst({
+          where: {
+            organizationId: req.user.organizationId,
+            id: { not: booking.id },
+            status: { not: "CANCELED" },
+            startAt: { lt: endDate },
+            endAt: { gt: startDate },
+          },
+          select: { id: true },
+        });
+        if (overlap) {
+          const conflict = new Error("That appointment time is no longer available.");
+          conflict.code = "BOOKING_CONFLICT";
+          throw conflict;
+        }
+      }
+      return tx.booking.update({ where: { id: booking.id }, data: updates });
+    });
+  } catch (error) {
+    if (error?.code === "BOOKING_CONFLICT") return res.status(409).json({ error: error.message });
+    if (error?.code === "BOOKING_CHANGED") return res.status(409).json({ error: error.message });
+    throw error;
+  }
 
   // Previously synced calendar data stays stored but is not rewritten.
   res.json(serializeBooking(updated));
