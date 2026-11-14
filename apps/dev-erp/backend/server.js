@@ -12485,7 +12485,7 @@ app.get("/api/monitoring/published-apps", authMiddleware, async (_req, res) => {
   } catch {
     // Retain the trusted configured directory even if live health checks fail.
   }
-  const exposedCategories = new Set(["portal", "erp", "marketing", "commerce", "client", "portfolio"]);
+  const exposedCategories = new Set(["portal", "erp", "marketing", "commerce", "client", "portfolio", "demo", "internal"]);
   const apps = sites.flatMap((site) => {
     if (!exposedCategories.has(String(site.category || "").toLowerCase())) return [];
     if (site.configured === false || !site.baseUrl) return [];
