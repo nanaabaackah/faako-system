@@ -80,3 +80,11 @@ test("Cloudflare watch paths include app dependencies and skip unrelated apps", 
 test("Cloudflare watch paths reject missing applications", () => {
   assert.throws(() => getWatchPaths(graph, "@faako/no-such-app"), /Unknown application/);
 });
+
+test("a TWE workflow-only change does not rebuild unrelated applications", () => {
+  const result = impact(".github/workflows/travel-with-ease-foundation.yml");
+  assert.equal(result.twe, true);
+  assert.equal(result.javascript, false);
+  assert.equal(result.dev_erp, false);
+  assert.equal(result.reebs_water, false);
+});
