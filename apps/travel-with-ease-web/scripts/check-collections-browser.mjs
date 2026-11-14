@@ -135,14 +135,13 @@ try {
       }
       submissions++;
       const body = route.request().postDataJSON();
-      assert.equal(body.questionnaireId, "twe-smart-enquiry");
-      assert.equal(body.questionnaireVersion, "2026-11-09.1");
+      assert.equal(body.questionnaireId, undefined);
       assert.equal(body.entryType, "package");
       assert.equal(body.context.packageId, "4740cb7b-fded-4c68-a12d-aa9a73a2ba03");
       assert.equal(body.context.packageTitle, "Singapore");
-      assert.equal(body.answers["541981576"], "Singapore");
-      assert.equal(body.answers["836507955"], "2");
-      assert.equal(body.contact.name, "Synthetic Browser Traveller");
+      assert.equal(body.destination, "Singapore");
+      assert.equal(body.travellers, 2);
+      assert.equal(body.name, "Synthetic Browser Traveller");
       assert.equal(body.consent, true);
       assert.ok(body.submissionId);
       await route.fulfill({ status: 201, headers, contentType: "application/json",
@@ -152,23 +151,59 @@ try {
     });
     const form = page.locator(".public-enquiry-form");
     await form.getByText("Enquiring about Singapore", { exact: true }).waitFor();
-    await expect(form.getByRole("group", { name: "Your trip" })).toBeVisible();
-    await form.getByLabel("Destination(s) you are considering").fill("Singapore");
-    await form.getByLabel("Proposed travel dates (or flexible timeframe)").fill("Exploring next year");
-    await form.getByLabel("Leisure/Holiday").check();
-    await form.getByLabel(/How many people are currently planning to travel/).fill("2");
-    await form.getByLabel("No", { exact: true }).check();
-    await form.getByRole("button", { name: /Continue/ }).click();
-    await form.getByRole("group", { name: "Additional details" }).waitFor();
-    await form.getByRole("button", { name: /Continue/ }).click();
-    await form.getByLabel("Full Name").fill("Synthetic Browser Traveller");
-    await form.getByLabel("Phone Number (WhatsApp preferred)").fill("+233200000000");
-    await form.getByLabel("Email address").fill("browser@example.invalid");
+    await form.getByLabel("When would you like to travel?").fill("Exploring next year");
+    await form.getByLabel("Travellers").fill("2");
+    await form.getByLabel("Your name").fill("Synthetic Browser Traveller");
+    await form.getByLabel("WhatsApp number").fill("+233200000000");
+    await form.getByLabel("Email").fill("browser@example.invalid");
     await form.getByLabel(/I agree that Travel With Ease/).check();
     await form.getByRole("button", { name: "Send enquiry", exact: true }).click();
     await form.getByRole("status").filter({ hasText: "Your enquiry is received" }).waitFor();
     assert.equal(submissions, 1);
-    assert.equal(await form.getByRole("group", { name: "Your trip" }).isVisible(), true);
+    await expect(form.getByText(/Check your email for a private, optional link/)).toBeVisible();
+
+    const continuationToken = `v1.${"x".repeat(100)}`;
+    let completions = 0;
+    await page.route("**/api/public/enquiries/continuation/context", route => route.fulfill({
+      status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, data: {
+        inquiryId: "30000000-0000-4000-8000-000000000099",
+        contact: { name: "Synthetic Browser Traveller", phone: "+233200000000", email: "browser@example.invalid" },
+        entryType: "package", context: { packageId: "4740cb7b-fded-4c68-a12d-aa9a73a2ba03", packageTitle: "Singapore" },
+        expiresAt: "2026-11-27T10:00:00.000Z",
+      }, meta: { requestId: "synthetic-context" } }),
+    }));
+    await page.route("**/api/public/enquiries/continuation/complete", route => {
+      completions++;
+      const body = route.request().postDataJSON();
+      assert.equal(body.continuationToken, continuationToken);
+      assert.equal(body.questionnaireId, "twe-smart-enquiry");
+      assert.equal(body.questionnaireVersion, "2026-11-09.1");
+      assert.equal(body.answers["541981576"], "Singapore");
+      assert.equal(body.contact.email, "browser@example.invalid");
+      return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ ok: true,
+        data: { inquiryId: "30000000-0000-4000-8000-000000000099", status: "completed", replayed: false },
+        meta: { requestId: "synthetic-completion" } }) });
+    });
+    await page.goto(`${origin}/plan-your-trip#continue=${continuationToken}`, { waitUntil: "domcontentloaded" });
+    const wizard = page.locator(".smart-enquiry-form");
+    await wizard.getByText("Adding details for Singapore", { exact: true }).waitFor();
+    await wizard.getByLabel("Destination(s) you are considering").fill("Singapore");
+    await wizard.getByLabel("Proposed travel dates (or flexible timeframe)").fill("Exploring next year");
+    await wizard.getByLabel("Leisure/Holiday").check();
+    await wizard.getByLabel(/How many people are currently planning to travel/).fill("2");
+    await wizard.getByLabel("No", { exact: true }).check();
+    await wizard.getByRole("button", { name: /Continue/ }).click();
+    await wizard.getByRole("button", { name: /Continue/ }).click();
+    await wizard.getByLabel(/I agree that Travel With Ease/).check();
+    await wizard.getByRole("button", { name: "Add details to my enquiry", exact: true }).click();
+    await page.getByText("Trip details received", { exact: true }).waitFor();
+    assert.equal(completions, 1);
+    assert.equal(new URL(page.url()).hash, "");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.goto(origin + "/plan-your-trip", { waitUntil: "domcontentloaded" });
+    await page.getByText("This private link is unavailable", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("link", { name: "Send a new enquiry", exact: true }).getAttribute("href"), "/#plan");
+    assert.match(await page.getByRole("link", { name: "Talk to us on WhatsApp", exact: true }).getAttribute("href"), /^https:\/\/wa\.me\//);
     await page.goto(origin + "/services", { waitUntil: "networkidle" });
     assert.equal(await page.locator(".service-panel").count(), 4);
     assert.equal(await page.locator(".service-panel").first().evaluate(element => getComputedStyle(element).boxShadow), "none");

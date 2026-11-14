@@ -12,6 +12,7 @@ import { createSecurityHeaders } from "./security/securityHeaders.js";
 import { estimateSchema, inquirySchema, nativeInquirySchema, smartEnquirySchema } from "./validation.js";
 import { TurnstileError } from "./enquiries/turnstile.js";
 import { currencyDisplayRoutes } from "./currency/display-routes.js";
+import { z } from "zod";
 
 const safeEqual = (left, right) => {
   const a = Buffer.from(String(left));
@@ -46,7 +47,7 @@ export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Da
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, logger = createLogger("travel-with-ease-api") }) => {
+export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, continuationLinks = null, logger = createLogger("travel-with-ease-api") }) => {
   assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt });
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
   if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
@@ -98,13 +99,70 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     }
     if (turnstileVerifier) await turnstileVerifier({ token, origin: req.headers.origin });
   };
+  const continuationTokenSchema = z.object({ continuationToken: z.string().min(80).max(256) }).strict();
+  const continuationUnavailable = (req, res) => res.set("Cache-Control", "no-store").status(410).json(createErrorResponse({
+    code: "gone", message: "This private questionnaire link is unavailable or has expired. Please send a new enquiry.",
+  }, { requestId: req.requestId }));
+  const validPublicRequest = (req) => allowedOrigins.includes(req.headers.origin) && req.is("application/json");
+
+  app.post("/api/public/enquiries/continuation/context", createLimiter({ limit: 20, windowMs: 10 * 60_000 }), async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    if (!validPublicRequest(req)) return res.status(403).json(createErrorResponse({
+      code: "permission_error", message: "Open the private questionnaire from the Travel With Ease email.",
+    }, { requestId: req.requestId }));
+    const parsed = continuationTokenSchema.safeParse(req.body);
+    const verified = parsed.success && continuationLinks?.verify(parsed.data.continuationToken);
+    if (!verified || typeof repository?.continuationContext !== "function") return continuationUnavailable(req, res);
+    try {
+      const context = await repository.continuationContext(verified.enquiryId);
+      if (!context) return continuationUnavailable(req, res);
+      return res.json(createSuccessResponse({
+        contact: context.contact,
+        entryType: context.entryType,
+        context: context.context,
+        expiresAt: verified.expiresAt,
+      }, { requestId: req.requestId }));
+    } catch {
+      logger.error?.({ requestId: req.requestId, eventName: "enquiry.continuation_context_failed" }, "Enquiry continuation could not be opened");
+      return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "We could not open the questionnaire. Please try again shortly." }, { requestId: req.requestId }));
+    }
+  });
+
+  app.post("/api/public/enquiries/continuation/complete", createLimiter({ limit: 10, windowMs: 10 * 60_000 }), async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    if (!validPublicRequest(req)) return res.status(403).json(createErrorResponse({
+      code: "permission_error", message: "Open the private questionnaire from the Travel With Ease email.",
+    }, { requestId: req.requestId }));
+    const continuationToken = typeof req.body?.continuationToken === "string" ? req.body.continuationToken : "";
+    const verified = continuationLinks?.verify(continuationToken);
+    if (!verified || typeof repository?.completeEnquiryContinuation !== "function") return continuationUnavailable(req, res);
+    const questionnaire = Object.fromEntries(
+      Object.entries(req.body || {}).filter(([key]) => key !== "continuationToken"),
+    );
+    const parsed = smartEnquirySchema.safeParse(questionnaire);
+    if (!parsed.success) return res.status(400).json(createErrorResponse({
+      code: "validation_error", message: "Please check your questionnaire details.", issues: issuesFor(parsed.error),
+    }, { requestId: req.requestId }));
+    if (parsed.data.website) return res.status(202).json(createSuccessResponse({ received: true }, { requestId: req.requestId }));
+    try {
+      await verifyEnquiryChallenge(req, parsed.data.turnstileToken);
+      const result = await repository.completeEnquiryContinuation(verified.enquiryId, parsed.data);
+      return res.status(result.replayed ? 200 : 201).json(createSuccessResponse(result, { requestId: req.requestId }));
+    } catch (error) {
+      if (error instanceof TurnstileError) return res.status(error.status).json(createErrorResponse({ code: error.code, message: error.message }, { requestId: req.requestId }));
+      if (["enquiry_continuation_conflict", "enquiry_continuation_unavailable"].includes(error.code)) return continuationUnavailable(req, res);
+      logger.error?.({ requestId: req.requestId, eventName: "enquiry.continuation_failed" }, "Enquiry continuation could not be saved");
+      return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "We could not save the questionnaire. Your answers remain here so you can try again." }, { requestId: req.requestId }));
+    }
+  });
+
   app.post("/api/public/enquiries", createLimiter({ limit: 10, windowMs: 10 * 60_000 }), async (req, res) => {
     if (!allowedOrigins.includes(req.headers.origin) || !req.is("application/json")) {
       return res.status(403).json(createErrorResponse({
         code: "permission_error", message: "Submit your enquiry from the Travel With Ease website.",
       }, { requestId: req.requestId }));
     }
-    const parsed = (req.body?.questionnaireId ? smartEnquirySchema : nativeInquirySchema).safeParse(req.body);
+    const parsed = nativeInquirySchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json(createErrorResponse({
       code: "validation_error", message: "Please check your enquiry details.", issues: issuesFor(parsed.error),
     }, { requestId: req.requestId }));

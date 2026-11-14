@@ -24,6 +24,7 @@ const {
   noIndex = false,
 } = Astro.props;
 const cinematic = Astro.props.cinematic === true;
+const planningHref = Astro.props.planningHref || "#plan";
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
 const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
@@ -227,7 +228,7 @@ const navigation = [
             <ContentLink
               button
               class="nav-cta"
-              href="#plan"
+              href={planningHref}
             >
               Plan My Trip
             </ContentLink>

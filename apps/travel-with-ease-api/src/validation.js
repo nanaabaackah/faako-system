@@ -1,7 +1,20 @@
 import { z } from "zod";
 import { emailSchema, phoneSchema, isoDateSchema } from "@faako/validation";
 import { enquiryTypes } from "./content/catalogue-constants.js";
+import { SERVICE_OPTIONS } from "./enquiries/questionnaires/index.js";
 export { smartEnquirySchema } from "./enquiries/questionnaire-validation.js";
+
+const nativeContextSchema = z.object({
+  serviceId: z.enum(SERVICE_OPTIONS.map((service) => service.id)).optional(),
+  serviceTitle: z.string().trim().min(1).max(160).optional(),
+  packageId: z.string().trim().regex(/^[a-z0-9][a-z0-9-]{0,119}$/).optional(),
+  packageTitle: z.string().trim().min(1).max(160).optional(),
+}).strict().superRefine((value, context) => {
+  if (Boolean(value.serviceId) !== Boolean(value.serviceTitle)) context.addIssue({ code: z.ZodIssueCode.custom, message: "Service ID and title must be supplied together." });
+  if (Boolean(value.packageId) !== Boolean(value.packageTitle)) context.addIssue({ code: z.ZodIssueCode.custom, message: "Package ID and title must be supplied together." });
+  const service = SERVICE_OPTIONS.find((item) => item.id === value.serviceId);
+  if (service && value.serviceTitle !== service.title) context.addIssue({ code: z.ZodIssueCode.custom, message: "Service title does not match the approved service." });
+});
 
 // A short first-contact intake, independent of the deferred price estimator.
 // Never collect passport numbers, document uploads or payment data here.
@@ -18,9 +31,15 @@ export const legacyNativeInquirySchema = z.object({
   email: emailSchema,
   phone: phoneSchema,
   notes: z.string().trim().max(1500).default(""),
+  entryType: z.enum(["general", "service", "package"]).default("general"),
+  sourcePath: z.string().trim().regex(/^\/(?!\/)[a-z0-9/_-]*$/i).max(240).default("/"),
+  context: nativeContextSchema.default({}),
   consent: z.literal(true),
   website: z.string().max(200).default(""),
-}).strict();
+}).strict().superRefine((data, validation) => {
+  if (data.entryType === "service" && !data.context.serviceId) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["context", "serviceId"], message: "Choose a valid service." });
+  if (data.entryType === "package" && !data.context.packageId) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["context", "packageId"], message: "Choose a valid package." });
+});
 export const nativeInquirySchema = legacyNativeInquirySchema;
 
 export const estimateSchema = z.object({

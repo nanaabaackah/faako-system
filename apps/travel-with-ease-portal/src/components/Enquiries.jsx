@@ -8,7 +8,7 @@ import {
   InlineNotice,
   AnimatedLoadingState,
 } from "@faako/ui";
-import { enquiryAnswerSections, formatEnquiryAnswer, legacyEnquiryFields } from "../lib/enquiryView.js";
+import { enquiryAnswerSections, formatEnquiryAnswer, initialEnquiryFields, legacyEnquiryFields } from "../lib/enquiryView.js";
 
 const statuses = ["new", "contacted", "closed"];
 const serviceOptions = [
@@ -144,6 +144,7 @@ export default function Enquiries({ api, session }) {
                     {selected.service && <div><dt>Service</dt><dd>{selected.service}</dd></div>}
                     {selected.package && <div><dt>Package</dt><dd>{selected.package}</dd></div>}
                     {selected.details?.questionnaireVersion && <div><dt>Questionnaire version</dt><dd>{selected.details.questionnaireVersion}</dd></div>}
+                    {selected.details?.questionnaireCompletedAt && <div><dt>Detailed questionnaire</dt><dd>Completed · <time dateTime={selected.details.questionnaireCompletedAt}>{new Date(selected.details.questionnaireCompletedAt).toLocaleString("en-GH", { timeZone: "Africa/Accra" })}</time></dd></div>}
                     {!selected.details?.questionSnapshots && legacyEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}
                   </dl>
                 </section>
@@ -178,6 +179,10 @@ export default function Enquiries({ api, session }) {
                   </p>
                 </aside>
               </div>
+              {selected.details?.questionSnapshots && initialEnquiryFields(selected.details).length > 0 && <section className="workspace-panel enquiry-answers">
+                <h4>Initial enquiry</h4>
+                <dl className="detail-fields">{initialEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll(/([A-Z])/g, " $1")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}</dl>
+              </section>}
               {enquiryAnswerSections(selected.details).map((section) => <section className="workspace-panel enquiry-answers" key={section.title}>
                 <h4>{section.title}</h4>
                 <dl className="detail-fields">{section.items.map((item) => <div key={item.id}><dt>{item.label}</dt><dd className="preserve-lines">{formatEnquiryAnswer(item.value)}</dd></div>)}</dl>

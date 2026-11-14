@@ -108,6 +108,11 @@ Additional implemented names (values belong in provider secret stores):
   acknowledges the saved customer and CCs notifications@travelwitheasegh.com.
   `TWE_EMAIL_RECIPIENT` and `TWE_EMAIL_TEST_RECIPIENTS` are obsolete and ignored.
   `TWE_PORTAL_ORIGIN` remains required for authentication, not acknowledgement mail.
+- Progressive enquiry: `TWE_ENQUIRY_CONTINUATION_SECRET` is an environment-specific,
+  server-only base64url secret containing at least 32 random bytes. The API and
+  notification worker use it to sign and verify 14-day questionnaire links.
+  `TWE_PUBLIC_SITE_ORIGIN` supplies the exact environment origin. Never expose the
+  secret through `PUBLIC_`/`VITE_`, logs, email template editing or browser bundles.
 - Publication: `TWE_RELEASE_SHA`, `TWE_PUBLIC_SITE_ORIGIN`,
   `TWE_PUBLIC_API_ORIGIN`. Build CLI sets private local `TWE_CONTENT_SNAPSHOT`,
   `TWE_BUILD_PUBLIC_DIR`, `TWE_BUILD_OUT_DIR`; never accept these from public API input.

@@ -24,13 +24,18 @@ export function readNotificationConfig(env = process.env) {
 }
 
 export class ResendSender {
-  constructor(config, fetcher = fetch, templateCopy) {
+  constructor(config, fetcher = fetch, templateCopy, continuationLinks = null) {
     this.config = config;
     this.fetcher = fetcher;
     this.templateCopy = templateCopy;
+    this.continuationLinks = continuationLinks;
   }
-  payload(contact = {}, { test = false } = {}) {
+  payload(enquiry = {}, { test = false } = {}) {
     const production = this.config.environment === "production";
+    const contact = enquiry.contact || enquiry;
+    const continuation = !test && enquiry.id && this.continuationLinks
+      ? this.continuationLinks.issue(enquiry.id, enquiry.createdAt)
+      : null;
     return {
       from: this.config.from,
       to: [
@@ -43,6 +48,8 @@ export class ResendSender {
         name: typeof contact.name === "string" ? contact.name : "",
         test,
         copy: this.templateCopy,
+        continuation: Boolean(continuation),
+        ...(continuation ? { ctaUrl: continuation.url } : {}),
       }),
     };
   }

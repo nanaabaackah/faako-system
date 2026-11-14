@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { transaction, verifyDatabaseIdentity } from "./database.js";
-import { submissionRecord, replaySubmission } from "../enquiries/submission.js";
+import { continuationRecord, replayContinuation, submissionRecord, replaySubmission } from "../enquiries/submission.js";
 
 export class PostgresLeadRepository {
   constructor(pool, { organisationId, environment }) {
@@ -35,6 +35,50 @@ export class PostgresLeadRepository {
         "INSERT INTO twe.notification_outbox (id, organisation_id, enquiry_id) VALUES ($1, $2, $3)",
         [randomUUID(), this.organisationId, record.id]);
       return { inquiryId: record.id, status: "received", replayed: false };
+    });
+  }
+
+  async continuationContext(enquiryId) {
+    const { rows } = await this.pool.query(
+      `SELECT id, contact, details FROM twe.enquiries
+       WHERE organisation_id = $1 AND id = $2`,
+      [this.organisationId, enquiryId]);
+    const row = rows[0];
+    if (!row || !["website_intake", "website_progressive_enquiry"].includes(row.details?.source) || row.details?.questionnaireCompletedAt) return null;
+    return {
+      inquiryId: row.id,
+      contact: row.contact,
+      entryType: row.details.entryType || "general",
+      context: {
+        ...(row.details.selectedServiceId && row.details.selectedServiceTitle ? {
+          serviceId: row.details.selectedServiceId, serviceTitle: row.details.selectedServiceTitle,
+        } : {}),
+        ...(row.details.selectedPackageId && row.details.selectedPackageTitle ? {
+          packageId: row.details.selectedPackageId, packageTitle: row.details.selectedPackageTitle,
+        } : {}),
+      },
+    };
+  }
+
+  async completeEnquiryContinuation(enquiryId, data) {
+    return transaction(this.pool, async (client) => {
+      const { rows } = await client.query(
+        `SELECT id, details FROM twe.enquiries
+         WHERE organisation_id = $1 AND id = $2 FOR UPDATE`,
+        [this.organisationId, enquiryId]);
+      const prior = rows[0];
+      if (!prior || !["website_intake", "website_progressive_enquiry"].includes(prior.details?.source)) {
+        const error = new Error("Enquiry continuation is unavailable.");
+        error.code = "enquiry_continuation_unavailable";
+        throw error;
+      }
+      const next = continuationRecord(prior.details, data);
+      if (prior.details.questionnaireCompletedAt) return replayContinuation(prior, data.submissionId, next.fingerprint);
+      await client.query(
+        `UPDATE twe.enquiries SET kind = $3, contact = $4, details = $5, updated_at = now()
+         WHERE organisation_id = $1 AND id = $2`,
+        [this.organisationId, enquiryId, next.kind, next.contact, next.details]);
+      return { inquiryId: enquiryId, status: "completed", replayed: false };
     });
   }
 
