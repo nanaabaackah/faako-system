@@ -12958,8 +12958,9 @@ app.post("/api/bookings/:id/send-link", authMiddleware, requireAdmin, async (req
     "Please keep your meeting link private.",
     "Sent via Faako DEV ERP."
   ].join("\n");
+  let delivery;
   try {
-    await sendEmail({
+    delivery = await sendEmail({
       fromEmail: process.env.APPOINTMENT_FROM_EMAIL || process.env.ALERT_FROM_EMAIL || DEFAULT_ADMIN_EMAIL,
       fromName: "Faako Appointments",
       recipients: [booking.attendeeEmail],
@@ -12974,11 +12975,16 @@ app.post("/api/bookings/:id/send-link", authMiddleware, requireAdmin, async (req
     console.error("Appointment link email failed", { bookingId: booking.id, code: error?.code || "EMAIL_SEND_FAILED" });
     return res.status(502).json({ error: "Meeting link email could not be sent. Please retry." });
   }
+  // Nonproduction Resend rerouting does not constitute delivery to the client.
+  const wasRerouted = delivery?.wasRerouted === true;
   const saved = await prisma.booking.update({
     where: { id: booking.id },
-    data: { meetingLinkSentAt: new Date(), meetingLinkDeliveryStatus: "SENT" },
+    data: {
+      meetingLinkSentAt: wasRerouted ? null : new Date(),
+      meetingLinkDeliveryStatus: wasRerouted ? "TEST_REROUTED" : "SENT",
+    },
   });
-  res.json(serializeBooking(saved));
+  res.json({ ...serializeBooking(saved), deliveryWasRerouted: wasRerouted });
 });
 
 app.get("/api/debug/faako", authMiddleware, requireGlobalAdmin, async (req, res) => {
