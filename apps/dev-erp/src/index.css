@@ -787,6 +787,7 @@ body.nav-open .mobile-tabbar {
   gap: 0.9rem;
 }
 
+/* Keep operational card surfaces neutral; use badges and metrics for status. */
 .monitoring-card {
   position: relative;
   display: grid;
