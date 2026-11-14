@@ -13262,6 +13262,30 @@ const serializeProductivityTodo = (todo) => ({
   updatedAt: todo.updatedAt ? todo.updatedAt.toISOString() : null,
 });
 
+// Serialize conflicting booking writes per organization to avoid two requests
+// creating overlapping appointments between an availability check and an insert.
+const createNativeBooking = async ({ organizationId, startAt, endAt, data }) =>
+  prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(90143, ${organizationId})`;
+    if (data.status !== "CANCELED") {
+      const overlap = await tx.booking.findFirst({
+        where: {
+          organizationId,
+          status: { not: "CANCELED" },
+          startAt: { lt: endAt },
+          endAt: { gt: startAt },
+        },
+        select: { id: true },
+      });
+      if (overlap) {
+        const conflict = new Error("That appointment time is no longer available.");
+        conflict.code = "BOOKING_CONFLICT";
+        throw conflict;
+      }
+    }
+    return tx.booking.create({ data });
+  });
+
 const serializeBooking = (booking) => ({
   id: booking.id,
   title: booking.title,
@@ -13520,25 +13544,19 @@ app.post("/api/public/bookings/:orgSlug", validate(publicBookingSchema), async (
     return res.status(400).json({ error: "Start time must be in the future." });
   }
 
-  const conflict = await prisma.booking.findFirst({
-    where: {
-      organizationId: organization.id,
-      status: { not: "CANCELED" },
-      startAt: { lt: endDate },
-      endAt: { gt: startDate },
-    },
-  });
-  if (conflict) {
-    return res.status(409).json({ error: "That time slot is no longer available." });
-  }
-
   const settings = await prisma.bookingSettings.findUnique({
     where: { organizationId: organization.id },
   });
   const location = settings?.defaultLocation ?? null;
 
-  const booking = await prisma.booking.create({
-    data: {
+  let booking;
+  try {
+    booking = await createNativeBooking({
+      organizationId: organization.id,
+      startAt: startDate,
+      endAt: endDate,
+      data: {
+{
       organizationId: organization.id,
       title: normalizedTitle,
       description: normalizedDescription,
@@ -13550,8 +13568,12 @@ app.post("/api/public/bookings/:orgSlug", validate(publicBookingSchema), async (
       attendeeEmail: normalizedEmail,
       attendeeName: normalizedName || null,
       meetingPlatform: isMeetingProvider(meetingPlatform) ? meetingPlatform : null,
-    },
-  });
+      },
+    });
+  } catch (error) {
+    if (error?.code === "BOOKING_CONFLICT") return res.status(409).json({ error: error.message });
+    throw error;
+  }
 
   // The native booking record is authoritative. Calendar integration is no longer
   // required to confirm appointments or to select a meeting provider.
@@ -13589,8 +13611,14 @@ app.post("/api/bookings", authMiddleware, requireAdmin, async (req, res) => {
     });
   }
 
-  const booking = await prisma.booking.create({
-    data: {
+  let booking;
+  try {
+    booking = await createNativeBooking({
+      organizationId: req.user.organizationId,
+      startAt: startDate,
+      endAt: endDate,
+      data: {
+{
       organizationId: req.user.organizationId,
       title: normalizedTitle,
       description: typeof description === "string" ? description.trim() || null : null,
@@ -13602,8 +13630,12 @@ app.post("/api/bookings", authMiddleware, requireAdmin, async (req, res) => {
       attendeeEmail: typeof attendeeEmail === "string" ? attendeeEmail.trim() || null : null,
       attendeeName: typeof attendeeName === "string" ? attendeeName.trim() || null : null,
       meetingPlatform: isMeetingProvider(meetingPlatform) ? meetingPlatform : null,
-    },
-  });
+      },
+    });
+  } catch (error) {
+    if (error?.code === "BOOKING_CONFLICT") return res.status(409).json({ error: error.message });
+    throw error;
+  }
 
   // App-owned appointments no longer depend on Google Calendar insertion.
   res.status(201).json(serializeBooking(booking));
