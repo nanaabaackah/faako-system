@@ -8,9 +8,8 @@ const allAppNames = () => getAffectedApps({ rootDir, files: ["pnpm-workspace.yam
 
 export const classifyImpact = ({ changedFiles = [], affectedAppNames = [], isGlobalChange = false } = {}) => {
   const files = changedFiles.map((name) => String(name).replaceAll("\\", "/"));
-  const globalWorkflow = files.some((file) =>
-    [".github/workflows/monorepo-ci.yml", ".github/workflows/travel-with-ease-foundation.yml"].includes(file)
-  );
+  const globalWorkflow = files.includes(".github/workflows/monorepo-ci.yml");
+  const tweWorkflow = files.includes(".github/workflows/travel-with-ease-foundation.yml");
   // Root scripts may be invoked at build time from any workspace. Fail closed on
   // these changes until script-to-app dependencies are explicitly registered.
   const globalScript = files.some((file) => file.startsWith("scripts/") || file === "nixpacks.toml");
@@ -34,7 +33,7 @@ export const classifyImpact = ({ changedFiles = [], affectedAppNames = [], isGlo
     reebs_public: has("@faako/reebs-website"),
     dev_erp: has("@faako/dev-erp"),
     reebs_water: has("@faako/reebs-water") || has("@faako/reebs-portal"),
-    twe: ["@faako/travel-with-ease-web", "@faako/travel-with-ease-portal", "@faako/travel-with-ease-api"].some(has),
+    twe: tweWorkflow || ["@faako/travel-with-ease-web", "@faako/travel-with-ease-portal", "@faako/travel-with-ease-api"].some(has),
     affected_apps: [...affected].sort(),
     global,
   };
