@@ -16,6 +16,11 @@ export default function Invitations({ api, session, installer = false }) {
   const [recipientEmail, setRecipientEmail] = useState("");
   const [emailAvailable, setEmailAvailable] = useState(false);
   const canInviteOwner=!installer&&session?.user.permissions?.includes('staff.roles.manage');
+  const deliveryLabels = {
+    pending: "Email queued", processing: "Email processing",
+    sent: "Email accepted by provider", failed: "Email failed",
+    cancelled: "Email cancelled",
+  };
   const path = installer
     ? "/api/auth/activation/owner-invitation"
     : "/api/auth/invitations";
