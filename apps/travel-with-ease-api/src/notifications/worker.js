@@ -37,11 +37,20 @@ try {
   const invitationSender = invitationConfig
     ? new InvitationEmailSender(config, invitationConfig, invitationPortalOrigin) : null;
   const tick = async () => {
-    // Process both queues each tick; staff invitations cannot starve enquiries.
-    const invitationAttempted = invitationOutbox
-      ? await deliverOneInvitation(invitationOutbox, invitationSender, await templates.activeCopy("staff-invitation"), logger) : false;
+    // Preserve customer acknowledgement delivery even when optional staff
+    // invitation processing is unconfigured or needs a manual repair.
     const copy = await templates.activeCopy();
     const enquiryAttempted = await deliverOne(outbox, new ResendSender(config, fetch, copy, continuationLinks), logger);
+    let invitationAttempted = false;
+    if (invitationOutbox) {
+      try {
+        const invitationCopy = await templates.activeCopy("staff-invitation");
+        invitationAttempted = await deliverOneInvitation(invitationOutbox, invitationSender, invitationCopy, logger);
+      } catch {
+        logger.warn({ eventName: "invitation.delivery_unavailable" },
+          "Invitation delivery needs operator review; enquiry acknowledgements remain active");
+      }
+    }
     return invitationAttempted || enquiryAttempted;
   };
   logger.info({ eventName: "notification.worker_ready", continuous }, "Notification worker verified its environment and database.");
