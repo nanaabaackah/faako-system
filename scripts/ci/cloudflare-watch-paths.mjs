@@ -9,8 +9,9 @@ const sharedInputs = [
   "pnpm-workspace.yaml",
   "turbo.json",
   "workspace-links.json",
-  // Common build helpers may affect any Cloudflare Pages project.
-  "scripts/*",
+  // Shared Vite build helpers are part of Turbo global build inputs;
+  // CI-only scripts must not trigger Cloudflare Pages deployments.
+  "scripts/vite/*",
 ];
 const sort = (values) => [...new Set(values)].sort((a, b) => a.localeCompare(b));
 
