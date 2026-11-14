@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Activity, CloseCircle, Refresh2, SearchNormal1, TickCircle } from "iconsax-react";
 import { ERPStatusBadge, SelectField } from "@faako/ui";
+import { LatencyTrendChart } from "./MonitoringVisuals";
 import { formatDateTime } from "../../utils/formatters";
 import { buildMonitoringFilterOptions, MONITORING_SECTIONS, normalizeHealthStatus, TIMELINE_RANGES } from "./monitoringConfig";
 
@@ -194,7 +195,7 @@ export const ServiceDrawer = ({ service, serviceMap, onClose, onManualCheck, isC
         <div className="health-drawer-content">
           <section className="health-drawer-current"><div><StatusBadge status={isChecking ? "checking" : service.effectiveStatus} />{service.directStatus !== service.effectiveStatus ? <small>Direct: {STATUS_LABELS[service.directStatus]}</small> : null}</div><span>Uptime <strong>{Number.isFinite(service.uptimePercentage) ? `${service.uptimePercentage}%` : "N/A"}</strong></span></section>
           <section><h3>Latency</h3><div className="health-drawer-metrics">{metrics.map(([label, value]) => <div key={label}><span>{label}</span><strong>{Number.isFinite(value) ? `${value} ms` : "N/A"}</strong></div>)}</div></section>
-          <section><h3>Historical timeline</h3><HealthTimeline timeline={service.timeline} serviceName={service.name} /><p className="health-drawer-trend">Latency trend: <strong>{service.latencyTrend}</strong></p></section>
+          <section><h3>Historical timeline</h3><HealthTimeline timeline={service.timeline} serviceName={service.name} /><p className="health-drawer-trend">Latency trend: <strong>{service.latencyTrend}</strong></p><LatencyTrendChart timeline={service.timeline} label={`${service.name} response time`} /></section>
           <section><h3>Latest checks</h3><dl className="health-check-times"><div><dt>Last checked</dt><dd>{formatDateTime(service.lastCheckedAt)}</dd></div><div><dt>Last successful</dt><dd>{formatDateTime(service.lastSuccessfulCheck)}</dd></div><div><dt>Last failed</dt><dd>{service.lastFailedCheck ? formatDateTime(service.lastFailedCheck) : "None in range"}</dd></div></dl></section>
           <section><h3>Dependencies</h3><DependencyTree dependencies={service.dependencies} serviceMap={serviceMap} /></section>
           <section><h3>Recent incidents</h3><IncidentList incidents={service.incidents} /></section>
