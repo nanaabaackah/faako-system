@@ -49,7 +49,7 @@ export const MONOREPO_APP_REGISTRY = [
     productionSensitive: false,
     monitoringEnabled: true,
     monitoringOptional: true,
-    envBaseUrlKeys: ["TRAVEL_WITH_EASE_WEB_BASE_URL"],
+    envBaseUrlKeys: ["TRAVEL_WITH_EASE_WEB_BASE_URL", "MONITOR_TWE_WEB_URL"],
     monitoringPages: [{ label: "Home", path: "/" }],
   },
   {
@@ -75,7 +75,7 @@ export const MONOREPO_APP_REGISTRY = [
     productionSensitive: true,
     monitoringEnabled: true,
     monitoringOptional: true,
-    envBaseUrlKeys: ["TRAVEL_WITH_EASE_API_BASE_URL"],
+    envBaseUrlKeys: ["TRAVEL_WITH_EASE_API_BASE_URL", "MONITOR_TWE_API_URL"],
     monitoringPages: [{ label: "Health", path: "/healthz" }],
   },
   {
@@ -89,7 +89,7 @@ export const MONOREPO_APP_REGISTRY = [
     workspaceRequired: false,
     monitoringEnabled: true,
     monitoringOptional: true,
-    envBaseUrlKeys: ["TTNGH_BASE_URL", "TTNGH_URL"],
+    envBaseUrlKeys: ["TTNGH_BASE_URL", "TTNGH_URL", "MONITOR_TTNGH_WEB_URL"],
     monitoringPages: [{ label: "Home", path: "/" }],
     additionalMonitoringSites: [
       {
@@ -97,7 +97,7 @@ export const MONOREPO_APP_REGISTRY = [
         title: "The Thriving Network GH API",
         purpose: "Railway API boundary for future donations and form submissions.",
         category: "api",
-        envBaseUrlKeys: ["TTNGH_API_BASE_URL"],
+        envBaseUrlKeys: ["TTNGH_API_BASE_URL", "MONITOR_TTNGH_API_URL"],
         monitoringOptional: true,
         monitoringPages: [{ label: "Health", path: "/healthz" }],
       },
