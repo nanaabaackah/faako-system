@@ -88,7 +88,7 @@ export function invitationRoutes(service, auth) {
     auth.requireStaff,
     auth.requirePermission('staff.manage'),
     async (req, res) =>
-      send(req, res, { items: await service.list(req.staff) }),
+      send(req, res, { items: await service.list(req.staff), emailAvailable: Boolean(service.deliveryConfig) }),
   );
   router.post(
     "/invitations",
