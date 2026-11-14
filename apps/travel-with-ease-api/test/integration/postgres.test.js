@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createDatabase, transaction, verifyDatabaseIdentity } from "../../src/db/database.js";
 import { migrate, readMigrations } from "../../src/db/migrations.js";
 import { PostgresLeadRepository } from "../../src/db/repository.js";
@@ -353,6 +353,65 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       for (const client of clients) {
         try { await client.query("RESET ROLE"); } finally { client.release(); }
       }
+    }
+  });
+
+  await context.test("Issue 03: persisted sessions retain fixed expiry, tenant isolation and authoritative revocation", async () => {
+    const scope = randomUUID();
+    const staffId = randomUUID();
+    const identity = {
+      issuer: "https://sessions.cloudflareaccess.com", audience: "e".repeat(64),
+      subject: "synthetic-session-staff", assertionHash: randomBytes(32).toString("hex"),
+      expiresAt: new Date(Date.now() + 120_000),
+    };
+    await pool.query("INSERT INTO twe.organisations(id,name) VALUES($1,'Synthetic session lifecycle')", [scope]);
+    await pool.query(
+      "INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,$4,$5,'editor')",
+      [staffId, scope, identity.issuer, identity.subject, identity.audience],
+    );
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      assert.equal((await client.query("SELECT current_user")).rows[0].current_user, "twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtime = { query, connect: async () => ({ query, release() {} }) };
+      const store = () => new PostgresAuthStore(runtime, scope);
+      const tokenHash = randomBytes(32).toString("hex");
+      const replayHash = randomBytes(32).toString("hex");
+      const freshHash = randomBytes(32).toString("hex");
+      await store().createSession(identity, tokenHash, "9".repeat(64), "issue03-login");
+      const before = await store().getSession(tokenHash);
+      assert.equal(before.id, staffId);
+      assert.equal(before.expires_at.getTime(), identity.expiresAt.getTime());
+      assert.equal(before.access_assertion_hash, identity.assertionHash);
+      assert.deepEqual(await store().getSession(tokenHash), before, "A new store instance retains the database session");
+      assert.equal(await new PostgresAuthStore(runtime, otherOrg).getSession(tokenHash), undefined);
+      await assert.rejects(store().createSession(identity, replayHash, "9".repeat(64), "issue03-replay"), { code: "23505" });
+      await query("UPDATE twe.staff_users SET role='owner' WHERE id=$1", [staffId]);
+      assert.equal((await store().getSession(tokenHash)).role, "owner", "Permissions come from current staff data");
+      await query("UPDATE twe.staff_users SET active=false WHERE id=$1", [staffId]);
+      assert.equal(await store().getSession(tokenHash), undefined);
+      await query("UPDATE twe.staff_users SET active=true WHERE id=$1", [staffId]);
+      // Keep the real expires_at > created_at constraint during fault injection.
+      await query("UPDATE twe.staff_sessions SET created_at=now()-interval '2 seconds',expires_at=now()-interval '1 second' WHERE token_hash=$1", [tokenHash]);
+      assert.equal(await store().getSession(tokenHash), undefined);
+      await query("UPDATE twe.staff_sessions SET expires_at=$1 WHERE token_hash=$2", [before.expires_at, tokenHash]);
+      await store().revoke(tokenHash, "issue03-logout");
+      assert.equal(await store().getSession(tokenHash), undefined);
+      await assert.rejects(store().createSession(identity, replayHash, "9".repeat(64), "issue03-replay-revoked"), { code: "23505" });
+
+      const later = { ...identity, assertionHash: randomBytes(32).toString("hex"), expiresAt: new Date(Date.now() + 7_200_000) };
+      await store().createSession(later, freshHash, "9".repeat(64), "issue03-fresh-login");
+      const bounded = await store().getSession(freshHash);
+      assert.ok(bounded.expires_at.getTime() <= Date.now() + 3_600_000, "New login remains capped at one hour");
+      assert.ok(bounded.expires_at.getTime() > Date.now() + 3_500_000);
+      await store().revokeAll(staffId, "issue03-logout-all");
+      assert.equal(await store().getSession(freshHash), undefined);
+      assert.equal((await query(
+        "SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='auth.login'", [scope],
+      )).rows[0].n, 2, "Failed replay creates neither a new session nor a login audit");
+    } finally {
+      try { await client.query("RESET ROLE"); } finally { client.release(); }
     }
   });
 
