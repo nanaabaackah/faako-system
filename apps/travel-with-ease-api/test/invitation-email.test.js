@@ -29,12 +29,12 @@ const job = {
 test("automatic email delivery is opt-in and requires an independently generated 32-byte secret", () => {
   assert.equal(readInvitationDeliveryConfig({}), null);
   assert.equal(readInvitationDeliveryConfig({ TWE_INVITATION_DELIVERY_ENABLED: "false" }), null);
-  for (const value of ["", "short", "x".repeat(43), "\n".repeat(43)]) {
+  for (const value of ["", "short", "x".repeat(42), "\n".repeat(43)]) {
     assert.throws(() => readInvitationDeliveryConfig({
       TWE_INVITATION_DELIVERY_ENABLED: "true", TWE_INVITATION_DELIVERY_SECRET: value,
     }));
   }
-  // x^43 is decodable but rejects the wrong key byte length.
+  // Exactly 32 decoded bytes are required; entropy comes from a crypto RNG.
   assert.equal(enabled.key.length, 32);
   assert.equal(readInvitationPortalOrigin({ TWE_INVITATION_PORTAL_ORIGIN: "https://portal-staging.example.invalid" }),
     "https://portal-staging.example.invalid");
