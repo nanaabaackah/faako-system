@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { apiGet } from "../../api/client";
-import { getAggregateSiteStatus } from "../../utils/siteStatus";
 import { getSafeExternalUrl } from "../../utils/safeUrl";
 
-const PUBLIC_APP_CATEGORIES = new Set(["portal", "erp", "marketing", "commerce", "client", "portfolio"]);
 const validUrl = (url) => {
   const safe = getSafeExternalUrl(url);
   if (!safe) return null;
@@ -23,18 +21,17 @@ const PublishedAppsPanel = () => {
     setState("loading");
     setError("");
     try {
-      const data = await apiGet("/api/dashboard", { fallbackMessage: "Unable to load published apps." });
-      const sites = Array.isArray(data?.siteStatus?.sites) ? data.siteStatus.sites : [];
-      const listed = sites.filter((site) => PUBLIC_APP_CATEGORIES.has(String(site.category).toLowerCase()))
-        .map((site) => ({
-          id: site.id,
-          name: site.title,
-          category: site.category,
-          href: validUrl(site.baseUrl),
-          status: getAggregateSiteStatus(site.pages || []),
-          checkedAt: site.pages?.find((page) => page.checkedAt)?.checkedAt || null,
+      const data = await apiGet("/api/monitoring/published-apps", { fallbackMessage: "Unable to load published apps." });
+      const listed = (Array.isArray(data?.apps) ? data.apps : [])
+        .map((app) => ({
+          id: app.id,
+          name: app.name,
+          category: app.category,
+          href: validUrl(app.url),
+          status: app.status || "unknown",
+          checkedAt: app.checkedAt || null,
         }))
-        .filter((item) => item.href);
+        .filter((app) => app.href);
       setApps(listed);
       setState("ready");
     } catch (requestError) {
