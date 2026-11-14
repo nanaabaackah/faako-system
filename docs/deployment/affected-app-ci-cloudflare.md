@@ -33,6 +33,8 @@ Git-connected Cloudflare Pages projects normally build on any Git push to their 
 4. Repeat for **each** Git-connected Pages project (including separately configured staging/production projects); changing a GitHub Actions file alone cannot update Cloudflare project settings.
 5. Verify with one app-only staging commit and the Pages deployment history for all neighboring projects. Inspect the shared-package case and confirm all affected projects rebuild.
 
+Cloudflare may omit a GitHub check for a Pages deployment that is **skipped** by watch paths. Avoid making each Pages project's status an unconditional required branch-protection check; prefer the stable GitHub Actions `Required monorepo checks` and each affected app's applicable gates. Verify this policy before enabling skips.
+
 The generated paths include the application's own `apps/<app>/*`, its **transitive `packages/<dependency>/*`**, and root build/lockfile inputs including `scripts/vite/*` (not all CI scripts). They **do not** include unrelated app folders, unrelated shared packages, or docs-only changes.
 
 Cloudflare's wildcard `*` includes nested directories. In the event of an empty push, a very large change set (3000+ files), or 20+ commits, Cloudflare may **bypass watch-path filtering and build anyway**. Cloudflare also limits Pages projects per repository (consult the current account limits).
