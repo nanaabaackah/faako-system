@@ -73,6 +73,8 @@ test("Cloudflare watch paths include app dependencies and skip unrelated apps", 
   assert.equal(paths.include.includes("apps/reebs-website/*"), false);
   assert.equal(paths.include.includes("packages/water-domain/*"), false);
   assert.ok(paths.include.includes("pnpm-lock.yaml"));
+  assert.ok(paths.include.includes("scripts/vite/*"));
+  assert.equal(paths.include.includes("scripts/*"), false);
 });
 
 test("Cloudflare watch paths reject missing applications", () => {
