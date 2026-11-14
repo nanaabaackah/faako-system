@@ -33,6 +33,10 @@ test("retired job and productivity routes are no longer active module surfaces",
   assert.equal(resolveModulesForPath("/api/ai/productivity-coach"), null);
 });
 
+test("published application directory requires System Health capability", () => {
+  assert.deepEqual(resolveModulesForPath("/api/monitoring/published-apps"), ["system-health"]);
+});
+
 test("system health AI diagnostics require system health module access", () => {
   assert.deepEqual(
     resolveModulesForPath("/api/ai/system-health-diagnosis"),
