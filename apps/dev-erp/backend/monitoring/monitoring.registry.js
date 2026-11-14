@@ -84,6 +84,10 @@ export const buildMonitoringRegistry = (env = process.env) => {
   // Never infer staging or production addresses; unconfigured checks remain UNKNOWN.
   const tweWeb = env.MONITOR_TWE_WEB_URL || env.TRAVEL_WITH_EASE_WEB_BASE_URL;
   const tweApi = env.MONITOR_TWE_API_URL || env.TRAVEL_WITH_EASE_API_BASE_URL;
+  // Protected portal / CMS checks require a separately approved public health endpoint.
+  // Authentication redirects are not valid availability measurements.
+  const twePortalHealth = env.MONITOR_TWE_PORTAL_HEALTH_URL;
+  const ttnghStudioHealth = env.MONITOR_TTNGH_STUDIO_HEALTH_URL;
   const ttnghWeb = env.MONITOR_TTNGH_WEB_URL || env.TTNGH_BASE_URL || env.TTNGH_URL;
   const ttnghApi = env.MONITOR_TTNGH_API_URL || env.TTNGH_API_BASE_URL;
   const frontendUrl = env.MONITOR_DEV_ERP_FRONTEND_URL || env.FRONTEND_URL;
@@ -92,6 +96,8 @@ export const buildMonitoringRegistry = (env = process.env) => {
     httpDefinition(options, { key: "client-portal", name: "Client Portal", category: "BUSINESS", environment, provider: "Cloudflare", dependencies: ["dev-erp-api", "cloudflare", "dns", "ssl"], critical: true }, frontendUrl, "/"),
     httpDefinition(options, { key: "twe-web", name: "Travel With Ease Website", category: "BUSINESS", environment, provider: "Cloudflare", dependencies: ["twe-api", "cloudflare"] }, tweWeb, "/"),
     httpDefinition(options, { key: "ttngh-web", name: "The Thriving Network GH Website", category: "BUSINESS", environment, provider: "Cloudflare", dependencies: ["ttngh-api", "cloudflare"] }, ttnghWeb, "/"),
+    httpDefinition(options, { key: "twe-portal", name: "Travel With Ease Staff Portal", category: "BUSINESS", environment, provider: "Cloudflare Access" }, twePortalHealth),
+    httpDefinition(options, { key: "ttngh-studio", name: "TTNGH CMS Studio", category: "BUSINESS", environment, provider: "Sanity" }, ttnghStudioHealth),
     httpDefinition(options, { key: "bookings", name: "Bookings", category: "BUSINESS", environment, provider: "Dev ERP", dependencies: ["dev-erp-api", "dev-erp-postgresql"], critical: true }, devApi, "/healthz"),
     httpDefinition(options, { key: "payments", name: "Payments", category: "BUSINESS", environment, provider: "Paystack", dependencies: ["paystack", "dev-erp-api"], critical: true }, env.MONITOR_PAYSTACK_STATUS_URL),
     httpDefinition(options, { key: "inventory", name: "Inventory", category: "BUSINESS", environment, provider: "REEBS", dependencies: ["reebs-api", "reebs-postgresql"] }, reebsApi, "/health"),
