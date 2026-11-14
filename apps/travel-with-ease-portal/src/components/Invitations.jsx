@@ -184,7 +184,7 @@ export default function Invitations({ api, session, installer = false }) {
         </div>
       )}
       {!installer && (
-        <ActivityList title="Invitation history" emptyTitle="No invitations yet" emptyMessage="Created staff invitations will appear here." items={items.map(item=>({...item,action:`${item.role} invitation · ${item.accepted_at?'Accepted':item.revoked_at?'Revoked':new Date(item.expires_at)<=new Date()?'Expired':'Pending'} · ${item.delivery_status ? `Email: ${item.delivery_status}` : 'Manual code'}`}))}
+        <ActivityList title="Invitation history" emptyTitle="No invitations yet" emptyMessage="Created staff invitations will appear here." items={items.map(item=>({...item,action:`${item.role} invitation · ${item.accepted_at?'Accepted':item.revoked_at?'Revoked':new Date(item.expires_at)<=new Date()?'Expired':'Pending'} · ${item.delivery_status ? (deliveryLabels[item.delivery_status] || "Email status unavailable") : "Manual code"}`}))}
           renderAction={item=><>
             <p>Expires: {new Date(item.expires_at).toLocaleString()}</p>
             {!item.accepted_at&&!item.revoked_at&&(item.role==='editor'||canInviteOwner)&&<Button type="button" disabled={busy} onClick={()=>mutate(`${path}/${item.id}/revoke`,{})}>Revoke invitation</Button>}
