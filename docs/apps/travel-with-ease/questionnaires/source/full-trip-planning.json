@@ -1,0 +1,757 @@
+{
+  "title": "FULL TRIP PLANNING - Client Intake Form",
+  "exportedAt": "2026-11-09T15:30:22.436Z",
+  "items": [
+    {
+      "id": "476632894",
+      "order": 1,
+      "sectionId": "START",
+      "type": "TEXT",
+      "title": "Full Name",
+      "description": "",
+      "required": true
+    },
+    {
+      "id": "1078451195",
+      "order": 2,
+      "sectionId": "START",
+      "type": "TEXT",
+      "title": "Phone Number (WhatsApp preferred)",
+      "description": "",
+      "required": true
+    },
+    {
+      "id": "214964047",
+      "order": 3,
+      "sectionId": "START",
+      "type": "TEXT",
+      "title": "Email address",
+      "description": "",
+      "required": true
+    },
+    {
+      "id": "451560975",
+      "order": 4,
+      "sectionId": "451560975",
+      "type": "PAGE_BREAK",
+      "title": "Section A: Service Selection",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "692505248",
+      "order": 5,
+      "sectionId": "451560975",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Which planning package would you like?",
+      "description": "Full Trip Planning (GHS 2,000)\nFull destination research and itinerary design \nFlight research and booking (up to 2 destinations)\nHotel research and booking (up to 2 destinations) \nActivities and experiences researched and booked \nTransfers and ground transport arranged \nBudget breakdown and travel fund request \nOne minor revision included, GHS 150 each additional\nTravel Pack PDF delivered on completion \nPremium Concierge Planning (GHS 3,000)\nFor clients who want to hand everything over completely. Everything in Full Trip Planning \nPLUS:\nUp to 4 destinations\nPriority handling — planning begins within 2 working days of deposit\nActive WhatsApp support throughout the trip — daily check-ins included\nRestaurant reservations included (up to 3)\nOne special occasion arrangement included (birthday, anniversary, proposal)\nUnlimited minor revisions\nPremium Travel Pack — custom cover, personalised destination notes",
+      "required": true,
+      "options": [
+        {
+          "label": "Full Trip Planning — GHS 2,000",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Premium Concierge Planning — GHS 3,000",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "664779930",
+      "order": 6,
+      "sectionId": "664779930",
+      "type": "PAGE_BREAK",
+      "title": "Section B: Travel Details",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "541981576",
+      "order": 7,
+      "sectionId": "664779930",
+      "type": "TEXT",
+      "title": "Destination(s) you are considering",
+      "description": "",
+      "required": true
+    },
+    {
+      "id": "2025794352",
+      "order": 8,
+      "sectionId": "664779930",
+      "type": "TEXT",
+      "title": "Proposed travel dates (or flexible timeframe)",
+      "description": "",
+      "required": true
+    },
+    {
+      "id": "1087568926",
+      "order": 9,
+      "sectionId": "664779930",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Purpose of Travel",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "Leisure/Holiday",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Visiting family or friends",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Business/Conference",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": true
+    },
+    {
+      "id": "836507955",
+      "order": 10,
+      "sectionId": "664779930",
+      "type": "TEXT",
+      "title": "How many people are currently planning to travel? (If you are traveling alone, write “1”)",
+      "description": "",
+      "required": true
+    },
+    {
+      "id": "502234433",
+      "order": 11,
+      "sectionId": "664779930",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Do you currently hold any valid visas?",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "Yes",
+          "navigation": "GO_TO_PAGE",
+          "targetSectionId": "835635801"
+        },
+        {
+          "label": "No",
+          "navigation": "GO_TO_PAGE",
+          "targetSectionId": "730377114"
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "835635801",
+      "order": 12,
+      "sectionId": "835635801",
+      "type": "PAGE_BREAK",
+      "title": "Section C: Visa Details",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "180737542",
+      "order": 13,
+      "sectionId": "835635801",
+      "type": "TEXT",
+      "title": "Please list the visa(s) you hold and their expiry date(s).\n\nExample: “Schengen – expires 14 Aug 2026; UAE – expires 03 Feb 2027.”",
+      "description": "",
+      "required": true
+    },
+    {
+      "id": "730377114",
+      "order": 14,
+      "sectionId": "730377114",
+      "type": "PAGE_BREAK",
+      "title": "Section D: Travel Experience & Comfort",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "539186385",
+      "order": 15,
+      "sectionId": "730377114",
+      "type": "MULTIPLE_CHOICE",
+      "title": "How would you describe your travel experience?",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "First-time international traveler",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Traveled once or twice",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Frequent traveler",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "1817301688",
+      "order": 16,
+      "sectionId": "730377114",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Do you feel comfortable traveling alone?",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "Yes",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Somewhat",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "No, I prefer not to travel alone",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "479112904",
+      "order": 17,
+      "sectionId": "479112904",
+      "type": "PAGE_BREAK",
+      "title": "Section E: Group Travel Preference ",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "981551413",
+      "order": 18,
+      "sectionId": "479112904",
+      "type": "MULTIPLE_CHOICE",
+      "title": "If available, would you be open to traveling as part of a small, curated group of first‑time travelers?",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "Yes, I would prefer a group",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Maybe, I’m open to it",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "No, I prefer solo travel",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "1522369376",
+      "order": 19,
+      "sectionId": "1522369376",
+      "type": "PAGE_BREAK",
+      "title": "Section F: Budget",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "1056249278",
+      "order": 20,
+      "sectionId": "1522369376",
+      "type": "TEXT",
+      "title": "Estimated travel budget (excluding  planning fee and visa costs))",
+      "description": "Please note: your planning fee (GHS 2,000 or GHS 3,000) is separate from your travel budget. Your travel budget covers actual flight, hotel and activity costs. Once your itinerary is approved, we will send you a travel fund request for the total cost of your bookings.",
+      "required": true
+    },
+    {
+      "id": "86523279",
+      "order": 21,
+      "sectionId": "86523279",
+      "type": "PAGE_BREAK",
+      "title": "Section G: Travel Preferences & Style",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "633105759",
+      "order": 22,
+      "sectionId": "86523279",
+      "type": "SECTION_HEADER",
+      "title": "Accommodation Preferences",
+      "description": ""
+    },
+    {
+      "id": "822834325",
+      "order": 23,
+      "sectionId": "86523279",
+      "type": "CHECKBOX",
+      "title": "What type of accommodation do you prefer?",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "Budget hotels / guesthouses",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Mid‑range hotels (3–4 star)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Luxury hotels (4–5 star)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Boutique hotels",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Apartments / Airbnb",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I’m open to recommendations",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "1444304495",
+      "order": 24,
+      "sectionId": "86523279",
+      "type": "CHECKBOX",
+      "title": "What matters most to you when choosing accommodation?",
+      "description": "(Checkboxes – select up to 3)",
+      "required": true,
+      "options": [
+        {
+          "label": "Safety",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Location (close to attractions)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Comfort",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Cleanliness",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Price",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Amenities (gym,pool,breakfast,etc.)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Quiet/peaceful environment",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "982685238",
+      "order": 25,
+      "sectionId": "86523279",
+      "type": "SECTION_HEADER",
+      "title": "Food Preferences ",
+      "description": ""
+    },
+    {
+      "id": "1376109963",
+      "order": 26,
+      "sectionId": "86523279",
+      "type": "MULTIPLE_CHOICE",
+      "title": "How would you describe your food preferences while traveling?",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "I enjoy trying local food",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I prefer familiar food options",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "A mix of local and familiar food",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I’m flexible",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "1811901185",
+      "order": 27,
+      "sectionId": "86523279",
+      "type": "PARAGRAPH_TEXT",
+      "title": "Do you have any dietary requirements or allergies?",
+      "description": "Examples:\nVegetarian\nVegan\nHalal\nAllergies (nuts, seafood, etc.",
+      "required": false
+    },
+    {
+      "id": "799800",
+      "order": 28,
+      "sectionId": "86523279",
+      "type": "SECTION_HEADER",
+      "title": "Travel Style & Pace",
+      "description": ""
+    },
+    {
+      "id": "130319592",
+      "order": 29,
+      "sectionId": "86523279",
+      "type": "CHECKBOX",
+      "title": "What type of travel experience do you prefer?",
+      "description": "Select all that apply",
+      "required": true,
+      "options": [
+        {
+          "label": "Relaxing / slow‑paced",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Adventurous",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Cultural & Historical",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Nature & Scenery",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "City Exploration",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Shopping",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Nightlife & Entertainment",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Wellness/Spa",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "1518570516",
+      "order": 30,
+      "sectionId": "86523279",
+      "type": "MULTIPLE_CHOICE",
+      "title": "How do you prefer your travel pace?",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "Very relaxed (few activities per day)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Balanced (activities + rest)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Packed schedule (I want to see everything)",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "353526436",
+      "order": 31,
+      "sectionId": "86523279",
+      "type": "MULTIPLE_CHOICE",
+      "title": "How hands-on do you want this trip to be",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "See the sights — show me the highlights, comfortably paced",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "A mix of both — some sightseeing, some hands-on experiences",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Get stuck in — cooking, crafts, local life, unique experiences",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": true
+    },
+    {
+      "id": "61417875",
+      "order": 32,
+      "sectionId": "86523279",
+      "type": "SECTION_HEADER",
+      "title": "Additional Preferences",
+      "description": ""
+    },
+    {
+      "id": "410814081",
+      "order": 33,
+      "sectionId": "86523279",
+      "type": "PARAGRAPH_TEXT",
+      "title": "Is there anything you definitely want included in your trip?",
+      "description": "Examples:\nA specific attraction\nA special experience\nA celebration (birthday, honeymoon, anniversary)",
+      "required": false
+    },
+    {
+      "id": "1379519325",
+      "order": 34,
+      "sectionId": "86523279",
+      "type": "PARAGRAPH_TEXT",
+      "title": "Is there anything you would prefer to avoid on this trip?",
+      "description": "Examples:\nLong walking tours\nEarly mornings\nCrowded places\nCertain activities",
+      "required": false
+    },
+    {
+      "id": "109873869",
+      "order": 35,
+      "sectionId": "109873869",
+      "type": "PAGE_BREAK",
+      "title": "Section H: Add-On Services",
+      "description": "Enhance your trip with any of the following optional add-ons. These are not included in your base package and will be quoted and invoiced separately. ",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "1263904381",
+      "order": 36,
+      "sectionId": "109873869",
+      "type": "CHECKBOX",
+      "title": "Would you like to add any booking services to your package? (Select all that apply)",
+      "description": "",
+      "required": false,
+      "options": [
+        {
+          "label": "Additional destination — GHS 200 per destination (base package covers up to 2 for Full Trip Planning, up to 4 for Premium Concierge)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Restaurant reservation — GHS 100 per reservation",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Special Occasion Planning (birthday, anniversary) — from GHS 500",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "1719024406",
+      "order": 37,
+      "sectionId": "109873869",
+      "type": "MULTIPLE_CHOICE",
+      "title": "Would you like to add WhatsApp in-trip support? (Select one)",
+      "description": "WhatsApp Support is already included if you selected Premium Concierge above.",
+      "required": false,
+      "options": [
+        {
+          "label": "Basic Support — GHS 200 (responses within a few hours during your trip)",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "Active Support — GHS 400 (near real-time responses throughout your trip)",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "1017955756",
+      "order": 38,
+      "sectionId": "1017955756",
+      "type": "PAGE_BREAK",
+      "title": "Section I: Confirmation & Boundaries",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "1366732008",
+      "order": 39,
+      "sectionId": "1017955756",
+      "type": "CHECKBOX",
+      "title": "Please confirm the following by ticking all boxes: (Checkboxes - all required)",
+      "description": "",
+      "required": true,
+      "options": [
+        {
+          "label": "I understand that Travel with Ease provides trip planning and booking services — not visa assistance.",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I understand that my planning fee covers research, booking coordination and my Travel Pack. Actual travel costs (flights, hotels, activities) are funded separately via a travel fund request.",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I understand that a 50% deposit is required before planning begins, and the remaining 50% balance is due before my Travel Pack is delivered.",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I understand that Travel with Ease will not proceed with any bookings until my travel fund has been received in full.",
+          "navigation": null,
+          "targetSectionId": null
+        },
+        {
+          "label": "I have read and understood the refund and cancellation policy below.",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "858286919",
+      "order": 40,
+      "sectionId": "1017955756",
+      "type": "CHECKBOX",
+      "title": "Refund & Cancellation",
+      "description": "The 50% deposit is non-refundable once planning has commenced, as it covers research, planning time, and expertise. \nIf a client cancels before planning begins, the deposit may be refunded less an administrative fee. \nThe 50% balance is non-refundable once the final Travel Pack has been delivered. ",
+      "required": false,
+      "options": [
+        {
+          "label": "I have read and agree to the terms of the refund & cancellation policy",
+          "navigation": null,
+          "targetSectionId": null
+        }
+      ],
+      "allowOther": false
+    },
+    {
+      "id": "901141947",
+      "order": 41,
+      "sectionId": "901141947",
+      "type": "PAGE_BREAK",
+      "title": "Section J: Final",
+      "description": "",
+      "previousSectionNavigation": {
+        "action": "CONTINUE",
+        "targetSectionId": null
+      }
+    },
+    {
+      "id": "913802249",
+      "order": 42,
+      "sectionId": "901141947",
+      "type": "TEXT",
+      "title": "How did you hear about Travel with Ease?",
+      "description": "",
+      "required": false
+    },
+    {
+      "id": "1288466099",
+      "order": 43,
+      "sectionId": "901141947",
+      "type": "TEXT",
+      "title": "Were you referred by an existing TWE client? If so, who? (Leave blank if not applicable)",
+      "description": "",
+      "required": false
+    }
+  ]
+}

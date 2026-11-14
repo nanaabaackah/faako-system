@@ -1,79 +1,71 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { buildMailtoHref, formatBookingConfirmationDraft } from "@faako/notifications";
 import { AnimatedLoadingState } from "@faako/ui";
+import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { formatDateTime } from "../../utils/formatters";
-import { apiGet, apiPost } from "../../api/client";
 import { getHolidayLabelsForDate, listUpcomingHolidays } from "../../utils/holidays";
 import { getSafeExternalUrl } from "../../utils/safeUrl";
 import "./Bookings.css";
+import NewAppointmentDrawer from "./NewAppointmentDrawer";
 
+const PROVIDERS = [
+  { value: "GOOGLE_MEET", label: "Google Meet" },
+  { value: "ZOOM", label: "Zoom" },
+  { value: "WHATSAPP", label: "WhatsApp call" },
+  { value: "FACETIME", label: "FaceTime" },
+];
 const STATUS_MAP = {
   CONFIRMED: { label: "Confirmed", tone: "success" },
   TENTATIVE: { label: "Tentative", tone: "warning" },
   CANCELED: { label: "Canceled", tone: "danger" },
 };
-
-const SOURCE_LABELS = {
-  GOOGLE_CALENDAR: "Google Calendar",
-  MANUAL: "Manual",
+const startOfDay = (day) => {
+  const value = new Date(day);
+  value.setHours(0, 0, 0, 0);
+  return value;
 };
-
-const DEFAULT_SETTINGS = {
-  bookingLink: "",
-  calendarEmail: "",
-  defaultLocation: "",
+const sameDay = (a, b) => startOfDay(a).getTime() === startOfDay(b).getTime();
+const durationOf = ({ startAt, endAt }) => {
+  const minutes = Math.round((new Date(endAt) - new Date(startAt)) / 60000);
+  return minutes > 0 ? `${minutes} min` : "N/A";
 };
-
-const formatDuration = (startAt, endAt) => {
-  const start = new Date(startAt);
-  const end = new Date(endAt);
-  const minutes = Math.round((end - start) / 60000);
-  if (!Number.isFinite(minutes) || minutes <= 0) return "N/A";
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest ? `${hours}h ${rest}m` : `${hours}h`;
+const nextWeek = () => Array.from({ length: 7 }, (_, index) => {
+  const date = startOfDay(new Date());
+  date.setDate(date.getDate() + index);
+  return date;
+});
+const linkStateLabel = (booking) => {
+  if (!booking?.meetingLink) return "Awaiting link";
+  if (booking.meetingLinkDeliveryStatus === "SENT") return "Sent";
+  if (booking.meetingLinkDeliveryStatus === "FAILED") return "Delivery failed";
+  if (booking.meetingLinkDeliveryStatus === "TEST_REROUTED") return "Test email rerouted";
+  return "Ready to send";
 };
-
-const isSameDay = (left, right) =>
-  left.getFullYear() === right.getFullYear() &&
-  left.getMonth() === right.getMonth() &&
-  left.getDate() === right.getDate();
 
 const Bookings = () => {
   const [bookings, setBookings] = useState([]);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [status, setStatus] = useState({ tone: "", message: "" });
+  const [organizationSlug, setOrganizationSlug] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isDisconnecting, setIsDisconnecting] = useState(false);
-  const [googleConnected, setGoogleConnected] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState(null);
-  const [copyLabel, setCopyLabel] = useState("Copy link");
+  const [status, setStatus] = useState({ tone: "", message: "" });
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedBookingId, setSelectedBookingId] = useState(null);
+  const [draft, setDraft] = useState({ meetingPlatform: "GOOGLE_MEET", meetingLink: "" });
+  const [busy, setBusy] = useState(false);
+  const [search, setSearch] = useState("");
+  const [copyLabel, setCopyLabel] = useState("Copy booking link");
+  const [creating, setCreating] = useState(false);
+  const days = useMemo(nextWeek, []);
+  const holidayBlocks = useMemo(() => listUpcomingHolidays({ startDate: new Date(), days: 45 }), []);
+  const selectedBooking = bookings.find((item) => item.id === selectedBookingId) || null;
 
-  const loadData = async () => {
+  const load = async () => {
     setIsLoading(true);
-    setStatus({ tone: "", message: "" });
-
     try {
-      const [bookingsPayload, settingsPayload] = await Promise.all([
-        apiGet("/api/bookings", {
-          fallbackMessage: "Unable to load appointments",
-        }),
-        apiGet("/api/bookings/settings", {
-          fallbackMessage: "Unable to load appointment settings",
-        }),
+      const [items, settings] = await Promise.all([
+        apiGet("/api/bookings", { fallbackMessage: "Unable to load appointments." }),
+        apiGet("/api/bookings/settings", { fallbackMessage: "Unable to load booking settings." }),
       ]);
-
-      setBookings(Array.isArray(bookingsPayload) ? bookingsPayload : []);
-      setSettings({
-        bookingLink: settingsPayload.bookingLink ?? "",
-        calendarEmail: settingsPayload.calendarEmail ?? "",
-        defaultLocation: settingsPayload.defaultLocation ?? "",
-      });
-      setGoogleConnected(Boolean(settingsPayload.googleConnected));
-      setLastSyncedAt(settingsPayload.lastSyncedAt ?? null);
+      setBookings(Array.isArray(items) ? items : []);
+      setOrganizationSlug(settings?.organizationSlug || "");
     } catch (error) {
       setStatus({ tone: "error", message: error.message });
     } finally {
@@ -81,487 +73,253 @@ const Bookings = () => {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { void load(); }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("google") === "connected") {
-      setStatus({ tone: "success", message: "Google Calendar connected." });
-      params.delete("google");
-      window.history.replaceState({}, "", `${window.location.pathname}`);
-    }
-  }, []);
+  const bookingUrl = organizationSlug
+    ? `${window.location.origin}/book/${encodeURIComponent(organizationSlug)}`
+    : "";
 
-  const bookingLinkValue = settings.bookingLink.trim();
-  const safeBookingLink = getSafeExternalUrl(bookingLinkValue);
-  const bookingEmailValue = settings.calendarEmail.trim();
-  const bookingLocationValue = settings.defaultLocation.trim() || "Location shared after appointment";
-  const hasBookingLink = Boolean(safeBookingLink);
-  const syncStatus = googleConnected ? "Connected" : "Not connected";
-  const syncTone = googleConnected ? "success" : "warning";
-  const mailSubject = "Book an appointment";
-  const mailBody = formatBookingConfirmationDraft({
-    businessName: "Dev ERP",
-    customerName: "Customer",
-    bookingLink: safeBookingLink || "Add your appointment link",
-    location: bookingLocationValue,
-  });
-  const mailtoLink = buildMailtoHref({
-    subject: mailSubject,
-    body: mailBody,
+  const upcoming = useMemo(() => bookings.filter((item) =>
+    item.status !== "CANCELED" && new Date(item.endAt || item.startAt) >= new Date()
+  ).sort((a, b) => new Date(a.startAt) - new Date(b.startAt)), [bookings]);
+  const filtered = upcoming.filter((item) => {
+    if (selectedDay && !sameDay(new Date(item.startAt), selectedDay)) return false;
+    const haystack = [item.title, item.attendeeEmail, item.attendeeName, item.meetingPlatform].join(" ").toLowerCase();
+    return haystack.includes(search.trim().toLowerCase());
   });
 
-  const bookingTotals = useMemo(() => {
-    const totals = { confirmed: 0, tentative: 0, canceled: 0 };
-    bookings.forEach((booking) => {
-      if (booking.status === "CONFIRMED") totals.confirmed += 1;
-      if (booking.status === "TENTATIVE") totals.tentative += 1;
-      if (booking.status === "CANCELED") totals.canceled += 1;
+  const openBooking = (booking) => {
+    setSelectedBookingId(booking.id);
+    setDraft({
+      meetingPlatform: booking.meetingPlatform || "GOOGLE_MEET",
+      meetingLink: booking.meetingLink || "",
     });
-
-    const now = new Date();
-    const weekAhead = new Date(now);
-    weekAhead.setDate(now.getDate() + 7);
-
-    const upcomingWeek = bookings.filter((booking) => {
-      const date = new Date(booking.startAt);
-      return date >= now && date <= weekAhead;
-    }).length;
-
-    return {
-      confirmed: totals.confirmed,
-      tentative: totals.tentative,
-      canceled: totals.canceled,
-      upcomingWeek,
-    };
-  }, [bookings]);
-
-  const todayBookings = useMemo(() => {
-    const now = new Date();
-    return bookings.filter((booking) => isSameDay(new Date(booking.startAt), now));
-  }, [bookings]);
-  const upcomingBookings = useMemo(() => {
-    const now = new Date();
-    return bookings
-      .filter((booking) => {
-        const endAt = booking?.endAt ? new Date(booking.endAt) : new Date(booking.startAt);
-        if (Number.isNaN(endAt.getTime())) return false;
-        return endAt >= now;
-      })
-      .sort((left, right) => new Date(left.startAt) - new Date(right.startAt));
-  }, [bookings]);
-  const todayHolidayLabels = useMemo(() => getHolidayLabelsForDate(new Date()), []);
-  const upcomingHolidayBlocks = useMemo(
-    () => listUpcomingHolidays({ startDate: new Date(), days: 45 }),
-    []
+    setStatus({ tone: "", message: "" });
+  };
+  const updateBookingInState = (nextBooking) => setBookings((items) =>
+    items.map((item) => item.id === nextBooking.id ? nextBooking : item)
   );
-
-  const handleCopyLink = async () => {
-    if (!safeBookingLink) {
-      setCopyLabel("Add link");
-      window.setTimeout(() => setCopyLabel("Copy link"), 1600);
-      return;
-    }
+  const saveLink = async () => {
+    if (!selectedBooking) return;
+    setBusy(true);
+    setStatus({ tone: "", message: "" });
     try {
-      await navigator.clipboard.writeText(safeBookingLink);
+      const updated = await apiPatch(`/api/bookings/${selectedBooking.id}`, draft, {
+        fallbackMessage: "Could not save meeting details.",
+      });
+      updateBookingInState(updated);
+      setStatus({ tone: "success", message: "Meeting details saved. You can now send the link." });
+    } catch (error) {
+      setStatus({ tone: "error", message: error.message });
+    } finally { setBusy(false); }
+  };
+  const sendLink = async () => {
+    if (!selectedBooking) return;
+    setBusy(true);
+    setStatus({ tone: "", message: "" });
+    try {
+      const updated = await apiPost(`/api/bookings/${selectedBooking.id}/send-link`, {
+        resend: selectedBooking.meetingLinkDeliveryStatus === "SENT",
+      }, { fallbackMessage: "Could not send the meeting link." });
+      updateBookingInState(updated);
+      setStatus(updated.deliveryWasRerouted
+        ? { tone: "warning", message: "Test email was rerouted. The client has not received the link." }
+        : { tone: "success", message: "Meeting link was submitted for email delivery to the attendee." });
+    } catch (error) {
+      setStatus({ tone: "error", message: error.message });
+    } finally { setBusy(false); }
+  };
+  const hasUnsavedMeetingChanges = Boolean(selectedBooking) && (
+    draft.meetingPlatform !== (selectedBooking.meetingPlatform || "GOOGLE_MEET")
+    || draft.meetingLink.trim() !== (selectedBooking.meetingLink || "").trim()
+  );
+  const copyBookingLink = async () => {
+    if (!bookingUrl) return;
+    try {
+      await navigator.clipboard.writeText(bookingUrl);
       setCopyLabel("Copied");
-      window.setTimeout(() => setCopyLabel("Copy link"), 1600);
-    } catch {
-      setCopyLabel("Copy failed");
-      window.setTimeout(() => setCopyLabel("Copy link"), 1600);
-    }
+    } catch { setCopyLabel("Copy failed"); }
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setStatus({ tone: "", message: "" });
-    try {
-      const payload = await apiPost(
-        "/api/bookings/settings",
-        {
-          bookingLink: settings.bookingLink,
-          defaultLocation: settings.defaultLocation,
-        },
-        {
-          fallbackMessage: "Unable to save appointment settings",
-        }
-      );
-      setSettings({
-        bookingLink: payload.bookingLink ?? "",
-        defaultLocation: payload.defaultLocation ?? "",
-      });
-      setStatus({ tone: "success", message: "Appointment settings saved." });
-    } catch (error) {
-      setStatus({ tone: "error", message: error.message });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleConnectGoogle = async () => {
-    setStatus({ tone: "", message: "" });
-    try {
-      const returnTo = window.location.pathname;
-      const payload = await apiGet(
-        `/api/integrations/google/init?returnTo=${encodeURIComponent(returnTo)}`,
-        {
-          fallbackMessage: "Unable to start Google Calendar setup",
-        }
-      );
-      const safeOAuthUrl = getSafeExternalUrl(payload?.url);
-      if (!safeOAuthUrl) {
-        throw new Error("Received an invalid Google authorization URL.");
-      }
-      window.location.assign(safeOAuthUrl);
-    } catch (error) {
-      setStatus({ tone: "error", message: error.message });
-    }
-  };
-
-  const handleSync = async () => {
-    setIsSyncing(true);
-    setStatus({ tone: "", message: "" });
-    try {
-      const payload = await apiPost("/api/bookings/sync/google", undefined, {
-        fallbackMessage: "Unable to sync Google Calendar",
-      });
-      setStatus({
-        tone: "success",
-        message: `Synced ${payload.synced ?? 0} events from Google Calendar.`,
-      });
-      await loadData();
-    } catch (error) {
-      setStatus({ tone: "error", message: error.message });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleDisconnectGoogle = async () => {
-    const confirmed = window.confirm(
-      "Disconnect Google Calendar and remove all synced appointments? This cannot be undone."
-    );
-    if (!confirmed) return;
-    setIsDisconnecting(true);
-    setStatus({ tone: "", message: "" });
-    try {
-      const payload = await apiPost("/api/integrations/google/disconnect", undefined, {
-        fallbackMessage: "Unable to disconnect Google Calendar",
-      });
-      const deletedCount = Number(payload?.deletedBookings ?? 0);
-      setGoogleConnected(false);
-      setLastSyncedAt(null);
-      setSettings((prev) => ({
-        ...prev,
-        calendarEmail: payload.calendarEmail ?? "",
-      }));
-      setBookings((prev) => prev.filter((booking) => booking.source !== "GOOGLE_CALENDAR"));
-      setStatus({
-        tone: "success",
-        message: deletedCount
-          ? `Google Calendar disconnected. Removed ${deletedCount} synced appointment${
-              deletedCount === 1 ? "" : "s"
-            }.`
-          : "Google Calendar disconnected.",
-      });
-    } catch (error) {
-      setStatus({ tone: "error", message: error.message });
-    } finally {
-      setIsDisconnecting(false);
-    }
+  const totals = {
+    sevenDays: upcoming.filter((item) => item.startAt && new Date(item.startAt) <= new Date(Date.now() + 7 * 86400000)).length,
+    confirmed: bookings.filter((item) => item.status === "CONFIRMED").length,
+    tentative: bookings.filter((item) => item.status === "TENTATIVE").length,
+    waiting: upcoming.filter((item) => !item.meetingLink).length,
   };
 
   return (
     <section className="page bookings-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Appointments</p>
-          <h1>Appointment details</h1>
-          <p className="muted">Manage requests, calendar sync, and upcoming sessions.</p>
+          <p className="eyebrow">DEV ERP / Schedule</p>
+          <h1>Appointments</h1>
+          <p className="muted">Manage your appointments and send meeting links directly from Faako.</p>
         </div>
         <div className="header-actions">
-          <button className="button button-ghost" type="button" onClick={handleConnectGoogle}>
-            {googleConnected ? "Reconnect Google" : "Connect Google Calendar"}
-          </button>
-          <button
-            className="button button-primary"
-            type="button"
-            onClick={handleSync}
-            disabled={!googleConnected || isSyncing}
-          >
-            {isSyncing ? "Syncing..." : "Sync now"}
-          </button>
-          {googleConnected ? (
-            <button
-              className="button button-ghost button-danger"
-              type="button"
-              onClick={handleDisconnectGoogle}
-              disabled={isDisconnecting}
-            >
-              {isDisconnecting ? "Disconnecting..." : "Disconnect Google"}
-            </button>
-          ) : null}
+          <button type="button" className="button button-primary" onClick={() => setCreating(true)}>+ New appointment</button>
+          {bookingUrl ? (
+            <>
+              <a className="button button-primary" href={bookingUrl} target="_blank" rel="noopener noreferrer">Open booking page</a>
+              <button className="button button-ghost" type="button" onClick={copyBookingLink}>{copyLabel}</button>
+            </>
+          ) : <span className="muted">Booking URL unavailable: check the organization configuration.</span>}
         </div>
       </header>
 
-      {status.message ? (
-        <div className={`notice ${status.tone ? `is-${status.tone}` : ""}`.trim()}>
-          {status.message}
-        </div>
-      ) : null}
+      {status.message && <div className={`notice is-${status.tone || "info"}`} role="status">{status.message}</div>}
 
-      <div className="panel-grid">
+      <div className="panel-grid bookings-summary-grid">
         {[
-          {
-            id: "upcoming",
-            label: "Upcoming (7 days)",
-            value: bookingTotals.upcomingWeek,
-            note: "Calls and onsite visits",
-          },
-          {
-            id: "confirmed",
-            label: "Confirmed",
-            value: bookingTotals.confirmed,
-            note: "Ready to host",
-          },
-          {
-            id: "tentative",
-            label: "Tentative",
-            value: bookingTotals.tentative,
-            note: "Awaiting confirmation",
-          },
-        ].map((item) => (
-          <article className="panel kpi-card" key={item.id}>
-            <span className="kpi-label">{item.label}</span>
-            <div className="kpi-value">{item.value}</div>
-            <span className="kpi-delta">{item.note}</span>
+          ["Upcoming (7 days)", totals.sevenDays, "Scheduled sessions"],
+          ["Confirmed", totals.confirmed, "Accepted bookings"],
+          ["Tentative", totals.tentative, "Awaiting confirmation"],
+          ["Meeting links pending", totals.waiting, "Action required"],
+        ].map(([label, count, detail]) => (
+          <article className="panel kpi-card" key={label}>
+            <span className="kpi-label">{label}</span>
+            <strong className="kpi-value">{count}</strong>
+            <span className="kpi-delta">{detail}</span>
           </article>
         ))}
       </div>
 
-      <div className="page-grid">
-        <article className="panel">
-          <div className="panel-header">
-            <div>
-              <h3>Upcoming appointments</h3>
-              <p className="muted">Full details for the next sessions.</p>
-            </div>
-          </div>
-          {isLoading ? (
-            <AnimatedLoadingState compact title="Loading appointments" />
-          ) : upcomingBookings.length ? (
-            <div className="data-table bookings-table">
-              <div className="table-row table-head is-7">
-                <span>Client</span>
-                <span>Service</span>
-                <span>When</span>
-                <span>Duration</span>
-                <span>Location</span>
-                <span>Status</span>
-                <span>Source</span>
-              </div>
-              {upcomingBookings.map((booking) => {
-                const statusConfig = STATUS_MAP[booking.status] || STATUS_MAP.TENTATIVE;
-                const holidayLabels = getHolidayLabelsForDate(new Date(booking.startAt));
-                const safeMeetingLink = getSafeExternalUrl(booking.meetingLink);
-                return (
-                  <div className="table-row is-7" key={booking.id}>
-                    <span className="table-strong">
-                      {booking.attendeeName || booking.attendeeEmail || "Customer"}
-                    </span>
-                    <span>{booking.title}</span>
-                    <span>
-                      <span>{formatDateTime(booking.startAt)}</span>
-                      {holidayLabels.length ? (
-                        <span className="bookings-holiday-label">{holidayLabels.join(" • ")}</span>
-                      ) : null}
-                    </span>
-                    <span>{formatDuration(booking.startAt, booking.endAt)}</span>
-                    <span>
-                      {safeMeetingLink ? (
-                        <a href={safeMeetingLink} target="_blank" rel="noreferrer">
-                          Meeting link
-                        </a>
-                      ) : (
-                        booking.location || settings.defaultLocation || "TBD"
-                      )}
-                    </span>
-                    <span className={`status-pill is-${statusConfig.tone}`}>{statusConfig.label}</span>
-                    <span>{SOURCE_LABELS[booking.source] || booking.source}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="bookings-empty-state">
-              <span className={`status-pill is-${hasBookingLink ? "success" : "warning"}`}>
-                {hasBookingLink ? "Appointment link ready" : "Add your appointment link"}
-              </span>
-              <div>
-                <span className="table-strong">No upcoming appointments yet</span>
-                <p className="muted">
-                  {hasBookingLink
-                    ? "New bookings will appear here as soon as someone picks a time."
-                    : "Add your appointment link below so new bookings have a place to land."}
-                </p>
-              </div>
-            </div>
-          )}
-        </article>
-
-        <article className="panel">
-          <div className="panel-header">
-            <div>
-              <h3>Today</h3>
-              <p className="muted">
-                Agenda for the next 24 hours.
-                {todayHolidayLabels.length ? ` Holiday: ${todayHolidayLabels.join(" • ")}.` : ""}
-              </p>
-            </div>
-          </div>
-          <div className="list">
-            {todayBookings.length ? (
-              todayBookings.map((booking) => (
-                <div className="list-row is-split" key={booking.id}>
-                  <div>
-                    <span className="table-strong">
-                      {booking.attendeeName || booking.attendeeEmail || "Customer"}
-                    </span>
-                    <span className="muted">{booking.title}</span>
-                  </div>
-                  <span>{formatDateTime(booking.startAt)}</span>
-                </div>
-              ))
-            ) : (
-              <p className="muted">No appointments scheduled for today.</p>
-            )}
-          </div>
-          <div className="bookings-holiday-blocks">
-            <div className="panel-header">
-              <div>
-                <h4>Holiday blocks (CA/GH)</h4>
-                <p className="muted">New appointments are blocked on these dates.</p>
-              </div>
-            </div>
-            <div className="list">
-              {upcomingHolidayBlocks.length ? (
-                upcomingHolidayBlocks.slice(0, 8).map((holiday) => (
-                  <div className="list-row is-split" key={holiday.key}>
-                    <span className="table-strong">{holiday.dateLabel}</span>
-                    <span className="muted">{holiday.labels.join(" • ")}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="muted">No holiday blocks in the next 45 days.</p>
-              )}
-            </div>
-          </div>
-        </article>
-      </div>
-
-      <section className="panel booking-panel" id="booking">
+      <article className="panel bookings-planner">
         <div className="panel-header">
           <div>
-            <h3>Appointment link & calendar sync</h3>
-            <p className="muted">
-              Share a link so customers can pick a time that syncs to your email calendar.
-            </p>
+            <h3>Appointment schedule</h3>
+            <p className="muted">Select a day to view appointments. Existing Google-synced records are retained.</p>
           </div>
-          <div className="booking-sync">
-            <span className="muted">Calendar sync</span>
-            <span className={`status-pill is-${syncTone}`}>{syncStatus}</span>
-          </div>
+          <button className="button button-ghost" type="button" onClick={() => setSelectedDay(null)}>Show all</button>
         </div>
-        <div className="booking-grid">
-          <div className="stack">
-            <label className="form-field">
-              <span>Appointment link</span>
-              <div className="input-group">
-                <input
-                  className="input"
-                  type="url"
-                  value={settings.bookingLink}
-                  onChange={(event) =>
-                    setSettings((prev) => ({ ...prev, bookingLink: event.target.value }))
-                  }
-                  placeholder="https://"
-                />
-                <button className="input-button" type="button" onClick={handleCopyLink}>
-                  {copyLabel}
-                </button>
-              </div>
-            </label>
-            <div className="booking-actions">
-              <a
-                className="button button-primary"
-                href={hasBookingLink ? safeBookingLink : "#"}
-                target={hasBookingLink ? "_blank" : undefined}
-                rel={hasBookingLink ? "noreferrer" : undefined}
-                aria-disabled={!hasBookingLink}
-                onClick={(event) => {
-                  if (!hasBookingLink) {
-                    event.preventDefault();
-                  }
-                }}
+        <div className="bookings-planner__days">
+          {days.map((day) => {
+            const count = upcoming.filter((item) => sameDay(new Date(item.startAt), day)).length;
+            const active = selectedDay && sameDay(selectedDay, day);
+            const holidayLabels = getHolidayLabelsForDate(day);
+            return (
+              <button
+                className={`bookings-planner__day${active ? " is-active" : ""}`}
+                key={day.toISOString()}
+                onClick={() => setSelectedDay(day)}
+                type="button"
+                aria-pressed={Boolean(active)}
+                title={holidayLabels.join(", ") || undefined}
               >
-                Open appointment page
-              </a>
-              <a
-                className="button button-ghost"
-                href={mailtoLink}
-                aria-disabled={!hasBookingLink}
-                onClick={(event) => {
-                  if (!hasBookingLink) {
-                    event.preventDefault();
-                  }
-                }}
-              >
-                Email link
-              </a>
-              <button className="button button-ghost" type="button" onClick={handleSave}>
-                {isSaving ? "Saving..." : "Save settings"}
+                <span>{day.toLocaleDateString(undefined, { weekday: "short" })}</span>
+                <strong>{day.getDate()}</strong>
+                <small>{holidayLabels.length ? "Holiday" : `${count} booked`}</small>
               </button>
-            </div>
-            <p className="muted">
-              Last sync {lastSyncedAt ? formatDateTime(lastSyncedAt) : "not yet"}.
-            </p>
-          </div>
-          <div className="stack">
-            <label className="form-field">
-              <span>Calendar email</span>
-              <input
-                className="input"
-                type="email"
-                value={settings.calendarEmail}
-                onChange={(event) =>
-                  setSettings((prev) => ({ ...prev, calendarEmail: event.target.value }))
-                }
-                placeholder="hello@company.com"
-              />
-            </label>
-            <label className="form-field">
-              <span>Default location</span>
-              <input
-                className="input"
-                type="text"
-                value={settings.defaultLocation}
-                onChange={(event) =>
-                  setSettings((prev) => ({ ...prev, defaultLocation: event.target.value }))
-                }
-                placeholder="Zoom, phone, or office"
-              />
-            </label>
-            <div className="notice">
-              Google Calendar events will sync automatically when webhooks are enabled.
-            </div>
-            {bookingEmailValue ? (
-              <p className="muted">Synced calendar: {bookingEmailValue}</p>
-            ) : null}
-          </div>
+            );
+          })}
         </div>
-      </section>
+      </article>
+
+      <article className="panel bookings-records">
+        <div className="panel-header">
+          <div>
+            <h3>{selectedDay ? "Selected day" : "Upcoming appointments"}</h3>
+            <p className="muted">Open a record to assign a meeting platform and send its joining link.</p>
+          </div>
+          <input className="input bookings-search" type="search" value={search}
+            aria-label="Search appointments" placeholder="Search appointments"
+            onChange={(event) => setSearch(event.target.value)} />
+        </div>
+        {isLoading ? <AnimatedLoadingState compact title="Loading appointments" /> : filtered.length ? (
+          <div className="data-table bookings-table">
+            <div className="table-row table-head is-7">
+              <span>Client</span><span>Service</span><span>When</span><span>Duration</span><span>Meeting</span><span>Status</span><span>Source</span>
+            </div>
+            {filtered.map((booking) => {
+              const statusConfig = STATUS_MAP[booking.status] || STATUS_MAP.TENTATIVE;
+              const safeLink = getSafeExternalUrl(booking.meetingLink);
+              return (
+                <div className="table-row is-7" key={booking.id}>
+                  <span className="table-strong">
+                    {booking.attendeeName || booking.attendeeEmail || "Client"}
+                    <button className="bookings-records__open" type="button" onClick={() => openBooking(booking)}>Open details</button>
+                  </span>
+                  <span>{booking.title || "Appointment"}</span>
+                  <span>{formatDateTime(booking.startAt)}</span>
+                  <span>{durationOf(booking)}</span>
+                  <span>{safeLink ? <a href={safeLink} target="_blank" rel="noopener noreferrer">Join</a> : linkStateLabel(booking)}</span>
+                  <span className={`status-pill is-${statusConfig.tone}`}>{statusConfig.label}</span>
+                  <span>{booking.source === "GOOGLE_CALENDAR" ? "Historical sync" : "Faako"}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="muted">No appointments match this view.</p>
+        )}
+      </article>
+
+      <article className="panel">
+        <div className="panel-header"><div><h3>Holiday blocks</h3><p className="muted">Dates blocked for new appointments (Canada and Ghana).</p></div></div>
+        <div className="bookings-holiday-list">
+          {holidayBlocks.slice(0, 5).map((day) => (
+            <div key={day.key} className="bookings-holiday-list__item">
+              <strong>{day.dateLabel}</strong><span>{day.labels.join(" • ")}</span>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      {creating && <NewAppointmentDrawer onClose={() => setCreating(false)} onCreated={(booking) => {
+        setBookings((all) => [...all, booking]);
+        setCreating(false);
+        setSelectedDay(null);
+        openBooking(booking);
+        setStatus({ tone: "success", message: "Appointment created. Attach its meeting link and send it to the client." });
+      }} />}
+
+      {selectedBooking && (
+        <div className="bookings-drawer-backdrop">
+          <aside className="bookings-drawer" role="dialog" aria-modal="true" aria-labelledby="booking-detail-title">
+            <header className="bookings-drawer__header">
+              <div><p className="eyebrow">Appointment details</p><h2 id="booking-detail-title">{selectedBooking.title || "Appointment"}</h2></div>
+              <button type="button" className="button button-ghost" onClick={() => setSelectedBookingId(null)} aria-label="Close appointment details">Close</button>
+            </header>
+            <div className="bookings-drawer__content">
+              <p className="muted">Client</p><strong>{selectedBooking.attendeeName || selectedBooking.attendeeEmail || "Client"}</strong>
+              <p className="muted">{selectedBooking.attendeeEmail || "No email address"}</p>
+              <p><strong>Time:</strong> {formatDateTime(selectedBooking.startAt)}</p>
+              <p><strong>Status:</strong> {STATUS_MAP[selectedBooking.status]?.label || selectedBooking.status}</p>
+              <p><strong>Meeting link:</strong> {linkStateLabel(selectedBooking)}</p>
+              {selectedBooking.source === "GOOGLE_CALENDAR" ? (
+                <div className="notice">Historical Google Calendar booking. Original record remains read-only.</div>
+              ) : (
+                <>
+                  <label className="form-field"><span>Meeting platform</span>
+                    <select className="input" value={draft.meetingPlatform} onChange={(event) => setDraft((previous) => ({ ...previous, meetingPlatform: event.target.value, meetingLink: "" }))}>
+                      {PROVIDERS.map((provider) => <option value={provider.value} key={provider.value}>{provider.label}</option>)}
+                    </select>
+                  </label>
+                  <label className="form-field"><span>Meeting link (HTTPS)</span>
+                    <input className="input" type="url" maxLength={2000}
+                      placeholder="Paste the provider's call link"
+                      value={draft.meetingLink}
+                      onChange={(event) => setDraft((previous) => ({ ...previous, meetingLink: event.target.value }))} />
+                  </label>
+                  <p className="muted">Generate the link in your chosen app and paste it here. The provider URL will be validated before saving.</p>
+                  {hasUnsavedMeetingChanges ? <p className="notice is-warning">Save your edits before sending the joining link.</p> : null}
+                  <div className="booking-actions">
+                    <button className="button button-primary" type="button" onClick={saveLink} disabled={busy}>{busy ? "Saving..." : "Save meeting details"}</button>
+                    <button className="button button-ghost" type="button" onClick={sendLink}
+                      disabled={busy || hasUnsavedMeetingChanges || !selectedBooking.meetingLink || !selectedBooking.attendeeEmail || selectedBooking.status === "CANCELED"}>
+                      {selectedBooking.meetingLinkDeliveryStatus === "SENT" ? "Resend email" : "Send meeting link"}
+                    </button>
+                  </div>
+                </>
+              )}
+              {selectedBooking.meetingLinkSentAt && (
+                <p className="muted">Last sent: {formatDateTime(selectedBooking.meetingLinkSentAt)}</p>
+              )}
+              {status.message && <div className={`notice is-${status.tone || "info"}`} role="status">{status.message}</div>}
+            </div>
+          </aside>
+        </div>
+      )}
     </section>
   );
 };

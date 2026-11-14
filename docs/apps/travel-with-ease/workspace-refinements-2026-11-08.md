@@ -117,6 +117,7 @@ Use same-environment reference variables rather than copying credentials:
 | --- | --- |
 | `APP_ENV` | staging |
 | `NODE_ENV` | production |
+| `ALLOWED_ORIGINS` | The API's exact staging HTTPS allow-list; required by the shared startup validator even though the worker does not serve HTTP |
 | `DATABASE_URL` | The staging runtime-role connection, not migration credentials |
 | `TWE_ORGANISATION_ID` | The same verified staging organisation as the API |
 | `TWE_DATABASE_TLS`, `TWE_DATABASE_CA` | Existing verified database TLS settings |
@@ -142,6 +143,16 @@ Check Railway worker start logs for
 `notification.worker_ready`, distinguish pending/processing/failed/sent, and
 review Resend acceptance separately from inbox receipt. Do not blindly retry
 expired jobs, clear leases or change pinned payloads to force a delivery.
+
+Operational update, 2026-11-14: the dedicated staging worker was provisioned
+from `develop` with one replica, no public domain, healthcheck, cron or worker
+pre-deploy migration. It uses same-environment references for the API allow-list,
+database and tenant settings; the Resend credential and verified sender are set
+directly on the worker. The API's worker activation is disabled. The worker
+reported `notification.worker_ready` and drained the four existing jobs from
+pending to sent; all four have provider IDs, with no failed or processing jobs.
+Testing-mailbox receipt remains a separate user acceptance check. Production was
+not changed or redeployed.
 
 Staging acceptance: submit one explicitly labelled synthetic enquiry using a
 controlled .invalid customer address; check saved enquiry/outbox, worker claim,

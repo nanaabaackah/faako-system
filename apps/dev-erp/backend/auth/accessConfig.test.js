@@ -27,10 +27,14 @@ test("ACCESS_MODULE_KEYS stays aligned with module capability route modules", ()
   });
 });
 
-test("module capability routes cover authenticated productivity surfaces", () => {
-  assert.deepEqual(resolveModulesForPath("/api/productivity/entries"), ["dashboard"]);
-  assert.deepEqual(resolveModulesForPath("/api/jobs/recommendations"), ["dashboard"]);
-  assert.deepEqual(resolveModulesForPath("/api/ai/productivity-coach"), ["dashboard"]);
+test("retired job and productivity routes are no longer active module surfaces", () => {
+  assert.equal(resolveModulesForPath("/api/productivity/entries"), null);
+  assert.equal(resolveModulesForPath("/api/jobs/recommendations"), null);
+  assert.equal(resolveModulesForPath("/api/ai/productivity-coach"), null);
+});
+
+test("published application directory requires System Health capability", () => {
+  assert.deepEqual(resolveModulesForPath("/api/monitoring/published-apps"), ["system-health"]);
 });
 
 test("system health AI diagnostics require system health module access", () => {

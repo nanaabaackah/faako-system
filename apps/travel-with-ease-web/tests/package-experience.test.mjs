@@ -56,15 +56,17 @@ test("expanded process is page-only and examples do not claim to be a real clien
   assert.match(process, /Package deposit terms do not automatically apply/);
 });
 
-test("enquiry selects explicitly bind Faako values without depending on a native event name", () => {
+test("short enquiry preserves catalogue context while the private page owns the versioned questionnaire", () => {
   const enquiry = source("components/EnquiryForm.jsx");
-  for (const name of ["enquiryType", "service"]) {
-    const select = enquiry.match(new RegExp(`<SelectField name="${name}"[\\s\\S]*?</SelectField>`))?.[0];
-    assert.ok(select);
-    assert.match(select, /onChangeValue=/);
-    assert.ok(select.includes(`${name}: value`));
-    assert.doesNotMatch(select, /onChange=\{update\}/);
-  }
+  const wizard = source("components/EnquiryWizard.jsx");
+  assert.match(enquiry, /resolveEntry\(catalogue\)/);
+  assert.match(enquiry, /packageSlug/);
+  assert.match(enquiry, /serviceSlug/);
+  assert.match(wizard, /QUESTIONNAIRE_VERSION/);
+  assert.match(wizard, /applicableQuestionIds/);
+  assert.match(wizard, /continuation\/context/);
+  assert.match(wizard, /continuation\/complete/);
+  assert.doesNotMatch(enquiry + wizard, /localStorage|sessionStorage/);
 });
 
 test("approved package itineraries use restrained AnimatedList and remain server-rendered", () => {

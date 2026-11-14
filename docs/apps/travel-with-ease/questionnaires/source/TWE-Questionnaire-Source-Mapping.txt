@@ -1,0 +1,189 @@
+# Travel With Ease — Imported Questionnaire Mapping
+
+Source: two Google Forms JSON exports supplied on 2026-11-09. This is a source-grounded extraction and implementation mapping, not an approved production questionnaire. No customer responses were supplied.
+
+## Executive findings
+
+- **Full Trip Planning – Client Intake Form:** 43 items, 29 questions, 10 page-break sections, 4 section headers. 21 questions flagged required and 8 optional.
+- **Start Here — Plan Your Trip with Ease:** 7 items, 3 questions, 4 page-break sections. One required and two optional questions.
+- The first form covers two *planning-fee tiers* (Full Trip Planning; Premium Concierge), not individual destination travel package products.
+- The second form is a *service chooser and explanatory page*; it is not the Travel Readiness client intake form.
+- The exports do not provide live external link targets or full native Google Forms response validation rules.
+
+## Suggested integration mapping (proposed; confirm with client)
+
+| Website entry | Shared form behaviour | Existing source mapping |
+|---|---|---|
+| General enquiry | Start with service selection; guide uncertain users; then show the applicable intake | Start Here router + relevant intake |
+| Full Trip Planning service | Preselect Full Trip Planning; preserve package-tier choice as needed | Full Trip Planning intake |
+| Premium Concierge service | Preselect Premium Concierge tier, show planning questions while skipping redundant selector | Full Trip Planning intake |
+| Travel Readiness Session service | Preselect readiness; *do not make up questionnaire* | Start Here guidance only; actual readiness intake missing |
+| Specific published package | Preselect catalogue package ID/slug/title and distinct package questions; do not confuse with planning-fee tiers | Package-specific questionnaire absent from exports |
+| Other published services | Preselect published service, supported only by approved service-specific question bank | No service-specific intake questionnaire in supplied exports |
+
+## Branching and graph edges
+
+Use stable IDs; labels may be edited separately. Treat `GO_TO_PAGE`, `CONTINUE`, and `SUBMIT` as different transitions. Where section transitions seem contradictory or incomplete, confirm against a live form preview before implementing.
+
+
+## Full Trip Planning intake
+Source file: `TWE-Google-Form-Questions.json`
+Original title: **FULL TRIP PLANNING - Client Intake Form**
+
+### Conditional navigation
+
+- `502234433` **Do you currently hold any valid visas?** → “Yes” → `GO_TO_PAGE` → `835635801` (Section C: Visa Details)
+- `502234433` **Do you currently hold any valid visas?** → “No” → `GO_TO_PAGE` → `730377114` (Section D: Travel Experience & Comfort)
+
+### Section and question inventory
+
+#### Initial contact questions
+
+- **Q1** `476632894` (TEXT, required) — Full Name
+- **Q2** `1078451195` (TEXT, required) — Phone Number (WhatsApp preferred)
+- **Q3** `214964047` (TEXT, required) — Email address
+
+#### Section A: Service Selection (`451560975`)
+
+- **Q5** `692505248` (MULTIPLE_CHOICE, required) — Which planning package would you like?
+  - Help text: Full Trip Planning (GHS 2,000) Full destination research and itinerary design Flight research and booking (up to 2 destinations) Hotel research and booking (up to 2 destinations) Activities and experiences researched and booked Transfers and ground transport arranged Budget breakdown and travel fund request One minor revision included, GHS 150 each additional Travel Pack PDF delivered on comple… [see original JSON for full text]
+  - Options: Full Trip Planning — GHS 2,000 | Premium Concierge Planning — GHS 3,000
+
+#### Section B: Travel Details (`664779930`)
+
+- **Q7** `541981576` (TEXT, required) — Destination(s) you are considering
+- **Q8** `2025794352` (TEXT, required) — Proposed travel dates (or flexible timeframe)
+- **Q9** `1087568926` (MULTIPLE_CHOICE, required) — Purpose of Travel
+  - Options: Leisure/Holiday | Visiting family or friends | Business/Conference
+  - Allows Other
+- **Q10** `836507955` (TEXT, required) — How many people are currently planning to travel? (If you are traveling alone, write “1”)
+- **Q11** `502234433` (MULTIPLE_CHOICE, required) — Do you currently hold any valid visas?
+  - Options: Yes | No
+
+#### Section C: Visa Details (`835635801`)
+
+- **Q13** `180737542` (TEXT, required) — Please list the visa(s) you hold and their expiry date(s).  Example: “Schengen – expires 14 Aug 2026; UAE – expires 03 Feb 2027.”
+
+#### Section D: Travel Experience & Comfort (`730377114`)
+
+- **Q15** `539186385` (MULTIPLE_CHOICE, required) — How would you describe your travel experience?
+  - Options: First-time international traveler | Traveled once or twice | Frequent traveler
+- **Q16** `1817301688` (MULTIPLE_CHOICE, required) — Do you feel comfortable traveling alone?
+  - Options: Yes | Somewhat | No, I prefer not to travel alone
+
+#### Section E: Group Travel Preference  (`479112904`)
+
+- **Q18** `981551413` (MULTIPLE_CHOICE, required) — If available, would you be open to traveling as part of a small, curated group of first‑time travelers?
+  - Options: Yes, I would prefer a group | Maybe, I’m open to it | No, I prefer solo travel
+
+#### Section F: Budget (`1522369376`)
+
+- **Q20** `1056249278` (TEXT, required) — Estimated travel budget (excluding  planning fee and visa costs))
+  - Help text: Please note: your planning fee (GHS 2,000 or GHS 3,000) is separate from your travel budget. Your travel budget covers actual flight, hotel and activity costs. Once your itinerary is approved, we will send you a travel fund request for the total cost of your bookings.
+
+#### Section G: Travel Preferences & Style (`86523279`)
+
+- **Subheading:** Accommodation Preferences
+- **Q23** `822834325` (CHECKBOX, required) — What type of accommodation do you prefer?
+  - Options: Budget hotels / guesthouses | Mid‑range hotels (3–4 star) | Luxury hotels (4–5 star) | Boutique hotels | Apartments / Airbnb | I’m open to recommendations
+- **Q24** `1444304495` (CHECKBOX, required) — What matters most to you when choosing accommodation?
+  - Help text: (Checkboxes – select up to 3)
+  - Options: Safety | Location (close to attractions) | Comfort | Cleanliness | Price | Amenities (gym,pool,breakfast,etc.) | Quiet/peaceful environment
+- **Subheading:** Food Preferences 
+- **Q26** `1376109963` (MULTIPLE_CHOICE, required) — How would you describe your food preferences while traveling?
+  - Options: I enjoy trying local food | I prefer familiar food options | A mix of local and familiar food | I’m flexible
+- **Q27** `1811901185` (PARAGRAPH_TEXT, optional) — Do you have any dietary requirements or allergies?
+  - Help text: Examples: Vegetarian Vegan Halal Allergies (nuts, seafood, etc.
+- **Subheading:** Travel Style & Pace
+- **Q29** `130319592` (CHECKBOX, required) — What type of travel experience do you prefer?
+  - Help text: Select all that apply
+  - Options: Relaxing / slow‑paced | Adventurous | Cultural & Historical | Nature & Scenery | City Exploration | Shopping | Nightlife & Entertainment | Wellness/Spa
+- **Q30** `1518570516` (MULTIPLE_CHOICE, required) — How do you prefer your travel pace?
+  - Options: Very relaxed (few activities per day) | Balanced (activities + rest) | Packed schedule (I want to see everything)
+- **Q31** `353526436` (MULTIPLE_CHOICE, required) — How hands-on do you want this trip to be
+  - Options: See the sights — show me the highlights, comfortably paced | A mix of both — some sightseeing, some hands-on experiences | Get stuck in — cooking, crafts, local life, unique experiences
+  - Allows Other
+- **Subheading:** Additional Preferences
+- **Q33** `410814081` (PARAGRAPH_TEXT, optional) — Is there anything you definitely want included in your trip?
+  - Help text: Examples: A specific attraction A special experience A celebration (birthday, honeymoon, anniversary)
+- **Q34** `1379519325` (PARAGRAPH_TEXT, optional) — Is there anything you would prefer to avoid on this trip?
+  - Help text: Examples: Long walking tours Early mornings Crowded places Certain activities
+
+#### Section H: Add-On Services (`109873869`)
+
+- **Q36** `1263904381` (CHECKBOX, optional) — Would you like to add any booking services to your package? (Select all that apply)
+  - Options: Additional destination — GHS 200 per destination (base package covers up to 2 for Full Trip Planning, up to 4 for Premium Concierge) | Restaurant reservation — GHS 100 per reservation | Special Occasion Planning (birthday, anniversary) — from GHS 500
+- **Q37** `1719024406` (MULTIPLE_CHOICE, optional) — Would you like to add WhatsApp in-trip support? (Select one)
+  - Help text: WhatsApp Support is already included if you selected Premium Concierge above.
+  - Options: Basic Support — GHS 200 (responses within a few hours during your trip) | Active Support — GHS 400 (near real-time responses throughout your trip)
+
+#### Section I: Confirmation & Boundaries (`1017955756`)
+
+- **Q39** `1366732008` (CHECKBOX, required) — Please confirm the following by ticking all boxes: (Checkboxes - all required)
+  - Options: I understand that Travel with Ease provides trip planning and booking services — not visa assistance. | I understand that my planning fee covers research, booking coordination and my Travel Pack. Actual travel costs (flights, hotels, activities) are funded separately via a travel fund request. | I understand that a 50% deposit is required before planning begins, and the remaining 50% balance is due before my Travel Pack is delivered. | I understand that Travel with Ease will not proceed with any bookings until my travel fund has been received in full. | I have read and understood the refund and cancellation policy below.
+- **Q40** `858286919` (CHECKBOX, optional) — Refund & Cancellation
+  - Help text: The 50% deposit is non-refundable once planning has commenced, as it covers research, planning time, and expertise. If a client cancels before planning begins, the deposit may be refunded less an administrative fee. The 50% balance is non-refundable once the final Travel Pack has been delivered.
+  - Options: I have read and agree to the terms of the refund & cancellation policy
+
+#### Section J: Final (`901141947`)
+
+- **Q42** `913802249` (TEXT, optional) — How did you hear about Travel with Ease?
+- **Q43** `1288466099` (TEXT, optional) — Were you referred by an existing TWE client? If so, who? (Leave blank if not applicable)
+
+
+## Start Here service router
+Source file: `TWE-Google-Form-Questions-2.json`
+Original title: **Start Here — Plan Your Trip with Ease**
+
+### Conditional navigation
+
+- `1428564940` **What kind of help are you looking for right now?** → “I need general travel advice to get ready (documents, budget, airport flow)” → `GO_TO_PAGE` → `639298880` (You’re a Great Fit for Our Travel Readiness Session)
+- `1428564940` **What kind of help are you looking for right now?** → “I want full trip planning (itinerary, accommodation, activities, bookings)” → `GO_TO_PAGE` → `48437184` (You’re a Great Fit for Full Trip Planning)
+- `1428564940` **What kind of help are you looking for right now?** → “I’m not sure yet — please guide me” → `GO_TO_PAGE` → `2078055476` (Not Sure? I’ll Help You Decide — In One Step)
+- Page-break `48437184` **You’re a Great Fit for Full Trip Planning**: previous section action `SUBMIT`
+- Page-break `2078055476` **Not Sure? I’ll Help You Decide — In One Step**: previous section action `SUBMIT`
+- `1653151808` **What feels most true for you right now?** → “I mainly need expert advice to feel ready and confident” → `GO_TO_PAGE` → `639298880` (You’re a Great Fit for Our Travel Readiness Session)
+- `1653151808` **What feels most true for you right now?** → “I want everything planned for me so I just show up and enjoy” → `GO_TO_PAGE` → `48437184` (You’re a Great Fit for Full Trip Planning)
+
+### Section and question inventory
+
+
+#### Start Here — What Support Do You Need? (`1682611937`)
+
+- **Q2** `1428564940` (MULTIPLE_CHOICE, required) — What kind of help are you looking for right now?
+  - Options: I need general travel advice to get ready (documents, budget, airport flow) | I want full trip planning (itinerary, accommodation, activities, bookings) | I’m not sure yet — please guide me
+- **Q3** `1997323435` (CHECKBOX, optional) — Which of these apply to you? (Optional)
+  - Options: I already have dates or a rough timeline | I know my destination (or have 1–2 in mind) | I’m flexible and open to suggestions | I want to understand expected costs first | This is my first international trip
+
+#### You’re a Great Fit for Our Travel Readiness Session (`639298880`)
+
+
+#### You’re a Great Fit for Full Trip Planning (`48437184`)
+
+
+#### Not Sure? I’ll Help You Decide — In One Step (`2078055476`)
+
+- **Q7** `1653151808` (MULTIPLE_CHOICE, optional) — What feels most true for you right now?
+  - Options: I mainly need expert advice to feel ready and confident | I want everything planned for me so I just show up and enjoy
+
+## Implementation risks and checks
+
+- **Do not use the fee tier as a destination package ID.** The Full Trip Planning and Premium Concierge choices refer to planning services, whereas TWE website travel packages have their own stable catalogue identifiers.
+- **Missing source questionnaires:** No Travel Readiness Session intake questions, no per-destination package form, and no other specialist-service intake supplied.
+- **Source text vs approved commercial terms:** GHS 400 Readiness Session, GHS 2,000 Full Trip Planning, GHS 3,000 Premium Concierge, deposits, add-on fees, timing, refund/cancellation language and booking promises must be checked against currently approved TWE CMS/policies before public release.
+- **Branch analysis:** Confirm actual path via live form preview; the export represents native page navigation but the link targets in explanatory section descriptions may not be present. Verify both Yes/No visa paths and all router paths.
+- **Checkbox constraints:** “Select up to 3” on accommodation priorities is only a help-text statement in the export, not an exported machine-readable validator. The five confirmations marked “all required” are in one checkbox question; `required: true` alone does not require all five. Encode explicit limits and per-declaration consent, subject to client-approved terms.
+- **Sensitive data:** The dietary-requirements/allergies question asks for health-related details. Do not silently add this to a public intake or store it in generic enquiry details; obtain specific approval and implement appropriate minimisation/access/retention safeguards or defer to a private booking-stage process. Visa type/expiry can also be sensitive and should be minimised and access-restricted; never request passport numbers or scans in the public form.
+- **Preserve original wording in source mapping** but distinguish original question content from new UI polish and formal approvals.
+- **Validation:** Handle hidden fields on branching; preserve only applicable answers; enforce server-side validation with matching version; store question IDs, label snapshot, answers and source/version.
+- **Security:** Maintain TWE tenant scope, auth for staff reads, rate limit, Turnstile, no leaked PII in query strings/logs, replay protection and notification safeguards.
+
+## Recommended Codex workflow
+
+1. Copy both original JSON files into `docs/apps/travel-with-ease/questionnaires/` (or provide local absolute paths); keep original content intact.
+2. Parse the items into a documented, versioned, deployable question schema; preserve traceability to source IDs.
+3. Implement general route and service/package prefill using existing catalogue IDs; do not invent unprovided questions.
+4. Keep the full planning workflow functional, mark other service/package-specific question sets as awaiting approval, or limit them to already-approved current intake questions until supplied.
+5. Persist versioned submissions in the existing enquiry infrastructure and display labelled answers in the portal.
+6. Test all verified branches against real form preview and client sign-off before staging/production changes.
+

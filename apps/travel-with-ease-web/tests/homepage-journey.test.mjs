@@ -53,7 +53,8 @@ test("navigation prioritises packages and services, keeping a single planning CT
     assert.ok(position > previous, `Incorrect navigation order: ${path}`);
     previous = position;
   }
-  assert.match(layout, /href="#plan"/);
+  assert.match(layout, /const planningHref = Astro\.props\.planningHref \|\| "#plan"/);
+  assert.match(layout, /href=\{planningHref\}/);
   assert.match(layout, /Plan My Trip/);
 });
 

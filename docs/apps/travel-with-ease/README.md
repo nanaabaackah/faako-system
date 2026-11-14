@@ -1,5 +1,23 @@
 # Travel With Ease documentation
 
+## CI and staging notification operations — 2026-11-14
+
+Monorepo CI and Travel With Ease foundation now expose stable aggregate checks
+for branch rules on `develop` and `main`. Both workflows report on pull requests
+and pushes to either branch; the TWE workflow retains affected-file filtering by
+skipping its expensive foundation job while still reporting its aggregate gate.
+CI remains test-only and has no deployment job.
+
+The dedicated Railway staging notification worker is now active from `develop`.
+See [the worker configuration and evidence](./workspace-refinements-2026-11-08.md#enquiry-email-diagnosis-and-railway-worker)
+and [email acceptance status](./email-test-flow.md). Production remains unchanged.
+
+## Smart enquiry review — 2026-11-13
+
+Use [the Smart Enquiry System handoff](./smart-enquiry-system-2026-11-13.md)
+for the versioned questionnaire architecture, source mapping, privacy deferrals,
+local verification and explicit staging approval gates.
+
 ## Latest implementation — 2026-11-08
 
 Use [workspace preview, source structure, notification worker and staging handover](./workspace-refinements-2026-11-08.md)

@@ -3,22 +3,8 @@ name: Travel With Ease foundation
 on:
   pull_request:
     branches: [develop, main]
-    paths:
-      - 'apps/travel-with-ease-*/**'
-      - 'packages/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'package.json'
-      - '.github/workflows/travel-with-ease-foundation.yml'
   push:
-    branches: [develop]
-    paths:
-      - 'apps/travel-with-ease-*/**'
-      - 'packages/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'package.json'
-      - '.github/workflows/travel-with-ease-foundation.yml'
+    branches: [develop, main]
   workflow_dispatch:
 
 permissions:
@@ -29,10 +15,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-changes:
+    name: Detect TWE changes
+    runs-on: ubuntu-latest
+    outputs:
+      twe: ${{ steps.filter.outputs.twe }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            twe:
+              - 'apps/travel-with-ease-*/**'
+              - 'packages/**'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'package.json'
+              - '.github/workflows/travel-with-ease-foundation.yml'
+
   foundation:
     # Playwright 1.58.2 cannot install Chromium dependencies on Ubuntu 26.04.
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    needs: detect-changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.twe == 'true'
     services:
       postgres:
         image: postgres:17
@@ -116,6 +123,25 @@ jobs:
       - run: pnpm project-registry:check
       - run: pnpm workspace:manifests
       - run: git diff --exit-code -- pnpm-lock.yaml
+
+  required-checks:
+    name: Required TWE checks
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - detect-changes
+      - foundation
+    steps:
+      - name: Require TWE checks when applicable
+        env:
+          DETECT_CHANGES: ${{ needs.detect-changes.result }}
+          FOUNDATION: ${{ needs.foundation.result }}
+        run: |
+          test "$DETECT_CHANGES" = success
+          case "$FOUNDATION" in
+            success|skipped) ;;
+            *) echo "The applicable TWE foundation checks did not pass: $FOUNDATION" >&2; exit 1 ;;
+          esac
 
 # Intentionally no deployment job, hosting secrets or production promotion.
 # Protected staging delivery is a separate Prompt 03 gate, not implied by CI.

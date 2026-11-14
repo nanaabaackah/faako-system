@@ -17,6 +17,11 @@ function publicRecord(row, detailed = false) {
     id: row.id, kind: row.kind, status: row.status,
     demo: row.source === "staging_demo" || row.details?.source === "staging_demo",
     contact: row.contact, created_at: row.created_at,
+    category: row.details?.entryType || (row.kind === "package" ? "package" : "general"),
+    service: row.details?.selectedServiceTitle || null,
+    serviceId: row.details?.selectedServiceId || null,
+    package: row.details?.selectedPackageTitle || null,
+    packageId: row.details?.selectedPackageId || null,
     ...(row.version !== undefined ? { version: Number(row.version) } : {}),
   };
   if (detailed) {
@@ -41,18 +46,26 @@ export function enquiriesRoutes({ pool, organisationId, auth }) {
       const schema = z.object({
         status: statuses.optional(),
         kind: kinds.optional(),
+        category: z.enum(["general", "service", "package", "direct"]).optional(),
+        service: z.string().trim().max(80).optional(),
+        package: z.string().trim().max(160).optional(),
+        search: z.string().trim().max(120).optional(),
         offset: z.coerce.number().int().min(0).max(10000).default(0),
       }).strict();
       const filters = schema.safeParse(req.query);
       if (!filters.success) return error(req, res, 400, "validation_error", "Check the enquiry filters.");
-      const { status, kind, offset } = filters.data;
+      const { status, kind, category, service, package: packageFilter, search, offset } = filters.data;
       const values = [organisationId];
       const conditions = ["organisation_id = $1"];
       if (status) { values.push(status); conditions.push(`status = $${values.length}`); }
       if (kind) { values.push(kind); conditions.push(`kind = $${values.length}`); }
+      if (category) { values.push(category); conditions.push(`details->>'entryType' = $${values.length}`); }
+      if (service) { values.push(service); conditions.push(`details->>'selectedServiceId' = $${values.length}`); }
+      if (packageFilter) { values.push(`%${packageFilter}%`); conditions.push(`(details->>'selectedPackageId' ILIKE $${values.length} OR details->>'selectedPackageTitle' ILIKE $${values.length})`); }
+      if (search) { values.push(`%${search}%`); conditions.push(`(contact->>'name' ILIKE $${values.length} OR id::text ILIKE $${values.length})`); }
       values.push(offset);
       const result = await pool.query(
-        `SELECT id, kind, status, contact, created_at, details->>'source' AS source
+        `SELECT id, kind, status, contact, details, created_at, details->>'source' AS source
           FROM twe.enquiries WHERE ${conditions.join(" AND ")}
           ORDER BY created_at DESC, id DESC LIMIT 26 OFFSET $${values.length}`, values);
       const hasMore = result.rows.length > 25;

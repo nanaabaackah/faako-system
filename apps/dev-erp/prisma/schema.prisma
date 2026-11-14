@@ -146,6 +146,9 @@ model Booking {
   endAt            DateTime
   location         String?
   meetingLink      String?
+  meetingPlatform  String?
+  meetingLinkSentAt DateTime?
+  meetingLinkDeliveryStatus String @default("NOT_SENT")
   calendarEventId  String?
   calendarProvider CalendarProvider?
   status           BookingStatus     @default(CONFIRMED)

@@ -1,0 +1,32 @@
+.enquiry-wizard-page {
+  min-height: 75svh;
+  padding: clamp(7rem, 12vw, 10rem) 7% clamp(4rem, 8vw, 7rem);
+  background: var(--brand-cream);
+  color: var(--brand-navy);
+}
+.enquiry-wizard-page__intro,
+.enquiry-wizard-page__card {
+  width: min(100%, 760px);
+  margin-inline: auto;
+}
+.enquiry-wizard-page__intro { margin-bottom: clamp(2rem, 5vw, 3.5rem); }
+.enquiry-wizard-page__intro h1 {
+  max-width: 14ch;
+  margin-block: 0.5rem 1rem;
+  font: 400 clamp(2.25rem, 6vw, 4.75rem) / 1 Georgia, serif;
+  letter-spacing: -0.045em;
+}
+.enquiry-wizard-page__intro > p:last-child { max-width: 62ch; }
+.enquiry-wizard-page__card {
+  box-sizing: border-box;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  background: #fff;
+  box-shadow: 0 24px 70px rgb(1 12 51 / 10%);
+}
+.enquiry-access-state { display: grid; gap: 1.25rem; }
+.enquiry-access-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.enquiry-access-actions > a { min-height: 44px; display: inline-flex; align-items: center; }
+@media (max-width: 540px) {
+  .enquiry-wizard-page { padding-inline: 5%; }
+  .enquiry-wizard-page__card { padding: 1.25rem; }
+}

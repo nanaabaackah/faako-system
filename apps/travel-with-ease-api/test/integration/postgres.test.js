@@ -20,6 +20,25 @@ import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
 import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
+import { smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
+import { QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds, questions } from "../../src/enquiries/questionnaires/index.js";
+
+function progressiveAnswers(contact) {
+  const answers = { "1428564940": "I want full trip planning (itinerary, accommodation, activities, bookings)" };
+  for (const id of applicableQuestionIds({}, answers)) {
+    const question = questions[id];
+    if (answers[id] !== undefined || (!question.required && !["476632894", "1078451195", "214964047"].includes(id))) continue;
+    if (id === "476632894") answers[id] = contact.name;
+    else if (id === "1078451195") answers[id] = contact.phone;
+    else if (id === "214964047") answers[id] = contact.email;
+    else if (id === "836507955") answers[id] = "2";
+    else if (id === "502234433") answers[id] = "No";
+    else if (question.type === "CHECKBOX") answers[id] = question.options.slice(0, 1);
+    else if (question.type === "MULTIPLE_CHOICE") answers[id] = question.options[0];
+    else answers[id] = "Synthetic answer";
+  }
+  return answers;
+}
 
 test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outbox writes", async (context) => {
   // Fail rather than silently skip: test:db is a required, explicit CI job.
@@ -88,6 +107,54 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       await pool.query("DELETE FROM twe.notification_outbox WHERE enquiry_id = $1", [id]);
       await pool.query("DELETE FROM twe.enquiries WHERE id = $1", [id]);
     }
+  });
+
+  await context.test("progressive questionnaire updates the same tenant enquiry without another outbox item", async () => {
+    const repository = new PostgresLeadRepository(pool, options);
+    const intake = {
+      submissionId: randomUUID(), enquiryType: "trip", service: "not_sure",
+      destination: "Nairobi", travelTimeframe: "Next year", travellers: 2,
+      budget: "", name: "Synthetic Traveller", email: "synthetic@example.invalid",
+      phone: "+233200000000", notes: "Window seat", consent: true, website: "",
+      entryType: "general", sourcePath: "/", context: {},
+    };
+    const created = await repository.createNativeEnquiry(intake);
+    const before = (await pool.query(
+      "SELECT created_at, status FROM twe.enquiries WHERE organisation_id=$1 AND id=$2",
+      [organisationId, created.inquiryId],
+    )).rows[0];
+    assert.equal(await new PostgresLeadRepository(pool, { ...options, organisationId: otherOrg }).continuationContext(created.inquiryId), null);
+    const contact = { name: "Updated Traveller", email: "updated@example.invalid", phone: "+233211111111" };
+    const completion = smartEnquirySchema.parse({
+      submissionId: randomUUID(), turnstileToken: "", questionnaireId: QUESTIONNAIRE_ID,
+      questionnaireVersion: QUESTIONNAIRE_VERSION, entryType: "general",
+      sourcePath: "/plan-your-trip", context: {}, answers: progressiveAnswers(contact),
+      contact, consent: true, website: "",
+    });
+    const results = await Promise.all([
+      repository.completeEnquiryContinuation(created.inquiryId, completion),
+      repository.completeEnquiryContinuation(created.inquiryId, completion),
+    ]);
+    assert.equal(results.filter((result) => result.replayed).length, 1);
+    const after = (await pool.query(
+      "SELECT contact, details, created_at, status FROM twe.enquiries WHERE organisation_id=$1 AND id=$2",
+      [organisationId, created.inquiryId],
+    )).rows[0];
+    assert.equal(after.created_at.toISOString(), before.created_at.toISOString());
+    assert.equal(after.status, before.status);
+    assert.equal(after.contact.email, contact.email);
+    assert.equal(after.details.submissionId, intake.submissionId);
+    assert.equal(after.details.questionnaireVersion, QUESTIONNAIRE_VERSION);
+    assert.equal((await pool.query(
+      "SELECT count(*)::int AS n FROM twe.notification_outbox WHERE organisation_id=$1 AND enquiry_id=$2",
+      [organisationId, created.inquiryId],
+    )).rows[0].n, 1);
+    assert.equal(await repository.continuationContext(created.inquiryId), null);
+    await assert.rejects(repository.completeEnquiryContinuation(created.inquiryId, {
+      ...completion, submissionId: randomUUID(),
+    }), (error) => error.code === "enquiry_continuation_conflict");
+    await pool.query("DELETE FROM twe.notification_outbox WHERE enquiry_id=$1", [created.inquiryId]);
+    await pool.query("DELETE FROM twe.enquiries WHERE id=$1", [created.inquiryId]);
   });
 
   await context.test("activation is identity-bound, atomic, single-use and audited; tutorials survive service recreation", async () => {
@@ -632,7 +699,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   const outbox = new NotificationOutbox(pool, organisationId);
   const payload = { from: "test@example.invalid", to: ["sink@example.invalid"], subject: "Synthetic", text: "Test" };
   let built = 0;
-  const buildPayload = contact => { assert.equal(typeof contact.email, "string"); built++; return payload; };
+  const buildPayload = enquiry => { assert.equal(typeof enquiry.contact.email, "string"); assert.ok(enquiry.id); built++; return payload; };
   const claims = await Promise.all([outbox.claim(buildPayload), outbox.claim(buildPayload)]);
   assert.equal(claims.filter(Boolean).length, 1, "Concurrent workers cannot own the same job");
   assert.equal(built, 1, "Only the claimed tenant enquiry creates a payload");

@@ -1240,10 +1240,42 @@ const Dashboard = () => {
     : "";
 
   return (
-    <section className="page dashboard">
+    <section className="page dashboard dashboard-modernized">
+      <div className="dashboard-overview-header">
+        <div>
+          <p className="eyebrow">Faako / DEV ERP</p>
+          <h1>Operations overview</h1>
+          <p className="muted">Projects, finances, appointments and application health in one workspace.</p>
+        </div>
+        <Link className="button button-primary" to="/reports">View reports <FiArrowRight aria-hidden="true" /></Link>
+      </div>
+      <div className="dashboard-overview-metrics">
+        {canUseAccounting && accountingSummary ? (
+          <>
+            <Link to="/accounting" className="dashboard-overview-metric">
+              <span>Revenue collected</span><strong>{formatGhsAmount(accountingSummary.paidRevenueGhs)}</strong>
+              <small>{accountingSummary.counts.paidRevenue} paid entries</small>
+            </Link>
+            <Link to="/accounting" className="dashboard-overview-metric">
+              <span>Open receivables</span><strong>{formatGhsAmount(accountingSummary.pendingReceivablesGhs)}</strong>
+              <small>{accountingSummary.counts.pendingReceivables} awaiting payment</small>
+            </Link>
+          </>
+        ) : null}
+        {kpiData && (
+          <div className="dashboard-overview-metric">
+            <span>Active organizations</span><strong>{kpiData.totalOrganizations ?? "—"}</strong>
+            <small>In your monitored scope</small>
+          </div>
+        )}
+        <Link to="/system-health" className="dashboard-overview-metric">
+          <span>Monitored sites online</span><strong>{totalSites ? `${siteHealthPercent}%` : "—"}</strong>
+          <small>{onlineSites} of {totalSites} configured sites</small>
+        </Link>
+      </div>
       <div className="dashboard-hero availability-hero">
         <div className="dashboard-hero__intro">
-          <h1 className="heading">Welcome Baaba</h1>
+          <h2 className="heading">Daily brief</h2>
           <p className="muted">
             {todayLabel} | Last synced {lastSyncedLabel}
           </p>

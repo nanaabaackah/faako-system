@@ -34,14 +34,18 @@ export class NotificationOutbox {
       const job = rows[0];
       if (job && !job.delivery_payload && typeof payload === "function") {
         const enquiry = await client.query(
-          `SELECT contact FROM twe.enquiries
+          `SELECT id, contact, created_at FROM twe.enquiries
           WHERE organisation_id = $1 AND id = $2`,
           [this.organisationId, job.enquiry_id],
         );
         if (!enquiry.rows[0])
           throw new Error("notification_enquiry_unavailable");
         try {
-          job.delivery_payload = payload(enquiry.rows[0].contact);
+          job.delivery_payload = payload({
+            id: enquiry.rows[0].id,
+            contact: enquiry.rows[0].contact,
+            createdAt: enquiry.rows[0].created_at,
+          });
         } catch {
           // A malformed legacy contact must not roll back the lease forever and
           // starve later jobs. Retain the enquiry; flag this delivery for review.

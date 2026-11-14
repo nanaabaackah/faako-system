@@ -7,7 +7,7 @@ on:
   pull_request:
     branches: [main, develop]
   push:
-    branches: [develop]
+    branches: [main, develop]
 
 permissions:
   contents: read
@@ -255,3 +255,41 @@ jobs:
 
       - name: Run non-production Dev ERP E2E suite
         run: pnpm --filter @faako/dev-erp run test:e2e
+
+  required-checks:
+    name: Required monorepo checks
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - repository-hygiene
+      - detect-changes
+      - javascript-quality
+      - python-tests
+      - public-browser-smoke
+      - reebs-water-browser
+      - dev-erp-browser
+    steps:
+      - name: Require every applicable quality gate
+        env:
+          REPOSITORY_HYGIENE: ${{ needs.repository-hygiene.result }}
+          DETECT_CHANGES: ${{ needs.detect-changes.result }}
+          JAVASCRIPT_QUALITY: ${{ needs.javascript-quality.result }}
+          PYTHON_TESTS: ${{ needs.python-tests.result }}
+          PUBLIC_BROWSER_SMOKE: ${{ needs.public-browser-smoke.result }}
+          REEBS_WATER_BROWSER: ${{ needs.reebs-water-browser.result }}
+          DEV_ERP_BROWSER: ${{ needs.dev-erp-browser.result }}
+        run: |
+          for result in \
+            "$REPOSITORY_HYGIENE" \
+            "$DETECT_CHANGES" \
+            "$JAVASCRIPT_QUALITY" \
+            "$PYTHON_TESTS" \
+            "$PUBLIC_BROWSER_SMOKE" \
+            "$REEBS_WATER_BROWSER" \
+            "$DEV_ERP_BROWSER"
+          do
+            case "$result" in
+              success|skipped) ;;
+              *) echo "A required monorepo job did not pass: $result" >&2; exit 1 ;;
+            esac
+          done

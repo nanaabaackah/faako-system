@@ -3,6 +3,7 @@ import ContentLink from "./ContentLink.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
+import TravellerReviews from "./TravellerReviews.astro";
 import TravelTips from "./TravelTips.astro";
 import CinematicHero from "./CinematicHero.astro";
 import HomeServices from "./HomeServices.astro";
@@ -74,5 +75,6 @@ const footprint = publishedPage("travel-footprint");
 </section>
 {tips?.tips?.length > 0 && <TravelTips tips={tips.tips} />}
 <!-- Packages and Journal retain their dedicated listing and detail pages. -->
-<!-- The supplied mockup CTA and continuous enquiry/footer are unchanged. -->
+<!-- The CTA and continuous enquiry/footer keep their existing appearance. -->
 <ClosingCta enquiryAvailable={Boolean(contact)} />
+<TravellerReviews />
