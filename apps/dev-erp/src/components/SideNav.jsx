@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { apiGet } from "../api/client";
 import { ErpStatusBadge, SidebarEdgeToggle } from "@faako/ui";
 import { NavLink } from "react-router-dom";
 import {
   FiLogOut,
+  FiChevronDown,
+  FiExternalLink,
   FiSearch,
   FiUser,
   FiX,
@@ -42,6 +45,43 @@ const SideNav = ({
     return window.matchMedia(MOBILE_QUERY).matches;
   });
   const [navQuery, setNavQuery] = useState("");
+  const [publishedApps, setPublishedApps] = useState([]);
+  const [publishedAppsLoading, setPublishedAppsLoading] = useState(false);
+  const [healthMenuExpanded, setHealthMenuExpanded] = useState(true);
+  const canSeeHealth = visibleNavItems.some((item) => item.key === "system-health");
+
+  useEffect(() => {
+    if (!canSeeHealth) {
+      setPublishedApps([]);
+      return undefined;
+    }
+    let active = true;
+    setPublishedAppsLoading(true);
+    apiGet("/api/dashboard", { fallbackMessage: "Unable to load published apps" })
+      .then((payload) => {
+        if (!active) return;
+        const sites = Array.isArray(payload?.siteStatus?.sites) ? payload.siteStatus.sites : [];
+        const allowedCategories = new Set(["portal", "erp", "marketing", "commerce", "client", "portfolio"]);
+        const filtered = sites.filter((site) => {
+          if (!allowedCategories.has(String(site.category || "").toLowerCase())) return false;
+          if (!Array.isArray(site.pages) || !site.pages.some((p) => p.status !== "not_configured")) return false;
+          try {
+            return new URL(site.baseUrl).protocol === "https:";
+          } catch {
+            return false;
+          }
+        }).map((site) => ({
+          id: String(site.id || site.title),
+          name: String(site.title || site.name || "Published application"),
+          url: new URL(site.baseUrl).origin,
+        }));
+        setPublishedApps(filtered);
+      })
+      .catch(() => { if (active) setPublishedApps([]); })
+      .finally(() => { if (active) setPublishedAppsLoading(false); });
+    return () => { active = false; };
+  }, [canSeeHealth]);
+
   const isDesktopCollapsed = isCollapsed && !isMobile;
 
   const displayName =
@@ -155,7 +195,7 @@ const SideNav = ({
               </span>
               <div className="erp-sidebar__brand-copy">
                 <span className="erp-sidebar__brand-kicker">{roleLabel}</span>
-                <span className="erp-sidebar__brand-title">Dev control</span>
+                <span className="erp-sidebar__brand-title">DEV ERP</span>
               </div>
             </div>
             <button
@@ -193,8 +233,8 @@ const SideNav = ({
                   : item.label;
 
                 return (
-                  <NavLink
-                    key={item.to}
+                  <Fragment key={item.to}>
+                    <NavLink
                     to={item.to}
                     end={item.to === "/dashboard"}
                     className={({ isActive }) =>
@@ -240,6 +280,34 @@ const SideNav = ({
                       </span>
                     ) : null}
                   </NavLink>
+                  {item.key === "system-health" && !isDesktopCollapsed && (
+                    <div className="erp-nav-apps">
+                      <button type="button" className="erp-nav-apps__toggle"
+                        aria-expanded={healthMenuExpanded} aria-controls="erp-published-apps"
+                        onClick={() => setHealthMenuExpanded((value) => !value)}>
+                        <span>Published apps</span>
+                        <FiChevronDown className={healthMenuExpanded ? "is-open" : ""} aria-hidden="true" />
+                      </button>
+                      {healthMenuExpanded && (
+                        <div id="erp-published-apps" className="erp-nav-apps__list">
+                          {publishedApps.map((app) => (
+                            <a key={app.id} href={app.url} target="_blank" rel="noopener noreferrer"
+                              title={`Open ${app.name} in a new tab`}>
+                              <span className="erp-nav-apps__dot" aria-hidden="true" />
+                              <span className="erp-nav-apps__name">{app.name}</span>
+                              <FiExternalLink aria-hidden="true" />
+                            </a>
+                          ))}
+                          {!publishedApps.length && (
+                            <p className="erp-nav-apps__empty">
+                              {publishedAppsLoading ? "Loading published apps…" : "No verified app links available."}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  </Fragment>
                 );
               })
             ) : (
