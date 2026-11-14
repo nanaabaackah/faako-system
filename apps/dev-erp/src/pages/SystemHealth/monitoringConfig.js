@@ -40,36 +40,6 @@ export const normalizeHealthStatus = (status) => {
   return "unknown";
 };
 
-const hashString = (value) => Array.from(String(value)).reduce(
-  (total, character) => ((total * 31) + character.charCodeAt(0)) % 10007,
-  17
-);
-
-export const buildHealthTimeline = ({ id, status, latencyMs, range = "day" }) => {
-  const rangeDefinition = TIMELINE_RANGES.find((item) => item.value === range) || TIMELINE_RANGES[1];
-  const seed = hashString(`${id}-${range}`);
-  const currentStatus = normalizeHealthStatus(status);
-  const now = Date.now();
-  const intervalMinutes = { hour: 1, day: 5, week: 30, month: 120 }[rangeDefinition.value];
-  return Array.from({ length: rangeDefinition.blocks }, (_, index) => {
-    const distanceFromNow = rangeDefinition.blocks - index - 1;
-    const pattern = (seed + index * 19) % 97;
-    let blockStatus = pattern < 2 ? "unknown" : "healthy";
-    if (currentStatus === "degraded" && (index > rangeDefinition.blocks - 7 || pattern < 12)) blockStatus = "degraded";
-    if (currentStatus === "down" && index > rangeDefinition.blocks - 5) blockStatus = "down";
-    if (currentStatus === "unknown" && index > rangeDefinition.blocks - 4) blockStatus = "unknown";
-    const latencyVariance = ((seed + index * 23) % 61) - 30;
-    return {
-      id: `${id}-${range}-${index}`,
-      status: blockStatus,
-      timestamp: new Date(now - distanceFromNow * intervalMinutes * 60 * 1000).toISOString(),
-      latencyMs: Number.isFinite(latencyMs) ? Math.max(8, latencyMs + latencyVariance) : null,
-      httpStatus: blockStatus === "down" ? 503 : blockStatus === "unknown" ? null : 200,
-      duration: `${intervalMinutes} min`,
-    };
-  });
-};
-
 const STATUS_PRIORITY = { unknown: 0, healthy: 1, degraded: 2, down: 3, checking: 0 };
 
 const sampleTimeline = (timeline, targetCount, interval) => {
