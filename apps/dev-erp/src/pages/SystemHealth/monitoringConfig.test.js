@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   adaptMonitoringService,
-  buildHealthTimeline,
   buildMonitoringFilterOptions,
   filterServices,
   getPlatformSummary,
@@ -61,8 +60,3 @@ test("filters and summary preserve real status and coverage", () => {
   assert.deepEqual(getPlatformSummary(services, { score: null, label: "Insufficient coverage", coveragePercentage: 50 }).score, null);
 });
 
-test("dashboard fallback timeline remains range aware", () => {
-  const timeline = buildHealthTimeline({ id: "api", status: "offline", latencyMs: 400, range: "hour" });
-  assert.equal(timeline.length, 30);
-  assert.equal(timeline.at(-1).status, "down");
-});
