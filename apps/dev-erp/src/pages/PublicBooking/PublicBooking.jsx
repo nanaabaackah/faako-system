@@ -108,6 +108,7 @@ const PublicBooking = () => {
     date: "",
     time: "",
     duration: "60",
+    meetingPlatform: "GOOGLE_MEET",
     notes: "",
     company: "",
   });
@@ -305,6 +306,7 @@ const PublicBooking = () => {
           startAt: startDate.toISOString(),
           endAt: endDate.toISOString(),
           durationMinutes,
+          meetingPlatform: form.meetingPlatform,
           company: form.company,
         }),
       });
@@ -315,7 +317,7 @@ const PublicBooking = () => {
       setConfirmation(payload);
       setStatus({
         tone: "success",
-        message: "Appointment confirmed. Check your email for updates.",
+        message: "Appointment confirmed. A joining link will be shared when it is ready.",
       });
       if (availabilityRange) {
         try {
@@ -341,6 +343,7 @@ const PublicBooking = () => {
         date: "",
         time: "",
         duration: "60",
+        meetingPlatform: "GOOGLE_MEET",
         notes: "",
         company: "",
       });
@@ -387,11 +390,12 @@ const PublicBooking = () => {
 
       {confirmation ? (
         <div className="panel public-booking__confirmation">
-          <h3>You're booked</h3>
+          <h3>Appointment confirmed</h3>
           <p className="muted">
             {confirmation.title || "Appointment"} · {formatDateTime(confirmation.startAt)}
           </p>
-          <p className="muted">Location: {safeMeetingLink || locationLabel}</p>
+          <p className="muted">Preferred platform: {confirmation.meetingPlatform || "To be confirmed"}</p>
+          <p className="muted">{safeMeetingLink ? "Meeting link ready." : "Joining details will be shared once available."}</p>
           {safeMeetingLink ? (
             <a className="button button-primary" href={safeMeetingLink} target="_blank" rel="noreferrer">
               Join meeting
@@ -663,6 +667,18 @@ const PublicBooking = () => {
                 ))}
             </SelectField>
 
+            <SelectField
+              fieldClassName="form-field"
+              label="Preferred meeting platform"
+              value={form.meetingPlatform}
+              onChange={handleChange("meetingPlatform")}
+              required
+            >
+              <option value="GOOGLE_MEET">Google Meet</option>
+              <option value="ZOOM">Zoom</option>
+              <option value="WHATSAPP">WhatsApp call</option>
+              <option value="FACETIME">FaceTime</option>
+            </SelectField>
             <label className="form-field">
               <span>Notes (optional)</span>
               <textarea
@@ -685,7 +701,7 @@ const PublicBooking = () => {
               <span className="muted">Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
             </div>
             <p className="muted">
-              Location: {locationLabel}. We’ll email you if anything changes.
+              Appointments are managed in Faako DEV ERP. Meeting links are shared once prepared.
             </p>
           </form>
         )}
