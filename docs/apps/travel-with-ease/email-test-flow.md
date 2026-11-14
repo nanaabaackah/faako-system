@@ -7,7 +7,11 @@ shutdown; `notifications:once` remains one-job diagnostics and
 `notifications:status` reports redacted queue/configuration state.
 The API alone still does not deliver queued mail. Follow the
 [dedicated staging worker settings and acceptance checklist](./workspace-refinements-2026-11-08.md#enquiry-email-diagnosis-and-railway-worker).
-Actual provisioning, Resend acceptance and testing-mailbox receipt remain pending.
+The dedicated staging worker was provisioned on 2026-11-14. It reported ready
+and moved the four existing acknowledgements to sent with four provider IDs and
+no failed or processing jobs. Provider acceptance is recorded; receipt in the
+testing mailbox (including spam) remains a user acceptance check. Production
+delivery remains unchanged and was not exercised.
 
 ## Routing (supersedes the earlier To/CC instructions)
 
