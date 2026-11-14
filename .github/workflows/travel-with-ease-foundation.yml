@@ -16,23 +16,28 @@ concurrency:
 
 jobs:
   detect-changes:
-    name: Detect TWE changes
+    name: Detect TWE dependency impact
     runs-on: ubuntu-latest
     outputs:
-      twe: ${{ steps.filter.outputs.twe }}
+      twe: ${{ steps.impact.outputs.twe }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
         with:
-          filters: |
-            twe:
-              - 'apps/travel-with-ease-*/**'
-              - 'packages/**'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'package.json'
-              - '.github/workflows/travel-with-ease-foundation.yml'
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Determine whether TWE or a shared dependency changed
+        id: impact
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "twe=true" >> "$GITHUB_OUTPUT"
+          else
+            node scripts/ci/affected-surfaces.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --output "$GITHUB_OUTPUT"
+          fi
 
   foundation:
     # Playwright 1.58.2 cannot install Chromium dependencies on Ubuntu 26.04.

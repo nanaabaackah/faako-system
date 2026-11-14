@@ -172,7 +172,7 @@ test("template HTTP preview requires owner permission, CSRF and strict input; ne
   assert.equal(invitation.status, 200);
   assert.match(
     (await invitation.json()).data.html,
-    /This email does not grant workspace access/,
+    /This email alone does not grant workspace access/,
   );
   assert.equal(
     (await post("/staff-invitation/preview", defaultInvitationCopy, false))

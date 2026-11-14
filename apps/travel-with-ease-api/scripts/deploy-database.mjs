@@ -20,7 +20,7 @@ try {
   phase = "runtime_readiness";
   await verifyHostedDatabase(runtimePool, options);
   // Prove the runtime can read operational tables without changing any data.
-  for (const table of ["staff_users", "staff_sessions", "enquiries", "content_items", "notification_outbox", "audit_records"]) {
+  for (const table of ["staff_users", "staff_sessions", "enquiries", "content_items", "notification_outbox", "staff_invitation_deliveries", "audit_records"]) {
     await runtimePool.query(`SELECT 1 FROM twe.${table} LIMIT 0`);
   }
   logger.info({ eventName: "migration.runtime_verified" }, "Database pre-deployment completed");

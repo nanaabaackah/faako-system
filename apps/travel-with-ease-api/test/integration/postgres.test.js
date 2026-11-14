@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { createDatabase, transaction, verifyDatabaseIdentity } from "../../src/db/database.js";
 import { migrate, readMigrations } from "../../src/db/migrations.js";
 import { PostgresLeadRepository } from "../../src/db/repository.js";
@@ -18,6 +18,8 @@ import { Administration } from "../../src/auth/administration.js";
 import { readActivity } from "../../src/auth/activity.js";
 import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
+import { invitationEmailCode, readInvitationDeliveryConfig } from "../../src/onboarding/invitation-email.js";
+import { InvitationDeliveryOutbox } from "../../src/notifications/invitations.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
 import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
 import { smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
@@ -197,6 +199,56 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       const invited = await runtimeInvitations.issue({ actor, subject: "runtime-editor", approvalReference: "TEST-RUNTIME", requestId: "test-runtime" });
       assert.equal((await runtimeInvitations.preview(identity("runtime-editor"), invited.code)).role, "editor");
       await runtimeInvitations.claim(identity("runtime-editor"), invited.code, "test-runtime-claim");
+
+      // Invitation-email delivery is a separate durable queue; prove migration
+      // grants and worker claim/lease/failure/retry using the actual runtime role.
+      const deliveryConfig = readInvitationDeliveryConfig({
+        TWE_INVITATION_DELIVERY_ENABLED: "true",
+        TWE_INVITATION_DELIVERY_SECRET: randomBytes(32).toString("base64url"),
+      });
+      const emailService = new Invitations(runtimePool, otherOrg, settings, "test", "", deliveryConfig);
+      const emailInput = (subject) => ({
+        actor, subject, role: "editor", sendEmail: true,
+        recipientEmail: "synthetic-staff@example.invalid",
+        approvalReference: "TEST-EMAIL", requestId: "test-email-delivery",
+      });
+      const emailed = await emailService.issue(emailInput("runtime-emailed-editor"));
+      assert.equal(emailed.code, undefined);
+      assert.equal(emailed.delivery, "queued");
+      const { rows: [pending] } = await query(
+        "SELECT status,recipient_email,template_snapshot FROM twe.staff_invitation_deliveries WHERE invitation_id=$1",
+        [emailed.id],
+      );
+      assert.equal(pending.status, "pending");
+      assert.equal(pending.recipient_email, "synthetic-staff@example.invalid");
+      assert.equal(pending.template_snapshot, null);
+      const code = invitationEmailCode(deliveryConfig, {
+        id: emailed.id, organisationId: otherOrg, environment: "test",
+        subject: "runtime-emailed-editor",
+      });
+      const { rows: [stored] } = await query("SELECT token_hash FROM twe.staff_invitations WHERE id=$1", [emailed.id]);
+      assert.equal(stored.token_hash, createHash("sha256").update(code).digest("hex"));
+      const emailOutbox = new InvitationDeliveryOutbox(runtimePool, otherOrg, "test");
+      const firstDelivery = await emailOutbox.claim(defaultInvitationCopy);
+      assert.equal(firstDelivery.invitation_id, emailed.id);
+      assert.equal(firstDelivery.subject, "runtime-emailed-editor");
+      assert.deepEqual(firstDelivery.template_snapshot, defaultInvitationCopy);
+      assert.equal(await emailOutbox.isStillValid(firstDelivery), true);
+      await emailOutbox.fail(firstDelivery, "provider_rejected");
+      await query("UPDATE twe.staff_invitation_deliveries SET available_at=now()-interval '1 second' WHERE invitation_id=$1", [emailed.id]);
+      const retry = await emailOutbox.claim({ ...defaultInvitationCopy, heading: "Changed after first attempt" });
+      assert.equal(retry.invitation_id, emailed.id);
+      assert.deepEqual(retry.template_snapshot, defaultInvitationCopy, "retry retains original approved email copy");
+      assert.equal(await emailOutbox.finish(retry, "synthetic-provider-id"), true);
+      await emailService.revoke({ actor, id: emailed.id, requestId: "test-email-revoke" });
+      await assert.rejects(emailService.claim(identity("runtime-emailed-editor"), code, "test-email-revoked"));
+      const cancelled = await emailService.issue(emailInput("runtime-email-revoked-before-delivery"));
+      await emailService.revoke({ actor, id: cancelled.id, requestId: "test-email-cancel" });
+      assert.equal(await emailOutbox.claim(defaultInvitationCopy), undefined);
+      const { rows: [cancelState] } = await query(
+        "SELECT status FROM twe.staff_invitation_deliveries WHERE invitation_id=$1", [cancelled.id],
+      );
+      assert.equal(cancelState.status, "cancelled");
       const { rows: [editor] } = await query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND subject='runtime-editor'", [otherOrg]);
       runtimeEditor = { ...editor, organisationId: otherOrg };
       const editorTours = await new TutorialService(runtimePool, otherOrg).run(runtimeEditor);
@@ -353,6 +405,65 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       for (const client of clients) {
         try { await client.query("RESET ROLE"); } finally { client.release(); }
       }
+    }
+  });
+
+  await context.test("Issue 03: persisted sessions retain fixed expiry, tenant isolation and authoritative revocation", async () => {
+    const scope = randomUUID();
+    const staffId = randomUUID();
+    const identity = {
+      issuer: "https://sessions.cloudflareaccess.com", audience: "e".repeat(64),
+      subject: "synthetic-session-staff", assertionHash: randomBytes(32).toString("hex"),
+      expiresAt: new Date(Date.now() + 120_000),
+    };
+    await pool.query("INSERT INTO twe.organisations(id,name) VALUES($1,'Synthetic session lifecycle')", [scope]);
+    await pool.query(
+      "INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,access_audience,role) VALUES($1,$2,$3,$4,$5,'editor')",
+      [staffId, scope, identity.issuer, identity.subject, identity.audience],
+    );
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      assert.equal((await client.query("SELECT current_user")).rows[0].current_user, "twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtime = { query, connect: async () => ({ query, release() {} }) };
+      const store = () => new PostgresAuthStore(runtime, scope);
+      const tokenHash = randomBytes(32).toString("hex");
+      const replayHash = randomBytes(32).toString("hex");
+      const freshHash = randomBytes(32).toString("hex");
+      await store().createSession(identity, tokenHash, "9".repeat(64), "issue03-login");
+      const before = await store().getSession(tokenHash);
+      assert.equal(before.id, staffId);
+      assert.equal(before.expires_at.getTime(), identity.expiresAt.getTime());
+      assert.equal(before.access_assertion_hash, identity.assertionHash);
+      assert.deepEqual(await store().getSession(tokenHash), before, "A new store instance retains the database session");
+      assert.equal(await new PostgresAuthStore(runtime, otherOrg).getSession(tokenHash), undefined);
+      await assert.rejects(store().createSession(identity, replayHash, "9".repeat(64), "issue03-replay"), { code: "23505" });
+      await query("UPDATE twe.staff_users SET role='owner' WHERE id=$1", [staffId]);
+      assert.equal((await store().getSession(tokenHash)).role, "owner", "Permissions come from current staff data");
+      await query("UPDATE twe.staff_users SET active=false WHERE id=$1", [staffId]);
+      assert.equal(await store().getSession(tokenHash), undefined);
+      await query("UPDATE twe.staff_users SET active=true WHERE id=$1", [staffId]);
+      // Keep the real expires_at > created_at constraint during fault injection.
+      await query("UPDATE twe.staff_sessions SET created_at=now()-interval '2 seconds',expires_at=now()-interval '1 second' WHERE token_hash=$1", [tokenHash]);
+      assert.equal(await store().getSession(tokenHash), undefined);
+      await query("UPDATE twe.staff_sessions SET expires_at=$1 WHERE token_hash=$2", [before.expires_at, tokenHash]);
+      await store().revoke(tokenHash, "issue03-logout");
+      assert.equal(await store().getSession(tokenHash), undefined);
+      await assert.rejects(store().createSession(identity, replayHash, "9".repeat(64), "issue03-replay-revoked"), { code: "23505" });
+
+      const later = { ...identity, assertionHash: randomBytes(32).toString("hex"), expiresAt: new Date(Date.now() + 7_200_000) };
+      await store().createSession(later, freshHash, "9".repeat(64), "issue03-fresh-login");
+      const bounded = await store().getSession(freshHash);
+      assert.ok(bounded.expires_at.getTime() <= Date.now() + 3_600_000, "New login remains capped at one hour");
+      assert.ok(bounded.expires_at.getTime() > Date.now() + 3_500_000);
+      await store().revokeAll(staffId, "issue03-logout-all");
+      assert.equal(await store().getSession(freshHash), undefined);
+      assert.equal((await query(
+        "SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='auth.login'", [scope],
+      )).rows[0].n, 2, "Failed replay creates neither a new session nor a login audit");
+    } finally {
+      try { await client.query("RESET ROLE"); } finally { client.release(); }
     }
   });
 

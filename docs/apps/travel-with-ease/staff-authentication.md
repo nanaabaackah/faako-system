@@ -18,8 +18,9 @@ configuration, authentication-provider selection task or release gate**.
   the same-origin proxy with a fixed server-only upstream.
 - Verify the signed Access assertion on each private API request, together with
   an active, short-lived, hashed, revocable PostgreSQL session and CSRF/Origin
-  checks. Identity comes from verified issuer/subject/audience, never email
-  headers; only approved staff provisioning grants a role.
+  checks. Identity comes from freshly verified issuer/subject/audience, never
+  email headers; a renewed JWT for that same identity does not rotate or extend
+  the local session. Only approved staff provisioning grants a role.
 - Use application permissions for `platform_admin`, `owner` and `editor`;
   the platform role does not imply business content/enquiry privileges. Exercise
   revocation, inactive user, tenant isolation and Owner-approved expiring

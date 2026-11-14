@@ -1,5 +1,5 @@
 .structured-proposal-page { display: grid; gap: 1.25rem; max-width: 1500px; margin: 0 auto; }
-.structured-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: 1.5rem; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface)), var(--surface)); }
+.structured-page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: 1.5rem; background: color-mix(in oklab, var(--card), var(--surface) 10%); box-shadow: var(--card-shadow); }
 .structured-page-header h1, .interactive-proposal-hero h1 { margin: .2rem 0 .45rem; }
 .structured-page-header p, .interactive-proposal-hero p { margin: 0; color: var(--muted); }
 .structured-page-header > div:last-child { display: flex; gap: .65rem; flex-wrap: wrap; }
@@ -8,7 +8,7 @@
 .structured-stepper button span { display: inline-grid; place-items: center; width: 1.55rem; height: 1.55rem; margin-right: .35rem; border-radius: 50%; background: var(--surface-2); }
 .structured-stepper button.is-active { border-color: var(--accent); color: var(--text); font-weight: 700; }
 .structured-builder-layout { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 1rem; align-items: start; }
-.structured-builder-panel, .structured-pricing, .structured-proposal-table, .interactive-proposal-content > section, .interactive-quote { border: 1px solid var(--border); border-radius: 1.25rem; background: var(--surface); box-shadow: var(--shadow-sm); }
+.structured-builder-panel, .structured-pricing, .structured-proposal-table, .interactive-proposal-content > section, .interactive-quote { border: 1px solid var(--border); border-radius: var(--radius); background: color-mix(in oklab, var(--card), var(--surface) 10%); box-shadow: var(--card-shadow); }
 .structured-builder-panel { padding: 1.1rem; min-width: 0; }
 .structured-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
 .structured-form-grid textarea { min-height: 7rem; resize: vertical; }

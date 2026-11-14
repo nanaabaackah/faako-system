@@ -23,7 +23,7 @@ export const defaultInvitationCopy = Object.freeze({
   subject: "You’re invited to the Travel With Ease workspace",
   heading: "Join your Travel With Ease team",
   message:
-    "Your workspace owner has invited you to join Travel With Ease. Contact the person who invited you for your activation code and instructions.",
+    "Your workspace owner has invited you to join the Travel With Ease team. Sign in with your approved Cloudflare Access account to activate your workspace access.",
   ctaLabel: "Open staff workspace",
 });
 
@@ -54,14 +54,26 @@ export function enquiryTemplate({
   });
 }
 
-export function invitationTemplate({ copy = defaultInvitationCopy } = {}) {
+export function invitationTemplate({
+  copy = defaultInvitationCopy,
+  code = "",
+  role = "",
+  expiresAt = "",
+  portalOrigin = "https://portal.travelwitheasegh.com",
+} = {}) {
+  const automatic = typeof code === "string" && /^[A-Za-z0-9_-]{43}$/.test(code) &&
+    ["owner", "editor"].includes(role) && Number.isFinite(Date.parse(expiresAt));
+  if (code && !automatic) throw new Error("Invalid invitation delivery parameters.");
+  const activation = automatic
+    ? `Your invitation role: ${role}.\nYour one-time activation code: ${code}\nInvitation expires: ${new Date(expiresAt).toISOString()}.\n\nThis code is usable only with the separately verified Cloudflare Access identity selected by your administrator.`
+    : "Your workspace owner will share the one-time activation code separately through an approved private channel.";
   return brandedEmail({
     heading: copy.heading,
     greeting: "Hello,",
-    message: `${copy.message}\n\nUse your invited account to sign in through Cloudflare Access and complete the required verification. Your owner shares the activation code separately. This email does not grant workspace access. Never share your password or verification codes.`,
+    message: `${automatic ? copy.message.replace("Contact the person who invited you for your activation code and instructions.", "Your activation code and instructions are included below.") : copy.message}\n\n${activation}\n\nSign in through Cloudflare Access, complete the required verification, then enter your invitation code. This email alone does not grant workspace access. Never share your password or MFA verification codes.`, 
     copy,
     subject: copy.subject,
-    ctaUrl: "https://portal.travelwitheasegh.com/",
+    ctaUrl: `${portalOrigin}/`,
   });
 }
 

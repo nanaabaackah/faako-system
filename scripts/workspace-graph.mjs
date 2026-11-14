@@ -236,7 +236,7 @@ export const getChangedFiles = ({
 
   const diffOutput = execFileSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACMR", baseRef, headRef],
+    ["diff", "--name-only", "--diff-filter=ACMRD", baseRef, headRef],
     {
       cwd: rootDir,
       encoding: "utf8",
