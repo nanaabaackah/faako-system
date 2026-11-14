@@ -160,7 +160,7 @@ try {
     await form.getByRole("button", { name: "Send enquiry", exact: true }).click();
     await form.getByRole("status").filter({ hasText: "Your enquiry is received" }).waitFor();
     assert.equal(submissions, 1);
-    await expect(form.getByText(/Check your email for a private, optional link/)).toBeVisible();
+    await expect(form.getByRole("status")).toContainText("Note that this is not a booking.");
 
     const continuationToken = `v1.${"x".repeat(100)}`;
     let completions = 0;
@@ -195,7 +195,7 @@ try {
     await wizard.getByRole("button", { name: /Continue/ }).click();
     await wizard.getByRole("button", { name: /Continue/ }).click();
     await wizard.getByLabel(/I agree that Travel With Ease/).check();
-    await wizard.getByRole("button", { name: "Add details to my enquiry", exact: true }).click();
+    await wizard.getByRole("button", { name: "Submit", exact: true }).click();
     await page.getByText("Trip details received", { exact: true }).waitFor();
     assert.equal(completions, 1);
     assert.equal(new URL(page.url()).hash, "");

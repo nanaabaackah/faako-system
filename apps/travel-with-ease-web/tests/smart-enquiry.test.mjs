@@ -36,7 +36,7 @@ test("short public form validates catalogue context and private wizard uses frag
   assert.match(form, /catalogue\.packages\.find/);
   assert.match(form, /catalogue\.services\.find/);
   assert.match(form, /opened a general enquiry instead/);
-  assert.match(form, /Check your email for a private, optional link/);
+  assert.match(form, /Note that this is not a booking/);
   assert.match(wizard, /window\.location\.hash/);
   assert.match(wizard, /URLSearchParams\(window\.location\.hash\.slice\(1\)\)\.get\("continue"\)/);
   assert.match(wizard, /window\.history\.replaceState/);
@@ -46,4 +46,14 @@ test("short public form validates catalogue context and private wizard uses frag
   assert.doesNotMatch(form + wizard, /localStorage|sessionStorage/);
   assert.match(service, /\?service=\$\{service\.slug\}#plan/);
   assert.match(packageDetail, /\?package=\$\{encodeURIComponent\(item\.slug\)\}#plan/);
+});
+
+test("public card surfaces reuse tilt motion without overriding reduced-motion preferences", () => {
+  const motion = source("components/EditorialMotion.astro");
+  const styles = source("styles/editorial.css");
+  assert.match(motion, /\.service-panel/);
+  assert.match(motion, /\.traveller-reviews__card/);
+  assert.match(motion, /!card\.closest\("\.tilted-card"\)/);
+  assert.match(styles, /prefers-reduced-motion: reduce/);
+  assert.match(styles, /--twe-card-tilt-x/);
 });

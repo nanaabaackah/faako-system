@@ -412,3 +412,20 @@ a:focus .link-arrow {
     display: block;
   }
 }
+/* Pointer tilt shared by card surfaces; visual card styling remains component-owned. */
+@media (hover: hover) and (pointer: fine) {
+  .twe-card-tilt {
+    --twe-card-tilt-x: 0deg;
+    --twe-card-tilt-y: 0deg;
+    transform: perspective(900px) rotateX(var(--twe-card-tilt-x)) rotateY(var(--twe-card-tilt-y));
+    transform-style: preserve-3d;
+    transition: transform 180ms ease-out;
+    will-change: transform;
+  }
+
+  .twe-card-tilt[data-twe-card-tilting] { transition-duration: 70ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .twe-card-tilt { transform: none !important; transition: none !important; }
+}

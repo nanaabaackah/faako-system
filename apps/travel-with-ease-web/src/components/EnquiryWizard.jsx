@@ -200,7 +200,7 @@ export default function EnquiryWizard() {
       <Button type="button" disabled={disabled || safeIndex === 0} onClick={() => move(safeIndex - 1)}>Back</Button>
       {safeIndex < steps.length - 1
         ? <Button type="button" disabled={disabled} onClick={() => move(safeIndex + 1)}>Continue <IconsaxIcon name="ArrowRight4" /></Button>
-        : <Button type="submit" disabled={disabled || (hosted && !turnstileToken)}>{disabled ? "Saving details…" : "Add details to my enquiry"} <IconsaxIcon name="ArrowRight4" /></Button>}
+        : <Button type="submit" disabled={disabled || (hosted && !turnstileToken)}>{disabled ? "Saving details…" : "Submit"} <IconsaxIcon name="ArrowRight4" /></Button>}
     </div>
     {siteKey && safeIndex === steps.length - 1 && <button type="button" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</button>}
     {status.message && <p role={status.state === "error" ? "alert" : "status"} aria-live="polite">{status.message}</p>}
