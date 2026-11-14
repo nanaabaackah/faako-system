@@ -12,6 +12,8 @@ export default function Invitations({ api, session, installer = false }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [role,setRole]=useState('editor');
+  const [deliveryMethod, setDeliveryMethod] = useState("email");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const canInviteOwner=!installer&&session?.user.permissions?.includes('staff.roles.manage');
   const path = installer
     ? "/api/auth/activation/owner-invitation"
@@ -40,7 +42,7 @@ export default function Invitations({ api, session, installer = false }) {
         headers,
         responseMode: "data",
       });
-      if (result.code) setIssued(result);
+      if (result.code || result.delivery === "queued") setIssued(result);
       else if (issued && url.includes(issued.id)) setIssued(null);
       if (!installer)
         setItems((await api.get(path, { responseMode: "data" })).items);
@@ -70,9 +72,9 @@ export default function Invitations({ api, session, installer = false }) {
         {installer ? "Initial Owner invitation" : canInviteOwner ? 'Invite a team member' : "Invite an Editor"}
       </h2>
       <p>
-        Independently verify the recipient's Cloudflare Access subject. Deliver
-        the invitation code through your approved private channel. It is not an
-        email address, password or permanent credential.
+        Independently verify the recipient's Cloudflare Access subject and email address.
+        Email invitations are queued for delivery; access still requires the
+        verified identity and a single-use code. You can also share a manual code privately.
       </p>
       {error && (
         <InlineNotice
@@ -84,7 +86,14 @@ export default function Invitations({ api, session, installer = false }) {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          mutate(path, { subject, approvalReference: reference,...(!installer?{role}: {}) });
+          mutate(path, {
+            subject, approvalReference: reference,
+            ...(!installer ? {
+              role,
+              sendEmail: deliveryMethod === "email",
+              ...(deliveryMethod === "email" ? { recipientEmail } : {}),
+            } : {}),
+          });
         }}
       >
         {canInviteOwner&&<SelectField label="Invitation role" value={role} onChange={event=>setRole(event.target.value)} options={[{value:'editor',label:'Editor'},{value:'owner',label:'Owner'}]} />}
@@ -95,6 +104,27 @@ export default function Invitations({ api, session, installer = false }) {
           value={subject}
           onChange={(event) => setSubject(event.target.value)}
         />
+        {!installer && (
+          <>
+            <SelectField
+              label="Invitation delivery"
+              value={deliveryMethod}
+              onChange={(event) => setDeliveryMethod(event.target.value)}
+              options={[{ value: "email", label: "Email invitation" }, { value: "manual", label: "Manual activation code" }]}
+            />
+            {deliveryMethod === "email" && (
+              <TextField
+                label="Recipient email"
+                type="email"
+                required
+                maxLength={254}
+                value={recipientEmail}
+                onChange={(event) => setRecipientEmail(event.target.value)}
+                hint="Verify that this address belongs to the selected Cloudflare Access identity. Staging delivery goes to the TWE testing mailbox."
+              />
+            )}
+          </>
+        )}
         <TextField
           label="Approval reference"
           required
@@ -103,26 +133,31 @@ export default function Invitations({ api, session, installer = false }) {
           onChange={(event) => setReference(event.target.value)}
         />
         <Button type="submit" disabled={busy}>
-          Create {installer || role==='owner' ? "Owner" : "Editor"} invitation
+          {installer || deliveryMethod === "manual" ? "Create" : "Queue"} {installer || role==='owner' ? "Owner" : "Editor"} invitation
         </Button>
       </form>
       {issued && (
         <div role="status" className="invitation-secret">
-          <h3>Save this invitation now</h3>
+          <h3>{issued.delivery === "queued" ? "Invitation queued" : "Save this invitation now"}</h3>
           <p>
-            This code is shown only in this session. It expires{" "}
-            {new Date(issued.expiresAt).toLocaleString()} and works only for the
-            verified recipient.
+            {issued.delivery === "queued"
+              ? "The invitation is saved and queued, not yet confirmed as delivered. Staff access remains identity-bound. Check the invitation history for delivery status."
+              : "This code is shown only in this session. Share it through your approved private channel."}
+            {" "}It expires {new Date(issued.expiresAt).toLocaleString()}.
           </p>
-          <TextField
-            label="Single-use invitation code"
-            readOnly
-            value={issued.code}
-            autoComplete="off"
-          />
-          <Button type="button" onClick={() => setIssued(null)}>
-            Hide code
-          </Button>
+          {issued.code && (
+            <>
+              <TextField
+                label="Single-use invitation code"
+                readOnly
+                value={issued.code}
+                autoComplete="off"
+              />
+              <Button type="button" onClick={() => setIssued(null)}>
+                Hide code
+              </Button>
+            </>
+          )}
           <Button
             type="button"
             disabled={busy}
@@ -133,7 +168,7 @@ export default function Invitations({ api, session, installer = false }) {
         </div>
       )}
       {!installer && (
-        <ActivityList title="Invitation history" emptyTitle="No invitations yet" emptyMessage="Created staff invitations will appear here." items={items.map(item=>({...item,action:`${item.role} invitation · ${item.accepted_at?'Accepted':item.revoked_at?'Revoked':new Date(item.expires_at)<=new Date()?'Expired':'Pending'}`}))}
+        <ActivityList title="Invitation history" emptyTitle="No invitations yet" emptyMessage="Created staff invitations will appear here." items={items.map(item=>({...item,action:`${item.role} invitation · ${item.accepted_at?'Accepted':item.revoked_at?'Revoked':new Date(item.expires_at)<=new Date()?'Expired':'Pending'} · ${item.delivery_status ? `Email: ${item.delivery_status}` : 'Manual code'}`}))}
           renderAction={item=><>
             <p>Expires: {new Date(item.expires_at).toLocaleString()}</p>
             {!item.accepted_at&&!item.revoked_at&&(item.role==='editor'||canInviteOwner)&&<Button type="button" disabled={busy} onClick={()=>mutate(`${path}/${item.id}/revoke`,{})}>Revoke invitation</Button>}
