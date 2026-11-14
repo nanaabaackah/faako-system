@@ -12361,7 +12361,7 @@ const serializeInvoice = (invoice) => ({
 // creating overlapping appointments between an availability check and an insert.
 const createNativeBooking = async ({ organizationId, startAt, endAt, data }) =>
   prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(90143, ${organizationId}::integer)`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(90143, ${organizationId}::integer)::text AS acquired`;
     if (data.status !== "CANCELED") {
       const overlap = await tx.booking.findFirst({
         where: {
@@ -12849,7 +12849,7 @@ app.patch("/api/bookings/:id", authMiddleware, requireAdmin, async (req, res) =>
     // All native booking writes share the same organization-scoped transaction lock.
     // Recheck the authoritative row and overlapping interval inside the lock.
     updated = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(90143, ${req.user.organizationId}::integer)`;
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(90143, ${req.user.organizationId}::integer)::text AS acquired`;
       const current = await tx.booking.findFirst({
         where: { id: booking.id, organizationId: req.user.organizationId },
       });
