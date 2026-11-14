@@ -23,6 +23,7 @@ import { useMonitoringData } from "./useMonitoringData";
 import { useIncidentResponse } from "./useIncidentResponse";
 import { ActiveMaintenanceBanner, IncidentResponsePanel } from "./IncidentResponseComponents";
 import PublishedAppsPanel from "./PublishedAppsPanel";
+import { MonitoringTrendsPanel } from "./MonitoringVisuals";
 import "./SystemHealth.css";
 
 const DEFAULT_FILTERS = { search: "", environment: "all", status: "all", category: "all", provider: "all" };
@@ -91,6 +92,7 @@ const SystemHealth = () => {
       {services.length ? (
         <>
           <div className="health-overall-grid"><PlatformHealthScore summary={summary} /><MonitoringSummaryCards summary={summary} /></div>
+          <MonitoringTrendsPanel services={services} />
           {canViewIncidents ? <IncidentResponsePanel response={incidentResponse} services={services} canManage={canManageIncidents} /> : null}
           <MonitoringFilters filters={filters} onChange={handleFilterChange} providers={providers} environments={[...new Set(services.map((service) => service.environment))]} />
           <div className="health-monitoring-stack">
