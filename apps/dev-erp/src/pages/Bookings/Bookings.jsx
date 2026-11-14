@@ -37,6 +37,7 @@ const linkStateLabel = (booking) => {
   if (!booking?.meetingLink) return "Awaiting link";
   if (booking.meetingLinkDeliveryStatus === "SENT") return "Sent";
   if (booking.meetingLinkDeliveryStatus === "FAILED") return "Delivery failed";
+  if (booking.meetingLinkDeliveryStatus === "TEST_REROUTED") return "Test email rerouted";
   return "Ready to send";
 };
 
@@ -121,11 +122,17 @@ const Bookings = () => {
         resend: selectedBooking.meetingLinkDeliveryStatus === "SENT",
       }, { fallbackMessage: "Could not send the meeting link." });
       updateBookingInState(updated);
-      setStatus({ tone: "success", message: "The joining link has been sent to the attendee." });
+      setStatus(updated.deliveryWasRerouted
+        ? { tone: "warning", message: "Test email was rerouted. The client has not received the link." }
+        : { tone: "success", message: "Meeting link was submitted for email delivery to the attendee." });
     } catch (error) {
       setStatus({ tone: "error", message: error.message });
     } finally { setBusy(false); }
   };
+  const hasUnsavedMeetingChanges = Boolean(selectedBooking) && (
+    draft.meetingPlatform !== (selectedBooking.meetingPlatform || "GOOGLE_MEET")
+    || draft.meetingLink.trim() !== (selectedBooking.meetingLink || "").trim()
+  );
   const copyBookingLink = async () => {
     if (!bookingUrl) return;
     try {
@@ -295,10 +302,11 @@ const Bookings = () => {
                       onChange={(event) => setDraft((previous) => ({ ...previous, meetingLink: event.target.value }))} />
                   </label>
                   <p className="muted">Generate the link in your chosen app and paste it here. The provider URL will be validated before saving.</p>
+                  {hasUnsavedMeetingChanges ? <p className="notice is-warning">Save your edits before sending the joining link.</p> : null}
                   <div className="booking-actions">
                     <button className="button button-primary" type="button" onClick={saveLink} disabled={busy}>{busy ? "Saving..." : "Save meeting details"}</button>
                     <button className="button button-ghost" type="button" onClick={sendLink}
-                      disabled={busy || !selectedBooking.meetingLink || !selectedBooking.attendeeEmail || selectedBooking.status === "CANCELED"}>
+                      disabled={busy || hasUnsavedMeetingChanges || !selectedBooking.meetingLink || !selectedBooking.attendeeEmail || selectedBooking.status === "CANCELED"}>
                       {selectedBooking.meetingLinkDeliveryStatus === "SENT" ? "Resend email" : "Send meeting link"}
                     </button>
                   </div>
