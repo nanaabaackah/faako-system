@@ -5,6 +5,8 @@ import { NavLink } from "react-router-dom";
 import {
   FiLogOut,
   FiChevronDown,
+  FiChevronsLeft,
+  FiChevronsRight,
   FiExternalLink,
   FiSearch,
   FiUser,
@@ -206,7 +208,7 @@ const SideNav = ({
             aria-label={isDesktopCollapsed ? "Expand navigation sidebar" : "Collapse navigation sidebar"}
             title={isDesktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {isDesktopCollapsed ? "›" : "‹"}
+            {isDesktopCollapsed ? <FiChevronsRight size={18} aria-hidden="true" /> : <FiChevronsLeft size={18} aria-hidden="true" />}
           </button>
         </div>
         <div className="erp-sidebar__panel">
