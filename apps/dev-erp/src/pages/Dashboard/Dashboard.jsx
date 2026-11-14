@@ -11,6 +11,7 @@ import {
   getMonitoringTone,
 } from "../../components/MonitoringSparkline/monitoringSparklineUtils";
 import { HealthTimeline } from "../SystemHealth/SystemHealthComponents";
+import { adaptMonitoringService } from "../SystemHealth/monitoringConfig";
 
 import useDashboardData from "../../hooks/useDashboardData";
 import VerseWidget from "../../components/VerseWidget/VerseWidget";
@@ -453,7 +454,7 @@ const Dashboard = () => {
     }, 60_000);
     return () => { active = false; window.clearInterval(timer); };
   }, [canSeeMonitoring]);
-  const monitoringHistoryByKey = new Map(recordedMonitoring.map((service) => [service.key, service.timeline || []]));
+  const monitoringHistoryByKey = new Map(recordedMonitoring.map((service) => [service.key, adaptMonitoringService(service, "week").timeline]));
   const timelineFor = (key) => monitoringHistoryByKey.get(key) || [];
 
   const [availabilityBookings, setAvailabilityBookings] = useState([]);
