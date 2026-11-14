@@ -22,4 +22,8 @@ test("monitoring routes require auth and manual checks add admin and rate-limit 
   const manual = routes.find((route) => route.method === "POST");
   assert.deepEqual(manual.handlers.slice(0, 3), [authMiddleware, requireAdmin, manualCheckRateLimit]);
   assert.equal(routes.some((route) => route.path.includes("run-check") && route.method === "GET"), false);
+  assert.deepEqual(routes.map(({ method, path }) => `${method} ${path}`), [
+    "GET /api/monitoring/summary",
+    "POST /api/monitoring/services/:id/run-check",
+  ]);
 });
