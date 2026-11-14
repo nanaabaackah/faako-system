@@ -13556,7 +13556,6 @@ app.post("/api/public/bookings/:orgSlug", validate(publicBookingSchema), async (
       startAt: startDate,
       endAt: endDate,
       data: {
-{
       organizationId: organization.id,
       title: normalizedTitle,
       description: normalizedDescription,
@@ -13618,7 +13617,6 @@ app.post("/api/bookings", authMiddleware, requireAdmin, async (req, res) => {
       startAt: startDate,
       endAt: endDate,
       data: {
-{
       organizationId: req.user.organizationId,
       title: normalizedTitle,
       description: typeof description === "string" ? description.trim() || null : null,
