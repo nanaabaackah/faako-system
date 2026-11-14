@@ -256,9 +256,7 @@ const Bookings = () => {
       </article>
 
       {selectedBooking && (
-        <div className="bookings-drawer-backdrop" onMouseDown={(event) => {
-          if (event.target === event.currentTarget) setSelectedBookingId(null);
-        }}>
+        <div className="bookings-drawer-backdrop">
           <aside className="bookings-drawer" role="dialog" aria-modal="true" aria-labelledby="booking-detail-title">
             <header className="bookings-drawer__header">
               <div><p className="eyebrow">Appointment details</p><h2 id="booking-detail-title">{selectedBooking.title || "Appointment"}</h2></div>
