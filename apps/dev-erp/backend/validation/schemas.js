@@ -20,12 +20,15 @@ export const setupAccountCompleteSchema = z.object({
 export const publicBookingSchema = z.object({
   attendeeName: z.string().min(1).max(200).trim(),
   attendeeEmail: z.string().min(1).max(254).email(),
-  title: z.string().min(1).max(300).trim(),
+  title: z.string().max(300).trim().optional(),
   description: z.string().max(2000).optional(),
   startAt: z.string().datetime({ offset: true }),
   endAt: z.string().datetime({ offset: true }),
   location: z.string().max(500).optional(),
   meetingLink: z.string().url().max(2000).optional().or(z.literal("")),
+  meetingPlatform: z.enum(["GOOGLE_MEET", "ZOOM", "WHATSAPP", "FACETIME"]).optional(),
+  durationMinutes: z.number().int().min(15).max(240).optional(),
+  company: z.string().max(250).optional(),
 });
 
 export const productivityEntrySchema = z.object({
