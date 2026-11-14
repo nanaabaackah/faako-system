@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Activity, CloseCircle, Refresh2, SearchNormal1, TickCircle } from "iconsax-react";
 import { ERPStatusBadge, SelectField } from "@faako/ui";
+import { FiActivity, FiAlertCircle, FiAlertTriangle, FiCheckCircle, FiClock } from "react-icons/fi";
 import { LatencyTrendChart } from "./MonitoringVisuals";
 import { formatDateTime } from "../../utils/formatters";
 import { buildMonitoringFilterOptions, MONITORING_SECTIONS, normalizeHealthStatus, TIMELINE_RANGES } from "./monitoringConfig";
@@ -92,17 +93,21 @@ export const PlatformHealthScore = ({ summary }) => (
 
 export const MonitoringSummaryCards = ({ summary }) => {
   const cards = [
-    ["Healthy services", `${summary.healthy}/${summary.total}`, "success"],
-    ["Degraded", summary.degraded, "warning"],
-    ["Down", summary.down, "danger"],
-    ["Avg. latency", summary.averageLatencyMs ? `${summary.averageLatencyMs} ms` : "N/A", "info"],
-    ["Active incidents", summary.activeIncidents, summary.activeIncidents ? "warning" : "success"],
+    { label: "Healthy services", value: `${summary.healthy}/${summary.total}`, tone: "success", Icon: FiCheckCircle },
+    { label: "Degraded", value: summary.degraded, tone: "warning", Icon: FiAlertTriangle },
+    { label: "Unavailable", value: summary.down, tone: "danger", Icon: FiAlertCircle },
+    { label: "Avg. latency", value: Number.isFinite(summary.averageLatencyMs) ? `${summary.averageLatencyMs} ms` : "N/A", tone: "info", Icon: FiActivity },
+    { label: "Active incidents", value: summary.activeIncidents, tone: summary.activeIncidents ? "warning" : "success", Icon: FiClock },
   ];
   return (
     <div className="health-summary-cards">
-      {cards.map(([label, value, tone]) => (
+      {cards.map(({ label, value, tone, Icon }) => (
         <article className={`health-summary-card is-${tone}`} key={label}>
-          <span>{label}</span><strong>{value}</strong>
+          <div className="health-summary-card__heading">
+            <span>{label}</span>
+            <Icon size={17} strokeWidth={1.8} aria-hidden="true" className="health-summary-card__icon" />
+          </div>
+          <strong>{value}</strong>
         </article>
       ))}
     </div>
