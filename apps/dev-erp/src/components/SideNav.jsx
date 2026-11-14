@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "../api/client";
+import { getAggregateSiteStatus } from "../utils/siteStatus";
 import { ErpStatusBadge, SidebarEdgeToggle } from "@faako/ui";
 import { NavLink } from "react-router-dom";
 import {
@@ -75,6 +76,7 @@ const SideNav = ({
           id: String(site.id || site.title),
           name: String(site.title || site.name || "Published application"),
           url: new URL(site.baseUrl).origin,
+          status: getAggregateSiteStatus(site.pages),
         }));
         setPublishedApps(filtered);
       })
@@ -330,7 +332,7 @@ const SideNav = ({
                           {publishedApps.map((app) => (
                             <a key={app.id} href={app.url} target="_blank" rel="noopener noreferrer"
                               title={`Open ${app.name} in a new tab`}>
-                              <span className="erp-nav-apps__dot" aria-hidden="true" />
+                              <span className={`erp-nav-apps__dot is-${app.status}`} aria-hidden="true" />
                               <span className="erp-nav-apps__name">{app.name}</span>
                               <FiExternalLink aria-hidden="true" />
                             </a>
