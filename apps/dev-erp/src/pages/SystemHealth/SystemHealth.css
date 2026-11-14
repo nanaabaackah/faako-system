@@ -11,7 +11,8 @@
 .health-range-selector button.is-active { color: var(--ink); background: var(--panel); box-shadow: 0 1px 3px color-mix(in oklab, var(--ink), transparent 88%); }
 
 .health-overall-grid { display: grid; grid-template-columns: minmax(310px, .8fr) minmax(0, 1.5fr); gap: 1rem; }
-.health-score-card, .health-summary-card, .health-filter-panel, .health-monitoring-section, .health-empty-state { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+/* Faako glass/bubble surfaces use neutral edges; status colours belong to indicators. */
+.health-score-card, .health-summary-card, .health-filter-panel, .health-monitoring-section, .health-empty-state { border: 1px solid var(--border); border-radius: var(--radius); background: color-mix(in oklab, var(--card), var(--surface) 10%); box-shadow: var(--card-shadow); }
 .health-score-card { display: flex; align-items: center; gap: 1rem; min-height: 9rem; padding: 1.1rem; }
 .health-score-card h2 { margin: .15rem 0 .3rem; font-size: 1.15rem; }
 .health-score-card p { margin: 0; color: var(--muted); line-height: 1.45; }
@@ -22,7 +23,8 @@
 .health-score-card__ring strong { font-size: 1.65rem; }
 .health-score-card__ring small { margin-top: .25rem; color: var(--muted); font-size: .66rem; }
 .health-summary-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .7rem; }
-.health-summary-card { --summary-tone: var(--info); display: grid; align-content: space-between; gap: .75rem; min-width: 0; padding: .9rem; border-top: 3px solid var(--summary-tone); }
+.health-summary-card { --summary-tone: var(--info); display: grid; align-content: space-between; gap: .75rem; min-width: 0; padding: .9rem; }
+.health-summary-card > span:first-child::before { content: ""; display: inline-block; width: .42rem; height: .42rem; margin-right: .4rem; border-radius: 50%; background: var(--summary-tone); vertical-align: .08em; }
 .health-summary-card.is-success { --summary-tone: var(--success); }
 .health-summary-card.is-warning { --summary-tone: var(--warning); }
 .health-summary-card.is-danger { --summary-tone: var(--danger); }

@@ -31,62 +31,31 @@ jobs:
     name: Detect affected surfaces
     runs-on: ubuntu-latest
     outputs:
-      javascript: ${{ steps.filter.outputs.javascript }}
-      python: ${{ steps.filter.outputs.python }}
-      faako_public: ${{ steps.filter.outputs.faako_public }}
-      reebs_public: ${{ steps.filter.outputs.reebs_public }}
-      dev_erp: ${{ steps.filter.outputs.dev_erp }}
-      reebs_water: ${{ steps.filter.outputs.reebs_water }}
+      javascript: ${{ steps.impact.outputs.javascript }}
+      python: ${{ steps.impact.outputs.python }}
+      faako_public: ${{ steps.impact.outputs.faako_public }}
+      reebs_public: ${{ steps.impact.outputs.reebs_public }}
+      dev_erp: ${{ steps.impact.outputs.dev_erp }}
+      reebs_water: ${{ steps.impact.outputs.reebs_water }}
+      twe: ${{ steps.impact.outputs.twe }}
+      affected_apps: ${{ steps.impact.outputs.affected_apps }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: dorny/paths-filter@v3
-        id: filter
         with:
-          filters: |
-            javascript:
-              - 'apps/**'
-              - 'packages/**'
-              - 'scripts/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'turbo.json'
-              - '.github/workflows/monorepo-ci.yml'
-            python:
-              - 'services/reebs-analytics/**'
-              - '.github/workflows/monorepo-ci.yml'
-            faako_public:
-              - 'apps/faako-website/**'
-              - 'packages/**'
-              - 'scripts/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'turbo.json'
-            reebs_public:
-              - 'apps/reebs-website/**'
-              - 'packages/**'
-              - 'scripts/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'turbo.json'
-            reebs_water:
-              - 'apps/reebs-water/**'
-              - 'apps/reebs-portal/**'
-              - 'packages/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - '.github/workflows/monorepo-ci.yml'
-            dev_erp:
-              - 'apps/dev-erp/**'
-              - 'packages/**'
-              - 'scripts/**'
-              - 'package.json'
-              - 'pnpm-lock.yaml'
-              - 'pnpm-workspace.yaml'
-              - 'turbo.json'
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify affected-app classifier
+        run: node --test scripts/ci/*.test.mjs
+      - name: Compute dependency-aware app impact
+        id: impact
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node scripts/ci/affected-surfaces.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --output "$GITHUB_OUTPUT" > affected-apps.json
+          cat affected-apps.json >> "$GITHUB_STEP_SUMMARY"
 
   javascript-quality:
     name: Affected JavaScript quality gates

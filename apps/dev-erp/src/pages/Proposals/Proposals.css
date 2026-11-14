@@ -102,22 +102,22 @@
 }
 
 .proposal-notice.is-success {
-  border-color: color-mix(in oklab, var(--success), var(--border) 45%);
+  border-color: var(--border);
   background: color-mix(in oklab, var(--success-soft), var(--surface) 42%);
 }
 
 .proposal-notice.is-error {
-  border-color: color-mix(in oklab, var(--danger), var(--border) 45%);
+  border-color: var(--border);
   background: color-mix(in oklab, var(--danger-soft), var(--surface) 42%);
 }
 
 .proposal-notice.is-warning {
-  border-color: color-mix(in oklab, var(--warning), var(--border) 45%);
+  border-color: var(--border);
   background: color-mix(in oklab, var(--warning-soft), var(--surface) 42%);
 }
 
 .proposal-notice.is-info {
-  border-color: color-mix(in oklab, var(--info), var(--border) 45%);
+  border-color: var(--border);
   background: color-mix(in oklab, var(--info-soft), var(--surface) 42%);
 }
 
@@ -174,7 +174,7 @@
   gap: 0.45rem;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius) var(--radius) calc(var(--radius) - 8px) var(--radius);
+  border-radius: var(--radius);
   background: color-mix(in oklab, var(--surface), var(--card) 12%);
   color: var(--ink);
   cursor: pointer;
@@ -187,8 +187,8 @@
 .proposal-template-card:hover,
 .proposal-template-card:focus-visible,
 .proposal-template-card.is-active {
-  border-color: color-mix(in oklab, var(--accent), var(--border) 48%);
-  box-shadow: 0 12px 24px color-mix(in oklab, var(--accent-soft), transparent 30%);
+  border-color: var(--border);
+  box-shadow: var(--card-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -333,7 +333,7 @@
   gap: 1rem;
   padding: 0.85rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius) var(--radius) calc(var(--radius) - 8px) var(--radius);
+  border-radius: var(--radius);
   background: color-mix(in oklab, var(--card), var(--surface) 20%);
   color: var(--ink);
   cursor: pointer;
@@ -345,8 +345,8 @@
 .proposal-saved-card:hover,
 .proposal-saved-card:focus-visible,
 .proposal-saved-card.is-active {
-  border-color: color-mix(in oklab, var(--info), var(--border) 48%);
-  box-shadow: 0 10px 20px color-mix(in oklab, var(--info-soft), transparent 34%);
+  border-color: var(--border);
+  box-shadow: var(--card-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -1212,13 +1212,13 @@
 
 .proposal-client-response-summary.is-approved,
 .proposal-client-response.is-approved {
-  border-color: color-mix(in oklab, var(--success), var(--border) 45%);
+  border-color: var(--border);
   background: color-mix(in oklab, var(--success-soft), var(--surface) 50%);
 }
 
 .proposal-client-response-summary.is-changes-requested,
 .proposal-client-response.is-changes_requested {
-  border-color: color-mix(in oklab, var(--warning), var(--border) 45%);
+  border-color: var(--border);
   background: color-mix(in oklab, var(--warning-soft), var(--surface) 50%);
 }
 

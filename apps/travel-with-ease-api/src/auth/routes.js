@@ -41,7 +41,10 @@ export function createStaffAuth({ store, provider, settings, limiter, logger, ad
     if (accessMode) {
       try {
         const identity = await verifiedAccess(req);
-        if (identity.issuer !== session.issuer || identity.subject !== session.subject || identity.audience !== session.access_audience || identity.assertionHash !== session.access_assertion_hash) throw new Error("Session identity mismatch");
+        if (identity.issuer !== session.issuer || identity.subject !== session.subject || identity.audience !== session.access_audience) throw new Error("Session identity mismatch");
+        // The login assertion hash remains a single-use exchange receipt. Access
+        // may renew the signed JWT during a valid local session, so bind requests
+        // to the freshly verified stable identity rather than immutable JWT bytes.
         // Server-only verified identity context for exceptional two-party flows.
         // It is never included in the session response or browser storage.
         req.staffIdentity = identity;

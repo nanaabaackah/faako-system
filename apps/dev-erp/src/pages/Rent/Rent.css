@@ -27,9 +27,7 @@
   font: inherit;
   text-align: left;
   color: var(--ink);
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--surface), var(--card) 14%), transparent),
-    color-mix(in oklab, var(--surface), var(--card) 22%);
+  background: color-mix(in oklab, var(--card), var(--surface) 10%);
   box-shadow: 0 14px 28px color-mix(in oklab, var(--ink), transparent 92%);
 }
 
@@ -45,11 +43,9 @@
 .rent-single-tenant-card--clickable:hover,
 .rent-single-tenant-card--clickable:focus-visible,
 .rent-single-tenant-card.is-editing {
-  border-color: color-mix(in oklab, var(--accent), var(--border) 40%);
-  background:
-    linear-gradient(180deg, color-mix(in oklab, var(--accent-soft), var(--surface) 18%), transparent),
-    color-mix(in oklab, var(--surface), var(--accent-soft) 22%);
-  box-shadow: 0 18px 34px color-mix(in oklab, var(--accent), transparent 90%);
+  border-color: var(--border);
+  background: color-mix(in oklab, var(--card), var(--surface) 10%);
+  box-shadow: var(--card-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -314,12 +310,12 @@
 
 .rent-metric-card-button:hover,
 .rent-metric-card-button:focus-visible {
-  border-color: color-mix(in oklab, var(--accent), var(--border) 52%);
-  box-shadow: 0 12px 26px color-mix(in oklab, var(--accent-soft), transparent 24%);
+  border-color: var(--border);
+  box-shadow: var(--card-shadow-hover);
 }
 
 .rent-metric-card-button.is-active {
-  border-color: color-mix(in oklab, var(--accent), var(--border) 36%);
+  border-color: var(--border);
   background: color-mix(in oklab, var(--accent-soft), var(--card) 38%);
 }
 

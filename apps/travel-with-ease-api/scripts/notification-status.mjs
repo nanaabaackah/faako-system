@@ -19,6 +19,10 @@ try {
     "SELECT CASE WHEN last_error IN ('provider_rejected','delivery_configuration_changed','invalid_provider_response','delivery_failed','retry_window_expired','invalid_delivery_payload') THEN last_error ELSE 'other_redacted' END AS reason,count(*)::int AS count FROM twe.notification_outbox WHERE organisation_id=$1 AND last_error IS NOT NULL GROUP BY 1 ORDER BY 1",
     [process.env.TWE_ORGANISATION_ID],
   );
+  const invitations = await pool.query(
+    "SELECT status,count(*)::int AS count,min(created_at) AS oldest FROM twe.staff_invitation_deliveries WHERE organisation_id=$1 AND environment=$2 GROUP BY status ORDER BY status",
+    [process.env.TWE_ORGANISATION_ID, environment],
+  );
   console.log(
     JSON.stringify({
       environment,
@@ -26,6 +30,8 @@ try {
       workerEnabledHere: process.env.TWE_NOTIFICATION_WORKER_ENABLED === "true",
       counts: counts.rows,
       errors: errors.rows,
+      invitationEmailEnabledHere: process.env.TWE_INVITATION_DELIVERY_ENABLED === "true",
+      invitationCounts: invitations.rows,
     }),
   );
 } catch {

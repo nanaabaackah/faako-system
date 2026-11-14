@@ -65,12 +65,15 @@ is trusted. Application identity is `(organisation, issuer, subject, audience)`.
 POST `/api/auth/access-session` requires an exact portal Origin, custom initiation
 header and verified Access assertion. The cookie is HttpOnly, SameSite=Lax,
 Secure on HTTPS and host-only; no tokens go into browser storage. Session expiry
-is at most one hour and never exceeds the assertion expiry. Each protected request
-requires the signed assertion **and** the same active local session/user binding.
-A unique assertion hash prevents re-exchange after logout/revocation. Rotation or
-expiry requires explicit reauthentication; a stolen Access bearer assertion alone
-is not made non-replayable by signatures. Theft prevention still requires TLS,
-secure edge routing and session hygiene. Hash binding does not replace MFA.
+is at most one hour and never exceeds the login assertion expiry. Each protected
+request requires a freshly verified signed assertion **and** the same active local
+session bound to `(organisation, issuer, subject, audience)`. Access may renew the
+JWT without extending or rewriting that local session. The unique login assertion
+hash prevents re-exchange after logout/revocation; it is not the stable request
+identity. Session expiry requires explicit reauthentication; a stolen Access
+bearer assertion alone is not made non-replayable by signatures. Theft prevention
+still requires TLS, secure edge routing and session hygiene. The replay receipt
+does not replace MFA.
 
 Logout revokes the local session before navigating to `/cdn-cgi/access/logout`.
 Test application/global Access cookie behaviour in staging; local all-device
