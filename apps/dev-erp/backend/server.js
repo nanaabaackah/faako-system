@@ -67,6 +67,7 @@ import {
   recordProjectActivity,
 } from "./projects/projectActivity.js";
 import { publicBookingSchema, productivityEntrySchema, productivityTodoSchema } from "./validation/schemas.js";
+import { isMeetingProvider, validateMeetingLink, meetingLinkState, MEETING_PROVIDERS } from "./bookings/meetingLinks.js";
 import {
   configureBaseHttpMiddleware,
   registerApiFallbackRoute,
@@ -13269,6 +13270,10 @@ const serializeBooking = (booking) => ({
   endAt: booking.endAt.toISOString(),
   location: booking.location,
   meetingLink: sanitizeExternalUrl(booking.meetingLink),
+  meetingPlatform: booking.meetingPlatform,
+  meetingLinkSentAt: booking.meetingLinkSentAt?.toISOString() ?? null,
+  meetingLinkDeliveryStatus: booking.meetingLinkDeliveryStatus,
+  meetingLinkState: meetingLinkState(booking),
   status: booking.status,
   source: booking.source,
   attendeeEmail: booking.attendeeEmail,
@@ -13464,6 +13469,7 @@ app.post("/api/public/bookings/:orgSlug", validate(publicBookingSchema), async (
     endAt,
     durationMinutes,
     company,
+    meetingPlatform,
   } = req.body ?? {};
 
   if (typeof company === "string" && company.trim()) {
@@ -13543,30 +13549,13 @@ app.post("/api/public/bookings/:orgSlug", validate(publicBookingSchema), async (
       source: "MANUAL",
       attendeeEmail: normalizedEmail,
       attendeeName: normalizedName || null,
+      meetingPlatform: isMeetingProvider(meetingPlatform) ? meetingPlatform : null,
     },
   });
 
-  let updatedBooking = booking;
-  const integration = await prisma.calendarIntegration.findFirst({
-    where: { organizationId: organization.id, provider: "GOOGLE_CALENDAR" },
-  });
-  if (integration) {
-    try {
-      const { meetingLink, eventId } = await createGoogleCalendarEvent(integration, booking);
-      updatedBooking = await prisma.booking.update({
-        where: { id: booking.id },
-        data: {
-          meetingLink: sanitizeExternalUrl(meetingLink),
-          calendarEventId: eventId,
-          calendarProvider: "GOOGLE_CALENDAR",
-        },
-      });
-    } catch (error) {
-      console.warn("Unable to create Google Calendar event for public booking", error);
-    }
-  }
-
-  res.status(201).json(serializeBooking(updatedBooking));
+  // The native booking record is authoritative. Calendar integration is no longer
+  // required to confirm appointments or to select a meeting provider.
+  res.status(201).json(serializeBooking(booking));
 });
 
 app.post("/api/bookings", authMiddleware, requireAdmin, async (req, res) => {
@@ -13579,6 +13568,7 @@ app.post("/api/bookings", authMiddleware, requireAdmin, async (req, res) => {
     status,
     attendeeEmail,
     attendeeName,
+    meetingPlatform,
   } = req.body ?? {};
 
   const normalizedTitle = typeof title === "string" ? title.trim() : "";
@@ -13611,32 +13601,12 @@ app.post("/api/bookings", authMiddleware, requireAdmin, async (req, res) => {
       source: "MANUAL",
       attendeeEmail: typeof attendeeEmail === "string" ? attendeeEmail.trim() || null : null,
       attendeeName: typeof attendeeName === "string" ? attendeeName.trim() || null : null,
+      meetingPlatform: isMeetingProvider(meetingPlatform) ? meetingPlatform : null,
     },
   });
 
-  let updatedBooking = booking;
-  if (normalizedStatus !== "CANCELED") {
-    const integration = await prisma.calendarIntegration.findFirst({
-      where: { organizationId: req.user.organizationId, provider: "GOOGLE_CALENDAR" },
-    });
-    if (integration) {
-      try {
-        const { meetingLink, eventId } = await createGoogleCalendarEvent(integration, booking);
-        updatedBooking = await prisma.booking.update({
-          where: { id: booking.id },
-          data: {
-            meetingLink: sanitizeExternalUrl(meetingLink),
-            calendarEventId: eventId,
-            calendarProvider: "GOOGLE_CALENDAR",
-          },
-        });
-      } catch (error) {
-        console.warn("Unable to create Google Calendar event for booking", error);
-      }
-    }
-  }
-
-  res.status(201).json(serializeBooking(updatedBooking));
+  // App-owned appointments no longer depend on Google Calendar insertion.
+  res.status(201).json(serializeBooking(booking));
 });
 
 app.patch("/api/bookings/:id", authMiddleware, requireAdmin, async (req, res) => {
@@ -13664,6 +13634,8 @@ app.patch("/api/bookings/:id", authMiddleware, requireAdmin, async (req, res) =>
     status,
     attendeeEmail,
     attendeeName,
+    meetingPlatform,
+    meetingLink,
   } = req.body ?? {};
 
   const updates = {};
@@ -13693,6 +13665,33 @@ app.patch("/api/bookings/:id", authMiddleware, requireAdmin, async (req, res) =>
       typeof attendeeName === "string" ? attendeeName.trim() || null : null;
   }
 
+  if (meetingPlatform !== undefined) {
+    if (meetingPlatform !== null && !isMeetingProvider(meetingPlatform)) {
+      return res.status(400).json({ error: "Choose Google Meet, Zoom, WhatsApp, or FaceTime." });
+    }
+    updates.meetingPlatform = meetingPlatform;
+    if (meetingPlatform !== booking.meetingPlatform) {
+      updates.meetingLink = null;
+      updates.meetingLinkSentAt = null;
+      updates.meetingLinkDeliveryStatus = "NOT_SENT";
+    }
+  }
+  if (meetingLink !== undefined) {
+    const requestedPlatform = updates.meetingPlatform !== undefined ? updates.meetingPlatform : booking.meetingPlatform;
+    if (meetingLink === null || meetingLink === "") {
+      updates.meetingLink = null;
+      updates.meetingLinkSentAt = null;
+      updates.meetingLinkDeliveryStatus = "NOT_SENT";
+    } else {
+      const validation = validateMeetingLink(requestedPlatform, meetingLink);
+      if (!validation.ok) return res.status(400).json({ error: validation.error });
+      updates.meetingLink = validation.url;
+      if (validation.url !== booking.meetingLink || requestedPlatform !== booking.meetingPlatform) {
+        updates.meetingLinkSentAt = null;
+        updates.meetingLinkDeliveryStatus = "NOT_SENT";
+      }
+    }
+  }
   if (status !== undefined) {
     const normalizedStatus = normalizeBookingStatus(status);
     if (!normalizedStatus) {
@@ -13725,43 +13724,64 @@ app.patch("/api/bookings/:id", authMiddleware, requireAdmin, async (req, res) =>
     data: updates,
   });
 
-  let syncedBooking = updated;
-  const integration = await prisma.calendarIntegration.findFirst({
-    where: { organizationId: req.user.organizationId, provider: "GOOGLE_CALENDAR" },
+  // Previously synced calendar data stays stored but is not rewritten.
+  res.json(serializeBooking(updated));
+});
+
+
+app.post("/api/bookings/:id/send-link", authMiddleware, requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "Invalid booking id." });
+  const booking = await prisma.booking.findFirst({
+    where: { id, organizationId: req.user.organizationId },
   });
-  if (integration) {
-    try {
-      if (syncedBooking.calendarEventId) {
-        const shouldCreateConference =
-          !syncedBooking.meetingLink && syncedBooking.status !== "CANCELED";
-        const { meetingLink, eventId } = await updateGoogleCalendarEvent(integration, syncedBooking, {
-          createConference: shouldCreateConference,
-        });
-        syncedBooking = await prisma.booking.update({
-          where: { id: syncedBooking.id },
-          data: {
-            meetingLink: sanitizeExternalUrl(meetingLink),
-            calendarEventId: eventId,
-            calendarProvider: "GOOGLE_CALENDAR",
-          },
-        });
-      } else if (syncedBooking.status !== "CANCELED") {
-        const { meetingLink, eventId } = await createGoogleCalendarEvent(integration, syncedBooking);
-        syncedBooking = await prisma.booking.update({
-          where: { id: syncedBooking.id },
-          data: {
-            meetingLink: sanitizeExternalUrl(meetingLink),
-            calendarEventId: eventId,
-            calendarProvider: "GOOGLE_CALENDAR",
-          },
-        });
-      }
-    } catch (error) {
-      console.warn("Unable to sync Google Calendar event for booking", error);
-    }
+  if (!booking) return res.status(404).json({ error: "Appointment not found." });
+  if (booking.status === "CANCELED") return res.status(409).json({ error: "Cannot send a canceled appointment." });
+  if (!booking.attendeeEmail || !EMAIL_PATTERN.test(booking.attendeeEmail)) {
+    return res.status(400).json({ error: "An attendee email address is required." });
+  }
+  const result = validateMeetingLink(booking.meetingPlatform, booking.meetingLink);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  if (booking.meetingLinkDeliveryStatus === "SENT" && req.body?.resend !== true) {
+    return res.status(409).json({ error: "Link already sent. Confirm resend to deliver again." });
   }
 
-  res.json(serializeBooking(syncedBooking));
+  const providerName = MEETING_PROVIDERS[booking.meetingPlatform];
+  const startLabel = booking.startAt.toISOString();
+  const endLabel = booking.endAt.toISOString();
+  const text = [
+    `Hello ${booking.attendeeName || "there"},`,
+    "",
+    `Your appointment: ${booking.title}`,
+    `Start (UTC): ${startLabel}`,
+    `End (UTC): ${endLabel}`,
+    `Meeting platform: ${providerName}`,
+    `Join link: ${result.url}`,
+    "",
+    "Please keep your meeting link private.",
+    "Sent via Faako DEV ERP."
+  ].join("\n");
+  try {
+    await sendEmail({
+      fromEmail: process.env.APPOINTMENT_FROM_EMAIL || process.env.ALERT_FROM_EMAIL || DEFAULT_ADMIN_EMAIL,
+      fromName: "Faako Appointments",
+      recipients: [booking.attendeeEmail],
+      subject: `Meeting details: ${booking.title}`,
+      text,
+    });
+  } catch (error) {
+    await prisma.booking.update({
+      where: { id: booking.id },
+      data: { meetingLinkDeliveryStatus: "FAILED" },
+    });
+    console.error("Appointment link email failed", { bookingId: booking.id, code: error?.code || "EMAIL_SEND_FAILED" });
+    return res.status(502).json({ error: "Meeting link email could not be sent. Please retry." });
+  }
+  const saved = await prisma.booking.update({
+    where: { id: booking.id },
+    data: { meetingLinkSentAt: new Date(), meetingLinkDeliveryStatus: "SENT" },
+  });
+  res.json(serializeBooking(saved));
 });
 
 app.get("/api/debug/faako", authMiddleware, requireGlobalAdmin, async (req, res) => {
