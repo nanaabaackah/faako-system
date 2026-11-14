@@ -102,15 +102,12 @@ export const createMonitoringService = ({ registry, options, repository, logger,
       const model = await repository.findServiceById(id);
       return model ? runService(model.key) : null;
     },
-    async getServices(range) { return buildViews(range); },
     async getSummary(range) {
       const services = await buildViews(range);
       const counts = services.reduce((result, service) => ({ ...result, [service.effectiveStatus]: (result[service.effectiveStatus] || 0) + 1 }), { HEALTHY: 0, DEGRADED: 0, DOWN: 0, UNKNOWN: 0 });
       return { ...calculatePlatformHealth(services), counts, activeIncidents: services.reduce((sum, service) => sum + service.incidents.filter((incident) => !["RESOLVED", "CLOSED"].includes(incident.status)).length, 0), services };
     },
     async getService(id, range) { return (await buildViews(range)).find((service) => service.id === id) || null; },
-    async getHistory(id, range) { const service = (await buildViews(range)).find((item) => item.id === id) || null; return service ? { serviceId: id, range, timeline: service.timeline, latencyMetrics: service.latencyMetrics, uptimePercentage: service.uptimePercentage } : null; },
     listIncidents: (filters) => repository.listIncidents(filters).then((items) => items.map(serializeIncident)),
-    listDependencies: () => repository.listDependencies(),
   };
 };
