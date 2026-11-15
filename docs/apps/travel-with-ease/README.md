@@ -1,5 +1,14 @@
 # Travel With Ease documentation
 
+## Email-only staff invitations — 2026-11-15
+
+[Cloudflare-verified email invitation flow](./cms-invitation-email-delivery-2026-11-15.md).
+Normal staff invitations now take an email address only (with a role choice
+only for authorised Superadmins). The API verifies the signed Cloudflare Access
+email during activation; initial Owner bootstrap and legacy subject-bound
+invites are preserved. Additive migration `017_staff_email_invitation_binding.sql`
+is required before deploying this change.
+
 ## Optional CMS invitation emails — implementation 2026-11-14
 
 [Staff invitation email implementation and staged acceptance](./cms-invitation-email-delivery-2026-11-14.md).
