@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
   NavLink,
+  Link,
   useNavigate,
   useLocation,
 } from "react-router-dom";
@@ -42,6 +43,12 @@ import {
   addSessionInvalidListener,
 } from "./utils/authSession";
 import { hydrateDisplayCurrencyRate } from "./utils/displayCurrency";
+import {
+  getWorkspaceModule,
+  getWorkspaceSections,
+  getWorkspaceSectionLink,
+  isWorkspaceSectionActive,
+} from "./app/workspaceNavigation";
 import {
   formatNotificationCount,
   getAlertNotificationCount,
@@ -349,6 +356,18 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const sidebarStyle =
     isNavOpen && navSwipeOffset !== 0 ? { transform: `translateX(${navSwipeOffset}px)` } : undefined;
   const topbarLabel = getTopbarLabel(location.pathname);
+  const workspaceModule = getWorkspaceModule(visibleNavItems, location.pathname);
+  const workspaceSections = getWorkspaceSections(workspaceModule, location.pathname, visibleNavItems);
+  // Scroll to actual module sections; these tabs do not invent new routes.
+  useEffect(() => {
+    if (!location.hash) return undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.pathname, location.hash]);
+
   const commandItems = visibleNavItems.filter((item) =>
     !commandQuery.trim() ||
     [item.label, item.module].some((value) => String(value || "").toLowerCase().includes(commandQuery.trim().toLowerCase()))
@@ -367,6 +386,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         .filter(Boolean)
         .join(" ")}
     >
+      <div className="erp-workspace-frame">
       <SideNav
         className={sidebarClassName}
         style={sidebarStyle}
@@ -387,7 +407,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         onTouchEnd={handleSidebarTouchEnd}
         onTouchCancel={handleSidebarTouchEnd}
       />
-      <div className="erp-main">
+      <div className={workspaceSections.length > 1 ? "erp-main has-workspace-tabs" : "erp-main"}>
         <ErpShellTopbar
           ref={topbarRef}
           className="erp-topbar"
@@ -443,6 +463,21 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
             </div>
           )}
         />
+        {workspaceSections.length > 1 ? (
+          <nav className="erp-workspace-tabs" aria-label={`${workspaceModule?.label || "Module"} sections`}>
+            {workspaceSections.map((section, index) => {
+              const active = isWorkspaceSectionActive(section, location.pathname, location.hash, index);
+              const Icon = section.Icon;
+              return (
+                <Link key={section.anchor || section.to} to={getWorkspaceSectionLink(section, location.pathname)}
+                  className={active ? "is-active" : ""} aria-current={active ? "location" : undefined}>
+                  <Icon aria-hidden="true" />
+                  <span>{section.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        ) : null}
         {isOffline ? (
           <div className="offline-banner" role="status" aria-live="polite">
             Offline mode. Showing cached content where available.
@@ -454,6 +489,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
             <AppBottomBar />
           </div>
         </ErpPageContent>
+      </div>
       </div>
       {isCommandOpen && (
         <div className="erp-command-overlay">

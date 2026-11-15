@@ -1241,9 +1241,8 @@ const Dashboard = () => {
 
   return (
     <section className="page dashboard dashboard-modernized">
-      <div className="dashboard-overview-header">
+      <div id="dashboard-overview" className="dashboard-overview-header">
         <div>
-          <p className="eyebrow">Faako / DEV ERP</p>
           <h1>Operations overview</h1>
           <p className="muted">Projects, finances, appointments and application health in one workspace.</p>
         </div>
@@ -1628,7 +1627,7 @@ const Dashboard = () => {
 
 
       {canUseAccounting ? (
-        <section className="glass-card panel stack dashboard-module-panel dashboard-accounting-snapshot">
+        <section id="dashboard-accounting" className="glass-card panel stack dashboard-module-panel dashboard-accounting-snapshot">
           <div className="panel-header">
             <div>
               <h3>Accounting snapshot</h3>
@@ -1858,7 +1857,7 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="glass-card panel panel-span-2 dashboard-system-status">
+            <article id="dashboard-monitoring" className="glass-card panel panel-span-2 dashboard-system-status">
               <div className="panel-header">
                 <div>
                   <h3>System status</h3>
@@ -1884,7 +1883,7 @@ const Dashboard = () => {
               </div>
             </article>
 
-            <article className="glass-card panel panel-span-3">
+            <article id="dashboard-activity" className="glass-card panel panel-span-3">
               <div className="panel-header">
                 <div>
                   <h3>Activity timeline</h3>

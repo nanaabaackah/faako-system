@@ -1205,7 +1205,7 @@ const Invoicing = () => {
         </div>
       </section>
 
-      <div className="panel-grid">
+      <div id="invoicing-summary" className="panel-grid">
         <article className="panel kpi-card">
           <span className="kpi-label">Open invoices</span>
           <div className="kpi-value">{summary.openCount}</div>
@@ -1223,7 +1223,7 @@ const Invoicing = () => {
         </article>
       </div>
 
-      <section className="panel">
+      <section id="invoicing-ledger" className="panel">
         <div className="panel-header">
           <div>
             <h3>Invoice ledger</h3>

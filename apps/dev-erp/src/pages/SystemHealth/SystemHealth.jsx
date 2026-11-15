@@ -81,13 +81,14 @@ const SystemHealth = () => {
   };
 
   return (
-    <section className="page system-health-page">
+    <section id="health-overview" className="page system-health-page">
       <SystemHealthHeader range={range} onRangeChange={setRange} onRefresh={() => reload({ silent: true })} checking={refreshing} lastUpdatedAt={lastUpdatedAt} />
-      <PublishedAppsPanel />
+      <div id="health-apps"><PublishedAppsPanel /></div>
       {error ? <div className={`notice ${services.length ? "is-warning" : "is-error"}`} role="alert">{error} <button className="button button-ghost" type="button" onClick={() => reload()}>Retry</button></div> : null}
       {partialErrors.length ? <div className="notice is-warning" role="status">Some monitoring sections could not be refreshed. Available service data is shown below.</div> : null}
       {canViewIncidents ? <ActiveMaintenanceBanner windows={incidentResponse.maintenanceWindows} /> : null}
       {loading && !services.length ? <section className="health-loading-state" aria-label="Loading system health"><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /></section> : null}
+      <span id="health-services" className="workspace-section-anchor" aria-hidden="true" />
       {services.length ? (
         <>
           <div className="health-overall-grid"><PlatformHealthScore summary={summary} /><MonitoringSummaryCards summary={summary} /></div>
