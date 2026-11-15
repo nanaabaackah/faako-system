@@ -27,6 +27,9 @@ const html = `<!doctype html>
 <meta property="og:url" content="https://travelwitheasegh.com/">
 <title>Coming Soon | Travel With Ease</title>
 <link rel="icon" href="/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800&amp;family=Poiret+One&amp;family=Quicksand:wght@400;500;600;700&amp;family=Sassy+Frass&amp;display=swap">
 <link rel="stylesheet" href="/holding.css">
 </head>
 <body>
@@ -39,47 +42,52 @@ const html = `<!doctype html>
 <div class="content">
   <header class="brand"><img src="/brand/logo.png" width="600" height="200" alt="Travel With Ease"></header>
   <section class="message" aria-labelledby="message-title">
-    <p class="lead">A little more you. Coming soon.</p>
     <h1 id="message-title">The best journeys are worth the wait.</h1>
-    <p class="intro">Our website is getting ready for its next adventure.</p>
+    <p class="signature">A Little More You</p>
+    <p class="intro">Our website is currently under construction.</p>
     <p class="detail">We're creating a more personal way to explore the world. Until then, we're still here to help you plan your next journey.</p>
     <nav class="actions" aria-label="Contact Travel With Ease">
-      <a class="primary" href="https://wa.me/233208387020" target="_blank" rel="noopener noreferrer">Chat on WhatsApp <span aria-hidden="true">↗</span></a>
+      <a class="primary" href="https://wa.me/233208387020" target="_blank" rel="noopener noreferrer">Chat on WhatsApp <svg class="action-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
       <a class="secondary" href="mailto:nana@travelwitheasegh.com">Send us an email</a>
     </nav>
   </section>
-  <footer class="footer">Travel With Ease <span aria-hidden="true">·</span> Accra, Ghana</footer>
+  <footer class="footer">Travel With Ease <span class="footer-divider" aria-hidden="true"></span> Accra, Ghana</footer>
 </div>
 </main>
 </body>
 </html>`;
 
-const css = `:root{color-scheme:dark}
+const css = `
+:root {color-scheme:dark;--brand-navy:#010c33;--brand-cream:#f4ede3;--brand-gold:#d8b56a;--brand-ink:#000a1f;--twe-radius-button:6px;--font-display:"Poiret One","Trebuchet MS",Arial,sans-serif;--font-body:"Quicksand","Trebuchet MS",Arial,sans-serif;--font-impact:"Inter",Arial,sans-serif;--font-signature:"Sassy Frass",cursive}
 *{box-sizing:border-box}
 html{min-height:100%}
-body{margin:0;min-width:280px;font-family:Inter,Arial,sans-serif;color:#fffaf1;background:#071438}
-a:focus-visible{outline:3px solid #e9c78f;outline-offset:5px}
-.holding{position:relative;isolation:isolate;min-height:100svh;overflow:hidden;background:#071438}
+body{margin:0;min-width:280px;font-family:var(--font-body);font-size:1rem;line-height:1.65;color:var(--brand-cream);background:var(--brand-navy)}
+a:focus-visible{outline:3px solid var(--brand-gold);outline-offset:4px}
+.holding{position:relative;isolation:isolate;min-height:100svh;overflow:hidden;background:var(--brand-navy)}
 .photography,.shade{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
-.photography img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 48%}
-.shade{background:linear-gradient(180deg,rgba(4,13,37,.76),rgba(4,13,37,.8) 60%,#071438)}
+.photography img{display:block;width:100%;height:100%;object-fit:cover;object-position:65% 60%}
+.shade{background:linear-gradient(180deg,rgb(0 10 31 / 70%) 0%,rgb(0 10 31 / 78%) 60%,var(--brand-ink) 100%)}
 .content{width:min(100% - 48px,1120px);min-height:100svh;margin:auto;display:grid;grid-template-rows:auto 1fr auto;align-items:center;text-align:center;gap:2rem}
-.brand{padding-top:clamp(2rem,5vh,4rem)}
-.brand img{width:clamp(155px,23vw,225px);height:auto;display:block;margin:auto}
-.message{max-width:900px;margin:0 auto;padding:2rem 0}
-.lead{margin:0 0 2rem;color:#f0d3a4;font-size:clamp(.75rem,1.5vw,.92rem);font-weight:600;letter-spacing:.15em;text-transform:uppercase}
-h1{max-width:16ch;margin:0 auto 1.7rem;font-family:Georgia,serif;font-size:clamp(3rem,7.3vw,6.4rem);font-weight:400;line-height:1.06;letter-spacing:-.045em;text-wrap:balance}
-.intro{font-size:clamp(1.1rem,2.1vw,1.5rem);line-height:1.55;margin:0 auto 1rem;font-weight:500}
-.detail{max-width:47ch;margin:0 auto;color:#e9e8e4;font-size:clamp(.98rem,1.45vw,1.08rem);line-height:1.75}
-.actions{margin:2.5rem auto 0;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:.9rem 1.6rem}
-.actions a{min-height:48px;padding:13px 21px;display:inline-flex;align-items:center;justify-content:center;gap:.8rem;text-decoration:none;border-radius:999px;font-size:.94rem;font-weight:600}
-.primary{background:#edcf9d;color:#091735;border:1px solid #edcf9d}
-.primary:hover{background:#fff1d8}
-.secondary{color:#fffaf1;border:1px solid rgba(255,250,241,.67)}
-.secondary:hover{background:rgba(255,250,241,.13)}
-.footer{padding:0 0 max(2rem,env(safe-area-inset-bottom));display:flex;gap:.8rem;align-items:center;justify-content:center;color:#dfd9ce;font-size:.78rem;letter-spacing:.045em}
-@media(max-width:640px){.content{width:min(100% - 36px,480px);gap:1rem}.photography img{object-position:center 55%}.lead{margin-bottom:1.3rem}h1{font-size:clamp(2.75rem,11vw,4.2rem)}.actions{flex-direction:column;align-items:stretch;gap:.85rem;max-width:360px}.actions a{width:100%;min-height:52px}.footer{font-size:.75rem}}
+.brand{padding-top:clamp(1.5rem,4vh,3rem)}
+.brand img{width:clamp(140px,18vw,165px);height:auto;display:block;margin-inline:auto}
+.message{width:100%;max-width:940px;margin:0 auto;padding:2rem 0}
+h1{max-width:24ch;margin:0 auto;font-family:var(--font-display);font-size:clamp(2.4rem,4.35vw,4.5rem);font-weight:400;line-height:1.12;letter-spacing:-.025em;-webkit-text-stroke:.03em currentColor;paint-order:stroke fill;text-wrap:balance}
+.signature{margin:.2em 0 .25em;font-family:var(--font-signature);font-size:clamp(4rem,10vw,9.5rem);font-weight:400;line-height:1.08;letter-spacing:0;color:var(--brand-gold);text-wrap:balance}
+.intro{max-width:48ch;margin:0 auto .75rem;font-size:clamp(1.08rem,1.5vw,1.25rem);font-weight:600;line-height:1.5}
+.detail{max-width:48ch;margin:0 auto;color:var(--brand-cream);font-size:clamp(1rem,1.3vw,1.12rem);line-height:1.75}
+.actions{margin:2rem auto 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:1rem 1.2rem}
+.actions a{display:inline-flex;align-items:center;justify-content:center;gap:.65rem;min-height:48px;padding:13px 20px;border:1px solid var(--brand-cream);border-radius:var(--twe-radius-button);font-family:var(--font-impact);font-size:.875rem;font-weight:800;line-height:1.2;text-decoration:none;transition:background-color .15s ease,color .15s ease,border-color .15s ease}
+.primary{background:var(--brand-cream);color:var(--brand-ink)}
+.primary:is(:hover,:focus-visible){background:var(--brand-gold);border-color:var(--brand-gold)}
+.secondary{background:transparent;color:var(--brand-cream)}
+.secondary:is(:hover,:focus-visible){background:var(--brand-cream);color:var(--brand-navy)}
+.action-icon{width:18px;height:18px;flex:0 0 18px}
+.footer{padding:0 0 max(2rem,env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.9rem;font-family:var(--font-body);font-size:.875rem;font-weight:500;color:var(--brand-cream)}
+.footer-divider{width:1px;height:1rem;background:var(--brand-gold)}
+@media(max-width:640px){.content{width:min(100% - 36px,480px);gap:1rem}.photography img{object-position:center 58%}.shade{background:linear-gradient(180deg,rgb(0 10 31 / 78%),rgb(0 10 31 / 85%) 65%,var(--brand-ink))}h1{font-size:clamp(2.3rem,9.5vw,3.45rem)}.signature{font-size:clamp(4.25rem,19vw,6.25rem);line-height:1.05}.actions{flex-direction:column;align-items:stretch;width:min(100%,390px);gap:12px}.actions a{width:100%;min-height:52px}}
+@media(prefers-reduced-motion:reduce){.actions a{transition:none}}
 `;
+
 
 export async function buildHoldingPage({
   rootDirectory = root,
@@ -98,7 +106,7 @@ export async function buildHoldingPage({
     "/*",
     "  X-Robots-Tag: noindex, nofollow, noarchive",
     "  Cache-Control: no-store",
-    "  Content-Security-Policy: default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; img-src 'self'; style-src 'self'; font-src 'self'; form-action 'none'",
+    "  Content-Security-Policy: default-src 'none'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; img-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'none'; form-action 'none'",
     "  Referrer-Policy: strict-origin-when-cross-origin",
     "  X-Content-Type-Options: nosniff",
     "  X-Frame-Options: DENY",
