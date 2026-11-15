@@ -56,9 +56,40 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   const files = await readMigrations();
   await assert.rejects(migrate(pool, options), /explicit --initialise/);
   await migrate(pool, { ...options, initialise: true, organisationName: "Synthetic TWE", migrations: files.filter(file=>file.name < "006") });
+  const legacyTerminalEnquiryId = "10000000-0000-4000-8000-000000000091";
+  const legacyTerminalOutboxId = "10000000-0000-4000-8000-000000000092";
+  await pool.query(`INSERT INTO twe.enquiries
+    (id, organisation_id, kind, contact, details, notice_at)
+    VALUES ($1, $2, 'personalised', $3, '{}', now())`, [
+    legacyTerminalEnquiryId,
+    organisationId,
+    { name: "Migration Traveller", email: "migration@example.invalid" },
+  ]);
+  await pool.query(`INSERT INTO twe.notification_outbox
+    (id, organisation_id, enquiry_id, status, delivery_payload)
+    VALUES ($1, $2, $3, 'sent', $4)`, [
+    legacyTerminalOutboxId,
+    organisationId,
+    legacyTerminalEnquiryId,
+    { to: ["migration@example.invalid"], text: "Private continuation URL" },
+  ]);
   const preservedUser=randomUUID();
   await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,role) VALUES($1,$2,'https://legacy.invalid','preserved','editor')",[preservedUser,organisationId]);
   await migrate(pool, options);
+  assert.equal((await pool.query(
+    "SELECT delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [legacyTerminalOutboxId],
+  )).rows[0].delivery_payload, null, "Migration erases payloads from existing terminal jobs");
+  await pool.query(
+    "UPDATE twe.notification_outbox SET delivery_payload = $2 WHERE id = $1",
+    [legacyTerminalOutboxId, { to: ["migration@example.invalid"] }],
+  );
+  assert.equal((await pool.query(
+    "SELECT delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [legacyTerminalOutboxId],
+  )).rows[0].delivery_payload, null, "Database clears payloads written by an older worker version");
+  await pool.query("DELETE FROM twe.notification_outbox WHERE id = $1", [legacyTerminalOutboxId]);
+  await pool.query("DELETE FROM twe.enquiries WHERE id = $1", [legacyTerminalEnquiryId]);
   await pool.query("CREATE ROLE twe_test_runtime NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION");
   await migrate(pool, { ...options, initialise: true, organisationName: "Do not rename existing", runtimeRole: "twe_test_runtime" });
   assert.equal((await pool.query("SELECT name FROM twe.organisations WHERE id=$1", [organisationId])).rows[0].name, "Synthetic TWE");
@@ -826,11 +857,40 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.deepEqual(reclaimed.delivery_payload, payload);
   assert.equal(await outbox.finish(claimed, "stale-worker"), false);
   await outbox.fail(reclaimed, "provider_rejected");
-  assert.equal((await pool.query("SELECT last_error FROM twe.notification_outbox WHERE id = $1", [reclaimed.id])).rows[0].last_error, "provider_rejected");
+  const retry = (await pool.query(
+    "SELECT status, last_error, delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [reclaimed.id],
+  )).rows[0];
+  assert.equal(retry.status, "pending");
+  assert.equal(retry.last_error, "provider_rejected");
+  assert.deepEqual(retry.delivery_payload, payload, "Eligible retries retain the pinned provider request");
   assert.equal(await outbox.claim(payload), undefined, "Backoff prevents immediate retry");
   await pool.query("UPDATE twe.notification_outbox SET first_attempt_at = now() - interval '25 hours', available_at = now() WHERE id = $1", [claimed.id]);
   assert.equal(await outbox.claim(payload), undefined);
-  assert.equal((await pool.query("SELECT status, last_error FROM twe.notification_outbox WHERE id = $1", [claimed.id])).rows[0].status, "failed");
+  const expired = (await pool.query(
+    "SELECT status, last_error, delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [claimed.id],
+  )).rows[0];
+  assert.equal(expired.status, "failed");
+  assert.equal(expired.last_error, "retry_window_expired");
+  assert.equal(expired.delivery_payload, null, "Expired jobs retain delivery evidence without the message payload");
+
+  const sentEnquiryId = randomUUID();
+  await repository.createLeadWithInquiry({
+    id: randomUUID(), createdAt: new Date().toISOString(),
+    contact: { name: "Sent Traveller", email: "sent@example.invalid" },
+    inquiry: { id: sentEnquiryId, consentAt: new Date().toISOString(), destination: "Synthetic" },
+  });
+  const sentJob = await outbox.claim(payload);
+  assert.equal(sentJob.enquiry_id, sentEnquiryId);
+  assert.equal(await outbox.finish(sentJob, "synthetic-provider-id"), true);
+  const sent = (await pool.query(
+    "SELECT status, provider_id, delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [sentJob.id],
+  )).rows[0];
+  assert.deepEqual(sent, {
+    status: "sent", provider_id: "synthetic-provider-id", delivery_payload: null,
+  });
 
   // The raw SQL revision fixture above is deliberately not an approved page.
   // Its unpublished body must never enter a publication artifact.

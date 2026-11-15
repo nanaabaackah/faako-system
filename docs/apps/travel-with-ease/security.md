@@ -80,6 +80,13 @@ authentication or CORS check is bypassed to satisfy the repository security gate
 | SENSITIVE | Itinerary, flight/hotel bookings, emergency contacts, visa status, financial history | Strong RBAC, field minimisation, encryption in transit/at rest, audited access |
 | HIGHLY_SENSITIVE | Passport number/scan, visa documents, identity documents, encryption keys | Application-level field encryption, private objects, short signed URLs, no analytics/logs/AI/offline cache |
 
+Notification outbox rows reference the tenant-scoped enquiry until claimed. A
+rendered acknowledgement, recipient and private continuation URL are pinned only
+for an eligible delivery/retry and are erased whenever the job becomes `sent` or
+terminally `failed`. Status, attempts, provider ID and bounded error code remain as
+non-message delivery evidence. Provider and recipient-mailbox retention are
+separate processor/rights boundaries and are not erased by this database control.
+
 Inquiry Phase 1 accepts only contact and bounded planning data: enquiry/service
 classification, destination, timeframe, traveller count, optional budget and a
 minimised yes/no visa-status answer. It has no general notes field and does not
