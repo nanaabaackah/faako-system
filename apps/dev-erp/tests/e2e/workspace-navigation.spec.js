@@ -36,6 +36,19 @@ test.beforeEach(async ({ page }) => {
   }, adminUser);
 });
 
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status === testInfo.expectedStatus) return;
+  const diagnostics = await page.evaluate(() => ({
+    pathname: location.pathname,
+    appShellCount: document.querySelectorAll(".erp-shell").length,
+    mainRailCount: document.querySelectorAll(".erp-sidebar__rail").length,
+    bodyText: document.body?.innerText?.slice(0, 600),
+    storedUser: Boolean(localStorage.getItem("user")),
+    navState: document.querySelector(".erp-sidebar__rail-nav")?.getAttribute("aria-label"),
+  })).catch((error) => ({ error: String(error) }));
+  console.log("DEV_ERP_NAV_DIAGNOSTICS", JSON.stringify(diagnostics));
+});
+
 test("main navigation expands independently of the active module submenu", async ({ page }) => {
   await page.goto("/projects", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
