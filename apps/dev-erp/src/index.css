@@ -4076,13 +4076,14 @@ textarea.input {
 /* Stable anchor for conditionally rendered monitoring sections. */
 .workspace-section-anchor { display: block; width: 100%; height: 0; }
 
-/* Keep the module title in the shared header, not repeated underneath it. */
+/* Keep native page headings visible and accessible. The workspace tab row
+   separates the page's actions/content from its navigation without hiding h1. */
 @media (min-width: 901px) {
-  .erp-shell .projects-page:not(.project-detail-page) > .page-header > div:first-child {
-    display: none;
-  }
   .erp-shell .projects-page:not(.project-detail-page) > .page-header {
-    justify-content: flex-end;
-    margin-bottom: .35rem;
+    padding-bottom: .65rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .erp-shell .projects-page:not(.project-detail-page) > .page-header .eyebrow {
+    display: none;
   }
 }
