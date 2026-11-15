@@ -110,6 +110,22 @@ test("enqueued invitation is atomic, identity bound, and does not return or pers
   assert.match(manual.code, /^[A-Za-z0-9_-]{43}$/);
   assert.equal(manual.delivery, undefined);
   assert.equal(calls.filter(({ sql }) => sql.includes("INSERT INTO twe.staff_invitation_deliveries")).length, 1);
+
+  const simple = await service.issue({
+    actor, recipientEmail: "Invited@Example.invalid", sendEmail: true, requestId: "request-3",
+  });
+  assert.equal(simple.delivery, "queued");
+  assert.equal(simple.code, undefined);
+  const simpleInsert = calls.filter(({ sql }) => sql.includes("INSERT INTO twe.staff_invitations")).at(-1);
+  assert.match(simpleInsert.params[5], /^email:[a-f0-9]{64}$/);
+  assert.equal(simpleInsert.params[8], `EMAIL-${simple.id}`);
+  assert.equal(simpleInsert.params.at(-1), "invited@example.invalid");
+  assert.equal(calls.filter(({ sql }) => sql.includes("INSERT INTO twe.staff_invitation_deliveries")).length, 2);
+  const simpleCode = invitationEmailCode(enabled, {
+    id: simple.id, organisationId, environment: "staging", subject: simpleInsert.params[5],
+  });
+  assert.equal(simpleInsert.params[7], createHash("sha256").update(simpleCode).digest("hex"));
+  assert.ok(!JSON.stringify(calls).includes(simpleCode));
   const notConfigured = new Invitations(pool, organisationId, {}, "staging");
   await assert.rejects(
     notConfigured.issue({ actor, subject: "x", sendEmail: true, recipientEmail: "x@example.invalid" }),
