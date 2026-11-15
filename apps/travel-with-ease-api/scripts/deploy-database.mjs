@@ -1,9 +1,9 @@
 import { createLogger } from "@faako/logger";
 import { createDatabase } from "../src/db/database.js";
 import { readDeployConfig } from "../src/db/deploy-config.js";
-import { DatabaseConfigurationError } from "../src/db/configuration-error.js";
 import { migrate } from "../src/db/migrations.js";
-import { verifyHostedDatabase, readinessFailureCode } from "../src/portal/readiness.js";
+import { verifyHostedDatabase } from "../src/portal/readiness.js";
+import { classifyPredeployFailure } from "../src/db/predeploy-diagnostics.js";
 
 const logger = createLogger("travel-with-ease-api", { component: "predeploy" });
 let migrationPool;
@@ -25,10 +25,13 @@ try {
   }
   logger.info({ eventName: "migration.runtime_verified" }, "Database pre-deployment completed");
 } catch (error) {
-  const configurationError = phase === "configuration" && error instanceof DatabaseConfigurationError;
-  const reason = configurationError ? error.code : readinessFailureCode(error);
-  const guidance = configurationError ? ` ${error.message}` : "";
-  logger.error({ eventName: "migration.predeploy_failed", phase, reason }, `Database pre-deployment failed during ${phase} (${reason}).${guidance} No database reset or retry attempted.`);
+  // Log a fixed category and guidance only. Raw PostgreSQL errors can expose
+  // private network addresses, users, certificate paths or SQL parameters.
+  const diagnostic = classifyPredeployFailure(error);
+  logger.error(
+    { eventName: "migration.predeploy_failed", phase, reason: diagnostic.code },
+    `Database pre-deployment failed during ${phase} (${diagnostic.code}). ${diagnostic.guidance} No database reset or retry attempted.`,
+  );
   process.exitCode = 1;
 } finally {
   await migrationPool?.end();
