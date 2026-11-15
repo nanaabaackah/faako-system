@@ -52,10 +52,8 @@ export default function Activation({ status, api, onActivated }) {
       <dl>
         <dt>Workspace</dt>
         <dd>{status.organisation}</dd>
-        <dt>Your verified subject</dt>
-        <dd>
-          <code>{status.subject}</code>
-        </dd>
+        <dt>{status.email ? "Your verified Cloudflare email" : "Your verified identity"}</dt>
+        <dd><code>{status.email || status.subject}</code></dd>
       </dl>
       {status.status === "disabled" ? (
         <InlineNotice
