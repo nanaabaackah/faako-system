@@ -284,6 +284,50 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
         "SELECT status FROM twe.staff_invitation_deliveries WHERE invitation_id=$1", [cancelled.id],
       );
       assert.equal(cancelState.status, "cancelled");
+
+      // Email-only form: no Cloudflare subject or administrator approval reference.
+      // Only the same signed Cloudflare email, issuer and app audience may claim.
+      const emailOnly = await emailService.issue({
+        actor, recipientEmail: "New.Staff@Example.invalid", role: "editor",
+        sendEmail: true, requestId: "test-email-only",
+      });
+      assert.equal(emailOnly.code, undefined);
+      const { rows: [bound] } = await query(
+        "SELECT subject,invited_email,approval_reference,token_hash FROM twe.staff_invitations WHERE id=$1",
+        [emailOnly.id],
+      );
+      assert.match(bound.subject, /^email:[a-f0-9]{64}$/);
+      assert.equal(bound.invited_email, "new.staff@example.invalid");
+      assert.equal(bound.approval_reference, `EMAIL-${emailOnly.id}`);
+      const boundCode = invitationEmailCode(deliveryConfig, {
+        id: emailOnly.id, organisationId: otherOrg, environment: "test", subject: bound.subject,
+      });
+      assert.equal(bound.token_hash, createHash("sha256").update(boundCode).digest("hex"));
+      await assert.rejects(emailService.preview(identity("unverified-person"), boundCode), { status: 403 });
+      await assert.rejects(emailService.preview({ ...identity("another-person"), email: "different@example.invalid" }, boundCode), { status: 403 });
+      await assert.rejects(emailService.preview({ ...identity("another-person"), email: "new.staff@example.invalid", audience: "wrong" }, boundCode), { status: 403 });
+      const recipientIdentity = { ...identity("new-cloudflare-subject"), email: "NEW.STAFF@example.invalid" };
+      assert.equal((await emailService.preview(recipientIdentity, boundCode)).role, "editor");
+      assert.deepEqual(await emailService.claim(recipientIdentity, boundCode, "test-email-only-claim"),
+        { activated: true, role: "editor" });
+      await assert.rejects(emailService.claim(recipientIdentity, boundCode, "test-email-only-replay"), { status: 403 });
+      const { rows: [boundUser] } = await query(
+        "SELECT subject,role,active FROM twe.staff_users WHERE organisation_id=$1 AND subject=$2",
+        [otherOrg, "new-cloudflare-subject"],
+      );
+      assert.equal(boundUser.role, "editor");
+      assert.equal(boundUser.active, true);
+
+      const noEmail = await emailService.issue({
+        actor, recipientEmail: "missing-claim@example.invalid", sendEmail: true,
+        requestId: "test-email-only-missing-claim",
+      });
+      const { rows: [withoutClaim] } = await query("SELECT subject FROM twe.staff_invitations WHERE id=$1", [noEmail.id]);
+      const noEmailCode = invitationEmailCode(deliveryConfig, {
+        id: noEmail.id, organisationId: otherOrg, environment: "test", subject: withoutClaim.subject,
+      });
+      await assert.rejects(emailService.preview(identity("new-sign-in-without-email"), noEmailCode), { status: 403 });
+      await emailService.revoke({ actor, id: noEmail.id, requestId: "test-email-only-no-claim-revoke" });
       const { rows: [editor] } = await query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND subject='runtime-editor'", [otherOrg]);
       runtimeEditor = { ...editor, organisationId: otherOrg };
       const editorTours = await new TutorialService(runtimePool, otherOrg).run(runtimeEditor);
@@ -303,7 +347,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     await pool.query("UPDATE twe.staff_users SET active=false WHERE id=$1", [owner.id]);
     await assert.rejects(tutorials.run(actor));
     await assert.rejects(invitations.issue({ actor, subject: "disabled-owner-editor", approvalReference: "TEST-DISABLED" }));
-    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [otherOrg])).rows[0].n, 2);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [otherOrg])).rows[0].n, 3);
   });
 
   await context.test("Issue 02: installer authority closes after first Owner, including races and inactive-Owner recovery", async () => {
