@@ -17,7 +17,8 @@ const nativeContextSchema = z.object({
 });
 
 // A short first-contact intake, independent of the deferred price estimator.
-// Never collect passport numbers, document uploads or payment data here.
+// Empty notes remain accepted only for cached-client compatibility; parsed data
+// omits the field so new enquiries cannot persist unstructured sensitive data.
 export const legacyNativeInquirySchema = z.object({
   submissionId: z.string().uuid(),
   turnstileToken: z.string().max(2048).default(""),
@@ -30,7 +31,7 @@ export const legacyNativeInquirySchema = z.object({
   name: z.string().trim().min(2).max(160),
   email: emailSchema,
   phone: phoneSchema,
-  notes: z.string().trim().max(1500).default(""),
+  notes: z.literal("").optional(),
   entryType: z.enum(["general", "service", "package"]).default("general"),
   sourcePath: z.string().trim().regex(/^\/(?!\/)[a-z0-9/_-]*$/i).max(240).default("/"),
   context: nativeContextSchema.default({}),
@@ -39,6 +40,10 @@ export const legacyNativeInquirySchema = z.object({
 }).strict().superRefine((data, validation) => {
   if (data.entryType === "service" && !data.context.serviceId) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["context", "serviceId"], message: "Choose a valid service." });
   if (data.entryType === "package" && !data.context.packageId) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["context", "packageId"], message: "Choose a valid package." });
+}).transform((data) => {
+  const safe = { ...data };
+  delete safe.notes;
+  return safe;
 });
 export const nativeInquirySchema = legacyNativeInquirySchema;
 
@@ -60,9 +65,13 @@ export const inquirySchema = estimateSchema.extend({
   name: z.string().trim().min(2).max(160),
   email: emailSchema,
   phone: phoneSchema,
-  notes: z.string().trim().max(1500).optional().default(""),
+  notes: z.literal("").optional(),
   consent: z.literal(true),
   website: z.string().max(200).optional().default(""),
   estimateLowMinor: z.string().regex(/^\d+$/).optional(),
   estimateHighMinor: z.string().regex(/^\d+$/).optional(),
-}).strip();
+}).strip().transform((data) => {
+  const safe = { ...data };
+  delete safe.notes;
+  return safe;
+});

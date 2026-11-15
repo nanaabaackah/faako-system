@@ -80,7 +80,12 @@ authentication or CORS check is bypassed to satisfy the repository security gate
 | SENSITIVE | Itinerary, flight/hotel bookings, emergency contacts, visa status, financial history | Strong RBAC, field minimisation, encryption in transit/at rest, audited access |
 | HIGHLY_SENSITIVE | Passport number/scan, visa documents, identity documents, encryption keys | Application-level field encryption, private objects, short signed URLs, no analytics/logs/AI/offline cache |
 
-Inquiry Phase 1 accepts only contact and planning data. It does not accept identity documents, passport data or payment credentials.
+Inquiry Phase 1 accepts only contact and bounded planning data: enquiry/service
+classification, destination, timeframe, traveller count, optional budget and a
+minimised yes/no visa-status answer. It has no general notes field and does not
+accept visa type/expiry details, identity documents, passport data, medical data
+or payment credentials. Empty legacy notes are discarded for cached-client
+compatibility; non-empty notes fail boundary validation.
 
 The progressive enquiry flow creates one record from the short public intake.
 Acknowledgement mail carries a signed bearer link in the URL fragment; the browser

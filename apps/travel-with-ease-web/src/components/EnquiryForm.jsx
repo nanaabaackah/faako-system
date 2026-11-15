@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
-import { Button, TextField, TextareaField, SelectField, IconsaxIcon, AnimatedLoadingState, InlineNotice } from "@faako/ui";
+import { Button, TextField, SelectField, IconsaxIcon, AnimatedLoadingState, InlineNotice } from "@faako/ui";
 import { enquiryTypes } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
 import TurnstileChallenge from "./TurnstileChallenge.jsx";
 import "../styles/components/enquiry-form.css";
 
 const initial = {
   enquiryType: "trip", service: "not_sure", destination: "", travelTimeframe: "",
-  travellers: "2", budget: "", name: "", email: "", phone: "", notes: "",
+  travellers: "2", budget: "", name: "", email: "", phone: "",
   consent: false, website: "",
 };
 
@@ -109,7 +109,6 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
         <TextField name="email" label="Email" type="email" autoComplete="email" value={form.email} onChange={update} required maxLength={254} />
         <TextField name="phone" label="WhatsApp number" type="tel" autoComplete="tel" value={form.phone} onChange={update} required maxLength={40} placeholder="+233…" />
       </div>
-      <TextareaField name="notes" label="Anything else? (optional)" value={form.notes} onChange={update} maxLength={1500} rows={3} hint="Do not include passport numbers, payment details or medical records." />
       <div className="enquiry-honeypot" aria-hidden="true"><label>Leave this blank<input name="website" value={form.website} onChange={update} tabIndex={-1} autoComplete="off" /></label></div>
       <p className="enquiry-privacy-note">We collect these contact details and travel preferences to respond to your enquiry and plan the service you request. This is not a booking or consent to marketing.</p>
       <label className="enquiry-consent"><input name="consent" type="checkbox" checked={form.consent} onChange={update} required /><span>I agree that Travel With Ease may use these details to respond to my enquiry.</span></label>

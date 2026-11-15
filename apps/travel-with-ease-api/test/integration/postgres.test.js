@@ -94,12 +94,12 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       "SELECT details, kind FROM twe.enquiries WHERE organisation_id = $1 AND id = $2",
       [organisationId, first.inquiryId]);
     assert.equal(rows.rows[0].details.enquiryType, "gift");
+    assert.equal("notes" in rows.rows[0].details, false);
     assert.equal(rows.rows[0].kind, "personalised");
     assert.equal((await pool.query(
       "SELECT count(*)::int AS n FROM twe.notification_outbox WHERE organisation_id = $1 AND enquiry_id = $2",
       [organisationId, first.inquiryId])).rows[0].n, 1);
-    await assert.rejects(repository.createNativeEnquiry({ ...data, notes: "Changed" }),
-      error => error.code === "enquiry_submission_conflict");
+    assert.equal((await repository.createNativeEnquiry({ ...data, notes: "Discarded legacy notes" })).replayed, true);
     const other = new PostgresLeadRepository(pool, { ...options, organisationId: otherOrg });
     const otherReceipt = await other.createNativeEnquiry(data);
     assert.notEqual(otherReceipt.inquiryId, first.inquiryId);
@@ -121,6 +121,10 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       entryType: "general", sourcePath: "/", context: {},
     };
     const created = await repository.createNativeEnquiry(intake);
+    assert.equal((await pool.query(
+      "SELECT details ? 'notes' AS has_notes FROM twe.enquiries WHERE organisation_id=$1 AND id=$2",
+      [organisationId, created.inquiryId],
+    )).rows[0].has_notes, false);
     const before = (await pool.query(
       "SELECT created_at, status FROM twe.enquiries WHERE organisation_id=$1 AND id=$2",
       [organisationId, created.inquiryId],
