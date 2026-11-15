@@ -53,7 +53,9 @@ agency trip totals remain separate data; do not add personal visits into them.
 
 Authorised staff can open enquiries and update their status. Website enquiry
 confirmation is not a booking confirmation. Do not copy personal details into
-public articles or analytics.
+public articles or analytics. Inbox lists show only the traveller name and an
+operational summary; email, phone and questionnaire details load only after an
+authorised staff member opens the individual enquiry.
 
 Use Account to manage available personal preferences and Tutorial Mode. Ask your
 Owner about staff access; application roles do not grant Cloudflare, Railway,

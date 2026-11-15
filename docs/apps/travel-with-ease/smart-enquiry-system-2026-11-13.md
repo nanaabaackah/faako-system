@@ -53,7 +53,7 @@ Package: an open package CTA opens `?package=<published-slug>#plan`, snapshots p
 
 Endpoint remains `POST /api/public/enquiries`; strict versioned payloads and legacy first-contact payloads are supported. No schema migration is required because existing JSONB supports historical snapshots. Existing records remain readable. The organisation scope remains server-owned.
 
-The Traveller inbox adds status, category, service, package and traveller/reference filters with existing pagination. Details show overview, contact and readable questionnaire sections. Legacy records use a bounded fallback that hides submission idempotency metadata. Tenant SQL, role permissions, CSRF, optimistic status versions and atomic status audit are unchanged.
+The Traveller inbox adds status, category, service, package and traveller/reference filters with existing pagination. List queries return only the traveller display name and operational summary fields; they do not fetch or serialize full contact or enquiry details. Opening one authorised, tenant-scoped record retrieves its contact details and readable questionnaire sections. Legacy records use a bounded fallback that hides submission idempotency metadata. Tenant SQL, role permissions, CSRF, optimistic status versions and atomic status audit are unchanged.
 
 ## Email and notifications
 
