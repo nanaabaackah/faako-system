@@ -38,10 +38,35 @@ are part of local verification; Gmail/Outlook inbox rendering remains a hosted t
 
 The enquiry and outbox are committed together. The worker looks up contact data
 under the job's organisation and pins the complete payload in the claim transaction.
-Retries preserve the original payload and idempotency key. Malformed legacy contact
-data marks delivery failed for review without deleting the enquiry. Previously
-attempted payloads incompatible with the new routing remain blocked; never rewrite
-their body under an existing provider idempotency key.
+The payload exists only while delivery is pending or processing. Eligible retries
+within the 23-hour provider-deduplication window preserve the original payload and
+idempotency key. Sent, exhausted, expired and invalid jobs retain status, attempt,
+provider-ID and bounded error evidence but erase recipient, rendered body and
+private continuation URL. Migration `016_notification_payload_retention.sql`
+backfills existing terminal jobs and enforces this invariant. Its trigger also
+clears terminal writes from the previous worker version, so the migration can be
+deployed before the API/worker without rejecting an already accepted delivery.
+Malformed legacy contact data marks delivery failed for review without deleting the enquiry.
+Previously attempted payloads incompatible with the new routing remain blocked;
+never rewrite their body under an existing provider idempotency key.
+
+This controls only TWE's PostgreSQL outbox. [Resend's current GDPR
+documentation](https://resend.com/security/gdpr) states that email content and
+delivery logs are stored in the United States and retained for 30 days on Free,
+Pro and Scale plans; Enterprise retention is configurable. Resend has no API for
+individual sent-email deletion, and early deletion requires a support request with
+the provider email ID. Confirm the active account plan, [DPA](https://resend.com/legal/dpa)
+and processor/rights procedure before production approval. Clearing the outbox
+does not erase delivered mailboxes or provider-held copies.
+
+Deploy migration `016` before the API and notification worker. The trigger keeps
+the previous worker compatible during a rolling release. Roll back application
+code first if needed; the migration may remain because it is compatible with the
+previous worker and continues to enforce minimisation. If an exceptional schema
+rollback is approved, drop `notification_outbox_terminal_payload_cleared`, then
+the `notification_outbox_clear_terminal_payload` trigger, then
+`twe.clear_terminal_notification_payload()`. Erased payloads are intentionally
+not recoverable from the outbox; provider/mailbox copies remain separate.
 
 ## Testing
 
