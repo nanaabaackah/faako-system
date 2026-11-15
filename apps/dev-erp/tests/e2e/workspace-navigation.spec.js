@@ -5,6 +5,7 @@ const adminUser = {
   userId: 1,
   fullName: "Admin User",
   email: "admin@example.com",
+  organizationId: 1,
   roleName: "Admin",
   role: { name: "Admin", permissions: null },
 };
@@ -20,16 +21,24 @@ test.beforeEach(async ({ page }) => {
       });
       return;
     }
-    await route.fulfill({ contentType: "application/json", body: "{}" });
+    if (url.pathname === "/api/organizations") {
+      await route.fulfill({ contentType: "application/json", body: "[]" });
+      return;
+    }
+    if (url.pathname === "/api/projects") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ projects: [] }) });
+      return;
+    }
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not mocked" }) });
   });
   await page.addInitScript((user) => {
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.removeItem("dev-erp.main-menu-collapsed");
+    window.localStorage.setItem("user", JSON.stringify(user));
   }, adminUser);
 });
 
 test("main navigation expands independently of the active module submenu", async ({ page }) => {
   await page.goto("/projects", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
   const mainNav = page.getByRole("navigation", { name: "Main module navigation" });
   const contextualNav = page.getByRole("navigation", { name: "Projects sections" });
   await expect(mainNav.getByRole("link", { name: "Projects" })).toBeVisible();
