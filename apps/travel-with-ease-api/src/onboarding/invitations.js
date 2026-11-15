@@ -5,6 +5,18 @@ import { ContentError } from "../content/schema.js";
 import { invitationEmailCode } from "./invitation-email.js";
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
+// The signed Cloudflare Access email claim is authoritative only after the
+// assertion has passed issuer/audience/signature verification in auth/routes.
+const normalisedEmail = (value) =>
+  typeof value === "string" &&
+  value.length <= 254 &&
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+    ? value.trim().toLowerCase()
+    : null;
+const invitationMatchesIdentity = (invite, identity) =>
+  invite.invited_email
+    ? normalisedEmail(identity.email) === invite.invited_email
+    : invite.subject === identity.subject;
 const deny = () => {
   throw new ContentError(
     403,
@@ -95,6 +107,7 @@ export class Invitations {
           : "disabled"
         : "invitation_required",
       subject: identity.subject,
+      email: normalisedEmail(identity.email),
       organisation: org?.name,
       role: user?.role,
       canIssueOwner:
@@ -124,28 +137,41 @@ export class Invitations {
       await this.lock(client);
       const role = actor ? requestedRole : "owner";
       if (!['owner','editor'].includes(role)) deny();
-      if (sendEmail && (!actor || !this.deliveryConfig || typeof recipientEmail !== "string"))
+      if (sendEmail && (!actor || !this.deliveryConfig))
         throw new ContentError(503, "invitation_email_unavailable",
-          "Automatic invitation emails are not configured. Use the manual invitation code instead.");
+          "Automatic invitation emails are not configured.");
+      const email = sendEmail ? normalisedEmail(recipientEmail) : null;
+      if (sendEmail && !email)
+        throw new ContentError(400, "invalid_invitation_email", "Enter a valid invitation email address.");
+      const emailOnly = Boolean(sendEmail && !subject);
+      if (emailOnly && approvalReference)
+        throw new ContentError(400, "invalid_invitation_input", "Email invitations do not require an approval reference.");
+      // No administrator-entered subject or reference is necessary for an
+      // emailed staff invitation. Keep a deterministic, opaque subject for the
+      // existing signed-code derivation, without inventing a Cloudflare sub.
+      const boundSubject = emailOnly ? `email:${digest(email)}` : subject;
+      if (typeof boundSubject !== "string" || !boundSubject || boundSubject.length > 255) deny();
       if (actor) await this.checkOwner(client, actor,role);
       else if (!this.installer(identity) || (await this.ownerExists(client)))
         deny();
       const existing = await client.query(
         "SELECT 1 FROM twe.staff_users WHERE organisation_id=$1 AND issuer=$2 AND subject=$3",
-        [this.organisationId, this.settings.issuer, subject],
+        [this.organisationId, this.settings.issuer, boundSubject],
       );
       if (existing.rowCount) deny();
+      // Reissue revokes earlier invitations for the same bound identity/email;
+      // the old code can no longer be redeemed, even after provider acceptance.
       await client.query(
-        "UPDATE twe.staff_invitations SET revoked_at=now() WHERE organisation_id=$1 AND subject=$2 AND accepted_at IS NULL AND revoked_at IS NULL",
-        [this.organisationId, subject],
+        "UPDATE twe.staff_invitations SET revoked_at=now() WHERE organisation_id=$1 AND (subject=$2 OR ($3::text IS NOT NULL AND invited_email=$3)) AND accepted_at IS NULL AND revoked_at IS NULL",
+        [this.organisationId, boundSubject, emailOnly ? email : null],
       );
       await client.query(
-        "UPDATE twe.staff_invitation_deliveries SET status='cancelled',lease_token=NULL,lease_until=NULL,last_error='invitation_revoked' WHERE organisation_id=$1 AND invitation_id IN (SELECT id FROM twe.staff_invitations WHERE organisation_id=$1 AND subject=$2 AND revoked_at IS NOT NULL) AND status IN ('pending','processing')",
-        [this.organisationId, subject],
+        "UPDATE twe.staff_invitation_deliveries SET status='cancelled',lease_token=NULL,lease_until=NULL,last_error='invitation_revoked' WHERE organisation_id=$1 AND invitation_id IN (SELECT id FROM twe.staff_invitations WHERE organisation_id=$1 AND (subject=$2 OR ($3::text IS NOT NULL AND invited_email=$3)) AND revoked_at IS NOT NULL) AND status IN ('pending','processing')",
+        [this.organisationId, boundSubject, emailOnly ? email : null],
       );
       const id = randomUUID();
       const code = sendEmail
-        ? invitationEmailCode(this.deliveryConfig, { id, organisationId: this.organisationId, environment: this.environment, subject })
+        ? invitationEmailCode(this.deliveryConfig, { id, organisationId: this.organisationId, environment: this.environment, subject: boundSubject })
         : randomBytes(32).toString("base64url");
       const expiresAt = new Date(
         Date.now() + (actor ? 24 : 1) * 3600000,
@@ -156,27 +182,28 @@ export class Invitations {
           : `${identity.issuer}\n${identity.subject}\n${identity.audience}`,
       );
       await client.query(
-        "INSERT INTO twe.staff_invitations(id,organisation_id,environment,issuer,audience,subject,role,token_hash,approval_reference,created_by,expires_at,issued_by_identity_hash,purpose) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)",
+        "INSERT INTO twe.staff_invitations(id,organisation_id,environment,issuer,audience,subject,role,token_hash,approval_reference,created_by,expires_at,issued_by_identity_hash,purpose,invited_email) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
         [
           id,
           this.organisationId,
           this.environment,
           this.settings.issuer,
           this.settings.audience,
-          subject,
+          boundSubject,
           role,
           digest(code),
-          approvalReference,
+          emailOnly ? `EMAIL-${id}` : approvalReference,
           actor?.id || null,
           expiresAt,
           issuerHash,
           actor ? 'staff' : 'initial_owner',
+          emailOnly ? email : null,
         ],
       );
       if (sendEmail) {
         await client.query(
           "INSERT INTO twe.staff_invitation_deliveries(invitation_id,organisation_id,environment,recipient_email) VALUES($1,$2,$3,$4)",
-          [id, this.organisationId, this.environment, recipientEmail],
+          [id, this.organisationId, this.environment, email],
         );
       }
       await this.audit(
@@ -196,7 +223,7 @@ export class Invitations {
       await this.checkOwner(client, actor);
       return (
         await client.query(
-          "SELECT i.id,i.role,i.created_at,i.expires_at,i.accepted_at,i.revoked_at,d.status AS delivery_status FROM twe.staff_invitations i LEFT JOIN twe.staff_invitation_deliveries d ON d.invitation_id=i.id AND d.organisation_id=i.organisation_id WHERE i.organisation_id=$1 ORDER BY i.created_at DESC LIMIT 100",
+          "SELECT i.id,i.role,i.invited_email,i.created_at,i.expires_at,i.accepted_at,i.revoked_at,d.status AS delivery_status FROM twe.staff_invitations i LEFT JOIN twe.staff_invitation_deliveries d ON d.invitation_id=i.id AND d.organisation_id=i.organisation_id WHERE i.organisation_id=$1 ORDER BY i.created_at DESC LIMIT 100",
           [this.organisationId],
         )
       ).rows;
@@ -253,17 +280,16 @@ export class Invitations {
       const {
         rows: [invite],
       } = await client.query(
-        "SELECT role,purpose,created_by,expires_at FROM twe.staff_invitations WHERE organisation_id=$1 AND environment=$2 AND issuer=$3 AND audience=$4 AND subject=$5 AND token_hash=$6 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now()",
+        "SELECT role,purpose,created_by,expires_at,subject,invited_email FROM twe.staff_invitations WHERE organisation_id=$1 AND environment=$2 AND issuer=$3 AND audience=$4 AND token_hash=$5 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now()",
         [
           this.organisationId,
           this.environment,
           identity.issuer,
           identity.audience,
-          identity.subject,
           digest(code),
         ],
       );
-      if (!invite) deny();
+      if (!invite || !invitationMatchesIdentity(invite, identity)) deny();
       if (invite.purpose === 'initial_owner') {
         if (await this.ownerExists(client)) deny();
       } else
@@ -290,7 +316,7 @@ export class Invitations {
           invite.environment !== this.environment ||
           invite.issuer !== identity.issuer ||
           invite.audience !== identity.audience ||
-          invite.subject !== identity.subject ||
+          !invitationMatchesIdentity(invite, identity) ||
           invite.accepted_at ||
           invite.revoked_at ||
           new Date(invite.expires_at) <= new Date()
