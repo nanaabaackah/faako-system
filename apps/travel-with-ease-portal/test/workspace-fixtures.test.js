@@ -66,6 +66,12 @@ test("demo mutations stay in memory and unsupported actions cannot report succes
   const api = createWorkspaceFixture();
   const list = await api.get("/api/agent/inquiries");
   const item = list.items[0];
+  assert.deepEqual(Object.keys(item.contact), ["name"]);
+  assert.equal("details" in item, false);
+  assert.equal("version" in item, false);
+  const detail = await api.get(`/api/agent/inquiries/${item.id}`);
+  assert.equal(detail.contact.email, "traveller@example.invalid");
+  assert.equal(detail.details.destination, "Example destination");
   await api.post(`/api/agent/inquiries/${item.id}/status`, { json: { status: "closed", expectedVersion: 1 } });
   assert.equal((await api.get(`/api/agent/inquiries/${item.id}`)).status, "closed");
   assert.equal((await createWorkspaceFixture().get(`/api/agent/inquiries/${item.id}`)).status, "new");

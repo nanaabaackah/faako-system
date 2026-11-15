@@ -111,7 +111,18 @@ export function createWorkspaceFixture({role='owner', interactivePreview=false}=
               item.status === url.searchParams.get("status")) &&
             (!url.searchParams.get("kind") ||
               item.kind === url.searchParams.get("kind")),
-        );
+        ).map((item) => ({
+          id: item.id,
+          kind: item.kind,
+          status: item.status,
+          created_at: item.created_at,
+          contact: { name: item.contact.name },
+          category: item.kind === "package" ? "package" : "general",
+          service: null,
+          serviceId: null,
+          package: item.details.package || null,
+          packageId: null,
+        }));
         return copy({ items, nextOffset: null });
       }
       if (url.pathname.startsWith("/api/agent/inquiries/"))

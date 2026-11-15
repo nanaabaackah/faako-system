@@ -12,8 +12,22 @@ const update = z.object({
   expectedVersion: z.number().int().min(0).max(4294967295),
 }).strict();
 
-function publicRecord(row, detailed = false) {
-  const record = {
+function listRecord(row) {
+  return {
+    id: row.id, kind: row.kind, status: row.status,
+    demo: row.source === "staging_demo",
+    contact: { name: row.contact_name || "" },
+    created_at: row.created_at,
+    category: row.entry_type || (row.kind === "package" ? "package" : "general"),
+    service: row.service_title || null,
+    serviceId: row.service_id || null,
+    package: row.package_title || null,
+    packageId: row.package_id || null,
+  };
+}
+
+function detailedRecord(row) {
+  return {
     id: row.id, kind: row.kind, status: row.status,
     demo: row.source === "staging_demo" || row.details?.source === "staging_demo",
     contact: row.contact, created_at: row.created_at,
@@ -23,12 +37,9 @@ function publicRecord(row, detailed = false) {
     package: row.details?.selectedPackageTitle || null,
     packageId: row.details?.selectedPackageId || null,
     ...(row.version !== undefined ? { version: Number(row.version) } : {}),
+    details: row.details,
+    updated_at: row.updated_at,
   };
-  if (detailed) {
-    record.details = row.details;
-    record.updated_at = row.updated_at;
-  }
-  return record;
 }
 
 // No generated data or artificial enquiry counts. All reads are tenant-scoped.
@@ -65,12 +76,19 @@ export function enquiriesRoutes({ pool, organisationId, auth }) {
       if (search) { values.push(`%${search}%`); conditions.push(`(contact->>'name' ILIKE $${values.length} OR id::text ILIKE $${values.length})`); }
       values.push(offset);
       const result = await pool.query(
-        `SELECT id, kind, status, contact, details, created_at, details->>'source' AS source
+        `SELECT id, kind, status, created_at,
+                contact->>'name' AS contact_name,
+                details->>'source' AS source,
+                details->>'entryType' AS entry_type,
+                details->>'selectedServiceTitle' AS service_title,
+                details->>'selectedServiceId' AS service_id,
+                details->>'selectedPackageTitle' AS package_title,
+                details->>'selectedPackageId' AS package_id
           FROM twe.enquiries WHERE ${conditions.join(" AND ")}
           ORDER BY created_at DESC, id DESC LIMIT 26 OFFSET $${values.length}`, values);
       const hasMore = result.rows.length > 25;
       return send(req, res, {
-        items: result.rows.slice(0, 25).map(row => publicRecord(row)),
+        items: result.rows.slice(0, 25).map(listRecord),
         nextOffset: hasMore ? offset + 25 : null,
       });
     } catch (cause) { return next(cause); }
@@ -84,7 +102,7 @@ export function enquiriesRoutes({ pool, organisationId, auth }) {
         "SELECT id, kind, status, contact, details, created_at, updated_at, xmin::text AS version FROM twe.enquiries WHERE organisation_id = $1 AND id = $2",
         [organisationId, id.data]);
       if (!result.rows.length) return error(req, res, 404, "not_found", "Enquiry not found.");
-      return send(req, res, publicRecord(result.rows[0], true));
+      return send(req, res, detailedRecord(result.rows[0]));
     } catch (cause) { return next(cause); }
   });
 
@@ -107,7 +125,7 @@ export function enquiriesRoutes({ pool, organisationId, auth }) {
         return changed.rows[0];
       });
       if (!record) return error(req, res, 409, "conflict", "Enquiry changed or is unavailable. Refresh before retrying.");
-      return send(req, res, publicRecord(record, true));
+      return send(req, res, detailedRecord(record));
     } catch (cause) { return next(cause); }
   });
   return router;
