@@ -51,7 +51,9 @@ Official references:
 
 POST /api/public/enquiries accepts submissionId, enquiryType
 (trip/gift/group/celebration), service, destination, travelTimeframe, travellers,
-optional budget/notes, name/email/phone, consent, a honeypot and turnstileToken.
+optional budget, name/email/phone, consent, a honeypot and turnstileToken. Empty
+legacy `notes` values are accepted for cached-client compatibility and discarded;
+non-empty notes are rejected at the API boundary.
 Schema bounds and exact allowed Origin apply. Rate limiting precedes persistence.
 There are no passports, document uploads, payment fields or marketing opt-ins.
 

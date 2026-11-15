@@ -87,7 +87,12 @@ terminally `failed`. Status, attempts, provider ID and bounded error code remain
 non-message delivery evidence. Provider and recipient-mailbox retention are
 separate processor/rights boundaries and are not erased by this database control.
 
-Inquiry Phase 1 accepts only contact and planning data. It does not accept identity documents, passport data or payment credentials.
+Inquiry Phase 1 accepts only contact and bounded planning data: enquiry/service
+classification, destination, timeframe, traveller count, optional budget and a
+minimised yes/no visa-status answer. It has no general notes field and does not
+accept visa type/expiry details, identity documents, passport data, medical data
+or payment credentials. Empty legacy notes are discarded for cached-client
+compatibility; non-empty notes fail boundary validation.
 
 The progressive enquiry flow creates one record from the short public intake.
 Acknowledgement mail carries a signed bearer link in the URL fragment; the browser

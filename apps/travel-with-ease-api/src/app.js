@@ -212,7 +212,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
           travellers: parsed.data.travellers, nights: parsed.data.nights, travelDate: parsed.data.travelDate,
           accommodation: parsed.data.accommodation, tripStyle: parsed.data.tripStyle,
           activities: parsed.data.activities, flightPreference: parsed.data.flightPreference,
-          notes: parsed.data.notes, consentAt: now, estimate,
+          consentAt: now, estimate,
         },
       };
       await repository.createLeadWithInquiry(record);

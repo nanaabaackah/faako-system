@@ -46,7 +46,9 @@ function continuationPayload(contact, submissionId = randomUUID()) {
 
 test("first-contact enquiries require explicit classification, consent and bounded minimal data", () => {
   const input = payload();
-  assert.equal(nativeInquirySchema.parse(input).enquiryType, "trip");
+  const parsed = nativeInquirySchema.parse(input);
+  assert.equal(parsed.enquiryType, "trip");
+  assert.equal("notes" in parsed, false);
   for (const enquiryType of ["trip", "gift", "group", "celebration"]) {
     assert.equal(nativeInquirySchema.safeParse({ ...input, enquiryType }).success, true);
   }
@@ -54,7 +56,8 @@ test("first-contact enquiries require explicit classification, consent and bound
     { consent: false }, { enquiryType: undefined }, { enquiryType: "invented" },
     { travellers: 0 }, { travellers: 1.5 }, { travellers: 101 },
     { email: "invalid" }, { submissionId: "../private" },
-    { notes: "x".repeat(1501) }, { organisationId: randomUUID() },
+    { notes: "Please store my passport number" }, { notes: "x".repeat(1501) },
+    { organisationId: randomUUID() },
     { passportNumber: "not-collected" }, { estimateLowMinor: "1" },
   ]) assert.equal(nativeInquirySchema.safeParse({ ...input, ...change }).success, false);
 });
@@ -73,10 +76,13 @@ test("local enquiries persist, deduplicate concurrent retries and reject changed
     error => error.code === "enquiry_submission_conflict");
   const reopened = new FileLeadRepository(file);
   assert.equal((await reopened.listLeads()).length, 1);
+  assert.equal("notes" in (await reopened.listLeads())[0].inquiry, false);
   assert.equal((await reopened.createNativeEnquiry(input)).replayed, true);
   assert.equal((await reopened.listLeads())[0].inquiry.enquiryType, "trip");
+  await repository.createNativeEnquiry({ ...input, submissionId: randomUUID(), notes: "Internal legacy notes must also be discarded" });
+  assert.equal("notes" in (await repository.listLeads())[0].inquiry, false);
   await repository.createNativeEnquiry({ ...input, submissionId: randomUUID() });
-  assert.equal((await repository.listLeads()).length, 2);
+  assert.equal((await repository.listLeads()).length, 3);
 });
 
 test("private completion enriches one enquiry once and identical retries are idempotent", async () => {

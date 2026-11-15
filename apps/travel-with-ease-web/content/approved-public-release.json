@@ -542,7 +542,7 @@
         },
         {
           "heading": "Information you provide",
-          "text": "The enquiry form collects your name, email, WhatsApp number, enquiry type, requested service, destination, travel timeframe, number of travellers, optional budget and notes, and your permission to respond. Do not enter passport numbers, payment details, medical records or other unnecessary sensitive information.",
+          "text": "The enquiry form collects your name, email, WhatsApp number, enquiry type, requested service, destination, travel timeframe, number of travellers, optional budget, a yes or no visa-status answer where relevant, and your permission to respond. It does not ask for general notes, visa details, passport information, payment details or medical records.",
           "attribution": ""
         },
         {

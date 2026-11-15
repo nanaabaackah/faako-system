@@ -10,6 +10,8 @@ export function submissionRecord(data, clock = () => new Date().toISOString()) {
   const contact = smart ? data.contact : { name: data.name, email: data.email, phone: data.phone };
   const routedServiceId = smart ? selectedServiceFromAnswers(data.answers, context.serviceId) : "";
   const routedService = SERVICE_OPTIONS.find((service) => service.id === routedServiceId);
+  const legacyData = { ...data };
+  delete legacyData.notes;
   const details = smart ? {
     source: "website_smart_enquiry",
     entryType: data.entryType,
@@ -22,7 +24,7 @@ export function submissionRecord(data, clock = () => new Date().toISOString()) {
     submittedAt,
     ...validatedQuestionnaireSnapshot(data),
   } : {
-    ...data,
+    ...legacyData,
     source: "website_intake",
     entryType: data.entryType,
     sourcePath: data.sourcePath,
