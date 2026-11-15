@@ -387,6 +387,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         .join(" ")}
     >
       <div className="erp-workspace-frame">
+      <div className="erp-workspace-sidebar">
       <SideNav
         className={sidebarClassName}
         style={sidebarStyle}
@@ -407,6 +408,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         onTouchEnd={handleSidebarTouchEnd}
         onTouchCancel={handleSidebarTouchEnd}
       />
+      </div>
       <div className={workspaceSections.length > 1 ? "erp-main has-workspace-tabs" : "erp-main"}>
         <ErpShellTopbar
           ref={topbarRef}

@@ -246,7 +246,7 @@ const SideNav = ({
           </div>
 
           <div className="erp-sidebar__context-head">
-            <h2>{activeWorkspaceModule?.label || "Workspace"}</h2>
+            <strong className="erp-sidebar__context-title">{activeWorkspaceModule?.label || "Workspace"}</strong>
             <button type="button" className="erp-sidebar__context-action"
               onClick={onOpenCommand} aria-label="Find a module or action" title="Find a module or action">
               <FiPlus aria-hidden="true" />
