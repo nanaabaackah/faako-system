@@ -49,8 +49,10 @@ runtime role; no resets or role/authentication changes are needed. Apply through
 the established environment-scoped `db:deploy` before releasing the API/worker.
 Activation and draft saves generate reference-only audit events. The notification
 worker reads active copy for new payloads; immutable, already-prepared outbox
-payloads retain their original copy and idempotency behaviour. Do not reroute or
-resend queued notifications simply to change their design.
+payloads retain their original copy and idempotency behaviour only while delivery
+remains eligible for retry. Terminal jobs erase the recipient and rendered payload
+while retaining bounded delivery evidence. Do not reroute or resend queued
+notifications simply to change their design.
 
 Rollback: save the documented default copy as a new draft and activate it, or
 roll back API/worker code while leaving the additive table intact. The local

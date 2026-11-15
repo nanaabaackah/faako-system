@@ -10,7 +10,8 @@ export class NotificationOutbox {
     return transaction(this.pool, async (client) => {
       // Never retry an ambiguous send outside the provider's 24-hour dedup window.
       await client.query(
-        `UPDATE twe.notification_outbox SET status = 'failed', last_error = 'retry_window_expired', lease_token = NULL, lease_until = NULL
+        `UPDATE twe.notification_outbox SET status = 'failed', last_error = 'retry_window_expired',
+        delivery_payload = NULL, lease_token = NULL, lease_until = NULL
         WHERE organisation_id = $1 AND status IN ('pending', 'processing')
         AND (lease_until IS NULL OR lease_until <= now())
         AND (attempts >= 5 OR first_attempt_at < now() - interval '23 hours')`,
@@ -51,7 +52,8 @@ export class NotificationOutbox {
           // starve later jobs. Retain the enquiry; flag this delivery for review.
           await client.query(
             `UPDATE twe.notification_outbox SET status = 'failed',
-            last_error = 'invalid_delivery_payload', lease_token = NULL, lease_until = NULL
+            last_error = 'invalid_delivery_payload', delivery_payload = NULL,
+            lease_token = NULL, lease_until = NULL
             WHERE organisation_id = $1 AND id = $2`,
             [this.organisationId, job.id],
           );
@@ -69,7 +71,8 @@ export class NotificationOutbox {
   async finish(job, providerId) {
     const result = await this.pool.query(
       `UPDATE twe.notification_outbox SET status = 'sent', provider_id = $1,
-      lease_until = NULL, lease_token = NULL, last_error = NULL WHERE organisation_id = $2 AND id = $3
+      delivery_payload = NULL, lease_until = NULL, lease_token = NULL, last_error = NULL
+      WHERE organisation_id = $2 AND id = $3
       AND status = 'processing' AND lease_token = $4`,
       [providerId, this.organisationId, job.id, job.lease_token],
     );
@@ -79,6 +82,7 @@ export class NotificationOutbox {
     await this.pool.query(
       `UPDATE twe.notification_outbox SET status = CASE WHEN attempts >= 5 THEN 'failed' ELSE 'pending' END,
       available_at = now() + interval '1 minute' * power(2, attempts), lease_until = NULL, lease_token = NULL,
+      delivery_payload = CASE WHEN attempts >= 5 THEN NULL ELSE delivery_payload END,
       last_error = $4 WHERE organisation_id = $1 AND id = $2 AND status = 'processing' AND lease_token = $3`,
       [this.organisationId, job.id, job.lease_token, ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response"].includes(reason) ? reason : "delivery_failed"],
     );
