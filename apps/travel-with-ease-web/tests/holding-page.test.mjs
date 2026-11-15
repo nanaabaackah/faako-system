@@ -25,10 +25,29 @@ test("holding page publishes only allowlisted assets without any functional webs
     assert.match(html, /https:\/\/wa\.me\/233208387020/);
     assert.match(html, /mailto:nana@travelwitheasegh\.com/);
     assert.match(html, /The best journeys are worth the wait/);
+    assert.match(html, /Our website is currently under construction/);
+    assert.match(html, /class="signature">A Little More You/);
+    assert.match(html, /family=Poiret\+One/);
+    assert.match(html, /family=Quicksand/);
+    assert.match(html, /family=Sassy\+Frass/);
+    assert.match(html, /family=Inter/);
+    assert.match(html, /<svg class="action-icon" aria-hidden="true"/);
+    assert.doesNotMatch(html, /↗|·/);
+    const css = await readFile(path.join(outputDirectory, "holding.css"), "utf8");
+    assert.match(css, /--brand-navy:#010c33/);
+    assert.match(css, /--brand-cream:#f4ede3/);
+    assert.match(css, /--brand-gold:#d8b56a/);
+    assert.match(css, /--twe-radius-button:6px/);
+    assert.match(css, /--font-display:"Poiret One"/);
+    assert.match(css, /--font-body:"Quicksand"/);
+    assert.match(css, /--font-signature:"Sassy Frass"/);
+    assert.match(css, /--font-impact:"Inter"/);
+    assert.doesNotMatch(css, /Georgia|border-radius:999px/);
     assert.doesNotMatch(html, /<script|\/api\/|googletagmanager|\/packages|<form/i);
     assert.equal(await readFile(path.join(outputDirectory, "404.html"), "utf8"), html);
     assert.equal(await readFile(path.join(outputDirectory, "_redirects"), "utf8"), "/* /index.html 200\n");
     assert.match(await readFile(path.join(outputDirectory, "_headers"), "utf8"), /X-Robots-Tag: noindex, nofollow/);
+    assert.match(await readFile(path.join(outputDirectory, "_headers"), "utf8"), /font-src .*https:\/\/fonts\.gstatic\.com/);
     for (const name of ["brand/logo.png", "media/hero.webp", "media/mobile.webp"]) {
       assert.ok((await stat(path.join(outputDirectory, name))).size > 1000);
     }
