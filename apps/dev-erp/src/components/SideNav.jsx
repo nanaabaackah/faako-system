@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "../api/client";
-import { ErpStatusBadge, SidebarEdgeToggle } from "@faako/ui";
+import { ErpStatusBadge } from "@faako/ui";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   getWorkspaceModule,
@@ -11,6 +11,8 @@ import {
 import {
   FiLogOut,
   FiChevronDown,
+  FiChevronLeft,
+  FiChevronRight,
   FiPlus,
   FiExternalLink,
   FiSearch,
@@ -31,6 +33,7 @@ const SideNav = ({
   style,
   isOpen,
   isCollapsed,
+  hasContextualSubmenu,
   visibleNavItems,
   navNotifications,
   formatNotificationCount,
@@ -184,7 +187,7 @@ const SideNav = ({
   return (
     <>
       <aside
-        className={[className, isDesktopCollapsed ? "is-collapsed" : ""].filter(Boolean).join(" ")}
+        className={[className, isDesktopCollapsed ? "is-main-menu-collapsed" : ""].filter(Boolean).join(" ")}
         id="erp-sidebar"
         style={style}
         onTouchStart={onTouchStart}
@@ -193,36 +196,64 @@ const SideNav = ({
         onTouchCancel={onTouchCancel}
       >
         <div className="erp-sidebar__rail">
-          <NavLink className="erp-sidebar__rail-brand" to="/dashboard" title="Faako dashboard" onClick={handleSelect} aria-label="Faako dashboard">
-            <img src="/imgs/dev-logo.png" alt="" />
-          </NavLink>
-          <nav className="erp-sidebar__rail-nav" aria-label="Quick module navigation">
-            {visibleNavItems.filter((item) => [
-              "dashboard", "projects", "rent", "accounting", "invoicing",
-              "bookings", "customers", "system-health", "reports"
-            ].includes(item.key)).map((item) => (
-              <NavLink
-                key={item.key}
-                to={item.to}
-                end={item.to === "/dashboard"}
-                onClick={handleSelect}
-                title={item.label}
-                aria-label={item.label}
-                className={({ isActive }) => isActive ? "is-active" : ""}
-              >
-                <item.Icon size={21} color="currentColor" variant="Linear" aria-hidden="true" />
-              </NavLink>
-            ))}
+          <div className="erp-sidebar__rail-header">
+            <NavLink className="erp-sidebar__rail-brand" to="/dashboard" title="Faako dashboard" onClick={handleSelect} aria-label="Faako dashboard">
+              <img src="/imgs/dev-logo.png" alt="" />
+            </NavLink>
+            <span className="erp-sidebar__rail-title">Faako <small>DEV ERP</small></span>
+            <button
+              type="button"
+              className="erp-sidebar__rail-toggle"
+              onClick={onToggleCollapsed}
+              aria-label={isDesktopCollapsed ? "Expand main menu" : "Collapse main menu"}
+              aria-expanded={!isDesktopCollapsed}
+              title={isDesktopCollapsed ? "Expand main menu" : "Collapse main menu"}
+            >
+              {isDesktopCollapsed ? <FiChevronRight aria-hidden="true" /> : <FiChevronLeft aria-hidden="true" />}
+            </button>
+          </div>
+          <nav className="erp-sidebar__rail-nav" aria-label="Main module navigation">
+            {visibleNavItems.map((item) => {
+              const count = Number(navNotifications[item.to] || 0);
+              return (
+                <NavLink
+                  key={item.key}
+                  to={item.to}
+                  end={item.to === "/dashboard"}
+                  onClick={handleSelect}
+                  title={isDesktopCollapsed ? item.label : undefined}
+                  aria-label={isDesktopCollapsed ? item.label : undefined}
+                  className={({ isActive }) => isActive ? "is-active" : ""}
+                >
+                  <item.Icon size={21} color="currentColor" variant="Linear" aria-hidden="true" />
+                  <span className="erp-sidebar__rail-link-label">{item.label}</span>
+                  {count > 0 ? (
+                    <span className="erp-sidebar__rail-count" aria-label={`${count} pending`}>
+                      {formatNotificationCount(count)}
+                    </span>
+                  ) : null}
+                </NavLink>
+              );
+            })}
           </nav>
-          <button
-            type="button"
-            className="erp-sidebar__rail-toggle"
-            onClick={onToggleCollapsed}
-            aria-label={isDesktopCollapsed ? "Expand navigation sidebar" : "Collapse navigation sidebar"}
-            title={isDesktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isDesktopCollapsed ? "›" : "‹"}
-          </button>
+          <div className="erp-sidebar__rail-footer">
+            <button type="button" className="erp-sidebar__rail-action" onClick={onOpenCommand}
+              title="Search modules" aria-label="Search modules">
+              <FiSearch aria-hidden="true" />
+              <span>Search</span>
+            </button>
+            <NavLink to="/profile" onClick={handleSelect} className="erp-sidebar__rail-profile"
+              title={isDesktopCollapsed ? displayName : undefined}
+              aria-label={isDesktopCollapsed ? `Profile for ${displayName}` : undefined}>
+              <span className="erp-sidebar__avatar" aria-hidden="true">{userInitials}</span>
+              <span className="erp-sidebar__rail-profile-name">{displayName}</span>
+            </NavLink>
+            <button type="button" className="erp-sidebar__rail-action" onClick={handleSignOutClick}
+              title="Sign out" aria-label="Sign out">
+              <FiLogOut aria-hidden="true" />
+              <span>Sign out</span>
+            </button>
+          </div>
         </div>
         <div className="erp-sidebar__panel">
           <div className="erp-sidebar__header">
@@ -245,6 +276,8 @@ const SideNav = ({
             </button>
           </div>
 
+          {hasContextualSubmenu ? (
+          <>
           <div className="erp-sidebar__context-head">
             <strong className="erp-sidebar__context-title">{activeWorkspaceModule?.label || "Workspace"}</strong>
             <button type="button" className="erp-sidebar__context-action"
@@ -268,6 +301,34 @@ const SideNav = ({
               );
             })}
           </nav>
+          {activeWorkspaceModule?.key === "system-health" && (
+            <div className="erp-sidebar__published-apps">
+              <button type="button" className="erp-nav-apps__toggle"
+                aria-expanded={healthMenuExpanded} aria-controls="erp-contextual-published-apps"
+                onClick={() => setHealthMenuExpanded((value) => !value)}>
+                <span>Published apps</span>
+                <FiChevronDown className={healthMenuExpanded ? "is-open" : ""} aria-hidden="true" />
+              </button>
+              {healthMenuExpanded ? (
+                <div id="erp-contextual-published-apps" className="erp-nav-apps__list">
+                  {publishedApps.map((app) => (
+                    <a key={app.id} href={app.url} target="_blank" rel="noopener noreferrer">
+                      <span className={`erp-nav-apps__dot is-${app.status}`} aria-hidden="true" />
+                      <span className="erp-nav-apps__name">{app.name}</span>
+                      <FiExternalLink aria-hidden="true" />
+                    </a>
+                  ))}
+                  {!publishedApps.length ? (
+                    <p className="erp-nav-apps__empty">
+                      {publishedAppsLoading ? "Loading published apps…" : "No verified app links available."}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          )}
+          </>
+          ) : null}
 
           <label className="erp-sidebar__search" htmlFor="erp-sidebar-search">
             <FiSearch aria-hidden="true" />
@@ -413,12 +474,6 @@ const SideNav = ({
             </NavLink>
           </div>
         </div>
-        {!isMobile ? (
-          <SidebarEdgeToggle
-            onClick={onToggleCollapsed}
-            collapsed={isDesktopCollapsed}
-          />
-        ) : null}
       </aside>
       <button
         className={`nav-scrim ${isOpen ? "is-open" : ""}`}
