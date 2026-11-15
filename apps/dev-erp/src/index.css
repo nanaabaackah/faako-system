@@ -4087,3 +4087,26 @@ textarea.input {
     display: none;
   }
 }
+
+/* Keep the existing collapse control reachable when the workspace is tall. */
+@media (min-width: 901px) {
+  .erp-workspace-sidebar > .ui-sidebar-edge-toggle {
+    position: fixed;
+    top: 50dvh;
+    right: auto;
+    left: calc(var(--workspace-shell-gap) + var(--workspace-rail-width) + var(--workspace-submenu-width));
+    width: 1.5rem;
+    height: 2.7rem;
+    border-radius: 999px;
+    background: var(--card);
+    box-shadow: none;
+    transform: translate(-50%, -50%);
+    z-index: 76;
+  }
+  .erp-shell.is-sidebar-collapsed .erp-workspace-sidebar > .ui-sidebar-edge-toggle {
+    left: calc(var(--workspace-shell-gap) + var(--workspace-rail-width));
+  }
+}
+@media (min-width: 1025px) {
+  .erp-shell .erp-sidebar__rail-toggle { display: none; }
+}
