@@ -5,6 +5,8 @@ import {
   createSuccessResponse,
 } from "@faako/api-contracts";
 import { ContentError } from "../content/schema.js";
+// Manual bootstrap and historical subject-bound invitation clients remain
+// supported. Routine staff invitations accept email (and optionally role) only.
 const issue = z
   .object({
     subject: z.string().trim().min(1).max(255),
@@ -16,6 +18,10 @@ const issue = z
   .strict()
   .refine((input) => input.sendEmail ? Boolean(input.recipientEmail) : input.recipientEmail === undefined,
     { path: ["recipientEmail"], message: "Recipient email is required only for email delivery." });
+const emailIssue = z.object({
+  recipientEmail: z.string().trim().email().max(254),
+  role: z.enum(["editor","owner"]).default("editor"),
+}).strict();
 export function invitationRoutes(service, auth) {
   const router = Router();
   const send = (req, res, result) =>
@@ -100,7 +106,9 @@ export function invitationRoutes(service, auth) {
         req,
         res,
         await service.issue({
-          ...issue.parse(req.body),
+          ...(req.body && Object.hasOwn(req.body, "subject")
+            ? issue.parse(req.body)
+            : { ...emailIssue.parse(req.body), sendEmail: true }),
           actor: req.staff,
           requestId: req.requestId,
         }),
