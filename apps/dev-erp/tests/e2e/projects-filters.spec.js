@@ -104,3 +104,37 @@ test("project filters fit within the mobile viewport", async ({ page }) => {
   await expect(page.getByPlaceholder("Project or client")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+
+test("main menu expands without closing the contextual Projects submenu", async ({ page }) => {
+  await page.goto("/projects", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
+
+  const mainNavigation = page.getByRole("navigation", { name: "Main module navigation" });
+  const projectsMenu = page.getByRole("navigation", { name: "Projects sections" });
+  await expect(mainNavigation.locator('a[href="/projects"]')).toBeVisible();
+  await expect(projectsMenu.getByRole("link", { name: "Board" })).toBeVisible();
+
+  const railBorder = await page.locator(".erp-sidebar__rail")
+    .evaluate((node) => getComputedStyle(node).borderTopStyle);
+  expect(railBorder).toBe("none");
+
+  await page.getByRole("button", { name: "Collapse main menu" }).click();
+  await expect(page.locator(".erp-shell")).toHaveClass(/is-main-menu-collapsed/);
+  await expect(mainNavigation.locator('a[href="/projects"]')).toBeVisible();
+  await expect(projectsMenu).toBeVisible();
+
+  await page.getByRole("button", { name: "Expand main menu" }).click();
+  await expect(page.locator(".erp-shell")).not.toHaveClass(/is-main-menu-collapsed/);
+  await expect(mainNavigation.getByText("Projects", { exact: true })).toBeVisible();
+});
+
+test("mobile navigation keeps the contextual submenu and all modules accessible", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/projects", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Projects", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await expect(page.getByRole("navigation", { name: "Projects sections" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "All admin modules" })).toBeVisible();
+});
