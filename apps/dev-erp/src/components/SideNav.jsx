@@ -1,10 +1,17 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { apiGet } from "../api/client";
 import { ErpStatusBadge, SidebarEdgeToggle } from "@faako/ui";
-import { NavLink } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import {
+  getWorkspaceModule,
+  getWorkspaceSections,
+  getWorkspaceSectionLink,
+  isWorkspaceSectionActive,
+} from "../app/workspaceNavigation";
 import {
   FiLogOut,
   FiChevronDown,
+  FiPlus,
   FiExternalLink,
   FiSearch,
   FiUser,
@@ -39,6 +46,7 @@ const SideNav = ({
   onTouchEnd,
   onTouchCancel,
 }) => {
+  const location = useLocation();
   const searchFieldRef = useRef(null);
   const pendingSearchFocusRef = useRef(false);
   const [isMobile, setIsMobile] = useState(() => {
@@ -49,7 +57,14 @@ const SideNav = ({
   const [publishedApps, setPublishedApps] = useState([]);
   const [publishedAppsLoading, setPublishedAppsLoading] = useState(false);
   const [healthMenuExpanded, setHealthMenuExpanded] = useState(true);
+  const [showAllModules, setShowAllModules] = useState(false);
+  const activeWorkspaceModule = getWorkspaceModule(visibleNavItems, location.pathname);
+  const workspaceSections = getWorkspaceSections(activeWorkspaceModule, location.pathname, visibleNavItems);
   const canSeeHealth = visibleNavItems.some((item) => item.key === "system-health");
+
+  useEffect(() => {
+    setShowAllModules(false);
+  }, [activeWorkspaceModule?.key]);
 
   useEffect(() => {
     if (!canSeeHealth) {
@@ -230,6 +245,30 @@ const SideNav = ({
             </button>
           </div>
 
+          <div className="erp-sidebar__context-head">
+            <strong className="erp-sidebar__context-title">{activeWorkspaceModule?.label || "Workspace"}</strong>
+            <button type="button" className="erp-sidebar__context-action"
+              onClick={onOpenCommand} aria-label="Find a module or action" title="Find a module or action">
+              <FiPlus aria-hidden="true" />
+            </button>
+          </div>
+          <nav className="erp-sidebar__context-nav" aria-label={`${activeWorkspaceModule?.label || "Workspace"} sections`}>
+            {workspaceSections.map((section, index) => {
+              const Icon = section.Icon;
+              const active = isWorkspaceSectionActive(section, location.pathname, location.hash, index);
+              return (
+                <Link key={section.anchor || section.to}
+                  to={getWorkspaceSectionLink(section, location.pathname)}
+                  className={active ? "is-active" : ""}
+                  aria-current={active ? "location" : undefined}
+                  onClick={handleSelect}>
+                  <Icon aria-hidden="true" />
+                  <span>{section.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
           <label className="erp-sidebar__search" htmlFor="erp-sidebar-search">
             <FiSearch aria-hidden="true" />
             <input
@@ -237,13 +276,19 @@ const SideNav = ({
               ref={searchFieldRef}
               type="search"
               value={navQuery}
-              onChange={(event) => setNavQuery(event.target.value)}
+              onChange={(event) => { setNavQuery(event.target.value); if (event.target.value.trim()) setShowAllModules(true); }}
               placeholder="Search modules..."
             />
             <span className="erp-sidebar__search-hint">{searchShortcutLabel}</span>
           </label>
 
-          <nav className="erp-nav" aria-label="Primary admin navigation">
+          <button type="button" className="erp-sidebar__browse-toggle"
+            aria-expanded={showAllModules} aria-controls="erp-all-modules"
+            onClick={() => setShowAllModules((open) => !open)}>
+            <span>All modules</span>
+            <FiChevronDown className={showAllModules ? "is-open" : ""} aria-hidden="true" />
+          </button>
+          <nav id="erp-all-modules" className={`erp-nav${showAllModules ? " is-expanded" : ""}`} aria-label="All admin modules">
             {filteredNavItems.length > 0 ? (
               filteredNavItems.map((item) => {
                 const Icon = item.Icon;

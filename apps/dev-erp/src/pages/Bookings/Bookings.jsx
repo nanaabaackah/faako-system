@@ -152,8 +152,7 @@ const Bookings = () => {
     <section className="page bookings-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">DEV ERP / Schedule</p>
-          <h1>Appointments</h1>
+                    <h1>Appointments</h1>
           <p className="muted">Manage your appointments and send meeting links directly from Faako.</p>
         </div>
         <div className="header-actions">
@@ -169,7 +168,7 @@ const Bookings = () => {
 
       {status.message && <div className={`notice is-${status.tone || "info"}`} role="status">{status.message}</div>}
 
-      <div className="panel-grid bookings-summary-grid">
+      <div id="bookings-summary" className="panel-grid bookings-summary-grid">
         {[
           ["Upcoming (7 days)", totals.sevenDays, "Scheduled sessions"],
           ["Confirmed", totals.confirmed, "Accepted bookings"],
@@ -184,7 +183,7 @@ const Bookings = () => {
         ))}
       </div>
 
-      <article className="panel bookings-planner">
+      <article id="bookings-planner" className="panel bookings-planner">
         <div className="panel-header">
           <div>
             <h3>Appointment schedule</h3>
@@ -215,7 +214,7 @@ const Bookings = () => {
         </div>
       </article>
 
-      <article className="panel bookings-records">
+      <article id="bookings-records" className="panel bookings-records">
         <div className="panel-header">
           <div>
             <h3>{selectedDay ? "Selected day" : "Upcoming appointments"}</h3>
@@ -254,7 +253,7 @@ const Bookings = () => {
         )}
       </article>
 
-      <article className="panel">
+      <article id="bookings-holidays" className="panel">
         <div className="panel-header"><div><h3>Holiday blocks</h3><p className="muted">Dates blocked for new appointments (Canada and Ghana).</p></div></div>
         <div className="bookings-holiday-list">
           {holidayBlocks.slice(0, 5).map((day) => (
