@@ -16,7 +16,7 @@ const html = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#071438">
+<meta name="theme-color" content="#010c33">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="googlebot" content="noindex, nofollow, noarchive">
 <meta name="description" content="Travel With Ease is preparing a new website. We're still here to help plan your next journey.">
