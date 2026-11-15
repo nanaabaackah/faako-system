@@ -4,6 +4,7 @@ import { once } from "node:events";
 import { createApp, createLimiter } from "../src/app.js";
 import { readConfig } from "../src/config.js";
 import { estimateSchema } from "../src/validation.js";
+import { createProxyTrust, createRateLimitKey, readRateLimitConfig, resolveClientAddress, resolveRateLimitIdentity } from "../src/security/rate-limit.js";
 
 test("configuration rejects ambiguous modes, production bypass, invalid ports and broad origins", () => {
   assert.equal(readConfig({}).environment, "development");
@@ -14,6 +15,31 @@ test("configuration rejects ambiguous modes, production bypass, invalid ports an
     { APP_ENV: "staging" }, { APP_ENV: "staging", ALLOWED_ORIGINS: "http://example.com" },
   ]) assert.throws(() => readConfig(env));
   assert.equal(readConfig({ APP_ENV: "staging", ALLOWED_ORIGINS: "https://stage.example.com" }).deployed, true);
+});
+
+test("hosted rate limits require the reviewed Railway edge and a strong pseudonymisation secret", () => {
+  const secret = Buffer.alloc(32, 7).toString("base64url");
+  assert.deepEqual(readRateLimitConfig({}, false), { proxyMode: "direct", secret: "" });
+  for (const env of [{}, { TWE_PROXY_MODE: "direct", TWE_RATE_LIMIT_SECRET: secret },
+    { TWE_PROXY_MODE: "railway", TWE_RATE_LIMIT_SECRET: "short" }]) {
+    assert.throws(() => readRateLimitConfig(env, true));
+  }
+  assert.equal(readRateLimitConfig({ TWE_PROXY_MODE: "railway", TWE_RATE_LIMIT_SECRET: secret }, true).proxyMode, "railway");
+  const trust = createProxyTrust("railway");
+  assert.equal(trust("10.0.0.1", 0), true);
+  assert.equal(trust("10.0.0.2", 1), false);
+  assert.equal(createProxyTrust("direct"), false);
+  assert.equal(resolveClientAddress({ headers: { "x-real-ip": "203.0.113.7" } }, "railway"), "203.0.113.7");
+  assert.equal(resolveRateLimitIdentity({ trustedAccessIdentity: "verified-issuer\0verified-audience\0verified-subject", headers: {
+    "x-real-ip": "198.51.100.4", "cf-connecting-ip": "spoofed",
+  } }, "railway"), "access:verified-issuer\0verified-audience\0verified-subject");
+  assert.equal(resolveRateLimitIdentity({ headers: { "x-real-ip": "203.0.113.7", "x-forwarded-for": "spoofed" } }, "railway"), "ip:203.0.113.7");
+  for (const value of [undefined, "203.0.113.7, 10.0.0.1", "not-an-ip"]) {
+    assert.throws(() => resolveClientAddress({ headers: { "x-real-ip": value } }, "railway"));
+  }
+  const key = createRateLimitKey(secret, "public-enquiries", "203.0.113.7");
+  assert.match(key, /^[a-f0-9]{64}$/);
+  assert.doesNotMatch(key, /203\.0\.113\.7/);
 });
 
 test("factory cannot bypass deployed adapter guard using a bearer credential", () => {
@@ -28,21 +54,20 @@ test("calendar dates reject impossible days and retain leap years", () => {
   assert.equal(dateSchema.parse("2028-02-29"), "2028-02-29");
 });
 
-test("limiter bounds distinct clients, enforces quotas and recovers after expiry", () => {
+test("limiter bounds distinct clients, enforces quotas and recovers after expiry", async () => {
   let now = 0;
   const limiter = createLimiter({ limit: 1, windowMs: 1000, maxClients: 2, clock: () => now });
   const request = (ip) => {
     let status = 200;
     const res = { setHeader() {}, status(code) { status = code; return this; }, json() {} };
-    limiter({ ip, requestId: "test" }, res, () => {});
-    return status;
+    return limiter({ ip, requestId: "test" }, res, () => {}).then(() => status);
   };
-  assert.equal(request("a"), 200);
-  assert.equal(request("a"), 429);
-  assert.equal(request("b"), 200);
-  assert.equal(request("c"), 429);
+  assert.equal(await request("a"), 200);
+  assert.equal(await request("a"), 429);
+  assert.equal(await request("b"), 200);
+  assert.equal(await request("c"), 429);
   now = 1001;
-  assert.equal(request("c"), 200);
+  assert.equal(await request("c"), 200);
 });
 
 test("safe JSON envelopes cover malformed, oversized, missing and failed requests", async (context) => {

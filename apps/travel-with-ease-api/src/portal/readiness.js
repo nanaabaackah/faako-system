@@ -2,6 +2,7 @@ import { readConfig } from "../config.js";
 import { readAccessConfig } from "../auth/access-config.js";
 import { verifyDatabaseIdentity } from "../db/database.js";
 import { readMigrations } from "../db/migrations.js";
+import { readRateLimitConfig } from "../security/rate-limit.js";
 
 export class ReadinessError extends Error {
   constructor(code, message) { super(message); this.name = "ReadinessError"; this.code = code; }
@@ -19,7 +20,10 @@ export function readHostedPrerequisites(env) {
   // Release provenance is enforced by PublicationRepository when publishing,
   // not by unrelated health, enquiry or staff-session startup.
   if (env.TWE_AGENT_API_TOKEN || env.TWE_LOCAL_DATA_FILE) throw new ReadinessError("local_adapter_forbidden", "Hosted preflight forbids local authentication/storage settings.");
-  return { environment: config.environment, organisationId: env.TWE_ORGANISATION_ID };
+  let rateLimitConfig;
+  try { rateLimitConfig = readRateLimitConfig(env, true); }
+  catch { throw new ReadinessError("rate_limit_configuration_invalid", "Hosted preflight requires reviewed Railway ingress and a strong rate-limit key secret."); }
+  return { environment: config.environment, organisationId: env.TWE_ORGANISATION_ID, rateLimitConfig };
 }
 
 export async function verifyHostedDatabase(pool, identity, migrations) {

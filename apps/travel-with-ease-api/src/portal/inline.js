@@ -53,7 +53,12 @@ export function createInlinePortal({ settings, verifier, distDirectory, logger }
       return rejectAuthentication(assertions.length === 0 ? "assertion_missing" : "assertion_header_invalid");
     }
     try {
-      await verifier.verify(req.headers["cf-access-jwt-assertion"]);
+      const identity = await verifier.verify(req.headers["cf-access-jwt-assertion"]);
+      if (typeof identity?.issuer === "string" && typeof identity?.subject === "string" && typeof identity?.audience === "string") {
+        // The distributed limiter HMACs this stable, cryptographically verified
+        // identity before persistence. Never trust Cloudflare client-IP headers.
+        req.trustedAccessIdentity = `${identity.issuer}\0${identity.audience}\0${identity.subject}`;
+      }
     } catch (error) {
       return rejectAuthentication(accessFailureReason(error));
     }

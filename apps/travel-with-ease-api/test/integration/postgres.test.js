@@ -24,6 +24,7 @@ import { EmailTemplates } from "../../src/notifications/templates.js";
 import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
 import { smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
 import { QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds, questions } from "../../src/enquiries/questionnaires/index.js";
+import { PostgresRateLimitStore, createRateLimitKey } from "../../src/security/rate-limit.js";
 
 function progressiveAnswers(contact) {
   const answers = { "1428564940": "I want full trip planning (itinerary, accommodation, activities, bookings)" };
@@ -63,8 +64,8 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   await migrate(pool, { ...options, initialise: true, organisationName: "Do not rename existing", runtimeRole: "twe_test_runtime" });
   assert.equal((await pool.query("SELECT name FROM twe.organisations WHERE id=$1", [organisationId])).rows[0].name, "Synthetic TWE");
   assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE action='organisation.provisioned'")).rows[0].n, 1);
-  const permissions = await pool.query("SELECT has_table_privilege('twe_test_runtime','twe.enquiries','INSERT') AS can_enquire, has_table_privilege('twe_test_runtime','twe.audit_records','UPDATE') AS can_rewrite_audit, has_schema_privilege('twe_test_runtime','twe','CREATE') AS can_create, has_table_privilege('twe_test_runtime','twe.enquiries','TRUNCATE') AS can_truncate");
-  assert.deepEqual(permissions.rows[0], { can_enquire: true, can_rewrite_audit: false, can_create: false, can_truncate: false });
+  const permissions = await pool.query("SELECT has_table_privilege('twe_test_runtime','twe.enquiries','INSERT') AS can_enquire, has_table_privilege('twe_test_runtime','twe.rate_limit_buckets','UPDATE') AS can_rate_limit, has_table_privilege('twe_test_runtime','twe.audit_records','UPDATE') AS can_rewrite_audit, has_schema_privilege('twe_test_runtime','twe','CREATE') AS can_create, has_table_privilege('twe_test_runtime','twe.enquiries','TRUNCATE') AS can_truncate");
+  assert.deepEqual(permissions.rows[0], { can_enquire: true, can_rate_limit: true, can_rewrite_audit: false, can_create: false, can_truncate: false });
   await assert.rejects(migrate(pool, { ...options, runtimeRole: "missing_role" }), /missing or privileged/);
   await assert.rejects(migrate(pool, { ...options, runtimeRole: "bad;role" }), /simple PostgreSQL/);
   assert.equal((await pool.query("SELECT role FROM twe.staff_users WHERE id=$1",[preservedUser])).rows[0].role,"editor");
@@ -76,6 +77,24 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await pool.query("SELECT to_regclass('twe.must_rollback') AS table_name")).rows[0].table_name, null);
   assert.deepEqual(await migrate(pool, options), []);
   await verifyDatabaseIdentity(pool, options);
+
+  await context.test("distributed rate limits are atomic across API instances and store no raw client address", async () => {
+    const firstInstance = new PostgresRateLimitStore(pool);
+    const secondInstance = new PostgresRateLimitStore(pool);
+    const rawAddress = "203.0.113.41";
+    const key = createRateLimitKey(Buffer.alloc(32, 9).toString("base64url"), "integration-public", rawAddress);
+    const results = await Promise.all([
+      firstInstance.consume({ scope: "integration-public", key, limit: 2, windowMs: 60_000 }),
+      secondInstance.consume({ scope: "integration-public", key, limit: 2, windowMs: 60_000 }),
+      firstInstance.consume({ scope: "integration-public", key, limit: 2, windowMs: 60_000 }),
+    ]);
+    assert.equal(results.filter(result => result.allowed).length, 2);
+    assert.equal(results.filter(result => !result.allowed).length, 1);
+    const stored = await pool.query("SELECT key_hash, request_count FROM twe.rate_limit_buckets WHERE scope = $1", ["integration-public"]);
+    assert.deepEqual(stored.rows, [{ key_hash: key, request_count: 3 }]);
+    assert.doesNotMatch(JSON.stringify(stored.rows), new RegExp(rawAddress.replaceAll(".", "\\.")));
+    await pool.query("DELETE FROM twe.rate_limit_buckets WHERE scope = $1", ["integration-public"]);
+  });
 
   await context.test("native intake and outbox are atomic, idempotent and tenant-scoped", async () => {
     const repository = new PostgresLeadRepository(pool, options);

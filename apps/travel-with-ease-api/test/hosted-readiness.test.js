@@ -6,7 +6,8 @@ import { PublicationRepository } from "../src/content/publication.js";
 const env = { APP_ENV: "staging", NODE_ENV: "production", ALLOWED_ORIGINS: "https://portal.example.test",
   TWE_AUTH_MODE: "cloudflare_access", TWE_ACCESS_TEAM_DOMAIN: "https://fixture.cloudflareaccess.com",
   TWE_ACCESS_AUDIENCE: "a".repeat(64), TWE_PORTAL_ORIGIN: "https://portal.example.test",
-  TWE_ORGANISATION_ID: "10000000-0000-4000-8000-000000000001", TWE_RELEASE_SHA: "b".repeat(40) };
+  TWE_ORGANISATION_ID: "10000000-0000-4000-8000-000000000001", TWE_RELEASE_SHA: "b".repeat(40),
+  TWE_PROXY_MODE: "railway", TWE_RATE_LIMIT_SECRET: Buffer.alloc(32, 7).toString("base64url") };
 
 test("missing release SHA does not block startup but still blocks publishing before database writes", async () => {
   for (const environment of ["staging", "production"]) {
@@ -20,7 +21,8 @@ test("missing release SHA does not block startup but still blocks publishing bef
 test("hosted preflight requires explicit reviewed configuration and rejects local adapters", () => {
   assert.equal(readHostedPrerequisites(env).environment, "staging");
   assert.equal(readHostedPrerequisites({ ...env, TWE_RELEASE_SHA: "" }).environment, "staging");
-  for (const patch of [{ NODE_ENV: "development" }, { APP_ENV: "development" }, { APP_ENV: undefined }, { TWE_ACCESS_AUDIENCE: "" }, { TWE_AGENT_API_TOKEN: "fixture" }, { TWE_LOCAL_DATA_FILE: "fixture" }, { ALLOWED_ORIGINS: "https://other.example.test" }]) {
+  for (const patch of [{ NODE_ENV: "development" }, { APP_ENV: "development" }, { APP_ENV: undefined }, { TWE_ACCESS_AUDIENCE: "" }, { TWE_AGENT_API_TOKEN: "fixture" }, { TWE_LOCAL_DATA_FILE: "fixture" }, { ALLOWED_ORIGINS: "https://other.example.test" },
+    { TWE_PROXY_MODE: "direct" }, { TWE_PROXY_MODE: "railway", TWE_RATE_LIMIT_SECRET: "short" }]) {
     assert.throws(() => readHostedPrerequisites({ ...env, ...patch }));
   }
 });

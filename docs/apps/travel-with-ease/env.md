@@ -8,6 +8,16 @@ pairs. Hosted enquiries fail closed if verification is missing; staff login and
 health remain independent. Local dev uses the loopback proxy and does not load
 hosted widgets. See [configuration and contract](./turnstile-and-enquiry-intake.md).
 
+## 2026-11-15 — Trusted ingress and shared rate limits
+
+Hosted API processes require `TWE_PROXY_MODE=railway` and a unique, server-only
+`TWE_RATE_LIMIT_SECRET` containing at least 32 random base64url bytes. Do not put
+either setting in a browser-prefixed variable. The API trusts one Railway edge
+hop, uses Railway's single `X-Real-IP` for public abuse controls and verified
+Access identity for protected portal controls, HMACs either identity before
+PostgreSQL persistence, and rejects hosted startup without the reviewed
+configuration. See [trusted ingress and rate limits](./trusted-ingress-and-rate-limits.md).
+
 > Reviewed 2026-11-01 against executable configuration and example files. See
 > [current implementation and hosted evidence](./completion-status-2026-11-01.md).
 > Synthetic workspaces were retired in the repository cleanup. Browser tests

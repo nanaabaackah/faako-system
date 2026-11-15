@@ -32,6 +32,7 @@ import { prepareHostedStartup } from "./staging-startup.js";
 import { readHostedPrerequisites, readinessFailureCode } from "./portal/readiness.js";
 import { createTurnstileVerifier } from "./enquiries/turnstile.js";
 import { createContinuationLinks, readContinuationConfig } from "./enquiries/continuation-links.js";
+import { PostgresRateLimitStore, createRateLimitKey, readRateLimitConfig, resolveRateLimitIdentity } from "./security/rate-limit.js";
 
 const directory = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { environment, deployed, allowedOrigins, port } = readConfig();
@@ -49,6 +50,14 @@ const provider = new ExchangeRateApiProvider({
 });
 const currencyService = new CurrencyService({ provider, supportedCurrencies: currencies.filter((currency) => currency.enabled).map((currency) => currency.code), ttlMs: Number(process.env.EXCHANGE_RATE_CACHE_TTL_SECONDS || 21600) * 1000 });
 const pool = process.env.DATABASE_URL ? createDatabase(process.env, "DATABASE_URL", logger) : null;
+const rateLimitConfig = readRateLimitConfig(process.env, deployed);
+const rateLimitStore = pool ? new PostgresRateLimitStore(pool) : undefined;
+const limiter = (options) => createLimiter({
+  ...options,
+  store: rateLimitStore,
+  key: (req, scope) => createRateLimitKey(rateLimitConfig.secret, scope, resolveRateLimitIdentity(req, rateLimitConfig.proxyMode)),
+  logger,
+});
 let startupReceipt;
 if (deployed) {
   try {
@@ -77,7 +86,7 @@ const staffAuth = createStaffAuth({
   administration,
   settings: authSettings, provider: accessVerifier,
   store: pool ? new PostgresAuthStore(pool, process.env.TWE_ORGANISATION_ID) : null,
-  limiter: createLimiter({ limit: 10, windowMs: 300_000 }), logger,
+  limiter: limiter({ scope: "staff-auth", limit: 10, windowMs: 300_000 }), logger,
 });
 if (administration) staffAuth.administrationRouter = administrationRoutes(administration, staffAuth);
 if (pool && authSettings) staffAuth.router.use(tutorialRoutes(new TutorialService(pool, process.env.TWE_ORGANISATION_ID), staffAuth));
@@ -103,6 +112,7 @@ const previewService = pool && process.env.TWE_CMS_PREVIEW_ENABLED === "true" ? 
 const continuationSettings = readContinuationConfig(process.env);
 const continuationLinks = continuationSettings ? createContinuationLinks(continuationSettings) : null;
 const app = createApp({ repository, currencyService, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, previewService, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
+  rateLimitStore, rateLimitConfig,
   continuationLinks,
   turnstileVerifier: createTurnstileVerifier({
     secret: process.env.TWE_TURNSTILE_SECRET_KEY, environment,

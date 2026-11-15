@@ -7,11 +7,13 @@ import { PostgresAuthStore } from "../src/auth/store.js";
 import { createStaffAuth } from "../src/auth/routes.js";
 import { readAccessConfig } from "../src/auth/access-config.js";
 import { createApp } from "../src/app.js";
+import { PostgresRateLimitStore, readRateLimitConfig } from "../src/security/rate-limit.js";
 
 const env = { APP_ENV: "staging", NODE_ENV: "production", ALLOWED_ORIGINS: "https://portal.example.test",
   TWE_AUTH_MODE: "cloudflare_access", TWE_ACCESS_TEAM_DOMAIN: "https://fixture.cloudflareaccess.com",
   TWE_ACCESS_AUDIENCE: "a".repeat(64), TWE_PORTAL_ORIGIN: "https://portal.example.test",
-  TWE_ORGANISATION_ID: "10000000-0000-4000-8000-000000000001", TWE_RELEASE_SHA: "b".repeat(40) };
+  TWE_ORGANISATION_ID: "10000000-0000-4000-8000-000000000001", TWE_RELEASE_SHA: "b".repeat(40),
+  TWE_PROXY_MODE: "railway", TWE_RATE_LIMIT_SECRET: Buffer.alloc(32, 7).toString("base64url") };
 
 for (const environment of ["staging", "production"]) test(`${environment} requires a successful database receipt bound to the actual persistent auth adapters`, async () => {
   const settingsEnv = { ...env, APP_ENV: environment, TWE_RELEASE_SHA: "" };
@@ -27,13 +29,15 @@ for (const environment of ["staging", "production"]) test(`${environment} requir
     provider: { async verify() { throw new Error("Synthetic test never authenticates users"); } },
     limiter: (_req, _res, next) => next(), logger: {} });
   const options = { environment, allowedOrigins: [env.TWE_PORTAL_ORIGIN],
-    repository: new PostgresLeadRepository(pool, { environment, organisationId: env.TWE_ORGANISATION_ID }), staffAuth: auth() };
+    repository: new PostgresLeadRepository(pool, { environment, organisationId: env.TWE_ORGANISATION_ID }), staffAuth: auth(),
+    rateLimitStore: new PostgresRateLimitStore(pool), rateLimitConfig: readRateLimitConfig(settingsEnv, true) };
   assert.throws(() => createApp(options));
   assert.throws(() => createApp({ ...options, startupReceipt: { verified: true } }));
   const startupReceipt = await prepareHostedStartup(settingsEnv, pool);
   assert.doesNotThrow(() => createApp({ ...options, startupReceipt }));
   for (const patch of [{ environment: environment === "staging" ? "production" : "staging" }, { agentToken: "fixture" }, { repository: {} }, { staffAuth: {} },
-    { allowedOrigins: ["https://other.example.test"] },
+    { allowedOrigins: ["https://other.example.test"] }, { rateLimitStore: new PostgresRateLimitStore({ query() {} }) },
+    { rateLimitConfig: { proxyMode: "direct", secret: "" } },
     { staffAuth: auth({ ...readAccessConfig(env), audience: "c".repeat(64) }) },
     { staffAuth: auth(readAccessConfig(env), new PostgresAuthStore({}, env.TWE_ORGANISATION_ID)) },
     { staffAuth: auth(readAccessConfig(env), new PostgresAuthStore(pool, "other-tenant")) }]) {

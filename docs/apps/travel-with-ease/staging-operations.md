@@ -92,9 +92,12 @@ separation is mandatory, not just different subdomains.
     Configure the API with `NODE_ENV=production`, `APP_ENV=staging`, exact
     `ALLOWED_ORIGINS`, runtime `DATABASE_URL`, organisation UUID,
     `TWE_AUTH_MODE=cloudflare_access`, `TWE_ACCESS_TEAM_DOMAIN`,
-    `TWE_ACCESS_AUDIENCE`, `TWE_PORTAL_ORIGIN` and reviewed `TWE_RELEASE_SHA`.
+    `TWE_ACCESS_AUDIENCE`, `TWE_PORTAL_ORIGIN`, `TWE_PROXY_MODE=railway`, a
+    unique server-only `TWE_RATE_LIMIT_SECRET`, and reviewed `TWE_RELEASE_SHA`.
     Remove legacy `TWE_OIDC_*` values and local bearer/file settings. Validate
-    Railway proxy/headers and rate limits; never enable blind trust proxy.
+    the documented one-hop Railway proxy/headers and distributed rate limits;
+    never enable blind trust proxy. Follow
+    [trusted ingress and rate limits](./trusted-ingress-and-rate-limits.md).
     For the one-time developer handover, deploy the reviewed additive migration,
     then have the developer Owner create a ten-minute request in Staff access.
     The named client Editor approves from Account settings in their own verified

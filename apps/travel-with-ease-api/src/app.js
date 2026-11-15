@@ -13,6 +13,7 @@ import { estimateSchema, inquirySchema, nativeInquirySchema, smartEnquirySchema 
 import { TurnstileError } from "./enquiries/turnstile.js";
 import { currencyDisplayRoutes } from "./currency/display-routes.js";
 import { z } from "zod";
+import { MemoryRateLimitStore, createProxyTrust, createRateLimitKey, resolveRateLimitIdentity } from "./security/rate-limit.js";
 
 const safeEqual = (left, right) => {
   const a = Buffer.from(String(left));
@@ -20,42 +21,32 @@ const safeEqual = (left, right) => {
   return a.length === b.length && timingSafeEqual(a, b);
 };
 
-export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Date.now }) => {
-  const clients = new Map();
-  let nextSweep = 0;
-  return (req, res, next) => {
-    const key = req.ip || "unknown";
-    const now = clock();
-    if (now >= nextSweep) {
-      for (const [client, state] of clients) if (state.resetAt <= now) clients.delete(client);
-      nextSweep = now + Math.min(windowMs, 60_000);
+export const createLimiter = ({ limit, windowMs, scope = "local-test", maxClients = 10_000, clock = Date.now,
+  store = new MemoryRateLimitStore({ maxClients, clock }), key = (req) => req.ip || "unknown", logger = {} }) => {
+  return async (req, res, next) => {
+    try {
+      const result = await store.consume({ scope, key: key(req, scope), limit, windowMs });
+      if (result.allowed) return next();
+      res.setHeader("Retry-After", String(result.retryAfterSeconds));
+      return res.status(429).json(createErrorResponse({ code: "rate_limited", message: "Too many requests. Please try again shortly." }, { requestId: req.requestId, retryAfterSeconds: result.retryAfterSeconds }));
+    } catch {
+      logger.error?.({ requestId: req.requestId, eventName: "rate_limit.unavailable", scope }, "Rate limit enforcement unavailable");
+      return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "Request protection is temporarily unavailable. Please try again shortly." }, { requestId: req.requestId }));
     }
-    if (!clients.has(key) && clients.size >= maxClients) {
-      res.setHeader("Retry-After", "60");
-      return res.status(429).json(createErrorResponse({ code: "rate_limited", message: "Too many requests. Please try again shortly." }, { requestId: req.requestId, retryAfterSeconds: 60 }));
-    }
-    const current = clients.get(key);
-    const state = !current || current.resetAt <= now ? { count: 0, resetAt: now + windowMs } : current;
-    state.count += 1;
-    clients.set(key, state);
-    if (state.count <= limit) return next();
-    const retryAfterSeconds = Math.ceil((state.resetAt - now) / 1000);
-    res.setHeader("Retry-After", String(retryAfterSeconds));
-    return res.status(429).json(createErrorResponse({ code: "rate_limited", message: "Too many requests. Please try again shortly." }, { requestId: req.requestId, retryAfterSeconds }));
   };
 };
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, continuationLinks = null, logger = createLogger("travel-with-ease-api") }) => {
-  assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt });
+export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, continuationLinks = null, rateLimitStore, rateLimitConfig = { proxyMode: "direct", secret: "" }, logger = createLogger("travel-with-ease-api") }) => {
+  assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt, rateLimitStore, rateLimitConfig });
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
   if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
   // This route must never be enabled on production, even if copied env vars exist.
 
   const app = express();
   app.disable("x-powered-by");
-  app.set("trust proxy", false);
+  app.set("trust proxy", createProxyTrust(rateLimitConfig.proxyMode));
   app.use((req, res, next) => {
     req.requestId = resolveRequestId(req.headers["x-request-id"]);
     res.setHeader("X-Request-Id", req.requestId);
@@ -68,6 +59,12 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
   if (inlinePortal) app.use(inlinePortal.guard);
   app.options(/^\/.*$/, (_req, res) => res.sendStatus(204));
   app.use(express.json({ limit: "32kb" }));
+  const limiter = (options) => createLimiter({
+    ...options,
+    store: rateLimitStore,
+    key: (req, scope) => createRateLimitKey(rateLimitConfig.secret, scope, resolveRateLimitIdentity(req, rateLimitConfig.proxyMode)),
+    logger,
+  });
   if (staffAuth) {
     app.use("/api/auth", staffAuth.router);
     app.use("/api/agent", staffAuth.requireStaff);
@@ -90,8 +87,8 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     }
   });
 
-  const publicLimiter = createLimiter({ limit: 40, windowMs: 10 * 60_000 });
-  app.use("/api/public/currency", createLimiter({ limit: 60, windowMs: 10 * 60_000 }), currencyDisplayRoutes(currencyService));
+  const publicLimiter = limiter({ scope: "legacy-public-write", limit: 40, windowMs: 10 * 60_000 });
+  app.use("/api/public/currency", limiter({ scope: "public-currency", limit: 60, windowMs: 10 * 60_000 }), currencyDisplayRoutes(currencyService));
   const verifyEnquiryChallenge = async (req, token) => {
     if (["staging", "production"].includes(environment) && !turnstileVerifier) {
       throw new TurnstileError(503, "service_unavailable",
@@ -105,7 +102,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
   }, { requestId: req.requestId }));
   const validPublicRequest = (req) => allowedOrigins.includes(req.headers.origin) && req.is("application/json");
 
-  app.post("/api/public/enquiries/continuation/context", createLimiter({ limit: 20, windowMs: 10 * 60_000 }), async (req, res) => {
+  app.post("/api/public/enquiries/continuation/context", limiter({ scope: "enquiry-continuation-context", limit: 20, windowMs: 10 * 60_000 }), async (req, res) => {
     res.set("Cache-Control", "no-store");
     if (!validPublicRequest(req)) return res.status(403).json(createErrorResponse({
       code: "permission_error", message: "Open the private questionnaire from the Travel With Ease email.",
@@ -128,7 +125,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     }
   });
 
-  app.post("/api/public/enquiries/continuation/complete", createLimiter({ limit: 10, windowMs: 10 * 60_000 }), async (req, res) => {
+  app.post("/api/public/enquiries/continuation/complete", limiter({ scope: "enquiry-continuation-complete", limit: 10, windowMs: 10 * 60_000 }), async (req, res) => {
     res.set("Cache-Control", "no-store");
     if (!validPublicRequest(req)) return res.status(403).json(createErrorResponse({
       code: "permission_error", message: "Open the private questionnaire from the Travel With Ease email.",
@@ -156,7 +153,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     }
   });
 
-  app.post("/api/public/enquiries", createLimiter({ limit: 10, windowMs: 10 * 60_000 }), async (req, res) => {
+  app.post("/api/public/enquiries", limiter({ scope: "public-enquiries", limit: 10, windowMs: 10 * 60_000 }), async (req, res) => {
     if (!allowedOrigins.includes(req.headers.origin) || !req.is("application/json")) {
       return res.status(403).json(createErrorResponse({
         code: "permission_error", message: "Submit your enquiry from the Travel With Ease website.",

@@ -22,6 +22,7 @@ test("embedded CMS is host-scoped, Access-protected, and uses same-process API r
         code: "ERR_JWT_CLAIM_VALIDATION_FAILED", claim: "aud", payload: { email: "private@example.invalid" },
       });
       if (assertion !== "synthetic-valid") throw new Error("Invalid synthetic assertion");
+      return { issuer: "https://fixture.cloudflareaccess.com", audience: "fixture-audience", subject: "fixture-subject" };
     } },
     distDirectory: directory,
   });
@@ -30,7 +31,12 @@ test("embedded CMS is host-scoped, Access-protected, and uses same-process API r
   app.use(guard);
   app.get("/healthz", (_req, res) => res.json({ ok: true }));
   app.get("/readyz", (_req, res) => res.json({ ready: true }));
-  app.get("/api/auth/status", (_req, res) => res.json({ data: { configured: true, mode: "cloudflare_access" } }));
+  app.get("/api/auth/status", (req, res) => {
+    assert.equal(req.trustedAccessIdentity, req.headers.host === "cms.example.test"
+      ? "https://fixture.cloudflareaccess.com\0fixture-audience\0fixture-subject"
+      : undefined);
+    res.json({ data: { configured: true, mode: "cloudflare_access" } });
+  });
   app.get("/api/auth/session", (_req, res) => res.status(401).json({ error: "No session" }));
   app.post("/api/auth/access-session", (_req, res) => res.status(201).json({ data: { signedIn: true } }));
   app.post("/api/public/inquiries", (_req, res) => res.status(202).end());
@@ -111,7 +117,10 @@ test("retired portal /demo stays unavailable with verified Access and an obsolet
   const setup = enabled => {
     const { guard, serve } = createInlinePortal({
       settings, distDirectory: directory, stagingDemoEnabled: enabled,
-      verifier: { async verify(value) { if (value !== "verified-access") throw new Error("invalid assertion"); } },
+      verifier: { async verify(value) {
+        if (value !== "verified-access") throw new Error("invalid assertion");
+        return { issuer: "https://fixture.cloudflareaccess.com", audience: "fixture-audience", subject: "fixture-subject" };
+      } },
     });
     const app = express();
     app.use((req, _res, next) => { req.requestId = "demo-test"; next(); });
