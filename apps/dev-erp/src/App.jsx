@@ -469,7 +469,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
           )}
         />
         {hasContextualSubmenu ? (
-          <nav className="erp-workspace-tabs" aria-label={`${workspaceModule?.label || "Module"} sections`}>
+          <nav className="erp-workspace-tabs" aria-label={`${workspaceModule?.label || "Module"} page tabs`}>
             {workspaceSections.map((section, index) => {
               const active = isWorkspaceSectionActive(section, location.pathname, location.hash, index);
               const Icon = section.Icon;
