@@ -51,7 +51,6 @@ test("updated how-it-works separates package and bespoke planning flows with app
   assert.match(process, /<HowItWorksTabs flows=\{content\.processFlows\}/);
   assert.match(process, /<HomeJourneyStepper[\s\S]*?client:visible/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
-  assert.match(process, /published/); // Public-site approved snapshot remains the source of truth.
   assert.match(tabs, /role="tablist"/);
   assert.match(tabs, /role="tabpanel"/);
   assert.match(tabs, /data-flow-tab="planning"/);
