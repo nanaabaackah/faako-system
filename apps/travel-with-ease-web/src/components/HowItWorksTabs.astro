@@ -1,0 +1,118 @@
+---
+import ContentLink from "./ContentLink.astro";
+import "../styles/components/how-it-works-tabs.css";
+
+interface Step { heading: string; text: string }
+interface Flow { steps: Step[]; example: string }
+interface Props { flows?: { package: Flow; planning: Flow } }
+const { flows } = Astro.props;
+const valid = flows &&
+  flows.package?.steps?.length === 4 &&
+  flows.planning?.steps?.length === 4;
+---
+
+{valid ? (
+  <div class="planning-flow" data-process-flows>
+    <!-- Both routes remain available in the server-rendered HTML if JS is disabled. -->
+    <div class="planning-flow__tablist" role="tablist" aria-label="How you would like to travel" hidden>
+      <button type="button" id="package-flow-tab" role="tab" aria-controls="package-booking" aria-selected="true" tabindex="0" data-flow-tab="package">Booking a package</button>
+      <button type="button" id="planning-flow-tab" role="tab" aria-controls="trip-planning" aria-selected="false" tabindex="-1" data-flow-tab="planning">Planning a trip with us</button>
+    </div>
+    <section class="planning-flow__panel" id="package-booking" role="tabpanel" aria-labelledby="package-flow-tab" data-flow-panel="package">
+      <h2>Booking a package</h2>
+      <p class="planning-flow__audience">For travellers choosing an existing package, tier and travel dates. No budget required.</p>
+      <ol class="planning-flow__steps">
+        {flows.package.steps.map((step, index) => (
+          <li>
+            <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+            <div>
+              <h3>{step.heading}</h3>
+              <p>{step.text}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div class="planning-flow__example">
+        <h3>How it could work: Nairobi</h3>
+        <p>{flows.package.example}</p>
+        <ContentLink href="/packages/nairobi">Explore the Nairobi package</ContentLink>
+      </div>
+      <div class="planning-flow__footer">
+        <ContentLink href="/terms#package-terms">Read the package terms</ContentLink>
+        <span>Terms, section B</span>
+      </div>
+    </section>
+    <section class="planning-flow__panel" id="trip-planning" role="tabpanel" aria-labelledby="planning-flow-tab" data-flow-panel="planning">
+      <h2>Planning a trip with us</h2>
+      <p class="planning-flow__audience">For a bespoke itinerary planned and booked for you. Your budget is part of the intake questionnaire.</p>
+      <ol class="planning-flow__steps">
+        {flows.planning.steps.map((step, index) => (
+          <li>
+            <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+            <div>
+              <h3>{step.heading}</h3>
+              <p>{step.text}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div class="planning-flow__example">
+        <h3>How it could work: Anniversary in Italy</h3>
+        <p>{flows.planning.example}</p>
+      </div>
+      <div class="planning-flow__footer">
+        <ContentLink href="/terms#planning-terms">Read the planning terms</ContentLink>
+        <span>Terms, section A</span>
+      </div>
+    </section>
+    <aside class="planning-flow__readiness">
+      <p>The Travel Readiness Session is a paid advice call, not a booking service.</p>
+      <ContentLink href="/services/travel-readiness-session">Explore the Travel Readiness Session</ContentLink>
+    </aside>
+  </div>
+) : (
+  <p role="status">The updated booking and planning process is not yet published. Please contact Travel With Ease for current steps and payment terms.</p>
+)}
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-process-flows]").forEach((root) => {
+    const tabList = root.querySelector<HTMLElement>(".planning-flow__tablist");
+    const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-flow-tab]"));
+    const panels = Array.from(root.querySelectorAll<HTMLElement>("[data-flow-panel]"));
+    if (!tabList || tabs.length !== 2 || panels.length !== 2) return;
+
+    function activate(name: string, focus = false) {
+      for (const tab of tabs) {
+        const active = tab.dataset.flowTab === name;
+        tab.setAttribute("aria-selected", String(active));
+        tab.tabIndex = active ? 0 : -1;
+        if (active && focus) tab.focus();
+      }
+      for (const panel of panels) panel.hidden = panel.dataset.flowPanel !== name;
+    }
+
+    const hash = window.location.hash;
+    activate(hash === "#trip-planning" ? "planning" : "package");
+    tabList.hidden = false;
+
+    tabList.addEventListener("click", (event) => {
+      const target = (event.target as Element).closest<HTMLButtonElement>("[data-flow-tab]");
+      if (target && tabList.contains(target)) activate(target.dataset.flowTab || "package");
+    });
+
+    tabList.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const activeIndex = tabs.findIndex(tab => tab.getAttribute("aria-selected") === "true");
+      const nextIndex = event.key === "Home" ? 0
+        : event.key === "End" ? tabs.length - 1
+        : (activeIndex + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+      activate(tabs[nextIndex].dataset.flowTab || "package", true);
+    });
+
+    window.addEventListener("hashchange", () => {
+      if (window.location.hash === "#trip-planning") activate("planning");
+      if (window.location.hash === "#package-booking") activate("package");
+    });
+  });
+</script>

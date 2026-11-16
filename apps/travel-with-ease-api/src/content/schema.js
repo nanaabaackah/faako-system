@@ -151,6 +151,24 @@ export const contentBodySchema = z
     seoTitle: text(70).min(1),
     seoDescription: text(180).min(1),
     imageId: z.string().uuid().nullable().default(null),
+    // Two independently editable, client-approved booking flows. Optional for
+    // other CMS pages; never substitute a combined flow for missing data.
+    processFlows: z.object({
+      package: z.object({
+        steps: z.array(z.object({
+          heading: text(160).min(1),
+          text: text(2000).min(1),
+        }).strict()).length(4),
+        example: text(2500).min(1),
+      }).strict(),
+      planning: z.object({
+        steps: z.array(z.object({
+          heading: text(160).min(1),
+          text: text(2000).min(1),
+        }).strict()).length(4),
+        example: text(2500).min(1),
+      }).strict(),
+    }).strict().optional(),
     entries: z
       .array(
         z

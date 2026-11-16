@@ -60,7 +60,7 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
   async function submit(event) {
     event.preventDefault();
     if (pending.current || (hosted && !turnstileToken)) return;
-    const body = { ...form, travellers: Number(form.travellers), entryType: entry.entryType, context: entry.context, sourcePath: window.location.pathname };
+    const body = { ...form, budget: entry.entryType === "package" ? "" : form.budget, travellers: Number(form.travellers), entryType: entry.entryType, context: entry.context, sourcePath: window.location.pathname };
     const fingerprint = JSON.stringify(body);
     if (!operation.current || operation.current.fingerprint !== fingerprint) operation.current = { fingerprint, id: crypto.randomUUID() };
     pending.current = true;
@@ -103,7 +103,7 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
         <TextField name="travelTimeframe" label="When would you like to travel?" value={form.travelTimeframe} onChange={update} required minLength={2} maxLength={160} placeholder="Dates, a month, or still exploring" />
         <TextField name="travellers" label="Travellers" type="number" value={form.travellers} onChange={update} required min="1" max="100" step="1" />
       </div>
-      <TextField name="budget" label="Approximate total budget (optional)" value={form.budget} onChange={update} maxLength={160} placeholder="Include the currency, or leave this blank" />
+      {entry.entryType !== "package" && <TextField name="budget" label="Approximate total budget (optional)" value={form.budget} onChange={update} maxLength={160} placeholder="Include the currency, or leave this blank" />}
       <TextField name="name" label="Your name" autoComplete="name" value={form.name} onChange={update} required minLength={2} maxLength={160} />
       <div className="enquiry-fields-pair">
         <TextField name="email" label="Email" type="email" autoComplete="email" value={form.email} onChange={update} required maxLength={254} />

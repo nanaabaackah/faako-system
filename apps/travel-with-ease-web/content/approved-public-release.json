@@ -12,6 +12,11 @@
       "source": "Travel with Ease Website Content for Designer.pdf",
       "scope": "User supplied final website content; user explicitly approved restored legal footer wording and reviewed price/booking terms. No independent accreditation or legal certification implied.",
       "followup": "User requested supplied company content to be public without pending-approval filler, temporary Kenya/Zanzibar imagery across packages without captions, compact title/subtitle/price cards, shared enquiry form, visible Journal and neutral footprint totals. Source provenance retained internally."
+    },
+    "howItWorksRevision": {
+      "date": "2026-11-16",
+      "source": "Travel with Ease: How It Works and Enquiry Flow (for Designer).pdf",
+      "scope": "Client-provided two-tab process, exact package/planning steps, independent examples and section A/B terms links; package flow does not ask for a budget. Homepage summary updated accordingly."
     }
   },
   "pages": {
@@ -1165,30 +1170,9 @@
     "how-it-works": {
       "heading": "How it works",
       "body": "A clear plan, a live quote and no bookings until your funds have cleared.",
-      "entries": [
-        {
-          "heading": "Tell us about your journey",
-          "text": "Choose a package, tier and dates, or complete the personalised planning enquiry.",
-          "attribution": ""
-        },
-        {
-          "heading": "Review your live quote",
-          "text": "We confirm the details and send a live quote held for 14 days.",
-          "attribution": ""
-        },
-        {
-          "heading": "Confirm your booking",
-          "text": "For packages, a GHS 5,000 deposit per person confirms your booking. The final balance date is quoted, normally 45–70 days before departure.",
-          "attribution": ""
-        },
-        {
-          "heading": "Travel with your plan in hand",
-          "text": "Receive the agreed itinerary and travel information. Your service or package determines the support included.",
-          "attribution": ""
-        }
-      ],
+      "entries": [],
       "seoTitle": "How it works | Travel With Ease",
-      "seoDescription": "A clear plan, a live quote and no bookings until your funds have cleared.",
+      "seoDescription": "Learn how TWE package bookings and personalised trip planning work, including quotes, deposits and booking terms.",
       "image": {
         "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
         "width": 1280,
@@ -1204,6 +1188,50 @@
             "width": 1280
           }
         ]
+      },
+      "processFlows": {
+        "package": {
+          "steps": [
+            {
+              "heading": "Choose your package",
+              "text": "Pick your package, tier, dates and number of travellers, then send them through the enquiry form or DM EASE. No budget needed."
+            },
+            {
+              "heading": "Review your live quote",
+              "text": "We send a live quote for your exact dates, held for 14 days. Check the dates, hotel tier, inclusions and exclusions before you agree."
+            },
+            {
+              "heading": "Confirm with a deposit",
+              "text": "A GHS 5,000 deposit per person confirms your booking and locks your rate. The deposit is non-refundable if you withdraw. Your balance is due on the final payment date in your quote, usually 45 to 70 days before departure."
+            },
+            {
+              "heading": "Travel",
+              "text": "You receive your itinerary and travel pack, and we support you through the trip."
+            }
+          ],
+          "example": "Two friends considering 3 nights and 4 days in Nairobi send their preferred travel month, two travellers and the package they like. They compare the hotel tiers against the live quote, review the payment schedule, confirm with their deposit and receive their itinerary."
+        },
+        "planning": {
+          "steps": [
+            {
+              "heading": "Tell us about your trip",
+              "text": "Complete the planning questionnaire with your destination ideas, dates, travellers and budget."
+            },
+            {
+              "heading": "Start planning",
+              "text": "Pay a deposit of 50% of your planning fee (60% for group trips). We confirm your planning start date, then build your day-by-day itinerary and budget. Full Trip Planning includes one revision. Premium Concierge includes unlimited minor revisions."
+            },
+            {
+              "heading": "Fund your bookings",
+              "text": "We send a Travel Fund Request for the exact cost of your flights and hotels, separate from our planning fee. We book only once your funds have cleared."
+            },
+            {
+              "heading": "Receive your travel pack",
+              "text": "Your planning balance is settled first, then you receive your final travel pack."
+            }
+          ],
+          "example": "A couple planning an anniversary in Italy complete the questionnaire with their dates and budget. They pay the planning deposit, review their day-by-day plan and ask for one change. They then fund their flights and hotels through the Travel Fund Request, and receive their travel pack before they fly."
+        }
       }
     },
     "travel-tips": {

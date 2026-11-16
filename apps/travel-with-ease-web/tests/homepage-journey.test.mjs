@@ -58,9 +58,10 @@ test("navigation prioritises packages and services, keeping a single planning CT
   assert.match(layout, /Plan My Trip/);
 });
 
-test("homepage planning steps do not present package-only deposits as universal", () => {
+test("homepage stepper uses a single package route without blending planning rules", () => {
   const process = source("components/JourneyProcess.astro");
-  const summary = process.slice(process.indexOf("const summaries = ["), process.indexOf("];", process.indexOf("const summaries = [")));
-  assert.doesNotMatch(summary, /GHS 5,000|deposit per person/);
-  assert.match(summary, /planning support or a live quote/);
+  assert.match(process, /const homepageSteps = content\.processFlows\?\.package\?\.steps/);
+  assert.match(process, /Planning a trip with us\? See the separate process/);
+  assert.match(process, /href="\/how-it-works#trip-planning"/);
+  assert.doesNotMatch(process, /Package deposit terms do not automatically apply|approximate total budget/);
 });

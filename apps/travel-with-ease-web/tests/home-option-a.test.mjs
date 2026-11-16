@@ -60,9 +60,9 @@ test("services keep published labels, prices, currency formatting and direct lin
 });
 
 test("process keeps all approved steps and detailed page layout separate", () => {
-  assert.match(process, /content\.entries\.map\(\(step, index\) =>/);
-  assert.match(process, /steps=\{content\.entries\.map/);
-  assert.match(process, /summaries\[index\] \|\| step\.text/);
+  assert.match(process, /const homepageSteps = content\.processFlows\?\.package\?\.steps/);
+  assert.match(process, /steps=\{homepageSteps\.map/);
+  assert.match(process, /title: step\.heading, text: step\.text/);
   assert.match(process, /"planning-process": page/);
   assert.match(process, /<HomeJourneyStepper[\s\S]*?client:visible/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);

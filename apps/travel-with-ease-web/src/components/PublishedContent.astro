@@ -31,6 +31,7 @@ const { content, accordion = false } = Astro.props;
 const page = Astro.url.pathname.replace(/\/$/, "");
 const services = page === "/services";
 const story = page === "/about";
+const terms = page === "/terms";
 ---
 
 <section class:list={["published-content", {
@@ -56,7 +57,7 @@ const story = page === "/about";
         {story && <EditorialPhoto image={photography.coast} placement={content.imagePlacements?.story || content.imagePlacements?.header} class="published-content__story-photo" sizes="90vw" />}
         {services ? <ServicePanels entries={content.entries} all /> : (
         <div class="published-content__sections">
-        {content.entries.map((entry) =>
+        {content.entries.map((entry, index) =>
           accordion ? (
             <Accordion title={entry.heading}>
               <p><MoneyText text={entry.text} /></p>
@@ -64,7 +65,10 @@ const story = page === "/about";
             </Accordion>
           ) : (
             <section>
-              <h2><MoneyText text={entry.heading} /></h2>
+              {terms && (index === 0 || index === 4) && (
+                <p class="published-content__terms-section">Section {index === 0 ? "A" : "B"}</p>
+              )}
+              <h2 id={terms ? (index === 0 ? "planning-terms" : index === 4 ? "package-terms" : undefined) : undefined}><MoneyText text={entry.heading} /></h2>
               <p><MoneyText text={entry.text} /></p>
               {entry.attribution && <p class={story ? "published-content__attribution" : undefined}>{entry.attribution}</p>}
             </section>
