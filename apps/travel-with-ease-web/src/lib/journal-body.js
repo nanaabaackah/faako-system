@@ -3,8 +3,11 @@
 // converts existing numbered/bulleted paragraphs to semantic lists.
 export function journalBodyBlocks(body = "") {
   /** @type {Array<
-   *  {type: "ordered" | "unordered", items: string[]} |
-   *  {type: "heading" | "paragraph" | "disclaimer", text: string}
+   *  {type: "ordered", items: string[]} |
+   *  {type: "unordered", items: string[]} |
+   *  {type: "heading", text: string} |
+   *  {type: "paragraph", text: string} |
+   *  {type: "disclaimer", text: string}
    * >} */
   const blocks = [];
   for (const raw of String(body).split(/\n\s*\n/)) {
