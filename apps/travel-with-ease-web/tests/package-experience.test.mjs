@@ -44,16 +44,42 @@ test("package details expose the published facts, price tiers, inclusions and co
   assert.match(detail, /An enquiry is not a booking/);
 });
 
-test("expanded process is page-only and examples do not claim to be a real client booking", () => {
+test("updated how-it-works separates package and bespoke planning flows with approved terms", () => {
   const process = source("components/JourneyProcess.astro");
-  assert.match(process, /\{page \? \(/);
-  assert.match(process, /\{practicalSteps\[index\] &&/);
+  const tabs = source("components/HowItWorksTabs.astro");
+  const content = approved.pages["how-it-works"];
+  assert.match(process, /<HowItWorksTabs flows=\{content\.processFlows\}/);
   assert.match(process, /<HomeJourneyStepper[\s\S]*?client:visible/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
-  assert.match(process, /page && <section class="planning-example/);
-  assert.match(process, /not a real client story or a confirmed offer/);
-  assert.match(process, /publishedPage\("packages"\)/);
-  assert.match(process, /Package deposit terms do not automatically apply/);
+  assert.match(process, /published/); // Public-site approved snapshot remains the source of truth.
+  assert.match(tabs, /role="tablist"/);
+  assert.match(tabs, /role="tabpanel"/);
+  assert.match(tabs, /data-flow-tab="planning"/);
+  assert.match(tabs, /ArrowLeft/);
+  assert.match(tabs, /ArrowRight/);
+  assert.match(tabs, /<ContentLink href="\/terms#package-terms"/);
+  assert.match(tabs, /<ContentLink href="\/terms#planning-terms"/);
+  assert.match(tabs, /<ContentLink href="\/packages\/nairobi"/);
+  assert.match(tabs, /<ContentLink href="\/services\/travel-readiness-session"/);
+  assert.deepEqual(Object.keys(content.processFlows).sort(), ["package", "planning"]);
+  assert.equal(content.processFlows.package.steps.length, 4);
+  assert.equal(content.processFlows.planning.steps.length, 4);
+  assert.equal(content.body, "A clear plan, a live quote and no bookings until your funds have cleared.");
+  const packageText = JSON.stringify(content.processFlows.package);
+  const planningText = JSON.stringify(content.processFlows.planning);
+  assert.match(packageText, /14 days/);
+  assert.match(packageText, /GHS 5,000/);
+  assert.match(packageText, /45 to 70 days/);
+  assert.match(packageText, /Nairobi/);
+  assert.doesNotMatch(packageText, /approximate total budget|planning fee/i);
+  assert.match(planningText, /50%/);
+  assert.match(planningText, /60%/);
+  assert.match(planningText, /Travel Fund Request/);
+  assert.match(planningText, /Italy/);
+  assert.doesNotMatch(process + tabs, /Package deposit terms do not automatically apply|approximate total budget/i);
+  const terms = source("components/PublishedContent.astro");
+  assert.match(terms, /"planning-terms"/);
+  assert.match(terms, /"package-terms"/);
 });
 
 test("short enquiry preserves catalogue context while the private page owns the versioned questionnaire", () => {
