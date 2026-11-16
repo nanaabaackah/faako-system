@@ -9,6 +9,9 @@ interface Tip {
   category: string;
   featured?: boolean;
   order?: number;
+  series?: string;
+  category?: string;
+  homeTipOrder?: number;
   imagePlacement?: import('../lib/collections').ImagePlacement;
   image?: {
     src: string;
@@ -26,13 +29,11 @@ const {
   tips,
   homepage = true,
 } = Astro.props;
-const ordered = [...tips].sort(
-  (a, b) =>
-    Number(Boolean(b.featured)) - Number(Boolean(a.featured)) ||
-    (a.order || 0) - (b.order || 0) ||
-    a.slug.localeCompare(b.slug),
-);
-const items = homepage ? ordered.slice(0, 3) : ordered;
+// The client selected these exact three tips for the homepage "Before you go".
+const ordered = [...tips]
+  .filter(tip => tip.category === "Travel tip" && (tip.homeTipOrder || 0) > 0)
+  .sort((a, b) => (a.homeTipOrder || 0) - (b.homeTipOrder || 0));
+const items = homepage ? ordered.slice(0, 3) : tips;
 ---
 
 {
@@ -42,7 +43,7 @@ const items = homepage ? ordered.slice(0, 3) : ordered;
       aria-label="Travel tips"
     >
       <div class="editorial-heading">
-        <h2>A little advice goes a long way.</h2>
+        <h2>Before you go.</h2>
       </div>
       <div class="travel-tips__grid">
         {items.map((tip, index) => (
@@ -70,10 +71,10 @@ const items = homepage ? ordered.slice(0, 3) : ordered;
                 decoding="async"
               />
             )}
-            <p class="travel-tips__category">{tip.category}</p>
+            <p class="travel-tips__category">{tip.series || tip.category}</p>
             <h3>
               <ContentLink
-                href={`/travel-tips/${tip.slug}`}
+                href={`/journal/${tip.slug}`}
               >
                 {tip.title}
               </ContentLink>
@@ -82,6 +83,7 @@ const items = homepage ? ordered.slice(0, 3) : ordered;
           </article>
         ))}
       </div>
+      {homepage && <p class="travel-tips__all"><ContentLink href="/journal?category=Travel%20tip">See all tips</ContentLink></p>}
     </section>
   )
 }
