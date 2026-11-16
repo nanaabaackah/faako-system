@@ -389,8 +389,15 @@ try {
     "Native FAQ closes with Space when scripting is disabled");
   assert.ok(await page.locator("nav a").count()>0);
   await page.goto(origin, {waitUntil:"domcontentloaded"});
-  assert.equal(await page.locator(".journey-process--option-a .journey-process__fallback > li").count(), 4,
-    "All four published planning steps remain readable without JavaScript");
+  const noScriptFlows = page.locator(".journey-process--option-a .journey-process__noscript-flow");
+  assert.equal(await noScriptFlows.count(), 2,
+    "Package and personal-planning flows both remain readable without JavaScript");
+  for (const [index, label] of ["Packages", "Personal Planning"].entries()) {
+    const flow = noScriptFlows.nth(index);
+    assert.equal((await flow.locator("h3").first().innerText()).trim(), label);
+    assert.equal(await flow.locator(".journey-process__fallback > li").count(), 4,
+      `All four ${label} steps remain readable without JavaScript`);
+  }
   await noJs.close();
   console.log(JSON.stringify({passed:true,widths:[320,375,390,768,1024,1440],accessibility:true,noJavaScript:true,screenshots:directory}));
 } finally {
