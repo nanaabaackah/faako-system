@@ -35,6 +35,7 @@ import { assertWaterRevision } from "../modules/water/revisions.js";
 import { runWaterCommand, runWaterTransaction } from "../modules/water/commands.js";
 import { recordManualWaterPayment } from "../modules/payments/manualPaymentService.js";
 import { applyWaterCustomerCredit } from "../modules/water/customerCredit.js";
+import { correctManualWaterPayment, reconcileLegacyWaterPayment } from "../modules/water/paymentCorrections.js";
 import { assertWaterCommercialEdit, loadWaterAppliedCollections, projectWaterSettlement, waterSettlementError } from "../modules/water/settlement.js";
 import { deriveWaterSettlement } from "../../shared/waterSettlement.js";
 import { createLogger } from "./_shared/logger.js";
@@ -73,6 +74,8 @@ const WATER_WRITE_RATE_LIMIT = {
 const WATER_ACTIONS = new Set([
   "apply_customer_credit",
   "record_collection",
+  "correct_collection",
+  "reconcile_legacy_payment",
   "create_customer",
   "restock",
   "update_restock",
@@ -1389,6 +1392,30 @@ export async function handler(event = {}) {
         retainCustomerCredit: payload.retainCustomerCredit === true,
         actor: { userId: createdByUserId }, requestId: getEventHeader(event, "x-request-id"),
       });
+      return { statusCode: 200 };
+    }
+
+    if (action === "correct_collection" || action === "reconcile_legacy_payment") {
+      const saleId = parsePositiveInteger(payload.saleId);
+      if (!saleId) return json(400, { error: "A valid Water order is required." });
+      const details = {
+        organizationId, productKey: product.key, saleId,
+        paymentId: payload.paymentId,
+        mode: payload.mode,
+        reason: payload.reason,
+        amountCents: parseMoney(payload.amount),
+        method: payload.method,
+        providerReference: payload.transactionReference,
+        paidAt: payload.paidAt,
+        notes: payload.notes,
+        retainCustomerCredit: payload.retainCustomerCredit === true,
+        idempotencyKey,
+        actor: { userId: createdByUserId },
+        actorId: createdByUserId,
+        requestId: getEventHeader(event, "x-request-id"),
+      };
+      if (action === "correct_collection") await correctManualWaterPayment(client, details);
+      else await reconcileLegacyWaterPayment(client, details);
       return { statusCode: 200 };
     }
 
