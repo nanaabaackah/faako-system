@@ -7,7 +7,7 @@
 .planning-flow__tablist button:hover { background:rgb(1 12 51 / 5%); }
 .planning-flow__tablist button:focus-visible, .planning-flow a:focus-visible { outline:3px solid var(--brand-sky); outline-offset:3px; }
 .planning-flow__panel { min-width:0; scroll-margin-top:110px; }
-.planning-flow__panel + .planning-flow__panel { margin-top:clamp(36px,5vw,64px); }
+.planning-flow__tablist[hidden] ~ .planning-flow__panel + .planning-flow__panel { margin-top:clamp(36px,5vw,64px); }
 .planning-flow__panel h2 { margin:0 0 12px; text-transform:none; font-size:clamp(1.75rem,2.65vw,2.5rem); color:var(--brand-navy); }
 .planning-flow__audience { max-width:60ch; margin:0 0 clamp(14px,2vw,28px); color:var(--brand-navy); line-height:1.75; }
 .planning-flow__steps { list-style:none; margin:0; padding:0; }
