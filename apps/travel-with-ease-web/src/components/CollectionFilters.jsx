@@ -26,7 +26,7 @@ export default function CollectionFilters({ scope, options, label, occasions = [
     const linkedSeries = params.get("series");
     if (linkedCategory && options.includes(linkedCategory)) setCategory(linkedCategory);
     if (linkedSeries && seriesOptions.includes(linkedSeries)) setSeries(linkedSeries);
-  }, [scope]); // Options are supplied by the static Astro island and do not change.
+  }, [scope, options, seriesOptions]);
   function chooseFilter(key, value) {
     const url = new URL(window.location.href);
     if (value) url.searchParams.set(key, value);
