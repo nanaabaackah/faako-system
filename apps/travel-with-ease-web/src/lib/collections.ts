@@ -52,6 +52,11 @@ export interface JournalArticle {
   body: string;
   date: string;
   category?: string;
+  series?: "Before you fly" | "Visas and entry" | "Destinations" | "";
+  homeTipOrder?: number;
+  ctaLabel?: string;
+  ctaPath?: string;
+  relatedArticleSlugs?: string[];
   author?: string;
   image?: PublicImage | null;
   gallery?: PublicImage[];
