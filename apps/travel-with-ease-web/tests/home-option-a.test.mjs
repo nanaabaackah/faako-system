@@ -71,9 +71,11 @@ test("process preserves the existing Stepper for both approved homepage routes",
 });
 
 test("travel tips use approved articles and original non-homepage behavior", () => {
-  assert.match(tips, /const items = homepage \? ordered\.slice\(0, 3\) : ordered;/);
+  assert.ok(tips.includes("const items = homepage ? ordered.slice(0, 3) : tips;"));
+  assert.match(tips, /homeTipOrder/);
+  assert.match(tips, /See all tips/);
   assert.match(tips, /"travel-tips--option-a": homepage/);
-  assert.match(tips, /href=\{`\/travel-tips\/\$\{tip\.slug\}`\}/);
+  assert.ok(tips.includes("href={`/journal/${tip.slug}`}"));
   assert.match(tips, /\{tip\.excerpt\}/);
   assert.match(css, /\.travel-tips--option-a \.travel-tips__grid[\s\S]*?repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(css, /font-family: var\(--font-journal\) !important/);

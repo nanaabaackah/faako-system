@@ -189,8 +189,8 @@ try {
     for (const url of [
       "/packages/nairobi",
       "/services/full-trip-planning",
-      "/journal/how-travel-with-ease-began",
-      "/travel-tips/get-a-live-quote-before-you-pay",
+      "/journal/six-documents-every-ghanaian-traveller-needs",
+      "/journal/a-few-things-i-wish-id-known-before-kenya",
     ]) {
       const response = await page.goto(web + url, {
         waitUntil: "domcontentloaded",

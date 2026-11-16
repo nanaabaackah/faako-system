@@ -249,7 +249,12 @@ try {
     assert.equal(await page.locator("#planning-terms").count(), 1);
     assert.equal(await page.locator("#package-terms").count(), 1);
     await page.goto(origin + "/journal", { waitUntil: "domcontentloaded" });
-    assert.equal(await page.locator("[data-collection-item]").count(), 2);
+    assert.equal(await page.locator("[data-collection-item]").count(), 8,
+      "The Journal contains seven published Travel Tips and one Kenya Trip Story");
+    assert.equal(await page.locator('[data-collection-item][data-category="Travel tip"]').count(), 7);
+    assert.equal(await page.locator('[data-collection-item][data-category="Trip story"]').count(), 1);
+    assert.equal(await page.locator('[data-collection-item][data-series="Before you fly"]').count(), 5);
+    assert.equal(await page.locator('[data-collection-item][data-series="Visas and entry"]').count(), 2);
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
     await page.locator(".journal-card").first().click();
     await page.waitForURL("**/journal/*");

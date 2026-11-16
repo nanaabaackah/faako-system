@@ -78,7 +78,9 @@ test("production build publishes approved content without preview copy or unpubl
   assert.doesNotMatch(contact, /Content unavailable|Online enquiry forms are not available/);
   const sitemap = readFileSync(path.join(output, "sitemap-0.xml"), "utf8");
   assert.doesNotMatch(sitemap, /\/(testimonials|destinations)\/?</);
-  assert.match(sitemap, /\/journal\/how-travel-with-ease-began/);
+  assert.match(sitemap, /\/journal\/six-documents-every-ghanaian-traveller-needs/);
+  assert.match(sitemap, /\/journal\/a-few-things-i-wish-id-known-before-kenya/);
+  assert.doesNotMatch(sitemap, /\/journal\/(how-travel-with-ease-began|six-days-on-zanzibars-north-coast)/);
   assert.match(sitemap, /\/privacy</);
   assert.match(sitemap, /\/contact</);
   assert.match(sitemap, /\/packages\/zanzibar/);

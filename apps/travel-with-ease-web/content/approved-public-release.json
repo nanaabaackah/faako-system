@@ -17,6 +17,12 @@
       "date": "2026-11-16",
       "source": "Travel with Ease: How It Works and Enquiry Flow (for Designer).pdf",
       "scope": "Client-provided two-tab process, exact package/planning steps, independent examples and section A/B terms links; package flow does not ask for a budget. Homepage summary updated accordingly."
+    },
+    "travelTipsJournalRevision": {
+      "date": "2026-11-16",
+      "source": "Travel with Ease: Travel Tips and Journal Posts (for Designer).pdf",
+      "scope": "Seven separate Travel tip Journal posts in Before you fly/Visas and entry series, one Kenya Trip story; replace old placeholder Journal stories, do not create future Destinations posts, replace DM CTAs with links, remove checklist, archive three booking-info placeholders, preserve entry claims and supplied dates except denied boarding November 2026. Reused approved Kenya/Zanzibar photos.",
+      "publicationNote": "Entry requirements and insurance claims require client validation before going live."
     }
   },
   "pages": {
@@ -210,7 +216,7 @@
       "body": "Places, perspectives and practical planning notes from Travel With Ease.",
       "entries": [],
       "seoTitle": "Stories for the journey. | Travel With Ease",
-      "seoDescription": "Places, perspectives and practical planning notes from Travel With Ease.",
+      "seoDescription": "Original trip stories and practical Ghanaian travel tips, grouped by series: Before you fly, Visas and entry, and Destinations.",
       "image": {
         "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
         "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
@@ -229,13 +235,45 @@
       },
       "articles": [
         {
-          "slug": "how-travel-with-ease-began",
-          "title": "How Travel With Ease began",
-          "excerpt": "A love of planning, a lifetime of travel and the story behind Travel With Ease.",
-          "body": "I grew up travelling every year, thanks to my parents. As I got older, the roles reversed: I was the one filling in passport and visa forms, booking flights and hotels, and planning trips for my parents and me. Then I started exploring on my own. Without realising it, I was always researching and planning great trips, and I never thought of it as a business. I love planning, and I love structure. I wanted to build something alongside my career, and when I put my ideas down, everything came back to travel.",
-          "date": "2026-11-01",
-          "category": "Stories",
-          "author": "Nana Osei-Wusu",
+          "slug": "six-documents-every-ghanaian-traveller-needs",
+          "title": "6 documents every Ghanaian traveller needs",
+          "excerpt": "Check these before you book, and again before you fly.",
+          "body": "1. Valid passport. Check your expiry date. Many countries want at least 6 months' validity beyond your travel dates, not just the day you fly out. Check your destination's rule.\n\n2. Visa or entry approval. Check the requirements before you book. Some visas take weeks to process, so apply early.\n\n3. Yellow fever certificate. Travellers aged 9 months and older need it to enter Ghana, and many destinations ask for it too. The vaccine must be given at least 10 days before travel. With no certificate on your return, you can be vaccinated at the airport at your own cost.\n\n4. Return ticket. Airlines and immigration may ask for proof that you are leaving. Have it ready at check-in.\n\n5. Proof of accommodation. Keep your hotel booking confirmation to hand. Immigration may ask where you are staying.\n\n6. Travel insurance. It covers medical emergencies, cancellations and lost luggage. Some destinations, such as Kenya and Zanzibar, now require it.\n\nEntry rules change. Confirm with the embassy or an official source before you travel. Last checked October 2026.",
+          "date": "2026-11-16",
+          "category": "Travel tip",
+          "series": "Before you fly",
+          "author": "Travel With Ease",
+          "image": {
+            "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+            "width": 1280,
+            "height": 853,
+            "alt": "Elephants beside a waterhole and green vegetation in Kenya.",
+            "sources": [
+              {
+                "src": "/media/kenya-elephants-8947b7727ddb-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "relatedPackageSlugs": [],
+          "ctaLabel": "Plan my trip",
+          "ctaPath": "/#plan",
+          "relatedArticleSlugs": [],
+          "homeTipOrder": 1
+        },
+        {
+          "slug": "what-to-expect-at-accra-international-airport",
+          "title": "What to expect at Accra International Airport",
+          "excerpt": "Four things to get right before you reach the check-in desk.",
+          "body": "1. Arrive early. Aim to arrive at least 3 hours before an international flight. That gives you time for check-in, security and any unexpected delays.\n\n2. Keep your documents ready. Keep your passport and booking details within reach. You will show them at check-in, at immigration and at boarding.\n\n3. Know your entry requirements. Check your destination's visa and entry rules in advance. Missing documents are a common reason for being denied boarding.\n\n4. Pack smart. Follow your airline's rules on liquids, electronics and essentials in your hand luggage, and keep what you need for the flight within easy reach.\n\nEntry rules change. Confirm with the embassy or an official source before you travel. Last checked October 2026.\n\nTravel with ease, and let the journey begin beautifully.",
+          "date": "2026-11-16",
+          "category": "Travel tip",
+          "series": "Before you fly",
+          "author": "Travel With Ease",
           "image": {
             "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
             "width": 1280,
@@ -252,81 +290,145 @@
               }
             ]
           },
-          "gallery": [
-            {
-              "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
-              "width": 1280,
-              "height": 853,
-              "alt": "Elephants beside a waterhole and green vegetation in Kenya.",
-              "sources": [
-                {
-                  "src": "/media/kenya-elephants-8947b7727ddb-640.webp",
-                  "width": 640
-                },
-                {
-                  "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
-                  "width": 1280
-                }
-              ]
-            },
-            {
-              "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
-              "width": 1280,
-              "height": 720,
-              "alt": "Hippopotamuses resting beside a wooded lakeshore in Kenya.",
-              "sources": [
-                {
-                  "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-640.webp",
-                  "width": 640
-                },
-                {
-                  "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
-                  "width": 1280
-                }
-              ]
-            },
-            {
-              "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
-              "alt": "A poolside view towards the ocean in Zanzibar.",
-              "width": 1242,
-              "height": 2208,
-              "sources": [
-                {
-                  "src": "/media/zanzibar-pool-da78a2948608-640.webp",
-                  "width": 640
-                },
-                {
-                  "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
-                  "width": 1242
-                }
-              ]
-            },
-            {
-              "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
-              "alt": "A giraffe beside a feeding platform in Kenya.",
-              "width": 1200,
-              "height": 1600,
-              "sources": [
-                {
-                  "src": "/media/kenya-giraffe-067893b7a1b1-640.webp",
-                  "width": 640
-                },
-                {
-                  "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
-                  "width": 1200
-                }
-              ]
-            }
-          ],
-          "relatedPackageSlugs": []
+          "relatedPackageSlugs": [],
+          "ctaLabel": "Explore Travel Readiness Session",
+          "ctaPath": "/services/travel-readiness-session",
+          "relatedArticleSlugs": [
+            "know-why-you-could-be-denied-boarding"
+          ]
         },
         {
-          "slug": "six-days-on-zanzibars-north-coast",
-          "title": "Six days on Zanzibar’s north coast",
-          "excerpt": "Dolphins by morning, dhow at sunset, a lively north coast in between.",
-          "body": "Five nights on Zanzibar's north coast with return flights, transfers, three signature tours and both insurances taken care of. Pick your dates and your level of comfort, and we plan the rest.\n\nDay 1 — Arrive on the north coast\nMeet your airport transfer and settle into your north coast beach hotel.\n\nDay 2 — Mnemba Island\nSnorkel the reef, look out for dolphins, visit the sandbank and enjoy lunch.\n\nDay 3 — Prison Island and Stone Town\nSee the giant tortoises and explore Stone Town's alleys and markets with a guide.\n\nDay 4 — Beach time and a dhow sunset\nA free beach day followed by a sunset dhow trip.\n\nDay 5 — Your own pace\nEnjoy a free day, with an optional spice farm visit at extra cost.\n\nDay 6 — Homeward\nBreakfast, your airport transfer and the flight home.\n\nA single supplement applies when you do not share a room. Message us for your exact price.",
-          "date": "2026-11-01",
-          "category": "Destination Guides",
+          "slug": "screenshot-everything-before-you-fly",
+          "title": "Screenshot everything before you fly",
+          "excerpt": "No signal, no Wi-Fi, no problem.",
+          "body": "- Boarding pass or e-ticket\n- Hotel booking, with the full address\n- Visa, eVisa or ETA approval\n- Travel insurance policy and emergency number\n- Airport transfer details and driver contact\n- Entry QR codes",
+          "date": "2026-11-16",
+          "category": "Travel tip",
+          "series": "Before you fly",
+          "author": "Travel With Ease",
+          "image": {
+            "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+            "alt": "A poolside view towards the ocean in Zanzibar.",
+            "width": 1242,
+            "height": 2208,
+            "sources": [
+              {
+                "src": "/media/zanzibar-pool-da78a2948608-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
+                "width": 1242
+              }
+            ]
+          },
+          "relatedPackageSlugs": [],
+          "ctaLabel": "Plan my trip",
+          "ctaPath": "/#plan",
+          "relatedArticleSlugs": [],
+          "homeTipOrder": 2
+        },
+        {
+          "slug": "know-why-you-could-be-denied-boarding",
+          "title": "Know why you could be denied boarding",
+          "excerpt": "Most reasons are avoidable if you check before you fly.",
+          "body": "Why it happens\n\n- Your passport has less validity than your destination requires, often 6 months\n- Not enough blank pages left in your passport\n- No visa, eVisa or ETA\n- No yellow fever card, if required\n- The name on your ticket doesn't match your passport\n- An overbooked flight, which is the airline's fault\n\nIf you're turned away at the desk\n\n- Stay calm and polite\n- Ask why, and get it in writing\n- If the flight is overbooked, ask for the next flight\n- If the flight is overbooked, ask what compensation or support the airline offers\n- Keep your boarding pass and receipts\n- Screenshot your booking\n\nEntry rules change. Confirm with the embassy or an official source before you travel. Last checked November 2026.",
+          "date": "2026-11-16",
+          "category": "Travel tip",
+          "series": "Before you fly",
+          "author": "Travel With Ease",
+          "image": {
+            "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
+            "width": 1280,
+            "height": 720,
+            "alt": "Hippopotamuses resting beside a wooded lakeshore in Kenya.",
+            "sources": [
+              {
+                "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-lakeside-hippos-fef2b95fe14a-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "relatedPackageSlugs": [],
+          "ctaLabel": "Explore Travel Readiness Session",
+          "ctaPath": "/services/travel-readiness-session",
+          "relatedArticleSlugs": [
+            "screenshot-everything-before-you-fly"
+          ]
+        },
+        {
+          "slug": "always-do-this-when-you-rent-a-car-on-holiday",
+          "title": "Always do this when you rent a car on holiday",
+          "excerpt": "Photograph your rental car's number plate.",
+          "body": "Rental cars often look identical, and not every key shows the number plate. A photo helps you find yours in a full car park.",
+          "date": "2026-11-16",
+          "category": "Travel tip",
+          "series": "Before you fly",
+          "author": "Travel With Ease",
+          "image": {
+            "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
+            "alt": "A giraffe beside a feeding platform in Kenya.",
+            "width": 1200,
+            "height": 1600,
+            "sources": [
+              {
+                "src": "/media/kenya-giraffe-067893b7a1b1-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-giraffe-067893b7a1b1-1200.webp",
+                "width": 1200
+              }
+            ]
+          },
+          "relatedPackageSlugs": [],
+          "ctaLabel": "Plan my trip",
+          "ctaPath": "/#plan",
+          "relatedArticleSlugs": [],
+          "homeTipOrder": 3
+        },
+        {
+          "slug": "visa-free-doesnt-mean-what-you-think",
+          "title": "Visa-free doesn't mean what you think",
+          "excerpt": "Ten myths that catch Ghanaian travellers out.",
+          "body": "1. \"Visa-free means I can just show up.\" It means no visa application in advance. It doesn't mean no questions at the border. Officers can still question you, check your documents and refuse entry if something is missing. Arrive with your full document set.\n\n2. \"My passport is valid, so I'm fine.\" Many countries require at least 6 months' validity beyond your return date, not just your travel dates. A passport expiring in 3 months could get you denied boarding before you leave Accra. Check your expiry before every trip.\n\n3. \"I don't need a return ticket.\" Many visa-free destinations ask for proof of onward travel. If you can't show a return or connecting flight, you can be turned away at the border, even if you have the right to enter. Book your return before you travel.\n\n4. \"I don't need a yellow fever certificate.\" Ghana is on the WHO yellow fever risk list, and many countries ask for the certificate on arrival. Without it you can be quarantined, fined or sent back, whatever your visa status. Keep your yellow fever card with your passport. Always.\n\n5. \"Visa-free means the whole journey is visa-free.\" Your destination may be visa-free but your layover country might not be. Connecting through the US, the UK or certain Schengen countries can require a transit visa, even if you never leave the airport. Check your transit country, not just your destination.\n\n6. \"The airline will let me board.\" Airlines check your documents before you board, not just the destination country. They are fined for carrying passengers who are refused entry, so they are strict. If your paperwork is incomplete, you won't make it onto the plane. Have every document ready before you reach the airport.\n\n7. \"Visa on arrival is the same as visa-free.\" It isn't. You still need a visa. You just get it when you land instead of applying in advance. It usually costs money, often payable in USD cash, so know the fee and how to pay before you fly.\n\n8. \"Visa-free means no money checks.\" Some countries check that you can fund your stay, and some travellers have been asked at check-in in Accra to show cash or pay a refundable deposit. Research your destination's financial requirements, and keep proof of funds ready. Check-in is not the place to find out.\n\n9. \"I just need my passport and ticket.\" Some countries require an online health declaration or arrival form before you travel, separate from your visa. Arriving without it can delay or deny your entry. Research your destination's pre-arrival requirements, not just its visa status.\n\n10. \"I can figure it out when I get there.\" By the time you're at the airport, it's too late. Missing documents, the wrong visa type and an expired yellow fever card can't be fixed at the check-in counter. That is why the Travel Readiness Session exists. We walk you through the requirements for your destination before you book anything.\n\nEntry rules change. Confirm with the embassy or an official source before you travel. As at July 2026.",
+          "date": "2026-11-16",
+          "category": "Travel tip",
+          "series": "Visas and entry",
+          "author": "Travel With Ease",
+          "image": {
+            "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+            "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
+            "width": 1206,
+            "height": 2119,
+            "sources": [
+              {
+                "src": "/media/zanzibar-sunset-bfb2dad00137-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
+                "width": 1206
+              }
+            ]
+          },
+          "relatedPackageSlugs": [],
+          "ctaLabel": "Explore Travel Readiness Session",
+          "ctaPath": "/services/travel-readiness-session",
+          "relatedArticleSlugs": []
+        },
+        {
+          "slug": "visa-myths-visa-free-visa-on-arrival-and-evisa",
+          "title": "Visa myths: visa-free, visa on arrival and eVisa",
+          "excerpt": "Let's clear up the confusion.",
+          "body": "Myth: Visa-free and visa on arrival are the same thing. Fact: Not quite. Visa-free means no visa is needed at all. Visa on arrival means you do need one, and you get it, and pay for it, when you land.\n\nMyth: An eVisa is something you sort out when you arrive. Fact: No. You apply online before you travel and arrive with it already approved. Leave it too late and you may not fly.\n\nMyth: If a country is visa-free, there's no paperwork at all. Fact: You may still need a return ticket, proof of funds, a hotel booking or a yellow fever card, and an airline can deny you boarding without them.\n\nMyth: An ETA is just another word for a visa. Fact: It isn't a visa. It's online permission to travel that some visa-free countries now require, for example Seychelles. Visa-free, but not paperwork-free.\n\nConfused? That's normal. Knowing exactly what your passport needs is my job.\n\nEntry rules change. Confirm with the embassy or an official source before you travel. As at August 2026.",
+          "date": "2026-11-16",
+          "category": "Travel tip",
+          "series": "Visas and entry",
           "author": "Travel With Ease",
           "image": {
             "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
@@ -344,43 +446,44 @@
               }
             ]
           },
-          "gallery": [
-            {
-              "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
-              "alt": "Sunset over the sea in Zanzibar, with a silhouetted person in the foreground.",
-              "width": 1206,
-              "height": 2119,
-              "sources": [
-                {
-                  "src": "/media/zanzibar-sunset-bfb2dad00137-640.webp",
-                  "width": 640
-                },
-                {
-                  "src": "/media/zanzibar-sunset-bfb2dad00137-1206.webp",
-                  "width": 1206
-                }
-              ]
-            },
-            {
-              "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
-              "alt": "A poolside view towards the ocean in Zanzibar.",
-              "width": 1242,
-              "height": 2208,
-              "sources": [
-                {
-                  "src": "/media/zanzibar-pool-da78a2948608-640.webp",
-                  "width": 640
-                },
-                {
-                  "src": "/media/zanzibar-pool-da78a2948608-1242.webp",
-                  "width": 1242
-                }
-              ]
-            }
-          ],
-          "relatedPackageSlugs": [
-            "zanzibar"
+          "relatedPackageSlugs": [],
+          "ctaLabel": "Explore Travel Readiness Session",
+          "ctaPath": "/services/travel-readiness-session",
+          "relatedArticleSlugs": [
+            "visa-free-doesnt-mean-what-you-think"
           ]
+        },
+        {
+          "slug": "a-few-things-i-wish-id-known-before-kenya",
+          "title": "A few things I wish I'd known before Kenya",
+          "excerpt": "Small things that make a big difference in Nairobi.",
+          "body": "1. It's visa-free for Ghanaians, with no eTA. You can stay up to 90 days and be cleared at the border, with nothing to apply for beforehand. Immigration will ask for three things: your return ticket, how long you're staying and where you're staying. (As of August 2026. Rules change, so check before you fly.)\n\n2. Travel insurance is now compulsory. Kenya requires visitors to have it, and it costs about US$44 per person. Plan for it before you fly, not at the airport. Booking a Travel with Ease package? It's included.\n\n3. Sort your data before you leave arrivals. Buy a SIM at the airport or set up a travel eSIM in advance. Once you leave the terminal you may lose Wi-Fi, and you'll want data to find or contact your Uber.\n\n4. Uber and Bolt both work well. They are easy and affordable, and there's no haggling over taxi fares in Nairobi.\n\n5. The expressway isn't free. It's faster and traffic-free, so your driver may ask whether to take it, and the toll is added to your trip. It's cash or M-Pesa only. If you pay Uber by card, the driver can cover the toll and you settle up in the app.\n\n6. Some places are fully cashless. Kenya leans heavily cashless. Register M-Pesa on a Safaricom SIM at the airport to pay like a local, or bring a card that works internationally. Keep a little cash for tolls and tips.\n\n7. Flying out? Leave extra time. On the way to JKIA, your car stops at a checkpoint before the terminal. Everyone gets out for screening, then gets back in. It catches people off guard, so don't cut your airport arrival too fine.\n\n8. Pack your yellow fever certificate. Travelling from Ghana, it's commonly required for entry. It's easy to forget and a real problem without it.\n\n9. Kenya is colder than you'd expect. Nairobi sits high up, so mornings and evenings get chilly, especially around August. Pack layers and a jacket. It's not the East Africa most people picture.",
+          "date": "2026-11-16",
+          "category": "Trip story",
+          "series": "",
+          "author": "Travel With Ease",
+          "image": {
+            "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+            "width": 1280,
+            "height": 853,
+            "alt": "Elephants beside a waterhole and green vegetation in Kenya.",
+            "sources": [
+              {
+                "src": "/media/kenya-elephants-8947b7727ddb-640.webp",
+                "width": 640
+              },
+              {
+                "src": "/media/kenya-elephants-8947b7727ddb-1280.webp",
+                "width": 1280
+              }
+            ]
+          },
+          "relatedPackageSlugs": [
+            "nairobi"
+          ],
+          "ctaLabel": "Explore Nairobi package",
+          "ctaPath": "/packages/nairobi",
+          "relatedArticleSlugs": []
         }
       ]
     },
@@ -1240,86 +1343,7 @@
       "entries": [],
       "seoTitle": "A little advice goes a long way. | Travel With Ease",
       "seoDescription": "A few practical notes before you plan your next journey.",
-      "tips": [
-        {
-          "slug": "get-a-live-quote-before-you-pay",
-          "title": "Get a live quote before you pay",
-          "excerpt": "Your travel dates, airfare and exchange rate shape the final package price.",
-          "body": "Published \"from\" prices are indicative, per person sharing a room, and include return flights from Accra. They are based on our reference month. Your final price depends on your travel dates, hotel availability, live airfare and the exchange rate. We send you a live quote before you pay a deposit. If your balance is due months after booking, it is recalculated at the exchange rate on your final payment date.",
-          "category": "Before You Go",
-          "featured": true,
-          "order": 0,
-          "image": {
-            "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
-            "width": 1280,
-            "height": 1707,
-            "alt": "A garden swimming pool surrounded by trees, parasols and outdoor seating in Kenya.",
-            "sources": [
-              {
-                "src": "/media/kenya-garden-pool-2c7744e25798-640.webp",
-                "width": 640
-              },
-              {
-                "src": "/media/kenya-garden-pool-2c7744e25798-1280.webp",
-                "width": 1280
-              }
-            ]
-          },
-          "relatedArticle": "six-days-on-zanzibars-north-coast"
-        },
-        {
-          "slug": "know-your-deposit-and-balance-dates",
-          "title": "Know your deposit and balance dates",
-          "excerpt": "Understand the deposit and final payment date before confirming a package.",
-          "body": "A GHS 5,000 deposit per person confirms your package booking and locks the quoted rate, subject to the exchange-rate provision above for a later balance. This deposit is non-refundable if you withdraw. The balance is due on the date in your quote, normally 45–70 days before departure depending on the hotel. Bookings are made only after funds have cleared. Payment is available through Telecel Cash or MTN MoMo; payment instructions are provided privately.",
-          "category": "Before You Go",
-          "featured": false,
-          "order": 1,
-          "image": {
-            "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
-            "width": 1280,
-            "height": 1707,
-            "alt": "A safari vehicle at the East Gate entrance to Nairobi National Park.",
-            "sources": [
-              {
-                "src": "/media/kenya-park-gate-fe3d52a1e6c6-640.webp",
-                "width": 640
-              },
-              {
-                "src": "/media/kenya-park-gate-fe3d52a1e6c6-1280.webp",
-                "width": 1280
-              }
-            ]
-          },
-          "relatedArticle": ""
-        },
-        {
-          "slug": "travelling-without-a-room-share",
-          "title": "Travelling without a room share?",
-          "excerpt": "Package starting prices are per person sharing. Ask for your own room quote.",
-          "body": "A single supplement applies when you do not share a room. Message us for your exact price.",
-          "category": "Before You Go",
-          "featured": false,
-          "order": 2,
-          "image": {
-            "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
-            "width": 1280,
-            "height": 2276,
-            "alt": "Palm trees and poolside seating at a beach club in Zanzibar at dusk.",
-            "sources": [
-              {
-                "src": "/media/zanzibar-beach-club-b60ec1e6297a-640.webp",
-                "width": 640
-              },
-              {
-                "src": "/media/zanzibar-beach-club-b60ec1e6297a-1280.webp",
-                "width": 1280
-              }
-            ]
-          },
-          "relatedArticle": ""
-        }
-      ]
+      "tips": []
     },
     "cookies": {
       "heading": "Cookies and preferences",

@@ -10,6 +10,7 @@ import HomeServices from "./HomeServices.astro";
 import FeaturedJourneys from "./FeaturedJourneys.astro";
 import JourneyProcess from "./JourneyProcess.astro";
 import { publishedPage } from "../lib/published.js";
+import type { JournalArticle } from "../lib/collections";
 import "../styles/components/home-sections.css";
 import "../styles/components/journey-editorial.css";
 import "../styles/components/home-option-a.css";
@@ -19,7 +20,7 @@ const services = publishedPage("services");
 const packages = publishedPage("packages");
 const process = publishedPage("how-it-works");
 const contact = publishedPage("contact");
-const tips = publishedPage("travel-tips");
+const journal = publishedPage("journal");
 const footprint = publishedPage("travel-footprint");
 ---
 
@@ -73,7 +74,7 @@ const footprint = publishedPage("travel-footprint");
     </TravelFootprint>
   </div>
 </section>
-{tips?.tips?.length > 0 && <TravelTips tips={tips.tips} />}
+{journal?.articles?.some((article: JournalArticle) => article.category === "Travel tip" && article.homeTipOrder) && <TravelTips tips={journal.articles} />}
 <!-- Packages and Journal retain their dedicated listing and detail pages. -->
 <!-- The CTA and continuous enquiry/footer keep their existing appearance. -->
 <ClosingCta enquiryAvailable={Boolean(contact)} />

@@ -34,9 +34,12 @@ const packages =
     related={articles
       .filter(
         (other: Article) =>
-          other.slug !== item.slug && other.category === item.category,
+          other.slug !== item.slug && other.category === item.category &&
+          (item.category !== "Travel tip" || other.series === item.series) &&
+          !item.relatedArticleSlugs?.includes(other.slug),
       )
       .slice(0, 3)}
+    linked={articles.filter((other: Article) => item.relatedArticleSlugs?.includes(other.slug))}
     packages={packages.filter((pkg: TravelPackage) =>
       item.relatedPackageSlugs?.includes(pkg.slug),
     )}
