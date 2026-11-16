@@ -2,6 +2,10 @@
 // Preserves every entry-rule sentence and supplied date verbatim; it only
 // converts existing numbered/bulleted paragraphs to semantic lists.
 export function journalBodyBlocks(body = "") {
+  /** @type {Array<
+   *  {type: "ordered" | "unordered", items: string[]} |
+   *  {type: "heading" | "paragraph" | "disclaimer", text: string}
+   * >} */
   const blocks = [];
   for (const raw of String(body).split(/\n\s*\n/)) {
     const text = raw.trim();
