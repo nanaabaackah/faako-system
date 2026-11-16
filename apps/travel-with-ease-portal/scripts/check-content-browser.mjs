@@ -64,16 +64,16 @@ try {
       await page.getByRole("button", { name: "Section", exact: true }).click();
       await page.getByRole("option", { name: value.replaceAll('-',' '), exact: true }).click();
     };
-    await select("travel-tips");
-    await page.getByLabel(/^Tip title/).fill("Changed demo tip");
-    await page.waitForFunction(() => document.querySelector(".draft-save-status")?.textContent.includes("Saved · version 2"));
-    await page.getByRole("button", { name: "Save draft", exact: true }).click();
-    await page.getByRole("button", { name: "Preview saved content", exact: true }).click();
-    await page.getByRole("heading", { name: "Changed demo tip", exact: true }).waitFor();
-    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
-    await page.screenshot({ path: path.join(output, `tips-${width}.png`), fullPage: true });
-    await select("journal");
+    // Travel Tips were consolidated into Journal. The old section is no
+    // longer available, and editors manage individual tip series/CTAs here.
+    await page.getByRole("button", { name: "Section", exact: true }).click();
+    assert.equal(await page.getByRole("option", { name: "travel tips", exact: true }).count(), 0,
+      "The deprecated standalone Travel Tips section is not an editor option");
+    await page.getByRole("option", { name: "journal", exact: true }).click();
+    await page.getByLabel("Travel tip series").first().waitFor();
+    await page.getByLabel("Website CTA button text (optional)").first().waitFor();
     await page.getByLabel(/^Title/).fill("Changed demo article");
+    await page.getByLabel("Website CTA button text (optional)").first().fill("Plan my trip");
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await page
       .getByRole("button", { name: "Preview saved content", exact: true })
