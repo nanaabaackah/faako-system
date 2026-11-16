@@ -1,0 +1,26 @@
+/* Native TWE editorial treatment; same fonts/tokens as the public website. */
+.planning-flow { width:100%; min-width:0; color:var(--brand-navy); }
+.planning-flow__tablist[hidden], .planning-flow__panel[hidden] { display:none !important; }
+.planning-flow__tablist { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin:0 0 clamp(24px,3.4vw,44px); border-bottom:1px solid var(--brand-grey); }
+.planning-flow__tablist button { min-width:0; min-height:52px; padding:12px clamp(8px,1.4vw,20px); border:0; border-bottom:3px solid transparent; border-radius:0; background:transparent; color:var(--brand-navy); text-align:left; font-family:var(--font-impact,Inter,sans-serif); font-size:clamp(.75rem,1.05vw,.94rem); font-weight:800; line-height:1.35; cursor:pointer; }
+.planning-flow__tablist button[aria-selected="true"] { border-color:var(--brand-navy); }
+.planning-flow__tablist button:hover { background:rgb(1 12 51 / 5%); }
+.planning-flow__tablist button:focus-visible, .planning-flow a:focus-visible { outline:3px solid var(--brand-sky); outline-offset:3px; }
+.planning-flow__panel { min-width:0; scroll-margin-top:110px; }
+.planning-flow__panel + .planning-flow__panel { margin-top:clamp(36px,5vw,64px); }
+.planning-flow__panel h2 { margin:0 0 12px; text-transform:none; font-size:clamp(1.75rem,2.65vw,2.5rem); color:var(--brand-navy); }
+.planning-flow__audience { max-width:60ch; margin:0 0 clamp(14px,2vw,28px); color:var(--brand-navy); line-height:1.75; }
+.planning-flow__steps { list-style:none; margin:0; padding:0; }
+.planning-process .planning-flow__steps li { display:grid; grid-template-columns:48px minmax(0,1fr); gap:20px; padding-block:22px; border-bottom:1px solid var(--brand-grey); }
+.planning-process .planning-flow__steps li:not(:last-child)::before { display:none; }
+.planning-flow__steps h3 { margin:0 0 8px; font-family:var(--font-display,"Poiret One",sans-serif); font-weight:400; font-size:clamp(1.28rem,1.85vw,1.7rem); -webkit-text-stroke:.024em currentColor; line-height:1.2; color:var(--brand-navy); }
+.planning-flow__steps li p { max-width:58ch; margin:0; color:var(--brand-navy); font-family:var(--font-body,Quicksand,sans-serif); line-height:1.7; }
+.planning-flow__example { padding:clamp(22px,3vw,34px) 0; border-bottom:1px solid var(--brand-grey); }
+.planning-flow__example h3 { margin:0 0 12px; font-size:clamp(1.3rem,2vw,1.8rem); }
+.planning-flow__example p { margin:0 0 15px; line-height:1.75; max-width:65ch; }
+.planning-flow__example .twe-content-link, .planning-flow__footer .twe-content-link, .planning-flow__readiness .twe-content-link { color:var(--brand-navy); font-family:var(--font-impact,Inter,sans-serif); font-size:.875rem; font-weight:800; min-height:44px; }
+.planning-flow__footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 24px; padding:clamp(14px,2.5vw,24px) 0; }
+.planning-flow__footer > span { color:#77551b; font-family:var(--font-body,Quicksand,sans-serif); font-size:.875rem; }
+.planning-flow__readiness { margin-top:clamp(24px,3vw,44px); padding-top:clamp(18px,2.5vw,28px); border-top:1px solid var(--brand-grey); }
+.planning-flow__readiness p { margin:0 0 8px; }
+@media (max-width:760px) { .planning-process .planning-flow__steps li { grid-template-columns:44px minmax(0,1fr); gap:14px; padding-block:18px; } .planning-flow__tablist button { font-size:.78rem; padding:12px 8px; } .planning-flow__footer { align-items:flex-start; flex-direction:column; } }
