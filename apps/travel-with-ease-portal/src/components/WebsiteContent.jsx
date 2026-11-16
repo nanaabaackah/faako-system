@@ -34,7 +34,6 @@ const pages = [
   "contact",
   "journal",
   "packages",
-  "travel-tips",
   "travel-footprint",
   "privacy",
   "terms",
@@ -63,7 +62,7 @@ const emptyBody = () => ({
 export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
-  const [page, setPage] = useState(initialPage);
+  const [page, setPage] = useState(initialPage === "travel-tips" ? "journal" : initialPage);
   const [recordSlug, setRecordSlug] = useState("");
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
@@ -471,9 +470,11 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             <section aria-label="Journal articles">
               <h3>Journal articles</h3>
               <p>
-                All articles in this saved collection are included when the
-                Owner requests publication. Remove an article and publish to
-                withdraw it.
+                Each Travel tip or Trip story is an individual Journal article. Set its
+                series (Before you fly, Visas and entry, or Destinations), any homepage
+                placement, related reading and a website CTA. There are no DM-only
+                buttons or free-checklist offers. Review entry rules before publication.
+                Remove an article and publish to withdraw it.
               </p>
               {(body.articles || []).map((article, index) => (
                 <fieldset key={index}>
@@ -535,6 +536,61 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         ),
                       )
                     }
+                  />
+                  <SelectField
+                    label="Travel tip series"
+                    value={article.series || ""}
+                    onChange={(event) => change("articles", body.articles.map((item, i) =>
+                      i === index ? { ...item, series: event.target.value } : item
+                    ))}
+                  >
+                    <option value="">No series (Trip story)</option>
+                    <option value="Before you fly">Before you fly</option>
+                    <option value="Visas and entry">Visas and entry</option>
+                    <option value="Destinations">Destinations</option>
+                  </SelectField>
+                  <SelectField
+                    label="Homepage Before you go placement"
+                    value={String(article.homeTipOrder || 0)}
+                    onChange={(event) => change("articles", body.articles.map((item, i) =>
+                      i === index ? { ...item, homeTipOrder: event.target.value === "0" ? undefined : Number(event.target.value) } : item
+                    ))}
+                  >
+                    <option value="0">Not on homepage</option>
+                    <option value="1">First card</option>
+                    <option value="2">Second card</option>
+                    <option value="3">Third card</option>
+                  </SelectField>
+                  <TextField
+                    label="Website CTA button text (optional)"
+                    value={article.ctaLabel || ""}
+                    maxLength={60}
+                    onChange={(event) => change("articles", body.articles.map((item, i) =>
+                      i === index ? { ...item, ctaLabel: event.target.value } : item
+                    ))}
+                  />
+                  <SelectField
+                    label="Website CTA destination"
+                    value={article.ctaPath || ""}
+                    onChange={(event) => change("articles", body.articles.map((item, i) =>
+                      i === index ? { ...item, ctaPath: event.target.value } : item
+                    ))}
+                  >
+                    <option value="">No CTA</option>
+                    <option value="/#plan">Trip enquiry form</option>
+                    <option value="/services/travel-readiness-session">Travel Readiness Session</option>
+                    <option value="/packages/nairobi">Nairobi package</option>
+                    <option value="/packages">Explore packages</option>
+                  </SelectField>
+                  <TextareaField
+                    label="Related Journal article URL names (one per line)"
+                    value={(article.relatedArticleSlugs || []).join("\n")}
+                    onChange={(event) => change("articles", body.articles.map((item, i) =>
+                      i === index ? {
+                        ...item,
+                        relatedArticleSlugs: event.target.value.trim() ? event.target.value.split("\n").map(s => s.trim()).filter(Boolean) : []
+                      } : item
+                    ))}
                   />
                   <TextField
                     label="Approved author (optional)"
@@ -640,7 +696,12 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       excerpt: "",
                       body: "",
                       date: "",
-                      category: "Travel stories",
+                      category: "Travel tip",
+                      series: "Before you fly",
+                      homeTipOrder: undefined,
+                      ctaLabel: "",
+                      ctaPath: "",
+                      relatedArticleSlugs: [],
                       author: "",
                       imageId: null,
                       galleryImageIds: [],
