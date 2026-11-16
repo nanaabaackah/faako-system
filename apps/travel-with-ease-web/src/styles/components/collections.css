@@ -427,7 +427,7 @@
 .journal-entry-cta { max-width: 72ch; margin: clamp(20px, 3vw, 40px) auto; }
 .journal-reading .collection-reading ol,
 .journal-reading .collection-reading ul { margin: 1.25rem 0 2rem; padding-inline-start: 1.5rem; }
-.journal-reading .collection-reading li { padding-inline-start: .5rem; margin-block: .6rem; }
+.journal-reading .collection-reading li { padding-inline-start: .5rem; margin-block: .6rem; font-family: var(--font-journal); font-size: clamp(1.45rem, 2.2vw, 1.9rem); line-height: 1.43; }
 .journal-reading .collection-reading li::marker { font-family: var(--font-impact, Inter, sans-serif); font-weight: 800; color: var(--brand-navy); }
 .journal-reading .collection-reading h2 { margin: 32px 0 12px; }
 @media(max-width:760px) { .collection-filters > .collection-series-filter { max-width: none; } }
