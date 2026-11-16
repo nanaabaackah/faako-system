@@ -133,6 +133,12 @@ const articleSchema = z
           new Date(value).toISOString().slice(0, 10) === value,
       ),
     category: text(80).default("Travel stories"),
+    // Optional editorial taxonomy and article-specific website CTAs.
+    series: z.enum(["", "Before you fly", "Visas and entry", "Destinations"]).default(""),
+    ctaLabel: text(60).default(""),
+    ctaPath: z.enum(["", "/#plan", "/services/travel-readiness-session", "/packages/nairobi", "/packages"]).default(""),
+    relatedArticleSlugs: z.array(slug).max(8).default([]),
+    homeTipOrder: z.number().int().min(1).max(3).optional(),
     author: text(120).default(""),
     imagePlacement:imagePlacementSchema.optional(),
     imageId: z.string().uuid().nullable().default(null),
