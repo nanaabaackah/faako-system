@@ -44,3 +44,26 @@ Remove TWE_HOLDING_PAGE (or set it to false) and redeploy the approved productio
 revision. Restore PUBLIC_SITE_INDEXABLE according to launch approval after
 verifying the API, content, auth, form, notification worker, SEO and production
 readiness. Staging can continue to use the original Astro build throughout.
+
+## Styling correction (2026-11-15)
+
+Production holding page now matches the public TWE design tokens on the
+approved main/develop branches: navy #010c33, cream #f4ede3,
+gold #d8b56a, and 6px button corners. It uses the same typography
+system: Poiret One headings with an optical stroke, Sassy Frass for the
+signature phrase, Quicksand for paragraphs, and Inter ExtraBold for links.
+The holding HTML requests those public Google Font families and the strict
+Content-Security-Policy explicitly permits only their stylesheet/font
+origins. No external JavaScript, app scripts or API dependencies are added.
+
+The previous generic Georgia heading, pill-shaped controls, mismatched
+dark navy, letter-spaced eyebrow and Unicode arrow/dot glyphs are removed.
+The single directional affordance is a static accessible-hidden SVG icon,
+not an emoji or font character. Staging and normal Astro pages are unchanged.
+The noindex directives, limited static file allowlist, Cloudflare Pages
+route rewrite and contact information remain intact.
+
+After reviewing and merging this change to main, redeploy the existing TWE
+Cloudflare Pages production project with TWE_HOLDING_PAGE=true. Confirm font
+requests succeed, the page is responsive, and no ordinary public pages return
+from old cached deployments.
