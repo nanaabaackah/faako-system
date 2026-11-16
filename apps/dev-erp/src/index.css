@@ -3907,64 +3907,276 @@ textarea.input {
   scroll-margin-top: calc(var(--topbar-height) + 5rem);
 }
 
-/* The desktop icon rail stays in the tinted outside shell; submenu and page
-   live in a single bordered card with a straight internal divider. */
+/* Approved Faako navigation: a borderless, independently expandable main menu.
+   The module submenu is part of the single bordered workspace, and exists only
+   for modules that actually have contextual navigation sections. */
 @media (min-width: 901px) {
   .erp-shell {
-    --workspace-rail-width: 66px;
-    --workspace-shell-gap: 12px;
-    --workspace-submenu-width: 250px;
+    --workspace-shell-gap: 10px;
+    --workspace-mainmenu-width: 234px;
+    --workspace-submenu-width: 246px;
     display: block;
     min-height: 100vh;
     padding: var(--workspace-shell-gap);
-    padding-left: calc(var(--workspace-rail-width) + var(--workspace-shell-gap));
+    padding-left: calc(var(--workspace-mainmenu-width) + var(--workspace-shell-gap));
     background: color-mix(in oklab, var(--surface), var(--info) 6%);
+    transition: padding-left .22s ease;
   }
-  .erp-workspace-sidebar { min-width: 0; position: relative; }
+  .erp-shell.is-main-menu-collapsed {
+    --workspace-mainmenu-width: 68px;
+  }
+  .erp-workspace-sidebar {
+    position: relative;
+    min-width: 0;
+  }
   .erp-workspace-frame {
     display: grid;
-    grid-template-columns: var(--workspace-submenu-width) minmax(0, 1fr);
-    align-items: stretch;
+    grid-template-columns: 0 minmax(0, 1fr);
     min-height: calc(100dvh - 2 * var(--workspace-shell-gap));
     border: 1px solid var(--border);
     border-radius: 22px;
     background: color-mix(in oklab, var(--card), var(--surface) 8%);
     box-shadow: var(--card-shadow);
+    transition: grid-template-columns .2s ease;
   }
-  .erp-shell.is-sidebar-collapsed .erp-workspace-frame {
-    grid-template-columns: 0 minmax(0, 1fr);
+  .erp-shell.has-contextual-submenu .erp-workspace-frame {
+    grid-template-columns: var(--workspace-submenu-width) minmax(0, 1fr);
   }
   .erp-shell .erp-sidebar {
     position: sticky;
     top: var(--workspace-shell-gap);
-    z-index: 6;
     display: block;
+    width: 100%;
     min-width: 0;
     height: calc(100dvh - 2 * var(--workspace-shell-gap));
     padding: 0;
-    border-right: 0;
+    border: 0;
     background: transparent;
+    z-index: 6;
   }
   .erp-shell .erp-sidebar__panel {
-    display: flex;
+    display: none;
     flex-direction: column;
+    gap: .7rem;
     height: 100%;
+    padding: 1.15rem .9rem;
     margin: 0;
-    padding: 1rem .8rem;
-    gap: .65rem;
+    border: 0;
     border-right: 1px solid var(--border);
-    border-left: 0;
     border-radius: 0;
     background: transparent;
+    box-shadow: none;
     backdrop-filter: none;
+  }
+  .erp-shell.has-contextual-submenu .erp-sidebar__panel {
+    display: flex;
+  }
+  /* Main menu inherits the tinted outer shell and intentionally has no border. */
+  .erp-shell .erp-sidebar__rail {
+    position: fixed;
+    top: var(--workspace-shell-gap);
+    bottom: var(--workspace-shell-gap);
+    left: var(--workspace-shell-gap);
+    z-index: 75;
+    display: flex;
+    flex-direction: column;
+    gap: .85rem;
+    align-items: stretch;
+    width: calc(var(--workspace-mainmenu-width) - var(--workspace-shell-gap));
+    min-width: 0;
+    height: auto;
+    padding: .7rem .5rem;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transition: width .22s ease;
+  }
+  .erp-shell .erp-sidebar__rail-header {
+    display: flex;
+    align-items: center;
+    gap: .55rem;
+    min-height: 46px;
+    padding: 0 .15rem;
+  }
+  .erp-shell .erp-sidebar__rail-brand {
+    display: grid;
+    flex: 0 0 42px;
+    place-items: center;
+    width: 42px;
+    min-height: 42px;
+    border-radius: 13px;
+    background: var(--accent);
     box-shadow: none;
   }
-  .erp-shell .erp-sidebar.is-collapsed .erp-sidebar__panel {
-    display: none;
+  .erp-shell .erp-sidebar__rail-brand img {
+    width: 29px;
+    height: 29px;
+    object-fit: contain;
+    filter: brightness(0) invert(1);
   }
+  .erp-shell .erp-sidebar__rail-title {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 .28rem;
+    min-width: 0;
+    color: var(--ink);
+    font-size: .94rem;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .erp-shell .erp-sidebar__rail-title small {
+    color: var(--muted);
+    font-size: .72rem;
+    font-weight: 500;
+  }
+  .erp-shell .erp-sidebar__rail-toggle {
+    display: grid;
+    flex: 0 0 29px;
+    place-items: center;
+    width: 29px;
+    height: 29px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 9px;
+    background: color-mix(in oklab, var(--card), transparent 36%);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .erp-shell .erp-sidebar__rail-toggle svg { width: 17px; height: 17px; }
+  .erp-shell .erp-sidebar__rail-toggle:hover,
+  .erp-shell .erp-sidebar__rail-toggle:focus-visible {
+    background: var(--accent-soft);
+    color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .erp-shell .erp-sidebar__rail-nav {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .2rem;
+    width: 100%;
+    min-height: 0;
+    padding: .1rem 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .erp-shell .erp-sidebar__rail-nav a,
+  .erp-shell .erp-sidebar__rail-action,
+  .erp-shell .erp-sidebar__rail-profile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex: 0 0 auto;
+    gap: .75rem;
+    min-width: 0;
+    width: 100%;
+    min-height: 42px;
+    padding: .57rem .65rem;
+    border: 0;
+    border-radius: 11px;
+    background: transparent;
+    color: var(--muted);
+    text-align: left;
+    font: inherit;
+    font-size: .84rem;
+    font-weight: 550;
+    cursor: pointer;
+  }
+  .erp-shell .erp-sidebar__rail-nav a > svg,
+  .erp-shell .erp-sidebar__rail-action > svg {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+  }
+  .erp-shell .erp-sidebar__rail-nav a:hover,
+  .erp-shell .erp-sidebar__rail-nav a.is-active,
+  .erp-shell .erp-sidebar__rail-action:hover,
+  .erp-shell .erp-sidebar__rail-profile:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .erp-shell .erp-sidebar__rail-nav a.is-active { font-weight: 750; }
+  .erp-shell .erp-sidebar__rail-nav a:focus-visible,
+  .erp-shell .erp-sidebar__rail-action:focus-visible,
+  .erp-shell .erp-sidebar__rail-profile:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+  .erp-shell .erp-sidebar__rail-link-label,
+  .erp-shell .erp-sidebar__rail-action span,
+  .erp-shell .erp-sidebar__rail-profile-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .erp-shell .erp-sidebar__rail-count {
+    margin-left: auto;
+    padding: .15rem .35rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--accent-soft), var(--card) 20%);
+    color: var(--accent);
+    font-size: .7rem;
+    font-weight: 700;
+  }
+  .erp-shell .erp-sidebar__rail-footer {
+    display: grid;
+    flex: 0 0 auto;
+    gap: .2rem;
+    padding-top: .5rem;
+  }
+  .erp-shell .erp-sidebar__rail-profile .erp-sidebar__avatar {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+  }
+  /* No generic all-modules list or duplicate sign-out in the contextual submenu. */
   .erp-shell .erp-sidebar__header,
   .erp-shell .erp-sidebar__search,
-  .erp-shell .erp-sidebar__brand-mark { display: none; }
+  .erp-shell .erp-sidebar__browse-toggle,
+  .erp-shell .erp-sidebar__panel > .erp-nav,
+  .erp-shell .erp-sidebar__panel > .erp-sidebar__footer { display: none; }
+  .erp-shell .erp-sidebar__context-nav {
+    min-height: 0;
+    max-height: 55dvh;
+    overflow-y: auto;
+  }
+  .erp-shell .erp-sidebar__published-apps {
+    overflow-y: auto;
+    padding: .6rem .2rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .erp-shell .erp-sidebar__published-apps .erp-nav-apps__list a {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .5rem;
+    color: var(--muted);
+    border-radius: 8px;
+    font-size: .76rem;
+  }
+  .erp-shell .erp-sidebar__published-apps .erp-nav-apps__list a:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .erp-shell .erp-sidebar__published-apps .erp-nav-apps__list a svg {
+    width: 13px;
+    height: 13px;
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+  .erp-shell .erp-sidebar__published-apps .erp-nav-apps__list {
+    gap: .2rem;
+  }
   .erp-shell .erp-main {
     display: flex;
     flex-direction: column;
@@ -3996,65 +4208,60 @@ textarea.input {
     padding: 1.2rem 1.35rem 2rem;
   }
   .erp-shell .offline-banner {
-    left: calc(var(--workspace-rail-width) + var(--workspace-submenu-width) + var(--workspace-shell-gap));
+    left: calc(var(--workspace-mainmenu-width) + var(--workspace-shell-gap) +
+       var(--workspace-submenu-width));
   }
-  .erp-shell .erp-nav a {
-    padding: .6rem .7rem;
-    border-radius: 10px;
+  .erp-shell:not(.has-contextual-submenu) .offline-banner {
+    left: calc(var(--workspace-mainmenu-width) + var(--workspace-shell-gap));
   }
-  .erp-shell .nav-link-main > span { font-size: .82rem; }
-  .erp-shell .erp-sidebar__context-nav {
-    max-height: 42dvh;
-    overflow-y: auto;
+  /* Collapsed rail remains interactive; contextual submenu does not disappear. */
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-header {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .25rem;
   }
-  .erp-shell .erp-sidebar__footer {
-    padding-top: .6rem;
-    border-top: 1px solid var(--border);
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-title,
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-link-label,
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-action span,
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-profile-name {
+    display: none;
   }
-  .erp-shell .erp-sidebar__cta { min-height: 2.2rem; }
-}
-@media (min-width: 1025px) {
-  .erp-shell .erp-sidebar__rail {
-    position: fixed;
-    top: var(--workspace-shell-gap);
-    left: var(--workspace-shell-gap);
-    bottom: var(--workspace-shell-gap);
-    display: flex;
-    flex-direction: column;
-    width: var(--workspace-rail-width);
-    min-width: var(--workspace-rail-width);
-    height: auto;
-    padding: .7rem .4rem;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    background: color-mix(in oklab, var(--surface), var(--info) 7%);
-    box-shadow: none;
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-nav a,
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-action,
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-profile {
+    justify-content: center;
+    width: 46px;
+    padding: .57rem .2rem;
+    margin: 0 auto;
   }
-  .erp-shell .erp-sidebar__rail-brand { margin-bottom: .45rem; }
-  .erp-shell .erp-sidebar__rail-nav { gap: .3rem; }
-  .erp-shell .erp-sidebar__rail-nav a {
-    color: var(--muted);
-    border-radius: 12px;
-  }
-  .erp-shell .erp-sidebar__rail-nav a.is-active {
-    background: var(--accent-soft);
-    color: var(--accent);
+  .erp-shell.is-main-menu-collapsed .erp-sidebar__rail-count {
+    position: absolute;
+    top: 2px;
+    right: 1px;
+    min-width: 8px;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    overflow: hidden;
+    font-size: 0;
+    background: var(--accent);
   }
 }
-@media (min-width: 901px) and (max-width: 1024px) {
+@media (min-width: 901px) and (max-width: 1150px) {
   .erp-shell {
-    --workspace-rail-width: 0px;
-    --workspace-submenu-width: 210px;
-    padding-left: var(--workspace-shell-gap);
+    --workspace-mainmenu-width: 210px;
+    --workspace-submenu-width: 216px;
   }
-  .erp-shell .erp-sidebar__rail { display: none; }
-  .erp-shell .erp-sidebar__context-title { font-size: 1.15rem; }
-  .erp-shell .erp-workspace-actions { gap: .35rem; }
-  .erp-shell .erp-workspace-search { width: min(22vw, 220px); }
+  .erp-shell.is-main-menu-collapsed { --workspace-mainmenu-width: 68px; }
+  .erp-shell .erp-workspace-search { width: min(22vw, 210px); }
 }
 @media (max-width: 900px) {
   .erp-workspace-frame { display: block; min-width: 0; }
   .erp-workspace-sidebar { display: contents; }
+  .erp-shell .erp-sidebar__rail { display: none; }
+  .erp-sidebar__browse-toggle { display: none; }
+  .erp-sidebar .erp-nav,
+  .erp-sidebar .erp-nav.is-expanded { display: grid; flex: 1 1 auto; }
   .erp-sidebar__context-nav { padding-bottom: .5rem; }
   .erp-main.has-workspace-tabs .erp-workspace-tabs {
     position: sticky;
@@ -4067,10 +4274,20 @@ textarea.input {
   .erp-shell.is-offline .erp-main.has-workspace-tabs .erp-content {
     padding-top: 1rem;
   }
+  .erp-sidebar__published-apps .erp-nav-apps__list a {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .4rem .55rem;
+    font-size: .76rem;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
+  .erp-shell,
+  .erp-workspace-frame,
+  .erp-sidebar__rail,
   .erp-workspace-tabs,
-  .erp-sidebar__context-nav { scroll-behavior: auto; }
+  .erp-sidebar__context-nav { transition: none; scroll-behavior: auto; }
 }
 
 /* Stable anchor for conditionally rendered monitoring sections. */
@@ -4088,25 +4305,3 @@ textarea.input {
   }
 }
 
-/* Keep the existing collapse control reachable when the workspace is tall. */
-@media (min-width: 901px) {
-  .erp-workspace-sidebar > .ui-sidebar-edge-toggle {
-    position: fixed;
-    top: 50dvh;
-    right: auto;
-    left: calc(var(--workspace-shell-gap) + var(--workspace-rail-width) + var(--workspace-submenu-width));
-    width: 1.5rem;
-    height: 2.7rem;
-    border-radius: 999px;
-    background: var(--card);
-    box-shadow: none;
-    transform: translate(-50%, -50%);
-    z-index: 76;
-  }
-  .erp-shell.is-sidebar-collapsed .erp-workspace-sidebar > .ui-sidebar-edge-toggle {
-    left: calc(var(--workspace-shell-gap) + var(--workspace-rail-width));
-  }
-}
-@media (min-width: 1025px) {
-  .erp-shell .erp-sidebar__rail-toggle { display: none; }
-}

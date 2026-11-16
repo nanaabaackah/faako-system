@@ -127,7 +127,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const visibleMobileTabItems = getVisibleMobileTabItems(currentUser);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useSidebarCollapsedState({
-    storageKey: "dev-erp.sidebar-collapsed",
+    storageKey: "dev-erp.main-menu-collapsed",
   });
   const [navSwipeOffset, setNavSwipeOffset] = useState(0);
   const [isNavDragging, setIsNavDragging] = useState(false);
@@ -358,6 +358,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
   const topbarLabel = getTopbarLabel(location.pathname);
   const workspaceModule = getWorkspaceModule(visibleNavItems, location.pathname);
   const workspaceSections = getWorkspaceSections(workspaceModule, location.pathname, visibleNavItems);
+  const hasContextualSubmenu = workspaceSections.length > 1;
   // Scroll to actual module sections; these tabs do not invent new routes.
   useEffect(() => {
     if (!location.hash) return undefined;
@@ -381,7 +382,8 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
       className={[
         "erp-shell",
         isOffline ? "is-offline" : "",
-        isSidebarCollapsed ? "is-sidebar-collapsed" : "",
+        isSidebarCollapsed ? "is-main-menu-collapsed" : "",
+        hasContextualSubmenu ? "has-contextual-submenu" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -393,6 +395,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         style={sidebarStyle}
         isOpen={isNavOpen}
         isCollapsed={isSidebarCollapsed}
+        hasContextualSubmenu={hasContextualSubmenu}
         visibleNavItems={visibleNavItems}
         navNotifications={navNotifications}
         formatNotificationCount={formatNotificationCount}
@@ -409,7 +412,7 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
         onTouchCancel={handleSidebarTouchEnd}
       />
       </div>
-      <div className={workspaceSections.length > 1 ? "erp-main has-workspace-tabs" : "erp-main"}>
+      <div className={hasContextualSubmenu ? "erp-main has-workspace-tabs" : "erp-main"}>
         <ErpShellTopbar
           ref={topbarRef}
           className="erp-topbar"
@@ -465,8 +468,8 @@ const AppShell = ({ children, theme, onToggleTheme, currentUser }) => {
             </div>
           )}
         />
-        {workspaceSections.length > 1 ? (
-          <nav className="erp-workspace-tabs" aria-label={`${workspaceModule?.label || "Module"} sections`}>
+        {hasContextualSubmenu ? (
+          <nav className="erp-workspace-tabs" aria-label={`${workspaceModule?.label || "Module"} page tabs`}>
             {workspaceSections.map((section, index) => {
               const active = isWorkspaceSectionActive(section, location.pathname, location.hash, index);
               const Icon = section.Icon;

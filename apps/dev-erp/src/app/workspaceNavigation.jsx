@@ -63,8 +63,6 @@ export function getWorkspaceModule(items, pathname) {
   return [...items]
     .sort((a, b) => b.to.length - a.to.length)
     .find((item) => path === item.to || path.startsWith(item.to + "/"))
-    || items.find((item) => item.key === "dashboard")
-    || items[0]
     || null;
 }
 
@@ -72,7 +70,8 @@ export function getWorkspaceSections(module, pathname, allowedItems = []) {
   if (!module) return [];
   const entries = module.key === "projects" && pathname.startsWith("/projects/")
     ? PROJECT_DETAIL_SECTIONS : SECTIONS[module.key];
-  if (!entries?.length) return [{ label: "Overview", Icon: FiGrid, to: module.to }];
+  // Standalone modules have no contextual submenu. Do not invent a one-item menu.
+  if (!entries?.length) return [];
   const allowedKeys = new Set(allowedItems.map((item) => item.key));
   return entries.filter((entry) => !entry.permission || allowedKeys.has(entry.permission));
 }
