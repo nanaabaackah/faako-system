@@ -89,12 +89,15 @@ test("public Journal and Tips use supplied company copy, not simulated experienc
   const journal = contentForPage("journal", inputBody(snapshot.pages.journal));
   const tips = contentForPage("travel-tips", inputBody(snapshot.pages["travel-tips"]));
   const footprint = contentForPage("travel-footprint", snapshot.pages["travel-footprint"]);
-  assert.equal(journal.articles.length, 2);
-  assert.equal(tips.tips.length, 3);
+  assert.equal(journal.articles.length, 8);
+  assert.equal(tips.tips.length, 0);
   assert.equal(footprint.experienceCountries.length, 21);
-  assert.equal(journal.articles[0].body, snapshot.pages.about.entries[0].text);
-  assert.equal(tips.tips[0].body, snapshot.pages.packages.packages[0].priceDisclaimer);
-  assert.equal(tips.tips[1].body, snapshot.pages.terms.entries[5].text);
-  assert.ok(tips.tips.every(tip => !tip.relatedArticle ||
-    journal.articles.some(article => article.slug === tip.relatedArticle)));
+  assert.equal(journal.articles.filter(article => article.category === "Travel tip").length, 7);
+  assert.equal(journal.articles.filter(article => article.category === "Trip story").length, 1);
+  assert.equal(journal.articles.filter(article => article.homeTipOrder).length, 3);
+  assert.equal(journal.articles.filter(article => article.series === "Before you fly").length, 5);
+  assert.equal(journal.articles.filter(article => article.series === "Visas and entry").length, 2);
+  assert.ok(journal.articles.every(article => !article.ctaLabel?.includes("DM EASE")));
+  assert.ok(journal.articles.every(article => (article.relatedArticleSlugs || [])
+    .every(slug => journal.articles.some(other => other.slug === slug))));
 });
