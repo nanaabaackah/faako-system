@@ -1,14 +1,67 @@
+import { useId, useRef, useState } from "react";
 import Stepper, { Step } from "./reactbits/Stepper.jsx";
 import "../styles/components/home-journey-stepper.css";
 
-/* Keep the CMS-authored process copy; this is presentation only. */
-/** @param {{ steps: { title: string, text: string }[] }} props */
-export default function HomeJourneyStepper({ steps = [] }) {
-  if (!steps.length) return null;
+/* Both paths use the same approved CMS content as /how-it-works, not duplicate copy. */
+const journeys = [
+  { value: "package", label: "Packages" },
+  { value: "planning", label: "Personal Planning" },
+];
+
+/** @param {{ flows: {package?: {steps: {heading: string, text: string}[]}, planning?: {steps: {heading: string, text: string}[]}} }} props */
+export default function HomeJourneyStepper({ flows }) {
+  const [active, setActive] = useState("package");
+  const tabs = useRef([]);
+  const id = useId();
+  if (!flows?.package?.steps?.length || !flows?.planning?.steps?.length) return null;
+
+  function changeFlow(value, focus = false) {
+    setActive(value);
+    if (focus) tabs.current[journeys.findIndex(journey => journey.value === value)]?.focus();
+  }
+
+  function handleTabKeys(event, index) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === "Home" ? 0
+      : event.key === "End" ? journeys.length - 1
+      : (index + (event.key === "ArrowRight" ? 1 : -1) + journeys.length) % journeys.length;
+    changeFlow(journeys[next].value, true);
+  }
 
   return (
-    <div className="journey-process__interactive" aria-label="How planning a trip works">
-      <Stepper
+    <div className="journey-process__interactive" aria-label="How it works">
+      <div className="journey-process__tabs" role="tablist" aria-label="Travel booking process">
+        {journeys.map((journey, index) => (
+          <button
+            key={journey.value}
+            type="button"
+            id={`${id}-${journey.value}-tab`}
+            role="tab"
+            aria-selected={active === journey.value}
+            aria-controls={`${id}-${journey.value}-panel`}
+            tabIndex={active === journey.value ? 0 : -1}
+            ref={element => { tabs.current[index] = element; }}
+            onClick={() => changeFlow(journey.value)}
+            onKeyDown={event => handleTabKeys(event, index)}
+          >
+            {journey.label}
+          </button>
+        ))}
+      </div>
+      {journeys.map(journey => (
+        <div
+          key={journey.value}
+          className="journey-process__flow-panel"
+          id={`${id}-${journey.value}-panel`}
+          role="tabpanel"
+          aria-labelledby={`${id}-${journey.value}-tab`}
+          tabIndex={0}
+          hidden={active !== journey.value}
+        >
+        {active === journey.value && (
+          <Stepper
+            key={journey.value}
         initialStep={1}
         indicator="numbers"
         orientation="horizontal"
@@ -44,15 +97,18 @@ export default function HomeJourneyStepper({ steps = [] }) {
           "--stepper-hover-fill": "rgb(1 12 51 / 5%)"
         }}
       >
-        {steps.map((entry, index) => (
-          <Step key={index} title={entry.title}>
+        {flows[journey.value].steps.map((entry, index) => (
+          <Step key={index} title={entry.heading}>
             <div className="journey-process__step-copy">
-              <h3>{entry.title}</h3>
+              <h3>{entry.heading}</h3>
               <p>{entry.text}</p>
             </div>
           </Step>
         ))}
-      </Stepper>
+          </Stepper>
+        )}
+        </div>
+      ))}
     </div>
   );
 }

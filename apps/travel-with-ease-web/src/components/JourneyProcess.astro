@@ -21,9 +21,9 @@ interface Props {
 }
 const { content, page = false } = Astro.props;
 const photo = imagePlacement(content,"feature",photography.park);
-// The homepage keeps its existing React Bits stepper, using the package path
-// only. The dedicated page exposes both separate processes and their terms.
-const homepageSteps = content.processFlows?.package?.steps || [];
+// Homepage and dedicated page both use the same client-approved, CMS-authored
+// processes. Keep the original photograph and homepage React Bits stepper.
+const homepageFlows = content.processFlows;
 ---
 
 <section class:list={["journey-process editorial-wrap", { "planning-process": page, "journey-process--option-a": !page }]} id="how-it-works" data-image-layout={photo.layout}>
@@ -35,20 +35,25 @@ const homepageSteps = content.processFlows?.package?.steps || [];
       <HowItWorksTabs flows={content.processFlows} />
     ) : (
       <>
-        {homepageSteps.length > 0 && (
-          <HomeJourneyStepper steps={homepageSteps.map((step) => ({ title: step.heading, text: step.text }))} client:visible />
+        {homepageFlows?.package?.steps?.length === 4 && homepageFlows?.planning?.steps?.length === 4 && (
+          <HomeJourneyStepper flows={homepageFlows} client:visible />
         )}
         <noscript>
-          <ol class="journey-process__fallback">
-            {homepageSteps.map((step, index) => (
-              <li>
-                <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-                <div><h3>{step.heading}</h3><p>{step.text}</p></div>
-              </li>
-            ))}
-          </ol>
+          {(["package", "planning"] as const).map((flow) => homepageFlows?.[flow]?.steps?.length === 4 && (
+            <section class="journey-process__noscript-flow">
+              <h3>{flow === "package" ? "Packages" : "Personal Planning"}</h3>
+              <ol class="journey-process__fallback">
+                {homepageFlows[flow].steps.map((step, index) => (
+                  <li>
+                    <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                    <div><h3>{step.heading}</h3><p>{step.text}</p></div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))}
         </noscript>
-        <p class="journey-process__other-flow"><ContentLink href="/how-it-works#trip-planning">Planning a trip with us? See the separate process</ContentLink></p>
+        <p class="journey-process__other-flow"><ContentLink href="/how-it-works">Explore both processes in detail</ContentLink></p>
       </>
     )}
   </div>

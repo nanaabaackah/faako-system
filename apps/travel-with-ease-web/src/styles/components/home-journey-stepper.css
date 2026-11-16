@@ -156,3 +156,60 @@
     transition-duration: 0.01ms;
   }
 }
+
+
+/* Homepage process switcher reuses the approved TWE editorial tab treatment.
+   The two journeys share one React Bits stepper; no decorative icons/emojis. */
+.journey-process__tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border-bottom: 1px solid var(--brand-grey);
+  margin: 0 0 clamp(20px, 2.5vw, 32px);
+}
+.journey-process__tabs button {
+  min-width: 0;
+  min-height: 52px;
+  padding: 12px clamp(7px, 1.4vw, 20px);
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--brand-navy);
+  text-align: left;
+  font-family: var(--font-impact, Inter, sans-serif);
+  font-size: clamp(.78rem, 1vw, .9rem);
+  font-weight: 800;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.journey-process__tabs button[aria-selected="true"] {
+  border-bottom-color: var(--brand-navy);
+}
+.journey-process__tabs button:hover {
+  background: rgb(1 12 51 / 5%);
+}
+.journey-process__tabs button:focus-visible,
+.journey-process__flow-panel:focus-visible {
+  outline: 3px solid var(--brand-sky);
+  outline-offset: 3px;
+}
+.journey-process__flow-panel[hidden] {
+  display: none !important;
+}
+.journey-process__noscript-flow + .journey-process__noscript-flow {
+  margin-top: 24px;
+}
+.journey-process__noscript-flow > h3 {
+  font-family: var(--font-display, "Poiret One", sans-serif);
+  color: var(--brand-navy);
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  -webkit-text-stroke: .024em currentColor;
+  font-weight: 400;
+}
+@media (max-width: 480px) {
+  .journey-process__tabs button {
+    font-size: .78rem;
+    padding-inline: 8px;
+  }
+}
