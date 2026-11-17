@@ -160,9 +160,9 @@ try {
     await form.getByLabel("Email").fill("browser@example.invalid");
     await form.getByLabel(/I agree that Travel With Ease/).check();
     await form.getByRole("button", { name: "Send enquiry", exact: true }).click();
-    await form.getByRole("status").filter({ hasText: "Your enquiry is received" }).waitFor();
+    await form.getByRole("status").filter({ hasText: "Enquiry received" }).waitFor();
     assert.equal(submissions, 1);
-    await expect(form.getByRole("status")).toContainText("Note that this is not a booking.");
+    await expect(form.getByRole("status")).toContainText("No booking has been made.");
 
     const continuationToken = `v1.${"x".repeat(100)}`;
     let completions = 0;
