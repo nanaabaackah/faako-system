@@ -2162,3 +2162,46 @@ body.admin-theme .water-module-page .portal-action--icon { width: 44px; padding:
 .water-credit-confirmation { padding: 1rem; border-radius: var(--radius-md, 1rem); background: var(--admin-surface); }
 .water-module-form .water-credit-checkbox { display: flex; align-items: flex-start; gap: .75rem; }
 .water-module-form .water-credit-checkbox input[type="checkbox"] { width: 1.25rem; height: 1.25rem; min-height: 1.25rem; flex: 0 0 1.25rem; margin-top: .2rem; accent-color: var(--sys-accent); }
+
+/* Collection actions must remain readable on phones. Sidebar and table toolbar
+   controls can use icon-only affordances, but applying credit is a financial
+   action that always requires a visible label and explicit selection. */
+.water-order-modal .water-apply-credit-section {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.water-order-modal .water-apply-credit-form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.water-order-modal .water-apply-credit-form .water-credit-checkbox {
+  white-space: normal;
+}
+.water-order-modal .portal-action:not(.portal-action--icon) {
+  width: auto;
+  min-width: 44px;
+  max-width: 100%;
+  padding: 0.7rem 1rem;
+  justify-self: start;
+  white-space: normal;
+}
+.water-order-modal .portal-action:not(.portal-action--icon) .portal-action__label {
+  display: inline;
+  white-space: normal;
+}
+@media (max-width: 767px) {
+  body.admin-theme .water-module-page .water-order-modal .portal-action:not(.portal-action--icon) {
+    width: auto;
+    padding: 0.7rem 1rem;
+    justify-self: start;
+  }
+  body.admin-theme .water-module-page .water-order-modal .portal-action:not(.portal-action--icon) .portal-action__label {
+    display: inline;
+  }
+  .water-order-modal .water-credit-apply-action {
+    width: 100% !important;
+    justify-self: stretch !important;
+  }
+}
