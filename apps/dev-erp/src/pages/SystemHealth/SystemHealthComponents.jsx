@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { CloseCircle, Refresh2, SearchNormal1, TickCircle } from "iconsax-react";
+import { Activity, CloseCircle, Refresh2, SearchNormal1, TickCircle } from "iconsax-react";
 import { ERPStatusBadge, SelectField } from "@faako/ui";
 import { formatDateTime } from "../../utils/formatters";
 import { buildMonitoringFilterOptions, MONITORING_SECTIONS, normalizeHealthStatus, TIMELINE_RANGES } from "./monitoringConfig";

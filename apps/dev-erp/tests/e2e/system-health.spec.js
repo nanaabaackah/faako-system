@@ -2,17 +2,6 @@ import { expect, test } from "@playwright/test";
 
 test.setTimeout(90_000);
 
-test.afterEach(async ({ page }, testInfo) => {
-  if (testInfo.status === testInfo.expectedStatus) return;
-  const diagnostics = await page.evaluate(() => ({
-    path: location.pathname,
-    pageText: document.body?.innerText?.slice(0, 1000) || "",
-    serviceRows: document.querySelectorAll(".health-service-table__row").length,
-    notices: [...document.querySelectorAll(".notice")].map((node) => node.textContent?.trim()).slice(0, 6),
-  })).catch((error) => ({ error: String(error) }));
-  console.error("SYSTEM_HEALTH_E2E_DIAGNOSTICS", JSON.stringify(diagnostics));
-});
-
 const adminUser = {
   id: 1,
   userId: 1,
