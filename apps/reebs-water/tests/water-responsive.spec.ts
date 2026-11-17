@@ -479,3 +479,34 @@ test("Water finance shows partial collections without counting them as extra rev
   await expect(page.locator(".water-module-kpi").filter({ hasText: "Water revenue" })).toContainText("60.00");
   await expect(page.locator(".water-module-kpi").filter({ hasText: "Balance outstanding" })).toContainText("35.00");
 });
+
+
+test("Authorized Water owner can open paid history and submit audited manual correction", async ({ page }) => {
+  const sale = { id: 99, productKey: "gwater-15pk", customerId: 2, customerName: "Paid customer",
+    quantity: 2, unitPrice: 3000, totalAmount: 6000, collectedCents: 6000, amountPaidCents: 6000,
+    applicationCount: 1, balanceDueCents: 0, paymentMethod: "cash", paymentStatus: "paid",
+    date: "2026-10-17", updatedAt: "2026-10-17T12:00:00.000Z" };
+  const receipt = { id: 51, applicationId: 61, saleId: 99, productKey: "gwater-15pk",
+    amountCents: 6000, cashReceivedCents: 6000, method: "Cash", source: "MANUAL",
+    verificationStatus: "MANUAL", reference: "WATER-TEST-51", applicationStatus: "APPLIED",
+    status: "PAID", paidAt: "2026-10-17T12:00:00.000Z" };
+  const dashboard = { ...waterDashboard,
+    permissions: { ...waterDashboard.permissions, canReconcilePayments: true },
+    sales: [sale], collections: [receipt] };
+  const mutations: Record<string, unknown>[] = [];
+  await installFixtures(page, adminUser, dashboard, mutations);
+  await page.goto("/orders");
+  await page.getByRole("button", { name: "Payment history for sale 99" }).click();
+  const dialog = page.getByRole("dialog", { name: "Record collection · Sale #99" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Record collection", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "Correct payment" }).click();
+  const correction = dialog.getByRole("form", { name: "Correct recorded payment" });
+  await correction.getByLabel("Corrected amount (GHS)").fill("40");
+  await correction.getByLabel("Reason for correction").fill("Wrong amount entered on the original receipt.");
+  await correction.getByRole("button", { name: "Save correction" }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(mutations).toHaveLength(1);
+  expect(mutations[0]).toMatchObject({ action: "correct_collection", saleId: 99, paymentId: 51,
+    mode: "replace", amount: "40", reason: "Wrong amount entered on the original receipt." });
+});
