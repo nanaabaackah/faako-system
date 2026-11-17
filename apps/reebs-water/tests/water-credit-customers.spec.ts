@@ -63,7 +63,17 @@ for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
     await expect(dialog).not.toBeVisible();
     expect(writes[1]).toMatchObject({ action: "record_collection", retainCustomerCredit: true, amount: "80", saleId: 5 });
     await page.getByRole("button", { name: "Payment history for sale 5" }).click();
-    await dialog.getByRole("button", { name: "Apply customer credit", exact: true }).click();
+    const creditOptIn = dialog.getByRole("checkbox", { name: "Apply GH₵25.00 of this customer's available credit to Sale #5" });
+    const applyCredit = dialog.getByRole("button", { name: "Apply customer credit", exact: true });
+    await expect(creditOptIn).not.toBeChecked();
+    await expect(applyCredit).toBeDisabled();
+    await expect(applyCredit.locator(".portal-action__label")).toBeVisible();
+    await expect(applyCredit.locator(".portal-action__label")).toHaveText("Apply customer credit");
+    expect(await applyCredit.evaluate((button) => button.getBoundingClientRect().width)).toBeGreaterThan(140);
+    await creditOptIn.check();
+    await expect(applyCredit).toBeEnabled();
+    await expect(dialog).toContainText("GH₵25.00 will be applied to this order only if selected.");
+    await applyCredit.click();
     await expect(dialog).not.toBeVisible();
     expect(writes[2]).toMatchObject({ action: "apply_customer_credit", amount: "25.00", saleId: 5 });
   });

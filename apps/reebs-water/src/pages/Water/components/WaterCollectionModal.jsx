@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { getWaterCustomer } from "../../../api/waterCustomers.js";
 import { DateField, InlineNotice, SelectField, useERPDialog } from "@faako/ui";
 import PortalAction from "../../../components/PortalAction.jsx";
-import { faFloppyDisk, faXmark } from "../../../icons/iconSet.js";
+import { faFloppyDisk, faMoneyCheckDollar, faXmark } from "../../../icons/iconSet.js";
 
 export default function WaterCollectionModal({ sale, collections, onClose, onSubmit, onApplyCredit, onCorrect, onReconcileLegacy, canReconcilePayments = false, saving, error, formatCurrency }) {
   const [form, setForm] = useState({ amount: "", method: "cash", transactionReference: "", paidAt: new Date().toISOString().slice(0, 10), notes: "" });
   const [retainCustomerCredit, setRetainCustomerCredit] = useState(false);
+  const [applyExistingCredit, setApplyExistingCredit] = useState(false);
   const [correction, setCorrection] = useState(null);
   const [correctionCredit, setCorrectionCredit] = useState(false);
   const [legacy, setLegacy] = useState({
@@ -50,7 +51,7 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
     <div ref={dialogRef} className="admin-modal ui-erp-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="water-collection-title" tabIndex={-1}>
       <div className="admin-modal-panel ui-erp-modal ui-erp-modal--lg water-order-modal bubble-card">
         <header className="ui-erp-dialog__header"><h2 id="water-collection-title">Record collection · Sale #{sale.id}</h2>
-          <PortalAction icon={faXmark} action="close" label="Close collection" onClick={onClose} disabled={saving} />
+          <PortalAction icon={faXmark} action="close" className="portal-action--icon" label="Close collection" onClick={onClose} disabled={saving} />
         </header>
         <div className="ui-erp-dialog__body">
         <div className="water-order-modal-summary">
@@ -105,15 +106,22 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
             </div>
           </form>
         )}
-        {sale.customerId && !sale.legacyPaymentCompatibility && <section aria-label="Apply customer credit">
+        {sale.customerId && !sale.legacyPaymentCompatibility && <section className="water-apply-credit-section" aria-label="Apply customer credit">
           <h3>Customer Water credit</h3>
           {creditError ? <p role="alert">{creditError}</p> : availableCredit === null ? <p role="status">Loading customer credit…</p> : <>
             <p>{formatCurrency(availableCredit)} available across Water products. Applying it records no new money received.</p>
-            {availableCredit > 0 && sale.balanceDueCents > 0 && <form className="water-module-form" onSubmit={(event) => {
-              event.preventDefault(); if (!saving) onApplyCredit({ saleId: sale.id, amount: (creditAmountCents / 100).toFixed(2) });
+            {availableCredit > 0 && sale.balanceDueCents > 0 && <form className="water-module-form water-apply-credit-form" onSubmit={(event) => {
+              event.preventDefault();
+              if (!saving && applyExistingCredit && creditAmountCents > 0) {
+                onApplyCredit({ saleId: sale.id, amount: (creditAmountCents / 100).toFixed(2) });
+              }
             }}>
-              <p>{formatCurrency(creditAmountCents)} will be applied to this order. Any remaining credit stays available for future orders.</p>
-              <PortalAction type="submit" icon={faFloppyDisk} label="Apply customer credit" disabled={saving || creditAmountCents <= 0} />
+              <label className="water-credit-checkbox">
+                <input type="checkbox" checked={applyExistingCredit} disabled={saving || creditAmountCents <= 0} onChange={(event) => setApplyExistingCredit(event.target.checked)} />
+                Apply {formatCurrency(creditAmountCents)} of this customer's available credit to Sale #{sale.id}
+              </label>
+              <p>{formatCurrency(creditAmountCents)} will be applied to this order only if selected. Any remaining credit stays available for future orders.</p>
+              <PortalAction type="submit" className="admin-primary water-credit-apply-action" icon={faMoneyCheckDollar} label={saving ? "Applying credit…" : "Apply customer credit"} disabled={saving || creditAmountCents <= 0 || !applyExistingCredit} />
             </form>}
           </>}
         </section>}
@@ -125,7 +133,7 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
             {entry.correctionReason ? ` · Corrected: ${entry.correctionReason}` : ""}
             {canReconcilePayments && !entry.isCreditApplication && entry.applicationStatus === "APPLIED"
               && !entry.supersededAt && entry.source === "MANUAL" && entry.verificationStatus === "MANUAL"
-              && <PortalAction label="Correct payment" onClick={() => openCorrection(entry)} disabled={saving} />}
+              && <PortalAction icon={faMoneyCheckDollar} label="Correct payment" onClick={() => openCorrection(entry)} disabled={saving} />}
           </li>)}</ul> : <p>No verified collections recorded.</p>}
         </section>
         {canReconcilePayments && correction && <form className="water-module-form water-order-modal-form" aria-label="Correct recorded payment" onSubmit={(event) => {
