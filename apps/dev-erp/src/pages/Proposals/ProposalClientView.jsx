@@ -383,9 +383,7 @@ function ProposalClientView() {
                         required
                       />
                     </label>
-                  ) : (
-                    
-                  )}
+                  ) : null}
                   {clientActionError ? (
                     <div className="notice proposal-notice is-error" role="alert">
                       {clientActionError}

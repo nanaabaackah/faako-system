@@ -1267,9 +1267,7 @@ const Rent = () => {
               </div>
             ) : null}
             {tenantNotice ? <div className="notice is-success">{tenantNotice}</div> : null}
-            {isLandlord ? (
-              
-            ) : null}
+            
 
             <form className="stack" onSubmit={submitTenant}>
               <label className="form-field">

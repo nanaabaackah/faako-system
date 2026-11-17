@@ -117,7 +117,7 @@ function ProposalPersonalNote({ proposal }) {
       {introduction ? <p>{introduction}</p> : null}
       {founderMessage ? <blockquote>{founderMessage}</blockquote> : null}
       {closing ? <p>{closing}</p> : null}
-      {!hasNoteContent ?  : null}
+      
     </section>
   );
 }
