@@ -842,11 +842,9 @@ const Rent = () => {
     <section className="page rent-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Rent</p>
+          
           <h1>Rent Dashboard</h1>
-          <p className="muted">
-            Track tenant payments, monthly progress, and outstanding balances.
-          </p>
+          
         </div>
         <div className="header-actions">
           <button
@@ -906,7 +904,7 @@ const Rent = () => {
           <div className="panel-header">
             <div>
               <h3>Missed months</h3>
-              <p className="muted">Open balances after payments are applied to the oldest unpaid months first.</p>
+              
             </div>
           </div>
 
@@ -963,10 +961,7 @@ const Rent = () => {
           <div className="panel-header">
             <div>
               <h3>Tenant overview</h3>
-              <p className="muted">
-                Everything for {singleTenant.tenantName} in one place for{" "}
-                {dashboard?.month?.label || "the selected month"}.
-              </p>
+              
             </div>
             <div className="rent-single-tenant-panel__actions">
               <span
@@ -1101,9 +1096,7 @@ const Rent = () => {
             <div className="panel-header">
               <div>
                 <h3>Tenant payment breakdown</h3>
-                <p className="muted">
-                  Showing paid and owed balances for {dashboard?.month?.label || "the selected month"}.
-                </p>
+                
               </div>
             </div>
 
@@ -1197,7 +1190,7 @@ const Rent = () => {
             <div className="panel-header">
               <div>
                 <h3>Recent payments</h3>
-                <p className="muted">Edit or remove recorded payments from here.</p>
+                
               </div>
             </div>
 
@@ -1264,11 +1257,7 @@ const Rent = () => {
             <div className="panel-header">
               <div>
                 <h3>{editingTenantId ? "Edit tenant" : "Add tenant"}</h3>
-                <p className="muted">
-                  {editingTenantId
-                    ? "Update the selected tenant profile."
-                    : "Create a tenant profile for rent tracking."}
-                </p>
+                
               </div>
             </div>
 
@@ -1279,9 +1268,7 @@ const Rent = () => {
             ) : null}
             {tenantNotice ? <div className="notice is-success">{tenantNotice}</div> : null}
             {isLandlord ? (
-              <p className="muted rent-form-note">
-                Landlord accounts can manage all tenant records in this organization.
-              </p>
+              
             ) : null}
 
             <form className="stack" onSubmit={submitTenant}>
@@ -1431,11 +1418,7 @@ const Rent = () => {
             <div className="panel-header">
               <div>
                 <h3>{editingPaymentId ? "Edit payment" : "Record payment"}</h3>
-                <p className="muted">
-                  {editingPaymentId
-                    ? "Update the selected payment record."
-                    : "Pick a tenant, enter the amount and month, then save. Everything else is optional."}
-                </p>
+                
               </div>
             </div>
 
@@ -1621,9 +1604,7 @@ const Rent = () => {
                 </div>
               ) : null}
 
-              <p className="muted rent-payment-helper">
-                Tip: click a tenant row first to preselect that tenant here.
-              </p>
+              
             </form>
             </article>
           </div>

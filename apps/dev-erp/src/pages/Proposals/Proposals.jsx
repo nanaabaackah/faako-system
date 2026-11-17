@@ -603,7 +603,7 @@ function ProposalSetupPanel({
     <ErpPanel className="proposal-setup-panel">
       <ErpPanelHeader
         title="Proposal setup"
-        description="Adjust the document, save versions, share a secure client link, and hand approved proposals to invoicing."
+        
         actions={(
           <>
             <button
@@ -641,9 +641,7 @@ function ProposalSetupPanel({
               <option value={template.id} key={template.id}>{template.name}</option>
             ))}
         </SelectField>
-        <p className="muted proposal-template-preservation-note">
-          Switching templates keeps client details and any compatible sections you have edited.
-        </p>
+        
         <div className="proposal-editor-grid">
           <FormGroup label="Prepared by">
             <input
@@ -869,7 +867,7 @@ function ProposalWorkflowPanel({
     <ErpPanel className="proposal-workflow-panel">
       <ErpPanelHeader
         title="Review workflow"
-        description="Internal readiness plus client response state from secure proposal links."
+        
         actions={(
           <>
             <span className={`status-pill is-${statusTone}`}>
@@ -957,11 +955,7 @@ function ProposalWorkflowPanel({
             {clientResponse.message ? <p>{clientResponse.message}</p> : null}
           </div>
         ) : (
-          <div className="proposal-future-actions" aria-label="Client approval actions">
-            <span>Client actions available on secure shared links</span>
-            <span>Approve proposal</span>
-            <span>Request changes</span>
-          </div>
+          null
         )}
 
         {workflow.statusHistory.length ? (
@@ -1420,10 +1414,7 @@ function Proposals() {
       <section className="proposal-hero" aria-label="Proposal generator overview">
         <div className="proposal-hero__copy">
           <h1>Proposals</h1>
-          <p>
-            Build polished proposals directly on the document, reuse a focused template, and
-            share a secure client review link when the draft is ready.
-          </p>
+          
         </div>
 
         <div className="proposal-search-card" role="search">
@@ -1526,7 +1517,7 @@ function Proposals() {
             <AnimatedLoadingState
               compact
               title="Loading saved proposals"
-              message="Checking your recent drafts."
+              
             />
           ) : null}
           {!isLoadingProposals && !savedProposals.length ? (
@@ -1587,7 +1578,7 @@ function Proposals() {
           <AnimatedLoadingState
             page
             title="Loading proposal"
-            message="Preparing the editable document."
+            
           />
         ) : (
           <>

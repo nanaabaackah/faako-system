@@ -1143,9 +1143,9 @@ const Invoicing = () => {
     <section className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Finance</p>
+          
           <h1>Invoicing</h1>
-          <p className="muted">Create invoices, track payment status, and export PDFs.</p>
+          
         </div>
         <div className="header-actions">
           <button
@@ -1227,7 +1227,7 @@ const Invoicing = () => {
         <div className="panel-header">
           <div>
             <h3>Invoice ledger</h3>
-            <p className="muted">Manage statuses and export client-ready PDFs.</p>
+            
           </div>
         </div>
 
@@ -1425,7 +1425,7 @@ const Invoicing = () => {
                     {selectedInvoice.status}
                   </span>
                 </div>
-                <p className="muted">Review the invoice, verify the totals, and send it when ready.</p>
+                
               </div>
               <button className="button button-plain" type="button" onClick={closeInvoiceModal}>
                 Close
@@ -1466,7 +1466,7 @@ const Invoicing = () => {
                   <div className="invoice-preview-card__header">
                     <div>
                       <h4>Line items</h4>
-                      <p className="muted">Monthly charges stay nested beneath the main service.</p>
+                      
                     </div>
                   </div>
                   {selectedInvoiceLineItems.length ? (
@@ -1513,11 +1513,11 @@ const Invoicing = () => {
                     <div className="invoice-preview-card__header">
                       <div>
                         <h4>Payment history</h4>
-                        <p className="muted">Only verified ledger postings contribute to the received amount.</p>
+                        
                       </div>
                     </div>
                     {paymentHistoryLoading ? <AnimatedLoadingState compact title="Loading payment history" /> : null}
-                    {!paymentHistoryLoading && !paymentHistory.length ? <p className="muted">No individual payment records are available. Any existing received amount is retained as a legacy opening balance for reconciliation.</p> : null}
+                    {!paymentHistoryLoading && !paymentHistory.length ? <p className="muted">No payment records. Existing received amounts may need reconciliation.</p> : null}
                     {paymentHistory.length ? (
                       <div className="stack">
                         <label className="form-field">
@@ -1845,7 +1845,7 @@ const Invoicing = () => {
 	              </label>
 
 	              <div className="notice">
-	                Recording creates a pending payment. It will not reduce the balance until another authorized administrator verifies it.
+	                Payment remains pending until verified.
 	              </div>
 
 	              <div className="header-actions">
@@ -1880,7 +1880,7 @@ const Invoicing = () => {
               <div>
                 <p className="eyebrow">Invoicing</p>
                 <h3 id="invoice-form-title">{editingInvoiceId ? "Edit invoice" : "Create invoice"}</h3>
-                <p className="muted">Complete details and line items before saving.</p>
+                
               </div>
               <button className="button button-ghost" type="button" onClick={closeFormModal}>
                 Close
@@ -2002,7 +2002,7 @@ const Invoicing = () => {
                 <div className="panel-header">
                   <div>
                     <h3>Line items</h3>
-                    <p className="muted">Add billable items for this invoice.</p>
+                    
                   </div>
                   <button className="button button-ghost" type="button" onClick={addLineItem}>
                     <FiPlus aria-hidden="true" />

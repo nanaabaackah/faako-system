@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Activity, CloseCircle, Refresh2, SearchNormal1, TickCircle } from "iconsax-react";
+import { CloseCircle, Refresh2, SearchNormal1, TickCircle } from "iconsax-react";
 import { ERPStatusBadge, SelectField } from "@faako/ui";
 import { formatDateTime } from "../../utils/formatters";
 import { buildMonitoringFilterOptions, MONITORING_SECTIONS, normalizeHealthStatus, TIMELINE_RANGES } from "./monitoringConfig";
@@ -143,7 +143,7 @@ export const MonitoringSection = ({ section, services, onSelect }) => {
   return (
     <section className="health-monitoring-section" aria-labelledby={`health-section-${section.id}`}>
       <header>
-        <div><h2 id={`health-section-${section.id}`}>{section.label}</h2><p>{section.description}</p></div>
+        <div><h2 id={`health-section-${section.id}`}>{section.label}</h2></div>
         <span>{healthy}/{services.length} healthy</span>
       </header>
       <div className="health-service-table">
@@ -198,9 +198,9 @@ export const ServiceDrawer = ({ service, serviceMap, onClose, onManualCheck, isC
           <section><h3>Latest checks</h3><dl className="health-check-times"><div><dt>Last checked</dt><dd>{formatDateTime(service.lastCheckedAt)}</dd></div><div><dt>Last successful</dt><dd>{formatDateTime(service.lastSuccessfulCheck)}</dd></div><div><dt>Last failed</dt><dd>{service.lastFailedCheck ? formatDateTime(service.lastFailedCheck) : "None in range"}</dd></div></dl></section>
           <section><h3>Dependencies</h3><DependencyTree dependencies={service.dependencies} serviceMap={serviceMap} /></section>
           <section><h3>Recent incidents</h3><IncidentList incidents={service.incidents} /></section>
-          <section className="health-metrics-placeholder"><h3>Metrics coverage</h3><div><Activity size={24} aria-hidden="true" /><p>Current, minimum, maximum, average, P95, uptime, and trend are calculated for the selected range.</p></div></section>
+          
         </div>
-        <footer>{manualCheckError ? <div className="notice is-error" role="alert">{manualCheckError}</div> : null}<button className="button button-primary" type="button" onClick={onManualCheck} disabled={isChecking || !canRunManualCheck}><Refresh2 size={18} aria-hidden="true" />{isChecking ? "Checking..." : "Run manual health check"}</button><small>{canRunManualCheck ? "Runs the trusted server-side check and records an audit event." : "Administrator access is required for manual checks."}</small></footer>
+        <footer>{manualCheckError ? <div className="notice is-error" role="alert">{manualCheckError}</div> : null}<button className="button button-primary" type="button" onClick={onManualCheck} disabled={isChecking || !canRunManualCheck}><Refresh2 size={18} aria-hidden="true" />{isChecking ? "Checking..." : "Run manual health check"}</button>{!canRunManualCheck ? <small>Administrator access required.</small> : null}</footer>
       </aside>
     </div>
   );

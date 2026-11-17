@@ -155,9 +155,9 @@ export default function ProjectTrelloSection({ projectId, isAdmin }) {
     <article className="panel project-trello-section">
       <div className="project-trello-header">
         <div>
-          <p className="eyebrow">Integration</p>
+          
           <h2>Trello</h2>
-          <p className="muted">Dev ERP remains the source of truth for project tasks.</p>
+          
         </div>
         {!loading ? (
           <button className="button button-ghost" type="button" onClick={openForm}>

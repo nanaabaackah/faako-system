@@ -69,7 +69,7 @@ const NewAppointmentDrawer = ({ onClose, onCreated }) => {
       <aside className="bookings-drawer" role="dialog" aria-modal="true" aria-labelledby="new-appointment-heading">
         <header className="bookings-drawer__header">
           <div>
-            <p className="eyebrow">In-app scheduling</p>
+            
             <h2 id="new-appointment-heading">New appointment</h2>
           </div>
           <button className="button button-ghost" type="button" onClick={onClose}>Close</button>
@@ -105,7 +105,7 @@ const NewAppointmentDrawer = ({ onClose, onCreated }) => {
             <span>Notes (optional)</span>
             <textarea className="input" maxLength={2000} value={form.description} onChange={update("description")}/>
           </label>
-          <p className="muted">Times use your device timezone. The server checks for conflicts and blocked dates.</p>
+          <p className="muted">Times use your device timezone.</p>
           {status && <div className="notice is-error" role="alert">{status}</div>}
           <button className="button button-primary" type="submit" disabled={saving}>
             {saving ? "Creating..." : "Create appointment"}

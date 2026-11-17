@@ -43,7 +43,7 @@ class ErrorBoundary extends React.Component {
           <p className="route-error-boundary__eyebrow">Render Error</p>
           <h1>Something on this page failed.</h1>
           <p className="route-error-boundary__message">
-            A React render error stopped this screen. Retry the view or jump back to a safe route.
+            This page could not load. Try again.
           </p>
           <div className="route-error-boundary__actions">
             <button className="button button-primary" type="button" onClick={this.handleRetry}>

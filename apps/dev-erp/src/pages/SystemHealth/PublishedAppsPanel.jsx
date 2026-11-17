@@ -44,7 +44,7 @@ const PublishedAppsPanel = () => {
     <section className="panel health-published-apps" aria-labelledby="published-apps-title">
       <div className="panel-header">
         <div><h3 id="published-apps-title">Published Faako applications</h3>
-          <p className="muted">Deployment links from the configured app registry and latest monitored status.</p>
+          
         </div>
         <button type="button" className="button button-ghost" onClick={refresh} disabled={state === "loading"}>Refresh</button>
       </div>
