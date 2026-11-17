@@ -434,7 +434,7 @@ for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
       return route.fulfill({ json: dashboard });
     });
     await page.goto("/orders");
-    await page.getByRole("button", { name: "Record collection for sale 97", exact: true }).click();
+    await page.getByRole("button", { name: "Payment history for sale 97", exact: true }).click();
     const dialog = page.getByRole("dialog", { name: "Record collection · Sale #97", exact: true });
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("Amount received (GHS)", { exact: true }).fill("25.00");
