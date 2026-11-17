@@ -2141,6 +2141,7 @@ function WaterProductWorkspace({ product, onProductChange, onAccessDenied }) {
           openOrderEditor={openOrderEditor}
           handleOrderDelete={handleOrderDelete}
           openCollection={openCollection}
+          canReconcilePayments={permissions.canReconcilePayments === true}
           formatDate={formatDate}
           formatCurrency={formatCurrency}
           normalizeSalePaymentStatus={normalizeSalePaymentStatus}
@@ -2194,6 +2195,13 @@ function WaterProductWorkspace({ product, onProductChange, onAccessDenied }) {
         {collectionSale && permissions.canRecordSales ? <WaterCollectionModal key={collectionSale.id} sale={collectionSale}
           collections={collections.filter((row) => Number(row.saleId) === Number(collectionSale.id))}
           onClose={() => setCollectionSaleId(null)} saving={saving} error={error} formatCurrency={formatCurrency}
+          canReconcilePayments={permissions.canReconcilePayments === true}
+          onCorrect={async (payload) => {
+            if (await handleAction("correct_collection", payload, "Water payment corrected and original receipt preserved.")) setCollectionSaleId(null);
+          }}
+          onReconcileLegacy={async (payload) => {
+            if (await handleAction("reconcile_legacy_payment", payload, "Legacy Water payment reconciled.")) setCollectionSaleId(null);
+          }}
           onSubmit={async (payload) => {
             if (await handleAction("record_collection", payload, "Water collection recorded.")) setCollectionSaleId(null);
           }} onApplyCredit={async (payload) => {
@@ -2214,6 +2222,7 @@ function WaterProductWorkspace({ product, onProductChange, onAccessDenied }) {
           handleOrderSubmit={handleOrderSubmit}
           handleOrderDelete={handleOrderDelete}
           openCollection={openCollection}
+          canReconcilePayments={permissions.canReconcilePayments === true}
           normalizeChannel={normalizeChannel}
           normalizeSalePaymentStatus={normalizeSalePaymentStatus}
           getSalePaymentStatusLabel={getSalePaymentStatusLabel}

@@ -18,6 +18,7 @@ export const presentWaterDashboard = (dashboard, role) => {
   const permissions = {
     ...buildWaterPricingPermissions(canWriteWaterAction(role, "restock") ? role : null),
     canRecordSales: canWriteWaterAction(role, "sale"),
+    canReconcilePayments: canWriteWaterAction(role, "correct_collection"),
   };
   if (permissions.canViewFinance && permissions.canViewCost) {
     return { ...dashboard, permissions };

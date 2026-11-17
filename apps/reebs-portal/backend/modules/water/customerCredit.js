@@ -11,7 +11,7 @@ export const loadWaterCustomerCredit = async (client, organizationId, customerId
     JOIN "paymentApplication" pa ON pa."paymentId" = pr.id AND pa."organizationId" = pr."organizationId"
     WHERE pr."organizationId" = $1 AND pr."customerId" = $2
       AND pr."businessUnit" = 'WATER' AND pr.currency = 'GHS' AND pr.status = 'PAID'
-      AND pr.provider = 'MANUAL_WATER' AND pr.source = 'MANUAL'
+      AND pr.provider = 'MANUAL_WATER' AND pr.source = 'MANUAL' AND pr."supersededAt" IS NULL
     GROUP BY pr.id
     HAVING BOOL_AND(pa.status = 'APPLIED' AND pa."businessUnit" = 'WATER'
       AND pa."payableType" = 'WATER_ORDER' AND pa.currency = 'GHS'
