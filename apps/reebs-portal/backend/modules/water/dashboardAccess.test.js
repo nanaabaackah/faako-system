@@ -16,6 +16,13 @@ test("only owners/admins manage Water operations; Water staff retain all sale ac
   }
 });
 
+test("Only Water owners/admins may reconcile payments", () => {
+  for (const action of ["correct_collection", "reconcile_legacy_payment"]) {
+    for (const role of ["owner", "admin"]) assert.equal(canWriteWaterAction(role, action), true);
+    for (const role of ["water", "manager", "staff", undefined]) assert.equal(canWriteWaterAction(role, action), false);
+  }
+});
+
 test("operational projection allowlists data without mutating the private calculation ledger", () => {
   const dashboard = {
     scope: "water", businessUnit: "WATER", privateFutureField: "internal",
@@ -32,6 +39,7 @@ test("operational projection allowlists data without mutating the private calcul
   const operational = presentWaterDashboard(dashboard, "water");
   assert.equal(operational.permissions.canViewCost, false);
   assert.equal(operational.permissions.canRecordSales, true);
+  assert.equal(operational.permissions.canReconcilePayments, false);
   assert.deepEqual(operational.product, { key: "water", pricing: { retailPrice: 3000 } });
   assert.deepEqual(operational.summary, { stockOnHand: 8 });
   assert.deepEqual(operational.restocks, [{ id: 1, quantity: 10 }]);
@@ -41,6 +49,7 @@ test("operational projection allowlists data without mutating the private calcul
   assert.deepEqual(dashboard, before);
   for (const role of ["admin", "owner"]) {
     assert.equal(presentWaterDashboard(dashboard, role).permissions.canRecordSales, true);
+    assert.equal(presentWaterDashboard(dashboard, role).permissions.canReconcilePayments, true);
     assert.deepEqual(presentWaterDashboard(dashboard, role).summary, dashboard.summary);
   }
   for (const role of ["manager", "staff", undefined]) {
