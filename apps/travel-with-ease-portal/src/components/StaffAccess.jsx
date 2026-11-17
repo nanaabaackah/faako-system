@@ -121,7 +121,7 @@ export default function StaffAccess({ api, session }) {
             event.preventDefault();
             if (await mutate("handover", { clientId: handoverClient, approvalReference: handoverReference })) {
               setHandoverReference("");
-              setMessage("Handover approval requested. The named client must approve it from Account settings within 10 minutes. No Access token needs to be shared.");
+              setMessage("Handover requested. The selected client must approve it in Account settings within 10 minutes.");
             }
           }}
         >
