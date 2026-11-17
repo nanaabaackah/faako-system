@@ -103,6 +103,15 @@ enriching that record. Identical retries are idempotent; changed replays, expire
 links and completed links fail closed without revealing whether an enquiry exists.
 Tokens are excluded from portal projections, structured logs and audit events.
 
+The progressive enquiry flow creates one record from the short public intake.
+Acknowledgement mail carries a signed bearer link in the URL fragment; the browser
+does not send that fragment with the page request or in referrers. The link expires after 14 days and may
+complete the versioned questionnaire once. The API verifies the signature, exact
+Origin, Turnstile response and tenant-scoped enquiry before transactionally
+enriching that record. Identical retries are idempotent; changed replays, expired
+links and completed links fail closed without revealing whether an enquiry exists.
+Tokens are excluded from portal projections, structured logs and audit events.
+
 ## Controls and data flow
 
 - TLS is mandatory. Cloudflare Access with independently enforced MFA, verified JWTs and provisioned staff is the selected hosted identity boundary. Secure `HttpOnly`/`Secure`/`SameSite` cookies, bounded PostgreSQL sessions, revocation, CSRF and per-request permissions remain mandatory. The Phase 1 development bearer path is not a hosted authentication mode; production API startup is still blocked.

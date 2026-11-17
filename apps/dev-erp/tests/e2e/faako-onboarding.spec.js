@@ -283,3 +283,12 @@ test("Faako onboarding list opens detail and saves management updates", async ({
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(submissionRow).toHaveCount(0);
 });
+
+
+test("standalone modules use the full workspace without a contextual submenu", async ({ page }) => {
+  await page.goto("/faako-onboarding", { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "Form Submissions" })).toBeVisible();
+  await expect(page.locator(".erp-sidebar__context-nav")).toHaveCount(0);
+  await expect(page.locator(".erp-shell")).not.toHaveClass(/has-contextual-submenu/);
+  await expect(page.getByRole("navigation", { name: "Main module navigation" })).toBeVisible();
+});

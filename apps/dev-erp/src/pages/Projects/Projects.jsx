@@ -451,7 +451,7 @@ export default function Projects() {
 
         {selectedProject && !detailLoading ? (
           <>
-            <article className="panel project-detail-summary">
+            <article id="project-detail-summary" className="panel project-detail-summary">
               <div className="project-detail-summary__heading">
                 <div>
                   <span className={`project-health is-${getProjectHealthTone(selectedProject.health)}`}>
@@ -495,16 +495,20 @@ export default function Projects() {
               <p>{selectedProject.description || "No description provided."}</p>
             </article>
 
+            <div id="project-detail-tasks">
             <ProjectTasksSection
               projectId={selectedProject.id}
               isProjectArchived={Boolean(selectedProject.archivedAt)}
               onActivityRecorded={() => setActivityRefreshKey((current) => current + 1)}
             />
+            </div>
 
+            <div id="project-detail-activity">
             <ProjectActivityTimeline
               projectId={selectedProject.id}
               refreshKey={activityRefreshKey}
             />
+            </div>
 
             <ProjectTrelloSection projectId={selectedProject.id} isAdmin={isAdmin} />
           </>
@@ -568,7 +572,7 @@ export default function Projects() {
         </div>
       </header>
 
-      <form className="panel projects-filters" onSubmit={handleSearch}>
+      <form id="projects-filters" className="panel projects-filters" onSubmit={handleSearch}>
         <label className="projects-filter-search">
           <span>Search</span>
           <input
@@ -658,7 +662,7 @@ export default function Projects() {
         </div>
       ) : null}
 
-      <div className="projects-summary-grid">
+      <div id="projects-summary" className="projects-summary-grid">
         {[
           { label: "Total projects", value: summary.total, tone: "info" },
           { label: "Active work", value: summary.active, tone: "success" },
@@ -681,7 +685,7 @@ export default function Projects() {
       ) : null}
 
       {projects.length || !activeFilters ? (
-      <section className={`projects-board${visibleProjectStages.length === 1 ? " is-single-stage" : ""}`} aria-label="Projects kanban board">
+      <section id="projects-board" className={`projects-board${visibleProjectStages.length === 1 ? " is-single-stage" : ""}`} aria-label="Projects kanban board">
         {visibleProjectStages.map((stage) => {
           const stageProjects = projectsByStage[stage.key] || [];
           return (

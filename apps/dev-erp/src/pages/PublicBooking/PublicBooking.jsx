@@ -108,6 +108,7 @@ const PublicBooking = () => {
     date: "",
     time: "",
     duration: "60",
+    meetingPlatform: "GOOGLE_MEET",
     notes: "",
     company: "",
   });
@@ -245,7 +246,6 @@ const PublicBooking = () => {
     }
   }, [form.date, days]);
 
-  const locationLabel = settings.defaultLocation || "Meeting link sent after appointment";
   const safeMeetingLink = getSafeExternalUrl(confirmation?.meetingLink);
   const isReadyToSubmit = useMemo(() => {
     return (
@@ -305,6 +305,7 @@ const PublicBooking = () => {
           startAt: startDate.toISOString(),
           endAt: endDate.toISOString(),
           durationMinutes,
+          meetingPlatform: form.meetingPlatform,
           company: form.company,
         }),
       });
@@ -315,7 +316,7 @@ const PublicBooking = () => {
       setConfirmation(payload);
       setStatus({
         tone: "success",
-        message: "Appointment confirmed. Check your email for updates.",
+        message: "Appointment confirmed. A joining link will be shared when it is ready.",
       });
       if (availabilityRange) {
         try {
@@ -341,6 +342,7 @@ const PublicBooking = () => {
         date: "",
         time: "",
         duration: "60",
+        meetingPlatform: "GOOGLE_MEET",
         notes: "",
         company: "",
       });
@@ -372,10 +374,10 @@ const PublicBooking = () => {
     <section className="page public-booking">
       <header className="public-booking__hero">
         <p className="eyebrow">Appointments</p>
-        <h1>Dev Dashboard</h1>
+        <h1>{settings.organizationName || "Faako DEV ERP"}</h1>
         <h2>Book an Appointment</h2>
         <p className="muted">
-          Choose a time that works for you. We’ll confirm details and send a calendar invite.
+          Select an available time and your preferred meeting platform. Your appointment is managed directly in Faako.
         </p>
       </header>
 
@@ -387,11 +389,12 @@ const PublicBooking = () => {
 
       {confirmation ? (
         <div className="panel public-booking__confirmation">
-          <h3>You're booked</h3>
+          <h3>Appointment confirmed</h3>
           <p className="muted">
             {confirmation.title || "Appointment"} · {formatDateTime(confirmation.startAt)}
           </p>
-          <p className="muted">Location: {safeMeetingLink || locationLabel}</p>
+          <p className="muted">Preferred platform: {{ GOOGLE_MEET: "Google Meet", ZOOM: "Zoom", WHATSAPP: "WhatsApp call", FACETIME: "FaceTime" }[confirmation.meetingPlatform] || "To be confirmed"}</p>
+          <p className="muted">{safeMeetingLink ? "Meeting link ready." : "Joining details will be shared once available."}</p>
           {safeMeetingLink ? (
             <a className="button button-primary" href={safeMeetingLink} target="_blank" rel="noreferrer">
               Join meeting
@@ -663,6 +666,18 @@ const PublicBooking = () => {
                 ))}
             </SelectField>
 
+            <SelectField
+              fieldClassName="form-field"
+              label="Preferred meeting platform"
+              value={form.meetingPlatform}
+              onChange={handleChange("meetingPlatform")}
+              required
+            >
+              <option value="GOOGLE_MEET">Google Meet</option>
+              <option value="ZOOM">Zoom</option>
+              <option value="WHATSAPP">WhatsApp call</option>
+              <option value="FACETIME">FaceTime</option>
+            </SelectField>
             <label className="form-field">
               <span>Notes (optional)</span>
               <textarea
@@ -685,7 +700,7 @@ const PublicBooking = () => {
               <span className="muted">Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
             </div>
             <p className="muted">
-              Location: {locationLabel}. We’ll email you if anything changes.
+              Appointments are managed in Faako DEV ERP. Meeting links are shared once prepared.
             </p>
           </form>
         )}

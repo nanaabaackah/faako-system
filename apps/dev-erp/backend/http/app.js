@@ -53,7 +53,6 @@ export const configureBaseHttpMiddleware = (
   app.use("/api/auth/login", authRateLimit);
   app.use("/api/auth/forgot-password", authRateLimit);
   app.use("/api/public/bookings", publicBookingRateLimit);
-  app.use("/api/ai/productivity-coach", aiRateLimit);
   app.use("/api/ai/system-health-diagnosis", aiRateLimit);
   app.use("/api/proposals/ai/generate", aiRateLimit);
   app.use("/api", csrfMiddleware);

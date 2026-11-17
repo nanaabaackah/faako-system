@@ -86,3 +86,50 @@ schema; use reviewed forward migrations for schema repair.
 The old `db:migrate` operator command is retained unchanged. The initial `--plan`
 lists local migration files only; it is not a live dry run. No hosted database was
 modified while developing this hook.
+
+
+## Production migration incident: safe diagnostics (2026-11-15)
+
+A production deployment supplied a screenshot with the pre-deploy hook failing
+during migrations as `database_unavailable`. This is a catch-all response,
+not evidence by itself that PostgreSQL is offline. A CA/TLS configuration
+change was attempted, but a successful connection was not established or
+verified from the screenshot.
+
+The deployment hook now classifies a *small fixed allowlist* of root-cause codes
+without logging database URLs, usernames, hostnames, SQL text, certificate
+contents, password values, driver error messages or stack traces. The next
+deployment log will distinguish:
+- `database_tls_hostname_mismatch` / `database_tls_trust_failed`
+- `database_dns_unavailable` / `database_connection_failed`
+- `database_authentication_failed` / `database_missing`
+- `database_permission_denied` / `database_object_missing`
+- `database_initialisation_required`, identity/history/order mismatch,
+  other `database_sql_error`, and finally `database_unavailable`.
+
+The fix is diagnostic only; it does not alter migrations, SSL verification,
+runtime privilege checks, database credentials, rollout commands or state.
+It cannot disclose the original error object, and it does not auto-retry,
+change user roles, initialise or reset anything. Production deployment and
+the actual root cause remain separate, not claimed as fixed.
+
+### Browser-only triage
+
+In Railway's browser dashboard, open the TWE project → Production → TWE_API →
+Deployments → failed deployment → Deploy logs. After a reviewed deployment
+including this diagnostics change, search for `migration.predeploy_failed`
+and report only its fixed `reason` category and `phase`.
+Do not share database URLs, PEM private keys or credential-containing logs.
+
+Verify Production PostgreSQL exists and is healthy. Check the API service's
+production Variables panel for the *presence* (not values) of
+`TWE_MIGRATION_DATABASE_URL`, `DATABASE_URL`,
+`TWE_DATABASE_TLS=require`, `TWE_DATABASE_CA`,
+`TWE_ORGANISATION_ID`, `TWE_MIGRATION_APPROVED_ENV=production`,
+and `TWE_DB_INITIALISE`. Runtime and migration URLs must target the same
+database while using separate roles. Do not enable `TWE_DB_INITIALISE=true`
+unless the database is verified empty and the initialisation is approved.
+
+A failing production API must never be hidden by bypassing verification or
+using staging credentials. The unrelated public website holding page can be
+deployed independently through Cloudflare Pages.

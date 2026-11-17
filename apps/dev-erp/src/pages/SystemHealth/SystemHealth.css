@@ -234,3 +234,26 @@
 @media (prefers-reduced-motion: reduce) {
   .health-service-drawer, .health-status-badge.is-checking .health-status-badge__dot, .health-timeline-block.is-checking, .health-skeleton-row span { animation: none; }
 }
+
+/* Published app directory: registry-defined URLs, latest monitoring state. */
+.health-published-apps {gap:1rem;}
+.health-published-apps__list {display:grid;gap:0;}
+.health-published-apps__row {
+ display:grid;grid-template-columns:minmax(0,1fr) minmax(105px,auto) auto;
+ align-items:center;gap:1rem;border-top:1px solid var(--border);padding:.8rem 0;
+}
+.health-published-apps__name{display:grid;gap:.2rem;min-width:0;}
+.health-published-apps__name strong{font-size:.92rem;overflow-wrap:anywhere;}
+.health-published-apps__name span{font-size:.72rem;color:var(--muted);}
+.health-published-apps__status {display:inline-flex;align-items:center;justify-self:start;gap:.35rem;
+ border-radius:100px;padding:.3rem .6rem;text-transform:capitalize;font-size:.74rem;
+ color:var(--muted);background:var(--neutral-soft);}
+.health-published-apps__status::before{content:"";width:7px;height:7px;background:currentColor;border-radius:50%;}
+.health-published-apps__status.is-online{color:var(--success);background:var(--success-soft);}
+.health-published-apps__status.is-degraded{color:var(--warning);background:var(--warning-soft);}
+.health-published-apps__status.is-offline{color:var(--danger);background:var(--danger-soft);}
+.health-published-apps__row .button{min-height:35px;white-space:nowrap;}
+@media(max-width:680px){
+ .health-published-apps__row{grid-template-columns:1fr auto;gap:.45rem;}
+ .health-published-apps__row .button{grid-column:1/-1;justify-self:start;}
+}
