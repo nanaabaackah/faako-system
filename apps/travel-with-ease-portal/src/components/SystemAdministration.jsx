@@ -39,7 +39,7 @@ export default function SystemAdministration({ api, session }) {
     <section className="system-workspace" aria-labelledby="system-heading">
       <h2 id="system-heading">System Administration</h2>
       <StaffAccess api={api} session={session} />
-      <p>Superadmin application access is tenant-scoped and audited. It does not grant provider-account ownership or infrastructure credentials.</p>
+      
       <Button icon="refresh" type="button" disabled={!data&&!error} onClick={()=>setRefresh(value=>value+1)}>Refresh diagnostics</Button>
       {error && (
         <InlineNotice
@@ -52,7 +52,7 @@ export default function SystemAdministration({ api, session }) {
         <AnimatedLoadingState
           compact
           title="Loading system diagnostics"
-          message="Retrieving permitted technical information."
+          message="Loading diagnostics…"
         />
       )}
       {data && (
@@ -73,11 +73,11 @@ export default function SystemAdministration({ api, session }) {
           <div className="system-job-grid">
             <section className="workspace-panel">
               <h3>Publication jobs</h3>
-              <DataTable caption="Publication jobs by stored status" rows={data.diagnostics.publication} rowKey="status" state={data.diagnostics.publication.length?'ready':'empty'} emptyTitle="No publication jobs" emptyMessage="No stored jobs were returned for this environment." columns={[{id:'status',header:'Status',accessor:'status'},{id:'count',header:'Jobs',accessor:'count'}]}/>
+              <DataTable caption="Publication jobs by stored status" rows={data.diagnostics.publication} rowKey="status" state={data.diagnostics.publication.length?'ready':'empty'} emptyTitle="No publication jobs" emptyMessage="" columns={[{id:'status',header:'Status',accessor:'status'},{id:'count',header:'Jobs',accessor:'count'}]}/>
             </section>
             <section className="workspace-panel">
               <h3>Notification jobs</h3>
-              <DataTable caption="Notification jobs by stored status" rows={data.diagnostics.notifications} rowKey="status" state={data.diagnostics.notifications.length?'ready':'empty'} emptyTitle="No notification jobs" emptyMessage="No stored notification jobs were returned." columns={[{id:'status',header:'Status',accessor:'status'},{id:'count',header:'Jobs',accessor:'count'}]}/>
+              <DataTable caption="Notification jobs by stored status" rows={data.diagnostics.notifications} rowKey="status" state={data.diagnostics.notifications.length?'ready':'empty'} emptyTitle="No notification jobs" emptyMessage="" columns={[{id:'status',header:'Status',accessor:'status'},{id:'count',header:'Jobs',accessor:'count'}]}/>
             </section>
           </div>
           <ActivityView api={api} security />
@@ -86,7 +86,7 @@ export default function SystemAdministration({ api, session }) {
             onClick={() => {
               setData(null);
               setError(
-                "Use Check connection again to verify the current session before reopening this section.",
+                "Information cleared. Refresh diagnostics to reload.",
               );
             }}
           >
