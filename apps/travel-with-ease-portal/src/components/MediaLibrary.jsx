@@ -387,9 +387,6 @@ export default function MediaLibrary({ api, session, onSelect }) {
         {items.map((item) => (
           <li key={item.id}>
             <h3>{item.alt_text}</h3>
-            <p>
-              {item.width} × {item.height} pixels
-            </p>
             <div className="editor-actions">
               <Button
                 type="button"
