@@ -27,13 +27,11 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
     >
       <header className="workspace-intro">
         <h2 id="account-settings-heading">Account and workspace settings</h2>
-        <p>Your access, session and workspace preferences.</p>
       </header>
       <div className="account-summary">
         <span className="account-summary__icon"><IconsaxIcon name="ShieldTick" /></span>
         <div>
           <h3>Your staff account</h3>
-          <p>Travel With Ease · Staff workspace</p>
         </div>
         <StatusPill tone="neutral"><span className="account-role">{role}</span></StatusPill>
       </div>
@@ -41,16 +39,13 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
         <section className="workspace-panel" aria-labelledby="account-access-heading">
           <h3 id="account-access-heading">Workspace access</h3>
           <dl className="account-details">
-            <div><dt>Your role</dt><dd className="account-role">{role}</dd></div>
             <div><dt>Workspace reference</dt><dd>{session.user.organisationId || "Unavailable"}</dd></div>
             <div><dt>Session expires</dt><dd>{expiresLabel}</dd></div>
           </dl>
-          {expires && <p className="workspace-caption">Times are shown in your device’s local timezone.</p>}
         </section>
         <section className="workspace-panel account-security" aria-labelledby="account-security-heading">
           <h3 id="account-security-heading">Sign-in and security</h3>
-          <p>Your identity provider manages your Google account, password recovery and MFA. Workspace roles are managed separately by authorised staff.</p>
-          <p>Signing out all devices ends your TWE application sessions. Your identity-provider session is managed separately.</p>
+          <p>Password recovery and sign-in settings are managed by your work account.</p>
           <Button
             type="button"
             variant="danger"
@@ -65,8 +60,8 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
         <section className="workspace-panel account-security" aria-labelledby="handover-approval-heading">
           <h3 id="handover-approval-heading">Staging developer handover</h3>
           <p>Approval reference: <strong>{handover.approval_reference}</strong></p>
-          <p>The current developer Owner requested a transition to Superadmin. Approval makes this client account the Owner first, records both role changes, and ends both application sessions.</p>
-          <p>This request expires at {new Date(handover.expires_at).toLocaleString()} on your device.</p>
+          <p>You become Owner; the developer becomes Superadmin. Both sessions end.</p>
+          <p>Expires {new Date(handover.expires_at).toLocaleString()}.</p>
           {handoverMessage && <InlineNotice tone="danger" title="Handover not completed" message={handoverMessage} />}
           {handover.can_approve ? (
             <Button
@@ -98,11 +93,6 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
           )}
         </section>
       )}
-      <section className="account-guidance" aria-labelledby="account-guidance-heading">
-        <h3 id="account-guidance-heading">Make the workspace your own</h3>
-        <p>Use Tutorial Mode in the footer to save your guidance preference. These preferences apply only to your account.</p>
-        <p className="workspace-caption">Infrastructure, billing and workspace ownership cannot be changed here. Contact your authorised administrator for those requests.</p>
-      </section>
     </section>
   );
 }
