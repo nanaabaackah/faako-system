@@ -50,7 +50,7 @@ for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
     await expect(open).toBeFocused();
     await page.goto("/orders");
     await expect(page.getByRole("region", { name: "Water order summary" })).toContainText("60.00");
-    await page.getByRole("button", { name: "Record collection for sale 5" }).click();
+    await page.getByRole("button", { name: "Payment history for sale 5" }).click();
     const dialog = page.getByRole("dialog", { name: "Record collection · Sale #5" });
     await dialog.getByLabel("Amount received (GHS)", { exact: true }).fill("80");
     const submit = dialog.getByRole("button", { name: "Record collection", exact: true });
@@ -62,7 +62,7 @@ for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
     await submit.click();
     await expect(dialog).not.toBeVisible();
     expect(writes[1]).toMatchObject({ action: "record_collection", retainCustomerCredit: true, amount: "80", saleId: 5 });
-    await page.getByRole("button", { name: "Record collection for sale 5" }).click();
+    await page.getByRole("button", { name: "Payment history for sale 5" }).click();
     await dialog.getByRole("button", { name: "Apply customer credit", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     expect(writes[2]).toMatchObject({ action: "apply_customer_credit", amount: "25.00", saleId: 5 });
