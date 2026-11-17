@@ -41,8 +41,10 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
     });
     setCorrectionCredit(false);
   };
+  const correctedPayment = collections.find((entry) => correction && Number(entry.id) === Number(correction.paymentId));
+  const correctionAvailableCents = Number(sale.balanceDueCents || 0) + Number(correctedPayment?.amountCents || 0);
   const replacementExcess = correction
-    ? Math.max(0, Math.round(Number(correction.amount || 0) * 100) - Number(sale.totalAmount || 0))
+    ? Math.max(0, Math.round(Number(correction.amount || 0) * 100) - correctionAvailableCents)
     : 0;
   return (
     <div ref={dialogRef} className="admin-modal ui-erp-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="water-collection-title" tabIndex={-1}>
@@ -118,7 +120,7 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
         <section aria-label="Collection history">
           <h3>Collection history</h3>
           {collections.length ? <ul>{collections.map((entry) => <li key={entry.applicationId}>
-            {String(entry.isCreditApplication ? entry.appliedAt : entry.paidAt).slice(0, 10)} · {entry.isCreditApplication ? "Customer credit" : entry.method} · {formatCurrency(entry.amountCents)} applied · {entry.applicationStatus} · {entry.providerReference || entry.reference}
+            {String(entry.isCreditApplication ? entry.appliedAt : entry.paidAt).slice(0, 10)} · {entry.isCreditApplication ? "Customer credit" : entry.method} · {formatCurrency(entry.amountCents)} · {entry.applicationStatus} · {entry.providerReference || entry.reference}
             {!entry.isCreditApplication && entry.cashReceivedCents > entry.amountCents ? ` · ${formatCurrency(entry.cashReceivedCents)} received; excess retained as Water credit` : ""}
             {entry.correctionReason ? ` · Corrected: ${entry.correctionReason}` : ""}
             {canReconcilePayments && !entry.isCreditApplication && entry.applicationStatus === "APPLIED"
@@ -149,7 +151,7 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
           </div>
           {correction.mode === "replace" && replacementExcess > 0 && <label className="water-credit-checkbox">
             <input type="checkbox" checked={correctionCredit} disabled={!sale.customerId || saving} onChange={(event) => setCorrectionCredit(event.target.checked)} />
-            Retain excess as Water customer credit. The system will check existing collections before posting.
+            Retain {formatCurrency(replacementExcess)} as Water customer credit. Existing collections will be checked before posting.
           </label>}
           {error ? <InlineNotice tone="error" title="Correction not saved" message={error} /> : null}
           <div className="water-order-modal-actions">
