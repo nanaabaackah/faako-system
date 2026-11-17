@@ -275,7 +275,7 @@ const Reports = () => {
         </div>
       ) : null}
 
-      <div className="panel-grid">
+      <div id="reports-overview" className="panel-grid">
         <article className="panel metric-card">
           <span className="kpi-label">Automated reports</span>
           <div className="kpi-value">{reports.length}</div>
@@ -295,7 +295,7 @@ const Reports = () => {
         </article>
       </div>
 
-      <div className="reports-grid">
+      <div id="reports-list" className="reports-grid">
         {reports.map((report) => {
           const isEditing = editingKey === report.key;
           const isSending = sendingKey === report.key;

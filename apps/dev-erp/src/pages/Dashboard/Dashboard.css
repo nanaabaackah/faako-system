@@ -1078,3 +1078,42 @@
     padding-bottom: calc(var(--mobile-tabbar-clearance) + 0.75rem);
   }
 }
+
+/* Faako DEV ERP approved operations overview. All figures use existing live data. */
+.dashboard-modernized {gap:1.2rem;}
+.dashboard-overview-header {
+  display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+}
+.dashboard-overview-header h1 {
+  font-size:clamp(1.65rem,2.3vw,2.35rem);letter-spacing:-.045em;line-height:1.12;margin:.2rem 0 .35rem;
+}
+.dashboard-overview-header .muted{font-size:.9rem;}
+.dashboard-overview-header .button {display:inline-flex;align-items:center;gap:.6rem;}
+.dashboard-overview-metrics{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;
+}
+.dashboard-overview-metric{
+  display:grid;gap:.7rem;min-height:124px;align-content:space-between;
+  padding:1.1rem;background:var(--card);border:1px solid var(--border);
+  border-radius:12px;box-shadow:0 4px 18px color-mix(in oklab,var(--ink),transparent 95%);
+  color:var(--ink);
+}
+a.dashboard-overview-metric:hover,a.dashboard-overview-metric:focus-visible{
+  border-color:var(--accent);background:color-mix(in oklab,var(--card),var(--accent-soft) 12%);
+}
+.dashboard-overview-metric>span{color:var(--muted);font-size:.82rem;font-weight:650;}
+.dashboard-overview-metric>strong{font-size:clamp(1.25rem,2.2vw,1.95rem);letter-spacing:-.04em;line-height:1.15;}
+.dashboard-overview-metric>small{font-size:.77rem;color:var(--muted);}
+.dashboard-modernized .dashboard-hero {gap:1rem;}
+.dashboard-modernized .dashboard-hero__intro {min-width:0;}
+.dashboard-modernized .dashboard-hero__intro .heading {font-size:1.4rem;margin:0;}
+.dashboard-modernized .dashboard-brief-grid {gap:.7rem;}
+.dashboard-modernized .dashboard-brief-grid>* {border-radius:11px;}
+@media(max-width:1150px){.dashboard-overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:700px){
+.dashboard-overview-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:.5rem;}
+.dashboard-overview-metric{padding:.8rem;min-height:110px;gap:.5rem;}
+.dashboard-overview-metric>strong{font-size:1.18rem;overflow-wrap:anywhere;}
+.dashboard-overview-header h1{font-size:1.7rem;}
+}
+@media(max-width:360px){.dashboard-overview-metrics{grid-template-columns:1fr;}}

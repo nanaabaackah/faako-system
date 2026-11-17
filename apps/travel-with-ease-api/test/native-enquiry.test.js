@@ -118,6 +118,39 @@ test("private completion enriches one enquiry once and identical retries are ide
   );
 });
 
+test("private completion enriches one enquiry once and identical retries are idempotent", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "twe-progressive-test-"));
+  const repository = new FileLeadRepository(path.join(directory, "synthetic.json"));
+  const intake = nativeInquirySchema.parse(payload());
+  const created = await repository.createNativeEnquiry(intake);
+  const before = (await repository.listLeads())[0];
+  const context = await repository.continuationContext(created.inquiryId);
+  assert.deepEqual(context.contact, { name: intake.name, email: intake.email, phone: intake.phone });
+  const completion = continuationPayload({
+    name: "Updated Traveller", email: "updated@example.invalid", phone: "+233211111111",
+  });
+  const [first, concurrentRetry] = await Promise.all([
+    repository.completeEnquiryContinuation(created.inquiryId, completion),
+    repository.completeEnquiryContinuation(created.inquiryId, completion),
+  ]);
+  assert.equal(first.inquiryId, created.inquiryId);
+  assert.equal(concurrentRetry.replayed, true);
+  const leads = await repository.listLeads();
+  assert.equal(leads.length, 1);
+  assert.equal(leads[0].createdAt, before.createdAt);
+  assert.equal(leads[0].inquiry.submissionId, intake.submissionId);
+  assert.equal(leads[0].inquiry.continuationSubmissionId, completion.submissionId);
+  assert.equal(leads[0].inquiry.questionnaireVersion, QUESTIONNAIRE_VERSION);
+  assert.equal(leads[0].contact.email, "updated@example.invalid");
+  assert.equal(await repository.continuationContext(created.inquiryId), null);
+  await assert.rejects(
+    repository.completeEnquiryContinuation(created.inquiryId, {
+      ...completion, submissionId: randomUUID(),
+    }),
+    (error) => error.code === "enquiry_continuation_conflict",
+  );
+});
+
 test("public intake checks exact Origin, validation, honeypot and confirmed persistence", async context => {
   const origin = "http://localhost:4328";
   let writes = 0;

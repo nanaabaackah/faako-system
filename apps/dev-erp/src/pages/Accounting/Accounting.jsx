@@ -1397,7 +1397,7 @@ const Accounting = () => {
         </div>
       ) : null}
 
-      <div className="panel-grid">
+      <div id="accounting-summary" className="panel-grid">
         <article className="panel">
           <div className="panel-header">
             <div>
@@ -1458,7 +1458,7 @@ const Accounting = () => {
           </div>
         </article>
       </div>
-      <article className="panel">
+      <article id="accounting-ledger" className="panel">
         <div className="panel-header">
           <div>
             <h3>Financial activity ledger</h3>

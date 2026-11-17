@@ -1,8 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ErpStatusBadge, SidebarEdgeToggle } from "@faako/ui";
-import { NavLink } from "react-router-dom";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { apiGet } from "../api/client";
+import { ErpStatusBadge } from "@faako/ui";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import {
+  getWorkspaceModule,
+  getWorkspaceSections,
+  getWorkspaceSectionLink,
+  isWorkspaceSectionActive,
+} from "../app/workspaceNavigation";
 import {
   FiLogOut,
+  FiChevronDown,
+  FiChevronLeft,
+  FiChevronRight,
+  FiPlus,
+  FiExternalLink,
   FiSearch,
   FiUser,
   FiX,
@@ -21,6 +33,7 @@ const SideNav = ({
   style,
   isOpen,
   isCollapsed,
+  hasContextualSubmenu,
   visibleNavItems,
   navNotifications,
   formatNotificationCount,
@@ -30,11 +43,13 @@ const SideNav = ({
   onToggleCollapsed,
   onExpand,
   onSignOut,
+  onOpenCommand,
   onTouchStart,
   onTouchMove,
   onTouchEnd,
   onTouchCancel,
 }) => {
+  const location = useLocation();
   const searchFieldRef = useRef(null);
   const pendingSearchFocusRef = useRef(false);
   const [isMobile, setIsMobile] = useState(() => {
@@ -42,6 +57,35 @@ const SideNav = ({
     return window.matchMedia(MOBILE_QUERY).matches;
   });
   const [navQuery, setNavQuery] = useState("");
+  const [publishedApps, setPublishedApps] = useState([]);
+  const [publishedAppsLoading, setPublishedAppsLoading] = useState(false);
+  const [healthMenuExpanded, setHealthMenuExpanded] = useState(true);
+  const [showAllModules, setShowAllModules] = useState(false);
+  const activeWorkspaceModule = getWorkspaceModule(visibleNavItems, location.pathname);
+  const workspaceSections = getWorkspaceSections(activeWorkspaceModule, location.pathname, visibleNavItems);
+  const canSeeHealth = visibleNavItems.some((item) => item.key === "system-health");
+
+  useEffect(() => {
+    setShowAllModules(false);
+  }, [activeWorkspaceModule?.key]);
+
+  useEffect(() => {
+    if (!canSeeHealth) {
+      setPublishedApps([]);
+      return undefined;
+    }
+    let active = true;
+    setPublishedAppsLoading(true);
+    apiGet("/api/monitoring/published-apps", { fallbackMessage: "Unable to load published apps" })
+      .then((payload) => {
+        if (!active) return;
+        setPublishedApps(Array.isArray(payload?.apps) ? payload.apps : []);
+      })
+      .catch(() => { if (active) setPublishedApps([]); })
+      .finally(() => { if (active) setPublishedAppsLoading(false); });
+    return () => { active = false; };
+  }, [canSeeHealth]);
+
   const isDesktopCollapsed = isCollapsed && !isMobile;
 
   const displayName =
@@ -83,6 +127,10 @@ const SideNav = ({
     const handleKeyDown = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
+        if (onOpenCommand) {
+          onOpenCommand();
+          return;
+        }
         pendingSearchFocusRef.current = true;
         if (isMobile && !isOpen) {
           onOpen?.();
@@ -100,7 +148,7 @@ const SideNav = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isCollapsed, isMobile, isOpen, onExpand, onOpen]);
+  }, [isCollapsed, isMobile, isOpen, onExpand, onOpen, onOpenCommand]);
 
   useEffect(() => {
     if (!pendingSearchFocusRef.current) return;
@@ -139,7 +187,7 @@ const SideNav = ({
   return (
     <>
       <aside
-        className={[className, isDesktopCollapsed ? "is-collapsed" : ""].filter(Boolean).join(" ")}
+        className={[className, isDesktopCollapsed ? "is-main-menu-collapsed" : ""].filter(Boolean).join(" ")}
         id="erp-sidebar"
         style={style}
         onTouchStart={onTouchStart}
@@ -147,6 +195,66 @@ const SideNav = ({
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchCancel}
       >
+        <div className="erp-sidebar__rail">
+          <div className="erp-sidebar__rail-header">
+            <NavLink className="erp-sidebar__rail-brand" to="/dashboard" title="Faako dashboard" onClick={handleSelect} aria-label="Faako dashboard">
+              <img src="/imgs/dev-logo.png" alt="" />
+            </NavLink>
+            <span className="erp-sidebar__rail-title">Faako <small>DEV ERP</small></span>
+            <button
+              type="button"
+              className="erp-sidebar__rail-toggle"
+              onClick={onToggleCollapsed}
+              aria-label={isDesktopCollapsed ? "Expand main menu" : "Collapse main menu"}
+              aria-expanded={!isDesktopCollapsed}
+              title={isDesktopCollapsed ? "Expand main menu" : "Collapse main menu"}
+            >
+              {isDesktopCollapsed ? <FiChevronRight aria-hidden="true" /> : <FiChevronLeft aria-hidden="true" />}
+            </button>
+          </div>
+          <nav className="erp-sidebar__rail-nav" aria-label="Main module navigation">
+            {visibleNavItems.map((item) => {
+              const count = Number(navNotifications[item.to] || 0);
+              return (
+                <NavLink
+                  key={item.key}
+                  to={item.to}
+                  end={item.to === "/dashboard"}
+                  onClick={handleSelect}
+                  title={isDesktopCollapsed ? item.label : undefined}
+                  aria-label={isDesktopCollapsed ? item.label : undefined}
+                  className={({ isActive }) => isActive ? "is-active" : ""}
+                >
+                  <item.Icon size={21} color="currentColor" variant="Linear" aria-hidden="true" />
+                  <span className="erp-sidebar__rail-link-label">{item.label}</span>
+                  {count > 0 ? (
+                    <span className="erp-sidebar__rail-count" aria-label={`${count} pending`}>
+                      {formatNotificationCount(count)}
+                    </span>
+                  ) : null}
+                </NavLink>
+              );
+            })}
+          </nav>
+          <div className="erp-sidebar__rail-footer">
+            <button type="button" className="erp-sidebar__rail-action" onClick={onOpenCommand}
+              title="Search modules" aria-label="Search modules">
+              <FiSearch aria-hidden="true" />
+              <span>Search</span>
+            </button>
+            <NavLink to="/profile" onClick={handleSelect} className="erp-sidebar__rail-profile"
+              title={isDesktopCollapsed ? displayName : undefined}
+              aria-label={isDesktopCollapsed ? `Profile for ${displayName}` : undefined}>
+              <span className="erp-sidebar__avatar" aria-hidden="true">{userInitials}</span>
+              <span className="erp-sidebar__rail-profile-name">{displayName}</span>
+            </NavLink>
+            <button type="button" className="erp-sidebar__rail-action" onClick={handleSignOutClick}
+              title="Sign out" aria-label="Sign out">
+              <FiLogOut aria-hidden="true" />
+              <span>Sign out</span>
+            </button>
+          </div>
+        </div>
         <div className="erp-sidebar__panel">
           <div className="erp-sidebar__header">
             <div className="erp-sidebar__brand">
@@ -155,7 +263,7 @@ const SideNav = ({
               </span>
               <div className="erp-sidebar__brand-copy">
                 <span className="erp-sidebar__brand-kicker">{roleLabel}</span>
-                <span className="erp-sidebar__brand-title">Dev control</span>
+                <span className="erp-sidebar__brand-title">DEV ERP</span>
               </div>
             </div>
             <button
@@ -168,6 +276,60 @@ const SideNav = ({
             </button>
           </div>
 
+          {hasContextualSubmenu ? (
+          <>
+          <div className="erp-sidebar__context-head">
+            <strong className="erp-sidebar__context-title">{activeWorkspaceModule?.label || "Workspace"}</strong>
+            <button type="button" className="erp-sidebar__context-action"
+              onClick={onOpenCommand} aria-label="Find a module or action" title="Find a module or action">
+              <FiPlus aria-hidden="true" />
+            </button>
+          </div>
+          <nav className="erp-sidebar__context-nav" aria-label={`${activeWorkspaceModule?.label || "Workspace"} sections`}>
+            {workspaceSections.map((section, index) => {
+              const Icon = section.Icon;
+              const active = isWorkspaceSectionActive(section, location.pathname, location.hash, index);
+              return (
+                <Link key={section.anchor || section.to}
+                  to={getWorkspaceSectionLink(section, location.pathname)}
+                  className={active ? "is-active" : ""}
+                  aria-current={active ? "location" : undefined}
+                  onClick={handleSelect}>
+                  <Icon aria-hidden="true" />
+                  <span>{section.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+          {activeWorkspaceModule?.key === "system-health" && (
+            <div className="erp-sidebar__published-apps">
+              <button type="button" className="erp-nav-apps__toggle"
+                aria-expanded={healthMenuExpanded} aria-controls="erp-contextual-published-apps"
+                onClick={() => setHealthMenuExpanded((value) => !value)}>
+                <span>Published apps</span>
+                <FiChevronDown className={healthMenuExpanded ? "is-open" : ""} aria-hidden="true" />
+              </button>
+              {healthMenuExpanded ? (
+                <div id="erp-contextual-published-apps" className="erp-nav-apps__list">
+                  {publishedApps.map((app) => (
+                    <a key={app.id} href={app.url} target="_blank" rel="noopener noreferrer">
+                      <span className={`erp-nav-apps__dot is-${app.status}`} aria-hidden="true" />
+                      <span className="erp-nav-apps__name">{app.name}</span>
+                      <FiExternalLink aria-hidden="true" />
+                    </a>
+                  ))}
+                  {!publishedApps.length ? (
+                    <p className="erp-nav-apps__empty">
+                      {publishedAppsLoading ? "Loading published apps…" : "No verified app links available."}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          )}
+          </>
+          ) : null}
+
           <label className="erp-sidebar__search" htmlFor="erp-sidebar-search">
             <FiSearch aria-hidden="true" />
             <input
@@ -175,13 +337,19 @@ const SideNav = ({
               ref={searchFieldRef}
               type="search"
               value={navQuery}
-              onChange={(event) => setNavQuery(event.target.value)}
+              onChange={(event) => { setNavQuery(event.target.value); if (event.target.value.trim()) setShowAllModules(true); }}
               placeholder="Search modules..."
             />
             <span className="erp-sidebar__search-hint">{searchShortcutLabel}</span>
           </label>
 
-          <nav className="erp-nav" aria-label="Primary admin navigation">
+          <button type="button" className="erp-sidebar__browse-toggle"
+            aria-expanded={showAllModules} aria-controls="erp-all-modules"
+            onClick={() => setShowAllModules((open) => !open)}>
+            <span>All modules</span>
+            <FiChevronDown className={showAllModules ? "is-open" : ""} aria-hidden="true" />
+          </button>
+          <nav id="erp-all-modules" className={`erp-nav${showAllModules ? " is-expanded" : ""}`} aria-label="All admin modules">
             {filteredNavItems.length > 0 ? (
               filteredNavItems.map((item) => {
                 const Icon = item.Icon;
@@ -193,8 +361,8 @@ const SideNav = ({
                   : item.label;
 
                 return (
-                  <NavLink
-                    key={item.to}
+                  <Fragment key={item.to}>
+                    <NavLink
                     to={item.to}
                     end={item.to === "/dashboard"}
                     className={({ isActive }) =>
@@ -240,6 +408,34 @@ const SideNav = ({
                       </span>
                     ) : null}
                   </NavLink>
+                  {item.key === "system-health" && !isDesktopCollapsed && (
+                    <div className="erp-nav-apps">
+                      <button type="button" className="erp-nav-apps__toggle"
+                        aria-expanded={healthMenuExpanded} aria-controls="erp-published-apps"
+                        onClick={() => setHealthMenuExpanded((value) => !value)}>
+                        <span>Published apps</span>
+                        <FiChevronDown className={healthMenuExpanded ? "is-open" : ""} aria-hidden="true" />
+                      </button>
+                      {healthMenuExpanded && (
+                        <div id="erp-published-apps" className="erp-nav-apps__list">
+                          {publishedApps.map((app) => (
+                            <a key={app.id} href={app.url} target="_blank" rel="noopener noreferrer"
+                              title={`Open ${app.name} in a new tab`}>
+                              <span className={`erp-nav-apps__dot is-${app.status}`} aria-hidden="true" />
+                              <span className="erp-nav-apps__name">{app.name}</span>
+                              <FiExternalLink aria-hidden="true" />
+                            </a>
+                          ))}
+                          {!publishedApps.length && (
+                            <p className="erp-nav-apps__empty">
+                              {publishedAppsLoading ? "Loading published apps…" : "No verified app links available."}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  </Fragment>
                 );
               })
             ) : (
@@ -278,12 +474,6 @@ const SideNav = ({
             </NavLink>
           </div>
         </div>
-        {!isMobile ? (
-          <SidebarEdgeToggle
-            onClick={onToggleCollapsed}
-            collapsed={isDesktopCollapsed}
-          />
-        ) : null}
       </aside>
       <button
         className={`nav-scrim ${isOpen ? "is-open" : ""}`}
