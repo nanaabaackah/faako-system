@@ -302,10 +302,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       <h2 id="content-heading" tabIndex={-1} ref={heading}>
         Website content
       </h2>
-      <p className="workspace-caption">
-        Prepare approved content, review saved drafts and track publication
-        separately.
-      </p>
       {visualPreview && <div className="cms-editor-view-switch" aria-label="Editing view">
         <Button type="button" aria-pressed={editorView === "editor"} onClick={() => setEditorView("editor")}>Editor</Button>
         <Button type="button" aria-pressed={editorView === "preview"} onClick={() => setEditorView("preview")}>Website preview</Button>
@@ -348,7 +344,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error} />}
       <p role="status" aria-live="polite" className="draft-save-status">
         {saveState.status === "saving" ? "Saving…" : saveState.status === "error" ? "Error — unsaved edits retained" : dirty ? "Unsaved" : `Saved · version ${version}`}
-        {" · Drafts are never published automatically by autosave."}
+        
       </p>
       {state.loading ? (
         <AnimatedLoadingState
@@ -359,16 +355,13 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           }
         />
       ) : (
-        <p role="status">
-          {state.message ||
-            (dirty ? "Unsaved changes" : `Draft version ${version}`)}
-        </p>
+        state.message && <p role="status">{state.message}</p>
       )}
       {(approvedRelease.pages[page] || reviewDrafts[page]) && (
         <section className="workspace-panel">
           <h3>{approvedRelease.pages[page] ? "Approved company copy" : "Starter copy for review"}</h3>
           <p>
-            {approvedRelease.pages[page] ? "Load the latest approved company content into this draft. The How It Works page uses the client-approved November 16 two-path process. This replaces selected text, not the public website. Re-select managed R2 images before publication." : "Load the company-based draft to edit it here. Resolve its review requirements before publication."}
+            {approvedRelease.pages[page] ? "Replace this draft with the approved website copy." : "Load the review draft into the editor."}
           </p>
           <Button
             type="button"
@@ -470,11 +463,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             <section aria-label="Journal articles">
               <h3>Journal articles</h3>
               <p>
-                Each Travel tip or Trip story is an individual Journal article. Set its
-                series (Before you fly, Visas and entry, or Destinations), any homepage
-                placement, related reading and a website CTA. There are no DM-only
-                buttons or free-checklist offers. Review entry rules before publication.
-                Remove an article and publish to withdraw it.
+                Edit each article, assign its series and choose where it appears.
               </p>
               {(body.articles || []).map((article, index) => (
                 <fieldset key={index}>
@@ -899,9 +888,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             <section aria-label="Verified travel footprint">
               <h3>Verified country totals</h3>
               <p>
-                Enter one verified total per country: completed plus confirmed
-                upcoming activity. Use Tanzania for Zanzibar. Only approved
-                totals belong here.
+                Enter confirmed trips by country. Count Zanzibar under Tanzania.
               </p>
               {(body.footprint || []).map((row, index) => (
                 <fieldset key={index}>
@@ -983,7 +970,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Maintain four separate steps and an example for each path. Package enquiries do not require a budget. The terms links stay attached to their respective paths.</p>
+              <p>Edit four steps and an example for each path.</p>
               {(["package", "planning"]).map((flowKey) => {
                 const flows = body.processFlows || approvedRelease.pages["how-it-works"].processFlows;
                 const flow = flows[flowKey];
@@ -1024,7 +1011,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       [flowKey]: { ...flow, example: event.target.value },
                     })}
                   />
-                  <p>{flowKey === "package" ? "Published terms: Section B (package bookings)." : "Published terms: Section A (planning services)."}</p>
+                  <p>{flowKey === "package" ? "Terms: Section B · Package bookings" : "Terms: Section A · Planning services"}</p>
                 </fieldset>;
               })}
             </section>
@@ -1086,10 +1073,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               </Button>
             </>
           )}
-          <p>
-            Use approved facts, client permissions and licensed imagery only. Do
-            not add unverified testimonials.
-          </p>
           <TextField
             label="SEO title"
             value={body.seoTitle}
@@ -1119,10 +1102,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         </fieldset>
       </form>}
       <p>
-        {body.imageId
-          ? `Selected image: ${body.imageId}`
-          : "No image selected."}{" "}
-        Image selection is saved with the draft.
+        {body.imageId ? "Image selected" : "No image selected"}
       </p>
       <Button
         type="button"
@@ -1189,12 +1169,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       <section className="workspace-panel" data-tour="content-publication">
         <h3>Publication</h3>
         <p>
-          Publishing uses saved revisions and the environment's reviewed source.
-          Pending, building, deploying and verifying requests are not live.
+          Your update is live only after deployment succeeds.
         </p>
-        {!canPublish && (
-          <p>Only an Owner or Superadmin can publish, unpublish or retry.</p>
-        )}
         {["packages", "journal", "travel-tips"].includes(page) && <SelectField
           label="Publication scope" value={recordSlug} disabled={state.loading || dirty}
           onChange={event => setRecordSlug(event.target.value)}>
@@ -1285,7 +1261,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               ))}
             </ul>
           )}
-          <p>This content preview does not reproduce the final page layout.</p>
+          <p>Text preview</p>
         </section>
       )}
       <section className="workspace-panel">
