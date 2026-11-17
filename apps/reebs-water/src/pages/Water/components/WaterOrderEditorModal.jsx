@@ -17,6 +17,7 @@ export default function WaterOrderEditorModal({
   handleOrderSubmit,
   handleOrderDelete,
   openCollection,
+  canReconcilePayments,
   normalizeChannel,
   normalizeSalePaymentStatus,
   getSalePaymentStatusLabel,
