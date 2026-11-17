@@ -81,17 +81,6 @@ export default function SystemAdministration({ api, session }) {
             </section>
           </div>
           <ActivityView api={api} security />
-          <Button
-            type="button"
-            onClick={() => {
-              setData(null);
-              setError(
-                "Information cleared. Refresh diagnostics to reload.",
-              );
-            }}
-          >
-            Clear displayed information
-          </Button>
         </>
       )}
     </section>
