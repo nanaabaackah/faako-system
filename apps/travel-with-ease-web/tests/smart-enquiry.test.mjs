@@ -36,7 +36,7 @@ test("short public form validates catalogue context and private wizard uses frag
   assert.match(form, /catalogue\.packages\.find/);
   assert.match(form, /catalogue\.services\.find/);
   assert.match(form, /opened a general enquiry instead/);
-  assert.match(form, /Note that this is not a booking/);
+  assert.match(form, /No booking has been made/);
   assert.doesNotMatch(form, /name="notes"|Anything else\?/);
   assert.match(wizard, /window\.location\.hash/);
   assert.match(wizard, /URLSearchParams\(window\.location\.hash\.slice\(1\)\)\.get\("continue"\)/);
