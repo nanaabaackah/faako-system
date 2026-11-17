@@ -334,6 +334,7 @@ const assertDashboard = (response, role) => {
   const allowed = role === "owner" || role === "admin";
   assert.deepEqual(dashboard.permissions, {
     canRecordSales: allowed || role === "water",
+    canReconcilePayments: allowed,
     canManagePricing: allowed,
     canOverridePrice: allowed,
     canViewCost: allowed,
