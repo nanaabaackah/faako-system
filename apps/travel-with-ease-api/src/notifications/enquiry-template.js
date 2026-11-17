@@ -70,7 +70,7 @@ export function invitationTemplate({
   return brandedEmail({
     heading: copy.heading,
     greeting: "Hello,",
-    message: `${automatic ? copy.message.replace("Contact the person who invited you for your activation code and instructions.", "Your activation code and instructions are included below.") : copy.message}\n\n${activation}\n\nSign in with your approved work account and enter your invitation code. Never share your password or verification codes.`, 
+    message: `${automatic ? copy.message.replace("Contact the person who invited you for your activation code and instructions.", "Your activation code and instructions are included below.") : copy.message}\n\n${activation}\n\nSign in with your approved work account and enter your invitation code. This email alone does not grant workspace access. Never share your password or verification codes.`, 
     copy,
     subject: copy.subject,
     ctaUrl: `${portalOrigin}/`,
