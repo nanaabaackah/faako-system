@@ -179,7 +179,7 @@ export default function WaterOrderEditorModal({
           {orderError ? <InlineNotice tone="error" compact title="Order not saved" message={orderError} /> : null}
 
           <div className="water-order-modal-actions">
-            <PortalAction icon={faMoneyCheckDollar} label="Record collection" onClick={() => openCollection(activeOrder)} disabled={saving || loading || activeOrder?.legacyPaymentCompatibility || activeOrder?.balanceDueCents <= 0} />
+            <PortalAction icon={faMoneyCheckDollar} label="Payment history / collection" onClick={() => openCollection(activeOrder)} disabled={saving || loading || (!canReconcilePayments && (activeOrder?.legacyPaymentCompatibility || activeOrder?.balanceDueCents <= 0))} />
             <PortalAction
               action="archive" icon={faBoxArchive} label="Archive order"
               className="admin-secondary water-order-delete-btn"
