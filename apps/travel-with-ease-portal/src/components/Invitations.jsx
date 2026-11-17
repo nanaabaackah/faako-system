@@ -57,7 +57,7 @@ export default function Invitations({ api, session, installer = false }) {
       // Do not tell administrators issuance failed if only history refresh fails.
       await refresh().catch(() => setError("Invitation action succeeded, but history could not be refreshed."));
     } catch {
-      setError("The invitation action could not be confirmed. Check invitation history before retrying; resending revokes the previous code.");
+      setError("Invitation not confirmed. Check invitation history before retrying.");
     } finally {
       setBusy(false);
     }
@@ -70,8 +70,8 @@ export default function Invitations({ api, session, installer = false }) {
       </h2>
       <p>
         {installer
-          ? "First-time Owner setup requires an independently verified Cloudflare Access subject and approval reference. Share the issued code privately."
-          : "Enter the team member's email address. They will receive a one-time code and can activate only after signing in with the same verified email through approved Cloudflare Access."}
+          ? "Enter the verified identity and approval reference for the first Owner."
+          : "Enter a colleague’s email to send an invitation code."}
       </p>
       {error && <InlineNotice tone="danger" title="Invitation needs attention" message={error} />}
       <form onSubmit={(event) => {
@@ -105,7 +105,7 @@ export default function Invitations({ api, session, installer = false }) {
               />
             )}
             {!emailAvailable && (
-              <p role="status">Email invitations are unavailable until the API and notification worker are configured.</p>
+              <p role="status">Email invitations are unavailable. Contact support.</p>
             )}
           </>
         )}
@@ -118,8 +118,8 @@ export default function Invitations({ api, session, installer = false }) {
           <h3>{issued.delivery === "queued" ? "Invitation queued" : "Save this invitation now"}</h3>
           <p>
             {issued.delivery === "queued"
-              ? "Email delivery is queued, not yet confirmed as received. Check invitation history for provider status."
-              : "Share this code through your approved private channel."}
+              ? "Waiting to send. Check invitation history for delivery status."
+              : "Share this code privately."}
             {" "}Expires {new Date(issued.expiresAt).toLocaleString()}.
           </p>
           {issued.code && (
@@ -139,7 +139,7 @@ export default function Invitations({ api, session, installer = false }) {
       {!installer && (
         <ActivityList
           title="Invitation history" emptyTitle="No invitations yet"
-          emptyMessage="Created invitations will appear here."
+          emptyMessage=""
           items={items.map(item => ({
             ...item,
             action: `${item.invited_email || item.role} · ${item.accepted_at ? "Activated" : item.revoked_at ? "Revoked" : new Date(item.expires_at) <= new Date() ? "Expired" : "Pending"} · ${item.delivery_status ? (deliveryLabels[item.delivery_status] || "Email status unavailable") : "Manual code"}`,
