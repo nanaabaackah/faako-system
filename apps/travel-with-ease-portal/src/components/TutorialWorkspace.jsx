@@ -108,6 +108,28 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
           Mark tutorial completed
         </Button>
       </div>
+      {list && data && (
+        <ul className="tutorial-list">
+          {data.catalogue.map((tour) => (
+            <li key={tour.id}>
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => act("launch", { tutorialId: tour.id })}
+              >
+                {tour.title}
+              </Button>
+              <span>
+                {tour.steps.every((item) =>
+                  data.progress.completed.includes(item.id),
+                )
+                  ? "Completed"
+                  : "Available"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       </details>
       {error && (
         <div role="alert">
@@ -139,28 +161,6 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
             }}
           />
         )}
-      {list && data && (
-        <ul className="tutorial-list">
-          {data.catalogue.map((tour) => (
-            <li key={tour.id}>
-              <Button
-                type="button"
-                disabled={busy}
-                onClick={() => act("launch", { tutorialId: tour.id })}
-              >
-                {tour.title}
-              </Button>
-              <span>
-                {tour.steps.every((item) =>
-                  data.progress.completed.includes(item.id),
-                )
-                  ? "Completed"
-                  : "Available"}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
       {active && step && section === step.module && (
         <GuidedTour
           step={step}
