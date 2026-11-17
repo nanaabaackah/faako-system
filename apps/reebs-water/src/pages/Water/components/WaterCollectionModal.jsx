@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { getWaterCustomer } from "../../../api/waterCustomers.js";
 import { DateField, InlineNotice, SelectField, useERPDialog } from "@faako/ui";
 import PortalAction from "../../../components/PortalAction.jsx";
-import { faFloppyDisk, faXmark } from "../../../icons/iconSet.js";
+import { faFloppyDisk, faMoneyCheckDollar, faXmark } from "../../../icons/iconSet.js";
 
 export default function WaterCollectionModal({ sale, collections, onClose, onSubmit, onApplyCredit, onCorrect, onReconcileLegacy, canReconcilePayments = false, saving, error, formatCurrency }) {
   const [form, setForm] = useState({ amount: "", method: "cash", transactionReference: "", paidAt: new Date().toISOString().slice(0, 10), notes: "" });
   const [retainCustomerCredit, setRetainCustomerCredit] = useState(false);
+  const [applyExistingCredit, setApplyExistingCredit] = useState(false);
   const [correction, setCorrection] = useState(null);
   const [correctionCredit, setCorrectionCredit] = useState(false);
   const [legacy, setLegacy] = useState({
@@ -105,15 +106,22 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
             </div>
           </form>
         )}
-        {sale.customerId && !sale.legacyPaymentCompatibility && <section aria-label="Apply customer credit">
+        {sale.customerId && !sale.legacyPaymentCompatibility && <section className="water-apply-credit-section" aria-label="Apply customer credit">
           <h3>Customer Water credit</h3>
           {creditError ? <p role="alert">{creditError}</p> : availableCredit === null ? <p role="status">Loading customer credit…</p> : <>
             <p>{formatCurrency(availableCredit)} available across Water products. Applying it records no new money received.</p>
-            {availableCredit > 0 && sale.balanceDueCents > 0 && <form className="water-module-form" onSubmit={(event) => {
-              event.preventDefault(); if (!saving) onApplyCredit({ saleId: sale.id, amount: (creditAmountCents / 100).toFixed(2) });
+            {availableCredit > 0 && sale.balanceDueCents > 0 && <form className="water-module-form water-apply-credit-form" onSubmit={(event) => {
+              event.preventDefault();
+              if (!saving && applyExistingCredit && creditAmountCents > 0) {
+                onApplyCredit({ saleId: sale.id, amount: (creditAmountCents / 100).toFixed(2) });
+              }
             }}>
-              <p>{formatCurrency(creditAmountCents)} will be applied to this order. Any remaining credit stays available for future orders.</p>
-              <PortalAction type="submit" icon={faFloppyDisk} label="Apply customer credit" disabled={saving || creditAmountCents <= 0} />
+              <label className="water-credit-checkbox">
+                <input type="checkbox" checked={applyExistingCredit} disabled={saving || creditAmountCents <= 0} onChange={(event) => setApplyExistingCredit(event.target.checked)} />
+                Apply {formatCurrency(creditAmountCents)} of this customer's available credit to Sale #{sale.id}
+              </label>
+              <p>{formatCurrency(creditAmountCents)} will be applied to this order only if selected. Any remaining credit stays available for future orders.</p>
+              <PortalAction type="submit" className="admin-primary water-credit-apply-action" icon={faMoneyCheckDollar} label={saving ? "Applying credit…" : "Apply customer credit"} disabled={saving || creditAmountCents <= 0 || !applyExistingCredit} />
             </form>}
           </>}
         </section>}
