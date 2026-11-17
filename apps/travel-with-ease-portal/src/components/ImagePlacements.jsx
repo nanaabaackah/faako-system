@@ -105,12 +105,7 @@ export default function ImagePlacements({ page, body, change, api, session }) {
       />
       {target && (
         <>
-          <p>
-            {target.shape}. Recommended width: {target.minWidth}px.{" "}
-            {page === "site-appearance"
-              ? "Appears throughout the website."
-              : `Used in ${page}${["services", "how-it-works"].includes(page) ? " and its homepage section" : ""}.`}
-          </p>
+          <p>Recommended width: {target.minWidth}px · {target.shape}</p>
           <div className="image-placement-preview">
             {value.imageId ? (
               <img
@@ -227,10 +222,6 @@ export default function ImagePlacements({ page, body, change, api, session }) {
               <h4>
                 {picker === "mobile" ? "Mobile" : "Desktop"} image library
               </h4>
-              <p>
-                Choose existing media or import TWE photographs from Drive
-                below.
-              </p>
               <Button icon="close" onClick={() => setPicker(null)}>
                 Close image library
               </Button>
