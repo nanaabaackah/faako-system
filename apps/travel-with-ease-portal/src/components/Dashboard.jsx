@@ -66,7 +66,6 @@ export default function Dashboard({
       <section className="dashboard-welcome">
         <div>
           <h2>Make room for the next journey.</h2>
-          <p>Your enquiries, website and publishing tasks, in one place.</p>
         </div>
         {canEnquire && (
           <Button icon="enquiries" onClick={() => onNavigate("enquiries")}>
@@ -88,7 +87,7 @@ export default function Dashboard({
               value={
                 enquiries.filter((item) => item.status === "contacted").length
               }
-              detail="In the same recent enquiry list"
+              
               tone="info"
             />
           </>
@@ -104,7 +103,7 @@ export default function Dashboard({
               className="metric-word"
               label="Latest publication"
               value={latest?.status || "No requests"}
-              detail="A request is not proof of deployment"
+              
             />
           </>
         )}
@@ -139,11 +138,8 @@ export default function Dashboard({
                 ))}
               </ul>
             ) : (
-              <p>No enquiries yet. New website enquiries will appear here.</p>
+              <p>No enquiries yet.</p>
             )}
-            <p className="dashboard-footnote">
-              Contact travellers and update their status in the enquiry inbox.
-            </p>
           </section>
         )}
         <section className="dashboard-panel dashboard-actions">
@@ -201,7 +197,7 @@ export default function Dashboard({
               ))}
             </ul>
           ) : (
-            <p>No unpublished page revisions in this workspace.</p>
+            <p>No drafts to review.</p>
           )}
         </section>
       )}

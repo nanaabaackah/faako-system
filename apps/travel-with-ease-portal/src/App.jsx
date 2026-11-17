@@ -2,7 +2,6 @@ import Button from "./components/ActionButton.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
 import {
-  useToast,
   InlineNotice,
   PageHeader,
   PageShell,
@@ -33,41 +32,15 @@ const baseApi = createBrowserApiClient({ baseUrl, credentials: "include" });
 const loadSession = createSessionLoader(baseApi);
 
 function StaffWorkspace() {
-  const { pushToast, updateToast } = useToast();
-  const api = useMemo(
-    () => ({
-      ...baseApi,
-      post: async (...args) => {
-        if (args[1]?.silent === true) {
-          const options = { ...args[1] }; delete options.silent;
-          return baseApi.post(args[0], options);
-        }
-        const id = pushToast({
-          tone: "loading",
-          title: "Working",
-          message: "Please wait for confirmation.",
-        });
-        try {
-          const result = await baseApi.post(...args);
-          updateToast(id, {
-            tone: "success",
-            title: "Request completed",
-            message: "The server confirmed the action. Publication requests still require a successful deployment.",
-          });
-          return result;
-        } catch (error) {
-          updateToast(id, {
-            tone: "error",
-            title: "Action not completed",
-            message:
-              "Check the details shown in the workspace before retrying.",
-          });
-          throw error;
-        }
-      },
-    }),
-    [pushToast, updateToast],
-  );
+  // Module-specific notices already show precise success and error outcomes.
+  const api = useMemo(() => ({
+    ...baseApi,
+    post: async (...args) => {
+      const options = { ...args[1] };
+      delete options.silent;
+      return baseApi.post(args[0], options);
+    },
+  }), []);
   const [session, setSession] = useState(null);
   const [activation, setActivation] = useState(null);
   const [section, setSection] = useState("overview");
@@ -211,11 +184,6 @@ function StaffWorkspace() {
                   }[section]
               : "Staff sign-in"
           }
-          subtitle={
-            session
-              ? "Travel With Ease · Staff workspace"
-              : "Your next journey starts here."
-          }
         />
         {state.error && (
           <InlineNotice
@@ -227,8 +195,7 @@ function StaffWorkspace() {
         {state.loading ? (
           <AnimatedLoadingState
             compact
-            title="Checking your session"
-            message="Verifying workspace access…"
+            title="Signing you in…"
           />
         ) : session ? (
           <div className="session-toolbar" aria-label="Your session">
@@ -244,21 +211,6 @@ function StaffWorkspace() {
             >
               Sign out
             </Button>
-            {(
-              <Button
-                type="button"
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Sign out all your Travel With Ease sessions?",
-                    )
-                  )
-                    logout(true);
-                }}
-              >
-                Sign out all devices
-              </Button>
-            )}
           </div>
         ) : activation && activation.status !== "active" ? (
           <Activation status={activation} api={baseApi} onActivated={load} />
@@ -268,27 +220,16 @@ function StaffWorkspace() {
             aria-labelledby="access-signin-heading"
           >
             <h2 id="access-signin-heading">Welcome to Travel With Ease</h2>
-            <p>
-              Sign in with your approved staff identity through Cloudflare
-              Access, including Google where enabled. Your workspace owner must
-              grant staff access separately.
-            </p>
+            <p>Sign in with your approved work account.</p>
             <a className="signin-link" href="/cdn-cgi/access/logout">
               Sign in again securely
             </a>
-            <p>
-              Need access or account recovery? Contact your workspace owner.
-              Travel With Ease does not collect your Google password or recovery
-              codes.
-            </p>
+            <p>Need access? Contact your workspace owner.</p>
           </section>
         ) : state.configured ? (
           <section className="signin-panel" aria-labelledby="signin-heading">
             <h2 id="signin-heading">Use your staff identity</h2>
-            <p>
-              Your identity provider handles multi-factor authentication and
-              account recovery. Only provisioned staff can enter.
-            </p>
+            <p>Sign in with your work account.</p>
             <form action={baseUrl + "/api/auth/login"} method="get">
               <label>
                 <input
@@ -302,9 +243,7 @@ function StaffWorkspace() {
                 Remember me on this device
               </label>
               <p id="remember-help">
-                Keep your session after closing the browser, for up to one hour.
-                Leave unchecked on shared devices. Browser restore settings may
-                also restore sessions.
+                Stay signed in on this device for up to one hour. Not for shared devices.
               </p>
               <Button type="submit">Sign in securely</Button>
             </form>
@@ -313,8 +252,7 @@ function StaffWorkspace() {
           <section className="signin-panel" aria-labelledby="setup-heading">
             <h2 id="setup-heading">Staff sign-in is not configured</h2>
             <p>
-              Faako must configure the identity provider and provision your
-              staff account before this workspace is available.
+              Staff sign-in is unavailable. Contact your administrator.
             </p>
           </section>
         )}
@@ -345,8 +283,8 @@ function StaffWorkspace() {
                   </h2>
                   <p>
                     {accountFlow === "recovery"
-                      ? "Your identity provider manages passwords and MFA recovery. Travel With Ease does not collect your password or recovery codes."
-                      : "This workspace is for approved Travel With Ease staff. Creating an identity does not grant access: a workspace owner must provision your account and role."}
+                      ? "Recover your account through your work sign-in provider."
+                      : "Ask your workspace owner for an invitation."}
                   </p>
                   {state.configured && accountLinks[accountFlow] ? (
                     <a
@@ -361,8 +299,8 @@ function StaffWorkspace() {
                   ) : (
                     <p>
                       {accountFlow === "recovery"
-                        ? "Recovery is not configured yet. Contact your workspace owner for help recovering your staff identity."
-                        : "Account creation is not configured yet. Ask your workspace owner for an invitation. No registration request has been submitted."}
+                        ? "Password recovery is unavailable. Contact your workspace owner."
+                        : "Account creation is unavailable. Ask your workspace owner for an invitation."}
                     </p>
                   )}
                   <Button type="button" onClick={() => setAccountFlow("login")}>
@@ -432,9 +370,9 @@ function StaffWorkspace() {
             section={section}
           />
         )}
-        {!state.loading && !dirty && (
+        {!state.loading && !dirty && state.error && (
           <Button icon="refresh" variant="ghost" type="button" onClick={load}>
-            Check connection again
+            Retry connection
           </Button>
         )}
       </PageShell>

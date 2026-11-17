@@ -31,6 +31,6 @@ test("service detail generation reads published services and retains CMS image a
   assert.match(route, /getStaticPaths/);
   assert.match(route, /publishedServices\(publishedPage\("services"\)\)/);
   assert.match(route, /placement=\{service.imagePlacement\}/);
-  assert.match(route, /An enquiry is not a booking/);
+  assert.match(route, /href="\/how-it-works"/);
   assert.match(route, /href=\{`\?service=\$\{service\.slug\}#plan`\}/);
 });

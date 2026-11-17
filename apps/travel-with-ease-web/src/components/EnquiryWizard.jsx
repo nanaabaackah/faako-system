@@ -157,7 +157,7 @@ export default function EnquiryWizard() {
       });
       if (data?.status !== "completed" || !/^[a-f0-9-]{36}$/i.test(data.inquiryId || "")) throw new Error("The service did not confirm your questionnaire. Please try again.");
       window.history.replaceState({}, "", window.location.pathname);
-      setStatus({ state: "success", message: "Your trip details have been added to your enquiry. The Travel With Ease team can now review everything together." });
+      setStatus({ state: "success", message: "Trip details received. Thank you." });
       setAccess((current) => ({ ...current, state: "completed", token: "" }));
       operation.current = null;
     } catch (error) {
@@ -172,9 +172,9 @@ export default function EnquiryWizard() {
     }
   }
 
-  if (access.state === "loading") return <AnimatedLoadingState title="Opening your private questionnaire" message="Checking the link from your email." />;
+  if (access.state === "loading") return <AnimatedLoadingState title="Opening questionnaire…" />;
   if (access.state === "unavailable") return <div className="enquiry-access-state">
-    <InlineNotice tone="warning" title="This private link is unavailable" message="It may have expired or already been completed. Send a new enquiry and we will email you a fresh link." />
+    <InlineNotice tone="warning" title="This private link is unavailable" message="This link has expired or already been used. Request a new one." />
     <div className="enquiry-access-actions"><a className="twe-content-link button" href="/#plan">Send a new enquiry</a><a href="https://wa.me/233208387020" rel="noreferrer">Talk to us on WhatsApp</a></div>
   </div>;
   if (access.state === "completed") return <div className="enquiry-access-state"><InlineNotice tone="success" title="Trip details received" message={status.message} /><a className="twe-content-link button" href="/">Return to Travel With Ease</a></div>;
@@ -190,10 +190,10 @@ export default function EnquiryWizard() {
       {currentStep.questionIds.map((id) => <Question key={id} question={questions[id]} value={answers[id]} onChange={(value) => updateAnswer(id, value)} error={errors[id]} />)}
       {safeIndex === steps.length - 1 && <>
         <div className="enquiry-honeypot" aria-hidden="true"><label>Leave this blank<input name="website" value={website} onChange={(event) => setWebsite(event.target.value)} tabIndex={-1} autoComplete="off" /></label></div>
-        <p className="enquiry-privacy-note">We use these contact details and travel preferences only to respond to this enquiry and provide requested services. Do not include passport numbers, document scans, medical records, payment details or passwords.</p>
+        <p className="enquiry-privacy-note">Do not include passport numbers, medical information, passwords or payment details. <a href="/privacy">Privacy notice</a></p>
         <label className="enquiry-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required /><span>I agree that Travel With Ease may use these details to respond to my enquiry.</span></label>
         {siteKey && <TurnstileChallenge siteKey={siteKey} resetCount={resetCount} onToken={setTurnstileToken} />}
-        {hosted && !siteKey && <p>The form security check needs configuration. Please contact us on WhatsApp.</p>}
+        {hosted && !siteKey && <p>Online enquiries are temporarily unavailable. Contact us on WhatsApp.</p>}
       </>}
     </fieldset>
     <div className="enquiry-actions">

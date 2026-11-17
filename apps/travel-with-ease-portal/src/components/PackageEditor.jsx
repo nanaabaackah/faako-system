@@ -12,11 +12,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
   return (
     <section aria-label="Packages">
       <h3>Packages</h3>
-      <p>
-        Use approved offers only. Save and preview before requesting
-        publication. This collection publishes together; an enquiry is not a
-        booking.
-      </p>
+
       {items.map((item, index) => (
         <fieldset key={item.id}>
           <legend>Package {index + 1}</legend>
@@ -113,7 +109,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
             }])}>Add tier</Button>
           <fieldset>
             <legend>Occasions</legend>
-            <p>Choose only approved assignments. Group-friendly is a separate attribute.</p>
+            
             {packageOccasions.map((occasion) => (
               <label key={occasion.value}>
                 <input type="checkbox" checked={(item.occasions || []).includes(occasion.value)}

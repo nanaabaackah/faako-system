@@ -100,7 +100,7 @@ const phone =
           )
         }{email && <a href={"mailto:" + email}>{email}</a>}{
           phone && <a href={"tel:" + phone.replace(/[^+\d]/g, "")}>{phone}</a>
-        }{!email && !phone && <small>Contact details awaiting approval.</small>}
+        }
       </nav>
     </div>
   </div>

@@ -84,9 +84,6 @@ export default function StaffAccess({ api, session }) {
     <section className="staff-workspace" aria-labelledby="staff-access-heading">
       <div className="workspace-intro">
         <h2 id="staff-access-heading">Your team, with the right access</h2>
-        <p>
-          Provision verified identities and review who can use this workspace.
-        </p>
       </div>
       {loading ? (
         <AnimatedLoadingState
@@ -113,12 +110,6 @@ export default function StaffAccess({ api, session }) {
           />
         </div>
       )}
-      <p>
-        Use the independently verified Cloudflare subject—not an email address.
-        New accounts are Editors. Owners and Superadmins can provision them.
-        Superadmins can assign Owner or Editor. Superadmin assignment requires
-        a reviewed administrative procedure. At least one active Owner must remain.
-      </p>
       {message && (
         <InlineNotice title="Staff access result" message={message} />
       )}
@@ -130,13 +121,13 @@ export default function StaffAccess({ api, session }) {
             event.preventDefault();
             if (await mutate("handover", { clientId: handoverClient, approvalReference: handoverReference })) {
               setHandoverReference("");
-              setMessage("Handover approval requested. The named client must approve it from Account settings within 10 minutes. No Access token needs to be shared.");
+              setMessage("Handover requested. The selected client must approve it in Account settings within 10 minutes.");
             }
           }}
         >
           <div>
             <h3>Request staging handover</h3>
-            <p>Ask the named active Editor to become Owner and approve this account’s transition to Superadmin. Both sessions will be revoked after approval.</p>
+            <p>The selected client becomes Owner; the developer becomes Superadmin. Both sessions will end.</p>
           </div>
           <SelectField
             label="Client approver"
@@ -265,11 +256,11 @@ export default function StaffAccess({ api, session }) {
         disabled={!/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/.test(approval)||nextRole===roleTarget?.role}
         onCancel={()=>setRoleTarget(null)} onClose={()=>{if(!busy)setRoleTarget(null);}}
         onConfirm={async()=>{if(await mutate(`staff/${roleTarget.id}/role`,{role:nextRole,expectedRole:roleTarget.role,approvalReference:approval}))setRoleTarget(null);}}>
-        <p>Account {roleTarget?.id}. Current role: {roleTarget?.role}. This account will need to sign in again.</p>
+        <p>Changing {roleTarget?.id} from {roleTarget?.role} ends their active sessions.</p>
         <SelectField label="New role" value={nextRole} onChange={event=>setNextRole(event.target.value)} options={[{value:'editor',label:'Editor'},{value:'owner',label:'Owner'}]} />
-        <p>{nextRole==='owner'?'Owners can publish and manage Editors. They do not gain Faako system administration.':'Editors can draft content and manage permitted media/enquiries, but cannot publish or manage staff.'}</p>
+        <p>{nextRole==='owner'?'Owners can publish and manage staff.':'Editors can draft content but cannot publish or manage staff.'}</p>
         <TextField label="Role change approval reference" value={approval} maxLength={120} onChange={event=>setApproval(event.target.value)} />
-        <p>Changing the last active Owner is blocked. Existing sessions and affected approvals are revoked.</p>
+        <p>The last active Owner cannot be changed. Affected sessions and approvals will end.</p>
       </ERPConfirmDialog>
     </section>
   );

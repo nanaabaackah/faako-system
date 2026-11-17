@@ -294,8 +294,8 @@
       "order": 20,
       "sectionId": "1522369376",
       "type": "TEXT",
-      "title": "Estimated travel budget (excluding  planning fee and visa costs))",
-      "description": "Please note: your planning fee (GHS 2,000 or GHS 3,000) is separate from your travel budget. Your travel budget covers actual flight, hotel and activity costs. Once your itinerary is approved, we will send you a travel fund request for the total cost of your bookings.",
+      "title": "Estimated travel budget (excluding planning fee and visa costs)",
+      "description": "Your travel budget excludes our planning fee and visa costs. We’ll request booking funds separately before purchasing.",
       "required": true
     },
     {
@@ -366,7 +366,7 @@
       "sectionId": "86523279",
       "type": "CHECKBOX",
       "title": "What matters most to you when choosing accommodation?",
-      "description": "(Checkboxes – select up to 3)",
+      "description": "",
       "required": true,
       "options": [
         {
@@ -470,7 +470,7 @@
       "sectionId": "86523279",
       "type": "CHECKBOX",
       "title": "What type of travel experience do you prefer?",
-      "description": "Select all that apply",
+      "description": "",
       "required": true,
       "options": [
         {

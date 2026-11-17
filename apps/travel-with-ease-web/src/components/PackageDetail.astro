@@ -42,7 +42,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           <div><dt>{item.pricingStatus === "indicative" ? "Starting price" : "Pricing"}</dt><dd><MoneyText text={packageStartingPrice(item)} /></dd></div>
         </dl>
         {item.dates && <p>{item.dates}</p>}
-        {item.pricingStatus === "indicative" && <p class="package-price-disclaimer">Indicative, per person sharing · return flights from Accra included. Review the full pricing details below.</p>}
+        {item.pricingStatus === "indicative" && <p class="package-price-disclaimer">Indicative price · Per person sharing · Return flights from Accra included.</p>}
         <ContentLink href="#package-pricing">Explore the details</ContentLink>
       </header>
     {
@@ -171,8 +171,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
         <h2>Interested in this trip?</h2>{
           <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
         }<p>
-          An enquiry is not a booking. Confirm offer, dates, price and terms
-          directly with us.
+          Enquiring does not confirm a booking. Your final quote will confirm dates, price and terms.
         </p>{
           canEnquire ? (
             <ContentLink button href={enquiry}>

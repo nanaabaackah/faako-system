@@ -39,16 +39,7 @@ const others: Props["service"][] = publishedServices(publishedPage("services")).
       <EditorialPhoto image={images[service.index % images.length]} placement={service.imagePlacement} class="service-detail__photo" eager />
     </header>
     <div class="service-detail__preparation">
-      <section aria-labelledby="service-start-heading">
-        <h2 id="service-start-heading">Let’s start with your plans.</h2>
-        <p>Tell us you are interested in {service.title}, where you would like to go and when. If you are still deciding, share the ideas you have so far.</p>
-        <ul><li>Your preferred dates or travel month</li><li>How many people are travelling</li><li>Your approximate budget and the support you need</li></ul>
-      </section>
-      <aside aria-labelledby="service-next-heading">
-        <h2 id="service-next-heading">Know what comes next.</h2>
-        <p>Discuss the scope, price and terms with us before proceeding. An enquiry is not a booking; your agreed service determines the support included.</p>
-        <ContentLink href="/how-it-works">See the planning process</ContentLink>
-      </aside>
+      <ContentLink href="/how-it-works">See the planning process</ContentLink>
     </div>
     {others.length > 0 && <section class="service-detail__others" aria-labelledby="other-services-heading">
       <h2 id="other-services-heading">A different level of support?</h2>

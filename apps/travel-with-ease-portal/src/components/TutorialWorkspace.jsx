@@ -67,6 +67,8 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
       data-tour="tutorial-footer"
       aria-label="Workspace tutorials"
     >
+      <details className="tutorial-menu">
+        <summary>Help &amp; tutorials</summary>
       <div className="tutorial-footer-controls">
         <Button
           type="button"
@@ -106,36 +108,6 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
           Mark tutorial completed
         </Button>
       </div>
-      {error && (
-        <div role="alert">
-          <p>{error}</p>
-          <Button type="button" disabled={busy} onClick={load}>
-            Reload progress
-          </Button>
-        </div>
-      )}
-      {data?.progress.enabled &&
-        data.progress.status === "new" &&
-        !dismissed && (
-          <GuidedTour
-            step={{
-              id: "welcome-introduction",
-              target: "workspace",
-              title: "Welcome to Travel With Ease",
-              description:
-                "Settle into your workspace with a guided introduction to the tools available to your role. Nothing will be sent, edited or published by this guide. Choose Next to begin, or Skip for now to return later.",
-            }}
-            position={1}
-            total={steps.length + 1}
-            busy={busy}
-            onNext={() => act("start")}
-            onBack={() => {}}
-            onSkip={() => {
-              setDismissed(true);
-              act("skip");
-            }}
-          />
-        )}
       {list && data && (
         <ul className="tutorial-list">
           {data.catalogue.map((tour) => (
@@ -158,6 +130,37 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
           ))}
         </ul>
       )}
+      </details>
+      {error && (
+        <div role="alert">
+          <p>{error}</p>
+          <Button type="button" disabled={busy} onClick={load}>
+            Reload progress
+          </Button>
+        </div>
+      )}
+      {data?.progress.enabled &&
+        data.progress.status === "new" &&
+        !dismissed && (
+          <GuidedTour
+            step={{
+              id: "welcome-introduction",
+              target: "workspace",
+              title: "Welcome to Travel With Ease",
+              description:
+                "Take a quick tour of your workspace. You can skip it anytime.",
+            }}
+            position={1}
+            total={steps.length + 1}
+            busy={busy}
+            onNext={() => act("start")}
+            onBack={() => {}}
+            onSkip={() => {
+              setDismissed(true);
+              act("skip");
+            }}
+          />
+        )}
       {active && step && section === step.module && (
         <GuidedTour
           step={step}
@@ -171,12 +174,6 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
             act("skip");
           }}
         />
-      )}
-      {data?.progress.status === "completed" && (
-        <p role="status">
-          Introduction completed. Tutorials remain available whenever you need
-          them.
-        </p>
       )}
     </footer>
   );

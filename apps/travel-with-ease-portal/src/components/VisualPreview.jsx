@@ -29,9 +29,9 @@ export default function VisualPreview({ job, api, body }) {
   const prefix = `/api/agent/content/previews/${job.id}/files/`;
   return <section className="visual-preview workspace-panel" aria-label="Website layout preview">
     <h3>Website layout preview</h3>
-    <p>Saved version {job.version}. Private, read-only Astro rendering; nothing is published. Expires in ten minutes.</p>
+    <p>Preview only · Saved v{job.version} · Expires in 10 minutes.</p>
     {error && <InlineNotice tone="danger" title="Preview unavailable" message={error} />}
-    {current.status === "building" && !error && <AnimatedLoadingState compact title="Building your website preview" message="This runs once for the saved version, not while you type." />}
+    {current.status === "building" && !error && <AnimatedLoadingState compact title="Building preview…" />}
     {current.status === "failed" && <InlineNotice tone="danger" title="Preview build failed" message={current.message} />}
     {current.status === "ready" && !error && <>
       <div className="visual-preview__controls">

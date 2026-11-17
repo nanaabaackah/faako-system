@@ -131,10 +131,7 @@ export default function PortalNavigation({
         <nav aria-label="All workspace modules">
           {navigation.map((item) => button(item))}
         </nav>
-        <p>
-          Only modules available to your account are shown. Tutorial controls
-          and sign-out remain in your workspace.
-        </p>
+
       </ERPDrawer>
       {session && (
         <ErpMobileBottomNavFrame

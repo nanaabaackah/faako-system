@@ -129,14 +129,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
         </SelectField>
         <h2>{definition.label}</h2>
         <p>
-          {definition.description}{" "}
-          {definition.automated
-            ? "Preview and save a draft before making it active."
-            : "Preview and save a draft before approving the copy."}
-        </p>
-        <p>
-          Brand contacts, logo, social links, automatic-send notice and delivery
-          recipients remain protected. This module does not send test emails.
+          {definition.description}
         </p>
       </section>
       {error && (
@@ -248,10 +241,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
                 />
               </>
             ) : (
-              <p>
-                Choose Preview email to see your current copy with the company
-                branding.
-              </p>
+              <p>No preview yet.</p>
             )}
           </section>
         </div>
