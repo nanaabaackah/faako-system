@@ -137,6 +137,7 @@ try {
       () => !document.querySelector('[role="dialog"]'),
     );
     await page.reload();
+    await page.getByText("Help & tutorials", { exact: true }).click();
     await page.getByRole("button", { name: "Resume tutorial" }).waitFor();
     assert.equal(await page.getByRole("dialog").count(), 0);
     await page.getByRole("button", { name: "Resume tutorial" }).click();
@@ -163,17 +164,23 @@ try {
       .getByRole("button", { name: "Tutorial Mode: Off", exact: true })
       .waitFor();
     await page.reload();
+    await page.getByText("Help & tutorials", { exact: true }).click();
     await page
       .getByRole("button", { name: "Tutorial Mode: Off", exact: true })
       .waitFor();
     assert.equal(await page.getByRole("dialog").count(), 0);
+    const completion = page.waitForResponse(response =>
+      response.url().includes("/api/auth/tutorials") &&
+      response.request().method() === "POST");
     await page.getByRole("button", { name: "Mark tutorial completed" }).click();
-    await page.getByText("Introduction completed.", { exact: false }).waitFor();
+    await completion;
+    assert.equal(progress.status, "completed");
     await page.reload();
-    await page.getByText("Introduction completed.", { exact: false }).waitFor();
+    await page.getByText("Help & tutorials", { exact: true }).waitFor();
     assert.equal(await page.getByRole("dialog").count(), 0);
     role = "editor";
     await page.reload();
+    await page.getByText("Help & tutorials", { exact: true }).click();
     await page
       .getByRole("button", { name: "View available tutorials" })
       .click();
