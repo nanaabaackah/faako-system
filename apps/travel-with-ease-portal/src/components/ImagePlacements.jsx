@@ -89,10 +89,7 @@ export default function ImagePlacements({ page, body, change, api, session }) {
           ? "Shared website imagery"
           : "Images & layout"}
       </h3>
-      <p>
-        Choose a position and preview the saved draft. Nothing is published
-        automatically.
-      </p>
+
       <SelectField
         label="Image placement"
         value={target?.key || ""}
@@ -154,8 +151,8 @@ export default function ImagePlacements({ page, body, change, api, session }) {
           </div>
           <p>
             {value.mobileImageId
-              ? "A separate mobile image is selected."
-              : "Mobile uses the selected desktop image, or the approved responsive default."}
+              ? "Separate mobile image selected."
+              : "Uses desktop image on mobile."}
           </p>
           {value.mobileImageId && (
             <div className="image-placement-preview">
