@@ -121,7 +121,7 @@ test("acknowledgement creates a private expiring questionnaire fragment without 
   for (const output of [payload.html, payload.text]) {
     assert.match(output, /Complete your trip details/);
     assert.match(output, /plan-your-trip#continue=v1\./);
-    assert.match(output, /expires after 14 days/);
+    assert.match(output, /Valid for 14 days/);
     assert.doesNotMatch(output, /must-not-appear|passport/);
   }
 });
