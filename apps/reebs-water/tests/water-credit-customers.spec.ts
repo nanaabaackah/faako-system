@@ -69,7 +69,7 @@ for (const [width, theme] of [[320, "dark"], [1440, "light"]] as const) {
     await expect(applyCredit).toBeDisabled();
     await expect(applyCredit.locator(".portal-action__label")).toBeVisible();
     await expect(applyCredit.locator(".portal-action__label")).toHaveText("Apply customer credit");
-    await expect(applyCredit).toHaveCSS("width", /.+/);
+    expect(await applyCredit.evaluate((button) => button.getBoundingClientRect().width)).toBeGreaterThan(140);
     await creditOptIn.check();
     await expect(applyCredit).toBeEnabled();
     await expect(dialog).toContainText("GH₵25.00 will be applied to this order only if selected.");
