@@ -242,10 +242,6 @@ export default function MediaLibrary({ api, session, onSelect }) {
       aria-labelledby="media-heading"
     >
       <h2 id="media-heading">Media library</h2>
-      <p className="workspace-caption">
-        Manage TWE photography and descriptive text. Assets remain private
-        until published through a content revision.
-      </p>
       <div ref={notice} tabIndex={-1}>
         {state.error && (
           <InlineNotice
@@ -259,16 +255,14 @@ export default function MediaLibrary({ api, session, onSelect }) {
         <AnimatedLoadingState
           compact
           title="Loading media"
-          message="Preparing the private library or confirming your operation."
+          message="Loading images…"
         />
       ) : (
         <p role="status">{state.message}</p>
       )}
       {!state.loading && !configured && (
         <p>
-          Private storage is not configured. Baaba must complete the
-          environment-specific R2 setup before uploads or previews are
-          available.
+          Media uploads are unavailable. Contact support.
         </p>
       )}
       <section
@@ -277,15 +271,11 @@ export default function MediaLibrary({ api, session, onSelect }) {
       >
         <h3 id="drive-media-heading">Google Drive → image library</h3>
         <p>
-          Refresh the configured folder, then import a reviewed image. Updating
-          a file in Drive creates a new library revision on import; existing
-          website images stay unchanged until you select and publish the
-          replacement.
+          Import photos from Drive. Changes appear on the website when published.
         </p>
         {!driveConfigured && !state.loading && (
           <p>
-            Drive import is not configured for this environment. Direct uploads
-            remain available when R2 is configured.
+            Drive import is unavailable. {configured ? "Upload a photo directly or contact support." : "Contact support."}
           </p>
         )}
         <Button
@@ -325,10 +315,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
                 required
               />
               <p>
-                JPEG, PNG or WebP only, up to 8 MiB. Unsupported files and
-                subfolders are not imported. Nothing is deleted from Drive.
-                Photographs in the approved Drive folder are TWE-owned. Alternative
-                text is for accessibility, not a visible caption.
+                JPG, PNG or WebP · Maximum 8 MB. Use only photos you have permission to publish.
               </p>
               <Button
                 type="submit"
@@ -345,8 +332,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         )}
         {driveLoaded && !driveItems.length && (
           <p>
-            No supported, downloadable images were found directly inside this
-            folder.
+            No supported images found.
           </p>
         )}
         {driveNext && (
@@ -382,8 +368,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
             required
           />
           <p>
-            JPEG, PNG or WebP, up to 8 MiB. Images are re-encoded; original
-            metadata is removed. Never upload identity documents.
+            JPG, PNG or WebP · Maximum 8 MB. Do not upload identity documents.
           </p>
           <Button type="submit">
             {replacement ? "Save replacement" : "Upload image"}
@@ -447,8 +432,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         <div className="workspace-empty">
           <h4>Your library is empty</h4>
           <p>
-            Add TWE images when private storage is available. No
-            placeholder assets will be published.
+            Upload your first photo.
           </p>
         </div>
       )}
@@ -461,7 +445,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
             width={preview.width}
             height={preview.height}
           />
-          <figcaption>Private preview. Not published.</figcaption>
+          <figcaption>Preview</figcaption>
           <Button type="button" onClick={() => setPreview(null)}>
             Close preview
           </Button>
