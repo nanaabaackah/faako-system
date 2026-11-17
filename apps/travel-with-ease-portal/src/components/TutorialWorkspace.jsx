@@ -67,6 +67,8 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
       data-tour="tutorial-footer"
       aria-label="Workspace tutorials"
     >
+      <details className="tutorial-menu">
+        <summary>Help &amp; tutorials</summary>
       <div className="tutorial-footer-controls">
         <Button
           type="button"
@@ -106,6 +108,7 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
           Mark tutorial completed
         </Button>
       </div>
+      </details>
       {error && (
         <div role="alert">
           <p>{error}</p>
@@ -123,7 +126,7 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
               target: "workspace",
               title: "Welcome to Travel With Ease",
               description:
-                "Settle into your workspace with a guided introduction to the tools available to your role. Nothing will be sent, edited or published by this guide. Choose Next to begin, or Skip for now to return later.",
+                "Take a quick tour of your workspace. You can skip it anytime.",
             }}
             position={1}
             total={steps.length + 1}
@@ -171,12 +174,6 @@ export default function TutorialWorkspace({ api, session, navigate, section }) {
             act("skip");
           }}
         />
-      )}
-      {data?.progress.status === "completed" && (
-        <p role="status">
-          Introduction completed. Tutorials remain available whenever you need
-          them.
-        </p>
       )}
     </footer>
   );
