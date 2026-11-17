@@ -89,7 +89,7 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
               Approve handover and sign out
             </Button>
           ) : (
-            <p>Waiting for the named client account to approve. No Cloudflare Access token should be copied or shared.</p>
+            <p>Awaiting approval from the selected client. Do not share sign-in codes.</p>
           )}
         </section>
       )}
