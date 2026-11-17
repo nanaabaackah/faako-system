@@ -186,9 +186,8 @@ try {
     await page
       .getByRole("button", { name: "Use Drive interface fixture", exact: true })
       .click();
-    await page
-      .getByText(/Selected image: 20000000-0000-4000-8000-000000000001/)
-      .waitFor();
+    // The editor confirms selection without exposing an internal media UUID.
+    await page.getByText("Image selected", { exact: true }).waitFor();
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     assert.ok(requests.length > 0, "Actual API client exercised against isolated HTTP fixtures");
     await navigate("Templates");
