@@ -51,7 +51,7 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
     <div ref={dialogRef} className="admin-modal ui-erp-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="water-collection-title" tabIndex={-1}>
       <div className="admin-modal-panel ui-erp-modal ui-erp-modal--lg water-order-modal bubble-card">
         <header className="ui-erp-dialog__header"><h2 id="water-collection-title">Record collection · Sale #{sale.id}</h2>
-          <PortalAction icon={faXmark} action="close" label="Close collection" onClick={onClose} disabled={saving} />
+          <PortalAction icon={faXmark} action="close" className="portal-action--icon" label="Close collection" onClick={onClose} disabled={saving} />
         </header>
         <div className="ui-erp-dialog__body">
         <div className="water-order-modal-summary">
@@ -133,7 +133,7 @@ export default function WaterCollectionModal({ sale, collections, onClose, onSub
             {entry.correctionReason ? ` · Corrected: ${entry.correctionReason}` : ""}
             {canReconcilePayments && !entry.isCreditApplication && entry.applicationStatus === "APPLIED"
               && !entry.supersededAt && entry.source === "MANUAL" && entry.verificationStatus === "MANUAL"
-              && <PortalAction label="Correct payment" onClick={() => openCorrection(entry)} disabled={saving} />}
+              && <PortalAction icon={faMoneyCheckDollar} label="Correct payment" onClick={() => openCorrection(entry)} disabled={saving} />}
           </li>)}</ul> : <p>No verified collections recorded.</p>}
         </section>
         {canReconcilePayments && correction && <form className="water-module-form water-order-modal-form" aria-label="Correct recorded payment" onSubmit={(event) => {
