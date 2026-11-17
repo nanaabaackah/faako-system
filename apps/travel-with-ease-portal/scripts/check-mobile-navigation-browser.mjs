@@ -127,7 +127,7 @@ try {
         await expect(nav.getByRole("button", { name: "Home", exact: true })).toHaveAttribute("aria-current", "page");
         assert.ok(await page.locator(".portal-shell > .ui-page-shell").evaluate((node) => parseFloat(getComputedStyle(node).paddingBottom) >= 100));
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-        const tutorialEnd = await page.getByRole("button", { name: "Mark tutorial completed", exact: true }).boundingBox();
+        const tutorialEnd = await page.getByText("Help & tutorials", { exact: true }).boundingBox();
         const dock = await nav.boundingBox();
         assert.ok(tutorialEnd.y + tutorialEnd.height <= dock.y - 8);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
