@@ -2141,6 +2141,7 @@ function WaterProductWorkspace({ product, onProductChange, onAccessDenied }) {
           openOrderEditor={openOrderEditor}
           handleOrderDelete={handleOrderDelete}
           openCollection={openCollection}
+          canReconcilePayments={permissions.canReconcilePayments === true}
           formatDate={formatDate}
           formatCurrency={formatCurrency}
           normalizeSalePaymentStatus={normalizeSalePaymentStatus}
