@@ -168,7 +168,6 @@ const buildPaymentFormFromRecord = (payment) => ({
 const Rent = () => {
   const storedUser = useMemo(() => readStoredSessionUser(), []);
   const roleName = String(storedUser?.role?.name || "");
-  const isLandlord = roleName === "Landlord";
   const canManageRent = isRentManagerRole(roleName);
   const currentActorId = storedUser?.id || storedUser?.userId || "";
   const currentOrganizationId = storedUser?.organizationId || "";

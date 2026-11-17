@@ -24,7 +24,6 @@ const UserControl = () => {
 
   const [roles, setRoles] = useState([]);
   const [users, setUsers] = useState([]);
-  const [moduleKeys, setModuleKeys] = useState([]);
   const [roleDrafts, setRoleDrafts] = useState({});
   const [userDrafts, setUserDrafts] = useState({});
   const [createForm, setCreateForm] = useState(DEFAULT_CREATE_FORM);
@@ -132,8 +131,7 @@ const UserControl = () => {
 
         setRoles(nextRoles);
         setUsers(nextUsers);
-        setModuleKeys(Array.isArray(rolesPayload?.modules) ? rolesPayload.modules : []);
-        buildDraftsFromPayload(nextRoles, nextUsers);
+          buildDraftsFromPayload(nextRoles, nextUsers);
         setSavedUserPasswords((prev) =>
           Object.fromEntries(
             Object.entries(prev).filter(([userId]) => nextUserIdSet.has(String(userId)))
