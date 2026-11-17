@@ -28,6 +28,7 @@ export default function WaterLedgersSection({
   openOrderEditor,
   handleOrderDelete,
   openCollection,
+  canReconcilePayments,
   formatDate,
   formatCurrency,
   normalizeSalePaymentStatus,
