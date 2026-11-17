@@ -112,20 +112,13 @@
   box-shadow: none;
 }
 .service-detail__preparation {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 32px clamp(32px, 6vw, 88px);
+  display: flex;
+  align-items: center;
+  min-height: 44px;
 }
 .service-detail h2 {
   font-size: clamp(1.4rem, 2.3vw, 2rem);
   line-height: 1.3;
-}
-.service-detail__preparation p,
-.service-detail__preparation li {
-  line-height: 1.8;
-}
-.service-detail__preparation ul {
-  padding-left: 20px;
 }
 .service-detail__others {
   margin-top: 64px;
@@ -148,8 +141,7 @@
 }
 @media (max-width: 760px) {
   .published-content--services .service-panels--all,
-  .service-detail__hero,
-  .service-detail__preparation {
+  .service-detail__hero {
     grid-template-columns: minmax(0, 1fr);
   }
   .service-detail__hero {
