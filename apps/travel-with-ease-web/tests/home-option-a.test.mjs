@@ -59,20 +59,23 @@ test("services keep published labels, prices, currency formatting and direct lin
   assert.match(css, /\.home-services--option-a \.home-services__list[\s\S]*?grid-template-columns: repeat\(2/);
 });
 
-test("process keeps all approved steps and detailed page layout separate", () => {
-  assert.match(process, /content\.entries\.map\(\(step, index\) =>/);
-  assert.match(process, /steps=\{content\.entries\.map/);
-  assert.match(process, /summaries\[index\] \|\| step\.text/);
+test("process preserves the existing Stepper for both approved homepage routes", () => {
+  assert.match(process, /const homepageFlows = content\.processFlows/);
+  assert.match(process, /<HomeJourneyStepper flows=\{homepageFlows\} client:visible/);
   assert.match(process, /"planning-process": page/);
-  assert.match(process, /<HomeJourneyStepper[\s\S]*?client:visible/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
+  assert.match(stepper, /label: "Packages"/);
+  assert.match(stepper, /label: "Personal Planning"/);
+  assert.match(stepper, /flows\[journey\.value\]\.steps\.map/);
   assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 });
 
 test("travel tips use approved articles and original non-homepage behavior", () => {
-  assert.match(tips, /const items = homepage \? ordered\.slice\(0, 3\) : ordered;/);
+  assert.ok(tips.includes("const items = homepage ? ordered.slice(0, 3) : tips;"));
+  assert.match(tips, /homeTipOrder/);
+  assert.match(tips, /See all tips/);
   assert.match(tips, /"travel-tips--option-a": homepage/);
-  assert.match(tips, /href=\{`\/travel-tips\/\$\{tip\.slug\}`\}/);
+  assert.ok(tips.includes("href={`/journal/${tip.slug}`}"));
   assert.match(tips, /\{tip\.excerpt\}/);
   assert.match(css, /\.travel-tips--option-a \.travel-tips__grid[\s\S]*?repeat\(3, minmax\(0, 1fr\)\)/);
   assert.match(css, /font-family: var\(--font-journal\) !important/);
@@ -88,7 +91,7 @@ test("responsive cards and editorial layouts retain single-column mobile reflow"
 
 test("React Bits stepper uses original CMS copy, accessible controls and TWE styling", () => {
   assert.match(stepper, /import Stepper, \{ Step \} from "\.\/reactbits\/Stepper\.jsx"/);
-  assert.match(stepper, /steps\.map\(\(entry, index\) =>/);
+  assert.match(stepper, /flows\[journey\.value\]\.steps\.map\(\(entry, index\) =>/);
   assert.match(stepper, /accentColor="#010c33"/);
   assert.match(stepper, /frame=\{false\}/);
   assert.match(stepper, /theme="light"/);

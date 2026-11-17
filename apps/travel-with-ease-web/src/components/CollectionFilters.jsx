@@ -7,15 +7,34 @@ import { TextField, SelectField } from "@faako/ui";
  *   scope: string,
  *   options: string[],
  *   label: string,
+ *   seriesOptions?: string[],
  *   occasions?: ReadonlyArray<{ value: string, label: string }>
  * }} props
  */
-export default function CollectionFilters({ scope, options, label, occasions = [] }) {
+export default function CollectionFilters({ scope, options, label, occasions = [], seriesOptions = [] }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
+  const [series, setSeries] = useState("");
   const [occasion, setOccasion] = useState("");
   const [groupOnly, setGroupOnly] = useState(false);
   const [count, setCount] = useState(null);
+  useEffect(() => {
+    // Deep-link the homepage "See all tips" CTA to the Journal's Travel tip
+    // category while keeping SSR output and non-Journal collections unchanged.
+    const params = new URLSearchParams(window.location.search);
+    const linkedCategory = params.get("category");
+    const linkedSeries = params.get("series");
+    if (linkedCategory && options.includes(linkedCategory)) setCategory(linkedCategory);
+    if (linkedSeries && seriesOptions.includes(linkedSeries)) setSeries(linkedSeries);
+  }, [scope, options, seriesOptions]);
+  function chooseFilter(key, value) {
+    const url = new URL(window.location.href);
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+    window.history.replaceState(window.history.state, "", url);
+    if (key === "category") setCategory(value);
+    if (key === "series") setSeries(value);
+  }
   useEffect(() => {
     const cards =
       document
@@ -25,6 +44,7 @@ export default function CollectionFilters({ scope, options, label, occasions = [
     for (const card of cards) {
       const matches =
         (!category || card.dataset.category === category) &&
+        (!series || card.dataset.series === series) &&
         (!occasion || (card.dataset.occasions || "").split(" ").includes(occasion)) &&
         (!groupOnly || card.dataset.groupFriendly === "true") &&
         card.dataset.search.includes(search.trim().toLocaleLowerCase());
@@ -36,7 +56,7 @@ export default function CollectionFilters({ scope, options, label, occasions = [
       cards.forEach((card) => {
         card.hidden = false;
       });
-  }, [scope, category, search, occasion, groupOnly]);
+  }, [scope, category, series, search, occasion, groupOnly]);
   return (
     <div className="collection-filters">
       <TextField
@@ -51,13 +71,26 @@ export default function CollectionFilters({ scope, options, label, occasions = [
         fieldClassName="collection-filter"
         label={label}
         value={category}
-        onChange={(event) => setCategory(event.target.value)}
+        onChange={(event) => chooseFilter("category", event.target.value)}
       >
         <option value="">All</option>
         {options.map((option) => (
           <option key={option} value={option}>{option}</option>
         ))}
       </SelectField>
+      {seriesOptions.length > 0 && (
+        <SelectField
+          fieldClassName="collection-series-filter"
+          label="Series"
+          value={series}
+          onChange={(event) => chooseFilter("series", event.target.value)}
+        >
+          <option value="">All series</option>
+          {seriesOptions.map((option) => (
+            <option key={option} value={option}>{option}</option>
+          ))}
+        </SelectField>
+      )}
       {occasions.length > 0 && (
         <>
           <SelectField

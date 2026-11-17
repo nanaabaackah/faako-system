@@ -27,6 +27,6 @@ test("all detail families share semantic, wrapping breadcrumbs with decorative I
   assert.match(component, /aria-current="page"/);
   assert.match(component, /ArrowRight4 aria-hidden="true" focusable="false"/);
   assert.doesNotMatch(component, /ContentLink/);
-  for (const file of ["components/PackageDetail.astro", "components/JournalArticle.astro", "pages/services/[slug].astro", "pages/travel-tips/[slug].astro"]) assert.match(source(file), /<Breadcrumbs /);
+  for (const file of ["components/PackageDetail.astro", "components/JournalArticle.astro", "pages/services/[slug].astro"]) assert.match(source(file), /<Breadcrumbs /);
   assert.match(source("styles/components/breadcrumbs.css"), /overflow-wrap: anywhere/);
 });

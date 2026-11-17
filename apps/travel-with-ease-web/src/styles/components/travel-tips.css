@@ -42,3 +42,7 @@
     grid-row: auto;
   }
 }
+
+
+.travel-tips__all { margin: 20px 0 0; }
+.travel-tips__all .twe-content-link { color: var(--brand-navy); font-family: var(--font-impact, Inter, sans-serif); font-weight: 800; }

@@ -13,7 +13,7 @@ The existing TWE public website, API and authenticated Traveller inbox remain th
 - `Enquiries.jsx` retains the authenticated inbox and presents stored answers by snapshotted section instead of raw JSON.
 - The existing transaction, idempotency fingerprint, notification outbox, Turnstile, honeypot, rate limit, request-size limit, exact-origin check, permissions and status audit remain in use.
 
-Questionnaire: `twe-smart-enquiry`, version `2026-11-09.1`.
+Questionnaire: `twe-smart-enquiry`, version `2026-11-15.1`.
 
 ## Source inventory and branching
 
@@ -21,7 +21,7 @@ Unchanged supplied files live under `questionnaires/source/`: Start Here has 7 s
 
 - `1428564940` routes readiness, full planning or “not sure”.
 - `1653151808` resolves “not sure” and becomes conditionally required.
-- `502234433` exposes required visa summary `180737542` only for “Yes”.
+- `502234433` records only the structured yes/no visa-status answer. The supplied visa type/expiry question `180737542` remains traceable but is deferred.
 - Published service links preselect an approved stable service ID/title.
 - Open package links preselect package UUID/title. Invalid, closed or sold-out slugs fall back to a labelled general enquiry.
 - `1444304495` accepts at most three unique selections in browser and API validation.
@@ -34,10 +34,11 @@ Browser Back uses History state. Refresh preserves URL service/package context b
 These source questions remain in the audited inventory but are not collected:
 
 - `1811901185`, dietary requirements/allergies: health-data purpose, consent, access and retention are not approved.
+- `180737542`, visa type/expiry summary: detailed visa information is unnecessary at enquiry stage; the yes/no status question is the approved minimised alternative.
 - `1263904381` and `1719024406`, priced add-ons: exact commercial wording is not approved as current policy.
 - `1366732008` and `858286919`, declarations/refund copy: source refund wording conflicts with or extends current approved CMS terms. The all-five requirement is retained as metadata for a later approved version.
 
-Visa collection is limited to yes/no and, when applicable, a brief visa type/expiry summary. Passport numbers, scans, medical records, payment credentials and uploads are not accepted.
+Visa collection is limited to yes/no. The short intake has no general notes field. Passport numbers, visa details or scans, medical records, payment credentials and uploads are not accepted; historical records remain readable under existing staff controls.
 
 Stored data includes consent/submission timestamps, source path, entry category, service/package snapshots, applicable IDs, question label/section snapshots and answers. Logs do not contain contact details or complete payloads.
 
@@ -53,7 +54,7 @@ Package: an open package CTA opens `?package=<published-slug>#plan`, snapshots p
 
 Endpoint remains `POST /api/public/enquiries`; strict versioned payloads and legacy first-contact payloads are supported. No schema migration is required because existing JSONB supports historical snapshots. Existing records remain readable. The organisation scope remains server-owned.
 
-The Traveller inbox adds status, category, service, package and traveller/reference filters with existing pagination. Details show overview, contact and readable questionnaire sections. Legacy records use a bounded fallback that hides submission idempotency metadata. Tenant SQL, role permissions, CSRF, optimistic status versions and atomic status audit are unchanged.
+The Traveller inbox adds status, category, service, package and traveller/reference filters with existing pagination. List queries return only the traveller display name and operational summary fields; they do not fetch or serialize full contact or enquiry details. Opening one authorised, tenant-scoped record retrieves its contact details and readable questionnaire sections. Legacy records use a bounded fallback that hides submission idempotency metadata. Tenant SQL, role permissions, CSRF, optimistic status versions and atomic status audit are unchanged.
 
 ## Email and notifications
 

@@ -42,6 +42,7 @@ test("source inventory retains all 29 planning and 3 Start Here questions with o
   assert.equal(questions["1366732008"].requireAllOptions, true);
   assert.equal(questions["1811901185"].collection, "deferred");
   assert.equal(questions["1811901185"].label, "Do you have any dietary requirements or allergies?");
+  assert.equal(questions["180737542"].collection, "deferred");
 });
 
 test("server validates a complete planning route and stores immutable question snapshots", () => {
@@ -61,8 +62,9 @@ test("server rejects hidden, deferred, excessive and invalid conditional answers
   assert.equal(smartEnquirySchema.safeParse({ ...base, answers: { ...base.answers, "1811901185": "Sensitive health data" } }).success, false);
   assert.equal(smartEnquirySchema.safeParse({ ...base, answers: { ...base.answers, "1444304495": questions["1444304495"].options.slice(0, 4) } }).success, false);
   const visaYes = { ...base.answers, "502234433": "Yes" };
-  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: visaYes }).success, false);
-  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: { ...visaYes, "180737542": "Schengen — expires Aug 2027" } }).success, true);
+  assert.equal(applicableQuestionIds({}, visaYes).includes("180737542"), false);
+  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: visaYes }).success, true);
+  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: { ...visaYes, "180737542": "Schengen — expires Aug 2027" } }).success, false);
   const readiness = { ...base, answers: { ...base.answers, "1428564940": "I need general travel advice to get ready (documents, budget, airport flow)" } };
   assert.equal(smartEnquirySchema.safeParse(readiness).success, false);
 });

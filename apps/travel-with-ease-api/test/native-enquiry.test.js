@@ -46,7 +46,9 @@ function continuationPayload(contact, submissionId = randomUUID()) {
 
 test("first-contact enquiries require explicit classification, consent and bounded minimal data", () => {
   const input = payload();
-  assert.equal(nativeInquirySchema.parse(input).enquiryType, "trip");
+  const parsed = nativeInquirySchema.parse(input);
+  assert.equal(parsed.enquiryType, "trip");
+  assert.equal("notes" in parsed, false);
   for (const enquiryType of ["trip", "gift", "group", "celebration"]) {
     assert.equal(nativeInquirySchema.safeParse({ ...input, enquiryType }).success, true);
   }
@@ -54,7 +56,8 @@ test("first-contact enquiries require explicit classification, consent and bound
     { consent: false }, { enquiryType: undefined }, { enquiryType: "invented" },
     { travellers: 0 }, { travellers: 1.5 }, { travellers: 101 },
     { email: "invalid" }, { submissionId: "../private" },
-    { notes: "x".repeat(1501) }, { organisationId: randomUUID() },
+    { notes: "Please store my passport number" }, { notes: "x".repeat(1501) },
+    { organisationId: randomUUID() },
     { passportNumber: "not-collected" }, { estimateLowMinor: "1" },
   ]) assert.equal(nativeInquirySchema.safeParse({ ...input, ...change }).success, false);
 });
@@ -73,10 +76,46 @@ test("local enquiries persist, deduplicate concurrent retries and reject changed
     error => error.code === "enquiry_submission_conflict");
   const reopened = new FileLeadRepository(file);
   assert.equal((await reopened.listLeads()).length, 1);
+  assert.equal("notes" in (await reopened.listLeads())[0].inquiry, false);
   assert.equal((await reopened.createNativeEnquiry(input)).replayed, true);
   assert.equal((await reopened.listLeads())[0].inquiry.enquiryType, "trip");
+  await repository.createNativeEnquiry({ ...input, submissionId: randomUUID(), notes: "Internal legacy notes must also be discarded" });
+  assert.equal("notes" in (await repository.listLeads())[0].inquiry, false);
   await repository.createNativeEnquiry({ ...input, submissionId: randomUUID() });
-  assert.equal((await repository.listLeads()).length, 2);
+  assert.equal((await repository.listLeads()).length, 3);
+});
+
+test("private completion enriches one enquiry once and identical retries are idempotent", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "twe-progressive-test-"));
+  const repository = new FileLeadRepository(path.join(directory, "synthetic.json"));
+  const intake = nativeInquirySchema.parse(payload());
+  const created = await repository.createNativeEnquiry(intake);
+  const before = (await repository.listLeads())[0];
+  const context = await repository.continuationContext(created.inquiryId);
+  assert.deepEqual(context.contact, { name: intake.name, email: intake.email, phone: intake.phone });
+  const completion = continuationPayload({
+    name: "Updated Traveller", email: "updated@example.invalid", phone: "+233211111111",
+  });
+  const [first, concurrentRetry] = await Promise.all([
+    repository.completeEnquiryContinuation(created.inquiryId, completion),
+    repository.completeEnquiryContinuation(created.inquiryId, completion),
+  ]);
+  assert.equal(first.inquiryId, created.inquiryId);
+  assert.equal(concurrentRetry.replayed, true);
+  const leads = await repository.listLeads();
+  assert.equal(leads.length, 1);
+  assert.equal(leads[0].createdAt, before.createdAt);
+  assert.equal(leads[0].inquiry.submissionId, intake.submissionId);
+  assert.equal(leads[0].inquiry.continuationSubmissionId, completion.submissionId);
+  assert.equal(leads[0].inquiry.questionnaireVersion, QUESTIONNAIRE_VERSION);
+  assert.equal(leads[0].contact.email, "updated@example.invalid");
+  assert.equal(await repository.continuationContext(created.inquiryId), null);
+  await assert.rejects(
+    repository.completeEnquiryContinuation(created.inquiryId, {
+      ...completion, submissionId: randomUUID(),
+    }),
+    (error) => error.code === "enquiry_continuation_conflict",
+  );
 });
 
 test("private completion enriches one enquiry once and identical retries are idempotent", async () => {

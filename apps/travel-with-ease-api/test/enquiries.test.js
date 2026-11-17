@@ -10,7 +10,8 @@ const organisation = "10000000-0000-4000-8000-000000000001";
 const enquiry = "10000000-0000-4000-8000-000000000002";
 const actor = "10000000-0000-4000-8000-000000000003";
 const sample = { id: enquiry, kind: "personalised", status: "new",
-  contact: { name: "Synthetic traveller" }, details: { destination: "Synthetic place" },
+  contact: { name: "Synthetic traveller", email: "private@example.invalid", phone: "+233200000000" },
+  details: { destination: "Synthetic place", notes: "Private itinerary notes" },
   created_at: new Date("2026-10-27T00:00:00Z"), updated_at: new Date("2026-10-27T00:00:00Z"), version: "10" };
 
 test("Owner, Editor and approved Superadmin may update tenant-scoped enquiries", () => {
@@ -37,7 +38,12 @@ test("enquiry inbox uses scoped queries, CSRF, version matching and an atomic au
     async connect() { return client; },
     async query(sql, values) {
       queries.push({ sql, values });
-      if (sql.includes("FROM twe.enquiries") && sql.includes("LIMIT 26")) return { rows: [sample] };
+      if (sql.includes("FROM twe.enquiries") && sql.includes("LIMIT 26")) return { rows: [{
+        id: sample.id, kind: sample.kind, status: sample.status,
+        contact_name: sample.contact.name, created_at: sample.created_at,
+        source: null, entry_type: null, service_title: null, service_id: null,
+        package_title: null, package_id: null,
+      }] };
       if (sql.includes("FROM twe.enquiries") && sql.includes("xmin::text")) return { rows: [sample] };
       throw new Error("Unexpected read query");
     },
@@ -77,8 +83,14 @@ test("enquiry inbox uses scoped queries, CSRF, version matching and an atomic au
     assert.equal((await request("/api/agent/inquiries?offset=-1")).status, 400);
     const list = await request("/api/agent/inquiries?status=new&kind=personalised&offset=0");
     assert.equal(list.status, 200);
-    assert.match(list.text, /Synthetic traveller/);
-    assert.doesNotMatch(list.text, /Synthetic place/); // Details only in single-record view.
+    const listPayload = JSON.parse(list.text).data;
+    assert.equal(listPayload.items[0].contact.name, "Synthetic traveller");
+    assert.deepEqual(Object.keys(listPayload.items[0].contact), ["name"]);
+    assert.equal("details" in listPayload.items[0], false);
+    assert.doesNotMatch(list.text, /private@example|233200000000|Synthetic place|Private itinerary notes/);
+    const listQuery = queries.findLast((item) => item.sql.includes("LIMIT 26"));
+    assert.doesNotMatch(listQuery.sql, /SELECT[^]*\bcontact\s*,|SELECT[^]*\bdetails\s*,/i);
+    assert.match(listQuery.sql, /contact->>'name'/);
     const filtered = await request("/api/agent/inquiries?category=package&service=full_planning&package=Zanzibar&search=Synthetic");
     assert.equal(filtered.status, 200);
     const filteredQuery = queries.findLast((item) => item.sql.includes("LIMIT 26"));
@@ -89,7 +101,7 @@ test("enquiry inbox uses scoped queries, CSRF, version matching and an atomic au
     assert.deepEqual(filteredQuery.values.slice(1, 5), ["package", "full_planning", "%Zanzibar%", "%Synthetic%"]);
     const detailed = await request(`/api/agent/inquiries/${enquiry}`);
     assert.equal(detailed.status, 200);
-    assert.match(detailed.text, /Synthetic place/);
+    assert.match(detailed.text, /private@example|233200000000|Synthetic place|Private itinerary notes/);
     assert.equal((await request(`/api/agent/inquiries/${enquiry}/status`, { method: "POST",
       json: { status: "contacted", expectedVersion: 10 } })).status, 403);
     assert.equal((await request(`/api/agent/inquiries/${enquiry}/status`, { method: "POST",

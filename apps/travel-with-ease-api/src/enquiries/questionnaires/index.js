@@ -1,7 +1,7 @@
 import fullTripSource from "./source/full-trip-planning.json" with { type: "json" };
 import startHereSource from "./source/start-here.json" with { type: "json" };
 
-export const QUESTIONNAIRE_VERSION = "2026-11-09.1";
+export const QUESTIONNAIRE_VERSION = "2026-11-15.1";
 export const QUESTIONNAIRE_ID = "twe-smart-enquiry";
 
 export const SERVICE_OPTIONS = Object.freeze([
@@ -13,6 +13,7 @@ export const SERVICE_OPTIONS = Object.freeze([
 
 const deferred = Object.freeze({
   "1811901185": "health_data_policy_pending",
+  "180737542": "privacy_data_minimisation",
   "1263904381": "commercial_policy_pending",
   "1719024406": "commercial_policy_pending",
   "1366732008": "commercial_policy_conflict",

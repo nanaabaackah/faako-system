@@ -28,6 +28,7 @@ export default function WaterLedgersSection({
   openOrderEditor,
   handleOrderDelete,
   openCollection,
+  canReconcilePayments,
   formatDate,
   formatCurrency,
   normalizeSalePaymentStatus,
@@ -208,7 +209,7 @@ export default function WaterLedgersSection({
                           <td data-label="Paid"><span className="water-module-table-value">{formatCurrency(sale.amountPaidCents)}{sale.legacyPaymentCompatibility ? " · Legacy" : ""}</span></td>
                           <td data-label="Balance"><span className="water-module-table-value">{formatCurrency(sale.balanceDueCents)}</span></td>
                           <td className="water-module-order-actions" data-label="Action">
-                            {canRecordSales && <PortalAction icon={faMoneyCheckDollar} label={`Record collection for sale ${sale.id}`} onClick={(event) => openCollection(sale, event)} onKeyDown={(event) => event.stopPropagation()} disabled={saving || loading || sale.legacyPaymentCompatibility || sale.balanceDueCents <= 0} />}
+                            {canRecordSales && <PortalAction icon={faMoneyCheckDollar} label={`Payment history for sale ${sale.id}`} onClick={(event) => openCollection(sale, event)} onKeyDown={(event) => event.stopPropagation()} disabled={saving || loading || (!canReconcilePayments && (sale.legacyPaymentCompatibility || sale.balanceDueCents <= 0))} />}
                             {canRecordSales ? <PortalAction
                               type="button"
                               className="water-module-row-delete"

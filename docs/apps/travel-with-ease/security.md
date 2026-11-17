@@ -80,7 +80,28 @@ authentication or CORS check is bypassed to satisfy the repository security gate
 | SENSITIVE | Itinerary, flight/hotel bookings, emergency contacts, visa status, financial history | Strong RBAC, field minimisation, encryption in transit/at rest, audited access |
 | HIGHLY_SENSITIVE | Passport number/scan, visa documents, identity documents, encryption keys | Application-level field encryption, private objects, short signed URLs, no analytics/logs/AI/offline cache |
 
-Inquiry Phase 1 accepts only contact and planning data. It does not accept identity documents, passport data or payment credentials.
+Notification outbox rows reference the tenant-scoped enquiry until claimed. A
+rendered acknowledgement, recipient and private continuation URL are pinned only
+for an eligible delivery/retry and are erased whenever the job becomes `sent` or
+terminally `failed`. Status, attempts, provider ID and bounded error code remain as
+non-message delivery evidence. Provider and recipient-mailbox retention are
+separate processor/rights boundaries and are not erased by this database control.
+
+Inquiry Phase 1 accepts only contact and bounded planning data: enquiry/service
+classification, destination, timeframe, traveller count, optional budget and a
+minimised yes/no visa-status answer. It has no general notes field and does not
+accept visa type/expiry details, identity documents, passport data, medical data
+or payment credentials. Empty legacy notes are discarded for cached-client
+compatibility; non-empty notes fail boundary validation.
+
+The progressive enquiry flow creates one record from the short public intake.
+Acknowledgement mail carries a signed bearer link in the URL fragment; the browser
+does not send that fragment with the page request or in referrers. The link expires after 14 days and may
+complete the versioned questionnaire once. The API verifies the signature, exact
+Origin, Turnstile response and tenant-scoped enquiry before transactionally
+enriching that record. Identical retries are idempotent; changed replays, expired
+links and completed links fail closed without revealing whether an enquiry exists.
+Tokens are excluded from portal projections, structured logs and audit events.
 
 The progressive enquiry flow creates one record from the short public intake.
 Acknowledgement mail carries a signed bearer link in the URL fragment; the browser

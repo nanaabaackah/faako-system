@@ -52,10 +52,8 @@ export default function Activation({ status, api, onActivated }) {
       <dl>
         <dt>Workspace</dt>
         <dd>{status.organisation}</dd>
-        <dt>Your verified subject</dt>
-        <dd>
-          <code>{status.subject}</code>
-        </dd>
+        <dt>{status.email ? "Your verified Cloudflare email" : "Your verified identity"}</dt>
+        <dd><code>{status.email || status.subject}</code></dd>
       </dl>
       {status.status === "disabled" ? (
         <InlineNotice
@@ -78,9 +76,9 @@ export default function Activation({ status, api, onActivated }) {
         <form onSubmit={claim}>
           <h3>Activate your approved account</h3>
           <p>
-            Enter the single-use invitation supplied by your workspace Owner or
-            authorised installer. Your role is set by that invitation, never by
-            this form.
+            Enter the one-time invitation code from your email. Your signed
+            Cloudflare Access identity and email must match the invitation.
+            Your role is determined by the invitation, not by this form.
           </p>
           {invitation ? (
             <p role="status">

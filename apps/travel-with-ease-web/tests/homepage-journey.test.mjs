@@ -58,9 +58,22 @@ test("navigation prioritises packages and services, keeping a single planning CT
   assert.match(layout, /Plan My Trip/);
 });
 
-test("homepage planning steps do not present package-only deposits as universal", () => {
+test("homepage exposes both client-approved booking and personal planning flows", () => {
   const process = source("components/JourneyProcess.astro");
-  const summary = process.slice(process.indexOf("const summaries = ["), process.indexOf("];", process.indexOf("const summaries = [")));
-  assert.doesNotMatch(summary, /GHS 5,000|deposit per person/);
-  assert.match(summary, /planning support or a live quote/);
+  const stepper = source("components/HomeJourneyStepper.jsx");
+  assert.match(process, /const homepageFlows = content\.processFlows/);
+  assert.match(process, /<HomeJourneyStepper flows=\{homepageFlows\} client:visible/);
+  assert.match(process, /\["package", "planning"\] as const/);
+  assert.match(process, /Explore both processes in detail/);
+  assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
+  assert.match(stepper, /label: "Packages"/);
+  assert.match(stepper, /label: "Personal Planning"/);
+  assert.match(stepper, /role="tablist"/);
+  assert.match(stepper, /role="tabpanel"/);
+  assert.match(stepper, /aria-selected=\{active === journey\.value\}/);
+  assert.match(stepper, /aria-controls=/);
+  assert.match(stepper, /\["ArrowLeft", "ArrowRight", "Home", "End"\]/);
+  assert.match(stepper, /key=\{journey\.value\}/);
+  assert.match(stepper, /flows\[journey\.value\]\.steps\.map/);
+  assert.doesNotMatch(process, /Package deposit terms do not automatically apply|approximate total budget/);
 });

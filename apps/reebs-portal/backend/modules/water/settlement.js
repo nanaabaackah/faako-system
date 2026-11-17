@@ -100,13 +100,14 @@ export const recordWaterCollection = async (client, input) => {
       || new Date(replay.paidAt).toISOString() !== normalized.paidAt || replay.provider !== provider) {
       throw waterSettlementError("This request key belongs to a different collection.", "IDEMPOTENCY_CONFLICT");
     }
+    if (replay.supersededAt) throw waterSettlementError("This collection has been corrected. Refresh the order before retrying.", "WATER_COLLECTION_ALREADY_CORRECTED");
     return { payment: replay, application: { payableId: Number(saleId), payableType: "WATER_ORDER", businessUnit: "WATER", amountCents: Number(replay.appliedAmountCents ?? normalized.amountCents), status: "APPLIED" }, idempotentReplay: true };
   }
   if (normalized.providerReference) {
     await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`water-reference:${organizationId}:${provider}:${normalized.providerReference.toLowerCase()}`]);
     const duplicate = await client.query(
       `SELECT id FROM "paymentRecord" WHERE "organizationId" = $1 AND provider = $2
-       AND LOWER(TRIM("providerReference")) = LOWER(TRIM($3)) AND status = 'PAID' LIMIT 1`,
+       AND LOWER(TRIM("providerReference")) = LOWER(TRIM($3)) AND status = 'PAID' AND "supersededAt" IS NULL LIMIT 1`,
       [organizationId, provider, normalized.providerReference]
     );
     if (duplicate.rows.length) throw waterSettlementError("This transaction reference already belongs to a payment.", "DUPLICATE_PAYMENT_REFERENCE");

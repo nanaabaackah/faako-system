@@ -256,6 +256,17 @@ try {
       return Boolean(element && !element.hasAttribute("ssr"));
     }, null, {timeout:20000});
     const journeyStepper = process.locator(".journey-process__interactive");
+    const packageTab = journeyStepper.getByRole("tab", {name:"Packages",exact:true});
+    const planningTab = journeyStepper.getByRole("tab", {name:"Personal Planning",exact:true});
+    assert.equal(await packageTab.getAttribute("aria-selected"), "true");
+    assert.equal(await planningTab.getAttribute("aria-selected"), "false");
+    await planningTab.click();
+    assert.equal(await planningTab.getAttribute("aria-selected"), "true");
+    assert.equal(await journeyStepper.locator(".journey-process__step-copy h3").last().innerText(), "Tell us about your trip");
+    await planningTab.press("ArrowLeft");
+    assert.equal(await packageTab.getAttribute("aria-selected"), "true");
+    assert.equal(await journeyStepper.locator(".journey-process__step-copy h3").last().innerText(), "Choose your package");
+
     const indicators = journeyStepper.locator(".stepper__segment");
     await indicators.first().waitFor({state:"visible",timeout:15000});
     assert.equal(await indicators.count(), 4, "Keep all four published planning steps");
@@ -378,8 +389,15 @@ try {
     "Native FAQ closes with Space when scripting is disabled");
   assert.ok(await page.locator("nav a").count()>0);
   await page.goto(origin, {waitUntil:"domcontentloaded"});
-  assert.equal(await page.locator(".journey-process--option-a .journey-process__fallback > li").count(), 4,
-    "All four published planning steps remain readable without JavaScript");
+  const noScriptFlows = page.locator(".journey-process--option-a .journey-process__noscript-flow");
+  assert.equal(await noScriptFlows.count(), 2,
+    "Package and personal-planning flows both remain readable without JavaScript");
+  for (const [index, label] of ["Packages", "Personal Planning"].entries()) {
+    const flow = noScriptFlows.nth(index);
+    assert.equal((await flow.locator("h3").first().innerText()).trim(), label);
+    assert.equal(await flow.locator(".journey-process__fallback > li").count(), 4,
+      `All four ${label} steps remain readable without JavaScript`);
+  }
   await noJs.close();
   console.log(JSON.stringify({passed:true,widths:[320,375,390,768,1024,1440],accessibility:true,noJavaScript:true,screenshots:directory}));
 } finally {

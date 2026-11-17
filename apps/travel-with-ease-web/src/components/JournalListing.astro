@@ -10,6 +10,8 @@ interface Props {
   headerPlacement?:import('../lib/collections').ImagePlacement;
 }
 const { items, prefix = "/journal",headerPlacement } = Astro.props;
+const orderedItems = [...items].sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title));
+const seriesOptions = ["Before you fly", "Visas and entry", "Destinations"];
 ---
 
 <section class="editorial-wrap collection-page" id="journal-collection">
@@ -24,15 +26,16 @@ const { items, prefix = "/journal",headerPlacement } = Astro.props;
   <PlacedImage placement={headerPlacement} class="collection-header-photo" sizes="90vw"/>
 
   {
-    items.length ? (
+    orderedItems.length ? (
       <>
         <CollectionFilters
           client:load
           scope="journal-collection"
           options={[
-            ...new Set(items.map((item) => item.category || "Travel stories")),
+            ...new Set(orderedItems.map((item) => item.category || "Travel stories")),
           ]}
           label="Category"
+          seriesOptions={seriesOptions}
         />
         <noscript>
           <p>
@@ -40,7 +43,7 @@ const { items, prefix = "/journal",headerPlacement } = Astro.props;
           </p>
         </noscript>
         <div class="journal-collection-grid">
-          {items.map((item, index) => (
+          {orderedItems.map((item, index) => (
             <article
               class:list={[
                 "twe-action-card journal-card",
@@ -48,7 +51,8 @@ const { items, prefix = "/journal",headerPlacement } = Astro.props;
               ]}
               data-collection-item
               data-category={item.category || "Travel stories"}
-              data-search={`${item.title} ${item.excerpt} ${item.category || ""}`.toLocaleLowerCase()}
+              data-series={item.series || ""}
+              data-search={`${item.title} ${item.excerpt} ${item.category || ""} ${item.series || ""}`.toLocaleLowerCase()}
             >
               {item.image && (
                 <PlacedImage image={item.image} placement={item.imagePlacement}
@@ -69,7 +73,7 @@ const { items, prefix = "/journal",headerPlacement } = Astro.props;
               )}
               <div class="journal-card__content">
               <p class="journal-card__metadata">
-                {item.category || "Travel stories"} ·{" "}
+                {item.category || "Travel stories"}{item.series && ` · ${item.series}`} ·{" "}
                 <time datetime={item.date}>{item.date}</time>
               </p>
               <h2>

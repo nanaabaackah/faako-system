@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
-import { Button, TextField, TextareaField, SelectField, IconsaxIcon, AnimatedLoadingState, InlineNotice } from "@faako/ui";
+import { Button, TextField, SelectField, IconsaxIcon, AnimatedLoadingState, InlineNotice } from "@faako/ui";
 import { enquiryTypes } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
 import TurnstileChallenge from "./TurnstileChallenge.jsx";
 import "../styles/components/enquiry-form.css";
 
 const initial = {
   enquiryType: "trip", service: "not_sure", destination: "", travelTimeframe: "",
-  travellers: "2", budget: "", name: "", email: "", phone: "", notes: "",
+  travellers: "2", budget: "", name: "", email: "", phone: "",
   consent: false, website: "",
 };
 
@@ -60,7 +60,7 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
   async function submit(event) {
     event.preventDefault();
     if (pending.current || (hosted && !turnstileToken)) return;
-    const body = { ...form, travellers: Number(form.travellers), entryType: entry.entryType, context: entry.context, sourcePath: window.location.pathname };
+    const body = { ...form, budget: entry.entryType === "package" ? "" : form.budget, travellers: Number(form.travellers), entryType: entry.entryType, context: entry.context, sourcePath: window.location.pathname };
     const fingerprint = JSON.stringify(body);
     if (!operation.current || operation.current.fingerprint !== fingerprint) operation.current = { fingerprint, id: crypto.randomUUID() };
     pending.current = true;
@@ -103,13 +103,12 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
         <TextField name="travelTimeframe" label="When would you like to travel?" value={form.travelTimeframe} onChange={update} required minLength={2} maxLength={160} placeholder="Dates, a month, or still exploring" />
         <TextField name="travellers" label="Travellers" type="number" value={form.travellers} onChange={update} required min="1" max="100" step="1" />
       </div>
-      <TextField name="budget" label="Approximate total budget (optional)" value={form.budget} onChange={update} maxLength={160} placeholder="Include the currency, or leave this blank" />
+      {entry.entryType !== "package" && <TextField name="budget" label="Approximate total budget (optional)" value={form.budget} onChange={update} maxLength={160} placeholder="Include the currency, or leave this blank" />}
       <TextField name="name" label="Your name" autoComplete="name" value={form.name} onChange={update} required minLength={2} maxLength={160} />
       <div className="enquiry-fields-pair">
         <TextField name="email" label="Email" type="email" autoComplete="email" value={form.email} onChange={update} required maxLength={254} />
         <TextField name="phone" label="WhatsApp number" type="tel" autoComplete="tel" value={form.phone} onChange={update} required maxLength={40} placeholder="+233…" />
       </div>
-      <TextareaField name="notes" label="Anything else? (optional)" value={form.notes} onChange={update} maxLength={1500} rows={3} hint="Do not include passport numbers, payment details or medical records." />
       <div className="enquiry-honeypot" aria-hidden="true"><label>Leave this blank<input name="website" value={form.website} onChange={update} tabIndex={-1} autoComplete="off" /></label></div>
       <p className="enquiry-privacy-note">We collect these contact details and travel preferences to respond to your enquiry and plan the service you request. This is not a booking or consent to marketing.</p>
       <label className="enquiry-consent"><input name="consent" type="checkbox" checked={form.consent} onChange={update} required /><span>I agree that Travel With Ease may use these details to respond to my enquiry.</span></label>

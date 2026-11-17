@@ -151,6 +151,8 @@ try {
     });
     const form = page.locator(".public-enquiry-form");
     await form.getByText("Enquiring about Singapore", { exact: true }).waitFor();
+    assert.equal(await form.getByLabel("Approximate total budget (optional)").count(), 0,
+      "Package enquiries must not ask for a budget");
     await form.getByLabel("When would you like to travel?").fill("Exploring next year");
     await form.getByLabel("Travellers").fill("2");
     await form.getByLabel("Your name").fill("Synthetic Browser Traveller");
@@ -177,7 +179,7 @@ try {
       const body = route.request().postDataJSON();
       assert.equal(body.continuationToken, continuationToken);
       assert.equal(body.questionnaireId, "twe-smart-enquiry");
-      assert.equal(body.questionnaireVersion, "2026-11-09.1");
+      assert.equal(body.questionnaireVersion, "2026-11-15.1");
       assert.equal(body.answers["541981576"], "Singapore");
       assert.equal(body.contact.email, "browser@example.invalid");
       return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ ok: true,
@@ -224,13 +226,35 @@ try {
       assert.match(await response.text(), /service-detail__fee/);
     }
     await page.goto(origin + "/how-it-works", { waitUntil: "networkidle" });
-    assert.equal(await page.locator(".planning-process__guidance").count(), 4);
-    assert.equal(await page.locator(".planning-example__steps li").count(), 4);
+    const bookingTab = page.getByRole("tab", { name: "Booking a package", exact: true });
+    const planningTab = page.getByRole("tab", { name: "Planning a trip with us", exact: true });
+    await bookingTab.waitFor();
+    assert.equal(await bookingTab.getAttribute("aria-selected"), "true");
+    assert.equal(await page.locator("#package-booking .planning-flow__steps li").count(), 4);
+    assert.equal(await page.locator("#trip-planning .planning-flow__steps li").count(), 4);
     assert.equal(await page.getByRole("link", { name: "Explore the Nairobi package", exact: true }).getAttribute("href"), "/packages/nairobi");
+    assert.equal(await page.getByRole("link", { name: "Read the package terms", exact: true }).getAttribute("href"), "/terms#package-terms");
+    assert.match(await page.locator("#package-booking").innerText(), /No budget needed/);
+    await planningTab.click();
+    assert.equal(await planningTab.getAttribute("aria-selected"), "true");
+    await expect(page.locator("#trip-planning")).toBeVisible();
+    await expect(page.locator("#package-booking")).toBeHidden();
+    await expect(page.locator("#trip-planning")).toContainText("60% for group trips");
+    assert.equal(await page.getByRole("link", { name: "Read the planning terms", exact: true }).getAttribute("href"), "/terms#planning-terms");
+    await planningTab.press("ArrowLeft");
+    assert.equal(await bookingTab.getAttribute("aria-selected"), "true");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-process-${width}.png`), fullPage: true });
+    await page.goto(origin + "/terms", { waitUntil: "domcontentloaded" });
+    assert.equal(await page.locator("#planning-terms").count(), 1);
+    assert.equal(await page.locator("#package-terms").count(), 1);
     await page.goto(origin + "/journal", { waitUntil: "domcontentloaded" });
-    assert.equal(await page.locator("[data-collection-item]").count(), 2);
+    assert.equal(await page.locator("[data-collection-item]").count(), 8,
+      "The Journal contains seven published Travel Tips and one Kenya Trip Story");
+    assert.equal(await page.locator('[data-collection-item][data-category="Travel tip"]').count(), 7);
+    assert.equal(await page.locator('[data-collection-item][data-category="Trip story"]').count(), 1);
+    assert.equal(await page.locator('[data-collection-item][data-series="Before you fly"]').count(), 5);
+    assert.equal(await page.locator('[data-collection-item][data-series="Visas and entry"]').count(), 2);
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
     await page.locator(".journal-card").first().click();
     await page.waitForURL("**/journal/*");
@@ -295,7 +319,8 @@ try {
     "Approved package photographs remain accessible as native links without scripting");
   await expect(published.locator(".twe-package-itinerary")).toContainText("Arrive in Nairobi");
   await published.goto(origin + "/how-it-works");
-  assert.equal(await published.locator(".planning-example__steps li").count(), 4);
+  assert.equal(await published.locator("#package-booking .planning-flow__steps li").count(), 4);
+  assert.equal(await published.locator("#trip-planning .planning-flow__steps li").count(), 4);
   await published.getByRole("link", { name: "Explore the Nairobi package", exact: true }).click();
   assert.equal(new URL(published.url()).pathname, "/packages/nairobi");
   await published.goto(origin + "/services");

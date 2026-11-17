@@ -53,6 +53,7 @@ model Organization {
   paymentRecords PaymentRecord[]
   paymentApplications PaymentApplication[]
   paymentProviderEvents PaymentProviderEvent[]
+  waterPaymentCorrections WaterPaymentCorrection[]
   invoiceDocuments InvoiceDocument[]
   invoiceNumberSequences InvoiceNumberSequence[]
 
@@ -828,6 +829,9 @@ model PaymentRecord {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   applications         PaymentApplication[]
+  supersededAt         DateTime? @db.Timestamptz
+  originalWaterCorrections WaterPaymentCorrection[] @relation("WaterOriginalPayment")
+  replacementWaterCorrections WaterPaymentCorrection[] @relation("WaterReplacementPayment")
 
   @@unique([organizationId, reference])
   @@unique([organizationId, idempotencyKey])
@@ -882,6 +886,28 @@ model PaymentProviderEvent {
   @@index([organizationId, providerReference])
   @@index([organizationId, status, receivedAt])
   @@map("paymentProviderEvent")
+}
+
+model WaterPaymentCorrection {
+  id                        Int       @id @default(autoincrement())
+  organizationId            Int
+  organization              Organization @relation(fields: [organizationId], references: [id])
+  productKey                String
+  saleId                    Int
+  originalPaymentId         Int?
+  originalPayment           PaymentRecord? @relation("WaterOriginalPayment", fields: [originalPaymentId], references: [id])
+  replacementPaymentId      Int?
+  replacementPayment        PaymentRecord? @relation("WaterReplacementPayment", fields: [replacementPaymentId], references: [id])
+  correctionType            String
+  previousSalePaymentStatus String?
+  reason                    String
+  actorId                   Int
+  idempotencyKey            String
+  createdAt                 DateTime @default(now()) @db.Timestamptz
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, productKey, saleId, createdAt])
+  @@map("waterPaymentCorrection")
 }
 
 model WaterRestock {

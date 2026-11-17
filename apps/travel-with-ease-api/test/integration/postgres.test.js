@@ -56,9 +56,40 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   const files = await readMigrations();
   await assert.rejects(migrate(pool, options), /explicit --initialise/);
   await migrate(pool, { ...options, initialise: true, organisationName: "Synthetic TWE", migrations: files.filter(file=>file.name < "006") });
+  const legacyTerminalEnquiryId = "10000000-0000-4000-8000-000000000091";
+  const legacyTerminalOutboxId = "10000000-0000-4000-8000-000000000092";
+  await pool.query(`INSERT INTO twe.enquiries
+    (id, organisation_id, kind, contact, details, notice_at)
+    VALUES ($1, $2, 'personalised', $3, '{}', now())`, [
+    legacyTerminalEnquiryId,
+    organisationId,
+    { name: "Migration Traveller", email: "migration@example.invalid" },
+  ]);
+  await pool.query(`INSERT INTO twe.notification_outbox
+    (id, organisation_id, enquiry_id, status, delivery_payload)
+    VALUES ($1, $2, $3, 'sent', $4)`, [
+    legacyTerminalOutboxId,
+    organisationId,
+    legacyTerminalEnquiryId,
+    { to: ["migration@example.invalid"], text: "Private continuation URL" },
+  ]);
   const preservedUser=randomUUID();
   await pool.query("INSERT INTO twe.staff_users(id,organisation_id,issuer,subject,role) VALUES($1,$2,'https://legacy.invalid','preserved','editor')",[preservedUser,organisationId]);
   await migrate(pool, options);
+  assert.equal((await pool.query(
+    "SELECT delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [legacyTerminalOutboxId],
+  )).rows[0].delivery_payload, null, "Migration erases payloads from existing terminal jobs");
+  await pool.query(
+    "UPDATE twe.notification_outbox SET delivery_payload = $2 WHERE id = $1",
+    [legacyTerminalOutboxId, { to: ["migration@example.invalid"] }],
+  );
+  assert.equal((await pool.query(
+    "SELECT delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [legacyTerminalOutboxId],
+  )).rows[0].delivery_payload, null, "Database clears payloads written by an older worker version");
+  await pool.query("DELETE FROM twe.notification_outbox WHERE id = $1", [legacyTerminalOutboxId]);
+  await pool.query("DELETE FROM twe.enquiries WHERE id = $1", [legacyTerminalEnquiryId]);
   await pool.query("CREATE ROLE twe_test_runtime NOLOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION");
   await migrate(pool, { ...options, initialise: true, organisationName: "Do not rename existing", runtimeRole: "twe_test_runtime" });
   assert.equal((await pool.query("SELECT name FROM twe.organisations WHERE id=$1", [organisationId])).rows[0].name, "Synthetic TWE");
@@ -94,12 +125,12 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       "SELECT details, kind FROM twe.enquiries WHERE organisation_id = $1 AND id = $2",
       [organisationId, first.inquiryId]);
     assert.equal(rows.rows[0].details.enquiryType, "gift");
+    assert.equal("notes" in rows.rows[0].details, false);
     assert.equal(rows.rows[0].kind, "personalised");
     assert.equal((await pool.query(
       "SELECT count(*)::int AS n FROM twe.notification_outbox WHERE organisation_id = $1 AND enquiry_id = $2",
       [organisationId, first.inquiryId])).rows[0].n, 1);
-    await assert.rejects(repository.createNativeEnquiry({ ...data, notes: "Changed" }),
-      error => error.code === "enquiry_submission_conflict");
+    assert.equal((await repository.createNativeEnquiry({ ...data, notes: "Discarded legacy notes" })).replayed, true);
     const other = new PostgresLeadRepository(pool, { ...options, organisationId: otherOrg });
     const otherReceipt = await other.createNativeEnquiry(data);
     assert.notEqual(otherReceipt.inquiryId, first.inquiryId);
@@ -121,6 +152,10 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       entryType: "general", sourcePath: "/", context: {},
     };
     const created = await repository.createNativeEnquiry(intake);
+    assert.equal((await pool.query(
+      "SELECT details ? 'notes' AS has_notes FROM twe.enquiries WHERE organisation_id=$1 AND id=$2",
+      [organisationId, created.inquiryId],
+    )).rows[0].has_notes, false);
     const before = (await pool.query(
       "SELECT created_at, status FROM twe.enquiries WHERE organisation_id=$1 AND id=$2",
       [organisationId, created.inquiryId],
@@ -249,6 +284,50 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
         "SELECT status FROM twe.staff_invitation_deliveries WHERE invitation_id=$1", [cancelled.id],
       );
       assert.equal(cancelState.status, "cancelled");
+
+      // Email-only form: no Cloudflare subject or administrator approval reference.
+      // Only the same signed Cloudflare email, issuer and app audience may claim.
+      const emailOnly = await emailService.issue({
+        actor, recipientEmail: "New.Staff@Example.invalid", role: "editor",
+        sendEmail: true, requestId: "test-email-only",
+      });
+      assert.equal(emailOnly.code, undefined);
+      const { rows: [bound] } = await query(
+        "SELECT subject,invited_email,approval_reference,token_hash FROM twe.staff_invitations WHERE id=$1",
+        [emailOnly.id],
+      );
+      assert.match(bound.subject, /^email:[a-f0-9]{64}$/);
+      assert.equal(bound.invited_email, "new.staff@example.invalid");
+      assert.equal(bound.approval_reference, `EMAIL-${emailOnly.id}`);
+      const boundCode = invitationEmailCode(deliveryConfig, {
+        id: emailOnly.id, organisationId: otherOrg, environment: "test", subject: bound.subject,
+      });
+      assert.equal(bound.token_hash, createHash("sha256").update(boundCode).digest("hex"));
+      await assert.rejects(emailService.preview(identity("unverified-person"), boundCode), { status: 403 });
+      await assert.rejects(emailService.preview({ ...identity("another-person"), email: "different@example.invalid" }, boundCode), { status: 403 });
+      await assert.rejects(emailService.preview({ ...identity("another-person"), email: "new.staff@example.invalid", audience: "wrong" }, boundCode), { status: 403 });
+      const recipientIdentity = { ...identity("new-cloudflare-subject"), email: "NEW.STAFF@example.invalid" };
+      assert.equal((await emailService.preview(recipientIdentity, boundCode)).role, "editor");
+      assert.deepEqual(await emailService.claim(recipientIdentity, boundCode, "test-email-only-claim"),
+        { activated: true, role: "editor" });
+      await assert.rejects(emailService.claim(recipientIdentity, boundCode, "test-email-only-replay"), { status: 403 });
+      const { rows: [boundUser] } = await query(
+        "SELECT subject,role,active FROM twe.staff_users WHERE organisation_id=$1 AND subject=$2",
+        [otherOrg, "new-cloudflare-subject"],
+      );
+      assert.equal(boundUser.role, "editor");
+      assert.equal(boundUser.active, true);
+
+      const noEmail = await emailService.issue({
+        actor, recipientEmail: "missing-claim@example.invalid", sendEmail: true,
+        requestId: "test-email-only-missing-claim",
+      });
+      const { rows: [withoutClaim] } = await query("SELECT subject FROM twe.staff_invitations WHERE id=$1", [noEmail.id]);
+      const noEmailCode = invitationEmailCode(deliveryConfig, {
+        id: noEmail.id, organisationId: otherOrg, environment: "test", subject: withoutClaim.subject,
+      });
+      await assert.rejects(emailService.preview(identity("new-sign-in-without-email"), noEmailCode), { status: 403 });
+      await emailService.revoke({ actor, id: noEmail.id, requestId: "test-email-only-no-claim-revoke" });
       const { rows: [editor] } = await query("SELECT id,role FROM twe.staff_users WHERE organisation_id=$1 AND subject='runtime-editor'", [otherOrg]);
       runtimeEditor = { ...editor, organisationId: otherOrg };
       const editorTours = await new TutorialService(runtimePool, otherOrg).run(runtimeEditor);
@@ -268,7 +347,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     await pool.query("UPDATE twe.staff_users SET active=false WHERE id=$1", [owner.id]);
     await assert.rejects(tutorials.run(actor));
     await assert.rejects(invitations.issue({ actor, subject: "disabled-owner-editor", approvalReference: "TEST-DISABLED" }));
-    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [otherOrg])).rows[0].n, 2);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='staff.invitation_accepted'", [otherOrg])).rows[0].n, 3);
   });
 
   await context.test("Issue 02: installer authority closes after first Owner, including races and inactive-Owner recovery", async () => {
@@ -822,11 +901,40 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.deepEqual(reclaimed.delivery_payload, payload);
   assert.equal(await outbox.finish(claimed, "stale-worker"), false);
   await outbox.fail(reclaimed, "provider_rejected");
-  assert.equal((await pool.query("SELECT last_error FROM twe.notification_outbox WHERE id = $1", [reclaimed.id])).rows[0].last_error, "provider_rejected");
+  const retry = (await pool.query(
+    "SELECT status, last_error, delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [reclaimed.id],
+  )).rows[0];
+  assert.equal(retry.status, "pending");
+  assert.equal(retry.last_error, "provider_rejected");
+  assert.deepEqual(retry.delivery_payload, payload, "Eligible retries retain the pinned provider request");
   assert.equal(await outbox.claim(payload), undefined, "Backoff prevents immediate retry");
   await pool.query("UPDATE twe.notification_outbox SET first_attempt_at = now() - interval '25 hours', available_at = now() WHERE id = $1", [claimed.id]);
   assert.equal(await outbox.claim(payload), undefined);
-  assert.equal((await pool.query("SELECT status, last_error FROM twe.notification_outbox WHERE id = $1", [claimed.id])).rows[0].status, "failed");
+  const expired = (await pool.query(
+    "SELECT status, last_error, delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [claimed.id],
+  )).rows[0];
+  assert.equal(expired.status, "failed");
+  assert.equal(expired.last_error, "retry_window_expired");
+  assert.equal(expired.delivery_payload, null, "Expired jobs retain delivery evidence without the message payload");
+
+  const sentEnquiryId = randomUUID();
+  await repository.createLeadWithInquiry({
+    id: randomUUID(), createdAt: new Date().toISOString(),
+    contact: { name: "Sent Traveller", email: "sent@example.invalid" },
+    inquiry: { id: sentEnquiryId, consentAt: new Date().toISOString(), destination: "Synthetic" },
+  });
+  const sentJob = await outbox.claim(payload);
+  assert.equal(sentJob.enquiry_id, sentEnquiryId);
+  assert.equal(await outbox.finish(sentJob, "synthetic-provider-id"), true);
+  const sent = (await pool.query(
+    "SELECT status, provider_id, delivery_payload FROM twe.notification_outbox WHERE id = $1",
+    [sentJob.id],
+  )).rows[0];
+  assert.deepEqual(sent, {
+    status: "sent", provider_id: "synthetic-provider-id", delivery_payload: null,
+  });
 
   // The raw SQL revision fixture above is deliberately not an approved page.
   // Its unpublished body must never enter a publication artifact.
