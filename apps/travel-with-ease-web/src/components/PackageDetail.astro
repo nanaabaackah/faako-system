@@ -1,6 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import Breadcrumbs from "./Breadcrumbs.astro";
 import MoneyText from "./MoneyText.astro";
 import PackageItinerary from "./PackageItinerary.jsx";
@@ -26,6 +27,7 @@ const {
   prefix = "/packages",
   journalPrefix = "/journal",
 } = Astro.props;
+const copy = siteCopy("packages");
 const canEnquire = !["closed", "sold_out"].includes(item.availability || "");
 const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
 ---
@@ -43,7 +45,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
         </dl>
         {item.dates && <p>{item.dates}</p>}
         {item.pricingStatus === "indicative" && <p class="package-price-disclaimer">Indicative price · Per person sharing · Return flights from Accra included.</p>}
-        <ContentLink href="#package-pricing">Explore the details</ContentLink>
+        <ContentLink href="#package-pricing">{copy.detailsCta}</ContentLink>
       </header>
     {
       item.image && (
@@ -168,15 +170,13 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           )
         }
       </div><aside class="package-enquiry-panel" aria-label="Enquire about this package">
-        <h2>Interested in this trip?</h2>{
+        <h2>{copy.detailHeading}</h2>{
           <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
         }<p>
           Enquiring does not confirm a booking. Your final quote will confirm dates, price and terms.
         </p>{
           canEnquire ? (
-            <ContentLink button href={enquiry}>
-              Check dates &amp; Get a Quote
-            </ContentLink>
+            <ContentLink button href={enquiry}>{copy.enquireCta}</ContentLink>
           ) : (
             <p>Enquiries for this trip are currently closed.</p>
           )
@@ -186,7 +186,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
     {
       relatedPackages.length > 0 && (
         <section class="collection-related">
-          <h2>Other journeys to consider</h2>
+          <h2>{copy.relatedHeading}</h2>
           {relatedPackages.map((other) => (
             <ContentLink href={`${prefix}/${other.slug}`}>
               {other.title}
@@ -198,7 +198,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
     {
       stories.length > 0 && (
         <section class="collection-related">
-          <h2>From the Journal</h2>
+          <h2>{copy.journalHeading}</h2>
           {stories.map((story) => (
             <ContentLink href={`${journalPrefix}/${story.slug}`}>
               {story.title}

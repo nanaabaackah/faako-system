@@ -1,5 +1,6 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import MoneyText from "./MoneyText.astro";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
@@ -27,7 +28,7 @@ const images = [photography.hippos, photography.coast, photography.garden, photo
           {price && <p><MoneyText text={price} /></p>}
         </div>
         {all && <p class="service-panel__description"><MoneyText text={entry.text} /></p>}
-        {all && <span class="service-panel__explore" aria-hidden="true">Explore this service</span>}
+        {all && <span class="service-panel__explore" aria-hidden="true">{siteCopy("services").cardCta}</span>}
       </article>
     );
   })}

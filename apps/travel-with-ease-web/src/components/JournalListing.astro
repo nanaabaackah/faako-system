@@ -1,6 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import { publishedPage } from "../lib/published.js";
 import CollectionFilters from "./CollectionFilters.jsx";
 import type { JournalArticle } from "../lib/collections";
 import "../styles/components/collections.css";
@@ -17,10 +18,10 @@ const seriesOptions = ["Before you fly", "Visas and entry", "Destinations"];
 <section class="editorial-wrap collection-page" id="journal-collection">
   <header class:list={["collection-introduction", "journal-introduction"]}>
     <div>
-    <h1>Stories for the journey.</h1>
+    <h1>{publishedPage("journal")?.heading || "Stories for the journey."}</h1>
     </div>
     <p>
-      Places, perspectives and a little practical advice for the way ahead.
+      {publishedPage("journal")?.body || ""}
     </p>
   </header>
   <PlacedImage placement={headerPlacement} class="collection-header-photo" sizes="90vw"/>

@@ -158,7 +158,7 @@ export const editorialFields = {
     [
       "enquireCta",
       "Package detail · enquiry button",
-      "Enquire about this package"
+      "Check dates & Get a Quote"
     ],
     [
       "detailHeading",

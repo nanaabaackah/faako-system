@@ -1,11 +1,12 @@
 ---
 import "../styles/components/floating-actions.css";
+import { siteCopy } from "../lib/editorial-copy.js";
 ---
 
 <nav class="floating-actions" aria-label="Quick actions">
   <a
     class="floating-action floating-whatsapp"
-    href="https://wa.me/233208387020"
+    href={siteCopy("site-appearance").whatsappUrl}
     aria-label="Chat with Travel With Ease on WhatsApp"
     rel="noreferrer"
   >

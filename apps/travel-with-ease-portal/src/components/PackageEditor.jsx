@@ -40,6 +40,9 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
               onChange={(event) => update(index, key, event.target.value)}
             />
           ))}
+          <SelectField label="Homepage featured position" value={String(item.homeFeatureOrder ?? (item.slug === "zanzibar" ? 1 : item.slug === "nairobi" ? 2 : 0))} onChange={event => update(index, "homeFeatureOrder", Number(event.target.value))}>
+            <option value="0">Not featured</option><option value="1">First package</option><option value="2">Second package</option>
+          </SelectField>
           <SelectField
             label="Pricing status"
             value={item.pricingStatus || "coming_soon"}
