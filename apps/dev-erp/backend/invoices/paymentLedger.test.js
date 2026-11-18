@@ -89,7 +89,11 @@ const buildPrisma = () => {
   };
   const prisma = {
     ...tx,
-    $transaction: async (callback) => callback(tx),
+    $transaction: async (callback) => {
+      const snapshot = structuredClone(state);
+      try { return await callback(tx); }
+      catch (error) { Object.assign(state, snapshot); throw error; }
+    },
   };
   return { prisma, state };
 };
@@ -105,17 +109,20 @@ test("payment fingerprints are canonical and provider references are scoped", ()
   assert.equal(buildExternalReferenceKey({ method: "MOBILE_MONEY", provider: "MTN MoMo", externalReference: " ABC 123 " }), "MOBILE_MONEY:mtn-momo:abc123");
 });
 
-test("recording a payment creates a pending workflow record without settling the invoice", async () => {
+test("recording a confirmed payment posts and synchronizes accounting atomically", async () => {
   const { prisma, state } = buildPrisma();
   const res = createResponse();
   await handlersFor(prisma).record(request({ params: { id: "10" }, body: { amount: "25.00", currency: "GHS", method: "MOBILE_MONEY", provider: "MTN", externalReference: "TX-1", paidAt: "2026-10-18" } }), res);
   assert.equal(res.statusCode, 201);
-  assert.equal(res.body.payment.verificationStatus, "PENDING_VERIFICATION");
-  assert.equal(state.invoice.paidAmount, "0.00");
-  assert.equal(state.ledger.length, 0);
+  assert.equal(res.body.payment.verificationStatus, "VERIFIED");
+  assert.equal(res.body.payment.recordedBy.id, res.body.payment.verifiedBy.id);
+  assert.equal(state.invoice.paidAmount, "25.00");
+  assert.equal(state.accounting.amount, "25.00");
+  assert.equal(state.ledger.length, 1);
+  assert.equal(res.body.settled, true);
 });
 
-test("identical retries return the original pending payment and do not create duplicates", async () => {
+test("identical retries return the original posted payment and do not create duplicates", async () => {
   const { prisma, state } = buildPrisma();
   const handler = handlersFor(prisma).record;
   const input = { params: { id: "10" }, body: { amount: "25.00", currency: "GHS", method: "BANK_TRANSFER", externalReference: "BANK-1", paidAt: "2026-10-18" } };
@@ -125,21 +132,19 @@ test("identical retries return the original pending payment and do not create du
   assert.equal(replay.statusCode, 200);
   assert.equal(replay.body.idempotentReplay, true);
   assert.equal(state.payments.length, 1);
+  assert.equal(state.ledger.length, 1);
+  assert.equal(state.invoice.paidAmount, "25.00");
 });
 
-test("verification posts once and a compensating reversal restores the invoice balance", async () => {
+test("one owner can record and reverse a payment", async () => {
   const { prisma, state } = buildPrisma();
   const handlers = handlersFor(prisma);
   const recorded = createResponse();
   await handlers.record(request({ params: { id: "10" }, body: { amount: "25.00", method: "CASH", paidAt: "2026-10-18" } }), recorded);
-  const paymentId = recorded.body.payment.id;
-  const verified = createResponse();
-  await handlers.verify(request({ params: { id: "10", paymentId: String(paymentId) }, userId: 2, key: "verify-key-123" }), verified);
-  assert.equal(verified.statusCode, 200);
   assert.equal(state.invoice.paidAmount, "25.00");
   assert.equal(state.ledger[0].entryType, "PAYMENT");
   const reversed = createResponse();
-  await handlers.reverse(request({ params: { id: "10", paymentId: String(paymentId) }, userId: 3, key: "reverse-key-123", body: { reason: "Bank confirmed the receipt was invalid." } }), reversed);
+  await handlers.reverse(request({ params: { id: "10", paymentId: String(recorded.body.payment.id) }, key: "reverse-key-123", body: { reason: "Bank confirmed the receipt was invalid." } }), reversed);
   assert.equal(reversed.statusCode, 200);
   assert.equal(state.invoice.paidAmount, "0.00");
   assert.equal(state.ledger[1].entryType, "REVERSAL");
@@ -147,16 +152,43 @@ test("verification posts once and a compensating reversal restores the invoice b
   assert.equal(state.payments[0].verificationStatus, "REVERSED");
 });
 
-test("an authorized administrator can verify their own recorded manual payment", async () => {
-  const { prisma } = buildPrisma();
-  const handlers = handlersFor(prisma);
-  const recorded = createResponse();
-  await handlers.record(request({ params: { id: "10" }, body: { amount: "10.00", method: "CASH" } }), recorded);
+test("the owner can settle a historical pending payment without another administrator", async () => {
+  const { prisma, state } = buildPrisma();
+  const pending = await prisma.invoicePayment.create({ data: { invoiceId: 10, organizationId: 2, amount: "10.00", currency: "GHS", method: "CASH", recordedByUserId: 1, paymentDate: new Date("2026-10-18") } });
   const res = createResponse();
-  await handlers.verify(request({ params: { id: "10", paymentId: String(recorded.body.payment.id) }, key: "verify-self-123" }), res);
+  await handlersFor(prisma).verify(request({ params: { id: "10", paymentId: String(pending.id) }, key: "verify-self-123" }), res);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.payment.verificationStatus, "VERIFIED");
   assert.equal(res.body.invoice.paidAmount, 10);
+  assert.equal(state.ledger.length, 1);
+});
+
+test("overpayment is rejected without leaving a pending record or changing accounting", async () => {
+  const { prisma, state } = buildPrisma();
+  const handler = handlersFor(prisma).record;
+  const res = createResponse();
+  await handler(request({ params: { id: "10" }, body: { amount: "101.00", method: "CASH" } }), res);
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.body.code, "OVERPAYMENT");
+  assert.equal(state.payments.length, 0);
+  assert.equal(state.claims.length, 0);
+  assert.equal(state.ledger.length, 0);
+  assert.equal(state.invoice.paidAmount, "0.00");
+  assert.equal(state.accounting, null);
+});
+
+test("full settlement and partial settlement use the same owner and ledger", async () => {
+  const { prisma, state } = buildPrisma();
+  const handler = handlersFor(prisma).record;
+  for (const [amount, key] of [["40.00", "part-key-123"], ["60.00", "final-key-123"]]) {
+    const res = createResponse();
+    await handler(request({ params: { id: "10" }, key, body: { amount, method: "CASH" } }), res);
+    assert.equal(res.statusCode, 201);
+  }
+  assert.equal(state.invoice.status, "PAID");
+  assert.equal(state.invoice.paidAmount, "100.00");
+  assert.equal(state.accounting.amount, "100.00");
+  assert.equal(state.ledger.length, 2);
 });
 
 test("the payment migration is additive, constrained, and protects posted ledger entries", async () => {

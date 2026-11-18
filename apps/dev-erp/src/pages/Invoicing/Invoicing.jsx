@@ -71,7 +71,7 @@ const PAYMENT_METHOD_OPTIONS = [
 
 const PAYMENT_VERIFICATION_LABELS = {
   PENDING_VERIFICATION: "Pending verification",
-  VERIFIED: "Verified and settled",
+  VERIFIED: "Posted",
   REJECTED: "Rejected",
   REVERSED: "Reversed",
 };
@@ -959,12 +959,14 @@ const Invoicing = () => {
         setInvoices((prev) =>
           prev.map((invoice) => (invoice.id === nextInvoice.id ? nextInvoice : invoice))
         );
+        setSelectedInvoice((current) => current?.id === nextInvoice.id ? nextInvoice : current);
+        if (payload?.payment) setPaymentHistory((current) => current.some((entry) => entry.id === payload.payment.id) ? current.map((entry) => entry.id === payload.payment.id ? payload.payment : entry) : [payload.payment, ...current]);
       }
       setPaymentInvoice(null);
       setPaymentForm(buildPaymentForm());
       setPaymentError("");
       await loadInvoices({ silent: true });
-      setNotice(`Payment recorded for invoice ${paymentInvoice.invoiceNumber} and is pending independent verification.`);
+      setNotice(payload?.payment?.verificationStatus === "PENDING_VERIFICATION" ? "Existing pending payment recovered. Post it from payment history." : `Payment recorded for invoice ${paymentInvoice.invoiceNumber}.`);
     } catch (paymentSaveError) {
       setPaymentError(paymentSaveError.message || "Unable to record invoice payment.");
     } finally {
@@ -995,7 +997,7 @@ const Invoicing = () => {
         setPaymentHistory((current) => current.map((entry) => entry.id === payload.payment.id ? payload.payment : entry));
       }
       setPaymentActionReason("");
-      setNotice(`Payment ${action === "verify" ? "verified and posted" : action === "reject" ? "rejected" : "reversed"}.`);
+      setNotice(`Payment ${action === "verify" ? "posted" : action === "reject" ? "rejected" : "reversed"}.`);
     } catch (actionError) {
       setError(actionError.message || `Unable to ${action} payment.`);
     } finally {
@@ -1535,7 +1537,7 @@ const Invoicing = () => {
                               <span className={`status-pill is-${payment.verificationStatus === "VERIFIED" ? "success" : payment.verificationStatus === "PENDING_VERIFICATION" ? "warning" : "danger"}`}>{PAYMENT_VERIFICATION_LABELS[payment.verificationStatus] || payment.verificationStatus}</span>
                               {payment.verificationStatus === "PENDING_VERIFICATION" ? (
                                 <>
-                                  <button className="button button-primary" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "verify")}>Verify</button>
+                                  <button className="button button-primary" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "verify")}>Post payment</button>
                                   <button className="button button-ghost" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "reject")}>Reject</button>
                                 </>
                               ) : null}
@@ -1844,11 +1846,8 @@ const Invoicing = () => {
 	                />
 	              </label>
 
-	              <div className="notice">
-	                Payment remains pending until verified.
-	              </div>
 
-	              <div className="header-actions">
+<div className="header-actions">
 	                <button
 	                  className="button button-ghost"
 	                  type="button"

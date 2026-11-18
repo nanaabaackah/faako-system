@@ -31,9 +31,7 @@ import {
 import { getProposalExportBlocks } from "./proposalExportConfig";
 import ProposalPreview from "./ProposalPreview";
 import {
-  PROPOSAL_REVIEW_CHECKS,
   createDefaultProposalWorkflow,
-  getProposalReadinessSummary,
   getProposalStatusDescription,
   getProposalStatusTone,
 } from "./proposalWorkflow";
@@ -850,10 +848,8 @@ function ProposalWorkflowPanel({
   proposal,
   onStatusChange,
   onWorkflowChange,
-  onReadinessChange,
 }) {
   const workflow = createDefaultProposalWorkflow(proposal.workflow);
-  const readinessSummary = getProposalReadinessSummary(workflow);
   const statusTone = getProposalStatusTone(proposal.status);
   const clientResponse = workflow.clientResponse;
   const clientResponseLabel =
@@ -866,16 +862,14 @@ function ProposalWorkflowPanel({
   return (
     <ErpPanel className="proposal-workflow-panel">
       <ErpPanelHeader
-        title="Review workflow"
+        title="Proposal status"
         
         actions={(
           <>
             <span className={`status-pill is-${statusTone}`}>
               {getProposalStatusLabel(proposal.status)}
             </span>
-            <span className={readinessSummary.isReady ? "status-pill is-success" : "status-pill is-warning"}>
-              {readinessSummary.completed}/{readinessSummary.total} ready
-            </span>
+
           </>
         )}
       />
@@ -887,7 +881,7 @@ function ProposalWorkflowPanel({
               value={proposal.status || PROPOSAL_STATUSES.DRAFT}
               onChange={(event) => onStatusChange(event.target.value)}
             >
-              {PROPOSAL_STATUS_OPTIONS.map((option) => (
+              {PROPOSAL_STATUS_OPTIONS.filter((option) => option.value !== PROPOSAL_STATUSES.INTERNAL_REVIEW || proposal.status === PROPOSAL_STATUSES.INTERNAL_REVIEW).map((option) => (
                 <option value={option.value} key={option.value}>{option.label}</option>
               ))}
           </SelectField>
@@ -896,37 +890,20 @@ function ProposalWorkflowPanel({
           </div>
         </div>
 
-        <div className="proposal-readiness-grid" aria-label="Approval readiness checks">
-          {PROPOSAL_REVIEW_CHECKS.map((check) => (
-            <label className="proposal-readiness-item" key={check.key}>
-              <input
-                type="checkbox"
-                aria-label={check.label}
-                checked={Boolean(workflow.readiness?.[check.key])}
-                onChange={(event) => onReadinessChange(check.key, event.target.checked)}
-              />
-              <span className="proposal-readiness-item__content">
-                <strong>{check.label}</strong>
-                <small>{check.description}</small>
-              </span>
-            </label>
-          ))}
-        </div>
-
-        <FormGroup label="Internal review notes">
+        <FormGroup label="Private notes">
           <textarea
             className="input"
             value={workflow.reviewNotes}
             onChange={(event) => onWorkflowChange({ reviewNotes: event.target.value })}
-            placeholder="Reviewer notes, readiness concerns, or approval blockers."
+            placeholder="Optional notes"
           />
         </FormGroup>
-        <FormGroup label="Internal comments">
+        <FormGroup label="Additional private notes">
           <textarea
             className="input"
             value={workflow.internalComments}
             onChange={(event) => onWorkflowChange({ internalComments: event.target.value })}
-            placeholder="Lightweight internal comments only. Not a client-facing comment system."
+            placeholder="Optional notes"
           />
         </FormGroup>
         <FormGroup label="Change request notes">
@@ -1130,23 +1107,6 @@ function Proposals() {
         ...patch,
       },
     }));
-    setHasUnsavedChanges(true);
-  };
-
-  const updateWorkflowReadiness = (key, value) => {
-    setProposal((current) => {
-      const workflow = createDefaultProposalWorkflow(current.workflow);
-      return {
-        ...current,
-        workflow: {
-          ...workflow,
-          readiness: {
-            ...workflow.readiness,
-            [key]: value,
-          },
-        },
-      };
-    });
     setHasUnsavedChanges(true);
   };
 
@@ -1621,7 +1581,6 @@ function Proposals() {
                   proposal={proposal}
                   onStatusChange={updateProposalStatus}
                   onWorkflowChange={updateWorkflow}
-                  onReadinessChange={updateWorkflowReadiness}
                 />
               </aside>
             </section>

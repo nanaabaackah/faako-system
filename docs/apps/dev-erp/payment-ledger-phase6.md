@@ -25,9 +25,9 @@ Legacy invoice `QUOTATION` records and proposal-to-invoice relationships remain 
 
 ## Transaction lifecycle
 
-1. Recording creates `PENDING_VERIFICATION`. It never changes invoice settlement.
-2. An authorized different administrator verifies the payment. A global administrator may override segregation of duties only with a recorded reason.
-3. Verification locks the invoice row, creates exactly one `PAYMENT` posting, recalculates the invoice projection, synchronizes Accounting, completes the idempotency claim, and writes an audit event in one serializable transaction.
+1. An authorized administrator records a confirmed payment. Recording locks the invoice row, validates the receipt and remaining balance, creates the payment and exactly one immutable `PAYMENT` posting, recalculates the invoice projection, synchronizes Accounting, completes the idempotency claim, and writes an audit event in one serializable transaction.
+2. Historical `PENDING_VERIFICATION` records remain available for explicit posting or rejection by the same authorized administrator. They are never automatically settled during deployment.
+3. The posting logic is shared by new payments and historical pending-payment verification; no second administrator or override reason is required.
 4. Rejection changes workflow state only and never posts money.
 5. Reversal creates one full negative `REVERSAL` entry referencing the original entry. Partial reversal is intentionally unsupported in this phase.
 6. A refund is an internal negative `REFUND` posting only after the caller confirms the external provider action and supplies the external refund reference. DEV ERP does not initiate provider refunds.
@@ -104,4 +104,4 @@ Remaining gates:
 - resolve or formally accept the remaining Prisma/deepmerge risk;
 - review whether organization-specific payment permissions should replace the current administrator boundary;
 - remove the inactive cumulative-payment implementation from the server after the ledger migration is successfully deployed and rollback compatibility is no longer needed;
-- conduct browser QA with two distinct administrator accounts for segregation of duties.
+- conduct browser QA for the complete payment lifecycle with a single administrator account.
