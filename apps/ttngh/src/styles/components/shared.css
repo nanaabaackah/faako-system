@@ -105,9 +105,9 @@ h3 {
   justify-content: center;
   min-height: 48px;
   padding: .75rem 1rem;
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink)
+  border-radius: var(--sys-radius-sm, var(--radius-sm));
+  background: var(--sys-surface-strong);
+  color: var(--sys-text)
 }
 .button-icon {
   display: grid;
@@ -116,8 +116,8 @@ h3 {
   height: 48px;
   margin-left: -5px;
   border-radius: 50%;
-  background: var(--surface);
-  color: var(--ink);
+  background: var(--sys-surface-strong);
+  color: var(--sys-text);
   transition: transform var(--motion-ui) var(--ease-out)
 }
 .button-icon svg {

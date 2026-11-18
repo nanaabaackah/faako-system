@@ -5,7 +5,6 @@ import "../styles/components/news-cards.css";
 ---
 <section class="cms-content-section" aria-labelledby="press-title" data-reveal>
   <h2 id="press-title">In the news</h2>
-  <p>Stories from our work, with links to the original coverage.</p>
   <div class="news-card-grid">{pressCoverage.map(item => <a class="glass-card news-card" href={`/news/coverage/${item.slug}`}>
     <img src={item.image.src} alt={item.image.alt} width={item.image.width} height={item.image.height} loading="lazy" decoding="async" />
     <div><p class="news-card-source">Coverage: {item.publisher}</p>

@@ -15,8 +15,7 @@ const id = previous ? "previous-event" : "next-up";
       <p class="event-date"><time datetime={event.start}>{formatEventDate(event)}</time> · {event.timezone}</p>
       <h3>{event.title}</h3>
       <p>{event.summary}</p>
-      <p>{event.format === "online" ? "Online" : `In person · ${event.venue}`}</p>
-      <p class="event-spotlight__state">{previous ? "Event completed" : eventRegistrationLabel(event)}</p>
+      <p class="event-spotlight__state">{event.format === "online" ? "Online" : `In person · ${event.venue}`} · {previous ? "Event completed" : eventRegistrationLabel(event)}</p>
       <a class="text-link" href={eventPath(event)} aria-label={`View event details: ${event.title}`}>View event details <Icon name="arrow-right" /></a>
     </div>
   </div>

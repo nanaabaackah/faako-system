@@ -3,7 +3,7 @@ import {
   HambergerMenu, Heart, Location, MessageQuestion,
   People, SearchNormal1, Sms, TickCircle,
 } from "iconsax-react";
-import ArrowRight4 from "./ArrowRight4.jsx";
+import { ArrowRight4 } from "@faako/ui";
 
 const icons = {
   add: Add, "arrow-left": ArrowLeft, "arrow-right": ArrowRight4,
