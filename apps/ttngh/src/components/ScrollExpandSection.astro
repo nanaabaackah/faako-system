@@ -9,7 +9,7 @@ const {
   title,
   text,
   href = "/support-us",
-  linkLabel = "Donate",
+  linkLabel = "Support our work",
   frameTitle = "Peace over everything.",
   id = "scroll-expand-title",
 } = Astro.props;
@@ -28,7 +28,6 @@ const {
         </div>
       </div>
       <p class="scroll-expand__title" aria-hidden="true">{frameTitle}</p>
-      <p class="scroll-expand__hint" aria-hidden="true">Scroll to open</p>
     </section>
   </div>
 </scroll-expand-section>
@@ -52,8 +51,7 @@ const {
       const scrim = this.querySelector(".scroll-expand__scrim");
       const overlay = this.querySelector(".scroll-expand__overlay");
       const title = this.querySelector(".scroll-expand__title");
-      const hint = this.querySelector(".scroll-expand__hint");
-      if (!track || !stage || !frame || !scrim || !overlay || !title || !hint) return;
+      if (!track || !stage || !frame || !scrim || !overlay || !title) return;
       const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
       let reduceMotion = motionQuery.matches;
       let stageHeight = 0;
@@ -81,7 +79,6 @@ const {
         const titleOut = smoothstep(0.34, 0.82, progress);
         title.style.opacity = `${1 - titleOut}`;
         title.style.transform = `translate3d(0, ${-24 * titleOut}px, 0)`;
-        hint.style.opacity = `${1 - smoothstep(0, 0.14, progress)}`;
 
         const overlayIn = smoothstep(0.64, 1, progress);
         overlay.style.opacity = `${overlayIn}`;

@@ -15,7 +15,7 @@ if (apiOrigin) {
   <legend>Your enquiry</legend>
   <label><span>Name</span><input name="name" autocomplete="name" minlength="2" maxlength="80" required /></label>
   <label><span>Email</span><input name="email" type="email" autocomplete="email" maxlength="160" required /></label>
-  <label class="contact-form-wide"><span>What would you like to discuss?</span><select name="topic" required><option value="">Choose a topic</option>{["Programmes or support","Events","Volunteering","Donations","Partnerships","Media collaboration","Privacy question","Other enquiry"].map(topic=><option>{topic}</option>)}</select></label>
+  <label class="contact-form-wide"><span>What would you like to discuss?</span><span class="contact-form-select-wrap"><select name="topic" required><option value="">Choose a topic</option>{["Programmes or support","Events","Volunteering","Donations","Partnerships","Media collaboration","Privacy question","Other enquiry"].map(topic=><option>{topic}</option>)}</select></span></label>
   <label class="contact-form-wide"><span>Message</span><textarea name="message" rows="7" minlength="20" maxlength="2000" aria-describedby="message-guidance" required></textarea><small id="message-guidance">20–2,000 characters. Please avoid medical records or sensitive health details.</small></label>
   <label class="contact-form-trap" aria-hidden="true"><span>Leave this field empty</span><input name="website" tabindex="-1" autocomplete="off" /></label>
   <label class="contact-form-consent contact-form-wide"><input name="consent" type="checkbox" required /><span>I have read the <a href="/privacy">privacy notice</a> and agree to my details being used to respond to this enquiry.</span></label>
