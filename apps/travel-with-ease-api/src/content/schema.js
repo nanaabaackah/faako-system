@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { packageOccasions } from "./catalogue-constants.js";
+import { packageOccasions, serviceSlug } from "./catalogue-constants.js";
 import { editorialFields } from "./editorial-fields.js";
 import { placementSlots } from './placement-catalogue.js';
 
@@ -190,6 +190,7 @@ export const contentBodySchema = z
             id:z.string().uuid().optional(),
             imagePlacement:imagePlacementSchema.optional(),
             heading: text(160).min(1),
+            serviceSlug: slug.optional(),
             text: text(2000).min(1),
             attribution: text(160).default(""),
           })
@@ -278,6 +279,10 @@ export function contentForPage(page, body) {
   for(const [key,placement] of Object.entries(value.imagePlacements)) {
     if(!allowed.has(key)||(!placementSlots(page).find(slot=>slot.id===key)?.split&&placement.layout!=='default')) throw new ContentError(400,'validation_error','Choose a supported image placement and layout for this section.');
   }
+  if (page === "services") {
+    const slugs = value.entries.map(entry => entry.serviceSlug || serviceSlug(entry.heading));
+    if (slugs.some(key => !key) || new Set(slugs).size !== slugs.length) throw new ContentError(400, "validation_error", "Service URLs must be unique.");
+  } else if (value.entries.some(entry => entry.serviceSlug)) throw new ContentError(400, "validation_error", "Service URLs belong in Services.");
   const entryIds=value.entries.map(entry=>entry.id).filter(Boolean);
   const recordPlacements=[...value.entries,...value.packages,...value.articles,...value.tips].map(record=>record.imagePlacement).filter(Boolean);
   if(recordPlacements.some(placement=>placement.layout!=='default'))throw new ContentError(400,'validation_error','Record photographs use the existing card or gallery layout.');

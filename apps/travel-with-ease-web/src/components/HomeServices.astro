@@ -12,6 +12,7 @@ import "../styles/components/home-services.css";
 
 interface ServiceEntry {
   heading: string;
+  serviceSlug?: string;
   text: string;
   imagePlacement?: ImagePlacement;
 }
@@ -47,7 +48,7 @@ const { heading, body, entries } = Astro.props;
       return (
         <li class="home-services__item home-services__row">
           <div class="home-services__row-heading">
-            <h3><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
+            <h3><ContentLink href={`/services/${entry.serviceSlug || serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
           </div>
           <p class="home-services__summary">{summary}</p>
           {price && <p class="home-services__fee"><MoneyText text={price} /></p>}

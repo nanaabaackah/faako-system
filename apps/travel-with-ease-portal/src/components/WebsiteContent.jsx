@@ -19,6 +19,7 @@ import { ActivityList } from './ActivityView.jsx';
 import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
+import { serviceSlug } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
 import EditorialFields from "./EditorialFields.jsx";
 
 import countryOptions from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
@@ -154,7 +155,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         );
         if (!active) return;
         const draft = { ...emptyBody(), ...(!item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
-        draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID()}));
+        draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
+        if(page==="home"&&!draft.ctaLabel)draft.ctaLabel="Plan your trip";
         if(page==='site-appearance'&&!item){draft.heading='Shared website imagery';draft.seoTitle='Website appearance';draft.seoDescription='Internal shared imagery settings.';}
         bodyRef.current = draft;
         setBody(draft);
@@ -178,7 +180,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     };
   }, [api, page, session.csrfToken]);
   const change = (key, value) => {
-    if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID()}));
+    if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) && entry.text.trim() ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
     if (["packages", "articles"].includes(key)) {
       setChooseImage(false);
       setCollectionImage(null);
@@ -408,7 +410,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             <>
               <TextField
                 label="Hero · primary button"
-                value={body.ctaLabel || "Plan your trip"}
+                value={body.ctaLabel}
                 maxLength={60}
                 onChange={(e) => change("ctaLabel", e.target.value)}
               />

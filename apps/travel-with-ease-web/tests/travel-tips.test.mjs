@@ -68,7 +68,11 @@ test("prerendered Journal tips, homepage links and legacy redirects expose no ot
     relatedArticleSlugs: ["missing-unpublished-story"],
   };
   writeFileSync(snapshot, JSON.stringify({version: 1, pages:{
-    home:base, contact:base, journal:{...base, articles:[tip]}, "travel-tips":{...base,tips:[]},
+    home:{...base,ctaLabel:"Fixture primary action",ctaPath:"/journal",editorialCopy:{tipsHeading:"Fixture practical advice",tipsCta:"Fixture all tips",closingHeading:"Fixture closing line",reviewsHeading:"Fixture reviews"},reviews:[{preview:"Fixture customer review",more:"Fixture full review"}]},
+    contact:{...base,editorialCopy:{enquiryHeading:"Fixture enquiry heading",enquiryBody:"Fixture enquiry body"}},
+    journal:{...base,heading:"Fixture journal heading",body:"Fixture journal introduction",articles:[tip]},
+    "site-appearance":{...base,editorialCopy:{navCta:"Fixture navigation action",whatsappUrl:"https://wa.me/233200000000",companyDetails:"Fixture company details"}},
+    "travel-tips":{...base,tips:[]},
   }}));
   execFileSync("pnpm", ["run", "build"], {
     cwd: new URL("../", import.meta.url),
@@ -85,7 +89,9 @@ test("prerendered Journal tips, homepage links and legacy redirects expose no ot
   const listing=readFileSync(path.join(rendered,"journal/index.html"),"utf8");
   const article=readFileSync(path.join(rendered,"journal/fixture-tip/index.html"),"utf8");
   const old=readFileSync(path.join(rendered,"travel-tips/index.html"),"utf8");
-  assert.match(home,/Before you go/);
+  for (const copy of ["Fixture primary action","Fixture practical advice","Fixture all tips","Fixture closing line","Fixture reviews","Fixture customer review","Fixture enquiry heading","Fixture enquiry body","Fixture navigation action","Fixture company details","https://wa.me/233200000000"]) assert.ok(home.includes(copy), `Missing published editorial copy: ${copy}`);
+  assert.match(listing,/Fixture journal heading/);
+  assert.match(listing,/Fixture journal introduction/);
   assert.match(home,/href="\/journal\/fixture-tip"/);
   assert.match(home,/journal\?category=Travel%20tip/);
   assert.match(listing,/data-series="Before you fly"/);

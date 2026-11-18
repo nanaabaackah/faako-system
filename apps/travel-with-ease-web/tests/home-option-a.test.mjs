@@ -111,7 +111,7 @@ test("all public controls and surface families use compact, shared radius tokens
 });
 
 test("home services use unnumbered ordinary cards with native links and approved copy", () => {
-  assert.match(services, /<h3><ContentLink href=\{`\/services\/\$\{serviceSlug\(entry.heading\)\}`\}>\{title\}<\/ContentLink><\/h3>/);
+  assert.match(services, /<h3><ContentLink href=\{`\/services\/\$\{entry.serviceSlug \|\| serviceSlug\(entry.heading\)\}`\}>\{title\}<\/ContentLink><\/h3>/);
   assert.match(services, /<MoneyText text=\{price\}/);
   assert.match(services, /class="home-services__summary"/);
   assert.doesNotMatch(services, /<ServiceTicketCard|<PackageTicketCard|tilted-card|home-services__number/);

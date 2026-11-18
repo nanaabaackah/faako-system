@@ -107,22 +107,26 @@
         {
           "heading": "Travel Readiness Session · GHS 400",
           "text": "A 40-minute call covering destination advice, flight routing, a visa overview and a realistic budget. Advice only, without bookings; ideal for first-time travellers.",
-          "attribution": ""
+          "attribution": "",
+          "serviceSlug": "travel-readiness-session"
         },
         {
           "heading": "Full Trip Planning · GHS 2,000",
           "text": "A day-by-day itinerary, flight and hotel booking, budget breakdown, cultural and safety briefing, a 17-page travel pack and one revision.",
-          "attribution": ""
+          "attribution": "",
+          "serviceSlug": "full-trip-planning"
         },
         {
           "heading": "Premium Concierge · GHS 3,000",
           "text": "Everything in Full Trip Planning, plus priority handling, unlimited minor revisions, WhatsApp support from five days before your trip to travel day, an emergency plan and an hourly travel-day checklist.",
-          "attribution": ""
+          "attribution": "",
+          "serviceSlug": "premium-concierge"
         },
         {
           "heading": "Group Trip Planning · From GHS 2,500",
           "text": "For groups of four or more. The planning fee covers up to eight travellers; each additional traveller is GHS 250.",
-          "attribution": ""
+          "attribution": "",
+          "serviceSlug": "group-trip-planning"
         }
       ],
       "seoTitle": "A plan that fits you. | Travel With Ease",
