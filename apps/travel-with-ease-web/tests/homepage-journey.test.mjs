@@ -28,14 +28,15 @@ test("homepage follows the agreed enquiry-focused editorial journey", () => {
 
 test("homepage hero opens package discovery without losing the enquiry action", () => {
   const hero = source("components/CinematicHero.astro");
-  assert.match(hero, /href="#plan"/);
+  assert.ok(hero.includes('home.ctaPath === "/#plan" ? "#plan" : home.ctaPath'));
   assert.match(hero, /href="\/packages"/);
-  assert.match(hero, /href="#about">Discover more/);
+  assert.ok(hero.includes('href="#about">{copy.heroScroll}'));
 });
 
 test("featured packages are selected from published content with server-derived prices", () => {
   const featured = source("components/FeaturedJourneys.astro");
-  assert.match(featured, /\["zanzibar", "nairobi"\]/);
+  assert.match(featured, /item\.homeFeatureOrder/);
+  assert.match(featured, /position\(item\) > 0/);
   assert.match(featured, /packageStartingPrice\(item\)/);
   assert.match(featured, /\/packages\/\$\{item\.slug\}/);
   assert.match(featured, /per person sharing/);
@@ -55,7 +56,7 @@ test("navigation prioritises packages and services, keeping a single planning CT
   }
   assert.match(layout, /const planningHref = Astro\.props\.planningHref \|\| "#plan"/);
   assert.match(layout, /href=\{planningHref\}/);
-  assert.match(layout, /Plan My Trip/);
+  assert.match(layout, /copy\.navCta/);
 });
 
 test("homepage exposes both client-approved booking and personal planning flows", () => {
@@ -64,7 +65,7 @@ test("homepage exposes both client-approved booking and personal planning flows"
   assert.match(process, /const homepageFlows = content\.processFlows/);
   assert.match(process, /<HomeJourneyStepper flows=\{homepageFlows\} client:visible/);
   assert.match(process, /\["package", "planning"\] as const/);
-  assert.match(process, /Explore both processes in detail/);
+  assert.match(process, /copy\.detailsLink/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
   assert.match(stepper, /label: "Packages"/);
   assert.match(stepper, /label: "Personal Planning"/);

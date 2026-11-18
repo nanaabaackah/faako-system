@@ -45,7 +45,7 @@ test("About uses the approved story content and available media, without new cla
   assert.match(home, /<p>\{about\.body\}<\/p>/);
   assert.match(home, /<EditorialPhoto[\s\S]*?image=\{about\.image\}/);
   assert.match(home, /\{about\.image && \(/);
-  assert.match(home, /<ContentLink href="\/about">Meet Travel With Ease<\/ContentLink>/);
+  assert.ok(home.includes('<ContentLink href="/about">{siteCopy("home").aboutCta}</ContentLink>'));
 });
 
 test("services keep published labels, prices, currency formatting and direct links", () => {
@@ -73,7 +73,7 @@ test("process preserves the existing Stepper for both approved homepage routes",
 test("travel tips use approved articles and original non-homepage behavior", () => {
   assert.ok(tips.includes("const items = homepage ? ordered.slice(0, 3) : tips;"));
   assert.match(tips, /homeTipOrder/);
-  assert.match(tips, /See all tips/);
+  assert.ok(tips.includes('siteCopy("home").tipsCta'));
   assert.match(tips, /"travel-tips--option-a": homepage/);
   assert.ok(tips.includes("href={`/journal/${tip.slug}`}"));
   assert.match(tips, /\{tip\.excerpt\}/);
