@@ -48,12 +48,13 @@
 .cookie-notice-actions button {
   min-height: 44px;
   padding: 0.6rem 1rem;
-  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  border-radius: var(--sys-radius-pill, var(--radius-pill));
   background: var(--brand-pink-dark);
   color: var(--white);
   cursor: pointer;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .cookie-notice-actions .cookie-choice-secondary {
