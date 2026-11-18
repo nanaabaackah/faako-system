@@ -31,7 +31,7 @@
       "body": "Travel With Ease — journeys from Ghana, shaped around your plans.",
       "seoTitle": "Travel With Ease | Travel planning from Ghana",
       "seoDescription": "Travel With Ease — journeys from Ghana, shaped around your plans.",
-      "ctaLabel": "",
+      "ctaLabel": "Plan your trip",
       "ctaPath": "/#plan",
       "contactEmail": "",
       "contactPhone": "",
@@ -55,7 +55,21 @@
       "socialImage": {
         "src": "/og/kenya.jpg",
         "alt": "Blue and white boats moored beside a lake — Kenya."
-      }
+      },
+      "reviews": [
+        {
+          "preview": "I had an exceptional experience with TWE. From booking the tickets for me and my bosses to keeping in touch with us 24/7, you made sure we were updated and well taken care of every step of the way.",
+          "more": "Your professionalism, warmth, and attention to detail were truly outstanding. I’m grateful to have met such a wonderful person and will highly recommend your services!"
+        },
+        {
+          "preview": "Overall, I really enjoyed my Rwanda trip and I genuinely loved using Travel with Ease.\n\nThe itinerary was very helpful and made it easy to keep track of what I was doing each day.",
+          "more": "I loved that everything was already booked and paid for, which made the trip stress-free and convenient.\n\nThe complimentary massage and pool access at the hotel were especially appreciated after long days and wedding activities.\n\nThe drivers and tours were great, and having transportation and lunch arranged made everything much easier.\n\nI particularly enjoyed Kivu and the city tour.\n\nThe Kenya Airways cancellation and long Nairobi layover were inconvenient, especially because I missed some pre-wedding activities, but I know that was completely outside your control.\n\nOne thing I would suggest is having fewer generic activities like the market visit and incorporating more memorable experiences such as nice dinner reservations, nightlife, sunset experiences or unique activities.\n\nI really appreciated that the package was well-organized and reasonably priced. I never felt like I was overpaying.\n\nOverall, Travel with Ease made my life so much easier and allowed me to actually enjoy my trip without stressing about logistics. I would definitely recommend your services and use you again!"
+        },
+        {
+          "preview": "When I got my visa, I honestly didn't know where to start. But as soon as I saw Abena's post about Travel with Ease, I knew she would handle it perfectly.",
+          "more": "When I arrived at my first hotel — wow. It was absolutely beautiful. That was the moment I thought, yes, this was completely worth it.\n\nFrom start to finish, she made everything easy. I told her what I wanted, she knew my taste, and she delivered.\n\nIt's a 10 out of 10 from me. Honestly one of the best and most relaxing trips I've ever had.\n\nI will definitely use Travel with Ease again — already have my eye on Mauritius, so I'll be letting Travel with Ease work on that one too!"
+        }
+      ]
     },
     "about": {
       "heading": "Travel, with a little more you.",
@@ -213,7 +227,7 @@
     "testimonials": null,
     "journal": {
       "heading": "Stories for the journey.",
-      "body": "Places, perspectives and practical planning notes from Travel With Ease.",
+      "body": "Places, perspectives and a little practical advice for the way ahead.",
       "entries": [],
       "seoTitle": "Stories for the journey. | Travel With Ease",
       "seoDescription": "Original trip stories and practical Ghanaian travel tips, grouped by series: Before you fly, Visas and entry, and Destinations.",
@@ -746,8 +760,8 @@
       "seoDescription": "Read these terms alongside your live quote before making a payment."
     },
     "packages": {
-      "heading": "Packages",
-      "body": "Choose your journey, dates and level of comfort. Every booking starts with a live quote.",
+      "heading": "Find your next journey.",
+      "body": "A beach escape, a wildlife-filled few days, or two cities in one trip. Find your starting point. We’ll work through dates and details with you.",
       "entries": [],
       "seoTitle": "Packages | Travel With Ease",
       "seoDescription": "Choose your journey, dates and level of comfort. Every booking starts with a live quote.",
@@ -915,7 +929,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "homeFeatureOrder": 1
         },
         {
           "id": "4740cb7b-fded-4c68-a12d-aa9a73a2ba02",
@@ -1055,7 +1070,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "homeFeatureOrder": 2
         },
         {
           "id": "4740cb7b-fded-4c68-a12d-aa9a73a2ba03",
@@ -1179,7 +1195,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "homeFeatureOrder": 0
         },
         {
           "id": "4740cb7b-fded-4c68-a12d-aa9a73a2ba04",
@@ -1266,7 +1283,8 @@
                 }
               ]
             }
-          ]
+          ],
+          "homeFeatureOrder": 0
         }
       ]
     },
