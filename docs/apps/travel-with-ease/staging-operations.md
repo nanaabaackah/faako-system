@@ -92,7 +92,7 @@ separation is mandatory, not just different subdomains.
     Configure the API with `NODE_ENV=production`, `APP_ENV=staging`, exact
     `ALLOWED_ORIGINS`, runtime `DATABASE_URL`, organisation UUID,
     `TWE_AUTH_MODE=cloudflare_access`, `TWE_ACCESS_TEAM_DOMAIN`,
-    `TWE_ACCESS_AUDIENCE`, `TWE_PORTAL_ORIGIN` and reviewed `TWE_RELEASE_SHA`.
+    `TWE_ACCESS_AUDIENCE` and `TWE_PORTAL_ORIGIN`. Git-linked Railway deploys supply `RAILWAY_GIT_COMMIT_SHA` automatically; no manual SHA variable is needed.
     Remove legacy `TWE_OIDC_*` values and local bearer/file settings. Validate
     Railway proxy/headers and rate limits; never enable blind trust proxy.
     For the one-time developer handover, deploy the reviewed additive migration,
@@ -118,7 +118,7 @@ separation is mandatory, not just different subdomains.
 
 ## Publication and failure handling
 
-Set API `TWE_RELEASE_SHA` to the full reviewed Git SHA. Staff publish/unpublish
+API and worker use Railway's injected `RAILWAY_GIT_COMMIT_SHA`, not a staff-maintained release variable. Keep their deployed commits aligned; mismatches block publishing. Staff publish/unpublish
 requests create immutable snapshots of selected revisions. At most one active
 job per organisation/environment is allowed. Draft save/revert never changes live
 content. Requesting a retry preserves the snapshot; it does not pick newer drafts.
