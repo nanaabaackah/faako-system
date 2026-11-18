@@ -13,8 +13,7 @@ test("collections remain inside Content rather than becoming top-level portal mo
 
 test("CMS exposes cancellation only for stale pending publications, without retrying cancelled history", () => {
   const editor = readFileSync(new URL("../src/components/WebsiteContent.jsx", import.meta.url), "utf8");
-  assert.match(editor, /job\.status==='pending' && canPublish/);
-  assert.match(editor, /30 \* 60 \* 1000/);
+  assert.match(editor, /job\.status==='pending' && job\.can_cancel === true && canPublish/);
   assert.match(editor, /Cancel stale publication/);
   assert.match(editor, /publication-jobs\/\$\{job\.id\}\/cancel/);
   assert.match(editor, /X-CSRF-Token/);
