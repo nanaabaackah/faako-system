@@ -26,6 +26,7 @@ export function contentRoutes({ repository, publication, preview, auth }) {
   });
   router.get("/publication-jobs", async (req, res) => send(req, res, { items: await publishing().list() }));
   router.post("/publication-jobs/:id/retry", auth.requireMutation, auth.requirePermission("content.publish"), async (req, res) => send(req, res, await publishing().retry(z.string().uuid().parse(req.params.id), req.staff, req.requestId)));
+  router.post("/publication-jobs/:id/cancel", auth.requireMutation, auth.requirePermission("content.publish"), async (req, res) => send(req, res, await publishing().cancelPending(z.string().uuid().parse(req.params.id), req.staff, req.requestId)));
   router.get("/", async (req, res) => send(req, res, { items: await repository.list() }));
   router.get("/:page", async (req, res) => send(req, res, found(await repository.get(pageSchema.parse(req.params.page)))));
   router.get("/:page/preview", async (req, res) => send(req, res, found(await repository.get(pageSchema.parse(req.params.page)))));
