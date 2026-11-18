@@ -61,6 +61,8 @@ const packageSchema = z
     imageId: z.string().uuid().nullable().default(null),
     imagePlacement:imagePlacementSchema.optional(),
     galleryImageIds: z.array(z.string().uuid()).max(12).default([]),
+    retainApprovedGallery: z.boolean().default(true),
+    retainApprovedImage: z.boolean().default(true),
     highlights: z.array(text(300).min(1)).max(20).default([]),
     inclusions: z.array(text(300).min(1)).max(20).default([]),
     exclusions: z.array(text(300).min(1)).max(20).default([]),
@@ -145,6 +147,8 @@ const articleSchema = z
     imagePlacement:imagePlacementSchema.optional(),
     imageId: z.string().uuid().nullable().default(null),
     galleryImageIds: z.array(z.string().uuid()).max(12).default([]),
+    retainApprovedGallery: z.boolean().default(true),
+    retainApprovedImage: z.boolean().default(true),
     relatedPackageSlugs: z.array(slug).max(8).default([]),
   })
   .strict();

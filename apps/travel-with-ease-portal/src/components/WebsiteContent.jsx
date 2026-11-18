@@ -626,7 +626,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                   >
                     Add article gallery image
                   </Button>
-                  <GalleryOrder ids={article.galleryImageIds} onChange={ids=>change("articles",body.articles.map((item,i)=>i===index?{...item,galleryImageIds:ids}:item))}/>
+                  <GalleryOrder ids={article.galleryImageIds} onChange={ids=>change("articles",body.articles.map((item,i)=>i===index?{...item,galleryImageIds:ids,retainApprovedGallery:false}:item))}/>
                   <Button
                     type="button"
                     onClick={() =>
@@ -634,7 +634,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         "articles",
                         body.articles.map((item, i) =>
                           i === index
-                            ? { ...item, imageId: null, galleryImageIds: [] }
+                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: undefined }
                             : item,
                         ),
                       )
@@ -1141,6 +1141,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         ...record,
                         ...(gallery
                           ? {
+                              retainApprovedGallery: false,
                               galleryImageIds: [
                                 ...new Set([
                                   ...(record.galleryImageIds || []),
@@ -1148,7 +1149,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                                 ]),
                               ],
                             }
-                          : { imageId: item.id }),
+                          : { imageId: item.id, retainApprovedImage: false }),
                       }
                     : record,
                 ),

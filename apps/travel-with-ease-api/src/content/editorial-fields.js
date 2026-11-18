@@ -150,6 +150,16 @@ export const editorialFields = {
     ]
   ],
   "packages": [
+    ["overviewHeading","Package detail · overview heading","The journey"],
+    ["highlightsHeading","Package detail · highlights heading","Trip highlights"],
+    ["inclusionsHeading","Package detail · inclusions heading","What is included"],
+    ["exclusionsHeading","Package detail · exclusions heading","Not included"],
+    ["transportHeading","Package detail · transport heading","Flights and transport"],
+    ["accommodationHeading","Package detail · accommodation heading","Where you stay"],
+    ["itineraryHeading","Package detail · itinerary heading","Your itinerary"],
+    ["galleryHeading","Package detail · gallery heading","A closer look"],
+    ["importantHeading","Package detail · preparation heading","Before you enquire"],
+    ["pricedHeading","Package pricing · tier heading","Choose your level of comfort"],
     [
       "listingCta",
       "Package listing · personalised enquiries link",
@@ -203,6 +213,7 @@ export const editorialFields = {
       "Explore this service"
     ]
   ],
+  "journal": [["relatedReading","Journal article · related reading heading","Related reading"],["relatedJourneys","Journal article · related trips heading","Explore related journeys"],["keepReading","Journal article · more articles heading","Keep reading"]],
   "contact": [
     [
       "enquiryHeading",
@@ -226,6 +237,10 @@ export const editorialFields = {
     ]
   ],
   "site-appearance": [
+    ["footerPrivacy","Footer · privacy link","Privacy"],
+    ["footerTerms","Footer · terms link","Terms"],
+    ["footerCookies","Footer · cookies link","Cookies"],
+    ["footerTop","Footer · back to top link","Back to top"],
     [
       "navPackages",
       "Navigation · Packages",

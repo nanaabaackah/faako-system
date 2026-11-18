@@ -9,7 +9,10 @@ export default function EditorialFields({ page, body, change }) {
   const updateReview = (index, key, value) => change("reviews", reviews.map((review, i) => i === index ? { ...review, [key]: value } : review));
   return <>
     {fields.length > 0 && <fieldset><legend>{page === "site-appearance" ? "Navigation, footer and social links" : "Section headings and links"}</legend>
-      {fields.map(([key, label]) => <TextareaField key={key} label={label} maxLength={2000} required value={body.editorialCopy?.[key] ?? values[key]} onChange={event => change("editorialCopy", { ...body.editorialCopy, [key]: event.target.value })} />)}
+      {fields.map(([key, label, fallback]) => {
+        const Field = fallback.length > 120 || key.endsWith("Body") || key === "companyDetails" ? TextareaField : TextField;
+        return <Field key={key} label={label} maxLength={2000} required value={body.editorialCopy?.[key] ?? values[key]} onChange={event => change("editorialCopy", { ...body.editorialCopy, [key]: event.target.value })} />;
+      })}
     </fieldset>}
     {page === "home" && <section aria-label="Traveller reviews"><h3>Traveller reviews</h3>
       {reviews.map((review, index) => <fieldset key={index}><legend>Review {index + 1}</legend>

@@ -113,14 +113,14 @@ const phone =
       {
         (
           <>
-            {visible("privacy") && <a href="/privacy">Privacy</a>}
-            {visible("terms") && <a href="/terms">Terms</a>}
-            {visible("cookies") && <a href="/cookies">Cookies</a>}
+            {visible("privacy") && <a href="/privacy">{copy.footerPrivacy}</a>}
+            {visible("terms") && <a href="/terms">{copy.footerTerms}</a>}
+            {visible("cookies") && <a href="/cookies">{copy.footerCookies}</a>}
           </>
         )
       }<button type="button" data-cookie-settings
         >Cookie settings</button
-      >{currencyNoticePublished && <CurrencySwitcher client:load />}<a href="#top">Back to top</a>
+      >{currencyNoticePublished && <CurrencySwitcher client:load />}<a href="#top">{copy.footerTop}</a>
     </nav>
   </div>
   <SharedFaakoFooter />

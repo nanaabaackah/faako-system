@@ -60,7 +60,7 @@ const variants = photos.find((item) =>
     <div class="cinematic-hero__actions">
       <ContentLink
         button
-        href={home?.ctaPath || "/#plan"}
+        href={!home?.ctaPath || home.ctaPath === "/#plan" ? "#plan" : home.ctaPath}
         >{home?.ctaLabel || "Plan your trip"}</ContentLink
       >
       <ContentLink href="/packages"
