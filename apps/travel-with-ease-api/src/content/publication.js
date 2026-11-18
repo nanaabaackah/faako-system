@@ -37,7 +37,8 @@ export class PublicationRepository {
   async list() {
     const { rows } = await this.pool.query(
       `SELECT id, status, attempts, source_sha, deployment_id, created_at, completed_at, last_error,
-      environment, requested_by, recovery_deployment_id, manifest->'target' AS target
+      environment, requested_by, recovery_deployment_id, manifest->'target' AS target,
+      (status = 'pending' AND created_at <= now() - interval '30 minutes') AS can_cancel
       FROM twe.publication_jobs WHERE organisation_id = $1 AND environment = $2 ORDER BY created_at DESC LIMIT 50`,
       [this.organisationId, this.environment],
     );
