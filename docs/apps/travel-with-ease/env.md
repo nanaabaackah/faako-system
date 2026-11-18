@@ -113,8 +113,7 @@ Additional implemented names (values belong in provider secret stores):
   notification worker use it to sign and verify 14-day questionnaire links.
   `TWE_PUBLIC_SITE_ORIGIN` supplies the exact environment origin. Never expose the
   secret through `PUBLIC_`/`VITE_`, logs, email template editing or browser bundles.
-- Publication: `TWE_RELEASE_SHA`, `TWE_PUBLIC_SITE_ORIGIN`,
-  `TWE_PUBLIC_API_ORIGIN`. Build CLI sets private local `TWE_CONTENT_SNAPSHOT`,
+- Publication: Railway injects `RAILWAY_GIT_COMMIT_SHA` into Git-linked API/worker services; no manual `TWE_RELEASE_SHA` is required. Keep both services deployed from the same reviewed commit. Configure `TWE_PUBLIC_SITE_ORIGIN` and `TWE_PUBLIC_API_ORIGIN`. Build CLI sets private local `TWE_CONTENT_SNAPSHOT`,
   `TWE_BUILD_PUBLIC_DIR`, `TWE_BUILD_OUT_DIR`; never accept these from public API input.
 - Web: `PUBLIC_APP_ENV`, `PUBLIC_SITE_INDEXABLE`; production indexing is explicit.
 
