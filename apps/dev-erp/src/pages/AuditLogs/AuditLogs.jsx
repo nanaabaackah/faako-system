@@ -255,9 +255,7 @@ const AuditLogs = () => {
       <header className="page-header">
         <div>
           <h1>Audit logs</h1>
-          <p className="muted">
-            Review server activity, admin operations, and Railway incident events.
-          </p>
+          
         </div>
         <div className="header-actions">
           <button
@@ -412,9 +410,7 @@ const AuditLogs = () => {
             <div className="panel-header">
               <div>
                 <h3>Recent incidents</h3>
-                <p className="muted">
-                  Railway and system events captured in the current audit window.
-                </p>
+                
               </div>
             </div>
             <TerminalLogStream
@@ -431,7 +427,7 @@ const AuditLogs = () => {
             <div className="panel-header">
               <div>
                 <h3>Activity hotspots</h3>
-                <p className="muted">Top actions, sources, and actors from the audit stream.</p>
+                
               </div>
             </div>
             <div className="audit-summary-list">

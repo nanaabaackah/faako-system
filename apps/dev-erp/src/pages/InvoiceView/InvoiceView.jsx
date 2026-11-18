@@ -210,7 +210,7 @@ const InvoiceView = () => {
 
               {canRespond && status !== "responded" ? (
                 <div className="invoice-view-actions">
-                  <p className="muted">Please review the quotation above and indicate your decision.</p>
+                  
                   <div className="invoice-view-actions__buttons">
                     <button
                       className="button button-plain"

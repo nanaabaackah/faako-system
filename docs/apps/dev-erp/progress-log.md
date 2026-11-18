@@ -1100,3 +1100,11 @@ Security impact: None. No auth, permission, secret, or runtime behavior changed.
 Testing done: Documentation structure reviewed for consistency.
 Rollback notes: Remove the added Dev ERP documentation files if this documentation foundation needs to be reverted.
 Next step: Keep this log updated for internal ERP features, demos, backend changes, migrations, and deployment changes.
+
+
+## 2026-11-18 — Single-owner operational workflows (PR #201)
+
+- New manually confirmed invoice payments post atomically with the immutable ledger, invoice balance, accounting projection, idempotency claim and audit record. The same owner can reverse them. Historical pending receipts still require explicit posting or rejection; deployment does not mutate existing records.
+- Legacy proposal readiness checkboxes are no longer part of the interface; existing readiness metadata and client acceptance remain intact. Internal Review is a legacy status, not a new workflow step.
+- New tasks default to the sole available assignee when there is one. An unassigned incident is owned by the authorized operator when acknowledged or resolved; existing assignments are retained. Role assignment is removed from the normal incident interface. Existing configured alert channels and escalation policies remain unchanged. Converted onboarding projects already default to the current authorized owner.
+- No schema migration. Preserve authentication, organization boundaries, immutable posting protections, duplicate and overpayment validation, client acceptance and sync-conflict review. CI and staging single-owner QA are required before merge.

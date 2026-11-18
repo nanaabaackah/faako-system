@@ -39,7 +39,7 @@ export const PROPOSAL_STATUS_TONES = Object.freeze({
 
 export const PROPOSAL_STATUS_DESCRIPTIONS = Object.freeze({
   [PROPOSAL_STATUSES.DRAFT]: "Private working draft.",
-  [PROPOSAL_STATUSES.INTERNAL_REVIEW]: "Internal team review before client sharing.",
+  [PROPOSAL_STATUSES.INTERNAL_REVIEW]: "Legacy review status. Share directly when ready.",
   [PROPOSAL_STATUSES.SHARED]: "Shared for controlled client review.",
   [PROPOSAL_STATUSES.CHANGES_REQUESTED]: "Client requested changes. Revise before invoice handoff.",
   [PROPOSAL_STATUSES.APPROVED]: "Client approved. Ready for invoice draft handoff.",

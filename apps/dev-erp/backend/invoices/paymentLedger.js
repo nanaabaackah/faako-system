@@ -202,6 +202,21 @@ const updateInvoiceProjection = async (tx, invoice, effectiveAt) => {
   return { invoice: updated, accountingEntry };
 };
 
+const postConfirmedPayment = async (tx, { invoice, payment, userId }) => {
+  if (payment.verificationStatus !== "PENDING_VERIFICATION") throw new PaymentError(409, "Only pending payments can be posted.", "INVALID_PAYMENT_STATE");
+  if (["VOID", "DECLINED", "QUOTATION"].includes(invoice.status)) throw new PaymentError(400, "Payments can only be posted for active invoices.");
+  const currentOpening = centsFrom((invoice.legacyPaidAmount ?? invoice.paidAmount ?? 0).toString());
+  const currentLedger = await sumLedgerCents(tx, invoice.id);
+  if (currentOpening + currentLedger + centsFrom(payment.amount.toString()) > centsFrom(invoice.total.toString())) throw new PaymentError(409, "Posting this payment would overpay the invoice.", "OVERPAYMENT");
+  const ledgerEntry = await tx.invoicePaymentLedgerEntry.create({ data: {
+    organizationId: invoice.organizationId, invoiceId: invoice.id, paymentId: payment.id, entryType: "PAYMENT", signedAmount: payment.amount, currency: payment.currency,
+    method: payment.method, externalReference: payment.externalReference, effectiveAt: payment.paymentDate, actorUserId: userId,
+  } });
+  await tx.invoicePayment.update({ where: { id: payment.id }, data: { verificationStatus: "VERIFIED", verifiedByUserId: userId, verifiedAt: new Date() } });
+  const projection = await updateInvoiceProjection(tx, invoice, payment.paymentDate);
+  return { ledgerEntry, projection };
+};
+
 const audit = (tx, req, invoice, action, summary, metadata) => tx.auditLog.create({ data: {
   userId: req.user.userId,
   organizationId: invoice.organizationId,
@@ -352,9 +367,11 @@ export const createInvoicePaymentHandlers = ({ prisma, isGlobalAdmin, serializeI
           paymentDate: new Date(`${payload.paymentDate}T00:00:00.000Z`), evidenceUrl: payload.evidenceUrl, note: payload.note,
           recordedByUserId: req.user.userId, correctsPaymentId: payload.correctsPaymentId,
         }, include: paymentInclude });
-        const response = { invoice: serializeInvoice(invoice), payment: serializeInvoicePayment(payment), settled: false };
-        await completeClaim(tx, claim.id, { paymentId: payment.id, response });
-        await audit(tx, req, invoice, "INVOICE_PAYMENT_RECORDED_PENDING", `Recorded pending ${invoice.currency} ${payload.amount} payment for invoice ${invoice.invoiceNumber}.`, { paymentId: payment.id, transactionId: payment.transactionId, method });
+        const { ledgerEntry, projection } = await postConfirmedPayment(tx, { invoice, payment, userId: req.user.userId });
+        const refreshed = await tx.invoicePayment.findUnique({ where: { id: payment.id }, include: paymentInclude });
+        const response = { invoice: serializeInvoice(projection.invoice), payment: serializeInvoicePayment(refreshed), ledgerEntry: serializeLedgerEntry(ledgerEntry), settled: true };
+        await completeClaim(tx, claim.id, { paymentId: payment.id, ledgerEntryId: ledgerEntry.id, response });
+        await audit(tx, req, invoice, "INVOICE_PAYMENT_RECORDED_POSTED", `Recorded and posted ${invoice.currency} ${payload.amount} payment for invoice ${invoice.invoiceNumber}.`, { paymentId: payment.id, transactionId: payment.transactionId, ledgerEntryId: ledgerEntry.id, method });
         return response;
       });
       return send(res, result, 201);
@@ -373,6 +390,7 @@ export const createInvoicePaymentHandlers = ({ prisma, isGlobalAdmin, serializeI
       if (refund && (req.body?.providerConfirmed !== true || !bounded(req.body?.externalReference, 180))) {
         throw new PaymentError(400, "A refund requires providerConfirmed and an external refund reference.");
       }
+      // Retain the legacy override field in the fingerprint only for replay compatibility.
       const payload = { invoiceId, paymentId, operation, reason, refund, externalReference: bounded(req.body?.externalReference, 180), segregationOverrideReason: bounded(req.body?.segregationOverrideReason, 500) };
       const fingerprint = fingerprintPaymentRequest(payload);
       let organizationId;
@@ -389,17 +407,7 @@ export const createInvoicePaymentHandlers = ({ prisma, isGlobalAdmin, serializeI
         let projection = { invoice, accountingEntry: null };
         if (operation === "VERIFY") {
           if (payment.verificationStatus !== "PENDING_VERIFICATION") throw new PaymentError(409, "Only pending payments can be verified.", "INVALID_PAYMENT_STATE");
-          const currentOpening = centsFrom((invoice.legacyPaidAmount ?? invoice.paidAmount ?? 0).toString());
-          const currentLedger = await sumLedgerCents(tx, invoice.id);
-          if (currentOpening + currentLedger + centsFrom(payment.amount.toString()) > centsFrom(invoice.total.toString())) throw new PaymentError(409, "Verifying this payment would overpay the invoice.", "OVERPAYMENT");
-          ledgerEntry = await tx.invoicePaymentLedgerEntry.create({ data: {
-            organizationId, invoiceId, paymentId, entryType: "PAYMENT", signedAmount: payment.amount, currency: payment.currency,
-            method: payment.method, externalReference: payment.externalReference, effectiveAt: payment.paymentDate,
-            actorUserId: req.user.userId, reason: payload.segregationOverrideReason,
-            metadata: payload.segregationOverrideReason ? { segregationOverrideReason: payload.segregationOverrideReason } : undefined,
-          } });
-          await tx.invoicePayment.update({ where: { id: paymentId }, data: { verificationStatus: "VERIFIED", verifiedByUserId: req.user.userId, verifiedAt: new Date() } });
-          projection = await updateInvoiceProjection(tx, invoice, payment.paymentDate);
+          ({ ledgerEntry, projection } = await postConfirmedPayment(tx, { invoice, payment, userId: req.user.userId }));
         } else if (operation === "REJECT") {
           if (payment.verificationStatus !== "PENDING_VERIFICATION") throw new PaymentError(409, "Only pending payments can be rejected.", "INVALID_PAYMENT_STATE");
           await tx.invoicePayment.update({ where: { id: paymentId }, data: { verificationStatus: "REJECTED", rejectedByUserId: req.user.userId, rejectedAt: new Date(), rejectionReason: reason } });

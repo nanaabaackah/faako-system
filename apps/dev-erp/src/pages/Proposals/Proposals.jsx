@@ -31,9 +31,7 @@ import {
 import { getProposalExportBlocks } from "./proposalExportConfig";
 import ProposalPreview from "./ProposalPreview";
 import {
-  PROPOSAL_REVIEW_CHECKS,
   createDefaultProposalWorkflow,
-  getProposalReadinessSummary,
   getProposalStatusDescription,
   getProposalStatusTone,
 } from "./proposalWorkflow";
@@ -603,7 +601,7 @@ function ProposalSetupPanel({
     <ErpPanel className="proposal-setup-panel">
       <ErpPanelHeader
         title="Proposal setup"
-        description="Adjust the document, save versions, share a secure client link, and hand approved proposals to invoicing."
+        
         actions={(
           <>
             <button
@@ -641,9 +639,7 @@ function ProposalSetupPanel({
               <option value={template.id} key={template.id}>{template.name}</option>
             ))}
         </SelectField>
-        <p className="muted proposal-template-preservation-note">
-          Switching templates keeps client details and any compatible sections you have edited.
-        </p>
+        
         <div className="proposal-editor-grid">
           <FormGroup label="Prepared by">
             <input
@@ -852,10 +848,8 @@ function ProposalWorkflowPanel({
   proposal,
   onStatusChange,
   onWorkflowChange,
-  onReadinessChange,
 }) {
   const workflow = createDefaultProposalWorkflow(proposal.workflow);
-  const readinessSummary = getProposalReadinessSummary(workflow);
   const statusTone = getProposalStatusTone(proposal.status);
   const clientResponse = workflow.clientResponse;
   const clientResponseLabel =
@@ -868,16 +862,14 @@ function ProposalWorkflowPanel({
   return (
     <ErpPanel className="proposal-workflow-panel">
       <ErpPanelHeader
-        title="Review workflow"
-        description="Internal readiness plus client response state from secure proposal links."
+        title="Proposal status"
+        
         actions={(
           <>
             <span className={`status-pill is-${statusTone}`}>
               {getProposalStatusLabel(proposal.status)}
             </span>
-            <span className={readinessSummary.isReady ? "status-pill is-success" : "status-pill is-warning"}>
-              {readinessSummary.completed}/{readinessSummary.total} ready
-            </span>
+
           </>
         )}
       />
@@ -889,7 +881,7 @@ function ProposalWorkflowPanel({
               value={proposal.status || PROPOSAL_STATUSES.DRAFT}
               onChange={(event) => onStatusChange(event.target.value)}
             >
-              {PROPOSAL_STATUS_OPTIONS.map((option) => (
+              {PROPOSAL_STATUS_OPTIONS.filter((option) => option.value !== PROPOSAL_STATUSES.INTERNAL_REVIEW || proposal.status === PROPOSAL_STATUSES.INTERNAL_REVIEW).map((option) => (
                 <option value={option.value} key={option.value}>{option.label}</option>
               ))}
           </SelectField>
@@ -898,37 +890,20 @@ function ProposalWorkflowPanel({
           </div>
         </div>
 
-        <div className="proposal-readiness-grid" aria-label="Approval readiness checks">
-          {PROPOSAL_REVIEW_CHECKS.map((check) => (
-            <label className="proposal-readiness-item" key={check.key}>
-              <input
-                type="checkbox"
-                aria-label={check.label}
-                checked={Boolean(workflow.readiness?.[check.key])}
-                onChange={(event) => onReadinessChange(check.key, event.target.checked)}
-              />
-              <span className="proposal-readiness-item__content">
-                <strong>{check.label}</strong>
-                <small>{check.description}</small>
-              </span>
-            </label>
-          ))}
-        </div>
-
-        <FormGroup label="Internal review notes">
+        <FormGroup label="Private notes">
           <textarea
             className="input"
             value={workflow.reviewNotes}
             onChange={(event) => onWorkflowChange({ reviewNotes: event.target.value })}
-            placeholder="Reviewer notes, readiness concerns, or approval blockers."
+            placeholder="Optional notes"
           />
         </FormGroup>
-        <FormGroup label="Internal comments">
+        <FormGroup label="Additional private notes">
           <textarea
             className="input"
             value={workflow.internalComments}
             onChange={(event) => onWorkflowChange({ internalComments: event.target.value })}
-            placeholder="Lightweight internal comments only. Not a client-facing comment system."
+            placeholder="Optional notes"
           />
         </FormGroup>
         <FormGroup label="Change request notes">
@@ -957,11 +932,7 @@ function ProposalWorkflowPanel({
             {clientResponse.message ? <p>{clientResponse.message}</p> : null}
           </div>
         ) : (
-          <div className="proposal-future-actions" aria-label="Client approval actions">
-            <span>Client actions available on secure shared links</span>
-            <span>Approve proposal</span>
-            <span>Request changes</span>
-          </div>
+          null
         )}
 
         {workflow.statusHistory.length ? (
@@ -1136,23 +1107,6 @@ function Proposals() {
         ...patch,
       },
     }));
-    setHasUnsavedChanges(true);
-  };
-
-  const updateWorkflowReadiness = (key, value) => {
-    setProposal((current) => {
-      const workflow = createDefaultProposalWorkflow(current.workflow);
-      return {
-        ...current,
-        workflow: {
-          ...workflow,
-          readiness: {
-            ...workflow.readiness,
-            [key]: value,
-          },
-        },
-      };
-    });
     setHasUnsavedChanges(true);
   };
 
@@ -1420,10 +1374,7 @@ function Proposals() {
       <section className="proposal-hero" aria-label="Proposal generator overview">
         <div className="proposal-hero__copy">
           <h1>Proposals</h1>
-          <p>
-            Build polished proposals directly on the document, reuse a focused template, and
-            share a secure client review link when the draft is ready.
-          </p>
+          
         </div>
 
         <div className="proposal-search-card" role="search">
@@ -1526,7 +1477,7 @@ function Proposals() {
             <AnimatedLoadingState
               compact
               title="Loading saved proposals"
-              message="Checking your recent drafts."
+              
             />
           ) : null}
           {!isLoadingProposals && !savedProposals.length ? (
@@ -1587,7 +1538,7 @@ function Proposals() {
           <AnimatedLoadingState
             page
             title="Loading proposal"
-            message="Preparing the editable document."
+            
           />
         ) : (
           <>
@@ -1630,7 +1581,6 @@ function Proposals() {
                   proposal={proposal}
                   onStatusChange={updateProposalStatus}
                   onWorkflowChange={updateWorkflow}
-                  onReadinessChange={updateWorkflowReadiness}
                 />
               </aside>
             </section>

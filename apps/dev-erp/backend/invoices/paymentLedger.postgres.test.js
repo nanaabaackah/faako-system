@@ -111,14 +111,18 @@ test("payment migrations and concurrency invariants hold on disposable PostgreSQ
   assert.equal(conflicting.statusCode, 409);
   assert.equal(conflicting.body.code, "IDEMPOTENCY_CONFLICT");
 
-  const verifyRequest = request({ invoiceId: invoice.id, paymentId, userId: users[1].id, organizationId: organization.id, key: `verify-${suffix}` });
-  const verifyResponses = [response(), response()];
-  await Promise.all(verifyResponses.map((res) => handlers.verify(verifyRequest, res)));
-  assert.deepEqual(verifyResponses.map((res) => res.statusCode).sort(), [200, 200]);
+  assert.ok(recordResponses.every((res) => res.body.payment.verificationStatus === "VERIFIED"));
   assert.equal(await prisma.invoicePaymentLedgerEntry.count({ where: { paymentId, entryType: "PAYMENT" } }), 1);
   assert.equal(Number((await prisma.invoice.findUnique({ where: { id: invoice.id } })).paidAmount), 40);
 
-  const reverseRequest = request({ invoiceId: invoice.id, paymentId, userId: users[2].id, organizationId: organization.id, key: `reverse-${suffix}`, body: { reason: "Disposable concurrency test reversal" } });
+  const overpayment = response();
+  await handlers.record(request({ invoiceId: invoice.id, userId: users[0].id, organizationId: organization.id, key: `overpay-${suffix}`, body: { amount: "61.00", method: "CASH" } }), overpayment);
+  assert.equal(overpayment.statusCode, 409);
+  assert.equal(overpayment.body.code, "OVERPAYMENT");
+  assert.equal(await prisma.invoicePayment.count({ where: { invoiceId: invoice.id } }), 1);
+  assert.equal(Number((await prisma.invoice.findUnique({ where: { id: invoice.id } })).paidAmount), 40);
+
+  const reverseRequest = request({ invoiceId: invoice.id, paymentId, userId: users[0].id, organizationId: organization.id, key: `reverse-${suffix}`, body: { reason: "Disposable concurrency test reversal" } });
   const reverseResponses = [response(), response()];
   await Promise.all(reverseResponses.map((res) => handlers.reverse(reverseRequest, res)));
   assert.deepEqual(reverseResponses.map((res) => res.statusCode).sort(), [200, 200]);

@@ -26,12 +26,12 @@ const isValidDateInput = (value) => {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 };
 
-export const buildProjectTaskForm = (task = null) => ({
+export const buildProjectTaskForm = (task = null, assignees = []) => ({
   title: task?.title || "",
   description: task?.description || "",
   status: task?.status || "BACKLOG",
   priority: task?.priority || "MEDIUM",
-  assigneeUserId: task?.assigneeUserId ? String(task.assigneeUserId) : "",
+  assigneeUserId: task?.assigneeUserId ? String(task.assigneeUserId) : !task && assignees.length === 1 ? String(assignees[0].id) : "",
   startDate: toDateInput(task?.startDate),
   dueDate: toDateInput(task?.dueDate),
 });

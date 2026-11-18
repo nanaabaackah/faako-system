@@ -45,7 +45,7 @@ const Organizations = () => {
     <section className="page organizations-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Organization hierarchy</p>
+          
           <h1>Organizations</h1>
           <p className="muted">Last synced {lastSyncedLabel}</p>
         </div>
@@ -99,7 +99,7 @@ const Organizations = () => {
               <div className="panel-header">
                 <div>
                   <h3>Organization structure</h3>
-                  <p className="muted">Parent-child hierarchy and managed organization totals.</p>
+                  
                 </div>
               </div>
               <div className="data-table">
@@ -135,7 +135,7 @@ const Organizations = () => {
               <div className="panel-header">
                 <div>
                   <h3>Organization statuses</h3>
-                  <p className="muted">Status counts across all organizations.</p>
+                  
                 </div>
               </div>
               <div className="list">

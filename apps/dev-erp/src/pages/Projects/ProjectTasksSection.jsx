@@ -65,7 +65,7 @@ export default function ProjectTasksSection({
 
   const openCreate = () => {
     setEditingTaskId(null);
-    setForm(buildProjectTaskForm());
+    setForm(buildProjectTaskForm(null, assignees));
     setFormError("");
     setShowForm(true);
   };
@@ -183,9 +183,9 @@ export default function ProjectTasksSection({
     <article className="panel project-tasks-section">
       <div className="project-tasks-header">
         <div>
-          <p className="eyebrow">Delivery</p>
+          
           <h2>Tasks</h2>
-          <p className="muted">Manage the work required to complete this project.</p>
+          
         </div>
         <div className="project-tasks-header-actions">
           <div className="segmented" role="group" aria-label="Task view">

@@ -153,7 +153,7 @@ const Bookings = () => {
       <header className="page-header">
         <div>
                     <h1>Appointments</h1>
-          <p className="muted">Manage your appointments and send meeting links directly from Faako.</p>
+          
         </div>
         <div className="header-actions">
           <button type="button" className="button button-primary" onClick={() => setCreating(true)}>+ New appointment</button>
@@ -187,7 +187,7 @@ const Bookings = () => {
         <div className="panel-header">
           <div>
             <h3>Appointment schedule</h3>
-            <p className="muted">Select a day to view appointments. Existing Google-synced records are retained.</p>
+            
           </div>
           <button className="button button-ghost" type="button" onClick={() => setSelectedDay(null)}>Show all</button>
         </div>
@@ -218,7 +218,7 @@ const Bookings = () => {
         <div className="panel-header">
           <div>
             <h3>{selectedDay ? "Selected day" : "Upcoming appointments"}</h3>
-            <p className="muted">Open a record to assign a meeting platform and send its joining link.</p>
+            
           </div>
           <input className="input bookings-search" type="search" value={search}
             aria-label="Search appointments" placeholder="Search appointments"
@@ -300,7 +300,7 @@ const Bookings = () => {
                       value={draft.meetingLink}
                       onChange={(event) => setDraft((previous) => ({ ...previous, meetingLink: event.target.value }))} />
                   </label>
-                  <p className="muted">Generate the link in your chosen app and paste it here. The provider URL will be validated before saving.</p>
+                  
                   {hasUnsavedMeetingChanges ? <p className="notice is-warning">Save your edits before sending the joining link.</p> : null}
                   <div className="booking-actions">
                     <button className="button button-primary" type="button" onClick={saveLink} disabled={busy}>{busy ? "Saving..." : "Save meeting details"}</button>

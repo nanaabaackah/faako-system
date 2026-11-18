@@ -536,9 +536,9 @@ export default function Projects() {
     <section className="page projects-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Operations</p>
+          
           <h1>Projects</h1>
-          <p className="muted">Manage personal and external work from one delivery board.</p>
+          
         </div>
         <div className="header-actions">
           {organizations.length ? (
