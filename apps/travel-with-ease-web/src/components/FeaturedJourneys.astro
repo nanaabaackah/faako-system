@@ -1,5 +1,6 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import PackageTicketCard from "./PackageTicketCard.jsx";
 import { packageStartingPrice } from "../lib/package-pricing.js";
@@ -11,10 +12,11 @@ interface Props {
   items: TravelPackage[];
 }
 const { items } = Astro.props;
-const approvedOrder = ["zanzibar", "nairobi"];
+const copy = siteCopy("home");
+const position = (item: TravelPackage) => item.homeFeatureOrder ?? (item.slug === "zanzibar" ? 1 : item.slug === "nairobi" ? 2 : 0);
 const featured = items
-  .filter((item) => approvedOrder.includes(item.slug))
-  .sort((a, b) => approvedOrder.indexOf(a.slug) - approvedOrder.indexOf(b.slug))
+  .filter((item) => position(item) > 0)
+  .sort((a, b) => position(a) - position(b))
   .slice(0, 2);
 ---
 
@@ -23,10 +25,10 @@ const featured = items
     <div class="editorial-wrap">
       <div class="home-section-heading">
         <div>
-          <h2 id="featured-journeys-heading">Discover Journeys worth exploring.</h2>
-          <p>Start with a destination that speaks to you. We'll help shape the details around your dates.</p>
+          <h2 id="featured-journeys-heading">{copy.featuredHeading}</h2>
+          <p>{copy.featuredBody}</p>
         </div>
-        <ContentLink href="/packages">Explore all packages</ContentLink>
+        <ContentLink href="/packages">{copy.featuredCta}</ContentLink>
       </div>
       <div class="featured-journeys__grid">
         {featured.map((item, index) => {

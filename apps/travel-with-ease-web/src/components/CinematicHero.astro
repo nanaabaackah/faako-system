@@ -1,5 +1,6 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import photos from "../lib/approved-preview-media.json";
 import PlacedImage from './PlacedImage.astro';
 import "../styles/components/cinematic-hero.css";
@@ -15,7 +16,10 @@ interface Props {
   } | null;
   placement?: import('../lib/collections').ImagePlacement;
 }
+import { publishedPage } from "../lib/published.js";
 const { heading, body, image, placement={} } = Astro.props;
+const home = publishedPage("home");
+const copy = siteCopy("home");
 const signature = /a little more you\.?/i;
 const parts = heading.split(signature);
 const approved = photos.find((photo) => photo.placement === "hero")!;
@@ -56,16 +60,16 @@ const variants = photos.find((item) =>
     <div class="cinematic-hero__actions">
       <ContentLink
         button
-        href="#plan"
-        >Plan your trip</ContentLink
+        href={home?.ctaPath || "/#plan"}
+        >{home?.ctaLabel || "Plan your trip"}</ContentLink
       >
       <ContentLink href="/packages"
-        >Explore Packages</ContentLink
+        >{copy.heroSecondary}</ContentLink
       >
     </div>
   </div>
   <a
     class="cinematic-hero__scroll"
-    href="#about">Discover more</a
+    href="#about">{copy.heroScroll}</a
   >
 </section>

@@ -8,8 +8,8 @@ const journeys = [
   { value: "planning", label: "Personal Planning" },
 ];
 
-/** @param {{ flows: {package?: {steps: {heading: string, text: string}[]}, planning?: {steps: {heading: string, text: string}[]}} }} props */
-export default function HomeJourneyStepper({ flows }) {
+/** @param {{ flows: {package?: {steps: {heading: string, text: string}[]}, planning?: {steps: {heading: string, text: string}[]}}, copy?: Record<string,string> }} props */
+export default function HomeJourneyStepper({ flows, copy = {} }) {
   const [active, setActive] = useState("package");
   const tabs = useRef([]);
   const id = useId();
@@ -45,7 +45,7 @@ export default function HomeJourneyStepper({ flows }) {
             onClick={() => changeFlow(journey.value)}
             onKeyDown={event => handleTabKeys(event, index)}
           >
-            {journey.label}
+            {(journey.value === "package" ? copy.packageTab : copy.planningTab) || journey.label}
           </button>
         ))}
       </div>
@@ -76,9 +76,9 @@ export default function HomeJourneyStepper({ flows }) {
         completeButtonText="Finish"
         completedContent={
           <div className="journey-process__finished">
-            <h3>Ready when you are.</h3>
-            <p>Share your ideas and we'll help you work out your next steps.</p>
-            <a className="journey-process__action" href="#plan">Plan my trip</a>
+            <h3>{copy.finishHeading || "Ready when you are."}</h3>
+            <p>{copy.finishBody || "Share your ideas and we'll help you work out your next steps."}</p>
+            <a className="journey-process__action" href="#plan">{copy.finishCta || "Plan my trip"}</a>
           </div>
         }
         style={{

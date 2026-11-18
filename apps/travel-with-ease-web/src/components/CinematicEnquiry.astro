@@ -3,6 +3,7 @@ import PublicFooter from "./PublicFooter.astro";
 import EnquiryForm from "./EnquiryForm.jsx";
 import photography from "../lib/assigned-photography.json";
 import { publishedPage } from '../lib/published.js';
+import { siteCopy } from "../lib/editorial-copy.js";
 import PlacedImage from './PlacedImage.astro';
 import "../styles/components/cinematic-enquiry.css";
 // One continuous image covers the enquiry and transparent footer together.
@@ -10,6 +11,8 @@ import "../styles/components/cinematic-enquiry.css";
 const photo = photography.footer;
 const selected=publishedPage('site-appearance')?.imagePlacements?.['footer-background'];
 const placement={focalY:60,mobileFocalY:50,mobileImage:!selected?.image&&!selected?.mobileImage?{src:'/media/zanzibar-beach-club-b60ec1e6297a-1920.webp',width:1920,height:3413,alt:''}:null,...selected};
+const contactCopy = siteCopy("contact");
+const sharedCopy = siteCopy("site-appearance");
 const catalogue = Astro.props.catalogue || { services: [], packages: [] };
 ---
 
@@ -31,16 +34,16 @@ const catalogue = Astro.props.catalogue || { services: [], packages: [] };
         ]}
       >
         <div class="cinematic-enquiry__copy">
-          <h2 id="enquiry-heading">Where would you<br />like to go?</h2>
+          <h2 id="enquiry-heading">{contactCopy.enquiryHeading === "Where would you like to go?" ? <>Where would you<br />like to go?</> : contactCopy.enquiryHeading}</h2>
           <p>
-            Start a conversation about your next journey.
+            {contactCopy.enquiryBody}
           </p>
           <slot name="intro" />
         </div>
         {
           (
             <div class="cinematic-enquiry__form">
-              <EnquiryForm client:load catalogue={catalogue} />
+              <EnquiryForm client:load catalogue={catalogue} copy={{submitLabel:contactCopy.enquiryCta,whatsappLabel:contactCopy.whatsappCta,whatsappUrl:sharedCopy.whatsappUrl}} />
             </div>
           )
         }
