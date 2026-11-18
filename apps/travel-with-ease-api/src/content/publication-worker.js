@@ -4,15 +4,13 @@ import { tmpdir } from "node:os";
 import { manifestDigest } from "./publication.js";
 import { preparePublication, verifyPublishedMarker } from "./artifact.js";
 import { publicBuildEnvironment, runReviewedCommand } from "./build.js";
+import { assertPublicationSource } from "./source-identity.js";
 
 export async function publishOne({ publication, media, provider, archive, settings, prepare = preparePublication,
   run = runReviewedCommand, verify = verifyPublishedMarker, logger = {} }) {
   // Validate the reviewed source before claiming a job; never build newer code
   // just because it happens to be deployed on Railway.
-  const sha = await run("git", ["rev-parse", "HEAD"], { PATH: process.env.PATH });
-  if (sha !== settings.sourceSha) throw new Error("Worker source does not match the approved release.");
-  const dirty = await run("git", ["status", "--porcelain", "--", "apps/travel-with-ease-api", "apps/travel-with-ease-web", "packages", "package.json", "pnpm-lock.yaml"], { PATH: process.env.PATH });
-  if (dirty) throw new Error("Publication requires a clean reviewed checkout.");
+  const sha = await assertPublicationSource(settings.sourceSha, { run });
   const job = await publication.claim();
   if (!job) return { status: "idle" };
   let directory, previous, recovery, recoveryDirectory, deploymentStarted = false, deployed, confirmed = false, confirmationStarted = false;
