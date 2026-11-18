@@ -37,9 +37,9 @@ if (form?.dataset.api && form.dataset.sitekey) {
   fields.disabled=true;
   try {
    await client.post("/api/enquiries",{json:{name:String(data.get("name")||"").trim(),email:String(data.get("email")||"").trim(),topic:data.get("topic"),message:String(data.get("message")||"").trim(),website:String(data.get("website")||""),consent:data.get("consent")==="on",turnstileToken:token,submissionId},signal:AbortSignal.timeout(30000)});
-   form.reset();submissionId=crypto.randomUUID();deliveryOutcome="Thank you. Your enquiry has been sent to the TTNGH team.";status.textContent=deliveryOutcome;setAsyncButtonState(submit,"success");
+   form.reset();submissionId=crypto.randomUUID();deliveryOutcome="Your enquiry has been received.";status.textContent=deliveryOutcome;setAsyncButtonState(submit,"success");
   } catch {
-   deliveryOutcome="Delivery could not be confirmed. Please complete a new security check and try again, or use the contact details on this page.";status.textContent=deliveryOutcome;setAsyncButtonState(submit,"error");
+   deliveryOutcome="We couldn’t send your enquiry. Complete a new security check and try again, or contact us directly.";status.textContent=deliveryOutcome;setAsyncButtonState(submit,"error");
   } finally {busy=false;fields.disabled=false;token="";submit.disabled=submit.dataset.asyncState!=="error";form.removeAttribute("aria-busy");provider?.reset(widget);status.focus();}
  });
 }
