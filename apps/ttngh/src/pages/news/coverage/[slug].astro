@@ -14,7 +14,7 @@ const path = `/news/coverage/${story.slug}`;
       <figure><img src={story.image.src} width={story.image.width} height={story.image.height} alt={story.image.alt} fetchpriority="high" decoding="async" /></figure>
       <div class="press-body">{story.paragraphs.map(paragraph => <p>{paragraph}</p>)}</div>
       <figure><img src={story.supportingImage.src} width={story.supportingImage.width} height={story.supportingImage.height} alt={story.supportingImage.alt} loading="lazy" decoding="async" /></figure>
-      <aside class="press-source" aria-labelledby="source-title"><h2 id="source-title">Read the full story</h2><p>This page is a short TTNGH summary, not a reproduction of the publisher's article.</p><a class="text-link" href={story.href}>Full report on {story.publisher} <Icon name="arrow-right" /></a></aside>
+      <aside class="press-source" aria-labelledby="source-title"><h2 id="source-title">Read the full story</h2><a class="text-link" href={story.href}>Full report on {story.publisher} <Icon name="arrow-right" /></a></aside>
       <a class="text-link" href="/gallery#odorgonno-nilee-consult">Explore the event gallery <Icon name="arrow-right" /></a>
     </article>
   </main>
