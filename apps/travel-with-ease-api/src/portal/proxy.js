@@ -24,7 +24,7 @@ const routes = [
   ["GET", new RegExp(`^/api/agent/content(?:/publication-jobs|/${page}(?:/(?:preview|revisions))?)?/?$`)],
   ["GET", new RegExp(`^/api/agent/content/previews/${id}(?:/files/(?!.*(?:\\.\\.|//))(?:[a-zA-Z0-9_./-]|%20){1,500})?$`)],
   ["POST", new RegExp(`^/api/agent/content/${page}/visual-preview$`)],
-  ["POST", new RegExp(`^/api/agent/content/(?:publication-jobs/${id}/retry|${page}/(?:draft|publish|unpublish|revert/${id}))$`)],
+  ["POST", new RegExp(`^/api/agent/content/(?:publication-jobs/${id}/(?:retry|cancel)|${page}/(?:draft|publish|unpublish|revert/${id}))$`)],
   ["GET", new RegExp(`^/api/agent/media(?:/${id}/preview)?/?$`)],
   ["POST", new RegExp(`^/api/agent/media/(?:upload|${id}/(?:replace|archive))$`)],
 ];

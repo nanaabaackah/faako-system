@@ -16,6 +16,12 @@ test("portal upstream allows only fixed HTTPS origins outside local tests", () =
   assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/administration/handover"), true);
   assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/administration/handover/${handoverId}/approve`), true);
   assert.equal(isAllowedPortalApiRoute("GET", `/api/agent/administration/handover/${handoverId}/approve`), false);
+  const publicationId = "134c845f-49e7-4566-8752-a23a3ad0185c";
+  assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/content/publication-jobs/${publicationId}/cancel`), true);
+  assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/content/publication-jobs/${publicationId}/retry`), true);
+  assert.equal(isAllowedPortalApiRoute("GET", `/api/agent/content/publication-jobs/${publicationId}/cancel`), false);
+  assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/content/publication-jobs/bad/cancel"), false);
+  assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/content/publication-jobs/${publicationId}/delete`), false);
 });
 
 test("portal verifies Access, restricts proxy routes and preserves only scoped credentials", async () => {
@@ -73,14 +79,26 @@ test("portal verifies Access, restricts proxy routes and preserves only scoped c
     assert.equal(calls[0].options.headers.authorization, undefined);
     assert.equal(calls[0].options.headers["x-forwarded-for"], undefined);
     assert.equal(calls[0].options.redirect, "manual");
+    const publicationId = "134c845f-49e7-4566-8752-a23a3ad0185c";
+    const cancelPath = `/api/agent/content/publication-jobs/${publicationId}/cancel`;
+    const cancel = await request(cancelPath, { method: "POST", body: "{}", headers: {
+      origin: settings.portalOrigin, "content-type": "application/json", "x-csrf-token": "fixture-csrf",
+      cookie: "__Host-twe_session=fixture",
+    } });
+    assert.equal(cancel.status, 200);
+    assert.equal(calls[1].url, `https://api.example.test${cancelPath}`);
+    assert.equal(calls[1].options.method, "POST");
+    assert.equal(calls[1].options.headers["x-csrf-token"], "fixture-csrf");
+    assert.equal(calls[1].options.headers.cookie, "__Host-twe_session=fixture");
+    assert.equal((await request(cancelPath, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status, 403);
     assert.equal((await request("/api/auth/session", { headers: { cookie: "__Host-twe_session=a; __Host-twe_session=b" } })).status, 400);
     assert.equal((await request("/api/auth/access-session", { method: "POST", headers: { origin: settings.portalOrigin, "content-type": "application/json" }, body: "x".repeat(32769) })).status, 413);
-    assert.equal(calls.length, 1);
+    assert.equal(calls.length, 2);
     upstreamStatus = 302;
     const redirect = await request("/api/auth/session");
     assert.equal(redirect.status, 502);
     assert.equal(redirect.headers.location, undefined);
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     upstreamFailure = true;
     const unavailable = await request("/api/auth/session");
     assert.equal(unavailable.status, 502);
