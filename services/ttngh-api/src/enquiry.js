@@ -23,7 +23,7 @@ export async function verifyTurnstile(token, config, request = fetch) {
 export async function sendEmail(message, key, config, request = fetch) {
   const response = await request("https://api.resend.com/emails", {
     method: "POST", headers: { Authorization: `Bearer ${config.resendKey}`, "Content-Type": "application/json", "Idempotency-Key": key },
-    body: JSON.stringify({ from: `The Thriving Network GH <${config.from}>`, ...message, ...(message.to[0] === config.to ? {} : { reply_to: config.replyTo }) }), redirect: "error", signal: AbortSignal.timeout(10000),
+    body: JSON.stringify({ from: `The Thriving Network GH <${config.from}>`, ...message, ...("reply_to" in message ? {} : { reply_to: config.replyTo }) }), redirect: "error", signal: AbortSignal.timeout(10000),
   });
   if (!response.ok) throw new Error("Email delivery unavailable");
   const result = await response.json();
