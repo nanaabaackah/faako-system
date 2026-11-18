@@ -297,6 +297,22 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }
   }
 
+  async function cancelStalePublication(job) {
+    if (!window.confirm("Cancel this older pending publication? It will not deploy. Saved drafts and publication history will be preserved.")) return;
+    setState({ loading: true, error: "", message: "" });
+    try {
+      await api.post(`/api/agent/content/publication-jobs/${job.id}/cancel`, {
+        responseMode: "data",
+        headers: { "X-CSRF-Token": session.csrfToken },
+      });
+      const result = await api.get("/api/agent/content/publication-jobs", { responseMode: "data" });
+      setJobs(result.items);
+      setState({ loading: false, error: "", message: "Pending publication cancelled. Your saved drafts are unchanged." });
+    } catch (error) {
+      setState({ loading: false, error: error.message, message: "" });
+    }
+  }
+
   return (
     <section
       className="content-editor website-workspace"
@@ -1205,11 +1221,12 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             Refresh publication status
           </Button>
         </div>
-        <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
+        <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
           renderAction={job=><>
             {job.environment&&<p>Environment: {job.environment}</p>}
             {job.target&&<p>Saved version: {job.target.version}{job.target.recordSlug&&` · ${job.target.recordSlug}`}</p>}
-            {job.status==='failed'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading} onClick={()=>publication('retry',job.id)}>Retry failed publication</Button>}
+            {job.status==='pending' && canPublish && Date.now() - Date.parse(job.created_at) >= 30 * 60 * 1000 && <Button type="button" disabled={state.loading} onClick={()=>cancelStalePublication(job)}>Cancel stale publication</Button>}
+            {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading} onClick={()=>publication('retry',job.id)}>Retry failed publication</Button>}
           </>}/>
       </section>
       {preview && !visualPreview && (
