@@ -5,11 +5,12 @@ import { isValidSignature, decodeSignatureHeader } from "@sanity/webhook";
 import { createErrorResponse, createSuccessResponse, errorCodeForStatus } from "@faako/api-contracts";
 import { createRequestContextMiddleware } from "@faako/logger";
 import { buildApiSecurityHeaders } from "@faako/security";
-import { enquirySchema, verifyTurnstile, sendEmail, staffMessage, acknowledgementMessage } from "./enquiry.js";
+import { enquirySchema, verifyTurnstile } from "./enquiry.js";
+import { processPendingEnquiries } from "./contact/delivery.js";
 import { mountCalendar } from "./calendar/route.js";
 
 const types = new Set(["siteSettings", "homePage", "programme", "event", "newsArticle", "resource", "teamMember", "impactStat", "partner"]);
-export function createApp(config, { request = fetch, verifySignature = isValidSignature } = {}) {
+export function createApp(config, { request = fetch, verifySignature = isValidSignature, enquiryStore } = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", config.trustedProxies.length ? config.trustedProxies : false);
@@ -36,20 +37,32 @@ export function createApp(config, { request = fetch, verifySignature = isValidSi
     if (!parsed.success) return fail(req, res, 400, "Please check the required fields and privacy consent.");
     const input = parsed.data;
     if (input.website) return fail(req, res, 400, "Unable to submit this enquiry.");
+    if (!enquiryStore) return fail(req, res, 503, "Enquiries are temporarily unavailable. Please use our contact details.");
     try {
-      if (!await verifyTurnstile(input.turnstileToken, config, request)) return fail(req, res, 400, "Verification expired or failed. Please complete a new check.");
-      await sendEmail(staffMessage(input, config), `ttngh-enquiry/${input.submissionId}`, config, request);
+      if (!await verifyTurnstile(input.turnstileToken, config, request))
+        return fail(req, res, 400, "Verification expired or failed. Please complete a new check.");
     } catch {
-      req.log.warn({ event: "enquiry_delivery_unavailable" });
-      return fail(req, res, 503, "Delivery could not be confirmed. Please try again or contact the team directly.");
+      req.log.warn({ event: "enquiry_verification_unavailable" });
+      return fail(req, res, 503, "Security verification is temporarily unavailable. Please try again.");
     }
-    // Staff delivery determines success. Acknowledgement is opt-in and never echoes message content.
-    if (config.acknowledgement) {
-      try { await sendEmail(acknowledgementMessage(input), `ttngh-ack/${input.submissionId}`, config, request); }
-      catch { req.log.warn({ event: "enquiry_acknowledgement_unavailable" }); }
+    try {
+      await enquiryStore.create(input, { acknowledgement: config.acknowledgement });
+    } catch {
+      req.log.warn({ event: "enquiry_storage_unavailable" });
+      return fail(req, res, 503, "Your enquiry could not be saved. Please try again.");
     }
-    req.log.info({ event: "enquiry_accepted" });
-    return ok(req, res, { accepted: true });
+    // Persistence is the acceptance boundary. Provider outages cannot lose the
+    // message; the durable outbox worker retries without asking the visitor.
+    try {
+      const outcome = await processPendingEnquiries(enquiryStore, config, {
+        request, submissionId: input.submissionId, limit: 2
+      });
+      if (outcome.failed) req.log.warn({ event: "enquiry_notification_queued" });
+    } catch {
+      req.log.warn({ event: "enquiry_dispatch_deferred" });
+    }
+    req.log.info({ event: "enquiry_saved" });
+    return ok(req, res, { accepted: true, reference: input.submissionId });
   });
   const received = new Map();
   app.post("/api/webhooks/sanity", rateLimit({ windowMs: 60000, limit: 30, standardHeaders: "draft-8", legacyHeaders: false, handler: (req, res) => fail(req, res, 429, "Please retry later.") }), express.text({ type: "application/json", limit: "16kb", inflate: false }), async (req, res) => {
