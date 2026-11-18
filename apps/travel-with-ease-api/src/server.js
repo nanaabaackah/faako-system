@@ -24,6 +24,7 @@ import { PostgresAuthStore } from "./auth/store.js";
 import { createStaffAuth } from "./auth/routes.js";
 import { ContentRepository } from "./content/repository.js";
 import { PublicationRepository } from "./content/publication.js";
+import { railwaySourceSha } from "./content/source-identity.js";
 import { PreviewService } from "./content/preview.js";
 import { MediaService } from "./media/service.js";
 import { readR2Config, R2Store } from "./media/r2.js";
@@ -83,7 +84,7 @@ if (administration) staffAuth.administrationRouter = administrationRoutes(admini
 if (pool && authSettings) staffAuth.router.use(tutorialRoutes(new TutorialService(pool, process.env.TWE_ORGANISATION_ID), staffAuth));
 if (pool && authSettings?.mode === "cloudflare_access") staffAuth.router.use(invitationRoutes(new Invitations(pool, process.env.TWE_ORGANISATION_ID, authSettings, environment, process.env.TWE_SETUP_OPERATOR_SUBJECT, readInvitationDeliveryConfig(process.env)), staffAuth));
 const contentRepository = pool ? new ContentRepository(pool, process.env.TWE_ORGANISATION_ID) : null;
-const publicationRepository = pool ? new PublicationRepository(pool, { organisationId: process.env.TWE_ORGANISATION_ID, environment, sourceSha: process.env.TWE_RELEASE_SHA }) : null;
+const publicationRepository = pool ? new PublicationRepository(pool, { organisationId: process.env.TWE_ORGANISATION_ID, environment, sourceSha: railwaySourceSha(process.env) }) : null;
 const mediaSettings = readR2Config();
 if (mediaSettings && !pool) throw new Error("Media storage requires PostgreSQL.");
 let driveReader = null;

@@ -72,7 +72,7 @@ or historic migration rewrite. Downgrade needs separate assessment.
 | `TWE_CMS_PREVIEW_ENABLED` | API; enable after resource/build acceptance |
 | `TWE_PUBLICATION_WORKER_ENABLED` | Publishing worker activation |
 | `TWE_NOTIFICATION_WORKER_ENABLED` | Notification worker activation |
-| `TWE_RELEASE_SHA` | Full reviewed SHA equal to clean worker checkout |
+| `RAILWAY_GIT_COMMIT_SHA` | Railway-injected Git commit identity (not operator configured); API and worker must deploy the same reviewed commit |
 | `TWE_PAGES_PROJECT` | Publishing worker: twe-concierge |
 | `TWE_PAGES_BRANCH` | develop staging, main production |
 | `TWE_PAGES_ACCOUNT_ID` | Account identifier |
@@ -85,8 +85,7 @@ or historic migration rewrite. Downgrade needs separate assessment.
 
 Reuse environment-specific runtime DB/tenant/TLS/R2/Resend settings. Set secrets
 directly with providers, not in chat/Git. The background worker is not another
-portal service. Its checkout must retain Git provenance and pinned dependencies;
-missing identity fails closed. API health is not proof of worker acceptance.
+portal service. Git-linked Railway deploys must expose their commit identity; if Git metadata is available it is checked against the deployment SHA. Missing or conflicting identity fails closed. API health is not proof of worker acceptance.
 
 After acceptance, configure short non-overlapping provider schedules:
 

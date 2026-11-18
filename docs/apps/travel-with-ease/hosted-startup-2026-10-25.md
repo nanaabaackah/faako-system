@@ -10,9 +10,10 @@ It does not certify production acceptance or activate background workers.
   The process-local receipt binds environment, tenant, pool, persistent Access
   sessions, issuer, audience and exact allowed origins. Receipts cannot cross
   environments or be supplied as configuration flags.
-- `TWE_RELEASE_SHA` is no longer an API startup prerequisite. The existing
-  publication repository still refuses publishing without a valid reviewed SHA.
-  Operators must configure the reviewed revision before enabling publication.
+- Source SHA is not an API startup prerequisite. Hosted publication reads Railway's
+  automatically injected `RAILWAY_GIT_COMMIT_SHA`; without a valid reviewed Git-linked
+  deployment identity the publication repository refuses to queue content.
+  Operators do not manually maintain the SHA variable.
 - Keep explicit `APP_ENV`, production `NODE_ENV`, HTTPS origins, Cloudflare
   Access, organisation identity, PostgreSQL 17, non-superuser/non-BYPASSRLS
   runtime role and exact migration checksums. These are not obsolete guards.

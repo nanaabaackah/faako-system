@@ -40,7 +40,7 @@ test("unverified deployment rolls back before marking failed; build failure neve
 });
 test("wrong checkout refuses before claiming; no background retry of unsafe provider deployment", async () => {
   const f = fixture({ run: async () => "different-source" });
-  await assert.rejects(publishOne(f.options), /approved release/); assert.deepEqual(f.events, []);
+  await assert.rejects(publishOne(f.options), /approved publication source/); assert.deepEqual(f.events, []);
   const second = fixture(); second.options.provider.deploy = async () => { throw new Error("Timeout after possible provider commit"); };
   assert.equal((await publishOne(second.options)).status, "deploying");
   assert.equal(second.events.includes("failed"), false); assert.equal(second.events.includes("rolled-back"), false);
@@ -52,9 +52,11 @@ test("lost database confirmation acknowledgement reconciles live without rolling
   assert.equal(f.events.includes("rolled-back"), false);
 });
 test("provider configuration pins environment, exact public origin, account, project, source and branch", () => {
-  const env = { APP_ENV: "staging", TWE_PUBLICATION_WORKER_ENABLED: "true", TWE_PUBLIC_SITE_ORIGIN: "https://staging.travelwitheasegh.com", TWE_PAGES_BRANCH: "develop", TWE_PAGES_ACCOUNT_ID: "a".repeat(32), TWE_PAGES_PROJECT: "twe-staging", TWE_PAGES_API_TOKEN: "test-only-not-a-credential", TWE_RELEASE_SHA: sha };
+  const env = { APP_ENV: "staging", TWE_PUBLICATION_WORKER_ENABLED: "true", TWE_PUBLIC_SITE_ORIGIN: "https://staging.travelwitheasegh.com", TWE_PAGES_BRANCH: "develop", TWE_PAGES_ACCOUNT_ID: "a".repeat(32), TWE_PAGES_PROJECT: "twe-staging", TWE_PAGES_API_TOKEN: "test-only-not-a-credential", RAILWAY_GIT_COMMIT_SHA: sha };
   assert.equal(readPagesConfiguration(env).branch, "develop");
-  for (const changed of [{ APP_ENV: "development" }, { TWE_PAGES_BRANCH: "main" }, { TWE_PUBLIC_SITE_ORIGIN: "https://attacker.invalid" }, { TWE_PAGES_PROJECT: "../another" }, { TWE_PAGES_API_TOKEN: "" }, { TWE_RELEASE_SHA: "latest" }]) assert.throws(() => readPagesConfiguration({ ...env, ...changed }));
+  assert.equal(readPagesConfiguration(env).sourceSha, sha);
+  assert.equal(readPagesConfiguration({ ...env, TWE_RELEASE_SHA: "b".repeat(40) }).sourceSha, sha);
+  for (const changed of [{ APP_ENV: "development" }, { TWE_PAGES_BRANCH: "main" }, { TWE_PUBLIC_SITE_ORIGIN: "https://attacker.invalid" }, { TWE_PAGES_PROJECT: "../another" }, { TWE_PAGES_API_TOKEN: "" }, { RAILWAY_GIT_COMMIT_SHA: "" }, { RAILWAY_GIT_COMMIT_SHA: "latest" }]) assert.throws(() => readPagesConfiguration({ ...env, ...changed }));
 });
 test("provider refuses a project with an unexpected production branch before upload", async () => {
   const provider = new PagesProvider({ accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" }, { fetcher: async () => ({ ok: true, json: async () => ({ success: true, result: { production_branch: "unexpected" } }) }) });
