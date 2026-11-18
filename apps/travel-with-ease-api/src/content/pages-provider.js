@@ -1,6 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runReviewedCommand } from "./build.js";
+import { requireRailwaySourceSha } from "./source-identity.js";
 
 export function readPagesConfiguration(env = process.env) {
   const environment = env.APP_ENV;
@@ -8,8 +9,8 @@ export function readPagesConfiguration(env = process.env) {
   const expectedOrigin = environment === "production" ? "https://travelwitheasegh.com" : "https://staging.travelwitheasegh.com";
   const branch = environment === "production" ? "main" : "develop";
   if (env.TWE_PUBLIC_SITE_ORIGIN !== expectedOrigin || env.TWE_PAGES_BRANCH !== branch ||
-    !/^[a-f0-9]{32}$/.test(env.TWE_PAGES_ACCOUNT_ID || "") || !/^[a-z0-9][a-z0-9-]{0,57}$/.test(env.TWE_PAGES_PROJECT || "") || !env.TWE_PAGES_API_TOKEN?.trim() || !/^[a-f0-9]{40}$/.test(env.TWE_RELEASE_SHA || "")) throw new Error("Environment-scoped Pages configuration is incomplete.");
-  return { environment, origin: expectedOrigin, branch, accountId: env.TWE_PAGES_ACCOUNT_ID, project: env.TWE_PAGES_PROJECT, token: env.TWE_PAGES_API_TOKEN, sourceSha: env.TWE_RELEASE_SHA };
+    !/^[a-f0-9]{32}$/.test(env.TWE_PAGES_ACCOUNT_ID || "") || !/^[a-z0-9][a-z0-9-]{0,57}$/.test(env.TWE_PAGES_PROJECT || "") || !env.TWE_PAGES_API_TOKEN?.trim()) throw new Error("Environment-scoped Pages configuration is incomplete.");
+  return { environment, origin: expectedOrigin, branch, accountId: env.TWE_PAGES_ACCOUNT_ID, project: env.TWE_PAGES_PROJECT, token: env.TWE_PAGES_API_TOKEN, sourceSha: requireRailwaySourceSha(env) };
 }
 
 export class PagesProvider {
