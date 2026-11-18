@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
+import { publishedServices } from "../src/lib/services.js";
 import photos from "../src/lib/journey-photography.json" with { type: "json" };
 
 const source = file => readFileSync(new URL("../src/" + file, import.meta.url), "utf8");
@@ -15,9 +16,16 @@ test("selected journey chapters keep the real hero and CTA and one footprint hea
   assert.doesNotMatch(home, /<h2>\{footprint.heading\}/);
   const overview = source("components/HomeServices.astro");
   assert.match(overview, /entries\.map\(/);
-  assert.match(overview, /\/services\/\$\{serviceSlug\(entry.heading\)\}/);
+  assert.match(overview, /\/services\/\$\{entry\.serviceSlug \|\| serviceSlug\(entry\.heading\)\}/);
   const panels = source("components/ServicePanels.astro");
-  assert.match(panels, /<ContentLink href=\{`\/services\/\$\{serviceSlug\(entry.heading\)\}`\}/);
+  assert.match(panels, /<ContentLink href=\{`\/services\/\$\{entry\.serviceSlug \|\| serviceSlug\(entry\.heading\)\}`\}/);
+  const [renamed, legacy] = publishedServices({ entries: [
+    { heading: "Updated service name", serviceSlug: "original-service" },
+    { heading: "Legacy service" },
+  ] });
+  assert.equal(renamed.slug, "original-service");
+  assert.equal(renamed.title, "Updated service name");
+  assert.equal(legacy.slug, "legacy-service");
   assert.doesNotMatch(panels, /<figcaption|onClick|window.location/);
   assert.match(source("styles/components/journey-editorial.css"), /prefers-reduced-motion: no-preference/);
 });

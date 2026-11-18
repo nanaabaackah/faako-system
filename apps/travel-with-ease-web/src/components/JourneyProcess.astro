@@ -5,6 +5,7 @@ import { imagePlacement } from "../lib/image-placements.js";
 import "../styles/components/journey-editorial.css";
 import "../styles/components/planning-process.css";
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import HomeJourneyStepper from "./HomeJourneyStepper.jsx";
 import HowItWorksTabs from "./HowItWorksTabs.astro";
 interface Step { heading:string; text:string }
@@ -24,6 +25,7 @@ const photo = imagePlacement(content,"feature",photography.park);
 // Homepage and dedicated page both use the same client-approved, CMS-authored
 // processes. Keep the original photograph and homepage React Bits stepper.
 const homepageFlows = content.processFlows;
+const copy = siteCopy("how-it-works");
 ---
 
 <section class:list={["journey-process editorial-wrap", { "planning-process": page, "journey-process--option-a": !page }]} id="how-it-works" data-image-layout={photo.layout}>
@@ -36,12 +38,12 @@ const homepageFlows = content.processFlows;
     ) : (
       <>
         {homepageFlows?.package?.steps?.length === 4 && homepageFlows?.planning?.steps?.length === 4 && (
-          <HomeJourneyStepper flows={homepageFlows} client:visible />
+          <HomeJourneyStepper flows={homepageFlows} client:visible copy={copy} />
         )}
         <noscript>
           {(["package", "planning"] as const).map((flow) => homepageFlows?.[flow]?.steps?.length === 4 && (
             <section class="journey-process__noscript-flow">
-              <h3>{flow === "package" ? "Packages" : "Personal Planning"}</h3>
+              <h3>{flow === "package" ? copy.packageTab : copy.planningTab}</h3>
               <ol class="journey-process__fallback">
                 {homepageFlows[flow].steps.map((step, index) => (
                   <li>
@@ -53,7 +55,7 @@ const homepageFlows = content.processFlows;
             </section>
           ))}
         </noscript>
-        <p class="journey-process__other-flow"><ContentLink href="/how-it-works">Explore both processes in detail</ContentLink></p>
+        <p class="journey-process__other-flow"><ContentLink href="/how-it-works">{copy.detailsLink}</ContentLink></p>
       </>
     )}
   </div>

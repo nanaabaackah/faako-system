@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { packageOccasions } from "./catalogue-constants.js";
+import { packageOccasions, serviceSlug } from "./catalogue-constants.js";
+import { editorialFields } from "./editorial-fields.js";
 import { placementSlots } from './placement-catalogue.js';
 
 export const pageNames = [
@@ -38,6 +39,7 @@ const packageSchema = z
     tagline: text(200).default(""),
     occasions: z.array(z.enum(packageOccasions.map(item => item.value))).max(5).default([]).refine(items => new Set(items).size === items.length, "Choose each occasion once."),
     groupFriendly: z.boolean().default(false),
+    homeFeatureOrder: z.number().int().min(0).max(2).optional(),
     nights: z.number().int().min(0).max(100).nullable().default(null),
     days: z.number().int().min(1).max(101).nullable().default(null),
     pricingStatus: z.enum(["indicative", "coming_soon"]).default("coming_soon"),
@@ -59,6 +61,8 @@ const packageSchema = z
     imageId: z.string().uuid().nullable().default(null),
     imagePlacement:imagePlacementSchema.optional(),
     galleryImageIds: z.array(z.string().uuid()).max(12).default([]),
+    retainApprovedGallery: z.boolean().default(true),
+    retainApprovedImage: z.boolean().default(true),
     highlights: z.array(text(300).min(1)).max(20).default([]),
     inclusions: z.array(text(300).min(1)).max(20).default([]),
     exclusions: z.array(text(300).min(1)).max(20).default([]),
@@ -143,6 +147,8 @@ const articleSchema = z
     imagePlacement:imagePlacementSchema.optional(),
     imageId: z.string().uuid().nullable().default(null),
     galleryImageIds: z.array(z.string().uuid()).max(12).default([]),
+    retainApprovedGallery: z.boolean().default(true),
+    retainApprovedImage: z.boolean().default(true),
     relatedPackageSlugs: z.array(slug).max(8).default([]),
   })
   .strict();
@@ -150,6 +156,8 @@ export const contentBodySchema = z
   .object({
     heading: text(120).min(1),
     body: text(6000),
+    editorialCopy: z.record(text(2000).min(1)).default({}),
+    reviews: z.array(z.object({ preview: text(3000).min(1), more: text(6000) }).strict()).max(30).optional(),
     ctaLabel: text(60).default(""),
     ctaPath: z
       .enum(["/#plan", "/about", "/services", "/destinations", "/packages", "/journal", "/travel-tips", "/contact", "/how-it-works", "/travel-footprint"])
@@ -182,6 +190,7 @@ export const contentBodySchema = z
             id:z.string().uuid().optional(),
             imagePlacement:imagePlacementSchema.optional(),
             heading: text(160).min(1),
+            serviceSlug: slug.optional(),
             text: text(2000).min(1),
             attribution: text(160).default(""),
           })
@@ -259,10 +268,21 @@ export const contentBodySchema = z
 export function contentForPage(page, body) {
   pageSchema.parse(page);
   const value = contentBodySchema.parse(body);
+  const editorialKeys = new Set((editorialFields[page] || []).map(([key]) => key));
+  for (const [key, copy] of Object.entries(value.editorialCopy)) {
+    if (!editorialKeys.has(key)) throw new ContentError(400, "validation_error", "Choose a supported editorial field for this section.");
+    const socialPatterns = { instagramUrl: /^https:\/\/www\.instagram\.com\/[a-zA-Z0-9_.]+\/?$/, tiktokUrl: /^https:\/\/www\.tiktok\.com\/@[a-zA-Z0-9_.]+\/?$/, whatsappUrl: /^https:\/\/wa\.me\/[1-9][0-9]{6,14}$/ };
+    if (Object.hasOwn(socialPatterns, key) && !socialPatterns[key].test(copy)) throw new ContentError(400, "validation_error", "Enter a valid Instagram, TikTok or WhatsApp profile link.");
+  }
+  if (page !== "home" && value.reviews !== undefined) throw new ContentError(400, "validation_error", "Edit traveller reviews in Home.");
   const allowed=new Set(placementSlots(page).map(slot=>slot.id));
   for(const [key,placement] of Object.entries(value.imagePlacements)) {
     if(!allowed.has(key)||(!placementSlots(page).find(slot=>slot.id===key)?.split&&placement.layout!=='default')) throw new ContentError(400,'validation_error','Choose a supported image placement and layout for this section.');
   }
+  if (page === "services") {
+    const slugs = value.entries.map(entry => entry.serviceSlug || serviceSlug(entry.heading));
+    if (slugs.some(key => !key) || new Set(slugs).size !== slugs.length) throw new ContentError(400, "validation_error", "Service URLs must be unique.");
+  } else if (value.entries.some(entry => entry.serviceSlug)) throw new ContentError(400, "validation_error", "Service URLs belong in Services.");
   const entryIds=value.entries.map(entry=>entry.id).filter(Boolean);
   const recordPlacements=[...value.entries,...value.packages,...value.articles,...value.tips].map(record=>record.imagePlacement).filter(Boolean);
   if(recordPlacements.some(placement=>placement.layout!=='default'))throw new ContentError(400,'validation_error','Record photographs use the existing card or gallery layout.');

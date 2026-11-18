@@ -3,11 +3,13 @@ import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
 import CurrencySwitcher from "./CurrencySwitcher.jsx";
 import { displayCurrencyPolicyHeading } from "../lib/currency-display.js";
 import { publishedPage } from "../lib/published.js";
+import { siteCopy } from "../lib/editorial-copy.js";
 import photography from "../lib/assigned-photography.json";
 const { cinematic = false } = Astro.props;
 const visible = (slug: string) =>
   Boolean(publishedPage(slug));
 const contact = publishedPage("contact");
+const copy = siteCopy("site-appearance");
 const currencyNoticePublished = publishedPage("terms")?.entries?.some(
   (entry: { heading: string }) => entry.heading === displayCurrencyPolicyHeading,
 );
@@ -67,36 +69,36 @@ const phone =
     </div>
     <div class="footer-links">
       <nav aria-label="Explore">
-        <h2>Explore</h2>{
+        <h2>{copy.footerExplore}</h2>{
           (visible("packages") || visible("destinations")) && (
-            <a href="/packages">Packages</a>
+            <a href="/packages">{copy.footerPackages}</a>
           )
         }{
           visible("services") && (
-            <a href="/services">Services</a>
+            <a href="/services">{copy.footerServices}</a>
           )
-        }{visible("about") && <a href="/about">About TWE</a>}{
+        }{visible("about") && <a href="/about">{copy.footerAbout}</a>}{
           visible("journal") && (
-            <a href="/journal">Travel journal</a>
+            <a href="/journal">{copy.footerJournal}</a>
           )
         }
       </nav>
       <nav aria-label="Social media">
-        <h2>Follow our journeys</h2>
-        <a href="https://www.instagram.com/travelwitheasegh/" rel="noreferrer"
+        <h2>{copy.footerSocial}</h2>
+        <a href={copy.instagramUrl} rel="noreferrer"
           >Instagram</a
         >
-        <a href="https://www.tiktok.com/@travelwitheaseghana" rel="noreferrer"
+        <a href={copy.tiktokUrl} rel="noreferrer"
           >TikTok</a
         >
-        <a href="https://wa.me/233208387020" rel="noreferrer">WhatsApp</a>
+        <a href={copy.whatsappUrl} rel="noreferrer">WhatsApp</a>
       </nav>
       <nav aria-label="Help and contact">
-        <h2>Let’s talk</h2>{
-          visible("faqs") && <a href="/faqs">FAQs</a>
+        <h2>{copy.footerContact}</h2>{
+          visible("faqs") && <a href="/faqs">{copy.footerFaqs}</a>
         }{
           visible("contact") && (
-            <a href="/contact">Contact</a>
+            <a href="/contact">{copy.footerContactLink}</a>
           )
         }{email && <a href={"mailto:" + email}>{email}</a>}{
           phone && <a href={"tel:" + phone.replace(/[^+\d]/g, "")}>{phone}</a>
@@ -106,21 +108,19 @@ const phone =
   </div>
   <div class="footer-legal">
     <p class="footer-company-details">
-      Travel with Ease is a trading name of TWE Concierge, registration
-      BN045370826. IATA TIDS 96245096. Certified Group Travel Specialist,
-      The Travel Institute. Accra, Ghana.
+      {copy.companyDetails}
     </p><nav aria-label="Legal and preferences">
       {
         (
           <>
-            {visible("privacy") && <a href="/privacy">Privacy</a>}
-            {visible("terms") && <a href="/terms">Terms</a>}
-            {visible("cookies") && <a href="/cookies">Cookies</a>}
+            {visible("privacy") && <a href="/privacy">{copy.footerPrivacy}</a>}
+            {visible("terms") && <a href="/terms">{copy.footerTerms}</a>}
+            {visible("cookies") && <a href="/cookies">{copy.footerCookies}</a>}
           </>
         )
       }<button type="button" data-cookie-settings
         >Cookie settings</button
-      >{currencyNoticePublished && <CurrencySwitcher client:load />}<a href="#top">Back to top</a>
+      >{currencyNoticePublished && <CurrencySwitcher client:load />}<a href="#top">{copy.footerTop}</a>
     </nav>
   </div>
   <SharedFaakoFooter />

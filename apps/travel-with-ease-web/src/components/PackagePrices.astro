@@ -1,6 +1,7 @@
 ---
 import type { TravelPackage } from "../lib/collections";
 import MoneyText from "./MoneyText.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import {
   formatGhsMinor,
@@ -16,7 +17,7 @@ const reference = referenceMonthLabel(item.referenceMonth);
 ---
 
 <section id="package-pricing" class="package-prices" aria-label="Package pricing">
-  <h2>{priced ? "Choose your level of comfort" : "Price coming soon"}</h2>
+  <h2>{priced ? siteCopy("packages").pricedHeading : "Price coming soon"}</h2>
   {
     priced && (
       <p class="package-price"><MoneyText text={packageStartingPrice(item)} /> per person sharing</p>

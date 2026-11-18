@@ -1,5 +1,6 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import MoneyText from "./MoneyText.astro";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
@@ -8,7 +9,7 @@ import "../styles/components/journey-editorial.css";
 import "../styles/components/service-experience.css";
 import { serviceSlug } from "../lib/services.js";
 interface Props {
-  entries: { heading: string; text: string; attribution?: string; imagePlacement?:import('../lib/collections').ImagePlacement }[];
+  entries: { heading: string; serviceSlug?: string; text: string; attribution?: string; imagePlacement?:import('../lib/collections').ImagePlacement }[];
   all?: boolean;
 }
 const { entries, all = false } = Astro.props;
@@ -23,11 +24,11 @@ const images = [photography.hippos, photography.coast, photography.garden, photo
       <article class="service-panel" id={all ? `service-${index + 1}` : undefined}>
         <EditorialPhoto image={images[index % images.length]} placement={entry.imagePlacement} class={`service-panel__photo service-panel__photo--${index}`} />
         <div class="service-panel__label">
-          <h2><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h2>
+          <h2><ContentLink href={`/services/${entry.serviceSlug || serviceSlug(entry.heading)}`}>{title}</ContentLink></h2>
           {price && <p><MoneyText text={price} /></p>}
         </div>
         {all && <p class="service-panel__description"><MoneyText text={entry.text} /></p>}
-        {all && <span class="service-panel__explore" aria-hidden="true">Explore this service</span>}
+        {all && <span class="service-panel__explore" aria-hidden="true">{siteCopy("services").cardCta}</span>}
       </article>
     );
   })}

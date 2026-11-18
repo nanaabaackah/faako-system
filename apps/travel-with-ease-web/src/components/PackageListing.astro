@@ -2,6 +2,8 @@
 import PlacedImage from './PlacedImage.astro';
 import PackageTicketCard from './PackageTicketCard.jsx';
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
+import { publishedPage } from "../lib/published.js";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import CollectionFilters from "./CollectionFilters.jsx";
 import { packageStartingPrice } from "../lib/package-pricing.js";
@@ -18,7 +20,7 @@ interface Props {
 const {
   items,
   prefix = "/packages",
-  heading = "Find your next journey.",
+  heading = publishedPage("packages")?.heading || "Find your next journey.",
   headerPlacement,
 } = Astro.props;
 ---
@@ -26,9 +28,8 @@ const {
 <section class="editorial-wrap collection-page package-catalogue" id="package-collection">
   <header class="collection-introduction package-catalogue__introduction">
     <div><h1>{heading}</h1></div>
-    <div><p>A beach escape, a wildlife-filled few days, or two cities in one trip.
-      Find your starting point. We’ll work through dates and details with you.</p>
-      <ContentLink href="#plan">Prefer something personalised?</ContentLink>
+    <div><p>{publishedPage("packages")?.body || ""}</p>
+      <ContentLink href="#plan">{siteCopy("packages").listingCta}</ContentLink>
     </div>
   </header>
   <PlacedImage placement={headerPlacement} class="collection-header-photo" sizes="90vw"/>

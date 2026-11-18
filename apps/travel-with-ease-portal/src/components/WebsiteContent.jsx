@@ -19,6 +19,8 @@ import { ActivityList } from './ActivityView.jsx';
 import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
+import { serviceSlug } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
+import EditorialFields from "./EditorialFields.jsx";
 
 import countryOptions from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
 const countries = [...countryOptions].sort((a, b) =>
@@ -30,7 +32,6 @@ const pages = [
   "services",
   "how-it-works",
   "faqs",
-  "testimonials",
   "contact",
   "journal",
   "packages",
@@ -57,12 +58,13 @@ const emptyBody = () => ({
   footprint: [],
   experienceCountries: [],
   imagePlacements:{},
+  editorialCopy: {},
 });
 
 export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
-  const [page, setPage] = useState(initialPage === "travel-tips" ? "journal" : initialPage);
+  const [page, setPage] = useState(initialPage === "travel-tips" ? "journal" : initialPage === "testimonials" ? "home" : initialPage);
   const [recordSlug, setRecordSlug] = useState("");
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
@@ -152,8 +154,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           { responseMode: "data" },
         );
         if (!active) return;
-        const draft = { ...emptyBody(), ...item?.body };
-        draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID()}));
+        const draft = { ...emptyBody(), ...(!item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
+        draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
+        if(page==="home"&&!draft.ctaLabel)draft.ctaLabel="Plan your trip";
         if(page==='site-appearance'&&!item){draft.heading='Shared website imagery';draft.seoTitle='Website appearance';draft.seoDescription='Internal shared imagery settings.';}
         bodyRef.current = draft;
         setBody(draft);
@@ -177,7 +180,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     };
   }, [api, page, session.csrfToken]);
   const change = (key, value) => {
-    if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID()}));
+    if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) && entry.text.trim() ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
     if (["packages", "articles"].includes(key)) {
       setChooseImage(false);
       setCollectionImage(null);
@@ -384,7 +387,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         </section>
       )}
       {!state.loading&&<ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/>}
-      {page==='site-appearance'&&<div className="editor-actions"><Button icon="save" onClick={save}>Save draft</Button><Button icon="preview" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div>}
+      {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
       {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
         <fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}>
           <legend>Selected website fields</legend>
@@ -402,16 +405,17 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             rows={6}
             onChange={(e) => change("body", e.target.value)}
           />
+          {page !== "site-appearance" && <EditorialFields page={page} body={body} change={change} />}
           {page === "home" && (
             <>
               <TextField
-                label="CTA text"
+                label="Hero · primary button"
                 value={body.ctaLabel}
                 maxLength={60}
                 onChange={(e) => change("ctaLabel", e.target.value)}
               />
               <SelectField
-                label="CTA destination"
+                label="Hero · primary destination"
                 value={body.ctaPath}
                 onChange={(e) => change("ctaPath", e.target.value)}
               >
@@ -624,7 +628,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                   >
                     Add article gallery image
                   </Button>
-                  <GalleryOrder ids={article.galleryImageIds} onChange={ids=>change("articles",body.articles.map((item,i)=>i===index?{...item,galleryImageIds:ids}:item))}/>
+                  <GalleryOrder ids={article.galleryImageIds} onChange={ids=>change("articles",body.articles.map((item,i)=>i===index?{...item,galleryImageIds:ids,retainApprovedGallery:false}:item))}/>
                   <Button
                     type="button"
                     onClick={() =>
@@ -632,7 +636,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         "articles",
                         body.articles.map((item, i) =>
                           i === index
-                            ? { ...item, imageId: null, galleryImageIds: [] }
+                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: undefined }
                             : item,
                         ),
                       )
@@ -1016,7 +1020,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               })}
             </section>
           )}
-          {!["packages", "journal", "travel-tips", "travel-footprint", "how-it-works"].includes(
+          {!["packages", "journal", "travel-tips", "how-it-works"].includes(
             page,
           ) && (
             <>
@@ -1139,6 +1143,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         ...record,
                         ...(gallery
                           ? {
+                              retainApprovedGallery: false,
                               galleryImageIds: [
                                 ...new Set([
                                   ...(record.galleryImageIds || []),
@@ -1146,7 +1151,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                                 ]),
                               ],
                             }
-                          : { imageId: item.id }),
+                          : { imageId: item.id, retainApprovedImage: false }),
                       }
                     : record,
                 ),

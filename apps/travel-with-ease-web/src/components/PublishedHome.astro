@@ -1,5 +1,6 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import EditorialPhoto from "./EditorialPhoto.astro";
 import TravelFootprint from "./TravelFootprint.astro";
 import ClosingCta from "./ClosingCta.astro";
@@ -33,7 +34,7 @@ const footprint = publishedPage("travel-footprint");
           <h2>{about.heading}</h2>
           <div class="journey-introduction__copy">
             <p>{about.body}</p>
-            <ContentLink href="/about">Meet Travel With Ease</ContentLink>
+            <ContentLink href="/about">{siteCopy("home").aboutCta}</ContentLink>
           </div>
         </div>
         {about.image && (

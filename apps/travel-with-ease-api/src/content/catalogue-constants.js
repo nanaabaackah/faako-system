@@ -12,3 +12,16 @@ export const enquiryTypes = Object.freeze([
   { value: "group", label: "Group" },
   { value: "celebration", label: "Celebration" },
 ]);
+
+// Preserve service URLs independently from editable display titles.
+export function serviceSlug(heading) {
+  return heading
+    .split(" · ")[0]
+    .trim()
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+

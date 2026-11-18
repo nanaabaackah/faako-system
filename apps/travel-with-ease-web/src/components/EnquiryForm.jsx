@@ -30,7 +30,7 @@ function resolveEntry(catalogue) {
   return { entryType: "general", context: {}, preset: {}, warning: "" };
 }
 
-export default function EnquiryForm({ catalogue = { services: [], packages: [] } }) {
+export default function EnquiryForm({ catalogue = { services: [], packages: [] }, copy = {} }) {
   const api = useMemo(() => createBrowserApiClient({
     baseUrl: import.meta.env.DEV ? "" : import.meta.env.PUBLIC_API_BASE_URL || "", credentials: "omit",
   }), []);
@@ -115,10 +115,10 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
       {siteKey && <TurnstileChallenge siteKey={siteKey} resetCount={resetCount} onToken={setTurnstileToken} />}
       {hosted && !siteKey && <p>Online enquiries are temporarily unavailable. Contact us on WhatsApp.</p>}
       {siteKey && <button type="button" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</button>}
-      <Button type="submit" disabled={!ready || disabled || (hosted && !turnstileToken)}>{disabled ? "Sending enquiry…" : "Send enquiry"} <IconsaxIcon name="ArrowRight4" /></Button>
+      <Button type="submit" disabled={!ready || disabled || (hosted && !turnstileToken)}>{disabled ? "Sending enquiry…" : (copy.submitLabel || "Send enquiry")} <IconsaxIcon name="ArrowRight4" /></Button>
     </fieldset>
     {status.message && <p role={status.state === "error" ? "alert" : "status"} aria-live="polite">{status.message}</p>}
     <noscript>Please contact us on WhatsApp to enquire without JavaScript. Nothing has been submitted.</noscript>
-    <a href="https://wa.me/233208387020" rel="noreferrer">Prefer WhatsApp? Talk to us directly.</a>
+    <a href={copy.whatsappUrl || "https://wa.me/233208387020"} rel="noreferrer">{copy.whatsappLabel || "Prefer WhatsApp? Talk to us directly."}</a>
   </form>;
 }
