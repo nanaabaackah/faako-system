@@ -74,3 +74,50 @@ test("publication acknowledgement verifies exact origin and deployment marker", 
     ),
   );
 });
+
+test("stale unclaimed publication can be cancelled with an atomic audit entry", async () => {
+  const organisationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const jobId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const statements = [];
+  let released = false;
+  const client = {
+    query: async (sql, params) => {
+      statements.push({ sql, params });
+      if (sql.includes("UPDATE twe.publication_jobs")) return { rowCount: 1, rows: [{ id: jobId, status: "failed" }] };
+      return { rowCount: 0, rows: [] };
+    },
+    release: () => { released = true; },
+  };
+  const repo = new PublicationRepository({ connect: async () => client }, { organisationId, environment: "staging" });
+  const cancelled = await repo.cancelPending(jobId, { id: organisationId, organisationId }, "cancel-stale-20261118");
+  assert.deepEqual(cancelled, { id: jobId, status: "cancelled" });
+  assert.equal(statements[0].sql, "BEGIN");
+  const update = statements.find(({ sql }) => sql.includes("UPDATE twe.publication_jobs"));
+  assert.match(update.sql, /status = 'pending'/);
+  assert.match(update.sql, /created_at <= now\(\) - interval '30 minutes'/);
+  assert.match(update.sql, /last_error = 'cancelled_by_operator'/);
+  assert.deepEqual(update.params, [jobId, organisationId, "staging"]);
+  const audit = statements.find(({ sql }) => sql.includes("INSERT INTO twe.audit_records"));
+  assert.ok(audit, "cancel must create an immutable audit entry");
+  assert.ok(audit.params.includes("content.publication_cancelled"));
+  assert.equal(statements.at(-1).sql, "COMMIT");
+  assert.equal(released, true);
+});
+test("claimed, fresh and cross-organisation jobs cannot be cancelled", async () => {
+  const organisationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const jobId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const statements = [];
+  const client = {
+    query: async (sql) => {
+      statements.push(sql);
+      return { rowCount: 0, rows: [] };
+    },
+    release: () => {},
+  };
+  const repo = new PublicationRepository({ connect: async () => client }, { organisationId, environment: "staging" });
+  await assert.rejects(repo.cancelPending(jobId, { id: organisationId, organisationId: "other-org" }, "no-access"), { status: 403 });
+  assert.equal(statements.length, 0);
+  await assert.rejects(repo.cancelPending(jobId, { id: organisationId, organisationId }, "in-flight"), { status: 409 });
+  assert.ok(statements.includes("ROLLBACK"));
+  assert.equal(statements.some(sql => sql.includes("INSERT INTO twe.audit_records")), false);
+});
