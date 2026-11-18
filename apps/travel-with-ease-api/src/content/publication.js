@@ -37,7 +37,8 @@ export class PublicationRepository {
   async list() {
     const { rows } = await this.pool.query(
       `SELECT id, status, attempts, source_sha, deployment_id, created_at, completed_at, last_error,
-      environment, requested_by, recovery_deployment_id, manifest->'target' AS target
+      environment, requested_by, recovery_deployment_id, manifest->'target' AS target,
+      (status = 'pending' AND created_at <= now() - interval '30 minutes') AS can_cancel
       FROM twe.publication_jobs WHERE organisation_id = $1 AND environment = $2 ORDER BY created_at DESC LIMIT 50`,
       [this.organisationId, this.environment],
     );
@@ -160,6 +161,33 @@ export class PublicationRepository {
     );
     return rows[0];
   }
+  async cancelPending(id, actor, requestId) {
+    if (actor.organisationId !== this.organisationId)
+      throw new ContentError(403, "permission_error", "Organisation access denied.");
+    return transaction(this.pool, async (client) => {
+      await this.lockOrganisation(client);
+      // A claimed job may already be deploying. Never cancel it or alter its
+      // immutable manifest. Require a quiet period to avoid routine job races.
+      const result = await client.query(
+        `UPDATE twe.publication_jobs SET status = 'failed',
+          last_error = 'cancelled_by_operator', updated_at = now()
+        WHERE id = $1 AND organisation_id = $2 AND environment = $3
+          AND status = 'pending' AND created_at <= now() - interval '30 minutes'
+        RETURNING id, status`,
+        [id, this.organisationId, this.environment],
+      );
+      if (result.rowCount !== 1)
+        throw new ContentError(409, "conflict", "Only a pending publication older than 30 minutes can be cancelled. Refresh its status before trying again.");
+      await appendAudit(client, {
+        organisationId: this.organisationId,
+        actorId: actor.id,
+        action: "content.publication_cancelled",
+        recordId: id,
+        requestId,
+      });
+      return { id, status: "cancelled" };
+    });
+  }
   async fail(id, token) {
     await this.pool.query(
       "UPDATE twe.publication_jobs SET status = 'failed', updated_at = now(), last_error = 'build_or_verification_failed' WHERE organisation_id = $1 AND environment = $2 AND id = $3 AND build_token = $4 AND status IN ('building', 'deploying', 'verifying')",
@@ -197,7 +225,7 @@ export class PublicationRepository {
           "Only the latest publication can be retried.",
         );
       const result = await client.query(
-        "UPDATE twe.publication_jobs SET status = 'pending', build_token = NULL, updated_at = now() WHERE organisation_id = $1 AND environment = $2 AND id = $3 AND status = 'failed' AND attempts < 3 RETURNING id, status",
+        "UPDATE twe.publication_jobs SET status = 'pending', build_token = NULL, updated_at = now() WHERE organisation_id = $1 AND environment = $2 AND id = $3 AND status = 'failed' AND attempts < 3 AND last_error IS DISTINCT FROM 'cancelled_by_operator' RETURNING id, status",
         [this.organisationId, this.environment, id],
       );
       if (!result.rowCount)
