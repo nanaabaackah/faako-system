@@ -65,7 +65,7 @@ export default function ProjectTasksSection({
 
   const openCreate = () => {
     setEditingTaskId(null);
-    setForm(buildProjectTaskForm());
+    setForm(buildProjectTaskForm(null, assignees));
     setFormError("");
     setShowForm(true);
   };
