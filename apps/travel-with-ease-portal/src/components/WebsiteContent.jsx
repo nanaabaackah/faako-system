@@ -1225,7 +1225,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           renderAction={job=><>
             {job.environment&&<p>Environment: {job.environment}</p>}
             {job.target&&<p>Saved version: {job.target.version}{job.target.recordSlug&&` · ${job.target.recordSlug}`}</p>}
-            {job.status==='pending' && canPublish && Date.now() - Date.parse(job.created_at) >= 30 * 60 * 1000 && <Button type="button" disabled={state.loading} onClick={()=>cancelStalePublication(job)}>Cancel stale publication</Button>}
+            {job.status==='pending' && job.can_cancel === true && canPublish && <Button type="button" disabled={state.loading} onClick={()=>cancelStalePublication(job)}>Cancel stale publication</Button>}
             {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading} onClick={()=>publication('retry',job.id)}>Retry failed publication</Button>}
           </>}/>
       </section>
