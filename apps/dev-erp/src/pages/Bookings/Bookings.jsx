@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { AnimatedLoadingState } from "@faako/ui";
+import { AnimatedLoadingState, SelectField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { formatDateTime } from "../../utils/formatters";
 import { getHolidayLabelsForDate, listUpcomingHolidays } from "../../utils/holidays";
@@ -289,11 +289,9 @@ const Bookings = () => {
                 <div className="notice">Historical Google Calendar booking. Original record remains read-only.</div>
               ) : (
                 <>
-                  <label className="form-field"><span>Meeting platform</span>
-                    <select className="input" value={draft.meetingPlatform} onChange={(event) => setDraft((previous) => ({ ...previous, meetingPlatform: event.target.value, meetingLink: "" }))}>
-                      {PROVIDERS.map((provider) => <option value={provider.value} key={provider.value}>{provider.label}</option>)}
-                    </select>
-                  </label>
+                  <SelectField fieldClassName="form-field" label="Meeting platform" value={draft.meetingPlatform} onChange={(event) => setDraft((previous) => ({ ...previous, meetingPlatform: event.target.value, meetingLink: "" }))}>
+                    {PROVIDERS.map((provider) => <option value={provider.value} key={provider.value}>{provider.label}</option>)}
+                  </SelectField>
                   <label className="form-field"><span>Meeting link (HTTPS)</span>
                     <input className="input" type="url" maxLength={2000}
                       placeholder="Paste the provider's call link"

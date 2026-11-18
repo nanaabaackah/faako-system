@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FiArchive } from "react-icons/fi";
+import { FiArchive, FiArrowRight } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, ERPModal, ERPTable, SelectField, TextareaField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { formatDateTime } from "../../utils/formatters";
@@ -361,7 +361,9 @@ function Timeline({ entries = [] }) {
                 <span>{formatDateTime(entry.at)} · {entry.by || "System"}</span>
                 {entry.from || entry.to ? (
                   <small>
-                    {[entry.from, entry.to].filter(Boolean).join(" → ")}
+                    {entry.from ? <span>{entry.from}</span> : null}
+                    {entry.from && entry.to ? <FiArrowRight aria-label="changed to" /> : null}
+                    {entry.to ? <span>{entry.to}</span> : null}
                   </small>
                 ) : null}
                 {entry.note ? <small>{entry.note}</small> : null}

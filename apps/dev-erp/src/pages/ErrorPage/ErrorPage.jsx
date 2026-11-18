@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FiArrowRight } from "react-icons/fi";
 import { hasStoredSession } from "../../utils/authSession";
 
 const ErrorPage = ({ code, title, message }) => {
@@ -34,7 +35,7 @@ const ErrorPage = ({ code, title, message }) => {
           {!isNotFound ? <p className="error-page__message">{message}</p> : null}
           <div className="error-page__actions">
             <Link className="button button-primary" to={primaryHref}>
-              {primaryLabel} <span aria-hidden="true">→</span>
+              {primaryLabel} <FiArrowRight aria-hidden="true" />
             </Link>
             <button
               className="error-page__back"
