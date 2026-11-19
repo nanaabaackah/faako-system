@@ -15,7 +15,7 @@ complete configuration matrix and disabled-feature prerequisites.
 
 - `apps/ttngh`: Astro static public site, no visitor authentication.
 - `apps/ttngh/studio`: separate Sanity Studio; managed editor authentication.
-- `services/ttngh-api`: Express on Railway; enquiry delivery and signed publish hook. No contact-message database.
+- `services/ttngh-api`: Express on Railway; enquiry delivery with restricted PostgreSQL outbox, plus signed publish hook.
 - Existing Faako theme/UI, API client, validation, security headers, request IDs and logging are reused.
 - Architecture: [Phase 2 decision](phase-2-architecture.md). Evidence and remaining dependencies: [implementation report](phase-2-implementation.md).
 
@@ -88,7 +88,8 @@ Use the monorepo root and `services/ttngh-api/railway.json`, not a standalone se
 3. Set exact browser origins; HTTPS only in production. No credentials/cookie authentication is used.
 4. Verify Railway's actual proxy chain and forwarded-header overwrite behaviour. Only then set explicit trusted proxy CIDRs. Default no trust is conservative but can rate-limit all users sharing a proxy; this must be tested before enablement. Add edge limits as defence in depth.
 5. Keep one replica, turn on the service, then configure the public API origin and Turnstile site key in the Astro build. Missing either leaves the form disabled with direct contact alternatives.
-6. Complete real staging submission, spam/expired-token, outage and delivery tests using non-sensitive test text. Approve retention and acknowledgement policy before enabling acknowledgement.
+6. Apply `services/ttngh-api/migrations/002-enquiries.sql` to the existing TTNGH Postgres database using an approved migration connection. The API reads `DATABASE_URL` only. A missing URL, inaccessible database or pending migration must make enquiries return 503 without stopping `/health`, calendar or CMS webhooks.
+7. Complete real staging submission, spam/expired-token, outage and delivery tests using non-sensitive test text. Approve retention and acknowledgement policy before enabling acknowledgement.
 
 ## Environment inventory (names only)
 
@@ -99,7 +100,7 @@ Use the monorepo root and `services/ttngh-api/railway.json`, not a standalone se
 | Astro build only | SANITY_PROJECT_ID, SANITY_DATASET, TTNGH_CMS_REQUIRED | Build configuration |
 | Astro build only | SANITY_READ_TOKEN | Secret, read-only |
 | Studio | SANITY_STUDIO_PROJECT_ID, SANITY_STUDIO_DATASET | Public identifiers |
-| Railway | NODE_ENV, PORT, TTNGH_ALLOWED_ORIGINS, TTNGH_CONTACT_ENABLED, TURNSTILE_HOSTNAMES, TTNGH_TRUSTED_PROXY_CIDRS | Runtime configuration |
+| Railway | NODE_ENV, PORT, TTNGH_ALLOWED_ORIGINS, TTNGH_CONTACT_ENABLED, TURNSTILE_HOSTNAMES, TTNGH_TRUSTED_PROXY_CIDRS, DATABASE_URL | Runtime configuration |
 | Railway | TURNSTILE_SECRET_KEY, RESEND_API_KEY, SANITY_WEBHOOK_SECRET, CLOUDFLARE_BUILD_HOOK_URL | Secrets |
 | Railway | TTNGH_MAIL_FROM, TTNGH_ENQUIRY_TO, TTNGH_ACKNOWLEDGEMENT_APPROVED, SANITY_PROJECT_ID, SANITY_DATASET | Approved operational configuration |
 

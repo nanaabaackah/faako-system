@@ -1,0 +1,42 @@
+name: TTNGH API
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "services/ttngh-api/**"
+      - ".github/workflows/ttngh-api.yml"
+  push:
+    branches: [develop, main]
+    paths:
+      - "services/ttngh-api/**"
+      - ".github/workflows/ttngh-api.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ttngh-api-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: TTNGH API regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check TTNGH runtime syntax
+        run: |
+          node --check services/ttngh-api/src/server.js
+          node --check services/ttngh-api/src/app.js
+          node --check services/ttngh-api/src/config.js
+          node --check services/ttngh-api/src/contact/readiness.js
+      - name: Run TTNGH API tests
+        run: pnpm --filter @faako/ttngh-api test

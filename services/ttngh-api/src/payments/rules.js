@@ -29,10 +29,10 @@ export function paymentConfig(env) {
   const callback = new URL(env.TTNGH_DONATION_RETURN_URL || "");
   if (callback.protocol !== "https:" || callback.username || callback.password || callback.search || callback.hash || callback.pathname !== "/donate/return") throw new Error("Configure an exact HTTPS donation return URL.");
   if (mode === "live" && callback.origin !== "https://thethrivingnetworkgh.org") throw new Error("Live callback must use the approved production domain.");
-  if (!env.TTNGH_DATABASE_URL) throw new Error("A dedicated payment database is required.");
-  const database = new URL(env.TTNGH_DATABASE_URL);
+  if (!env.DATABASE_URL) throw new Error("A dedicated payment database is required.");
+  const database = new URL(env.DATABASE_URL);
   if (!["postgres:", "postgresql:"].includes(database.protocol)) throw new Error("Payment storage must be PostgreSQL.");
-  return { enabled: true, mode, key, callback: callback.href, databaseUrl: env.TTNGH_DATABASE_URL };
+  return { enabled: true, mode, key, callback: callback.href, databaseUrl: env.DATABASE_URL };
 }
 
 export const fingerprint = input => createHash("sha256").update(JSON.stringify([toPesewas(input.amount), "GHS", input.email.toLowerCase(), input.consent])).digest("hex");
