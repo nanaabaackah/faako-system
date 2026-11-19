@@ -104,6 +104,8 @@ export async function preparePublication(job, media, directory, { approvedBaseli
       headerLogo: (await imageFor(body.branding.headerLogoId)).image,
       scrolledLogo: (await imageFor(body.branding.scrolledLogoId)).image,
       footerLogo: (await imageFor(body.branding.footerLogoId)).image,
+      favicon: (await imageFor(body.branding.faviconId)).image,
+      socialImage: (await imageFor(body.branding.socialImageId)).socialImage,
     };
     const packages = await records(body.packages,'packages');
     const articles = await records(body.articles,'articles');
