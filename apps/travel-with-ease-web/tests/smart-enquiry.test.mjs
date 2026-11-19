@@ -58,7 +58,7 @@ test("public card surfaces reuse tilt motion without overriding reduced-motion p
   assert.doesNotMatch(motion, /\.enquiry-wizard-page__card,/);
   assert.doesNotMatch(motion, /\.package-enquiry-panel",/);
   assert.match(motion, /\.closing-scene/);
-  assert.match(motion, /!card\.closest\("\.tilted-card"\)/);
+  assert.match(motion, /!card\.closest\("\.tilted-card, \.cinematic-enquiry/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
   assert.match(styles, /--twe-card-tilt-x/);
 });
