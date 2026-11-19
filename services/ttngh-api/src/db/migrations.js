@@ -45,10 +45,11 @@ export async function deployMigrations(pool, migrations) {
   try {
     await client.query("BEGIN");
     transactionOpen = true;
-    // Serialises deployment attempts from multiple Railway releases.
-    await client.query("SELECT pg_advisory_xact_lock(821026002)");
+    // Bound wait time even if another deployment is already migrating.
     await client.query("SET LOCAL lock_timeout = '5s'");
     await client.query("SET LOCAL statement_timeout = '60s'");
+    // Serialises deployment attempts from multiple Railway releases.
+    await client.query("SELECT pg_advisory_xact_lock(821026002)");
     await client.query("CREATE SCHEMA IF NOT EXISTS ttngh_contact");
     await client.query(
       "CREATE TABLE IF NOT EXISTS ttngh_contact.schema_migrations (" +
