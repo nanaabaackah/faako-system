@@ -1,16 +1,12 @@
 /* Public TWE typography: Google Fonts, all under the SIL Open Font License.
    Display headings = Poiret One (regular with optical stroke), UI accents = Inter ExtraBold,
    signature = Sassy Frass,
-   journal listing = Caveat; article detail uses editorial Playfair Display and readable Inter.
-   Handwriting is scoped to journal content; navigation and forms stay readable. */
+   journal uses the same Poiret One display headings and Quicksand body as the full site. */
 :root {
   --font-display: "Poiret One", "Trebuchet MS", Arial, sans-serif;
   --font-body: "Quicksand", "Trebuchet MS", Arial, sans-serif;
   --font-impact: "Inter", Arial, sans-serif;
   --font-signature: "Sassy Frass", cursive;
-  --font-journal: "Caveat", "Segoe Print", cursive;
-  --font-journal-display: "Playfair Display", Georgia, serif;
-  --font-journal-body: "Inter", Arial, sans-serif;
   --text-h1: clamp(2.5rem, 4.5vw, 4rem);
   --text-h2: clamp(2.125rem, 3.5vw, 3rem);
   --text-h3: clamp(1.625rem, 2.5vw, 1.875rem);
@@ -97,46 +93,43 @@ body .site-header-shell .site-header nav .nav-cta {
   font-weight: 800;
 }
 
-/* Journal handwriting covers both editorial headings and article paragraphs.
-   Functional controls and bylines remain in Quicksand. */
+/* Journal listing and article details share the approved TWE typography. */
 body .journal-collection-grid .journal-card h2 {
-  font-family: var(--font-journal) !important;
-  font-weight: 600 !important;
-  -webkit-text-stroke: 0;
-  font-size: clamp(1.85rem, 2.8vw, 2.55rem);
-  line-height: 1.13;
-  letter-spacing: 0;
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  -webkit-text-stroke: 0.024em currentColor;
+  font-size: clamp(1.65rem, 2.4vw, 2.25rem);
+  line-height: 1.16;
+  letter-spacing: -0.025em;
   overflow-wrap: break-word;
 }
 body .journal-collection-grid .journal-card .journal-card__excerpt {
-  font-family: var(--font-journal);
-  font-size: clamp(1.3rem, 1.75vw, 1.55rem);
-  line-height: 1.22;
+  font-family: var(--font-body);
+  font-size: clamp(1rem, 1.25vw, 1.125rem);
+  line-height: 1.65;
 }
-/* Editorial article detail: serif storytelling and readable sans-serif prose.
-   Retain Caveat only on journal listing cards, not long-form articles. */
 body .journal-detail .journal-detail__header h1 {
-  font-family: var(--font-journal-display) !important;
-  font-weight: 600 !important;
-  -webkit-text-stroke: 0;
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  -webkit-text-stroke: 0.024em currentColor;
   font-size: clamp(2.5rem, 4.6vw, 4.8rem);
   line-height: 1.08;
   letter-spacing: -0.026em;
 }
 body .journal-detail :is(.journal-detail__sidebar h2, .journal-detail__content h2, .journal-detail__more h2, .journal-detail__more h3) {
-  font-family: var(--font-journal-display) !important;
-  font-weight: 600 !important;
-  -webkit-text-stroke: 0;
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  -webkit-text-stroke: 0.024em currentColor;
   letter-spacing: -0.02em;
 }
 body .journal-detail .journal-detail__summary {
-  font-family: var(--font-journal-body);
+  font-family: var(--font-body);
   font-size: clamp(1.04rem, 1.65vw, 1.32rem);
   line-height: 1.55;
 }
 body .journal-detail .journal-detail__content > p:not(.collection-standfirst),
 body .journal-detail .journal-detail__content li {
-  font-family: var(--font-journal-body);
+  font-family: var(--font-body);
   font-size: clamp(1rem, 1.15vw, 1.125rem);
   font-weight: 400;
   line-height: 1.85;
@@ -145,7 +138,7 @@ body .journal-detail .journal-detail__content li {
 body .journal-detail .journal-detail__meta,
 body .journal-detail .journal-detail__sidebar,
 body .journal-detail .journal-detail__more {
-  font-family: var(--font-journal-body);
+  font-family: var(--font-body);
 }
 body .journal-reading :is(.collection-detail-heading > p, .breadcrumbs, .collection-related a) {
   font-family: var(--font-body);
