@@ -269,7 +269,7 @@ try {
 
     const indicators = journeyStepper.locator(".stepper__segment");
     await indicators.first().waitFor({state:"visible",timeout:15000});
-    assert.equal(await indicators.count(), 4, "Keep all four published planning steps");
+    assert.equal(await indicators.count(), 5, "Show all five published package steps");
     assert.equal(await indicators.first().getAttribute("aria-current"), "step");
     assert.equal(await journeyStepper.locator(".journey-process__step-copy h3").last().isVisible(), true);
     const next = journeyStepper.locator(".stepper__button--next");
@@ -280,7 +280,7 @@ try {
     await back.click();
     assert.equal(await indicators.first().getAttribute("aria-current"), "step",
       "Back returns to the first step");
-    for (let index = 1; index < 4; index++) {
+    for (let index = 1; index < 5; index++) {
       await next.click();
       assert.equal(await indicators.nth(index).getAttribute("aria-current"), "step");
     }
@@ -288,7 +288,7 @@ try {
     const finalAction = journeyStepper.getByRole("link", {name:"Plan my trip"});
     await finalAction.waitFor({state:"visible"});
     assert.equal(await finalAction.getAttribute("href"), "#plan",
-      "Completing the four steps opens the existing enquiry CTA");
+      "Completing the five package steps opens the existing enquiry CTA");
     await indicators.first().click();
     assert.equal(await indicators.first().getAttribute("aria-current"), "step",
       "Visitors can revisit the guide after completion");
@@ -395,8 +395,9 @@ try {
   for (const [index, label] of ["Packages", "Personal Planning"].entries()) {
     const flow = noScriptFlows.nth(index);
     assert.equal((await flow.locator("h3").first().innerText()).trim(), label);
-    assert.equal(await flow.locator(".journey-process__fallback > li").count(), 4,
-      `All four ${label} steps remain readable without JavaScript`);
+    const expected = index === 0 ? 5 : 4;
+    assert.equal(await flow.locator(".journey-process__fallback > li").count(), expected,
+      `All ${expected} ${label} steps remain readable without JavaScript`);
   }
   await noJs.close();
   console.log(JSON.stringify({passed:true,widths:[320,375,390,768,1024,1440],accessibility:true,noJavaScript:true,screenshots:directory}));
