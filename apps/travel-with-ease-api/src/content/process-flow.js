@@ -10,3 +10,12 @@ export function withPackageTravelPackStep(steps) {
     ? [...steps, { ...packageTravelPackStep }]
     : steps;
 }
+
+export function withUpdatedPackageFlow(flows) {
+  if (!flows?.package?.steps || !flows?.planning?.steps) return flows;
+  const updatedSteps = withPackageTravelPackStep(flows.package.steps);
+  return updatedSteps === flows.package.steps ? flows : {
+    ...flows,
+    package: { ...flows.package, steps: updatedSteps },
+  };
+}
