@@ -30,7 +30,7 @@ function resolveEntry(catalogue) {
   return { entryType: "general", context: {}, preset: {}, warning: "" };
 }
 
-export default function EnquiryForm({ catalogue = { services: [], packages: [] } }) {
+export default function EnquiryForm({ catalogue = { services: [], packages: [] }, copy = {} }) {
   const api = useMemo(() => createBrowserApiClient({
     baseUrl: import.meta.env.DEV ? "" : import.meta.env.PUBLIC_API_BASE_URL || "", credentials: "omit",
   }), []);
@@ -71,7 +71,7 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
         fallbackMessage: "We could not confirm your enquiry. Your details remain here so you can try again.",
       });
       if (data?.status !== "received" || !/^[a-f0-9-]{36}$/i.test(data.inquiryId || "")) throw new Error("The service did not confirm your enquiry. Please try again.");
-      setStatus({ state: "success", message: `Your enquiry is received. Reference: ${data.inquiryId.slice(0, 8).toUpperCase()}. Note that this is not a booking.` });
+      setStatus({ state: "success", message: `Enquiry received · Reference ${data.inquiryId.slice(0, 8).toUpperCase()}. We will contact you. No booking has been made.` });
       setForm({ ...initial, ...entry.preset });
       operation.current = null;
     } catch (error) {
@@ -110,15 +110,15 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
         <TextField name="phone" label="WhatsApp number" type="tel" autoComplete="tel" value={form.phone} onChange={update} required maxLength={40} placeholder="+233…" />
       </div>
       <div className="enquiry-honeypot" aria-hidden="true"><label>Leave this blank<input name="website" value={form.website} onChange={update} tabIndex={-1} autoComplete="off" /></label></div>
-      <p className="enquiry-privacy-note">We collect these contact details and travel preferences to respond to your enquiry and plan the service you request. This is not a booking or consent to marketing.</p>
+      <p className="enquiry-privacy-note">We only use your details to respond. <a href="/privacy">Privacy notice</a></p>
       <label className="enquiry-consent"><input name="consent" type="checkbox" checked={form.consent} onChange={update} required /><span>I agree that Travel With Ease may use these details to respond to my enquiry.</span></label>
       {siteKey && <TurnstileChallenge siteKey={siteKey} resetCount={resetCount} onToken={setTurnstileToken} />}
-      {hosted && !siteKey && <p>The form security check needs configuration. You can still enquire using WhatsApp below.</p>}
+      {hosted && !siteKey && <p>Online enquiries are temporarily unavailable. Contact us on WhatsApp.</p>}
       {siteKey && <button type="button" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</button>}
-      <Button type="submit" disabled={!ready || disabled || (hosted && !turnstileToken)}>{disabled ? "Sending enquiry…" : "Send enquiry"} <IconsaxIcon name="ArrowRight4" /></Button>
+      <Button type="submit" disabled={!ready || disabled || (hosted && !turnstileToken)}>{disabled ? "Sending enquiry…" : (copy.submitLabel || "Send enquiry")} <IconsaxIcon name="ArrowRight4" /></Button>
     </fieldset>
     {status.message && <p role={status.state === "error" ? "alert" : "status"} aria-live="polite">{status.message}</p>}
     <noscript>Please contact us on WhatsApp to enquire without JavaScript. Nothing has been submitted.</noscript>
-    <a href="https://wa.me/233208387020" rel="noreferrer">Prefer WhatsApp? Talk to us directly.</a>
+    <a href={copy.whatsappUrl || "https://wa.me/233208387020"} rel="noreferrer">{copy.whatsappLabel || "Prefer WhatsApp? Talk to us directly."}</a>
   </form>;
 }

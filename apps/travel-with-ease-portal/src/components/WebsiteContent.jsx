@@ -19,6 +19,8 @@ import { ActivityList } from './ActivityView.jsx';
 import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
+import { serviceSlug } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
+import EditorialFields from "./EditorialFields.jsx";
 
 import countryOptions from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
 const countries = [...countryOptions].sort((a, b) =>
@@ -30,7 +32,6 @@ const pages = [
   "services",
   "how-it-works",
   "faqs",
-  "testimonials",
   "contact",
   "journal",
   "packages",
@@ -57,12 +58,13 @@ const emptyBody = () => ({
   footprint: [],
   experienceCountries: [],
   imagePlacements:{},
+  editorialCopy: {},
 });
 
 export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
-  const [page, setPage] = useState(initialPage === "travel-tips" ? "journal" : initialPage);
+  const [page, setPage] = useState(initialPage === "travel-tips" ? "journal" : initialPage === "testimonials" ? "home" : initialPage);
   const [recordSlug, setRecordSlug] = useState("");
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
@@ -152,8 +154,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           { responseMode: "data" },
         );
         if (!active) return;
-        const draft = { ...emptyBody(), ...item?.body };
-        draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID()}));
+        const draft = { ...emptyBody(), ...(!item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
+        draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
+        if(page==="home"&&!draft.ctaLabel)draft.ctaLabel="Plan your trip";
         if(page==='site-appearance'&&!item){draft.heading='Shared website imagery';draft.seoTitle='Website appearance';draft.seoDescription='Internal shared imagery settings.';}
         bodyRef.current = draft;
         setBody(draft);
@@ -177,7 +180,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     };
   }, [api, page, session.csrfToken]);
   const change = (key, value) => {
-    if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID()}));
+    if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) && entry.text.trim() ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
     if (["packages", "articles"].includes(key)) {
       setChooseImage(false);
       setCollectionImage(null);
@@ -294,6 +297,22 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }
   }
 
+  async function cancelStalePublication(job) {
+    if (!window.confirm("Cancel this older pending publication? It will not deploy. Saved drafts and publication history will be preserved.")) return;
+    setState({ loading: true, error: "", message: "" });
+    try {
+      await api.post(`/api/agent/content/publication-jobs/${job.id}/cancel`, {
+        responseMode: "data",
+        headers: { "X-CSRF-Token": session.csrfToken },
+      });
+      const result = await api.get("/api/agent/content/publication-jobs", { responseMode: "data" });
+      setJobs(result.items);
+      setState({ loading: false, error: "", message: "Pending publication cancelled. Your saved drafts are unchanged." });
+    } catch (error) {
+      setState({ loading: false, error: error.message, message: "" });
+    }
+  }
+
   return (
     <section
       className="content-editor website-workspace"
@@ -302,10 +321,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       <h2 id="content-heading" tabIndex={-1} ref={heading}>
         Website content
       </h2>
-      <p className="workspace-caption">
-        Prepare approved content, review saved drafts and track publication
-        separately.
-      </p>
       {visualPreview && <div className="cms-editor-view-switch" aria-label="Editing view">
         <Button type="button" aria-pressed={editorView === "editor"} onClick={() => setEditorView("editor")}>Editor</Button>
         <Button type="button" aria-pressed={editorView === "preview"} onClick={() => setEditorView("preview")}>Website preview</Button>
@@ -348,7 +363,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error} />}
       <p role="status" aria-live="polite" className="draft-save-status">
         {saveState.status === "saving" ? "Saving…" : saveState.status === "error" ? "Error — unsaved edits retained" : dirty ? "Unsaved" : `Saved · version ${version}`}
-        {" · Drafts are never published automatically by autosave."}
+        
       </p>
       {state.loading ? (
         <AnimatedLoadingState
@@ -359,16 +374,13 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           }
         />
       ) : (
-        <p role="status">
-          {state.message ||
-            (dirty ? "Unsaved changes" : `Draft version ${version}`)}
-        </p>
+        state.message && <p role="status">{state.message}</p>
       )}
       {(approvedRelease.pages[page] || reviewDrafts[page]) && (
         <section className="workspace-panel">
           <h3>{approvedRelease.pages[page] ? "Approved company copy" : "Starter copy for review"}</h3>
           <p>
-            {approvedRelease.pages[page] ? "Load the latest approved company content into this draft. The How It Works page uses the client-approved November 16 two-path process. This replaces selected text, not the public website. Re-select managed R2 images before publication." : "Load the company-based draft to edit it here. Resolve its review requirements before publication."}
+            {approvedRelease.pages[page] ? "Replace this draft with the approved website copy." : "Load the review draft into the editor."}
           </p>
           <Button
             type="button"
@@ -391,7 +403,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         </section>
       )}
       {!state.loading&&<ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/>}
-      {page==='site-appearance'&&<div className="editor-actions"><Button icon="save" onClick={save}>Save draft</Button><Button icon="preview" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div>}
+      {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
       {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
         <fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}>
           <legend>Selected website fields</legend>
@@ -409,16 +421,17 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             rows={6}
             onChange={(e) => change("body", e.target.value)}
           />
+          {page !== "site-appearance" && <EditorialFields page={page} body={body} change={change} />}
           {page === "home" && (
             <>
               <TextField
-                label="CTA text"
+                label="Hero · primary button"
                 value={body.ctaLabel}
                 maxLength={60}
                 onChange={(e) => change("ctaLabel", e.target.value)}
               />
               <SelectField
-                label="CTA destination"
+                label="Hero · primary destination"
                 value={body.ctaPath}
                 onChange={(e) => change("ctaPath", e.target.value)}
               >
@@ -470,11 +483,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             <section aria-label="Journal articles">
               <h3>Journal articles</h3>
               <p>
-                Each Travel tip or Trip story is an individual Journal article. Set its
-                series (Before you fly, Visas and entry, or Destinations), any homepage
-                placement, related reading and a website CTA. There are no DM-only
-                buttons or free-checklist offers. Review entry rules before publication.
-                Remove an article and publish to withdraw it.
+                Edit each article, assign its series and choose where it appears.
               </p>
               {(body.articles || []).map((article, index) => (
                 <fieldset key={index}>
@@ -635,7 +644,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                   >
                     Add article gallery image
                   </Button>
-                  <GalleryOrder ids={article.galleryImageIds} onChange={ids=>change("articles",body.articles.map((item,i)=>i===index?{...item,galleryImageIds:ids}:item))}/>
+                  <GalleryOrder ids={article.galleryImageIds} onChange={ids=>change("articles",body.articles.map((item,i)=>i===index?{...item,galleryImageIds:ids,retainApprovedGallery:false}:item))}/>
                   <Button
                     type="button"
                     onClick={() =>
@@ -643,7 +652,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         "articles",
                         body.articles.map((item, i) =>
                           i === index
-                            ? { ...item, imageId: null, galleryImageIds: [] }
+                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: undefined }
                             : item,
                         ),
                       )
@@ -899,9 +908,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             <section aria-label="Verified travel footprint">
               <h3>Verified country totals</h3>
               <p>
-                Enter one verified total per country: completed plus confirmed
-                upcoming activity. Use Tanzania for Zanzibar. Only approved
-                totals belong here.
+                Enter confirmed trips by country. Count Zanzibar under Tanzania.
               </p>
               {(body.footprint || []).map((row, index) => (
                 <fieldset key={index}>
@@ -983,7 +990,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Maintain four separate steps and an example for each path. Package enquiries do not require a budget. The terms links stay attached to their respective paths.</p>
+              <p>Edit four steps and an example for each path.</p>
               {(["package", "planning"]).map((flowKey) => {
                 const flows = body.processFlows || approvedRelease.pages["how-it-works"].processFlows;
                 const flow = flows[flowKey];
@@ -1024,12 +1031,12 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       [flowKey]: { ...flow, example: event.target.value },
                     })}
                   />
-                  <p>{flowKey === "package" ? "Published terms: Section B (package bookings)." : "Published terms: Section A (planning services)."}</p>
+                  <p>{flowKey === "package" ? "Terms: Section B · Package bookings" : "Terms: Section A · Planning services"}</p>
                 </fieldset>;
               })}
             </section>
           )}
-          {!["packages", "journal", "travel-tips", "travel-footprint", "how-it-works"].includes(
+          {!["packages", "journal", "travel-tips", "how-it-works"].includes(
             page,
           ) && (
             <>
@@ -1086,10 +1093,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               </Button>
             </>
           )}
-          <p>
-            Use approved facts, client permissions and licensed imagery only. Do
-            not add unverified testimonials.
-          </p>
           <TextField
             label="SEO title"
             value={body.seoTitle}
@@ -1119,10 +1122,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         </fieldset>
       </form>}
       <p>
-        {body.imageId
-          ? `Selected image: ${body.imageId}`
-          : "No image selected."}{" "}
-        Image selection is saved with the draft.
+        {body.imageId ? "Image selected" : "No image selected"}
       </p>
       <Button
         type="button"
@@ -1159,6 +1159,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         ...record,
                         ...(gallery
                           ? {
+                              retainApprovedGallery: false,
                               galleryImageIds: [
                                 ...new Set([
                                   ...(record.galleryImageIds || []),
@@ -1166,7 +1167,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                                 ]),
                               ],
                             }
-                          : { imageId: item.id }),
+                          : { imageId: item.id, retainApprovedImage: false }),
                       }
                     : record,
                 ),
@@ -1189,12 +1190,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       <section className="workspace-panel" data-tour="content-publication">
         <h3>Publication</h3>
         <p>
-          Publishing uses saved revisions and the environment's reviewed source.
-          Pending, building, deploying and verifying requests are not live.
+          Your update is live only after deployment succeeds.
         </p>
-        {!canPublish && (
-          <p>Only an Owner or Superadmin can publish, unpublish or retry.</p>
-        )}
         {["packages", "journal", "travel-tips"].includes(page) && <SelectField
           label="Publication scope" value={recordSlug} disabled={state.loading || dirty}
           onChange={event => setRecordSlug(event.target.value)}>
@@ -1224,11 +1221,12 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             Refresh publication status
           </Button>
         </div>
-        <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
+        <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
           renderAction={job=><>
             {job.environment&&<p>Environment: {job.environment}</p>}
             {job.target&&<p>Saved version: {job.target.version}{job.target.recordSlug&&` · ${job.target.recordSlug}`}</p>}
-            {job.status==='failed'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading} onClick={()=>publication('retry',job.id)}>Retry failed publication</Button>}
+            {job.status==='pending' && job.can_cancel === true && canPublish && <Button type="button" disabled={state.loading} onClick={()=>cancelStalePublication(job)}>Cancel stale publication</Button>}
+            {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading} onClick={()=>publication('retry',job.id)}>Retry failed publication</Button>}
           </>}/>
       </section>
       {preview && !visualPreview && (
@@ -1285,7 +1283,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               ))}
             </ul>
           )}
-          <p>This content preview does not reproduce the final page layout.</p>
+          <p>Text preview</p>
         </section>
       )}
       <section className="workspace-panel">

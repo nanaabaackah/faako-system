@@ -41,7 +41,7 @@ test("package details expose the published facts, price tiers, inclusions and co
   assert.match(detail, /<PackagePrices item=\{item\}/);
   assert.match(detail, /item\.itinerary\?\.length/);
   assert.match(detail, /item\.exclusions/);
-  assert.match(detail, /An enquiry is not a booking/);
+  assert.match(detail, /Enquiring does not confirm a booking/);
 });
 
 test("updated how-it-works separates package and bespoke planning flows with approved terms", () => {

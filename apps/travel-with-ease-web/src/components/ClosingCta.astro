@@ -1,11 +1,13 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import { Image } from "astro:assets";
 import { publishedPage } from '../lib/published.js';
 import PlacedImage from './PlacedImage.astro';
 import phone from "../../public/media/Mockups/TWE_mockup1.png";
 import tablet from "../../public/media/Mockups/TWE_mockup2.png";
 import laptop from "../../public/media/Mockups/TWE_mockup5.png";
+const copy = siteCopy("home");
 const placements=publishedPage('site-appearance')?.imagePlacements||{};
 const mockups = [
   { image: tablet, name: "tablet" },
@@ -16,14 +18,14 @@ const mockups = [
 
 <section class="closing-cta" aria-labelledby="closing-cta-heading">
   <div class="closing-copy">
-    <h2 id="closing-cta-heading">Make room for your next journey.</h2>
+    <h2 id="closing-cta-heading">{copy.closingHeading}</h2>
     <p>
-      Start with an idea. Tell us what you have in mind and we’ll help shape the journey.
+      {copy.closingBody}
     </p>
     <ContentLink
       button
       href="#plan"
-      >Plan my trip</ContentLink
+      >{copy.closingCta}</ContentLink
     >
   </div>
   <div class="closing-artwork">

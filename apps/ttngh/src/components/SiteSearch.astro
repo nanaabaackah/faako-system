@@ -27,7 +27,6 @@ const searchPages = [
   <div class="site-search-panel">
     <div class="site-search-heading">
       <div>
-        <p>Explore TTN GH</p>
         <h2 id="site-search-title">Search the site</h2>
       </div>
       <button class="site-search-close" type="button" data-search-close aria-label="Close site search">
@@ -36,14 +35,14 @@ const searchPages = [
     </div>
 
     <form class="site-search-form" data-site-search-form role="search">
-      <label for="site-search-input">What are you looking for?</label>
+      <label class="site-search-label" for="site-search-input">Search the site</label>
       <div class="site-search-field">
         <Icon name="search" aria-hidden="true" focusable="false" />
         <input id="site-search-input" type="search" name="q" autocomplete="off" placeholder="Search programmes, events, support…" data-site-search-input />
       </div>
     </form>
 
-    <p class="site-search-status" data-site-search-status aria-live="polite">Showing all pages</p>
+    <p class="site-search-status" data-site-search-status aria-live="polite" hidden></p>
     <ul class="site-search-results" data-site-search-results>
       {searchPages.map((page) => (
         <li data-search-item data-search-text={`${page.title} ${page.description} ${page.keywords}`.toLowerCase()}>
@@ -81,7 +80,8 @@ const searchPages = [
 
       if (status) status.textContent = query
         ? `${visibleCount} ${visibleCount === 1 ? "result" : "results"} for “${query}”`
-        : "Showing all pages";
+        : "";
+      status?.toggleAttribute("hidden", !query);
       if (empty) empty.toggleAttribute("hidden", visibleCount !== 0);
     };
 

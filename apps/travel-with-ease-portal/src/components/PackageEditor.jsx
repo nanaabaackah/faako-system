@@ -12,11 +12,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
   return (
     <section aria-label="Packages">
       <h3>Packages</h3>
-      <p>
-        Use approved offers only. Save and preview before requesting
-        publication. This collection publishes together; an enquiry is not a
-        booking.
-      </p>
+
       {items.map((item, index) => (
         <fieldset key={item.id}>
           <legend>Package {index + 1}</legend>
@@ -44,6 +40,11 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
               onChange={(event) => update(index, key, event.target.value)}
             />
           ))}
+          <TextField label="Number of days" type="number" min="1" max="101" value={item.days ?? ""} onChange={event => update(index, "days", event.target.value === "" ? null : Number(event.target.value))} />
+          <TextField label="Number of nights" type="number" min="0" max="100" value={item.nights ?? ""} onChange={event => update(index, "nights", event.target.value === "" ? null : Number(event.target.value))} />
+          <SelectField label="Homepage featured position" value={String(item.homeFeatureOrder ?? (item.slug === "zanzibar" ? 1 : item.slug === "nairobi" ? 2 : 0))} onChange={event => update(index, "homeFeatureOrder", Number(event.target.value))}>
+            <option value="0">Not featured</option><option value="1">First package</option><option value="2">Second package</option>
+          </SelectField>
           <SelectField
             label="Pricing status"
             value={item.pricingStatus || "coming_soon"}
@@ -113,7 +114,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
             }])}>Add tier</Button>
           <fieldset>
             <legend>Occasions</legend>
-            <p>Choose only approved assignments. Group-friendly is a separate attribute.</p>
+            
             {packageOccasions.map((occasion) => (
               <label key={occasion.value}>
                 <input type="checkbox" checked={(item.occasions || []).includes(occasion.value)}
@@ -160,16 +161,16 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
           <p>
             {item.imageId
               ? "Hero image selected from the approved library."
-              : "No hero image selected."}
+              : item.retainApprovedImage === false ? "No hero image selected." : "Existing approved cover retained until replaced."}
           </p>
           <Button type="button" onClick={() => onChooseImage(index, false)}>
             Choose package image
           </Button>
-          <Button type="button" onClick={() => update(index, "imageId", null)}>
+          <Button type="button" onClick={() => onChange(items.map((value, i) => i === index ? { ...value, imageId: null, retainApprovedImage: false, imagePlacement: undefined } : value))}>
             Remove package image
           </Button>
-          <p>{(item.galleryImageIds || []).length} gallery images selected.</p>
-          <GalleryOrder ids={item.galleryImageIds} onChange={ids=>update(index,"galleryImageIds",ids)}/>
+          <p>{(item.galleryImageIds || []).length ? `${item.galleryImageIds.length} gallery images selected.` : item.retainApprovedGallery === false ? "No gallery images." : "Existing approved gallery retained until replaced."}</p>
+          <GalleryOrder ids={item.galleryImageIds} onChange={ids=>onChange(items.map((value, i) => i === index ? { ...value, galleryImageIds: ids, retainApprovedGallery: false } : value))}/>
           <Button
             type="button"
             disabled={(item.galleryImageIds || []).length >= 12}
@@ -179,7 +180,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
           </Button>
           <Button
             type="button"
-            onClick={() => update(index, "galleryImageIds", [])}
+            onClick={() => onChange(items.map((value, i) => i === index ? { ...value, galleryImageIds: [], retainApprovedGallery: false } : value))}
           >
             Clear gallery
           </Button>

@@ -1,6 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import "../styles/components/travel-tips.css";
 interface Tip {
   slug: string;
@@ -42,7 +43,7 @@ const items = homepage ? ordered.slice(0, 3) : tips;
       aria-label="Travel tips"
     >
       <div class="editorial-heading">
-        <h2>Before you go.</h2>
+        <h2>{siteCopy("home").tipsHeading}</h2>
       </div>
       <div class="travel-tips__grid">
         {items.map((tip, index) => (
@@ -82,7 +83,7 @@ const items = homepage ? ordered.slice(0, 3) : tips;
           </article>
         ))}
       </div>
-      {homepage && <p class="travel-tips__all"><ContentLink href="/journal?category=Travel%20tip">See all tips</ContentLink></p>}
+      {homepage && <p class="travel-tips__all"><ContentLink href="/journal?category=Travel%20tip">{siteCopy("home").tipsCta}</ContentLink></p>}
     </section>
   )
 }

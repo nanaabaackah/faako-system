@@ -36,7 +36,7 @@ export default function Activation({ status, api, onActivated }) {
       setCode("");
       setInvitation(null);
       setError(
-        "Activation was not confirmed. The code may be expired, revoked, already used or issued for another identity. Check account status before requesting a replacement. Disabled accounts require an Owner's review.",
+        "We couldn't activate this account. Check your invitation or contact your workspace owner.",
       );
     } finally {
       setBusy(false);
@@ -44,47 +44,28 @@ export default function Activation({ status, api, onActivated }) {
   }
   return (
     <section className="activation-panel" aria-labelledby="activation-heading">
-      <h2 id="activation-heading">Welcome to Travel With Ease</h2>
-      <p>
-        Your identity has passed Cloudflare Access verification. Workspace
-        access is a separate, approved step.
-      </p>
-      <dl>
-        <dt>Workspace</dt>
-        <dd>{status.organisation}</dd>
-        <dt>{status.email ? "Your verified Cloudflare email" : "Your verified identity"}</dt>
-        <dd><code>{status.email || status.subject}</code></dd>
-      </dl>
+      <h2 id="activation-heading">Activate your account</h2>
+      <p className="activation-identity">Signed in as <strong>{status.email || status.subject}</strong></p>
       {status.status === "disabled" ? (
         <InlineNotice
           tone="warning"
           title="Account disabled"
-          message="Contact your workspace Owner. An invitation cannot reactivate this account."
+          message="Contact your workspace owner."
         />
       ) : complete ? (
         <div role="status">
           <h3>Your {complete.role} account is ready</h3>
-          <p>
-            Continue to your workspace introduction. You can skip the guide or
-            return to it later.
-          </p>
           <Button type="button" onClick={onActivated}>
             Enter workspace
           </Button>
         </div>
       ) : (
         <form onSubmit={claim}>
-          <h3>Activate your approved account</h3>
-          <p>
-            Enter the one-time invitation code from your email. Your signed
-            Cloudflare Access identity and email must match the invitation.
-            Your role is determined by the invitation, not by this form.
-          </p>
+          <p>Enter the invitation code sent to your email.</p>
           {invitation ? (
             <p role="status">
-              Activate as <strong>{invitation.role}</strong> in{" "}
-              <strong>{status.organisation}</strong>. The invitation expires{" "}
-              {new Date(invitation.expiresAt).toLocaleString()}.
+              <strong>{invitation.role === "owner" ? "Owner" : "Editor"} access</strong> · Expires{" "}
+              {new Date(invitation.expiresAt).toLocaleString()}
             </p>
           ) : (
             <TextField
@@ -121,9 +102,11 @@ export default function Activation({ status, api, onActivated }) {
           message={error}
         />
       )}
-      <Button type="button" disabled={busy} onClick={onActivated}>
-        Check account status
-      </Button>
+      {(error || status.status === "disabled") && (
+        <Button type="button" disabled={busy} onClick={onActivated}>
+          Check account status
+        </Button>
+      )}
       {status.canIssueOwner && !complete && <Invitations api={api} installer />}
     </section>
   );

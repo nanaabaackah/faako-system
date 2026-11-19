@@ -10,6 +10,7 @@ import { PagesProvider, readPagesConfiguration } from "../src/content/pages-prov
 import { ArtifactArchive } from "../src/content/artifact-archive.js";
 import { preparePublication, verifyPublishedMarker } from "../src/content/artifact.js";
 import { publicBuildEnvironment, runReviewedCommand } from "../src/content/build.js";
+import { assertPublicationSource } from "../src/content/source-identity.js";
 import { readR2Config, R2Store } from "../src/media/r2.js";
 import { MediaService } from "../src/media/service.js";
 import { verifyHostedDatabase } from "../src/portal/readiness.js";
@@ -26,8 +27,7 @@ try {
   const store = new R2Store(storage), archive = new ArtifactArchive(store, { organisationId, environment: settings.environment });
   const publication = new PublicationRepository(pool, { organisationId, environment: settings.environment, sourceSha: settings.sourceSha });
   if (await publication.lastLive()) throw new Error("Baseline already accepted.");
-  const sha = await runReviewedCommand("git", ["rev-parse", "HEAD"], { PATH: process.env.PATH });
-  if (sha !== settings.sourceSha || await runReviewedCommand("git", ["status", "--porcelain", "--", "apps/travel-with-ease-api", "apps/travel-with-ease-web", "packages", "package.json", "pnpm-lock.yaml"], { PATH: process.env.PATH })) throw new Error();
+  const sha = await assertPublicationSource(settings.sourceSha);
   if (process.argv[2] === "prepare") {
     const job = await publication.claim();
     if (!job || job.source_sha !== sha) throw new Error();

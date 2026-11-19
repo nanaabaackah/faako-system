@@ -37,6 +37,7 @@ export interface TravelPackage {
   tagline?: string;
   occasions?: string[];
   groupFriendly?: boolean;
+  homeFeatureOrder?: number;
   nights?: number | null;
   days?: number | null;
   pricingStatus?: string;

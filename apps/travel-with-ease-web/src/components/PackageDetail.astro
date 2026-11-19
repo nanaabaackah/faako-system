@@ -1,6 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import Breadcrumbs from "./Breadcrumbs.astro";
 import MoneyText from "./MoneyText.astro";
 import PackageItinerary from "./PackageItinerary.jsx";
@@ -26,6 +27,7 @@ const {
   prefix = "/packages",
   journalPrefix = "/journal",
 } = Astro.props;
+const copy = siteCopy("packages");
 const canEnquire = !["closed", "sold_out"].includes(item.availability || "");
 const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
 ---
@@ -42,8 +44,8 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           <div><dt>{item.pricingStatus === "indicative" ? "Starting price" : "Pricing"}</dt><dd><MoneyText text={packageStartingPrice(item)} /></dd></div>
         </dl>
         {item.dates && <p>{item.dates}</p>}
-        {item.pricingStatus === "indicative" && <p class="package-price-disclaimer">Indicative, per person sharing · return flights from Accra included. Review the full pricing details below.</p>}
-        <ContentLink href="#package-pricing">Explore the details</ContentLink>
+        {item.pricingStatus === "indicative" && <p class="package-price-disclaimer">Indicative price · Per person sharing · Return flights from Accra included.</p>}
+        <ContentLink href="#package-pricing">{copy.detailsCta}</ContentLink>
       </header>
     {
       item.image && (
@@ -71,13 +73,13 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
     <div class="package-detail-grid">
       <div class="collection-reading">
         <section id="package-overview">
-          <h2>The journey</h2><p class="preserve-lines">{item.overview}</p>
+          <h2>{copy.overviewHeading}</h2><p class="preserve-lines">{item.overview}</p>
         </section>
         {
           (item.highlights?.length || 0) > 0 && (
             <section>
               <>
-                <h2>Trip highlights</h2>
+                <h2>{copy.highlightsHeading}</h2>
                 <ul>
                   {(item.highlights || []).map((text) => (
                     <li>{text}</li>
@@ -92,7 +94,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           (item.inclusions?.length || 0) > 0 && (
             <section id="package-inclusions" class="package-inclusions">
               <>
-                <h2>What is included</h2>
+                <h2>{copy.inclusionsHeading}</h2>
                 <ul>
                   {(item.inclusions || []).map((text) => (
                     <li>{text}</li>
@@ -106,7 +108,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           (item.exclusions?.length || 0) > 0 && (
             <section>
               <>
-                <h2>Not included</h2>
+                <h2>{copy.exclusionsHeading}</h2>
                 <ul>
                   {(item.exclusions || []).map((text) => (
                     <li>{text}</li>
@@ -120,7 +122,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           item.transport && (
             <section>
               <>
-                <h2>Flights and transport</h2>
+                <h2>{copy.transportHeading}</h2>
                 <p>{item.transport}</p>
               </>
             </section>
@@ -130,7 +132,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           item.accommodation && (
             <section>
               <>
-                <h2>Where you stay</h2>
+                <h2>{copy.accommodationHeading}</h2>
                 <p>{item.accommodation}</p>
               </>
             </section>
@@ -139,7 +141,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
         {
           (item.itinerary?.length || 0) > 0 && (
             <section id="package-itinerary">
-              <h2>Your itinerary</h2>
+              <h2>{copy.itineraryHeading}</h2>
               <PackageItinerary
                 days={[...(item.itinerary || [])].sort((a, b) => a.day - b.day)}
                 client:visible
@@ -151,7 +153,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           (item.gallery?.length || 0) > 0 && (
             <section>
               <>
-                <h2>A closer look</h2>
+                <h2>{copy.galleryHeading}</h2>
                 <PackageMasonryGallery images={item.gallery || []} />
               </>
             </section>
@@ -161,23 +163,20 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
           item.important && (
             <section>
               <>
-                <h2>Before you enquire</h2>
+                <h2>{copy.importantHeading}</h2>
                 <p>{item.important}</p>
               </>
             </section>
           )
         }
       </div><aside class="package-enquiry-panel" aria-label="Enquire about this package">
-        <h2>Interested in this trip?</h2>{
+        <h2>{copy.detailHeading}</h2>{
           <p class="package-price"><MoneyText text={packageStartingPrice(item)} /></p>
         }<p>
-          An enquiry is not a booking. Confirm offer, dates, price and terms
-          directly with us.
+          Enquiring does not confirm a booking. Your final quote will confirm dates, price and terms.
         </p>{
           canEnquire ? (
-            <ContentLink button href={enquiry}>
-              Check dates &amp; Get a Quote
-            </ContentLink>
+            <ContentLink button href={enquiry}>{copy.enquireCta}</ContentLink>
           ) : (
             <p>Enquiries for this trip are currently closed.</p>
           )
@@ -187,7 +186,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
     {
       relatedPackages.length > 0 && (
         <section class="collection-related">
-          <h2>Other journeys to consider</h2>
+          <h2>{copy.relatedHeading}</h2>
           {relatedPackages.map((other) => (
             <ContentLink href={`${prefix}/${other.slug}`}>
               {other.title}
@@ -199,7 +198,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
     {
       stories.length > 0 && (
         <section class="collection-related">
-          <h2>From the Journal</h2>
+          <h2>{copy.journalHeading}</h2>
           {stories.map((story) => (
             <ContentLink href={`${journalPrefix}/${story.slug}`}>
               {story.title}

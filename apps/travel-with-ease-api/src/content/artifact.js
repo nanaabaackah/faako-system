@@ -87,18 +87,17 @@ export async function preparePublication(job, media, directory, { approvedBaseli
       })),
     );
     const records = async (items,key) =>
-      Promise.all(
-        items.map(async (record) => ({
+      Promise.all(items.map(async (record) => {
+        const approved = approvedPages[item.slug]?.[key]?.find(candidate =>
+          record.id ? candidate.id === record.id : candidate.slug === record.slug);
+        const managedGallery = await Promise.all(record.galleryImageIds.map(async id => (await imageFor(id)).image));
+        return {
           ...record,
-          ...(await imageFor(record.imagePlacement?.imageId||record.imageId,approvedPages[item.slug]?.[key]?.find(approved=>approved.id===record.id||approved.slug===record.slug))),
-          imagePlacement:await placementFor(record.imagePlacement),
-          gallery: await Promise.all(
-            record.galleryImageIds.map(
-              async (id) => (await imageFor(id)).image,
-            ),
-          ),
-        })),
-      );
+          ...(await imageFor(record.imagePlacement?.imageId || record.imageId, record.retainApprovedImage ? approved : undefined)),
+          imagePlacement: await placementFor(record.imagePlacement),
+          gallery: managedGallery.length || !record.retainApprovedGallery ? managedGallery : (approved?.gallery || []),
+        };
+      }));
     const packages = await records(body.packages,'packages');
     const articles = await records(body.articles,'articles');
     pages[item.slug] = {

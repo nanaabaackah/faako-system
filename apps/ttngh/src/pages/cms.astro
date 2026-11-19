@@ -10,8 +10,7 @@ if (studioUrl) {
 <BaseLayout path="/cms" title="Editor access | TTNGH" description="Content Studio access for approved TTNGH editors." noIndex={true}>
   <main id="main-content" class="cms-gateway">
     <h1>Content Studio</h1>
-    <p>Manage TTNGH's published content. Sign-in and account recovery are handled securely by Sanity.</p>
-    {studioUrl ? <a class="button button-primary" href={studioUrl}><span class="button-label">Open TTNGH Studio</span><span class="button-icon"><Icon name="arrow-right" /></span></a> : <p>The Studio address is awaiting configuration. Please ask your administrator for your invitation.</p>}
-    <p><small>Approved editors only.</small></p>
+    <p>Manage TTNGH website content through the Studio.</p>
+    {studioUrl ? <a class="button button-primary" href={studioUrl}><span class="button-label">Open TTNGH Studio</span><span class="button-icon"><Icon name="arrow-right" /></span></a> : <p>Studio access is temporarily unavailable. Contact your administrator.</p>}
   </main>
 </BaseLayout>

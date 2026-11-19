@@ -40,7 +40,7 @@ const faqItems = [
     <section id="team" class="about-team" aria-labelledby="team-title">
       <div>
         <h2 id="team-title">Meet the people behind the work.</h2>
-        <p>Our leadership core team brings together programme delivery, operations, legal affairs, fundraising, communications, projects, administration, and outreach.</p>
+        
         <a class="button button-primary" href="/team"><span class="button-label">Meet the team</span><span class="button-icon" aria-hidden="true"><Icon name="arrow-right" focusable="false" /></span></a>
       </div>
       <div class="about-team-portraits" aria-hidden="true">
@@ -54,10 +54,10 @@ const faqItems = [
     </section>
 
     <section id="roadmap" class="direction-section" aria-labelledby="roadmap-title">
-      <div class="direction-heading"><h2 id="roadmap-title">Building from community reach to national presence.</h2><p>Each stage strengthens the foundation for the next.</p></div>
+      <div class="direction-heading"><h2 id="roadmap-title">Building from community reach to national presence.</h2></div>
       <ol class="direction-roadmap">{roadmap.map((item, index) => <li class="editorial-item"><span class="direction-index">{String(index + 1).padStart(2, "0")}</span><h3>{item.period}</h3><p>{item.description}</p></li>)}</ol>
     </section>
     <FaqList items={faqItems} />
-    <ScrollExpandSection image="/images/refresh/vision-facilitator-1600.webp" alt="People gathered around a table at Vision with Clarity" title="Help build a stigma-free society." text="Donate to support counselling, education, advocacy, and community outreach." frameTitle="The work grows together." id="about-cta-title" />
+    <ScrollExpandSection image="/images/refresh/vision-facilitator-1600.webp" alt="People gathered around a table at Vision with Clarity" title="Help build a stigma-free society." frameTitle="The work grows together." id="about-cta-title" />
   </main>
 </BaseLayout>

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { editorialValues } from "../../travel-with-ease-api/src/content/editorial-fields.js";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
 test("public typography uses licensed Google Fonts with scoped hero and journal handwriting", () => {
@@ -102,9 +103,11 @@ test("mobile menu matches approved full-screen reference without hiding importan
   const layout = read("../src/layouts/BaseLayout.astro");
   const css = read("../src/styles/components/scroll-navigation.css");
   const hero = read("../src/styles/typography.css");
-  assert.doesNotMatch(layout, /\["\/", "Home"\]/);
-  assert.doesNotMatch(layout, /\["\/contact", "Contact"\]/);
-  assert.match(layout, /\["\/journal", "Journal"\]/);
+  assert.doesNotMatch(layout, /\["\/",/);
+  assert.doesNotMatch(layout, /\["\/contact",/);
+  assert.match(layout, /\["\/journal", copy\.navJournal\]/);
+  assert.equal(editorialValues("site-appearance").navJournal, "Journal");
+  assert.equal(editorialValues("site-appearance", { navJournal: "Travel stories" }).navJournal, "Travel stories");
   assert.match(css, /nav\[data-collapsed="true"\] \{\s*display: none/);
   assert.match(css, /position: fixed;[\s\S]*?height: 100dvh/);
   assert.match(css, /border-bottom: 1px solid rgb\(244 237 227 \/ 18%\)/);

@@ -10,14 +10,14 @@ import { currentInitiatives, organization, programmePillars } from "../content/h
 
 const faqItems = [
   { question: "What are TTNGH's four programme areas?", answer: "TTNGH works through Mental Health Education, Counselling and Support Services, Advocacy and Awareness, and Research and Policy Engagement." },
-  { question: "Does TTNGH provide counselling?", answer: "Yes. The company profile states that TTNGH provides professional one-on-one counselling alongside peer support and safe virtual and in-person community spaces." },
+  { question: "Does TTNGH provide counselling?", answer: "Yes. TTNGH provides professional one-on-one counselling alongside peer support and virtual and in-person support sessions." },
   { question: "Can TTNGH deliver outreach for an organisation?", answer: "TTNGH delivers mental health education for schools, workplaces, churches, community centres, and other community settings. Contact the team to discuss a programme." },
 ];
 ---
 
 <BaseLayout path="/programmes" title={`Programs and services | ${organization.name}`} description="Explore TTN GH mental health education, counselling, support groups, advocacy, research, and policy engagement." image="/images/home/programme-audience.jpg" imageAlt="Students attending a TTNGH mental health education programme in Tema" breadcrumbs={[{ name: "Home", path: "/" }, { name: "Programs", path: "/programmes" }]} faqItems={faqItems}>
   <main id="main-content" class="editorial-main">
-    <PageHero variant="immersive" links={[["Our pillars","#pillars-title"],["Current initiatives","#initiatives-title"]]} title="Support, education" accent="and advocacy." intro="Our four programme pillars work together to improve access to support, strengthen mental health knowledge, and reduce stigma." images={[
+    <PageHero variant="immersive" links={[["Our pillars","#pillars-title"],["Current initiatives","#initiatives-title"]]} title="Support, education" accent="and advocacy." intro="Mental health education, counselling, advocacy, and research." images={[
       { src: "/images/refresh/tema-school-speaker-1600.webp", alt: "A speaker holding a microphone in a school hall" },
     ]} />
     <section class="section-dark" aria-labelledby="pillars-title" data-reveal>
@@ -32,6 +32,6 @@ const faqItems = [
       <div class="editorial-rows">{currentInitiatives.map((initiative) => <article class="editorial-row"><h3>{initiative.title}</h3><p>{initiative.description}</p></article>)}</div>
     </section>
     <FaqList items={faqItems} />
-    <ScrollExpandSection image="/images/refresh/tema-school-team-1600.webp" alt="The TTNGH team during a mental health education programme in Tema" title="Help sustain our programmes." text="Donate to support counselling, support groups, education, and outreach." frameTitle="Support starts with a conversation." id="programme-contact-title" />
+    <ScrollExpandSection image="/images/refresh/tema-school-team-1600.webp" alt="The TTNGH team during a mental health education programme in Tema" title="Help sustain our programmes." frameTitle="Support starts with a conversation." id="programme-contact-title" />
   </main>
 </BaseLayout>

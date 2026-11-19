@@ -6,6 +6,7 @@ const read = relative => readFileSync(new URL(relative, import.meta.url), "utf8"
 const home = read("../src/components/PublishedHome.astro");
 const reviews = read("../src/components/TravellerReviews.astro");
 const styles = read("../src/styles/components/traveller-reviews.css");
+const approved = JSON.parse(read("../content/approved-public-release.json")).pages.home;
 
 test("homepage places traveller reviews after its CTA and before the shared enquiry/footer", () => {
   assert.match(home, /import TravellerReviews from "\.\/TravellerReviews\.astro"/);
@@ -15,16 +16,18 @@ test("homepage places traveller reviews after its CTA and before the shared enqu
 });
 
 test("review section has exactly three anonymous first-hand testimonials with expanded originals", () => {
-  assert.match(reviews, /What Travellers Say/);
-  assert.match(reviews, /I had an exceptional experience with TWE/);
-  assert.match(reviews, /Overall, I really enjoyed my Rwanda trip/);
-  assert.match(reviews, /The Kenya Airways cancellation and long Nairobi layover/);
-  assert.match(reviews, /One thing I would suggest is having fewer generic activities/);
-  assert.match(reviews, /When I got my visa, I honestly didn't know where to start/);
-  assert.match(reviews, /I will definitely use Travel with Ease again/);
-  assert.match(reviews, /the four Instagram story frames form one continuous testimonial/);
+  assert.equal(approved.reviews.length, 3);
+  const text = JSON.stringify(approved.reviews);
+  assert.match(reviews, /home\.reviews/);
+  assert.match(reviews, /copy\.reviewsHeading/);
+  assert.match(text, /I had an exceptional experience with TWE/);
+  assert.match(text, /Overall, I really enjoyed my Rwanda trip/);
+  assert.match(text, /The Kenya Airways cancellation and long Nairobi layover/);
+  assert.match(text, /One thing I would suggest is having fewer generic activities/);
+  assert.match(text, /When I got my visa, I honestly didn't know where to start/);
+  assert.match(text, /I will definitely use Travel with Ease again/);
   assert.match(reviews, /<details class="traveller-reviews__details">/);
-  assert.match(reviews, /<summary>Read full review<\/summary>/);
+  assert.match(reviews, /<summary>\{copy\.reviewsExpand\}<\/summary>/);
   assert.doesNotMatch(reviews, /Client Love|CLIENT LOVE|Jennifer H|reviewerName|avatar|<img/);
   assert.doesNotMatch(reviews, /<a[^>]+href="\/reviews"/);
 });

@@ -85,7 +85,6 @@ export default function Enquiries({ api, session }) {
     >
       <div className="workspace-intro">
         <h2 id="enquiries-heading">Traveller inbox</h2>
-        <p>Follow up with travellers and keep each conversation moving.</p>
       </div>
       {error && (
         <InlineNotice
@@ -173,10 +172,6 @@ export default function Enquiries({ api, session }) {
                       </div>
                     )}
                   </dl>
-                  <p className="workspace-caption">
-                    Private contact details. Use only to follow up on this
-                    enquiry.
-                  </p>
                 </aside>
               </div>
               {selected.details?.questionSnapshots && initialEnquiryFields(selected.details).length > 0 && <section className="workspace-panel enquiry-answers">
@@ -190,8 +185,7 @@ export default function Enquiries({ api, session }) {
               <section className="workspace-panel enquiry-progress">
                 <h4>Follow-up status</h4>
                 <p className="workspace-caption">
-                  Update the record after following up. This does not send a
-                  message to the traveller.
+                  Status only · No message sent.
                 </p>
                 {session.user.permissions?.includes("enquiries.write") ? (
                   <div
@@ -265,7 +259,7 @@ export default function Enquiries({ api, session }) {
                   value={
                     result.items.filter((item) => item.status === value).length
                   }
-                  detail="On this filtered page"
+                  
                 />
               ))}
             </div>
@@ -329,8 +323,8 @@ export default function Enquiries({ api, session }) {
           title={saving ? "Saving status" : "Loading enquiries"}
           message={
             saving
-              ? "Waiting for confirmation. Do not submit again."
-              : "Retrieving authorised workspace records."
+              ? "Saving status…"
+              : "Loading enquiries…"
           }
         />
       )}

@@ -1,6 +1,7 @@
 ---
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import Breadcrumbs from "./Breadcrumbs.astro";
 import ClosingCta from "./ClosingCta.astro";
 import { publishedPage } from "../lib/published.js";
@@ -73,7 +74,7 @@ const isTip = item.category === "Travel tip";
   )}
   {linked.length > 0 && (
     <section class="collection-related" aria-label="Related reading">
-      <h2>Related reading</h2>
+      <h2>{siteCopy("journal").relatedReading}</h2>
       {linked.map((other) => <ContentLink href={`/journal/${other.slug}`}>{other.title}</ContentLink>)}
     </section>
   )}
@@ -85,7 +86,7 @@ const isTip = item.category === "Travel tip";
   {
     packages.length > 0 && (
       <section class="collection-related">
-        <h2>Explore related journeys</h2>
+        <h2>{siteCopy("journal").relatedJourneys}</h2>
         {packages.map((other) => (
           <ContentLink href={`${packagePrefix}/${other.slug}`}>
             {other.title}
@@ -97,7 +98,7 @@ const isTip = item.category === "Travel tip";
   {
     related.length > 0 && (
       <section class="collection-related">
-        <h2>Keep reading</h2>
+        <h2>{siteCopy("journal").keepReading}</h2>
         {related.map((other) => (
           <ContentLink href={`${prefix}/${other.slug}`}>
             {other.title}

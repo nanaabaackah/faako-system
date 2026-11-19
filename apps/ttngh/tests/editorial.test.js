@@ -17,10 +17,10 @@ test("events lifecycle layout keeps the calendar before recurring context and ha
   assert.match(detail,/!isPast && <>/);
   assert.match(detail,/See more TTNGH events/);
 });
-test("all ScrollExpand CTAs prioritise Donate and avoid a support-page self-link", () => {
+test("ScrollExpand actions accurately describe support and avoid a support-page self-link", () => {
   const component = read("../src/components/ScrollExpandSection.astro");
   assert.match(component, /href = "\/support-us"/);
-  assert.match(component, /linkLabel = "Donate"/);
+  assert.match(component, /linkLabel = "Support our work"/);
   assert.match(component, /class="button button-primary"/);
   const pages = readdirSync(new URL("../src/pages/", import.meta.url), { recursive: true });
   let count = 0;
@@ -28,9 +28,13 @@ test("all ScrollExpand CTAs prioritise Donate and avoid a support-page self-link
     const source = read(`../src/pages/${page}`);
     for (const [tag] of source.matchAll(/<ScrollExpandSection\b[^>]*\/>/g)) {
       count++;
-      assert.doesNotMatch(tag, /linkLabel=/, page);
-      if (page === "support-us.astro") assert.match(tag, /href="\/contact\?topic=donations"/);
-      else assert.doesNotMatch(tag, /href=/, page);
+      if (page === "support-us.astro") {
+        assert.match(tag, /href="\/contact\?topic=donations"/);
+        assert.match(tag, /linkLabel="Ask about giving"/);
+      } else {
+        assert.doesNotMatch(tag, /linkLabel=/, page);
+        assert.doesNotMatch(tag, /href=/, page);
+      }
     }
   }
   assert.equal(count, 10);

@@ -1,5 +1,6 @@
 ---
 import ContentLink from "./ContentLink.astro";
+import { siteCopy } from "../lib/editorial-copy.js";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
 import MoneyText from "./MoneyText.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
@@ -11,6 +12,7 @@ import "../styles/components/home-services.css";
 
 interface ServiceEntry {
   heading: string;
+  serviceSlug?: string;
   text: string;
   imagePlacement?: ImagePlacement;
 }
@@ -29,7 +31,7 @@ const { heading, body, entries } = Astro.props;
         <h2 id="home-services-heading">{heading}</h2>
         <p>{body}</p>
       </div>
-      <ContentLink href="/services">Explore all services</ContentLink>
+      <ContentLink href="/services">{siteCopy("home").servicesCta}</ContentLink>
     </div>
     <EditorialPhoto
       image={photography.garden}
@@ -46,7 +48,7 @@ const { heading, body, entries } = Astro.props;
       return (
         <li class="home-services__item home-services__row">
           <div class="home-services__row-heading">
-            <h3><ContentLink href={`/services/${serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
+            <h3><ContentLink href={`/services/${entry.serviceSlug || serviceSlug(entry.heading)}`}>{title}</ContentLink></h3>
           </div>
           <p class="home-services__summary">{summary}</p>
           {price && <p class="home-services__fee"><MoneyText text={price} /></p>}

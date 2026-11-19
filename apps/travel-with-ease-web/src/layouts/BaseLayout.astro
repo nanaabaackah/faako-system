@@ -14,6 +14,7 @@ import CookieNotice from "../components/CookieNotice.astro";
 import FloatingActions from "../components/FloatingActions.astro";
 import { sharingMetadata } from "../lib/sharing.js";
 import { publishedPage } from "../lib/published.js";
+import { siteCopy } from "../lib/editorial-copy.js";
 import { publishedEnquiryCatalogue } from "../lib/enquiry-catalogue.js";
 
 const {
@@ -92,12 +93,13 @@ const visible = (href: string) =>
   href === "/journal" ||
   (cinematic && href.startsWith("#")) ||
   Boolean(publishedPage(href === "/" ? "home" : href.slice(1)));
+const copy = siteCopy("site-appearance");
 const navigation = [
-  ["/packages", "Packages"],
-  ["/services", "Services"],
-  ["/how-it-works", "How It Works"],
-  ["/journal", "Journal"],
-  ["/about", "About"],
+  ["/packages", copy.navPackages],
+  ["/services", copy.navServices],
+  ["/how-it-works", copy.navProcess],
+  ["/journal", copy.navJournal],
+  ["/about", copy.navAbout],
 ];
 ---
 
@@ -230,7 +232,7 @@ const navigation = [
               class="nav-cta"
               href={planningHref}
             >
-              Plan My Trip
+              {copy.navCta}
             </ContentLink>
           )
         }

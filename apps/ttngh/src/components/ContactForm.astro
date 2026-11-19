@@ -10,17 +10,17 @@ if (apiOrigin) {
 }
 ---
 <form class="contact-form" data-contact-form data-api={apiOrigin} data-sitekey={sitekey} novalidate>
- <div class="contact-form-heading"><h2>Tell us how we can help.</h2><p>{enabled?"Your enquiry is sent securely to the TTNGH team. Please share only the information needed to respond.":"Online enquiries are not available yet. Please use the contact details on this page."}</p></div>
+ <div class="contact-form-heading"><h2>Tell us how we can help.</h2>{!enabled && <p>Online enquiries are unavailable. Please use our contact details.</p>}</div>
  <fieldset disabled={!enabled} class="contact-form-grid">
   <legend>Your enquiry</legend>
   <label><span>Name</span><input name="name" autocomplete="name" minlength="2" maxlength="80" required /></label>
   <label><span>Email</span><input name="email" type="email" autocomplete="email" maxlength="160" required /></label>
-  <label class="contact-form-wide"><span>What would you like to discuss?</span><select name="topic" required><option value="">Choose a topic</option>{["Programmes or support","Events","Volunteering","Donations","Partnerships","Media collaboration","Privacy question","Other enquiry"].map(topic=><option>{topic}</option>)}</select></label>
-  <label class="contact-form-wide"><span>Message</span><textarea name="message" rows="7" minlength="20" maxlength="2000" aria-describedby="message-guidance" required></textarea><small id="message-guidance">20–2,000 characters. Do not include diagnoses, medical records or highly sensitive personal information.</small></label>
+  <label class="contact-form-wide"><span>What would you like to discuss?</span><span class="contact-form-select-wrap"><select name="topic" required><option value="">Choose a topic</option>{["Programmes or support","Events","Volunteering","Donations","Partnerships","Media collaboration","Privacy question","Other enquiry"].map(topic=><option>{topic}</option>)}</select></span></label>
+  <label class="contact-form-wide"><span>Message</span><textarea name="message" rows="7" minlength="20" maxlength="2000" aria-describedby="message-guidance" required></textarea><small id="message-guidance">20–2,000 characters. Please avoid medical records or sensitive health details.</small></label>
   <label class="contact-form-trap" aria-hidden="true"><span>Leave this field empty</span><input name="website" tabindex="-1" autocomplete="off" /></label>
   <label class="contact-form-consent contact-form-wide"><input name="consent" type="checkbox" required /><span>I have read the <a href="/privacy">privacy notice</a> and agree to my details being used to respond to this enquiry.</span></label>
  </fieldset>
- {enabled&&<div class="contact-form-verification"><p>The security check connects to Cloudflare to help prevent spam.</p><button type="button" class="text-link" data-load-verification>Load security check</button><div data-turnstile></div></div>}
+ {enabled&&<div class="contact-form-verification"><button type="button" class="text-link" data-load-verification>Load security check</button><div data-turnstile></div></div>}
  <div class="contact-form-submit"><button class="button button-primary" type="submit" data-async-state="idle" aria-busy="false" disabled><span class="button-label"><span data-async-label>Send enquiry</span></span><span class="button-icon" aria-hidden="true"><span data-async-default><Icon name="arrow-right" /></span><span class="async-spinner" data-async-working></span><span data-async-success><Icon name="check" /></span></span></button><p class="contact-form-status" data-form-status role="status" aria-live="polite" tabindex="-1"></p></div>
  <noscript><p>Online submission needs JavaScript for the security check. You can email <a href={`mailto:${organization.email}`}>{organization.email}</a> instead.</p></noscript>
 </form>
