@@ -54,6 +54,10 @@ test("public card surfaces reuse tilt motion without overriding reduced-motion p
   const styles = source("styles/editorial.css");
   assert.match(motion, /\.service-panel/);
   assert.match(motion, /\.traveller-reviews__card/);
+  assert.doesNotMatch(motion, /\.cinematic-enquiry__card,/);
+  assert.doesNotMatch(motion, /\.enquiry-wizard-page__card,/);
+  assert.doesNotMatch(motion, /\.package-enquiry-panel",/);
+  assert.match(motion, /\.closing-scene/);
   assert.match(motion, /!card\.closest\("\.tilted-card"\)/);
   assert.match(styles, /prefers-reduced-motion: reduce/);
   assert.match(styles, /--twe-card-tilt-x/);
