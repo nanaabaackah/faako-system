@@ -2,11 +2,13 @@
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import "../styles/components/how-it-works-tabs.css";
-
 interface Step { heading: string; text: string }
 interface Flow { steps: Step[]; example: string; exampleSteps?: Step[] }
-interface Props { flows?: { package: Flow; planning: Flow } }
-const { flows } = Astro.props;
+interface Props {
+  flows?: { package: Flow; planning: Flow };
+  mode?: "steps" | "examples";
+}
+const { flows, mode = "steps" } = Astro.props;
 const copy = siteCopy("how-it-works");
 const exampleSteps = (flow: "package" | "planning"): Step[] => {
   const configured = flows?.[flow]?.exampleSteps;
@@ -31,90 +33,68 @@ const valid = flows &&
 ---
 
 {valid ? (
-  <div class="planning-flow" data-process-flows>
-    <!-- Both routes remain available in the server-rendered HTML if JS is disabled. -->
-    <div class="planning-flow__tablist" role="tablist" aria-label="How you would like to travel" hidden>
-      <button type="button" id="package-flow-tab" role="tab" aria-controls="package-booking" aria-selected="true" tabindex="0" data-flow-tab="package">{copy.packageTitle}</button>
-      <button type="button" id="planning-flow-tab" role="tab" aria-controls="trip-planning" aria-selected="false" tabindex="-1" data-flow-tab="planning">{copy.planningTitle}</button>
+  mode === "steps" ? (
+    <div class="planning-flow planning-flow--steps" data-process-flows>
+      <div class="planning-flow__tablist" role="tablist" aria-label="How you would like to travel" hidden>
+        <button type="button" id="package-flow-tab" role="tab" aria-controls="package-booking" aria-selected="true" tabindex="0" data-flow-tab="package">{copy.packageTitle}</button>
+        <button type="button" id="planning-flow-tab" role="tab" aria-controls="trip-planning" aria-selected="false" tabindex="-1" data-flow-tab="planning">{copy.planningTitle}</button>
+      </div>
+      {(["package", "planning"] as const).map(flow => (
+        <section class="planning-flow__panel" id={flow === "package" ? "package-booking" : "trip-planning"}
+          role="tabpanel" aria-labelledby={flow === "package" ? "package-flow-tab" : "planning-flow-tab"}
+          data-flow-panel={flow}>
+          <h2>{flow === "package" ? copy.packageTitle : copy.planningTitle}</h2>
+          <ol class="planning-flow__steps">
+            {flows[flow].steps.map((step, index) => (
+              <li>
+                <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                <div><h3>{step.heading}</h3><p>{step.text}</p></div>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
     </div>
-    <section class="planning-flow__panel" id="package-booking" role="tabpanel" aria-labelledby="package-flow-tab" data-flow-panel="package">
-      <h2>{copy.packageTitle}</h2>
-      <ol class="planning-flow__steps">
-        {flows.package.steps.map((step, index) => (
-          <li>
-            <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-            <div>
-              <h3>{step.heading}</h3>
-              <p>{step.text}</p>
+  ) : (
+    <div class="planning-flow planning-flow--examples" data-process-examples>
+      {(["package", "planning"] as const).map(flow => (
+        <section class="planning-flow__example-panel" data-example-panel={flow}
+          aria-label={flow === "package" ? copy.packageExample : copy.planningExample}>
+          <div class="planning-example">
+            <div class="planning-example__intro">
+              <span class="planning-example__label">An illustrative example</span>
+              <h2>{flow === "package" ? copy.packageExample : copy.planningExample}</h2>
+              <p>{flows[flow].example}</p>
+              {flow === "package" && <ContentLink href="/packages/nairobi">{copy.packageExampleCta}</ContentLink>}
             </div>
-          </li>
-        ))}
-      </ol>
-      <section class="planning-example" aria-labelledby="package-example-heading">
-        <div class="planning-example__intro">
-          <span class="planning-example__label">An illustrative example</span>
-          <h2 id="package-example-heading">{copy.packageExample}</h2>
-          <p>{flows.package.example}</p>
-          <ContentLink href="/packages/nairobi">{copy.packageExampleCta}</ContentLink>
-        </div>
-        <ol class="planning-example__steps">
-          {exampleSteps("package").map((step) => (
-            <li><h3>{step.heading}</h3><p>{step.text}</p></li>
-          ))}
-        </ol>
-        <div class="planning-example__next">
-          <p>This illustrates the package process, not a real booking or confirmed quote. Your live quote sets out the agreed arrangements.</p>
-          <ContentLink button href="#plan">Ask about a package</ContentLink>
-        </div>
-      </section>
-      <div class="planning-flow__footer">
-        <ContentLink href="/terms#package-terms">{copy.packageTermsCta}</ContentLink>
-      </div>
-    </section>
-    <section class="planning-flow__panel" id="trip-planning" role="tabpanel" aria-labelledby="planning-flow-tab" data-flow-panel="planning">
-      <h2>{copy.planningTitle}</h2>
-      <ol class="planning-flow__steps">
-        {flows.planning.steps.map((step, index) => (
-          <li>
-            <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-            <div>
-              <h3>{step.heading}</h3>
-              <p>{step.text}</p>
+            <ol class="planning-example__steps">
+              {exampleSteps(flow).map(step => <li><h3>{step.heading}</h3><p>{step.text}</p></li>)}
+            </ol>
+            <div class="planning-example__next">
+              <p>{flow === "package"
+                ? "This illustrates the package process, not a real booking or confirmed quote. Your live quote sets out the agreed arrangements."
+                : "This is an illustrative planning journey, not a client testimonial or confirmed arrangement. Booking costs remain separate from the planning fee."}</p>
+              <ContentLink button href="#plan">{flow === "package" ? "Ask about a package" : "Tell us about your trip"}</ContentLink>
             </div>
-          </li>
-        ))}
-      </ol>
-      <section class="planning-example" aria-labelledby="planning-example-heading">
-        <div class="planning-example__intro">
-          <span class="planning-example__label">An illustrative example</span>
-          <h2 id="planning-example-heading">{copy.planningExample}</h2>
-          <p>{flows.planning.example}</p>
-        </div>
-        <ol class="planning-example__steps">
-          {exampleSteps("planning").map((step) => (
-            <li><h3>{step.heading}</h3><p>{step.text}</p></li>
-          ))}
-        </ol>
-        <div class="planning-example__next">
-          <p>This is an illustrative planning journey, not a client testimonial or confirmed arrangement. Booking costs remain separate from the planning fee.</p>
-          <ContentLink button href="#plan">Tell us about your trip</ContentLink>
-        </div>
-      </section>
-      <div class="planning-flow__footer">
-        <ContentLink href="/terms#planning-terms">{copy.planningTermsCta}</ContentLink>
-      </div>
-    </section>
-    <aside class="planning-flow__readiness">
-      <p>{copy.readinessBody}</p>
-      <ContentLink href="/services/travel-readiness-session">{copy.readinessCta}</ContentLink>
-    </aside>
-  </div>
+          </div>
+          <div class="planning-flow__footer">
+            <ContentLink href={flow === "package" ? "/terms#package-terms" : "/terms#planning-terms"}>
+              {flow === "package" ? copy.packageTermsCta : copy.planningTermsCta}
+            </ContentLink>
+          </div>
+        </section>
+      ))}
+      <aside class="planning-flow__readiness">
+        <p>{copy.readinessBody}</p>
+        <ContentLink href="/services/travel-readiness-session">{copy.readinessCta}</ContentLink>
+      </aside>
+    </div>
+  )
 ) : (
   <p role="status">The updated booking and planning process is not yet published. Please contact Travel With Ease for current steps and payment terms.</p>
 )}
-
 <script>
-  document.querySelectorAll<HTMLElement>("[data-process-flows]").forEach((root) => {
+  document.querySelectorAll<HTMLElement>("[data-process-flows]").forEach(root => {
     const tabList = root.querySelector<HTMLElement>(".planning-flow__tablist");
     const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-flow-tab]"));
     const panels = Array.from(root.querySelectorAll<HTMLElement>("[data-flow-panel]"));
@@ -128,18 +108,18 @@ const valid = flows &&
         if (active && focus) tab.focus();
       }
       for (const panel of panels) panel.hidden = panel.dataset.flowPanel !== name;
+      document.querySelectorAll<HTMLElement>("[data-example-panel]").forEach(panel => {
+        panel.hidden = panel.dataset.examplePanel !== name;
+      });
     }
-
     const hash = window.location.hash;
     activate(hash === "#trip-planning" ? "planning" : "package");
     tabList.hidden = false;
-
-    tabList.addEventListener("click", (event) => {
+    tabList.addEventListener("click", event => {
       const target = (event.target as Element).closest<HTMLButtonElement>("[data-flow-tab]");
       if (target && tabList.contains(target)) activate(target.dataset.flowTab || "package");
     });
-
-    tabList.addEventListener("keydown", (event) => {
+    tabList.addEventListener("keydown", event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
       const activeIndex = tabs.findIndex(tab => tab.getAttribute("aria-selected") === "true");
@@ -148,7 +128,6 @@ const valid = flows &&
         : (activeIndex + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
       activate(tabs[nextIndex].dataset.flowTab || "package", true);
     });
-
     window.addEventListener("hashchange", () => {
       if (window.location.hash === "#trip-planning") activate("planning");
       if (window.location.hash === "#package-booking") activate("package");
