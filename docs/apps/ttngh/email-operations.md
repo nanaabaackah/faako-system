@@ -49,7 +49,7 @@ Operational checks must be recorded after configuration; code tests do not estab
 
 - The existing dedicated TTNGH PostgreSQL service remains the database of record. Do not provision a new database or use another application's connection string.
 - Before releasing the API, take an approved backup and apply `services/ttngh-api/migrations/002-enquiries.sql` to the existing TTNGH database using a privileged migration connection. This creates `ttngh_contact.enquiries` and `ttngh_contact.notification_outbox`; it does not touch donor/payment tables.
-- Set the Railway API variable `TTNGH_DATABASE_URL` to the TTNGH PostgreSQL **private** connection reference. It must point to the same database where migration 002 ran. Never commit or print its value.
+- Keep the existing Railway API variable `DATABASE_URL` referencing the dedicated TTNGH PostgreSQL **private** connection. It must point to the same database where migration 002 ran. Do not create a second database variable or expose its value.
 - Set `TTNGH_MAIL_FROM` to a sender email address verified in Resend (plain address only). Outgoing email uses the display name `The Thriving Network GH`. Confirm `TTNGH_ENQUIRY_TO` is the approved team inbox, and set `TTNGH_REPLY_TO` to the official reply mailbox.
 - The long `@icloud.com` alias reported in incoming mail may be an Apple Hide My Email/forwarding address. A display-name change does not remove that alias. Check the real From, To and Return-Path headers and Cloudflare Email Routing destination before changing email routing.
 - New submissions validate Turnstile and persist before any email attempt. An outbox job sends the staff notification first; only after successful Resend acceptance does the branded visitor acknowledgement become eligible.

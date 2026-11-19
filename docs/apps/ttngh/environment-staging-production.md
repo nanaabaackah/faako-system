@@ -78,7 +78,7 @@ Use environment-specific values, secrets, allowed hosts and build hooks.
 | `TTNGH_LIVE_PAYMENTS_APPROVED` | `false` |
 | `PAYSTACK_MODE` | `test` |
 | `PAYSTACK_SECRET_KEY` | Blank until an account exists; then an environment-matched **secret** |
-| `TTNGH_DATABASE_URL` | **Secret** connection URL for dedicated TTNGH PostgreSQL; isolated staging database |
+| `DATABASE_URL` | **Secret** connection URL for dedicated TTNGH PostgreSQL; isolated staging database |
 | `TTNGH_DONATION_RETURN_URL` | Approved website origin plus `/donate/return`; not a functioning checkout guarantee |
 
 Donation routes/worker activation and payment validation remain outstanding.

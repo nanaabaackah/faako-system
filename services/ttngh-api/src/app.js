@@ -10,7 +10,7 @@ import { processPendingEnquiries } from "./contact/delivery.js";
 import { mountCalendar } from "./calendar/route.js";
 
 const types = new Set(["siteSettings", "homePage", "programme", "event", "newsArticle", "resource", "teamMember", "impactStat", "partner"]);
-export function createApp(config, { request = fetch, verifySignature = isValidSignature, enquiryStore } = {}) {
+export function createApp(config, { request = fetch, verifySignature = isValidSignature, enquiryStore, contactReady = () => Boolean(enquiryStore) } = {}) {
   const app = express();
   app.disable("x-powered-by");
   app.set("trust proxy", config.trustedProxies.length ? config.trustedProxies : false);
@@ -22,7 +22,11 @@ export function createApp(config, { request = fetch, verifySignature = isValidSi
   });
   const fail = (req, res, status, message) => res.status(status).json(createErrorResponse({ code: errorCodeForStatus(status), message }, { requestId: req.requestId }));
   const ok = (req, res, data) => res.json(createSuccessResponse(data, { requestId: req.requestId }));
-  app.get("/health", (req, res) => ok(req, res, { status: "ok" }));
+  // Liveness is independent of optional contact database readiness.
+  app.get("/health", (req, res) => ok(req, res, {
+    status: "ok",
+    enquiries: !config.enabled ? "disabled" : contactReady() ? "ready" : "unavailable"
+  }));
   mountCalendar(app, config, { request, fail, ok });
   const limit = rateLimit({ windowMs: config.windowMs, limit: config.limit, standardHeaders: "draft-8", legacyHeaders: false, handler: (req, res) => fail(req, res, 429, "Too many attempts. Please try again later.") });
   app.use("/api/enquiries", (req, res, next) => {
@@ -37,7 +41,7 @@ export function createApp(config, { request = fetch, verifySignature = isValidSi
     if (!parsed.success) return fail(req, res, 400, "Please check the required fields and privacy consent.");
     const input = parsed.data;
     if (input.website) return fail(req, res, 400, "Unable to submit this enquiry.");
-    if (!enquiryStore) return fail(req, res, 503, "Enquiries are temporarily unavailable. Please use our contact details.");
+    if (!enquiryStore || !contactReady()) return fail(req, res, 503, "Enquiries are temporarily unavailable. Please use our contact details.");
     try {
       if (!await verifyTurnstile(input.turnstileToken, config, request))
         return fail(req, res, 400, "Verification expired or failed. Please complete a new check.");
