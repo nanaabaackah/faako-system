@@ -7,6 +7,8 @@ const slots = [
   ["headerLogoId", "Header logo", "Appears at the top of the page"],
   ["scrolledLogoId", "Scrolled header mark", "Appears in the compact navigation"],
   ["footerLogoId", "Footer logo", "Appears on the navy footer"],
+  ["faviconId", "Browser icon", "Small browser tab icon; a square image works best"],
+  ["socialImageId", "Default social image", "Used for link previews when an article has no own image"],
 ];
 const defaults = {
   headingFont: "poiret-one",
@@ -14,6 +16,8 @@ const defaults = {
   headerLogoId: null,
   scrolledLogoId: null,
   footerLogoId: null,
+  faviconId: null,
+  socialImageId: null,
 };
 export default function BrandAppearance({ branding, change, api, session, disabled = false }) {
   const [picker, setPicker] = useState("");
