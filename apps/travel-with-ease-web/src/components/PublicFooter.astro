@@ -3,6 +3,7 @@ import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
 import CurrencySwitcher from "./CurrencySwitcher.jsx";
 import { displayCurrencyPolicyHeading } from "../lib/currency-display.js";
 import { publishedPage } from "../lib/published.js";
+import { siteBranding } from "../lib/branding.js";
 import { siteCopy } from "../lib/editorial-copy.js";
 import photography from "../lib/assigned-photography.json";
 const { cinematic = false } = Astro.props;
@@ -10,6 +11,7 @@ const visible = (slug: string) =>
   Boolean(publishedPage(slug));
 const contact = publishedPage("contact");
 const copy = siteCopy("site-appearance");
+const branding = siteBranding(publishedPage("site-appearance"));
 const currencyNoticePublished = publishedPage("terms")?.entries?.some(
   (entry: { heading: string }) => entry.heading === displayCurrencyPolicyHeading,
 );
@@ -59,7 +61,7 @@ const phone =
         href="/"
         aria-label="Travel With Ease home"
         ><img
-          src="/brand/midnight primary.png"
+          src={branding.footerLogo}
           width="640"
           height="248"
           alt="Travel With Ease"
