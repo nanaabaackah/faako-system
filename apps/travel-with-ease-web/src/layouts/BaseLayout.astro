@@ -30,14 +30,15 @@ const planningHref = Astro.props.planningHref || "#plan";
 const site = Astro.site || new URL("https://travelwithease.example");
 const canonical = canonicalUrl(path, site);
 const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
+const branding = siteBranding(publishedPage("site-appearance"));
 const enquiryCatalogue = publishedEnquiryCatalogue();
 const sharing = sharingMetadata({
   site: site.href,
   image:
-    Astro.props.image || pageContent?.socialImage?.src || "/og/default.jpg",
+    Astro.props.image || pageContent?.socialImage?.src || branding.socialImage?.src || "/og/default.jpg",
   imageAlt:
     Astro.props.imageAlt ||
-    pageContent?.socialImage?.alt ||
+    pageContent?.socialImage?.alt || branding.socialImage?.alt ||
     "Travel With Ease — your guide to stress-free travel",
   type,
 });
@@ -94,7 +95,6 @@ const visible = (href: string) =>
   href === "/journal" ||
   (cinematic && href.startsWith("#")) ||
   Boolean(publishedPage(href === "/" ? "home" : href.slice(1)));
-const branding = siteBranding(publishedPage("site-appearance"));
 const copy = siteCopy("site-appearance");
 const navigation = [
   ["/packages", copy.navPackages],
@@ -118,8 +118,10 @@ const navigation = [
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=Poiret+One&family=Quicksand:wght@400;500;600;700&family=Sassy+Frass&display=swap" />
     <meta name="theme-color" content="#010c33" />
     {releaseSha && <meta name="twe-release" content={releaseSha} />}
-    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
-    <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" />
+    {branding.favicon
+      ? <link rel="icon" href={branding.favicon} type="image/webp" />
+      : <><link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+          <link rel="icon" href="/favicon-48.png" type="image/png" sizes="48x48" /></>}
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="/site.webmanifest" />
     <title>{title}</title>
