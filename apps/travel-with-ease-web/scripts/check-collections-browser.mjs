@@ -258,21 +258,25 @@ try {
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
     await page.locator(".journal-card").first().click();
     await page.waitForURL("**/journal/*");
-    const paragraphs = page.locator(".journal-reading .collection-reading > p");
-    assert.ok(await paragraphs.count() >= 2, "Journal has an introduction and article paragraphs");
+    assert.equal(await page.locator(".journal-detail__sidebar").count(), 1);
+    assert.ok(await page.locator(".journal-detail__related-item").count() >= 1, "Related articles come from the published CMS");
+    assert.equal(await page.locator(".journal-detail__facts").count(), 1);
+    assert.equal(await page.locator(".journal-detail__planning a[href='/packages']").count(), 1);
+    const paragraphs = page.locator(".journal-detail__content > p");
+    assert.ok(await paragraphs.count() >= 1, "Journal body remains readable");
     for (const paragraph of await paragraphs.all()) {
       const font = await paragraph.evaluate(el => {
         const style = getComputedStyle(el);
         return { family: style.fontFamily, size: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) };
       });
-      assert.match(font.family, /Caveat/, "Full journal body uses the handwriting font");
-      assert.ok(font.size >= 24, "Journal handwriting is large enough for extended reading");
-      assert.ok(font.lineHeight >= 1.3 * font.size, "Handwriting retains generous line spacing");
+      assert.match(font.family, /Inter/, "Long-form articles use a readable sans-serif");
+      assert.ok(font.size >= 16, "Journal body is at least 16px");
+      assert.ok(font.lineHeight >= 1.55 * font.size, "Journal reading retains generous line spacing");
     }
     assert.match(
-      await page.locator(".journal-reading .collection-detail-heading > p").first().evaluate(el => getComputedStyle(el).fontFamily),
-      /Quicksand/,
-      "Journal metadata remains in the UI font"
+      await page.locator(".journal-detail__header h1").evaluate(el => getComputedStyle(el).fontFamily),
+      /Playfair Display/,
+      "Article headings use the refined editorial font"
     );
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-journal-reading-${width}.png`), fullPage: true });
