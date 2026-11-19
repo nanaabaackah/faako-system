@@ -126,3 +126,51 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* The practical examples belong to a separate full-width editorial section,
+   never an inline paragraph within the photo/intro column. */
+.planning-process__details {
+  padding-top: 0;
+  padding-bottom: clamp(48px, 7vw, 96px);
+}
+.planning-process__details .planning-flow__panel > h2 {
+  margin-bottom: clamp(16px, 3vw, 32px);
+}
+.planning-process__details .planning-flow__steps {
+  max-width: 900px;
+}
+.planning-process__details .planning-flow__steps li {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 20px;
+  padding-block: 24px;
+  border-bottom: 1px solid var(--brand-grey);
+}
+.planning-process__details .planning-example {
+  margin-top: clamp(48px, 7vw, 88px);
+  border-top: 1px solid var(--brand-grey);
+}
+.planning-process__details .planning-example__intro {
+  align-self: start;
+}
+.planning-process__details .planning-example__intro h2 {
+  text-transform: none;
+}
+.planning-process__details .planning-example__steps li {
+  padding: 0;
+  border: 0;
+}
+.planning-process__details .planning-example__steps li::before {
+  position: static;
+  width: auto;
+  background: none;
+  top: auto;
+  bottom: auto;
+  left: auto;
+}
+@media (max-width: 760px) {
+  .planning-process__details .planning-flow__steps li {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 14px;
+  }
+}
