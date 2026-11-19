@@ -269,14 +269,14 @@ try {
         const style = getComputedStyle(el);
         return { family: style.fontFamily, size: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) };
       });
-      assert.match(font.family, /Inter/, "Long-form articles use a readable sans-serif");
+      assert.match(font.family, /Quicksand/, "Long-form articles use the TWE body font");
       assert.ok(font.size >= 16, "Journal body is at least 16px");
       assert.ok(font.lineHeight >= 1.55 * font.size, "Journal reading retains generous line spacing");
     }
     assert.match(
       await page.locator(".journal-detail__header h1").evaluate(el => getComputedStyle(el).fontFamily),
-      /Playfair Display/,
-      "Article headings use the refined editorial font"
+      /Poiret One/,
+      "Article headings use the TWE display font"
     );
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-journal-reading-${width}.png`), fullPage: true });
