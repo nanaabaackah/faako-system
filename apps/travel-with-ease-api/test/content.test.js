@@ -187,3 +187,30 @@ test("Journal lead selection and brand settings are constrained and tracked as m
   for (const invalid of [{headingFont:"Georgia"},{bodyFont:"url(https://bad.invalid)"},{footerLogoId:"https://bad.invalid/file.png"},{script:"<script>"}])
     assert.throws(()=>contentForPage("site-appearance",{...base,branding:invalid}));
 });
+
+test("package booking grows to five editable steps without changing personal planning or a four-stage example", () => {
+  const approved = JSON.parse(readFileSync(new URL("../../travel-with-ease-web/content/approved-public-release.json", import.meta.url), "utf8"));
+  const original = approved.pages["how-it-works"];
+  const approvedStep = {
+    heading: "Travel with your pack",
+    text: "You receive your travel pack with all your confirmed bookings, and we walk you through it on WhatsApp before you go.",
+  };
+  assert.equal(original.processFlows.package.steps.length, 5);
+  assert.deepEqual(original.processFlows.package.steps[4], approvedStep);
+  assert.equal(original.processFlows.planning.steps.length, 4);
+  assert.equal(original.processFlows.package.exampleSteps.length, 4);
+
+  const earlier = structuredClone(original);
+  earlier.processFlows.package.steps.pop();
+  const parsed = contentForPage("how-it-works", earlier);
+  assert.equal(parsed.processFlows.package.steps.length, 5);
+  assert.deepEqual(parsed.processFlows.package.steps[4], approvedStep);
+  assert.equal(earlier.processFlows.package.steps.length, 4, "Upgrading a historic draft does not mutate stored revisions");
+  assert.equal(parsed.processFlows.planning.steps.length, 4);
+  assert.equal(parsed.processFlows.package.exampleSteps.length, 4);
+  assert.deepEqual(contentForPage("how-it-works", parsed).processFlows.package.steps, parsed.processFlows.package.steps,
+    "Revalidating a five-step draft never duplicates the final step");
+  const tooLong = structuredClone(parsed);
+  tooLong.processFlows.package.steps.push({ heading: "Invalid sixth step", text: "Not an approved process" });
+  assert.throws(() => contentForPage("how-it-works", tooLong));
+});
