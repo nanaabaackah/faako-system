@@ -25,9 +25,9 @@ Legacy invoice `QUOTATION` records and proposal-to-invoice relationships remain 
 
 ## Transaction lifecycle
 
-1. Recording creates `PENDING_VERIFICATION`. It never changes invoice settlement.
-2. An authorized different administrator verifies the payment. A global administrator may override segregation of duties only with a recorded reason.
-3. Verification locks the invoice row, creates exactly one `PAYMENT` posting, recalculates the invoice projection, synchronizes Accounting, completes the idempotency claim, and writes an audit event in one serializable transaction.
+1. An authorized administrator records a confirmed payment. Recording locks the invoice row, validates the receipt and remaining balance, creates the payment and exactly one immutable `PAYMENT` posting, recalculates the invoice projection, synchronizes Accounting, completes the idempotency claim, and writes an audit event in one serializable transaction.
+2. Historical `PENDING_VERIFICATION` records remain available for explicit posting or rejection by the same authorized administrator. They are never automatically settled during deployment.
+3. The posting logic is shared by new payments and historical pending-payment verification; no second administrator or override reason is required.
 4. Rejection changes workflow state only and never posts money.
 5. Reversal creates one full negative `REVERSAL` entry referencing the original entry. Partial reversal is intentionally unsupported in this phase.
 6. A refund is an internal negative `REFUND` posting only after the caller confirms the external provider action and supplies the external refund reference. DEV ERP does not initiate provider refunds.
@@ -48,8 +48,8 @@ Financial mutations require an `Idempotency-Key` header of at least eight charac
 ## API
 
 - `GET /api/invoices/:id/payments` — payment workflow and ledger history.
-- `POST /api/invoices/:id/payments` — record a pending payment.
-- `POST /api/invoices/:id/payments/:paymentId/verify`
+- `POST /api/invoices/:id/payments` — record and post a confirmed payment atomically.
+- `POST /api/invoices/:id/payments/:paymentId/verify` — post a historical pending payment.
 - `POST /api/invoices/:id/payments/:paymentId/reject`
 - `POST /api/invoices/:id/payments/:paymentId/reverse`
 - `POST /api/invoices/:id/payment-adjustments`
@@ -81,7 +81,7 @@ Migration `20261018090000_add_immutable_invoice_payment_ledger` is additive. Dep
 5. `20261018090000_add_immutable_invoice_payment_ledger`
 6. `20261019090000_add_proposal_email_delivery`
 
-Run `pnpm --filter @faako/dev-erp test:payments:postgres` only with `DEV_ERP_TEST_DATABASE_URL` pointing to a disposable loopback database whose name contains `test`, `tmp`, or `disposable`. The harness refuses configured production/default URLs, deploys migrations twice, records durations, verifies tables/foreign keys/indexes, proves transactional rollback, preserves a representative legacy payment, and runs real concurrent idempotency/verification/reversal checks.
+Run `pnpm --filter @faako/dev-erp test:payments:postgres` only with `DEV_ERP_TEST_DATABASE_URL` pointing to a disposable loopback database whose name contains `test`, `tmp`, or `disposable`. The harness refuses configured production/default URLs, deploys migrations twice, records durations, verifies tables/foreign keys/indexes, proves transactional rollback, preserves a representative legacy payment, and runs real concurrent recording/idempotency/reversal checks.
 
 If a migration fails, stop application rollout. PostgreSQL transactional DDL should leave no partial objects; verify that first. Correct the migration, and use `prisma migrate resolve --rolled-back 20261018090000_add_immutable_invoice_payment_ledger` only when Prisma recorded a failed migration and the database has been inspected. Never remove the ledger tables/triggers after real postings exist. Roll forward with a reviewed compensating migration instead.
 
@@ -100,8 +100,8 @@ This environment has no Docker, Podman, `psql`, `createdb`, `pg_isready`, or app
 Remaining gates:
 
 - run the ordered migration and concurrency harness on isolated PostgreSQL with representative sanitized data;
-- review the resulting legacy reconciliation report with Finance;
+- review the resulting legacy reconciliation report as the owner;
 - resolve or formally accept the remaining Prisma/deepmerge risk;
 - review whether organization-specific payment permissions should replace the current administrator boundary;
 - remove the inactive cumulative-payment implementation from the server after the ledger migration is successfully deployed and rollback compatibility is no longer needed;
-- conduct browser QA with two distinct administrator accounts for segregation of duties.
+- conduct browser QA for the complete payment lifecycle with a single administrator account.

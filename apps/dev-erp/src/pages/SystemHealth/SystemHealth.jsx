@@ -31,7 +31,7 @@ const SystemHealthHeader = ({ range, onRangeChange, onRefresh, checking, lastUpd
   const interval = TIMELINE_RANGES.find((item) => item.value === range)?.interval;
   return (
     <header className="page-header system-health-header">
-      <div><p className="eyebrow">System operations</p><h1>System health</h1><p className="muted">Monitor service availability, latency, dependencies, and incidents across the platform.</p></div>
+      <div><h1>System health</h1></div>
       <div className="system-health-header__actions">
         <TimelineRangeSelector value={range} onChange={onRangeChange} />
         <button className="button button-ghost" type="button" onClick={onRefresh} disabled={checking}><Refresh2 size={18} aria-hidden="true" />{checking ? "Refreshing..." : "Refresh"}</button>

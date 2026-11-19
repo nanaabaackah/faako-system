@@ -71,7 +71,15 @@ export const createIncidentService = ({ prisma, isGlobalAdmin, auditWriter }) =>
 
   const transition = async ({ incident, to, user, data = {}, timelineType, summary }) => {
     if (!INCIDENT_TRANSITIONS[incident.status]?.has(to)) throw httpError(409, `Incident cannot transition from ${incident.status} to ${to}.`);
-    const updated = await prisma.monitoringIncident.update({ where: { id: incident.id }, data: { status: to, ...data } });
+    // Taking action on an unassigned incident also establishes ownership for the
+    // authenticated operator. Never overwrite historical assignments or assign
+    // an operator from a different organization to an organization-scoped incident.
+    const userId = Number(user?.userId);
+    const owner = ["ACKNOWLEDGED", "RESOLVED"].includes(to) && !incident.assignedUserId && !incident.assignedRoleId &&
+      Number.isInteger(userId) && userId > 0 &&
+      (incident.organizationId == null || Number(user.organizationId) === incident.organizationId)
+      ? { assignedUserId: userId } : {};
+    const updated = await prisma.monitoringIncident.update({ where: { id: incident.id }, data: { status: to, ...owner, ...data } });
     await Promise.all([addTimeline(incident.id, timelineType, summary, user), audit(`MONITORING_INCIDENT_${to}`, incident, user)]);
     return loadScoped(updated.id, user);
   };

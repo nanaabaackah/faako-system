@@ -231,9 +231,9 @@ const Settings = () => {
     <section className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Preferences</p>
+          
           <h1>Settings</h1>
-          <p className="muted">Control the backend email alert settings from one place.</p>
+          
         </div>
       </header>
 
@@ -267,7 +267,7 @@ const Settings = () => {
             <ErpPanel>
               <ErpPanelHeader
                 title="Alert subscriptions"
-                description="Choose how you want to be notified."
+                
               />
               <StackGroup>
                 <label className="toggle-row">
@@ -366,7 +366,7 @@ const Settings = () => {
             <ErpPanel>
               <ErpPanelHeader
                 title="Alert triggers"
-                description="Pick which conditions should raise alerts."
+                
               />
               <StackGroup>
                 <label className="toggle-row">
@@ -387,15 +387,7 @@ const Settings = () => {
                   />
                   <span>Notify when a service is degraded</span>
                 </label>
-                <ERPNotice
-                  tone={storageMode === "database" ? "success" : "warning"}
-                  message={
-                    storageMode === "database"
-                      ? "Saved preferences are persisted in backend storage and survive restarts."
-                      : "Saved preferences are using the in-memory fallback. Apply the alert settings migration to persist them across restarts."
-                  }
-                  compact
-                />
+                {storageMode !== "database" ? <ERPNotice tone="warning" message="Alert settings may be lost after a restart." compact /> : null}
               </StackGroup>
             </ErpPanel>
           </ErpPanelGrid>
@@ -403,7 +395,7 @@ const Settings = () => {
           <StackGroup>
             <SyncReviewPanel
               title="Offline sync review"
-              description="Review local Dev ERP rent payment queue items before retrying or closing them."
+              description="Review queued rent payments."
               items={syncReview.items}
               summary={syncReview}
               loading={syncReview.loading}
@@ -419,7 +411,7 @@ const Settings = () => {
             {syncActivityItems.length > 0 || syncReview.loading ? (
               <ERPActivityFeed
                 title="Recent sync activity"
-                description="Local rent payment queue events — synced, failed, and pending items."
+                
                 items={syncActivityItems}
                 loading={syncReview.loading}
                 emptyMessage="No sync activity yet."

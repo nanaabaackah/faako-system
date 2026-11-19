@@ -24,7 +24,6 @@ const UserControl = () => {
 
   const [roles, setRoles] = useState([]);
   const [users, setUsers] = useState([]);
-  const [moduleKeys, setModuleKeys] = useState([]);
   const [roleDrafts, setRoleDrafts] = useState({});
   const [userDrafts, setUserDrafts] = useState({});
   const [createForm, setCreateForm] = useState(DEFAULT_CREATE_FORM);
@@ -132,8 +131,7 @@ const UserControl = () => {
 
         setRoles(nextRoles);
         setUsers(nextUsers);
-        setModuleKeys(Array.isArray(rolesPayload?.modules) ? rolesPayload.modules : []);
-        buildDraftsFromPayload(nextRoles, nextUsers);
+          buildDraftsFromPayload(nextRoles, nextUsers);
         setSavedUserPasswords((prev) =>
           Object.fromEntries(
             Object.entries(prev).filter(([userId]) => nextUserIdSet.has(String(userId)))
@@ -440,9 +438,9 @@ const UserControl = () => {
     <section className="page user-control-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Admin</p>
+          
           <h1>User Control</h1>
-          <p className="muted">Manage user accounts, role assignments, and module-level access.</p>
+          
         </div>
         <div className="header-actions">
           <button
@@ -471,7 +469,7 @@ const UserControl = () => {
         <div className="panel-header">
           <div>
             <h3>Role access</h3>
-            <p className="muted">Supported modules: {moduleKeys.join(", ")}</p>
+            
           </div>
         </div>
 
@@ -536,7 +534,7 @@ const UserControl = () => {
         <div className="panel-header">
           <div>
             <h3>User accounts</h3>
-            <p className="muted">Edit role, status, reset passwords, resend links, and remove accounts when needed.</p>
+            
           </div>
         </div>
 
@@ -758,7 +756,7 @@ const UserControl = () => {
         <div className="panel-header">
           <div>
             <h3>Create user</h3>
-            <p className="muted">Add a new account and assign initial access.</p>
+            
           </div>
         </div>
 
@@ -867,8 +865,7 @@ const UserControl = () => {
           </div>
           <p className="muted">{PASSWORD_POLICY_HELP}</p>
           <p className="muted">
-            If password is blank, the user will set it from the invitation email and remain
-            PENDING until setup is completed.
+            Leave the password blank to send an invitation.
           </p>
           <div className="header-actions">
             <button className="button button-primary" type="submit" disabled={isCreating}>

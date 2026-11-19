@@ -56,3 +56,9 @@ test("task form builds typed payloads and readable status labels", () => {
   assert.equal(payload.startDate, null);
   assert.equal(getProjectTaskStatusLabel("IN_PROGRESS"), "In progress");
 });
+
+test("new tasks default to the single available owner without changing existing assignments", () => {
+  assert.equal(buildProjectTaskForm(null, [{ id: 7 }]).assigneeUserId, "7");
+  assert.equal(buildProjectTaskForm(null, [{ id: 7 }, { id: 8 }]).assigneeUserId, "");
+  assert.equal(buildProjectTaskForm({ id: 4, assigneeUserId: null }, [{ id: 7 }]).assigneeUserId, "");
+});

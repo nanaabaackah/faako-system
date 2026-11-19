@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { FiArchive } from "react-icons/fi";
+import { FiArchive, FiArrowRight } from "react-icons/fi";
 import { AnimatedLoadingState, DateField, ERPModal, ERPTable, SelectField, TextareaField } from "@faako/ui";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { formatDateTime } from "../../utils/formatters";
@@ -267,7 +267,7 @@ function ResponseSections({ sections = [] }) {
       <div className="panel-header">
         <div>
           <h3>Submitted answers</h3>
-          <p className="muted">Only completed or relevant fields are shown.</p>
+          
         </div>
       </div>
       <div className="faako-response-sections">
@@ -334,7 +334,7 @@ function DeliveryPanel({ submission }) {
           </a>
         ) : (
           <p className="muted">
-            {pdf.note || "PDF summaries are emailed as attachments. No stored download is available yet."}
+            {pdf.note || "No downloadable PDF available."}
           </p>
         )}
       </article>
@@ -348,7 +348,7 @@ function Timeline({ entries = [] }) {
       <div className="panel-header">
         <div>
           <h3>Activity timeline</h3>
-          <p className="muted">Submission, email, status, owner, and notes activity.</p>
+          
         </div>
       </div>
       <div className="faako-timeline">
@@ -361,7 +361,9 @@ function Timeline({ entries = [] }) {
                 <span>{formatDateTime(entry.at)} · {entry.by || "System"}</span>
                 {entry.from || entry.to ? (
                   <small>
-                    {[entry.from, entry.to].filter(Boolean).join(" → ")}
+                    {entry.from ? <span>{entry.from}</span> : null}
+                    {entry.from && entry.to ? <FiArrowRight aria-label="changed to" /> : null}
+                    {entry.to ? <span>{entry.to}</span> : null}
                   </small>
                 ) : null}
                 {entry.note ? <small>{entry.note}</small> : null}
@@ -403,7 +405,7 @@ function DetailPanel({
     return (
       <div className="panel faako-onboarding-empty">
         <strong>Submission details unavailable</strong>
-        <p className="muted">Close this view and reopen the submission from the table.</p>
+        <p className="muted">Unable to load this submission. Return to the list and try again.</p>
       </div>
     );
   }
@@ -463,7 +465,7 @@ function DetailPanel({
             />
           ) : (
             <div className="notice is-warning" role="status">
-              Internal notes are paused until the Faako management migration is applied.
+              Notes unavailable until setup is complete.
             </div>
           )}
           <div className="faako-management-actions">
@@ -728,9 +730,7 @@ export default function FaakoOnboarding() {
       <header className="page-header">
         <div>
           <h1>Form Submissions</h1>
-          <p className="muted">
-            Review website onboarding and client setup submissions from the Faako public forms.
-          </p>
+          
         </div>
         <div className="header-actions">
           <button className="button button-ghost" type="button" onClick={loadSubmissions} disabled={loading}>
@@ -743,7 +743,7 @@ export default function FaakoOnboarding() {
       {notice ? <div className="notice is-success" role="status">{notice}</div> : null}
       {!loading && !canArchiveSubmissions ? (
         <div className="notice is-warning" role="status">
-          Archive actions are paused until the Faako archive migration is applied.
+          Archiving unavailable until setup is complete.
         </div>
       ) : null}
 

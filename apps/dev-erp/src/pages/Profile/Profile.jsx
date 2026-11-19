@@ -216,7 +216,7 @@ const Profile = () => {
     <section className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Account</p>
+          
           <h1>Profile</h1>
           <p className="muted">{profile?.email || "Signed-in account"}</p>
         </div>
@@ -261,7 +261,7 @@ const Profile = () => {
         <div className="panel-header">
           <div>
             <h3>Edit profile</h3>
-            <p className="muted">Update your name, email, and password.</p>
+            
           </div>
         </div>
         {saveError ? (

@@ -887,12 +887,9 @@ const Accounting = () => {
     <section className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Finance</p>
+          
           <h1>Accounting</h1>
-          <p className="muted">
-            Financial activity across manual entries, invoices, payables, and receivables.
-            Window: {RANGE_LABELS[timeRange] || "All time"}.
-          </p>
+          
         </div>
         <div className="header-actions">
           <div className="segmented" role="tablist" aria-label="Time range">
@@ -998,11 +995,7 @@ const Accounting = () => {
             <div className="panel-header">
               <div>
                 <h3 id="entry-modal-title">{editingEntryId ? "Edit entry" : "Manual entry"}</h3>
-                <p className="muted">
-                  {editingEntryId
-                    ? "Update the selected transaction details."
-                    : "Add expenses or one-off revenue not from Faako subscriptions."}
-                </p>
+                
               </div>
               <button className="button button-ghost" type="button" onClick={closeForm}>
                 Close
@@ -1261,7 +1254,7 @@ const Accounting = () => {
               <div className="panel-header">
                 <div>
                   <h4>Line items</h4>
-                  <p className="muted">Define billable items for this invoice.</p>
+                  
                 </div>
                 <button className="button button-ghost" type="button" onClick={addInvoiceLineItem}>
                   <FiPlus aria-hidden="true" />
@@ -1463,7 +1456,7 @@ const Accounting = () => {
           <div>
             <h3>Financial activity ledger</h3>
             <p className="muted">
-              {sortedEntries.length} entries from accounting, invoices, and subscriptions • Amounts shown in {DISPLAY_CURRENCY_CODE}.
+              {sortedEntries.length} entries
             </p>
           </div>
           <span className="status-pill is-info">{RANGE_LABELS[timeRange] || "All time"}</span>
@@ -1520,7 +1513,7 @@ const Accounting = () => {
                 <div>
                   <h3>{section.label}</h3>
                   <p className="muted">
-                    {rows.length} entries • Amounts shown in {DISPLAY_CURRENCY_CODE}.
+                    {rows.length} entries
                   </p>
                 </div>
                 <span className={`status-pill is-${STATUS_TONE[section.status] || "info"}`}>

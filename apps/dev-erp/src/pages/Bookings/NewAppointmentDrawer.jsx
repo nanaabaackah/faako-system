@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { DateField, SelectField, TimeField } from "@faako/ui";
 import { apiPost } from "../../api/client";
 
 const PROVIDERS = [
@@ -69,7 +70,7 @@ const NewAppointmentDrawer = ({ onClose, onCreated }) => {
       <aside className="bookings-drawer" role="dialog" aria-modal="true" aria-labelledby="new-appointment-heading">
         <header className="bookings-drawer__header">
           <div>
-            <p className="eyebrow">In-app scheduling</p>
+            
             <h2 id="new-appointment-heading">New appointment</h2>
           </div>
           <button className="button button-ghost" type="button" onClick={onClose}>Close</button>
@@ -87,25 +88,22 @@ const NewAppointmentDrawer = ({ onClose, onCreated }) => {
             <span>Appointment title</span>
             <input className="input" required maxLength={300} value={form.title} onChange={update("title")}/>
           </label>
-          <label className="form-field">
-            <span>Start date and time</span>
-            <input className="input" required type="datetime-local" value={form.startAt} onChange={update("startAt")}/>
-          </label>
-          <label className="form-field">
-            <span>End date and time</span>
-            <input className="input" required type="datetime-local" value={form.endAt} onChange={update("endAt")}/>
-          </label>
-          <label className="form-field">
-            <span>Preferred meeting platform</span>
-            <select className="input" value={form.meetingPlatform} onChange={update("meetingPlatform")}>
-              {PROVIDERS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
-            </select>
-          </label>
+          <div className="bookings-datetime-row">
+            <DateField fieldClassName="form-field" label="Start date" required clearable={false} value={form.startAt.slice(0, 10)} onChangeValue={(date) => setForm((current) => ({ ...current, startAt: date + current.startAt.slice(10) }))} />
+            <TimeField fieldClassName="form-field" label="Start time" required value={form.startAt.slice(11, 16)} onChangeValue={(time) => setForm((current) => ({ ...current, startAt: current.startAt.slice(0, 11) + time }))} />
+          </div>
+          <div className="bookings-datetime-row">
+            <DateField fieldClassName="form-field" label="End date" required clearable={false} value={form.endAt.slice(0, 10)} onChangeValue={(date) => setForm((current) => ({ ...current, endAt: date + current.endAt.slice(10) }))} />
+            <TimeField fieldClassName="form-field" label="End time" required value={form.endAt.slice(11, 16)} onChangeValue={(time) => setForm((current) => ({ ...current, endAt: current.endAt.slice(0, 11) + time }))} />
+          </div>
+          <SelectField fieldClassName="form-field" label="Preferred meeting platform" value={form.meetingPlatform} onChange={update("meetingPlatform")}>
+            {PROVIDERS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}
+          </SelectField>
           <label className="form-field">
             <span>Notes (optional)</span>
             <textarea className="input" maxLength={2000} value={form.description} onChange={update("description")}/>
           </label>
-          <p className="muted">Times use your device timezone. The server checks for conflicts and blocked dates.</p>
+          <p className="muted">Times use your device timezone.</p>
           {status && <div className="notice is-error" role="alert">{status}</div>}
           <button className="button button-primary" type="submit" disabled={saving}>
             {saving ? "Creating..." : "Create appointment"}

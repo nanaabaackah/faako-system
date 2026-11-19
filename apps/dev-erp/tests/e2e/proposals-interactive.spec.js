@@ -164,5 +164,5 @@ test("admin selects a form client, configures tiers, and generates editable prop
   await page.getByRole("button", { name: /5 Scope & Delivery/ }).click();
   await expect(page.getByLabel("Scope")).toHaveValue(/Design and deliver/);
   await page.getByLabel("Scope").fill("Edited scope approved by the administrator.");
-  await expect(page.getByText("8 of 10 requests remaining today.")).toBeVisible();
+  await expect(page.getByText("AI requests left: 8")).toBeVisible();
 });
