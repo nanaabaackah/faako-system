@@ -11,7 +11,7 @@
 .journal-landing__text-link svg { width:19px; height:19px; }
 .journal-landing__spotlight-grid { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:clamp(22px,3vw,42px); }
 .journal-landing__hero { position:relative; isolation:isolate; overflow:hidden; min-height: clamp(425px,43vw,590px); border-radius:var(--twe-radius-media,18px); color:white; background: #07163d; }
-.journal-landing__hero .placed-image { position:absolute; inset:0; width:100%; height:100%; }
+.journal-landing__hero .placed-image { display:block; position:absolute; inset:0; width:100%; height:100%; }
 .journal-landing__hero img { width:100%; height:100%; object-fit:cover; display:block; }
 .journal-landing__hero::after { content:""; position:absolute; inset:0; z-index:0; pointer-events:none; background:linear-gradient(0deg,rgba(1,10,31,.90),rgba(1,10,31,.14) 68%,transparent); }
 .journal-landing__hero-content { position:absolute; z-index:1; bottom:0; left:0; right:0; padding:clamp(24px,3.5vw,48px); }
