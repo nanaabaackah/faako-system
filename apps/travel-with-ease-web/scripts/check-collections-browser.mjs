@@ -256,7 +256,10 @@ try {
     assert.equal(await page.locator('[data-collection-item][data-series="Before you fly"]').count(), 5);
     assert.equal(await page.locator('[data-collection-item][data-series="Visas and entry"]').count(), 2);
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
-    await page.locator(".journal-card").first().click();
+    assert.equal(await page.locator(".journal-landing__hero").count(), 1, "Featured Journal story is present");
+    assert.equal(await page.locator(".journal-landing__rail-item").count(), 3, "Three linked stories appear beside the feature");
+    assert.equal(await page.locator(".journal-landing__archive-grid [data-collection-item]").count(), 8);
+    await page.locator(".journal-landing__story-link").first().click();
     await page.waitForURL("**/journal/*");
     assert.equal(await page.locator(".journal-detail__sidebar").count(), 1);
     assert.ok(await page.locator(".journal-detail__related-item").count() >= 1, "Related articles come from the published CMS");
