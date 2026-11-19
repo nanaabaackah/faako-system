@@ -10,7 +10,8 @@
     "start": "node src/server.js",
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
     "test": "node --test test/*.test.js",
-    "db:deploy": "node scripts/deploy-database.mjs"
+    "db:deploy": "node scripts/deploy-database.mjs",
+    "test:db": "node --test test/integration/*.test.js"
   },
   "dependencies": {
     "@faako/api-contracts": "workspace:*",
