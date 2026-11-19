@@ -10,6 +10,7 @@ import {
   saveContentSchema,
 } from "../src/content/schema.js";
 import { readFileSync } from "node:fs";
+import { approvedEditorCopy } from "../../travel-with-ease-portal/src/lib/approved-copy.js";
 import { createApp } from "../src/app.js";
 import { isAllowedPortalApiRoute } from "../src/portal/proxy.js";
 
@@ -190,7 +191,7 @@ test("Journal lead selection and brand settings are constrained and tracked as m
 
 test("package booking grows to five editable steps without changing personal planning or a four-stage example", () => {
   const approved = JSON.parse(readFileSync(new URL("../../travel-with-ease-web/content/approved-public-release.json", import.meta.url), "utf8"));
-  const original = approved.pages["how-it-works"];
+  const original = approvedEditorCopy(approved.pages["how-it-works"]);
   const approvedStep = {
     heading: "Travel with your pack",
     text: "You receive your travel pack with all your confirmed bookings, and we walk you through it on WhatsApp before you go.",
