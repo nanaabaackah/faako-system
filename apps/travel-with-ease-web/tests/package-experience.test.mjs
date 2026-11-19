@@ -48,9 +48,9 @@ test("updated how-it-works separates package and bespoke planning flows with app
   const process = source("components/JourneyProcess.astro");
   const tabs = source("components/HowItWorksTabs.astro");
   const content = approved.pages["how-it-works"];
-  assert.match(process, /<HowItWorksTabs flows=\{content\.processFlows\} mode="steps"/);
+  assert.match(process, /<HowItWorksTabs flows=\\{homepageFlows\\} mode="steps"/);
   assert.match(process, /planning-process__details editorial-wrap/);
-  assert.match(process, /<section class="planning-process__details[\s\S]*?<HowItWorksTabs flows=\{content\.processFlows\} mode="examples"/);
+  assert.match(process, /<section class="planning-process__details[\s\S]*?<HowItWorksTabs flows=\\{homepageFlows\\} mode="examples"/);
   assert.match(tabs, /mode === "steps"/);
   assert.match(tabs, /data-example-panel=\{flow\}/);
   assert.match(tabs, /class="planning-example"/);
@@ -71,8 +71,10 @@ test("updated how-it-works separates package and bespoke planning flows with app
   assert.match(tabs, /<ContentLink href="\/packages\/nairobi"/);
   assert.match(tabs, /<ContentLink href="\/services\/travel-readiness-session"/);
   assert.deepEqual(Object.keys(content.processFlows).sort(), ["package", "planning"]);
-  assert.equal(content.processFlows.package.steps.length, 4);
+  assert.equal(content.processFlows.package.steps.length, 5);
   assert.equal(content.processFlows.planning.steps.length, 4);
+  assert.equal(content.processFlows.package.steps[4].heading, "Travel with your pack");
+  assert.equal(content.processFlows.package.steps[4].text, "You receive your travel pack with all your confirmed bookings, and we walk you through it on WhatsApp before you go.");
   assert.equal(content.body, "A clear plan, a live quote and no bookings until your funds have cleared.");
   const packageText = JSON.stringify(content.processFlows.package);
   const planningText = JSON.stringify(content.processFlows.planning);
