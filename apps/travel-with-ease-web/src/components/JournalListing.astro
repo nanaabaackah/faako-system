@@ -31,6 +31,12 @@ const formatDate = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateS
 
   {orderedItems.length ? (
     <>
+      <nav class="journal-landing__categories" aria-label="Journal categories">
+        <a href={`${prefix}#journal-archive`}>All stories</a>
+        {categories.map(category => (
+          <a href={`${prefix}?category=${encodeURIComponent(category)}#journal-archive`}>{category}</a>
+        ))}
+      </nav>
       <section class="journal-landing__spotlight" aria-labelledby="journal-featured-title">
         <div class="journal-landing__section-heading">
           <h2 id="journal-featured-title">{copy.featuredHeading}</h2>
