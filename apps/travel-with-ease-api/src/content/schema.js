@@ -174,6 +174,7 @@ export const contentBodySchema = z
           text: text(2000).min(1),
         }).strict()).length(4),
         example: text(2500).min(1),
+        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
       }).strict(),
       planning: z.object({
         steps: z.array(z.object({
@@ -181,6 +182,7 @@ export const contentBodySchema = z
           text: text(2000).min(1),
         }).strict()).length(4),
         example: text(2500).min(1),
+        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
       }).strict(),
     }).strict().optional(),
     entries: z
