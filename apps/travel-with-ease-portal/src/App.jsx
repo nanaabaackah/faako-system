@@ -152,6 +152,7 @@ function StaffWorkspace() {
       session?.user.permissions?.includes("enquiries.read"),
     ],
     ["content", "Content", session?.user.permissions?.includes("content.read")],
+    ["appearance", "Appearance", session?.user.permissions?.includes("content.read")],
     ["media", "Media", session?.user.permissions?.includes("media.read")],
     ["templates", "Templates", session?.user.permissions?.includes("templates.manage")],
     ["staff", "Staff", session?.user.permissions?.includes("staff.manage")],
@@ -176,6 +177,7 @@ function StaffWorkspace() {
                     settings: "Account settings",
                     enquiries: "Enquiries",
                     content: "Website content",
+                    appearance: "Brand & appearance",
                     media: "Media library",
                     templates: "Email templates",
                     staff: "Staff access",
@@ -332,6 +334,15 @@ function StaffWorkspace() {
               <WebsiteContent
                 api={api}
                 session={session}
+                onDirtyChange={setDirty}
+              />
+            )}
+          {!state.loading && session?.user.permissions?.includes("content.read") &&
+            section === "appearance" && (
+              <WebsiteContent
+                api={api}
+                session={session}
+                initialPage="site-appearance"
                 onDirtyChange={setDirty}
               />
             )}
