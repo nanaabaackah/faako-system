@@ -146,10 +146,7 @@ const Login = ({ theme, onToggleTheme }) => {
       <div className="auth-layout">
         <div className="panel auth-hero">
           <h1>Monitor every live signal in one place</h1>
-          <p className="muted">
-            This site surfaces live metrics from all databases along with system health
-            insights.
-          </p>
+          
           <div className="auth-list">
             <div className="auth-list-row">
               <span>Live API data</span>
@@ -168,9 +165,7 @@ const Login = ({ theme, onToggleTheme }) => {
         <div className="panel auth-card">
           <div className="auth-card__header">
             <h2>Sign in</h2>
-            <p className="muted">
-              Use your admin credentials to access the KPI dashboard.
-            </p>
+            
           </div>
           {error ? (
             <div className="notice is-error" role="alert">
@@ -260,7 +255,7 @@ const Login = ({ theme, onToggleTheme }) => {
           {forgotMode ? (
             <form className="auth-forgot" onSubmit={handleForgotSubmit} noValidate>
               <p className="muted">
-                Enter the email you use for this dashboard and we will send recovery steps.
+                We'll email you a password-reset link.
               </p>
               {forgotStatus ? <div className="notice is-success">{forgotStatus}</div> : null}
               {forgotError ? (

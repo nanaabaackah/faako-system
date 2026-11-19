@@ -1244,7 +1244,7 @@ const Dashboard = () => {
       <div id="dashboard-overview" className="dashboard-overview-header">
         <div>
           <h1>Operations overview</h1>
-          <p className="muted">Projects, finances, appointments and application health in one workspace.</p>
+          
         </div>
         <Link className="button button-primary" to="/reports">View reports <FiArrowRight aria-hidden="true" /></Link>
       </div>

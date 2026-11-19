@@ -321,10 +321,7 @@ function ProposalClientView() {
 
               {canRespond ? (
                 <>
-                  <p>
-                    You can approve this proposal or request changes. Approval lets the team create
-                    an editable invoice draft before anything is sent.
-                  </p>
+                  
                   <div className="proposal-client-approval-actions">
                     <button
                       className="button"
@@ -386,13 +383,7 @@ function ProposalClientView() {
                         required
                       />
                     </label>
-                  ) : (
-                    <p>
-                      Confirm that you approve this proposal. Invoice conversion, Paystack
-                      payment links, email notifications, and digital signatures will remain off
-                      until a later phase.
-                    </p>
-                  )}
+                  ) : null}
                   {clientActionError ? (
                     <div className="notice proposal-notice is-error" role="alert">
                       {clientActionError}

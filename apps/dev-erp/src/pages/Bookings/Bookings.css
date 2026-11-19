@@ -155,3 +155,6 @@
   .bookings-drawer__header,.bookings-drawer__content{padding:1rem;}
   .bookings-holiday-list__item{flex-wrap:wrap;}
 }
+
+.bookings-datetime-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: .75rem; }
+@media (max-width: 520px) { .bookings-datetime-row { grid-template-columns: 1fr; } }

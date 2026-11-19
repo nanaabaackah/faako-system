@@ -376,9 +376,7 @@ const PublicBooking = () => {
         <p className="eyebrow">Appointments</p>
         <h1>{settings.organizationName || "Faako DEV ERP"}</h1>
         <h2>Book an Appointment</h2>
-        <p className="muted">
-          Select an available time and your preferred meeting platform. Your appointment is managed directly in Faako.
-        </p>
+        
       </header>
 
       {status.message ? (
@@ -412,7 +410,7 @@ const PublicBooking = () => {
               <div className="panel-header">
                 <div>
                   <h3>Choose a time</h3>
-                  <p className="muted">Pick an available slot to prefill the form.</p>
+                  
                 </div>
                 <div className="public-booking__legend">
                   <span className="public-booking__legend-item is-available">Available</span>
@@ -699,9 +697,7 @@ const PublicBooking = () => {
               </button>
               <span className="muted">Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}</span>
             </div>
-            <p className="muted">
-              Appointments are managed in Faako DEV ERP. Meeting links are shared once prepared.
-            </p>
+            
           </form>
         )}
       </div>

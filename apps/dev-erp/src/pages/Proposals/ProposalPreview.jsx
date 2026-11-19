@@ -102,6 +102,7 @@ function ProposalPersonalNote({ proposal }) {
   const founderMessage = proposal.personalNotes.founderMessage?.trim();
   const closing = proposal.personalNotes.closing?.trim();
   const hasNoteContent = Boolean(introduction || founderMessage || closing);
+  if (!hasNoteContent) return null;
 
   return (
     <section
@@ -116,7 +117,7 @@ function ProposalPersonalNote({ proposal }) {
       {introduction ? <p>{introduction}</p> : null}
       {founderMessage ? <blockquote>{founderMessage}</blockquote> : null}
       {closing ? <p>{closing}</p> : null}
-      {!hasNoteContent ? <p>Add a short personal note when the proposal voice is ready.</p> : null}
+      
     </section>
   );
 }

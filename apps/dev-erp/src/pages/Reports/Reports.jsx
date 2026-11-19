@@ -243,11 +243,9 @@ const Reports = () => {
     <section className="page reports-page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Email reports</p>
+          
           <h1>Reports</h1>
-          <p className="muted">
-            Manage scheduled daily, weekly, and monthly report emails.
-          </p>
+          
         </div>
         <div className="header-actions">
           <button
@@ -411,7 +409,7 @@ const Reports = () => {
                     <div className="panel-header">
                       <div>
                         <h4>Schedule</h4>
-                        <p className="muted">Choose when this report should run automatically.</p>
+                        
                       </div>
                     </div>
 
@@ -521,9 +519,7 @@ const Reports = () => {
                       <div className="panel-header">
                         <div>
                           <h4>Included in email</h4>
-                          <p className="muted">
-                            Choose which summary details should be included when this report is sent.
-                          </p>
+                          
                         </div>
                       </div>
 

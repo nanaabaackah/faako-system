@@ -71,7 +71,7 @@ const PAYMENT_METHOD_OPTIONS = [
 
 const PAYMENT_VERIFICATION_LABELS = {
   PENDING_VERIFICATION: "Pending verification",
-  VERIFIED: "Verified and settled",
+  VERIFIED: "Posted",
   REJECTED: "Rejected",
   REVERSED: "Reversed",
 };
@@ -959,12 +959,14 @@ const Invoicing = () => {
         setInvoices((prev) =>
           prev.map((invoice) => (invoice.id === nextInvoice.id ? nextInvoice : invoice))
         );
+        setSelectedInvoice((current) => current?.id === nextInvoice.id ? nextInvoice : current);
+        if (payload?.payment) setPaymentHistory((current) => current.some((entry) => entry.id === payload.payment.id) ? current.map((entry) => entry.id === payload.payment.id ? payload.payment : entry) : [payload.payment, ...current]);
       }
       setPaymentInvoice(null);
       setPaymentForm(buildPaymentForm());
       setPaymentError("");
       await loadInvoices({ silent: true });
-      setNotice(`Payment recorded for invoice ${paymentInvoice.invoiceNumber} and is pending independent verification.`);
+      setNotice(payload?.payment?.verificationStatus === "PENDING_VERIFICATION" ? "Existing pending payment recovered. Post it from payment history." : `Payment recorded for invoice ${paymentInvoice.invoiceNumber}.`);
     } catch (paymentSaveError) {
       setPaymentError(paymentSaveError.message || "Unable to record invoice payment.");
     } finally {
@@ -995,7 +997,7 @@ const Invoicing = () => {
         setPaymentHistory((current) => current.map((entry) => entry.id === payload.payment.id ? payload.payment : entry));
       }
       setPaymentActionReason("");
-      setNotice(`Payment ${action === "verify" ? "verified and posted" : action === "reject" ? "rejected" : "reversed"}.`);
+      setNotice(`Payment ${action === "verify" ? "posted" : action === "reject" ? "rejected" : "reversed"}.`);
     } catch (actionError) {
       setError(actionError.message || `Unable to ${action} payment.`);
     } finally {
@@ -1143,9 +1145,9 @@ const Invoicing = () => {
     <section className="page">
       <header className="page-header">
         <div>
-          <p className="eyebrow">Finance</p>
+          
           <h1>Invoicing</h1>
-          <p className="muted">Create invoices, track payment status, and export PDFs.</p>
+          
         </div>
         <div className="header-actions">
           <button
@@ -1227,7 +1229,7 @@ const Invoicing = () => {
         <div className="panel-header">
           <div>
             <h3>Invoice ledger</h3>
-            <p className="muted">Manage statuses and export client-ready PDFs.</p>
+            
           </div>
         </div>
 
@@ -1425,7 +1427,7 @@ const Invoicing = () => {
                     {selectedInvoice.status}
                   </span>
                 </div>
-                <p className="muted">Review the invoice, verify the totals, and send it when ready.</p>
+                
               </div>
               <button className="button button-plain" type="button" onClick={closeInvoiceModal}>
                 Close
@@ -1466,7 +1468,7 @@ const Invoicing = () => {
                   <div className="invoice-preview-card__header">
                     <div>
                       <h4>Line items</h4>
-                      <p className="muted">Monthly charges stay nested beneath the main service.</p>
+                      
                     </div>
                   </div>
                   {selectedInvoiceLineItems.length ? (
@@ -1513,11 +1515,11 @@ const Invoicing = () => {
                     <div className="invoice-preview-card__header">
                       <div>
                         <h4>Payment history</h4>
-                        <p className="muted">Only verified ledger postings contribute to the received amount.</p>
+                        
                       </div>
                     </div>
                     {paymentHistoryLoading ? <AnimatedLoadingState compact title="Loading payment history" /> : null}
-                    {!paymentHistoryLoading && !paymentHistory.length ? <p className="muted">No individual payment records are available. Any existing received amount is retained as a legacy opening balance for reconciliation.</p> : null}
+                    {!paymentHistoryLoading && !paymentHistory.length ? <p className="muted">No payment records. Existing received amounts may need reconciliation.</p> : null}
                     {paymentHistory.length ? (
                       <div className="stack">
                         <label className="form-field">
@@ -1535,7 +1537,7 @@ const Invoicing = () => {
                               <span className={`status-pill is-${payment.verificationStatus === "VERIFIED" ? "success" : payment.verificationStatus === "PENDING_VERIFICATION" ? "warning" : "danger"}`}>{PAYMENT_VERIFICATION_LABELS[payment.verificationStatus] || payment.verificationStatus}</span>
                               {payment.verificationStatus === "PENDING_VERIFICATION" ? (
                                 <>
-                                  <button className="button button-primary" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "verify")}>Verify</button>
+                                  <button className="button button-primary" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "verify")}>Post payment</button>
                                   <button className="button button-ghost" type="button" disabled={paymentActionId === payment.id} onClick={() => handlePaymentAction(payment, "reject")}>Reject</button>
                                 </>
                               ) : null}
@@ -1844,11 +1846,8 @@ const Invoicing = () => {
 	                />
 	              </label>
 
-	              <div className="notice">
-	                Recording creates a pending payment. It will not reduce the balance until another authorized administrator verifies it.
-	              </div>
 
-	              <div className="header-actions">
+<div className="header-actions">
 	                <button
 	                  className="button button-ghost"
 	                  type="button"
@@ -1880,7 +1879,7 @@ const Invoicing = () => {
               <div>
                 <p className="eyebrow">Invoicing</p>
                 <h3 id="invoice-form-title">{editingInvoiceId ? "Edit invoice" : "Create invoice"}</h3>
-                <p className="muted">Complete details and line items before saving.</p>
+                
               </div>
               <button className="button button-ghost" type="button" onClick={closeFormModal}>
                 Close
@@ -2002,7 +2001,7 @@ const Invoicing = () => {
                 <div className="panel-header">
                   <div>
                     <h3>Line items</h3>
-                    <p className="muted">Add billable items for this invoice.</p>
+                    
                   </div>
                   <button className="button button-ghost" type="button" onClick={addLineItem}>
                     <FiPlus aria-hidden="true" />
