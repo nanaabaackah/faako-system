@@ -9,6 +9,7 @@ import {
   AnimatedLoadingState,
 } from "@faako/ui";
 import MediaLibrary from "./MediaLibrary.jsx";
+import BrandAppearance from "./BrandAppearance.jsx";
 import PackageEditor from "./PackageEditor.jsx";
 import ExperienceEditor from "./ExperienceEditor.jsx";
 import reviewDrafts from "../../../../docs/apps/travel-with-ease/content-review-drafts.json";
@@ -348,7 +349,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         >
           {pages.map((name) => (
             <option key={name} value={name}>
-              {name==='site-appearance'?'Shared website imagery':name.replaceAll('-',' ')}
+              {name==='site-appearance'?'Brand & appearance':name.replaceAll('-',' ')}
             </option>
           ))}
         </SelectField>
@@ -402,6 +403,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           </Button>
         </section>
       )}
+      {!state.loading && page==='site-appearance' && <BrandAppearance branding={body.branding} change={change} api={api} session={session}
+        disabled={!session.user.permissions?.includes("content.write") || state.loading}/>}
       {!state.loading&&<ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/>}
       {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
       {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
@@ -559,6 +562,17 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     <option value="Destinations">Destinations</option>
                   </SelectField>
                   <SelectField
+                    label="Featured story on the Journal page"
+                    value={article.featuredOnJournal ? "yes" : "no"}
+                    onChange={(event) => change("articles", body.articles.map((item, i) =>
+                      ({ ...item, featuredOnJournal: event.target.value === "yes" && i === index })
+                    ))}
+                    options={[
+                      { value: "no", label: "Standard story" },
+                      { value: "yes", label: "Featured lead story" },
+                    ]}
+                  />
+                  <SelectField
                     label="Homepage Before you go placement"
                     value={String(article.homeTipOrder || 0)}
                     onChange={(event) => change("articles", body.articles.map((item, i) =>
@@ -708,6 +722,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       category: "Travel tip",
                       series: "Before you fly",
                       homeTipOrder: undefined,
+                      featuredOnJournal: false,
                       ctaLabel: "",
                       ctaPath: "",
                       relatedArticleSlugs: [],
