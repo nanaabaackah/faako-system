@@ -16,7 +16,7 @@ export function siteBranding(appearance) {
   const branding = appearance?.branding || {};
   const headingFont = headingFonts[branding.headingFont] || headingFonts["poiret-one"];
   const bodyFont = bodyFonts[branding.bodyFont] || bodyFonts.quicksand;
-  const socialImagePattern = /^\\/media\\/[a-f0-9-]{36}-social\\.jpg$/;
+  const socialImagePattern = /^\/media\/[a-f0-9-]{36}-social\.jpg$/;
   const logo = (key, fallback) =>
     typeof branding[key]?.src === "string" && localAssetPattern.test(branding[key].src)
       ? branding[key].src : fallback;
