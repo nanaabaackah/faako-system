@@ -23,6 +23,20 @@ jobs:
   test:
     name: TTNGH API regression tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ttngh_migrations_ci
+          POSTGRES_USER: ttngh_ci
+          POSTGRES_PASSWORD: ttngh_ci_synthetic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ttngh_ci -d ttngh_migrations_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -38,5 +52,11 @@ jobs:
           node --check services/ttngh-api/src/app.js
           node --check services/ttngh-api/src/config.js
           node --check services/ttngh-api/src/contact/readiness.js
+          node --check services/ttngh-api/src/db/migrations.js
+          node --check services/ttngh-api/scripts/deploy-database.mjs
       - name: Run TTNGH API tests
         run: pnpm --filter @faako/ttngh-api test
+      - name: Run migrations on isolated PostgreSQL
+        env:
+          TTNGH_TEST_DATABASE_URL: postgresql://ttngh_ci:ttngh_ci_synthetic@127.0.0.1:5432/ttngh_migrations_ci
+        run: pnpm --filter @faako/ttngh-api test:db
