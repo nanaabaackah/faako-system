@@ -20,3 +20,12 @@ test("CMS exposes cancellation only for stale pending publications, without retr
   assert.match(editor, /job\.last_error!=='cancelled_by_operator'/);
   assert.match(editor, /Pending publication cancelled\. Your saved drafts are unchanged/);
 });
+
+test("How It Works keeps independent editable four-stage examples", () => {
+  const editor = readFileSync(new URL("../src/components/WebsiteContent.jsx", import.meta.url), "utf8");
+  assert.match(editor, /Worked example — four stages/);
+  assert.match(editor, /Example stage \{index \+ 1\}/);
+  assert.match(editor, /label="Stage heading"/);
+  assert.match(editor, /label="Stage description"/);
+  assert.match(editor, /exampleSteps: \(flow\.exampleSteps/);
+});

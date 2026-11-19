@@ -4,10 +4,27 @@ import { siteCopy } from "../lib/editorial-copy.js";
 import "../styles/components/how-it-works-tabs.css";
 
 interface Step { heading: string; text: string }
-interface Flow { steps: Step[]; example: string }
+interface Flow { steps: Step[]; example: string; exampleSteps?: Step[] }
 interface Props { flows?: { package: Flow; planning: Flow } }
 const { flows } = Astro.props;
 const copy = siteCopy("how-it-works");
+const exampleSteps = (flow: "package" | "planning"): Step[] => {
+  const configured = flows?.[flow]?.exampleSteps;
+  if (configured?.length === 4) return configured;
+  // Older CMS revisions have only a one-paragraph example; preserve a
+  // structured example until the client saves the four editable stages.
+  return (flow === "package" ? [
+    { heading: "Choose the Nairobi package", text: "Two friends share their preferred travel month and confirm two travellers and a hotel tier." },
+    { heading: "Review the live quote", text: "They compare hotel choices and inclusions against the quote for their preferred dates." },
+    { heading: "Confirm their booking", text: "They check the payment schedule and each pay the required package deposit." },
+    { heading: "Prepare for departure", text: "They receive their itinerary and travel pack for the confirmed journey." },
+  ] : [
+    { heading: "Share their Italy plans", text: "A couple submit their anniversary dates, budget and destination ideas." },
+    { heading: "Review the itinerary", text: "After paying the planning-fee deposit, they review the proposed day-by-day plan and request a revision." },
+    { heading: "Fund confirmed bookings", text: "They receive a separate Travel Fund Request for flights and hotels before any booking." },
+    { heading: "Get ready to travel", text: "They settle the planning-fee balance and receive their final travel pack." },
+  ]);
+};
 const valid = flows &&
   flows.package?.steps?.length === 4 &&
   flows.planning?.steps?.length === 4;
@@ -33,11 +50,23 @@ const valid = flows &&
           </li>
         ))}
       </ol>
-      <div class="planning-flow__example">
-        <h3>{copy.packageExample}</h3>
-        <p>{flows.package.example}</p>
-        <ContentLink href="/packages/nairobi">{copy.packageExampleCta}</ContentLink>
-      </div>
+      <section class="planning-example" aria-labelledby="package-example-heading">
+        <div class="planning-example__intro">
+          <span class="planning-example__label">An illustrative example</span>
+          <h2 id="package-example-heading">{copy.packageExample}</h2>
+          <p>{flows.package.example}</p>
+          <ContentLink href="/packages/nairobi">{copy.packageExampleCta}</ContentLink>
+        </div>
+        <ol class="planning-example__steps">
+          {exampleSteps("package").map((step) => (
+            <li><h3>{step.heading}</h3><p>{step.text}</p></li>
+          ))}
+        </ol>
+        <div class="planning-example__next">
+          <p>This illustrates the package process, not a real booking or confirmed quote. Your live quote sets out the agreed arrangements.</p>
+          <ContentLink button href="#plan">Ask about a package</ContentLink>
+        </div>
+      </section>
       <div class="planning-flow__footer">
         <ContentLink href="/terms#package-terms">{copy.packageTermsCta}</ContentLink>
       </div>
@@ -55,10 +84,22 @@ const valid = flows &&
           </li>
         ))}
       </ol>
-      <div class="planning-flow__example">
-        <h3>{copy.planningExample}</h3>
-        <p>{flows.planning.example}</p>
-      </div>
+      <section class="planning-example" aria-labelledby="planning-example-heading">
+        <div class="planning-example__intro">
+          <span class="planning-example__label">An illustrative example</span>
+          <h2 id="planning-example-heading">{copy.planningExample}</h2>
+          <p>{flows.planning.example}</p>
+        </div>
+        <ol class="planning-example__steps">
+          {exampleSteps("planning").map((step) => (
+            <li><h3>{step.heading}</h3><p>{step.text}</p></li>
+          ))}
+        </ol>
+        <div class="planning-example__next">
+          <p>This is an illustrative planning journey, not a client testimonial or confirmed arrangement. Booking costs remain separate from the planning fee.</p>
+          <ContentLink button href="#plan">Tell us about your trip</ContentLink>
+        </div>
+      </section>
       <div class="planning-flow__footer">
         <ContentLink href="/terms#planning-terms">{copy.planningTermsCta}</ContentLink>
       </div>

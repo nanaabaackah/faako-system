@@ -9,7 +9,7 @@ import { siteCopy } from "../lib/editorial-copy.js";
 import HomeJourneyStepper from "./HomeJourneyStepper.jsx";
 import HowItWorksTabs from "./HowItWorksTabs.astro";
 interface Step { heading:string; text:string }
-interface Flow { steps: Step[]; example: string }
+interface Flow { steps: Step[]; example: string; exampleSteps?: Step[] }
 interface Props {
   content: {
     heading:string;
@@ -33,9 +33,7 @@ const copy = siteCopy("how-it-works");
   <div class="journey-process__steps">
     {page ? <h1>{content.heading}</h1> : <h2>{content.heading}</h2>}
     <p class="journey-process__introduction">{content.body}</p>
-    {page ? (
-      <HowItWorksTabs flows={content.processFlows} />
-    ) : (
+    {!page && (
       <>
         {homepageFlows?.package?.steps?.length === 4 && homepageFlows?.planning?.steps?.length === 4 && (
           <HomeJourneyStepper flows={homepageFlows} client:visible copy={copy} />
@@ -60,3 +58,8 @@ const copy = siteCopy("how-it-works");
     )}
   </div>
 </section>
+{page && (
+  <section class="planning-process__details editorial-wrap" aria-label="Booking and planning steps with practical examples">
+    <HowItWorksTabs flows={content.processFlows} />
+  </section>
+)}
