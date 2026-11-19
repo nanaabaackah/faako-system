@@ -25,7 +25,7 @@ const { content, page = false } = Astro.props;
 const photo = imagePlacement(content,"feature",photography.park);
 // Homepage and dedicated page both use the same client-approved, CMS-authored
 // processes. Keep the original photograph and homepage React Bits stepper.
-const homepageFlows = withUpdatedPackageFlow(content.processFlows);
+const homepageFlows: Props["content"]["processFlows"] = withUpdatedPackageFlow(content.processFlows);
 const copy = siteCopy("how-it-works");
 ---
 
