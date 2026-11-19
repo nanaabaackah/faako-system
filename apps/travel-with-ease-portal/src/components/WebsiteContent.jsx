@@ -21,6 +21,7 @@ import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
 import { serviceSlug } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
+import { withUpdatedPackageFlow } from "../../../travel-with-ease-api/src/content/process-flow.js";
 import EditorialFields from "./EditorialFields.jsx";
 
 import countryOptions from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
@@ -156,6 +157,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         );
         if (!active) return;
         const draft = { ...emptyBody(), ...(!item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
+        if (page === "how-it-works" && draft.processFlows) draft.processFlows = withUpdatedPackageFlow(draft.processFlows);
         draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
         if(page==="home"&&!draft.ctaLabel)draft.ctaLabel="Plan your trip";
         if(page==='site-appearance'&&!item){draft.heading='Shared website imagery';draft.seoTitle='Website appearance';draft.seoDescription='Internal shared imagery settings.';}
@@ -1006,9 +1008,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Edit the four booking steps and the separate four-stage example for each path.</p>
+              <p>Edit five package-booking steps or four planning steps. Each path also has a separate four-stage example.</p>
               {(["package", "planning"]).map((flowKey) => {
-                const flows = body.processFlows || approvedRelease.pages["how-it-works"].processFlows;
+                const flows = withUpdatedPackageFlow(body.processFlows || approvedRelease.pages["how-it-works"].processFlows);
                 const flow = flows[flowKey];
                 return <fieldset key={flowKey}>
                   <legend>{flowKey === "package" ? "Booking a package" : "Planning a trip with us"}</legend>
