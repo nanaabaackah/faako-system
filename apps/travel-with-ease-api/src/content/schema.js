@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { packageOccasions, serviceSlug } from "./catalogue-constants.js";
 import { editorialFields } from "./editorial-fields.js";
+import { withUpdatedPackageFlow } from "./process-flow.js";
 import { placementSlots } from './placement-catalogue.js';
 
 export const pageNames = [
@@ -182,7 +183,7 @@ export const contentBodySchema = z
         steps: z.array(z.object({
           heading: text(160).min(1),
           text: text(2000).min(1),
-        }).strict()).length(4),
+        }).strict()).min(4).max(5),
         example: text(2500).min(1),
         exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
       }).strict(),
@@ -312,6 +313,7 @@ export function contentForPage(page, body) {
       "Use the packages, journal, travel tips or travel footprint section for those records.",
     );
   }
+  if (page === "how-it-works" && value.processFlows) value.processFlows = withUpdatedPackageFlow(value.processFlows);
   return value;
 }
 export const saveContentSchema = z
