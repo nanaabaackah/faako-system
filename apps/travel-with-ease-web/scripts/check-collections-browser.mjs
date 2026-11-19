@@ -230,7 +230,8 @@ try {
     const planningTab = page.getByRole("tab", { name: "Planning a trip with us", exact: true });
     await bookingTab.waitFor();
     assert.equal(await bookingTab.getAttribute("aria-selected"), "true");
-    assert.equal(await page.locator("#package-booking .planning-flow__steps li").count(), 4);
+    assert.equal(await page.locator("#package-booking .planning-flow__steps li").count(), 5);
+    await expect(page.locator("#package-booking .planning-flow__steps li").nth(4)).toContainText("Travel with your pack");
     assert.equal(await page.locator("#trip-planning .planning-flow__steps li").count(), 4);
     assert.equal(await page.getByRole("link", { name: "Explore the Nairobi package", exact: true }).getAttribute("href"), "/packages/nairobi");
     assert.equal(await page.getByRole("link", { name: "Read the package terms", exact: true }).getAttribute("href"), "/terms#package-terms");
