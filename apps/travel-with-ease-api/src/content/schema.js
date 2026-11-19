@@ -143,6 +143,7 @@ const articleSchema = z
     ctaPath: z.enum(["", "/#plan", "/services/travel-readiness-session", "/packages/nairobi", "/packages"]).default(""),
     relatedArticleSlugs: z.array(slug).max(8).default([]),
     homeTipOrder: z.number().int().min(1).max(3).optional(),
+    featuredOnJournal: z.boolean().default(false),
     author: text(120).default(""),
     imagePlacement:imagePlacementSchema.optional(),
     imageId: z.string().uuid().nullable().default(null),
@@ -156,6 +157,13 @@ export const contentBodySchema = z
   .object({
     heading: text(120).min(1),
     body: text(6000),
+    branding: z.object({
+      headingFont: z.enum(["poiret-one", "quicksand", "inter", "outfit"]).default("poiret-one"),
+      bodyFont: z.enum(["quicksand", "inter", "outfit"]).default("quicksand"),
+      headerLogoId: z.string().uuid().nullable().default(null),
+      scrolledLogoId: z.string().uuid().nullable().default(null),
+      footerLogoId: z.string().uuid().nullable().default(null),
+    }).strict().default({}),
     editorialCopy: z.record(text(2000).min(1)).default({}),
     reviews: z.array(z.object({ preview: text(3000).min(1), more: text(6000) }).strict()).max(30).optional(),
     ctaLabel: text(60).default(""),
@@ -215,7 +223,8 @@ export const contentBodySchema = z
         (items) =>
           new Set(items.map((item) => item.slug)).size === items.length,
         "Article URLs must be unique.",
-      ),
+      ).refine(items => items.filter(item => item.featuredOnJournal).length <= 1,
+        "Select only one featured Journal article."),
     tips: z
       .array(tipSchema)
       .max(30)
@@ -326,6 +335,9 @@ export function contentMediaIds(body) {
     ...new Set(
       [
         body.imageId,
+        body.branding?.headerLogoId,
+        body.branding?.scrolledLogoId,
+        body.branding?.footerLogoId,
         ...[...Object.values(body.imagePlacements||{}),...body.entries.map(entry=>entry.imagePlacement),...body.tips.map(tip=>tip.imagePlacement),...[...body.packages,...body.articles].map(item=>item.imagePlacement)].filter(Boolean).flatMap(placement=>[placement.imageId,placement.mobileImageId]),
         ...body.tips.map((tip) => tip.imageId),
         ...[...body.packages, ...body.articles].flatMap((item) => [
