@@ -164,3 +164,26 @@ test("journal and map content validates public URLs, dates, unique records and p
     countries.map((country) => country.code).sort(),
   );
 });
+
+test("Journal lead selection and brand settings are constrained and tracked as media references", () => {
+  const base = { heading:"Fixture", body:"", seoTitle:"Fixture", seoDescription:"Synthetic" };
+  const id1="40000000-0000-4000-8000-000000000001";
+  const id2="40000000-0000-4000-8000-000000000002";
+  const entry = {slug:"sample-article", title:"Synthetic", excerpt:"Summary", body:"Article", date:"2026-11-01"};
+  assert.equal(contentForPage("journal",{...base,articles:[{...entry,featuredOnJournal:true}]}).articles[0].featuredOnJournal,true);
+  assert.throws(()=>contentForPage("journal",{...base,articles:[{...entry,featuredOnJournal:true},{...entry,slug:"another-article",featuredOnJournal:true}]}));
+  assert.throws(()=>contentForPage("journal",{...base,articles:[{...entry,featuredOnJournal:"yes"}]}));
+  const selected = contentForPage("site-appearance",{...base,branding:{
+    headingFont:"outfit",bodyFont:"inter",headerLogoId:id1,scrolledLogoId:id2,
+    footerLogoId:id1,faviconId:id2,socialImageId:id1,
+  }});
+  assert.equal(selected.branding.headingFont,"outfit");
+  assert.equal(selected.branding.bodyFont,"inter");
+  assert.deepEqual(contentMediaIds(selected).sort(),[id1,id2].sort());
+  const defaults = contentForPage("site-appearance",base).branding;
+  assert.equal(defaults.headingFont,"poiret-one");
+  assert.equal(defaults.bodyFont,"quicksand");
+  assert.equal(defaults.headerLogoId,null);
+  for (const invalid of [{headingFont:"Georgia"},{bodyFont:"url(https://bad.invalid)"},{footerLogoId:"https://bad.invalid/file.png"},{script:"<script>"}])
+    assert.throws(()=>contentForPage("site-appearance",{...base,branding:invalid}));
+});
