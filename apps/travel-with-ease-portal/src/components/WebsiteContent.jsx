@@ -565,7 +565,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     label="Featured story on the Journal page"
                     value={article.featuredOnJournal ? "yes" : "no"}
                     onChange={(event) => change("articles", body.articles.map((item, i) =>
-                      ({ ...item, featuredOnJournal: event.target.value === "yes" && i === index })
+                      i === index ? { ...item, featuredOnJournal: event.target.value === "yes" } :
+                        event.target.value === "yes" ? { ...item, featuredOnJournal: false } : item
                     ))}
                     options={[
                       { value: "no", label: "Standard story" },
