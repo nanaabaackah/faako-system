@@ -60,7 +60,7 @@ test("services keep published labels, prices, currency formatting and direct lin
 });
 
 test("process preserves the existing Stepper for both approved homepage routes", () => {
-  assert.match(process, /const homepageFlows = content\.processFlows/);
+  assert.match(process, /const homepageFlows = withUpdatedPackageFlow\(content\.processFlows\)/);
   assert.match(process, /<HomeJourneyStepper flows=\{homepageFlows\} client:visible/);
   assert.match(process, /"planning-process": page/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
