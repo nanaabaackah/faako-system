@@ -72,8 +72,8 @@ test("public mobile menu uses an accessible icon and a borderless vertical layou
 test("scrolled header uses the approved dark-mode symbol on brand navy", () => {
   const layout = read("../src/layouts/BaseLayout.astro");
   const nav = read("../src/styles/components/scroll-navigation.css");
-  assert.match(layout, /src="\/brand\/Primary gold\.png"/);
-  assert.match(layout, /src="\/brand\/dark mode symbol\.png"/);
+  assert.match(layout, /src=\{branding\.headerLogo\}/);
+  assert.match(layout, /src=\{branding\.scrolledLogo\}/);
   assert.match(nav, /\.site-header\.is-scrolled[\s\S]*?background: var\(--brand-navy\)/);
   assert.match(nav, /\.brand__symbol--scrolled[\s\S]*?object-fit: contain/);
   assert.match(nav, /\.site-header:not\(\.is-scrolled\) \.brand__wordmark--gold/);
