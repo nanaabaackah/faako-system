@@ -327,7 +327,7 @@ try {
     "Approved package photographs remain accessible as native links without scripting");
   await expect(published.locator(".twe-package-itinerary")).toContainText("Arrive in Nairobi");
   await published.goto(origin + "/how-it-works");
-  assert.equal(await published.locator("#package-booking .planning-flow__steps li").count(), 4);
+  assert.equal(await published.locator("#package-booking .planning-flow__steps li").count(), 5);
   assert.equal(await published.locator("#trip-planning .planning-flow__steps li").count(), 4);
   await published.getByRole("link", { name: "Explore the Nairobi package", exact: true }).click();
   assert.equal(new URL(published.url()).pathname, "/packages/nairobi");
