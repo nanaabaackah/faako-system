@@ -46,7 +46,7 @@ Migration 001 is transactional and fails if already applied; a migration runner/
 | PAYSTACK_MODE | Explicit test or live |
 | PAYSTACK_SECRET_KEY | Server-only provider credential; must match mode |
 | TTNGH_LIVE_PAYMENTS_APPROVED | Additional explicit production-only gate |
-| TTNGH_DATABASE_URL | Secret dedicated TTNGH PostgreSQL connection |
+| DATABASE_URL | Secret dedicated TTNGH PostgreSQL connection |
 | TTNGH_DONATION_RETURN_URL | Exact HTTPS callback ending in /donate/return; live requires approved production domain |
 
 The configuration helper is not yet wired into the server; setting these variables alone does not enable a donation endpoint. No public payment key or server secret is shipped to Astro.

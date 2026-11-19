@@ -20,9 +20,9 @@ test("donor schema rejects currency, injection, credentials and missing consent"
 });
 test("payments are disabled by default and live mode fails closed",()=>{
   assert.deepEqual(paymentConfig({}),{enabled:false});
-  const env={TTNGH_DONATIONS_ENABLED:"true",PAYSTACK_MODE:"test",PAYSTACK_SECRET_KEY:"sk_test_synthetic_only",TTNGH_DATABASE_URL:"postgresql://localhost/ttngh_test",TTNGH_DONATION_RETURN_URL:"https://preview.example.org/donate/return"};
+  const env={TTNGH_DONATIONS_ENABLED:"true",PAYSTACK_MODE:"test",PAYSTACK_SECRET_KEY:"sk_test_synthetic_only",DATABASE_URL:"postgresql://localhost/ttngh_test",TTNGH_DONATION_RETURN_URL:"https://preview.example.org/donate/return"};
   assert.equal(paymentConfig(env).mode,"test");
-  for(const patch of [{PAYSTACK_MODE:"live"},{TTNGH_DATABASE_URL:""},{TTNGH_DONATION_RETURN_URL:"https://example.org/donate/return?next=evil"},{PAYSTACK_SECRET_KEY:"sk_live_synthetic_only"}]) assert.throws(()=>paymentConfig({...env,...patch}));
+  for(const patch of [{PAYSTACK_MODE:"live"},{DATABASE_URL:""},{TTNGH_DONATION_RETURN_URL:"https://example.org/donate/return?next=evil"},{PAYSTACK_SECRET_KEY:"sk_live_synthetic_only"}]) assert.throws(()=>paymentConfig({...env,...patch}));
   const live={...env,PAYSTACK_MODE:"live",PAYSTACK_SECRET_KEY:"sk_live_synthetic_only",NODE_ENV:"production",TTNGH_LIVE_PAYMENTS_APPROVED:"true",TTNGH_DONATION_RETURN_URL:"https://thethrivingnetworkgh.org/donate/return"};
   assert.equal(paymentConfig(live).mode,"live");
   assert.throws(()=>paymentConfig({...live,NODE_ENV:"development"}));

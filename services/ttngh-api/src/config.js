@@ -10,8 +10,9 @@ export function loadConfig(env) {
     try { const url = new URL(value); return url.origin !== value || !(url.protocol === "https:" || url.protocol === "http:" && env.NODE_ENV !== "production" && ["localhost", "127.0.0.1"].includes(url.hostname)); } catch { return true; }
   })) throw new Error("Configure exact TTNGH_ALLOWED_ORIGINS");
   const enabled = env.TTNGH_CONTACT_ENABLED === "true";
-  const databaseUrl = env.TTNGH_DATABASE_URL?.trim() || "";
-  if (enabled && !databaseUrl) throw new Error("Configure TTNGH_DATABASE_URL before accepting enquiries");
+  // Use the existing Railway TTNGH database. Lack of contact storage must not
+  // prevent the health, calendar or CMS publishing endpoints from starting.
+  const databaseUrl = env.DATABASE_URL?.trim() || "";
   const replyTo = env.TTNGH_REPLY_TO?.trim() || "thethrivingnetwork@gmail.com";
   if (!emailSchema.safeParse(replyTo).success) throw new Error("TTNGH_REPLY_TO must be a valid email address");
   const secret = env.TURNSTILE_SECRET_KEY || "";
