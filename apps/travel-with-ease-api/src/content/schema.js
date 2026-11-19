@@ -163,6 +163,8 @@ export const contentBodySchema = z
       headerLogoId: z.string().uuid().nullable().default(null),
       scrolledLogoId: z.string().uuid().nullable().default(null),
       footerLogoId: z.string().uuid().nullable().default(null),
+      faviconId: z.string().uuid().nullable().default(null),
+      socialImageId: z.string().uuid().nullable().default(null),
     }).strict().default({}),
     editorialCopy: z.record(text(2000).min(1)).default({}),
     reviews: z.array(z.object({ preview: text(3000).min(1), more: text(6000) }).strict()).max(30).optional(),
@@ -338,6 +340,8 @@ export function contentMediaIds(body) {
         body.branding?.headerLogoId,
         body.branding?.scrolledLogoId,
         body.branding?.footerLogoId,
+        body.branding?.faviconId,
+        body.branding?.socialImageId,
         ...[...Object.values(body.imagePlacements||{}),...body.entries.map(entry=>entry.imagePlacement),...body.tips.map(tip=>tip.imagePlacement),...[...body.packages,...body.articles].map(item=>item.imagePlacement)].filter(Boolean).flatMap(placement=>[placement.imageId,placement.mobileImageId]),
         ...body.tips.map((tip) => tip.imageId),
         ...[...body.packages, ...body.articles].flatMap((item) => [
