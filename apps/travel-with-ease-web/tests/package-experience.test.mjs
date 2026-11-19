@@ -48,9 +48,9 @@ test("updated how-it-works separates package and bespoke planning flows with app
   const process = source("components/JourneyProcess.astro");
   const tabs = source("components/HowItWorksTabs.astro");
   const content = approved.pages["how-it-works"];
-  assert.match(process, /<HowItWorksTabs flows=\\{homepageFlows\\} mode="steps"/);
+  assert.match(process, /<HowItWorksTabs flows=\{homepageFlows\} mode="steps"/);
   assert.match(process, /planning-process__details editorial-wrap/);
-  assert.match(process, /<section class="planning-process__details[\s\S]*?<HowItWorksTabs flows=\\{homepageFlows\\} mode="examples"/);
+  assert.match(process, /<section class="planning-process__details[\s\S]*?<HowItWorksTabs flows=\{homepageFlows\} mode="examples"/);
   assert.match(tabs, /mode === "steps"/);
   assert.match(tabs, /data-example-panel=\{flow\}/);
   assert.match(tabs, /class="planning-example"/);
