@@ -81,6 +81,11 @@ Source: [Sanity webhook configuration](https://www.sanity.io/docs/content-lake/w
 
 ## Railway enquiry activation
 
+The TTNGH **API service** (not the PostgreSQL service) runs the reviewed, repeat-safe pre-deploy command `pnpm --filter @faako/ttngh-api db:deploy`, configured in `services/ttngh-api/railway.json`. It uses only the existing `DATABASE_URL`, records the SHA-256 checksum in the private `ttngh_contact.schema_migrations` ledger, locks concurrent attempts, and runs the enquiry migration transactionally. Future deployments skip an already applied migration. Changed migration contents, unknown history or preexisting untracked tables fail closed, without wiping data. The dormant `001-donations.sql` payment foundation is **not** in the automatic migration allowlist and remains unapproved for deployment.
+
+Before the first production pre-deploy, verify and back up the TTNGH database and confirm the API's `DATABASE_URL` points only to that service. Do not put this command in the PostgreSQL service settings. If a legacy enquiry schema already exists without the ledger, review it manually instead of forcing the migration. Health remains available if storage is unavailable; real enquiry submission requires the two tables to be ready.
+
+
 Use the monorepo root and `services/ttngh-api/railway.json`, not a standalone service-folder checkout. Node 22.12+; health path `/health`. Configure the listed secrets server-side. Never enable Node inspector.
 
 1. Verify a Turnstile widget for exact TTNGH hostnames; its action is `ttngh_enquiry`. Production rejects test secret-key patterns.
