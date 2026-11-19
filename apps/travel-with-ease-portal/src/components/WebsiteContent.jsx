@@ -990,7 +990,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Edit four steps and an example for each path.</p>
+              <p>Edit the four booking steps and the separate four-stage example for each path.</p>
               {(["package", "planning"]).map((flowKey) => {
                 const flows = body.processFlows || approvedRelease.pages["how-it-works"].processFlows;
                 const flow = flows[flowKey];
@@ -1022,7 +1022,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     </fieldset>
                   ))}
                   <TextareaField
-                    label="Illustrative example"
+                    label="Example introduction"
                     value={flow.example}
                     maxLength={2500}
                     required
@@ -1031,6 +1031,42 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       [flowKey]: { ...flow, example: event.target.value },
                     })}
                   />
+                  <fieldset>
+                    <legend>Worked example — four stages</legend>
+                    {(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).map((step, index) => (
+                      <fieldset key={index}>
+                        <legend>Example stage {index + 1}</legend>
+                        <TextField
+                          label="Stage heading"
+                          value={step.heading}
+                          maxLength={160}
+                          required
+                          onChange={(event) => change("processFlows", {
+                            ...flows,
+                            [flowKey]: {
+                              ...flow,
+                              exampleSteps: (flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps)
+                                .map((item, i) => i === index ? { ...item, heading: event.target.value } : item),
+                            },
+                          })}
+                        />
+                        <TextareaField
+                          label="Stage description"
+                          value={step.text}
+                          maxLength={2000}
+                          required
+                          onChange={(event) => change("processFlows", {
+                            ...flows,
+                            [flowKey]: {
+                              ...flow,
+                              exampleSteps: (flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps)
+                                .map((item, i) => i === index ? { ...item, text: event.target.value } : item),
+                            },
+                          })}
+                        />
+                      </fieldset>
+                    ))}
+                  </fieldset>
                   <p>{flowKey === "package" ? "Terms: Section B · Package bookings" : "Terms: Section A · Planning services"}</p>
                 </fieldset>;
               })}
