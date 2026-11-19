@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { SelectField } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import "../styles/brand-appearance.css";
 import MediaLibrary from "./MediaLibrary.jsx";
 
 const slots = [
