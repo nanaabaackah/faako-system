@@ -230,7 +230,8 @@ try {
     const planningTab = page.getByRole("tab", { name: "Planning a trip with us", exact: true });
     await bookingTab.waitFor();
     assert.equal(await bookingTab.getAttribute("aria-selected"), "true");
-    assert.equal(await page.locator("#package-booking .planning-flow__steps li").count(), 4);
+    assert.equal(await page.locator("#package-booking .planning-flow__steps li").count(), 5);
+    await expect(page.locator("#package-booking .planning-flow__steps li").nth(4)).toContainText("Travel with your pack");
     assert.equal(await page.locator("#trip-planning .planning-flow__steps li").count(), 4);
     assert.equal(await page.getByRole("link", { name: "Explore the Nairobi package", exact: true }).getAttribute("href"), "/packages/nairobi");
     assert.equal(await page.getByRole("link", { name: "Read the package terms", exact: true }).getAttribute("href"), "/terms#package-terms");
@@ -256,7 +257,10 @@ try {
     assert.equal(await page.locator('[data-collection-item][data-series="Before you fly"]').count(), 5);
     assert.equal(await page.locator('[data-collection-item][data-series="Visas and entry"]').count(), 2);
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
-    await page.locator(".journal-card").first().click();
+    assert.equal(await page.locator(".journal-landing__hero").count(), 1, "Featured Journal story is present");
+    assert.equal(await page.locator(".journal-landing__rail-item").count(), 3, "Three linked stories appear beside the feature");
+    assert.equal(await page.locator(".journal-landing__archive-grid [data-collection-item]").count(), 8);
+    await page.locator(".journal-landing__story-link").first().click();
     await page.waitForURL("**/journal/*");
     assert.equal(await page.locator(".journal-detail__sidebar").count(), 1);
     assert.ok(await page.locator(".journal-detail__related-item").count() >= 1, "Related articles come from the published CMS");
@@ -323,7 +327,7 @@ try {
     "Approved package photographs remain accessible as native links without scripting");
   await expect(published.locator(".twe-package-itinerary")).toContainText("Arrive in Nairobi");
   await published.goto(origin + "/how-it-works");
-  assert.equal(await published.locator("#package-booking .planning-flow__steps li").count(), 4);
+  assert.equal(await published.locator("#package-booking .planning-flow__steps li").count(), 5);
   assert.equal(await published.locator("#trip-planning .planning-flow__steps li").count(), 4);
   await published.getByRole("link", { name: "Explore the Nairobi package", exact: true }).click();
   assert.equal(new URL(published.url()).pathname, "/packages/nairobi");

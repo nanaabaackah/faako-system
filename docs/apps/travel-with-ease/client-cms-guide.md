@@ -33,14 +33,45 @@ and images. Prices in the editor are GHS, per person sharing. Use Price coming
 soon where pricing has not been supplied. Do not publish hotel names, star
 ratings, payment numbers or invented prices.
 
-Journal contains the story fields, category, author and approved images. Tips
-contain category, feature/order settings and optional related Journal links.
+Journal contains the story fields, category, author, series and approved images.
+For the Journal listing, choose **Featured lead story** for one article in Website
+Content → Journal; the site shows that article alongside three recent supporting
+stories. Otherwise the latest published Trip Story is featured. The **All stories**
+grid always includes every published article and uses the existing Category,
+Series and Search filters. The section headings, introductory text and browse
+link are editable under Journal editorial fields. The article detail page uses
+the same underlying content.
+
+Tips contain category, feature/order settings and optional related Journal links.
 Use Publication scope to publish/unpublish one saved record without including
 other drafts. Whole collection intentionally includes all saved records. Load
 approved copy starts from the supplied company document, not invented samples;
 select managed images separately. Revision restoration creates a draft, not a
 publication. Actual hosted acceptance is tracked in the
 [CMS runtime guide](./cms-runtime-2026-11-03.md).
+
+## Brand, fonts and assets
+
+The **Media** navigation item is the central asset library. Staff with media
+permissions can upload JPG, PNG or WebP images (maximum 8 MiB), import supported
+images from the approved Google Drive folder, preview, replace and archive them.
+A replacement is a new revision; existing published content is not overwritten.
+Images are held privately until a permitted editor selects them and publishes a
+saved content revision.
+
+In Website Content → **Brand & appearance**, select from the curated heading
+and body fonts or assign uploaded images to the header wordmark, scrolled logo,
+footer logo, favicon and default social preview. The approved defaults remain
+Poiret One for headings, Quicksand for body, and the existing TWE logos. The same
+section contains the shared image-placement controls for the footer background
+and device mockups. Other page and article images remain editable on their
+respective CMS sections.
+
+Only licensed, preapproved font families are selectable; uploading arbitrary
+font, SVG, executable or document files is intentionally not supported by the
+image-only asset pipeline. Brand edits are drafts until previewed and published,
+like other content. Changing a logo or font does not bypass the verified
+Cloudflare deployment process.
 
 ## Travel footprint
 

@@ -55,6 +55,7 @@ export interface JournalArticle {
   category?: string;
   series?: "Before you fly" | "Visas and entry" | "Destinations" | "";
   homeTipOrder?: number;
+  featuredOnJournal?: boolean;
   ctaLabel?: string;
   ctaPath?: string;
   relatedArticleSlugs?: string[];

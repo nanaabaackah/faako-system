@@ -8,6 +8,7 @@ import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import HomeJourneyStepper from "./HomeJourneyStepper.jsx";
 import HowItWorksTabs from "./HowItWorksTabs.astro";
+import { withUpdatedPackageFlow } from "../../../travel-with-ease-api/src/content/process-flow.js";
 interface Step { heading:string; text:string }
 interface Flow { steps: Step[]; example: string; exampleSteps?: Step[] }
 interface Props {
@@ -24,7 +25,7 @@ const { content, page = false } = Astro.props;
 const photo = imagePlacement(content,"feature",photography.park);
 // Homepage and dedicated page both use the same client-approved, CMS-authored
 // processes. Keep the original photograph and homepage React Bits stepper.
-const homepageFlows = content.processFlows;
+const homepageFlows: Props["content"]["processFlows"] = withUpdatedPackageFlow(content.processFlows);
 const copy = siteCopy("how-it-works");
 ---
 
@@ -33,14 +34,14 @@ const copy = siteCopy("how-it-works");
   <div class="journey-process__steps">
     {page ? <h1>{content.heading}</h1> : <h2>{content.heading}</h2>}
     <p class="journey-process__introduction">{content.body}</p>
-    {page && <HowItWorksTabs flows={content.processFlows} mode="steps" />}
+    {page && <HowItWorksTabs flows={homepageFlows} mode="steps" />}
     {!page && (
       <>
-        {homepageFlows?.package?.steps?.length === 4 && homepageFlows?.planning?.steps?.length === 4 && (
+        {homepageFlows?.package?.steps?.length === 5 && homepageFlows?.planning?.steps?.length === 4 && (
           <HomeJourneyStepper flows={homepageFlows} client:visible copy={copy} />
         )}
         <noscript>
-          {(["package", "planning"] as const).map((flow) => homepageFlows?.[flow]?.steps?.length === 4 && (
+          {(["package", "planning"] as const).map((flow) => homepageFlows?.[flow]?.steps?.length === (flow === "package" ? 5 : 4) && (
             <section class="journey-process__noscript-flow">
               <h3>{flow === "package" ? copy.packageTab : copy.planningTab}</h3>
               <ol class="journey-process__fallback">
@@ -61,6 +62,6 @@ const copy = siteCopy("how-it-works");
 </section>
 {page && (
   <section class="planning-process__details editorial-wrap" aria-label="Booking and planning worked examples">
-    <HowItWorksTabs flows={content.processFlows} mode="examples" />
+    <HowItWorksTabs flows={homepageFlows} mode="examples" />
   </section>
 )}

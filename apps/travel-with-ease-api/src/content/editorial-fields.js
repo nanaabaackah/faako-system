@@ -213,7 +213,15 @@ export const editorialFields = {
       "Explore this service"
     ]
   ],
-  "journal": [["relatedReading","Journal article · related reading heading","Related reading"],["relatedJourneys","Journal article · related trips heading","Explore related journeys"],["keepReading","Journal article · more articles heading","Keep reading"]],
+  "journal": [
+    ["featuredHeading","Journal listing · featured section","Featured stories"],
+    ["browseCta","Journal listing · browse link","Browse all stories"],
+    ["archiveHeading","Journal listing · story grid heading","All stories"],
+    ["archiveBody","Journal listing · story grid introduction","Explore travel tips and stories for your next journey."],
+    ["relatedReading","Journal article · related reading heading","Related reading"],
+    ["relatedJourneys","Journal article · related trips heading","Explore related journeys"],
+    ["keepReading","Journal article · more articles heading","Keep reading"],
+  ],
   "contact": [
     [
       "enquiryHeading",

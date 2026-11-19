@@ -9,6 +9,7 @@ import {
   AnimatedLoadingState,
 } from "@faako/ui";
 import MediaLibrary from "./MediaLibrary.jsx";
+import BrandAppearance from "./BrandAppearance.jsx";
 import PackageEditor from "./PackageEditor.jsx";
 import ExperienceEditor from "./ExperienceEditor.jsx";
 import reviewDrafts from "../../../../docs/apps/travel-with-ease/content-review-drafts.json";
@@ -20,6 +21,7 @@ import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
 import { serviceSlug } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
+import { withUpdatedPackageFlow } from "../../../travel-with-ease-api/src/content/process-flow.js";
 import EditorialFields from "./EditorialFields.jsx";
 
 import countryOptions from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
@@ -155,6 +157,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         );
         if (!active) return;
         const draft = { ...emptyBody(), ...(!item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
+        if (page === "how-it-works" && draft.processFlows) draft.processFlows = withUpdatedPackageFlow(draft.processFlows);
         draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
         if(page==="home"&&!draft.ctaLabel)draft.ctaLabel="Plan your trip";
         if(page==='site-appearance'&&!item){draft.heading='Shared website imagery';draft.seoTitle='Website appearance';draft.seoDescription='Internal shared imagery settings.';}
@@ -348,7 +351,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         >
           {pages.map((name) => (
             <option key={name} value={name}>
-              {name==='site-appearance'?'Shared website imagery':name.replaceAll('-',' ')}
+              {name==='site-appearance'?'Brand & appearance':name.replaceAll('-',' ')}
             </option>
           ))}
         </SelectField>
@@ -402,6 +405,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           </Button>
         </section>
       )}
+      {!state.loading && page==='site-appearance' && <BrandAppearance branding={body.branding} change={change} api={api} session={session}
+        disabled={!session.user.permissions?.includes("content.write") || state.loading}/>}
       {!state.loading&&<ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/>}
       {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
       {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
@@ -559,6 +564,18 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     <option value="Destinations">Destinations</option>
                   </SelectField>
                   <SelectField
+                    label="Featured story on the Journal page"
+                    value={article.featuredOnJournal ? "yes" : "no"}
+                    onChange={(event) => change("articles", body.articles.map((item, i) =>
+                      i === index ? { ...item, featuredOnJournal: event.target.value === "yes" } :
+                        event.target.value === "yes" ? { ...item, featuredOnJournal: false } : item
+                    ))}
+                    options={[
+                      { value: "no", label: "Standard story" },
+                      { value: "yes", label: "Featured lead story" },
+                    ]}
+                  />
+                  <SelectField
                     label="Homepage Before you go placement"
                     value={String(article.homeTipOrder || 0)}
                     onChange={(event) => change("articles", body.articles.map((item, i) =>
@@ -708,6 +725,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       category: "Travel tip",
                       series: "Before you fly",
                       homeTipOrder: undefined,
+                      featuredOnJournal: false,
                       ctaLabel: "",
                       ctaPath: "",
                       relatedArticleSlugs: [],
@@ -990,9 +1008,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Edit the four booking steps and the separate four-stage example for each path.</p>
+              <p>Edit five package-booking steps or four planning steps. Each path also has a separate four-stage example.</p>
               {(["package", "planning"]).map((flowKey) => {
-                const flows = body.processFlows || approvedRelease.pages["how-it-works"].processFlows;
+                const flows = withUpdatedPackageFlow(body.processFlows || approvedRelease.pages["how-it-works"].processFlows);
                 const flow = flows[flowKey];
                 return <fieldset key={flowKey}>
                   <legend>{flowKey === "package" ? "Booking a package" : "Planning a trip with us"}</legend>
