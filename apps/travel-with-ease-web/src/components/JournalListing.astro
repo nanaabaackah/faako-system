@@ -18,7 +18,7 @@ const feature = orderedItems.find(item => item.featuredOnJournal) ||
   orderedItems.find(item => item.category === "Trip story") || orderedItems[0];
 const quickReads = orderedItems.filter(item => item.slug !== feature?.slug).slice(0, 3);
 const categories = [...new Set(orderedItems.map(item => item.category || "Travel stories"))];
-const seriesOptions = [...new Set(orderedItems.map(item => item.series).filter(Boolean))];
+const seriesOptions = [...new Set(orderedItems.map(item => item.series || "").filter(Boolean))];
 const copy = siteCopy("journal");
 const formatDate = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 ---
