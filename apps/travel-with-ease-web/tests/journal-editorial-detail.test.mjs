@@ -41,9 +41,9 @@ test("journal story presentation does not invent views, saves, author portraits 
 test("journal article typography is scoped to editorial detail, preserving existing TWE brand styles", () => {
   const typography = source("styles/typography.css");
   const layout = source("layouts/BaseLayout.astro");
-  assert.match(typography, /--font-journal-display: "Playfair Display"/);
-  assert.match(typography, /--font-journal-body: "Inter"/);
   assert.match(typography, /--font-display: "Poiret One"/);
   assert.match(typography, /--font-body: "Quicksand"/);
-  assert.match(layout, /family=Playfair\+Display/);
+  assert.doesNotMatch(layout, /family=Playfair\+Display/);
+  assert.match(typography, /body \.journal-detail \.journal-detail__header h1 \{\s*font-family: var\(--font-display\)/);
+  assert.match(typography, /body \.journal-detail \.journal-detail__content > p[\s\S]*?font-family: var\(--font-body\)/);
 });

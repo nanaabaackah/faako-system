@@ -127,24 +127,10 @@
   }
 }
 
-/* The practical examples belong to a separate full-width editorial section,
-   never an inline paragraph within the photo/intro column. */
+/* Keep the process steps beside the photo, while the worked example spans the full page. */
 .planning-process__details {
   padding-top: 0;
   padding-bottom: clamp(48px, 7vw, 96px);
-}
-.planning-process__details .planning-flow__panel > h2 {
-  margin-bottom: clamp(16px, 3vw, 32px);
-}
-.planning-process__details .planning-flow__steps {
-  max-width: 900px;
-}
-.planning-process__details .planning-flow__steps li {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 20px;
-  padding-block: 24px;
-  border-bottom: 1px solid var(--brand-grey);
 }
 .planning-process__details .planning-example {
   margin-top: clamp(48px, 7vw, 88px);
@@ -168,9 +154,8 @@
   bottom: auto;
   left: auto;
 }
-@media (max-width: 760px) {
-  .planning-process__details .planning-flow__steps li {
-    grid-template-columns: 44px minmax(0, 1fr);
-    gap: 14px;
-  }
-}
+
+.planning-process .planning-flow--steps { width: 100%; }
+.planning-process .planning-flow--steps .planning-flow__steps li { padding-block: 18px; }
+.planning-process__details .planning-flow--examples { width: 100%; }
+.planning-flow__example-panel[hidden] { display: none !important; }

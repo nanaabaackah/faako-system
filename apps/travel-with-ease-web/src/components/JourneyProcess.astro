@@ -33,6 +33,7 @@ const copy = siteCopy("how-it-works");
   <div class="journey-process__steps">
     {page ? <h1>{content.heading}</h1> : <h2>{content.heading}</h2>}
     <p class="journey-process__introduction">{content.body}</p>
+    {page && <HowItWorksTabs flows={content.processFlows} mode="steps" />}
     {!page && (
       <>
         {homepageFlows?.package?.steps?.length === 4 && homepageFlows?.planning?.steps?.length === 4 && (
@@ -59,7 +60,7 @@ const copy = siteCopy("how-it-works");
   </div>
 </section>
 {page && (
-  <section class="planning-process__details editorial-wrap" aria-label="Booking and planning steps with practical examples">
-    <HowItWorksTabs flows={content.processFlows} />
+  <section class="planning-process__details editorial-wrap" aria-label="Booking and planning worked examples">
+    <HowItWorksTabs flows={content.processFlows} mode="examples" />
   </section>
 )}
