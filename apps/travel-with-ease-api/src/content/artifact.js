@@ -98,12 +98,20 @@ export async function preparePublication(job, media, directory, { approvedBaseli
           gallery: managedGallery.length || !record.retainApprovedGallery ? managedGallery : (approved?.gallery || []),
         };
       }));
+    const branding = {
+      headingFont: body.branding.headingFont,
+      bodyFont: body.branding.bodyFont,
+      headerLogo: (await imageFor(body.branding.headerLogoId)).image,
+      scrolledLogo: (await imageFor(body.branding.scrolledLogoId)).image,
+      footerLogo: (await imageFor(body.branding.footerLogoId)).image,
+    };
     const packages = await records(body.packages,'packages');
     const articles = await records(body.articles,'articles');
     pages[item.slug] = {
       ...body,
       entries,
       imagePlacements,
+      branding,
       tips,
       packages,
       articles,
