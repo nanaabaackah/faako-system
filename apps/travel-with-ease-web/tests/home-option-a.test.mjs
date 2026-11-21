@@ -32,7 +32,7 @@ test("Option A changes four editorial homepage sections only", () => {
 
 test("protected hero, packages, footprint and closing CTA are preserved", () => {
   assert.match(home, /<CinematicHero heading=\{content\.heading\} body=\{content\.body\} image=\{content\.image\} placement=\{content\.imagePlacements\?\.hero\} \/>/);
-  assert.match(home, /\{packages\?\.packages\?\.length > 0 && <FeaturedJourneys items=\{packages\.packages\} \/>\}/);
+  assert.match(home, /\{packages\?\.packages\?\.length > 0 && \([\s\S]*?<AnimatedContent[\s\S]*?<FeaturedJourneys items=\{packages\.packages\} \/>[\s\S]*?<\/AnimatedContent>[\s\S]*?\)\}/);
   assert.match(home, /<section id="our-world" class="cream-footprint">[\s\S]*?<TravelFootprint heading=\{footprint\?\.heading\} description=\{footprint\?\.body\}>/);
   assert.match(home, /footprint\.entries\.map/);
   assert.match(home, /<ClosingCta enquiryAvailable=\{Boolean\(contact\)\} \/>/);

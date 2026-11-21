@@ -11,6 +11,9 @@ test("closing CTA keeps one CMS-managed action over the lazy Topography treatmen
   const css = source("styles/components/closing-cta.css");
 
   assert.match(component, /TopographyBackground client:visible/);
+  assert.match(component, /data-closing-expand/);
+  assert.match(component, /requestAnimationFrame/);
+  assert.match(component, /prefers-reduced-motion: reduce/);
   assert.match(component, /copy\.closingHeading/);
   assert.match(component, /copy\.closingBody/);
   assert.match(component, /copy\.closingCta/);
@@ -18,7 +21,10 @@ test("closing CTA keeps one CMS-managed action over the lazy Topography treatmen
   assert.equal((component.match(/<ContentLink\b/g) || []).length, 1);
   assert.doesNotMatch(component, /TWE_mockup|astro:assets|<img\b/);
 
-  assert.match(wrapper, /color="#D8B56A"/);
+  assert.match(wrapper, /color = "#D8B56A"/);
+  assert.match(component, /closing-copy__heading/);
+  assert.match(component, /closing-copy__body/);
+  assert.match(component, /closing-cta--\$\{variant\}/);
   assert.match(wrapper, /speed=\{0\.18\}/);
   assert.match(wrapper, /mouseInteraction=\{false\}/);
   assert.match(wrapper, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
@@ -28,6 +34,7 @@ test("closing CTA keeps one CMS-managed action over the lazy Topography treatmen
   assert.match(css, /closing-topography-fallback/);
   assert.match(css, /:global\(astro-island\)/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(css, /clip-path: inset/);
   assert.match(css, /border-radius: var\(--twe-radius-button\)/);
 });
 

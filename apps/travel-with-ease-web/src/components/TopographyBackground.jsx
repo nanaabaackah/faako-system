@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Topography from "./react-bits/Topography.jsx";
 
-export default function TopographyBackground() {
+export default function TopographyBackground({ color = "#D8B56A" }) {
   const [motionAllowed, setMotionAllowed] = useState(false);
 
   useEffect(() => {
@@ -18,9 +18,9 @@ export default function TopographyBackground() {
 
   return (
     <Topography
-      color="#D8B56A"
+      color={color}
       lineCount={22}
-      lineWidth={1}
+      lineWidth={1.15}
       majorLines={false}
       elevation={1}
       foreground={0.2}
@@ -30,10 +30,10 @@ export default function TopographyBackground() {
       speed={0.18}
       direction="forward"
       morph={0.12}
-      glow={0.15}
+      glow={0.28}
       depthOfField={0}
       fog={0.35}
-      brightness={1.1}
+      brightness={1.45}
       opacity={1}
       mouseInteraction={false}
       hoverEffect="light"

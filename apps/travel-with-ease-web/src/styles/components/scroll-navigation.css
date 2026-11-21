@@ -20,6 +20,7 @@ body .site-header-shell .site-header {
   background: var(--brand-navy);
   color: var(--brand-cream);
   border-radius: 0;
+  will-change: top, width, min-height, padding, border-radius, background-color;
 }
 body.cinematic-page .site-header-shell .site-header:not(.is-scrolled) {
   background: transparent;
@@ -30,12 +31,27 @@ body .site-header-shell .site-header .brand__wordmark--gold {
   width: 160px;
   height: auto;
   padding: 0;
+  opacity: 1;
+  visibility: visible;
+  transform: scale(1);
 }
 body .site-header-shell .site-header .brand__symbol--scrolled {
-  display: none;
+  display: block;
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  object-fit: contain;
+  object-position: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -50%) scale(0.72);
 }
 body .site-header-shell .site-header.is-scrolled .brand__wordmark--gold {
-  display: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(0.82);
 }
 body .site-header-shell .site-header.is-scrolled .brand__symbol--scrolled {
   display: block;
@@ -44,6 +60,9 @@ body .site-header-shell .site-header.is-scrolled .brand__symbol--scrolled {
   padding: 0;
   object-fit: contain;
   object-position: center;
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
 }
 
 body .site-header-shell .site-header.is-scrolled {
@@ -281,9 +300,23 @@ body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
 @media (prefers-reduced-motion: no-preference) {
   .site-header-shell .site-header {
     transition:
-      border-radius 180ms ease,
-      background-color 180ms ease,
-      color 180ms ease;
+      top 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      width 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      min-height 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      padding 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      border-radius 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 320ms ease,
+      color 320ms ease;
+  }
+  .site-header-shell .site-header .brand img {
+    transition:
+      opacity 260ms ease,
+      transform 420ms cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0s linear 260ms;
+  }
+  .site-header-shell .site-header.is-scrolled .brand__symbol--scrolled,
+  .site-header-shell .site-header:not(.is-scrolled) .brand__wordmark--gold {
+    transition-delay: 80ms, 0ms, 0s;
   }
 }
 @media (scripting: none) {
