@@ -104,6 +104,7 @@ try {
     if (width <= 900) {
       assert.ok((await goldLogo.boundingBox()).width <= 118, "Mobile gold logo is compact");
     }
+    const unscrolledLogoBox = width <= 900 ? await goldLogo.boundingBox() : null;
     if (width <= 600) {
       const actions = page.locator(".cinematic-hero__actions > .twe-content-link");
       assert.equal(await actions.count(), 2);
@@ -326,6 +327,13 @@ try {
       "Scrolled navbar uses brand navy");
     assert.equal(await scrollSymbol.isVisible(), true, "Scrolled navbar shows approved dark-mode symbol");
     assert.equal(await goldLogo.isVisible(), false, "Scrolled navbar hides gold wordmark");
+    if (width <= 900) {
+      const scrolledLogoBox = await scrollSymbol.boundingBox();
+      assert.ok(unscrolledLogoBox && scrolledLogoBox &&
+        Math.abs((scrolledLogoBox.x + scrolledLogoBox.width / 2) -
+          (unscrolledLogoBox.x + unscrolledLogoBox.width / 2)) <= 1,
+      "Mobile logo keeps its visual centre when the navbar becomes a floating pill");
+    }
     const logoSrc = await scrollSymbol.getAttribute("src");
     assert.equal(logoSrc, "/brand/dark mode symbol.png");
     assert.ok((await scrollSymbol.boundingBox()).height <= 48);
