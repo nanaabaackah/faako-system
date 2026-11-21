@@ -261,9 +261,11 @@ export default function MediaLibrary({ api, session, onSelect }) {
         <p role="status">{state.message}</p>
       )}
       {!state.loading && !configured && (
-        <p>
-          Media uploads are unavailable. Contact support.
-        </p>
+        <InlineNotice
+          tone="warning"
+          title="Media uploads are unavailable"
+          message="Photo storage is not connected for this workspace. Ask Faako for help; your existing content is unchanged."
+        />
       )}
       <section
         className="workspace-panel"
@@ -275,7 +277,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         </p>
         {!driveConfigured && !state.loading && (
           <p>
-            Drive import is unavailable. {configured ? "Upload a photo directly or contact support." : "Contact support."}
+            Drive import is unavailable. {configured ? "You can upload a JPG, PNG or WebP directly." : "Private image storage must be connected first."}
           </p>
         )}
         <Button

@@ -65,8 +65,9 @@ test("production build publishes approved content without preview copy or unpubl
   const privateQuestionnaire = readFileSync(path.join(output, "plan-your-trip", "index.html"), "utf8");
   assert.match(privateQuestionnaire, /noindex, nofollow/);
   assert.doesNotMatch(privateQuestionnaire, /continuationToken|#continue=/);
-  assert.match(home, /closing-photos/);
-  assert.match(home, /TWE_mockup[1-5][^"\s]*\.webp/);
+  assert.match(home, /closing-topography-fallback/);
+  assert.match(home, /closing-topography-canvas/);
+  assert.doesNotMatch(home, /closing-photos|TWE_mockup[1-5][^"\s]*\.webp/);
   for (const slug of ["testimonials", "destinations"]) {
     const page = readFileSync(path.join(output, slug, "index.html"), "utf8");
     assert.match(page, slug === "destinations" ? /Our packages have a new home/ : /Content unavailable/);

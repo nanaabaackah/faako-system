@@ -70,3 +70,20 @@ against npm) provides Cloudflare's documented S3-compatible R2 transport.
 References: [Cloudflare R2 SDK guidance](https://developers.cloudflare.com/r2/examples/aws/aws-sdk-js-v3/),
 [sharp input options](https://sharp.pixelplumbing.com/api-constructor/),
 [sharp output options](https://sharp.pixelplumbing.com/api-output/).
+
+## Portal upload diagnostics — 2026-11-21
+
+The portal accepts direct JPG, PNG and WebP uploads only. The authenticated
+portal proxy forwards raw image bodies and the existing CSRF, alt-text and
+rights headers to the media API. It also permits the existing Drive folder and
+Drive import endpoints; all other media paths and methods remain denied by the
+fixed proxy allowlist.
+
+Direct upload and Drive import both require the private R2 configuration above.
+When it is absent, `GET /api/agent/media` deliberately reports
+`configured: false`, the portal disables upload controls and explains that
+private image storage is not connected. This is a fail-closed operational state,
+not a browser upload error. Provider configuration must be completed by the
+environment owner; application code does not create buckets or write provider
+settings. Drive import additionally requires the server-only Drive variables
+documented in [Drive/R2 setup](./drive-r2-sync.md).

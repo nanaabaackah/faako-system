@@ -1,22 +1,16 @@
 ---
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
-import { Image } from "astro:assets";
-import { publishedPage } from '../lib/published.js';
-import PlacedImage from './PlacedImage.astro';
-import phone from "../../public/media/Mockups/TWE_mockup1.png";
-import tablet from "../../public/media/Mockups/TWE_mockup2.png";
-import laptop from "../../public/media/Mockups/TWE_mockup5.png";
+import TopographyBackground from "./TopographyBackground.jsx";
 const copy = siteCopy("home");
-const placements=publishedPage('site-appearance')?.imagePlacements||{};
-const mockups = [
-  { image: tablet, name: "tablet" },
-  { image: laptop, name: "laptop" },
-  { image: phone, name: "phone" },
-];
 ---
 
 <section class="closing-cta" aria-labelledby="closing-cta-heading">
+  <div class="closing-topography-fallback" aria-hidden="true"></div>
+  <div class="closing-topography-canvas" aria-hidden="true">
+    <TopographyBackground client:visible />
+  </div>
+  <div class="closing-topography-fade" aria-hidden="true"></div>
   <div class="closing-copy">
     <h2 id="closing-cta-heading">{copy.closingHeading}</h2>
     <p>
@@ -27,28 +21,6 @@ const mockups = [
       href="#plan"
       >{copy.closingCta}</ContentLink
     >
-  </div>
-  <div class="closing-artwork">
-    <div class="closing-photos" aria-hidden="true">
-      {
-        mockups.map((mockup, index) => (
-          <div class:list={["mockup", `mockup--${mockup.name}`]}>
-            <div class="mockup-reveal" data-twe-reveal data-stagger={index}>
-              {placements[`cta-${mockup.name}`]?.image||placements[`cta-${mockup.name}`]?.mobileImage ? <PlacedImage image={{...mockup.image,alt:''}} placement={placements[`cta-${mockup.name}`]} decorative sizes="(max-width:1600px) 43vw,680px"/> : <Image
-                src={mockup.image}
-                widths={[320, 640, 960]}
-                sizes="(max-width: 1600px) 43vw, 680px"
-                format="webp"
-                quality={80}
-                alt=""
-                loading="lazy"
-                decoding="async"
-              />}
-            </div>
-          </div>
-        ))
-      }
-    </div>
   </div>
 </section>
 <style>
