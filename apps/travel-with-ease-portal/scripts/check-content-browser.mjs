@@ -64,11 +64,11 @@ try {
       await page.getByRole("button", { name: "Section", exact: true }).click();
       await page.getByRole("option", { name: value.replaceAll('-',' '), exact: true }).click();
     };
-    // Travel Tips were consolidated into Journal. The old section is no
-    // longer available, and editors manage individual tip series/CTAs here.
+    // Travel Tips remain a separately publishable collection while Journal
+    // manages its own articles and optional tip series/CTAs.
     await page.getByRole("button", { name: "Section", exact: true }).click();
-    assert.equal(await page.getByRole("option", { name: "travel tips", exact: true }).count(), 0,
-      "The deprecated standalone Travel Tips section is not an editor option");
+    assert.equal(await page.getByRole("option", { name: "travel tips", exact: true }).count(), 1,
+      "Travel Tips remains available as its own CMS collection");
     await page.getByRole("option", { name: "journal", exact: true }).click();
     await page.getByLabel("Travel tip series").first().waitFor();
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();

@@ -10,17 +10,26 @@ export function databaseOptions(env = process.env, variable = "DATABASE_URL") {
   if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname || !url.pathname.slice(1)) {
     throw new DatabaseConfigurationError(`${connectionKind}_url_invalid`);
   }
-  // Connection-string SSL parameters override pg's ssl object. Reject them so
-  // certificate verification cannot be silently disabled by a copied URL.
-  if (url.search || url.hash) throw new DatabaseConfigurationError(`${connectionKind}_url_options_forbidden`);
+  // pg connection-string SSL parameters override the explicit ssl object. A
+  // Railway-provided sslmode=require is redundant but safe to consume and
+  // remove; every other option remains forbidden.
+  const parameters = [...url.searchParams.entries()];
+  if (url.hash || parameters.some(([key, value]) => key !== "sslmode" || value !== "require"))
+    throw new DatabaseConfigurationError(`${connectionKind}_url_options_forbidden`);
+  url.search = "";
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  if (![undefined, "", "require", "disable"].includes(env.TWE_DATABASE_TLS))
+    throw new DatabaseConfigurationError("database_tls_mode_invalid");
   const ssl = env.TWE_DATABASE_TLS !== "disable";
   if (!ssl && (!local || !["development", "test"].includes(environment))) {
     throw new DatabaseConfigurationError("database_tls_disabled");
   }
+  const ca = env.TWE_DATABASE_CA?.trim();
+  if (ca && (!ca.startsWith("-----BEGIN CERTIFICATE-----\n") || !ca.endsWith("\n-----END CERTIFICATE-----") || ca.includes("\\n")))
+    throw new DatabaseConfigurationError("database_ca_invalid");
   return {
     connectionString: url.href,
-    ssl: ssl ? { rejectUnauthorized: true, ...(env.TWE_DATABASE_CA ? { ca: env.TWE_DATABASE_CA } : {}) } : false,
+    ssl: ssl ? { rejectUnauthorized: true, ...(ca ? { ca } : {}) } : false,
     max: 5, connectionTimeoutMillis: 5000, idleTimeoutMillis: 30_000,
     statement_timeout: 15_000, application_name: `twe-${environment}`,
   };
