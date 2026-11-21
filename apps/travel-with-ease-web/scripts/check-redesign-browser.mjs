@@ -241,9 +241,11 @@ try {
     assert.equal((await front.locator("h3 a").textContent()).trim(), "Zanzibar");
     assert.equal(await front.locator(".twe-ticket__flip svg").count(), 1);
     await front.locator(".twe-ticket__flip").click();
+    await page.waitForFunction(element => element.hasAttribute("data-flipped"), await firstTicket.elementHandle());
     assert.equal(await firstTicket.getAttribute("data-flipped"), "");
     assert.equal(await firstTicket.locator(".twe-ticket--back .twe-ticket__description").count(), 1);
     await firstTicket.locator(".twe-ticket--back .twe-ticket__flip").click();
+    await page.waitForFunction(element => !element.hasAttribute("data-flipped"), await firstTicket.elementHandle());
     assert.equal(await firstTicket.getAttribute("data-flipped"), null);
     assert.equal(await front.locator("h3 a").getAttribute("href"), "/packages/zanzibar");
     // The homepage process uses the branded React Bits Stepper, not four static list items.
