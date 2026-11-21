@@ -162,7 +162,9 @@ try {
     await form.getByRole("button", { name: "Send enquiry", exact: true }).click();
     await form.getByRole("status").filter({ hasText: "Enquiry received" }).waitFor();
     assert.equal(submissions, 1);
-    await expect(form.getByRole("status")).toContainText("No booking has been made.");
+    const confirmation = page.getByRole("dialog", { name: "Enquiry received", exact: true });
+    await expect(confirmation).toContainText("This is not a booking.");
+    await confirmation.getByRole("button", { name: "Close", exact: true }).click();
 
     const continuationToken = `v1.${"x".repeat(100)}`;
     let completions = 0;
