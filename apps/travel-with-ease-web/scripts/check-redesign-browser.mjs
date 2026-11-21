@@ -307,7 +307,10 @@ try {
       "Preserve the interactive map");
     assert.equal(await page.locator(".featured-journeys").count(), 1,
       "Keep the published package section");
-    assert.equal(await page.locator(".closing-cta .mockup").count(),3);
+    assert.equal(await page.locator(".closing-cta .closing-topography-fallback").count(), 1,
+      "The closing CTA retains a visible static Topography fallback before lazy hydration");
+    assert.equal(await page.locator(".closing-cta .mockup").count(), 0,
+      "Retired device mockups do not return to the Topography CTA");
     assert.equal(await page.locator(".closing-scene").count(),1);
     assert.equal(await page.locator(".public-enquiry-form").count(),1);
     assert.equal(await page.locator("footer.twe-public-footer").count(),1);
