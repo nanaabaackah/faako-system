@@ -7,6 +7,11 @@ test("database configuration requires verified TLS except explicit local test/de
   const env = { APP_ENV: "test", DATABASE_URL: "postgresql://localhost/twe_test_unit", TWE_DATABASE_TLS: "disable" };
   assert.equal(databaseOptions(env).ssl, false);
   assert.equal(databaseOptions({ ...env, TWE_DATABASE_TLS: "require" }).ssl.rejectUnauthorized, true);
+  const railway = databaseOptions({ APP_ENV: "production", DATABASE_URL: "postgresql://runtime@private.railway.internal/twe?sslmode=require" });
+  assert.equal(railway.ssl.rejectUnauthorized, true);
+  assert.equal(railway.connectionString.includes("sslmode"), false);
+  assert.throws(() => databaseOptions({ APP_ENV: "production", DATABASE_URL: "postgresql://runtime@private.railway.internal/twe", TWE_DATABASE_CA: "-----BEGIN CERTIFICATE-----\\ninvalid\\n-----END CERTIFICATE-----" }), /real line breaks/);
+  assert.throws(() => databaseOptions({ APP_ENV: "production", DATABASE_URL: "postgresql://runtime@private.railway.internal/twe", TWE_DATABASE_TLS: "optional" }), /verified TLS/);
   for (const override of [
     { APP_ENV: "staging" }, { APP_ENV: "production" },
     { DATABASE_URL: "postgresql://remote.example/twe" },

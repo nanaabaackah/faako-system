@@ -36,6 +36,7 @@ const pages = [
   "faqs",
   "contact",
   "journal",
+  "travel-tips",
   "packages",
   "travel-footprint",
   "privacy",
@@ -66,7 +67,9 @@ const emptyBody = () => ({
 export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
-  const [page, setPage] = useState(initialPage === "travel-tips" ? "journal" : initialPage === "testimonials" ? "home" : initialPage);
+  // Testimonials are edited as the homepage review section. Travel Tips retain
+  // their own collection and must not be silently redirected to Journal.
+  const [page, setPage] = useState(initialPage === "testimonials" ? "home" : initialPage);
   const [recordSlug, setRecordSlug] = useState("");
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
