@@ -26,6 +26,8 @@
 .portal-shell .ui-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 .portal-shell .portal-brand {
   display: grid;
@@ -705,6 +707,28 @@ select:focus-visible {
   justify-content: center;
   gap: 9px;
 }
+.portal-shell .ui-button:not(:disabled):active {
+  transform: translateY(1px);
+}
+.portal-shell .twe-action-button.is-loading {
+  min-width: var(--twe-action-loading-width, auto);
+}
+.twe-action-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  border-radius: 50%;
+  animation: twe-action-spin 700ms linear infinite;
+}
+@keyframes twe-action-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .portal-shell .ui-button { transition-duration: 0.01ms; }
+  .portal-shell .ui-button:not(:disabled):is(:hover, :focus-visible, :active) { transform: none; }
+  .twe-action-spinner { animation-duration: 1400ms; }
+}
+.publication-progress { display: grid; gap: 12px; }
+.publication-progress progress { width: 100%; accent-color: #010c33; }
 .action-icon {
   display: inline-flex;
   flex: 0 0 auto;

@@ -114,16 +114,14 @@ try {
           status: 503, json: { ok: false, error: { code: "service_unavailable", message: "Synthetic autosave failure" } },
         }));
         await page.getByLabel(/^Heading/).fill("Unsaved navigation test");
-        const dismissed = page.waitForEvent("dialog");
-        const switchAttempt = nav.getByRole("button", { name: "Home", exact: true }).click();
-        const dialog = await dismissed;
-        assert.equal(dialog.message(), "Discard unsaved changes?");
-        await dialog.dismiss();
-        await switchAttempt;
+        await nav.getByRole("button", { name: "Home", exact: true }).click();
+        const discardDialog = page.locator(".ui-erp-dialog-backdrop");
+        await discardDialog.getByRole("button", { name: "Cancel", exact: true }).click();
         await expect(nav.getByRole("button", { name: "Content", exact: true })).toHaveAttribute("aria-current", "page");
         await expect(page.getByLabel(/^Heading/)).toHaveValue("Unsaved navigation test");
-        page.once("dialog", (next) => next.accept());
         await nav.getByRole("button", { name: "Home", exact: true }).click();
+        await page.locator(".ui-erp-dialog-backdrop")
+          .getByRole("button", { name: "Discard and continue", exact: true }).click();
         await expect(nav.getByRole("button", { name: "Home", exact: true })).toHaveAttribute("aria-current", "page");
         assert.ok(await page.locator(".portal-shell > .ui-page-shell").evaluate((node) => parseFloat(getComputedStyle(node).paddingBottom) >= 100));
         await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));

@@ -7,6 +7,7 @@ import {
   KpiCard,
   InlineNotice,
   AnimatedLoadingState,
+  useToast,
 } from "@faako/ui";
 import { enquiryAnswerSections, formatEnquiryAnswer, initialEnquiryFields, legacyEnquiryFields } from "../lib/enquiryView.js";
 
@@ -16,6 +17,7 @@ const serviceOptions = [
   ["premium", "Premium Concierge"], ["group", "Group Trip Planning"],
 ];
 export default function Enquiries({ api, session }) {
+  const { pushToast } = useToast();
   const [status, setStatus] = useState("");
   const [category, setCategory] = useState("");
   const [service, setService] = useState("");
@@ -71,6 +73,7 @@ export default function Enquiries({ api, session }) {
         json: { status: nextStatus, expectedVersion: selected.version },
         headers: { "X-CSRF-Token": session.csrfToken },
       });
+      pushToast({ tone: "success", title: "Enquiry updated", message: `Marked ${nextStatus}. No message was sent to the traveller.` });
       setRevision((value) => value + 1);
     } catch (err) {
       setError(err.message);
@@ -198,6 +201,8 @@ export default function Enquiries({ api, session }) {
                         key={value}
                         type="button"
                         disabled={busy || saving || selected.status === value}
+                        loading={saving}
+                        loadingLabel="Saving status…"
                         onClick={() => changeStatus(value)}
                       >
                         Mark {value}

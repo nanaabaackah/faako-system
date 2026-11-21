@@ -2,7 +2,7 @@ import { z } from "zod";
 import { emailSchema, phoneSchema } from "@faako/validation";
 import {
   QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, SERVICE_OPTIONS,
-  applicableQuestionIds, questions, selectedServiceFromAnswers,
+  applicableQuestionIds, branching, questions, selectedServiceFromAnswers,
 } from "./questionnaires/index.js";
 
 const answerValue = z.union([
@@ -46,7 +46,10 @@ export const smartEnquirySchema = z.object({
   for (const id of applicable) {
     const question = questions[id];
     const value = data.answers[id];
-    const required = question.required || (id === "1653151808" && selectedServiceFromAnswers(data.answers) === "not_sure");
+    const required = question.required
+      || (id === "1653151808" && selectedServiceFromAnswers(data.answers) === "not_sure")
+      || id === branching.groupDestinationDetailsQuestionId
+      || id === branching.groupCostCoverageDetailsQuestionId;
     const empty = value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
     if (required && empty) {
       validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "This question is required." });
@@ -65,6 +68,17 @@ export const smartEnquirySchema = z.object({
     } else if (question.type === "MULTIPLE_CHOICE" && !question.options.includes(value) && !question.allowOther) {
       validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "Choose a listed option." });
     }
+    if (question.integer) {
+      const number = Number(value);
+      if (!Number.isInteger(number) || number < question.min || number > question.max) validation.addIssue({
+        code: z.ZodIssueCode.custom, path: ["answers", id],
+        message: `Enter a whole number from ${question.min} to ${question.max}.`,
+      });
+    }
+    if (question.format === "currency_amount" && !/^(GHS|USD|GBP)\s+[0-9][0-9,]*(?:\.[0-9]{1,2})?$/i.test(value)) validation.addIssue({
+      code: z.ZodIssueCode.custom, path: ["answers", id],
+      message: "Enter an amount beginning with GHS, USD or GBP, for example GHS 10,000.",
+    });
   }
   const contactMap = { "476632894": "name", "1078451195": "phone", "214964047": "email" };
   for (const [id, field] of Object.entries(contactMap)) {

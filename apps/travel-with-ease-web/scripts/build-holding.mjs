@@ -48,7 +48,7 @@ const html = `<!doctype html>
     <p class="detail">We're creating a more personal way to explore the world. Until then, we're still here to help you plan your next journey.</p>
     <nav class="actions" aria-label="Contact Travel With Ease">
       <a class="primary" href="https://wa.me/233208387020" target="_blank" rel="noopener noreferrer">Chat on WhatsApp <svg class="action-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
-      <a class="secondary" href="mailto:nana@travelwitheasegh.com">Send us an email</a>
+      <a class="secondary" href="mailto:info@travelwitheasegh.com">Send us an email</a>
     </nav>
   </section>
   <footer class="footer">Travel With Ease <span class="footer-divider" aria-hidden="true"></span> Accra, Ghana</footer>
