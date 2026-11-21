@@ -237,13 +237,17 @@ try {
     }
     const firstTicket = featured.first().locator(".twe-package-ticket .tilted-card");
     await firstTicket.scrollIntoViewIfNeeded();
+    const firstTicketIsland = firstTicket.locator("xpath=ancestor::astro-island[1]");
+    await page.waitForFunction(element => !element.hasAttribute("ssr"), await firstTicketIsland.elementHandle());
     const front = firstTicket.locator(".twe-ticket--front");
     assert.equal((await front.locator("h3 a").textContent()).trim(), "Zanzibar");
     assert.equal(await front.locator(".twe-ticket__flip svg").count(), 1);
     await front.locator(".twe-ticket__flip").click();
+    await page.waitForFunction(element => element.hasAttribute("data-flipped"), await firstTicket.elementHandle());
     assert.equal(await firstTicket.getAttribute("data-flipped"), "");
     assert.equal(await firstTicket.locator(".twe-ticket--back .twe-ticket__description").count(), 1);
     await firstTicket.locator(".twe-ticket--back .twe-ticket__flip").click();
+    await page.waitForFunction(element => !element.hasAttribute("data-flipped"), await firstTicket.elementHandle());
     assert.equal(await firstTicket.getAttribute("data-flipped"), null);
     assert.equal(await front.locator("h3 a").getAttribute("href"), "/packages/zanzibar");
     // The homepage process uses the branded React Bits Stepper, not four static list items.
@@ -307,7 +311,10 @@ try {
       "Preserve the interactive map");
     assert.equal(await page.locator(".featured-journeys").count(), 1,
       "Keep the published package section");
-    assert.equal(await page.locator(".closing-cta .mockup").count(),3);
+    assert.equal(await page.locator(".closing-cta .closing-topography-fallback").count(), 1,
+      "The closing CTA retains a visible static Topography fallback before lazy hydration");
+    assert.equal(await page.locator(".closing-cta .mockup").count(), 0,
+      "Retired device mockups do not return to the Topography CTA");
     assert.equal(await page.locator(".closing-scene").count(),1);
     assert.equal(await page.locator(".public-enquiry-form").count(),1);
     assert.equal(await page.locator("footer.twe-public-footer").count(),1);

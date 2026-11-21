@@ -17,7 +17,11 @@ The brand links to Home. Main links, in order: Packages, Services, How It Works,
 5. How It Works, using the existing image-led chapter. The homepage wording is deliberately general; package-only deposits and balances remain in actual package terms.
 6. Existing interactive cream Travel Footprint and underlying approved metrics.
 7. Existing published Travel Tips preview, linking to the full collection/related Journal content.
-8. Existing five-device closing CTA, enquiry experience and cinematic footer — unchanged in structure.
+8. One cinematic closing CTA, followed by the enquiry experience and cinematic
+   footer. The CTA uses a deferred React Bits Topography background and retains
+   the existing CMS-managed heading, body, label and `#plan` destination. A
+   static contour treatment remains when JavaScript, WebGL2 or motion is
+   unavailable.
 
 ## Trust and commercial constraints
 
@@ -31,6 +35,10 @@ Keep founder-experience and business-trip metrics distinct. Do not invent custom
 - Featured packages: `FeaturedJourneys.astro`; CMS-driven with the existing pricing formatter.
 - Styling: `styles/components/home-features.css`; responsive, scoped to new sections and existing design tokens.
 - Hero, navigation and process labels: small in-place changes.
+- Closing CTA: `ClosingCta.astro` keeps semantic and CMS content in Astro;
+  `TopographyBackground.jsx` is the only React island and hydrates when visible.
+  The former device mockups are no longer rendered. Existing placement records
+  remain valid for backward compatibility and shared media assets are retained.
 - Tests: `pnpm --filter @faako/travel-with-ease-web test` plus lint, typecheck and build. A source-level homepage contract test protects ordering and labels.
 - Accessibility: semantic section headings, actual links, no new client-side JS or fake cards.
 - Deployment and publication: no CMS snapshot, API, data migration or production settings changed as part of this UX-only branch. A merged PR does not on its own prove hosted staging acceptance.
