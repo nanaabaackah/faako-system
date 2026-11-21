@@ -13,11 +13,11 @@ The existing TWE public website, API and authenticated Traveller inbox remain th
 - `Enquiries.jsx` retains the authenticated inbox and presents stored answers by snapshotted section instead of raw JSON.
 - The existing transaction, idempotency fingerprint, notification outbox, Turnstile, honeypot, rate limit, request-size limit, exact-origin check, permissions and status audit remain in use.
 
-Questionnaire: `twe-smart-enquiry`, version `2026-11-15.1`.
+Questionnaire: `twe-smart-enquiry`, version `2026-11-21.1`.
 
 ## Source inventory and branching
 
-Unchanged supplied files live under `questionnaires/source/`: Start Here has 7 source items/3 questions; Full Trip Planning has 43 source items/29 questions; the supplied mapping text is retained beside them. Original IDs, wording, descriptions, choices, required flags, order and section associations remain traceable.
+Supplied files live under `questionnaires/source/`: Start Here has 7 source items/3 questions; Full Trip Planning has 43 source items/29 questions; Group Trip Planning (Group Lead) has 37 source items/30 questions. Original IDs, wording, descriptions, choices, required flags, order and section associations remain traceable.
 
 - `1428564940` routes readiness, full planning or “not sure”.
 - `1653151808` resolves “not sure” and becomes conditionally required.
@@ -25,6 +25,7 @@ Unchanged supplied files live under `questionnaires/source/`: Start Here has 7 s
 - Published service links preselect an approved stable service ID/title.
 - Open package links preselect package UUID/title. Invalid, closed or sold-out slugs fall back to a labelled general enquiry.
 - `1444304495` accepts at most three unique selections in browser and API validation.
+- Group Trip Planning requires at least four travellers, limits trip-vibe choices to three, validates GHS/USD/GBP budget amounts and conditionally requires destination and shared-cost details.
 - Every active route reaches contact and privacy acknowledgement.
 
 Browser Back uses History state. Refresh preserves URL service/package context but deliberately does not persist private answers in browser storage.
@@ -46,7 +47,7 @@ Stored data includes consent/submission timestamps, source path, entry category,
 
 General: open `#plan`, choose support, complete only applicable questions, provide contact details, acknowledge privacy and submit through the existing protected endpoint.
 
-Service: a CTA opens `?service=<published-slug>#plan`. Full Planning/Premium use the detailed planning path. Readiness/Group use the safe general path until approved questionnaires are supplied.
+Service: the short enquiry snapshots the selected service. Its private emailed continuation opens Full Planning/Premium on the detailed planning path, Group on the dedicated group-lead path, and Readiness on the safe general path.
 
 Package: an open package CTA opens `?package=<published-slug>#plan`, snapshots package UUID/title and uses the safe package intake. No package-specific source was supplied, so it is not claimed as migrated.
 
@@ -76,7 +77,7 @@ Use synthetic `.invalid` contacts and do not execute a real notification. Before
 
 ## Remaining decisions and risks
 
-- Detailed Readiness, Group and package-specific questionnaires were not supplied.
+- Detailed Readiness and package-specific questionnaires were not supplied. The group-lead questionnaire is implemented; a separate traveller form remains future work.
 - Health-data and commercial/refund/declaration copy need explicit client approval before a new questionnaire version can collect them.
 - Full two-way email synchronisation is unavailable.
 - Mobile/keyboard/screen-reader browser acceptance remains required before staging approval.

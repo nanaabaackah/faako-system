@@ -1,7 +1,8 @@
 import fullTripSource from "./source/full-trip-planning.json" with { type: "json" };
+import groupTripSource from "./source/group-trip-planning.json" with { type: "json" };
 import startHereSource from "./source/start-here.json" with { type: "json" };
 
-export const QUESTIONNAIRE_VERSION = "2026-11-15.1";
+export const QUESTIONNAIRE_VERSION = "2026-11-21.1";
 export const QUESTIONNAIRE_ID = "twe-smart-enquiry";
 
 export const SERVICE_OPTIONS = Object.freeze([
@@ -25,6 +26,9 @@ const metadata = Object.freeze({
   "1078451195": { inputMode: "tel", autoComplete: "tel", contactField: "phone" },
   "214964047": { inputMode: "email", autoComplete: "email", contactField: "email" },
   "1444304495": { maxSelections: 3 },
+  "300000015": { inputMode: "number", min: 4, max: 100, integer: true },
+  "300000019": { maxSelections: 3 },
+  "300000023": { format: "currency_amount", currencies: Object.freeze(["GHS", "USD", "GBP"]) },
   "1366732008": { requireAllOptions: true },
   "180737542": { sensitive: "visa_summary", access: "authorised_enquiry_staff" },
 });
@@ -64,10 +68,16 @@ export const sourceQuestionnaires = Object.freeze({
     sourceFormId: fullTripSource.formId,
     items: Object.freeze(normaliseSource(fullTripSource, "full_trip_planning")),
   }),
+  groupTripPlanning: Object.freeze({
+    id: "twe-group-trip-planning", version: QUESTIONNAIRE_VERSION, title: groupTripSource.title,
+    sourceFormId: groupTripSource.formId,
+    items: Object.freeze(normaliseSource(groupTripSource, "group_trip_planning")),
+  }),
 });
 
 export const questions = Object.freeze(Object.fromEntries(
-  [...sourceQuestionnaires.startHere.items, ...sourceQuestionnaires.fullTripPlanning.items]
+  [...sourceQuestionnaires.startHere.items, ...sourceQuestionnaires.fullTripPlanning.items,
+    ...sourceQuestionnaires.groupTripPlanning.items.filter((item) => !["476632894", "1078451195", "214964047"].includes(item.id))]
     .filter((item) => !["PAGE_BREAK", "SECTION_HEADER"].includes(item.type))
     .map((item) => [item.id, item]),
 ));
@@ -82,7 +92,14 @@ export const questionnaireSteps = Object.freeze([
   step("experience", "Travel experience", ["539186385", "1817301688", "981551413"], ["planning"]),
   step("preferences", "Preferences", ["1056249278", "822834325", "1444304495", "1376109963", "1811901185", "130319592", "1518570516", "353526436", "410814081", "1379519325"], ["planning"]),
   step("extras", "Additional details", ["1263904381", "1719024406", "913802249", "1288466099"], ["planning", "safe_general", "package"]),
-  step("contact", "Your details", ["476632894", "1078451195", "214964047"], ["all"]),
+  step("contact", "Your details", ["476632894", "1078451195", "214964047"], ["router", "planning", "safe_general", "package"]),
+  step("group-lead", "About you", ["476632894", "214964047", "1078451195", "300000004", "300000005"], ["group"]),
+  step("group-trip", "About the trip", ["300000006", "300000007", "300000008"], ["group"]),
+  step("group-dates", "Where and when", ["300000009", "300000010", "300000011", "300000012", "300000013", "300000014"], ["group"]),
+  step("group-size", "The group", ["300000015", "300000016", "300000017", "300000018"], ["group"]),
+  step("group-vibe", "The vibe", ["300000019", "300000020", "300000021", "300000022"], ["group"]),
+  step("group-budget", "Budget and costs", ["300000023", "300000024", "300000025", "300000026", "300000027", "300000028"], ["group"]),
+  step("group-next", "Timing and next steps", ["300000029", "300000030"], ["group"]),
 ]);
 
 export const branching = Object.freeze({
@@ -90,6 +107,10 @@ export const branching = Object.freeze({
   notSureQuestionId: "1653151808",
   visaQuestionId: "502234433",
   visaDetailsQuestionId: "180737542",
+  groupDestinationStatusQuestionId: "300000009",
+  groupDestinationDetailsQuestionId: "300000010",
+  groupCostCoverageQuestionId: "300000026",
+  groupCostCoverageDetailsQuestionId: "300000027",
   serviceAnswers: Object.freeze({
     "I need general travel advice to get ready (documents, budget, airport flow)": "readiness",
     "I want full trip planning (itinerary, accommodation, activities, bookings)": "full_planning",
@@ -112,6 +133,7 @@ export function questionnaireRoute(context = {}, answers = {}) {
   if (context.packageId) return "package";
   const service = selectedServiceFromAnswers(answers, context.serviceId);
   if (!service || service === "not_sure") return "router";
+  if (service === "group") return "group";
   return ["full_planning", "premium"].includes(service) ? "planning" : "safe_general";
 }
 
@@ -133,6 +155,14 @@ export function applicableQuestionIds(context = {}, answers = {}) {
   }
   if (answers[branching.visaQuestionId] !== "Yes") {
     const index = ids.indexOf(branching.visaDetailsQuestionId);
+    if (index >= 0) ids.splice(index, 1);
+  }
+  if (!["Yes, we have decided", "We have a shortlist"].includes(answers[branching.groupDestinationStatusQuestionId])) {
+    const index = ids.indexOf(branching.groupDestinationDetailsQuestionId);
+    if (index >= 0) ids.splice(index, 1);
+  }
+  if (!["The group will cover the celebrant or organiser's costs", "A sponsor, employer or organisation will pay part"].includes(answers[branching.groupCostCoverageQuestionId])) {
+    const index = ids.indexOf(branching.groupCostCoverageDetailsQuestionId);
     if (index >= 0) ids.splice(index, 1);
   }
   return Object.freeze([...new Set(ids)]);

@@ -27,6 +27,7 @@ export default function StaffAccess({ api, session }) {
   const [roleTarget,setRoleTarget]=useState(null);
   const [nextRole,setNextRole]=useState('editor');
   const [approval,setApproval]=useState('');
+  const [accessConfirmation,setAccessConfirmation]=useState(null);
   const load = useCallback(
     () =>
       api
@@ -196,14 +197,7 @@ export default function StaffAccess({ api, session }) {
                 variant={user.active ? "danger" : "primary"}
                 type="button"
                 disabled={busy}
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      `${user.active ? "Revoke" : "Activate"} this ${user.role}? Existing sessions will be revoked.`,
-                    )
-                  )
-                    mutate(`staff/${user.id}/status`, { active: !user.active });
-                }}
+                onClick={() => setAccessConfirmation({ title: `${user.active ? "Revoke" : "Activate"} ${user.role} access?`, message: "Existing sessions will be revoked.", label: user.active ? "Revoke access" : "Activate", run: () => mutate(`staff/${user.id}/status`, { active: !user.active }) })}
               >
                 {user.active ? "Revoke access" : "Activate"}
               </Button>
@@ -215,14 +209,7 @@ export default function StaffAccess({ api, session }) {
               <Button
                 type="button"
                 disabled={busy}
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Revoke this staff member’s local sessions and support grants?",
-                    )
-                  )
-                    mutate(`staff/${user.id}/revoke-sessions`, {});
-                }}
+                onClick={() => setAccessConfirmation({ title: "Revoke staff sessions?", message: "This ends the staff member’s local sessions and support grants.", label: "Revoke sessions", run: () => mutate(`staff/${user.id}/revoke-sessions`, {}) })}
               >
                 Revoke sessions
               </Button>
@@ -233,18 +220,11 @@ export default function StaffAccess({ api, session }) {
                 disabled={
                   busy || !/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/.test(reason)
                 }
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Approve read-only enquiry support for 15 minutes? This permits private client-record access and will be audited.",
-                    )
-                  )
-                    mutate("support-grants", {
+                onClick={() => setAccessConfirmation({ title: "Approve temporary support access?", message: "This permits read-only private client-record access for 15 minutes and will be audited.", label: "Approve support access", run: () => mutate("support-grants", {
                       userId: user.id,
                       reasonReference: reason,
                       minutes: 15,
-                    });
-                }}
+                    }) })}
               >
                 Approve 15-minute support
               </Button>
@@ -262,6 +242,8 @@ export default function StaffAccess({ api, session }) {
         <TextField label="Role change approval reference" value={approval} maxLength={120} onChange={event=>setApproval(event.target.value)} />
         <p>The last active Owner cannot be changed. Affected sessions and approvals will end.</p>
       </ERPConfirmDialog>
+      <ERPConfirmDialog open={Boolean(accessConfirmation)} title={accessConfirmation?.title} message={accessConfirmation?.message} confirmLabel={accessConfirmation?.label} loading={busy}
+        onCancel={() => setAccessConfirmation(null)} onConfirm={async () => { const action = accessConfirmation; if (await action?.run()) setAccessConfirmation(null); }} />
     </section>
   );
 }

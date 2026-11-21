@@ -27,6 +27,18 @@ test("general, readiness, planning and package routes reach contact without defe
   assert.equal(questions["1444304495"].maxSelections, 3);
 });
 
+test("group service uses the dedicated group-lead route and conditional questions", () => {
+  const context = { serviceId: "group", serviceTitle: "Group Trip Planning" };
+  assert.equal(questionnaireRoute(context, {}), "group");
+  const initial = applicableQuestionIds(context, {});
+  assert.ok(initial.includes("300000015"));
+  assert.equal(initial.includes("300000010"), false);
+  assert.equal(initial.includes("300000027"), false);
+  assert.ok(questionnaireSteps.some((step) => step.id === "group-budget"));
+  assert.equal(questions["300000015"].min, 4);
+  assert.equal(questions["300000019"].maxSelections, 3);
+});
+
 test("short public form validates catalogue context and private wizard uses fragment-only continuation", () => {
   const form = source("components/EnquiryForm.jsx");
   const wizard = source("components/EnquiryWizard.jsx");
@@ -36,11 +48,18 @@ test("short public form validates catalogue context and private wizard uses frag
   assert.match(form, /catalogue\.packages\.find/);
   assert.match(form, /catalogue\.services\.find/);
   assert.match(form, /opened a general enquiry instead/);
-  assert.match(form, /No booking has been made/);
+  assert.match(form, /This is not a booking/);
+  assert.match(form, /ERPModal/);
+  assert.match(form, /aria-busy/);
+  assert.match(form, /ERPModal/);
   assert.doesNotMatch(form, /name="notes"|Anything else\?/);
   assert.match(wizard, /window\.location\.hash/);
   assert.match(wizard, /URLSearchParams\(window\.location\.hash\.slice\(1\)\)\.get\("continue"\)/);
   assert.match(wizard, /window\.history\.replaceState/);
+  assert.match(wizard, /ERPModal/);
+  assert.match(wizard, /Group Trip Planning is for four or more travellers/);
+  assert.match(wizard, /Group Trip Planning is for four or more travellers/);
+  assert.match(wizard, /dates of birth/);
   assert.match(page, /noIndex/);
   assert.match(page, /<EnquiryWizard client:load/);
   assert.doesNotMatch(page, /continuationToken|#continue=/);

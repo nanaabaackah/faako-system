@@ -162,7 +162,9 @@ try {
     await form.getByRole("button", { name: "Send enquiry", exact: true }).click();
     await form.getByRole("status").filter({ hasText: "Enquiry received" }).waitFor();
     assert.equal(submissions, 1);
-    await expect(form.getByRole("status")).toContainText("No booking has been made.");
+    const confirmation = page.getByRole("dialog", { name: "Enquiry received", exact: true });
+    await expect(confirmation).toContainText("This is not a booking.");
+    await confirmation.getByRole("button", { name: "Close", exact: true }).click();
 
     const continuationToken = `v1.${"x".repeat(100)}`;
     let completions = 0;
@@ -179,7 +181,7 @@ try {
       const body = route.request().postDataJSON();
       assert.equal(body.continuationToken, continuationToken);
       assert.equal(body.questionnaireId, "twe-smart-enquiry");
-      assert.equal(body.questionnaireVersion, "2026-11-15.1");
+      assert.equal(body.questionnaireVersion, "2026-11-21.1");
       assert.equal(body.answers["541981576"], "Singapore");
       assert.equal(body.contact.email, "browser@example.invalid");
       return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ ok: true,

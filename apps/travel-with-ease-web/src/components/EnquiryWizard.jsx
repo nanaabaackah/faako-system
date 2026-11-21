@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
-import { Button, IconsaxIcon, AnimatedLoadingState, InlineNotice } from "@faako/ui";
+import { Button, IconsaxIcon, AnimatedLoadingState, InlineNotice, ERPModal } from "@faako/ui";
 import {
-  QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds,
+  QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds, branching,
   questionnaireRoute, questionnaireSteps, questions, selectedServiceFromAnswers,
 } from "../../../travel-with-ease-api/src/enquiries/questionnaires/index.js";
 import TurnstileChallenge from "./TurnstileChallenge.jsx";
@@ -12,9 +12,18 @@ const contactIds = { name: "476632894", phone: "1078451195", email: "214964047" 
 const empty = (value) => value === undefined || value === "" || (Array.isArray(value) && value.length === 0);
 
 function questionError(question, value, answers) {
-  const conditional = question.id === "1653151808" && selectedServiceFromAnswers(answers) === "not_sure";
+  const conditional = (question.id === "1653151808" && selectedServiceFromAnswers(answers) === "not_sure")
+    || question.id === branching.groupDestinationDetailsQuestionId
+    || question.id === branching.groupCostCoverageDetailsQuestionId;
   if ((question.required || conditional) && empty(value)) return "Answer this question to continue.";
   if (question.maxSelections && Array.isArray(value) && value.length > question.maxSelections) return `Choose no more than ${question.maxSelections}.`;
+  if (question.integer && !empty(value)) {
+    const number = Number(value);
+    if (!Number.isInteger(number) || number < question.min || number > question.max) return question.id === "300000015"
+      ? "Group Trip Planning is for four or more travellers. For fewer travellers, choose Full Trip Planning."
+      : `Enter a whole number from ${question.min} to ${question.max}.`;
+  }
+  if (question.format === "currency_amount" && !empty(value) && !/^(GHS|USD|GBP)\s+[0-9][0-9,]*(?:\.[0-9]{1,2})?$/i.test(value)) return "Start with GHS, USD or GBP, for example GHS 10,000.";
   return "";
 }
 
@@ -43,19 +52,20 @@ function Question({ question, value, onChange, error }) {
     {error && <p id={`${question.id}-error`} className="question-error" role="alert">{error}</p>}
   </fieldset>;
   const multiline = question.type === "PARAGRAPH_TEXT";
-  const type = question.inputMode === "email" ? "email" : question.inputMode === "tel" ? "tel" : question.id === "836507955" ? "number" : "text";
+  const type = question.inputMode === "email" ? "email" : question.inputMode === "tel" ? "tel" : question.inputMode === "number" || question.id === "836507955" ? "number" : "text";
   const controlProps = {
     id: `question-${question.id}`, value: typeof value === "string" ? value : "",
     onChange: (event) => onChange(event.target.value), required: question.required,
     maxLength: multiline ? 1500 : 500, autoComplete: question.autoComplete,
     "aria-describedby": describedBy, "aria-invalid": Boolean(error),
-    ...(type === "number" ? { min: 1, max: 100, step: 1 } : {}),
+    ...(type === "number" ? { min: question.min || 1, max: question.max || 100, step: 1 } : {}),
   };
   return <div className="question-field">
     <label htmlFor={controlProps.id}>{question.label}{question.required && <span aria-hidden="true"> *</span>}</label>
     {question.description && <p id={`${question.id}-hint`} className="question-hint preserve-lines">{question.description}</p>}
     {multiline ? <textarea {...controlProps} rows={4} /> : <input {...controlProps} type={type} />}
     {error && <p id={`${question.id}-error`} className="question-error" role="alert">{error}</p>}
+    {question.id === "300000015" && error && <a href="/services/full-trip-planning?service=full-trip-planning#plan">Use Full Trip Planning instead</a>}
   </div>;
 }
 
@@ -177,12 +187,18 @@ export default function EnquiryWizard() {
     <InlineNotice tone="warning" title="This private link is unavailable" message="This link has expired or already been used. Request a new one." />
     <div className="enquiry-access-actions"><a className="twe-content-link button" href="/#plan">Send a new enquiry</a><a href="https://wa.me/233208387020" rel="noreferrer">Talk to us on WhatsApp</a></div>
   </div>;
-  if (access.state === "completed") return <div className="enquiry-access-state"><InlineNotice tone="success" title="Trip details received" message={status.message} /><a className="twe-content-link button" href="/">Return to Travel With Ease</a></div>;
+  if (access.state === "completed") return <div className="enquiry-access-state">
+    <p>Your questionnaire has been completed.</p>
+    <ERPModal open title={route === "group" ? "Your group trip details are in" : "Trip details received"} description="Your private questionnaire is complete." onClose={() => { window.location.href = "/"; }} size="sm" footer={<a className="twe-content-link button" href="/">Return to Travel With Ease</a>}>
+      <p>{route === "group" ? "We have added these details to your original enquiry. Nana will contact you about the next steps; a separate short form may be sent to your travellers later." : "We have added these details to your original enquiry. No second enquiry or booking was created."}</p>
+    </ERPModal>
+  </div>;
   if (!currentStep) return <AnimatedLoadingState compact title="Preparing the questionnaire" message="Loading the form controls." />;
 
   const disabled = status.state === "sending";
   const contextLabel = entry.context.packageTitle || entry.context.serviceTitle;
   return <form className="public-enquiry-form smart-enquiry-form" onSubmit={submit} aria-busy={disabled}>
+    {route === "group" && <p className="enquiry-context">Complete this form as the group lead. Answer for yourself and the trip; travellers can provide their own details later.</p>}
     {contextLabel && <p className="enquiry-context">Adding details for <strong>{contextLabel}</strong></p>}
     <div className="enquiry-progress" aria-label={`Step ${safeIndex + 1} of ${steps.length}`}><span>Step {safeIndex + 1} of {steps.length}</span><progress value={safeIndex + 1} max={steps.length} /></div>
     <fieldset disabled={disabled} className="enquiry-step">
@@ -190,8 +206,8 @@ export default function EnquiryWizard() {
       {currentStep.questionIds.map((id) => <Question key={id} question={questions[id]} value={answers[id]} onChange={(value) => updateAnswer(id, value)} error={errors[id]} />)}
       {safeIndex === steps.length - 1 && <>
         <div className="enquiry-honeypot" aria-hidden="true"><label>Leave this blank<input name="website" value={website} onChange={(event) => setWebsite(event.target.value)} tabIndex={-1} autoComplete="off" /></label></div>
-        <p className="enquiry-privacy-note">Do not include passport numbers, medical information, passwords or payment details. <a href="/privacy">Privacy notice</a></p>
-        <label className="enquiry-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required /><span>I agree that Travel With Ease may use these details to respond to my enquiry.</span></label>
+        <p className="enquiry-privacy-note">Do not include passport numbers, dates of birth, medical information, passwords or payment details. <a href="/privacy">Privacy notice</a></p>
+        <label className="enquiry-consent"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required /><span>{route === "group" ? "I confirm that I am authorised to share these group trip details and agree that Travel With Ease may use them to respond to this enquiry." : "I agree that Travel With Ease may use these details to respond to my enquiry."}</span></label>
         {siteKey && <TurnstileChallenge siteKey={siteKey} resetCount={resetCount} onToken={setTurnstileToken} />}
         {hosted && !siteKey && <p>Online enquiries are temporarily unavailable. Contact us on WhatsApp.</p>}
       </>}
@@ -200,7 +216,7 @@ export default function EnquiryWizard() {
       <Button type="button" disabled={disabled || safeIndex === 0} onClick={() => move(safeIndex - 1)}>Back</Button>
       {safeIndex < steps.length - 1
         ? <Button type="button" disabled={disabled} onClick={() => move(safeIndex + 1)}>Continue <IconsaxIcon name="ArrowRight4" /></Button>
-        : <Button type="submit" disabled={disabled || (hosted && !turnstileToken)}>{disabled ? "Saving details…" : "Submit"} <IconsaxIcon name="ArrowRight4" /></Button>}
+        : <Button type="submit" aria-busy={disabled} disabled={disabled || (hosted && !turnstileToken)}>{disabled ? "Saving details…" : "Submit"} <IconsaxIcon name="ArrowRight4" /></Button>}
     </div>
     {siteKey && safeIndex === steps.length - 1 && <button type="button" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</button>}
     {status.message && <p role={status.state === "error" ? "alert" : "status"} aria-live="polite">{status.message}</p>}

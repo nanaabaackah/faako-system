@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
-import { Button, TextField, SelectField, IconsaxIcon, AnimatedLoadingState, InlineNotice } from "@faako/ui";
+import { Button, TextField, SelectField, IconsaxIcon, AnimatedLoadingState, InlineNotice, ERPModal } from "@faako/ui";
 import { enquiryTypes } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
 import TurnstileChallenge from "./TurnstileChallenge.jsx";
 import "../styles/components/enquiry-form.css";
@@ -42,6 +42,7 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
   const hosted = !import.meta.env.DEV && ["staging", "production"].includes(import.meta.env.PUBLIC_APP_ENV);
   const siteKey = import.meta.env.DEV ? "" : import.meta.env.PUBLIC_TURNSTILE_SITE_KEY || "";
   const [status, setStatus] = useState({ state: "idle", message: "" });
+  const [confirmation, setConfirmation] = useState(null);
   const operation = useRef(null);
   const pending = useRef(false);
 
@@ -71,7 +72,9 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
         fallbackMessage: "We could not confirm your enquiry. Your details remain here so you can try again.",
       });
       if (data?.status !== "received" || !/^[a-f0-9-]{36}$/i.test(data.inquiryId || "")) throw new Error("The service did not confirm your enquiry. Please try again.");
-      setStatus({ state: "success", message: `Enquiry received · Reference ${data.inquiryId.slice(0, 8).toUpperCase()}. We will contact you. No booking has been made.` });
+      const reference = data.inquiryId.slice(0, 8).toUpperCase();
+      setStatus({ state: "success", message: "Enquiry received." });
+      setConfirmation({ reference });
       setForm({ ...initial, ...entry.preset });
       operation.current = null;
     } catch (error) {
@@ -115,10 +118,13 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
       {siteKey && <TurnstileChallenge siteKey={siteKey} resetCount={resetCount} onToken={setTurnstileToken} />}
       {hosted && !siteKey && <p>Online enquiries are temporarily unavailable. Contact us on WhatsApp.</p>}
       {siteKey && <button type="button" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</button>}
-      <Button type="submit" disabled={!ready || disabled || (hosted && !turnstileToken)}>{disabled ? "Sending enquiry…" : (copy.submitLabel || "Send enquiry")} <IconsaxIcon name="ArrowRight4" /></Button>
+      <Button type="submit" aria-busy={disabled} disabled={!ready || disabled || (hosted && !turnstileToken)}>{disabled ? "Sending enquiry…" : (copy.submitLabel || "Send enquiry")} <IconsaxIcon name="ArrowRight4" /></Button>
     </fieldset>
     {status.message && <p role={status.state === "error" ? "alert" : "status"} aria-live="polite">{status.message}</p>}
     <noscript>Please contact us on WhatsApp to enquire without JavaScript. Nothing has been submitted.</noscript>
     <a href={copy.whatsappUrl || "https://wa.me/233208387020"} rel="noreferrer">{copy.whatsappLabel || "Prefer WhatsApp? Talk to us directly."}</a>
+    <ERPModal open={Boolean(confirmation)} title="Enquiry received" description={`Reference ${confirmation?.reference || ""}`} onClose={() => setConfirmation(null)} size="sm" footer={<Button type="button" onClick={() => setConfirmation(null)}>Close</Button>}>
+      <p>Check your email for a private, optional link to add your full trip details. This is not a booking.</p>
+    </ERPModal>
   </form>;
 }

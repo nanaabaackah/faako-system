@@ -47,8 +47,9 @@ try {
     await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();
     assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");
     assert.equal(await page.locator(".account-details").getByText("synthetic-workspace", { exact: true }).isVisible(), true);
-    page.once("dialog", dialog => dialog.dismiss());
     await page.locator(".account-workspace").getByRole("button", { name: "Sign out all devices", exact: true }).click();
+    const signOutDialog = page.locator(".ui-erp-dialog-backdrop");
+    await signOutDialog.getByRole("button", { name: "Cancel", exact: true }).click();
     assert.equal(await page.locator(".account-workspace").isVisible(), true, "Cancelling sign-out preserves the session");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `account-${width}.png`), fullPage: true });
@@ -197,8 +198,9 @@ try {
       .getByRole("heading", { name: "Synthetic acknowledgement", exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Activate saved template", exact: true }).isDisabled(), true);
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
-    page.once("dialog", dialog => dialog.accept());
     await page.getByRole("button", { name: "Activate saved template", exact: true }).click();
+    await page.locator(".ui-erp-dialog-backdrop")
+      .getByRole("button", { name: "Activate template", exact: true }).click();
     await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
     const emailType = page.getByRole("button", { name: "Email type", exact: true });
     await emailType.focus();
@@ -209,17 +211,19 @@ try {
     await emailType.click();
     await page.getByRole("option", { name: "Staff invitation", exact: true }).click();
     await expect(page.getByLabel(/^Heading/)).toHaveValue("Synthetic team invitation");
-    page.once("dialog", dialog => dialog.dismiss());
     await emailType.click();
     await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
+    await page.locator(".ui-erp-dialog-backdrop")
+      .getByRole("button", { name: "Cancel", exact: true }).click();
     assert.equal(await page.getByLabel(/^Heading/).inputValue(), "Synthetic team invitation", "Cancelling a type change retains unsaved copy");
     await page.getByRole("button", { name: "Preview email", exact: true }).click();
     const invitationPreview = page.frameLocator('iframe[title="Staff invitation preview"]');
     await invitationPreview.getByRole("heading", { name: "Synthetic team invitation", exact: true }).waitFor();
     assert.match(await invitationPreview.locator("body").innerText(), /does not grant workspace access/);
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
-    page.once("dialog", dialog => dialog.accept());
     await page.getByRole("button", { name: "Approve saved template", exact: true }).click();
+    await page.locator(".ui-erp-dialog-backdrop")
+      .getByRole("button", { name: "Approve template", exact: true }).click();
     await page.getByText("Draft revision 2 · Approved revision 1", { exact: true }).waitFor();
     while (await notifications.count()) await notifications.first().click();
     await page.screenshot({ path: path.join(output, `invitation-template-${width}.png`), fullPage: true });

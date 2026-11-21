@@ -7,6 +7,9 @@ import {
   DateField,
   InlineNotice,
   AnimatedLoadingState,
+  ERPConfirmDialog,
+  ERPModal,
+  useToast,
 } from "@faako/ui";
 import MediaLibrary from "./MediaLibrary.jsx";
 import BrandAppearance from "./BrandAppearance.jsx";
@@ -65,6 +68,7 @@ const emptyBody = () => ({
 });
 
 export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
+  const { pushToast } = useToast();
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
   // Testimonials are edited as the homepage review section. Travel Tips retain
@@ -84,6 +88,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
   const [collectionImage, setCollectionImage] = useState(null);
   const [state, setState] = useState({ loading: true, error: "", message: "" });
   const [saveState, setSaveState] = useState({ status: "saved", dirty: false, error: "" });
+  const [publicationBusy, setPublicationBusy] = useState(false);
+  const [publicationProgressOpen, setPublicationProgressOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const lastPublicationState = useRef("");
   const writer = useRef(null);
   const bodyRef = useRef(body);
   const heading = useRef(null);
@@ -97,6 +105,16 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }, 3000);
     return () => { active = false; clearTimeout(timer); };
   }, [api, jobs]);
+  const activePublication = jobs.find(job => ["pending", "building", "deploying", "verifying"].includes(job.status));
+  useEffect(() => {
+    const latest = jobs[0];
+    if (!latest || latest.status === lastPublicationState.current) return;
+    const previous = lastPublicationState.current;
+    lastPublicationState.current = latest.status;
+    if (!previous) return;
+    if (latest.status === "succeeded") pushToast({ id: `publication-${latest.id}`, tone: "success", title: "Website published", message: "The deployment was verified successfully." });
+    if (latest.status === "failed") pushToast({ id: `publication-${latest.id}`, tone: "error", title: "Publication failed", message: "Open publication history for the failure details and permitted retry action." });
+  }, [jobs, pushToast]);
   useEffect(() => {
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
@@ -201,7 +219,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
   };
   async function save(event) {
     event.preventDefault();
-    await writer.current?.flush();
+    const saved = await writer.current?.flush();
+    if (saved) pushToast({ tone: "success", title: "Draft saved", message: `Version ${version + (dirty ? 1 : 0)} is saved.` });
   }
   async function showPreview() {
     setState({ loading: true, error: "", message: "" });
@@ -225,13 +244,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }
   }
   async function revert(id) {
-    if (
-      dirty &&
-      !window.confirm(
-        "Discard unsaved changes and restore this revision as a new draft?",
-      )
-    )
-      return;
     setState({ loading: true, error: "", message: "" });
     try {
       const result = await api.post(`/api/agent/content/${page}/revert/${id}`, {
@@ -264,16 +276,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }
   }
   async function publication(action, id) {
-    if (
-      action !== "refresh" &&
-      !window.confirm(
-        action === "unpublish"
-          ? "Request removal of this page from the next public build?"
-          : "Request a website build using the saved content?",
-      )
-    )
-      return;
-    setState({ loading: true, error: "", message: "" });
+    setPublicationBusy(true);
+    setState(current => ({ ...current, error: "", message: "" }));
     try {
       if (action !== "refresh")
         await api.post(
@@ -290,6 +294,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         responseMode: "data",
       });
       setJobs(result.items);
+      if (action !== "refresh") setPublicationProgressOpen(true);
       setState({
         loading: false,
         error: "",
@@ -298,14 +303,17 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             ? "Publication status refreshed."
             : "Request queued. The site changes only after a successful deployment is verified.",
       });
+      if (action === "refresh") pushToast({ tone: "success", title: "Publication status refreshed", message: "The latest worker status is now shown." });
     } catch (error) {
-      setState({ loading: false, error: error.message, message: "" });
+      setState(current => ({ ...current, error: error.message, message: "" }));
+    } finally {
+      setPublicationBusy(false);
     }
   }
 
   async function cancelStalePublication(job) {
-    if (!window.confirm("Cancel this older pending publication? It will not deploy. Saved drafts and publication history will be preserved.")) return;
-    setState({ loading: true, error: "", message: "" });
+    setPublicationBusy(true);
+    setState(current => ({ ...current, error: "", message: "" }));
     try {
       await api.post(`/api/agent/content/publication-jobs/${job.id}/cancel`, {
         responseMode: "data",
@@ -313,9 +321,12 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       });
       const result = await api.get("/api/agent/content/publication-jobs", { responseMode: "data" });
       setJobs(result.items);
-      setState({ loading: false, error: "", message: "Pending publication cancelled. Your saved drafts are unchanged." });
+      setState(current => ({ ...current, error: "", message: "Pending publication cancelled. Your saved drafts are unchanged." }));
+      pushToast({ tone: "success", title: "Publication cancelled", message: "Your saved drafts are unchanged." });
     } catch (error) {
-      setState({ loading: false, error: error.message, message: "" });
+      setState(current => ({ ...current, error: error.message, message: "" }));
+    } finally {
+      setPublicationBusy(false);
     }
   }
 
@@ -343,12 +354,14 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             // Reselecting the active section is a no-op. Otherwise we'd mark
             // the editor loading without a page change to trigger a fresh load.
             if (nextPage === page) return;
-            if (!dirty || window.confirm("Discard unsaved changes?")) {
+            if (!dirty) {
               // Close the gap between changing the section and its load effect.
               // Otherwise stale fields remain editable for one render, and an
               // approved-copy click can send the new section into the old writer.
               setState({ loading: true, error: "", message: "" });
               setPage(nextPage);
+            } else {
+              setConfirmAction({ kind: "discard", title: "Discard unsaved changes?", message: `Switch to ${nextPage.replaceAll("-", " ")} and discard the edits currently in this form?`, label: "Discard and switch", run: () => { setState({ loading: true, error: "", message: "" }); setPage(nextPage); } });
             }
           }}
         >
@@ -392,16 +405,15 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             type="button"
             disabled={state.loading}
             onClick={() => {
-              if (
-                dirty &&
-                !window.confirm("Replace unsaved edits with the review draft?")
-              )
-                return;
-              const draft = { ...emptyBody(), ...(approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : structuredClone(reviewDrafts[page])) };
-              bodyRef.current = draft;
-              setBody(draft);
-              writer.current?.edit(draft);
-              setPreview(null);
+              const replace = () => {
+                const draft = { ...emptyBody(), ...(approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : structuredClone(reviewDrafts[page])) };
+                bodyRef.current = draft;
+                setBody(draft);
+                writer.current?.edit(draft);
+                setPreview(null);
+              };
+              if (dirty) setConfirmAction({ kind: "replace", title: "Replace unsaved edits?", message: "The current unsaved fields will be replaced by the approved review copy.", label: "Replace edits", run: replace });
+              else replace();
             }}
           >
             {approvedRelease.pages[page] ? (page === "how-it-works" ? "Load updated client-approved flow" : "Load approved copy") : "Load review draft"}
@@ -1258,21 +1270,25 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         <div className="editor-actions">
           <Button
             type="button"
-            disabled={!canPublish || state.loading || dirty || !version}
-            onClick={() => publication("publish")}
+            loading={publicationBusy}
+            loadingLabel="Requesting publication…"
+            disabled={!canPublish || state.loading || publicationBusy || Boolean(activePublication) || dirty || !version}
+            onClick={() => setConfirmAction({ kind: "publish", title: "Publish saved changes?", message: "This requests a website build using the saved content. The site changes only after deployment is verified.", label: import.meta.env.MODE === "staging" ? "Publish to staging" : "Publish saved changes", run: () => publication("publish") })}
           >
             {import.meta.env.MODE === "staging" ? "Publish to staging" : "Publish saved changes"}
           </Button>
           <Button
             type="button"
-            disabled={!canPublish || state.loading || dirty || !version}
-            onClick={() => publication("unpublish")}
+            disabled={!canPublish || state.loading || publicationBusy || Boolean(activePublication) || dirty || !version}
+            onClick={() => setConfirmAction({ kind: "unpublish", title: "Request unpublish?", message: "This requests removal of the selected page or record in the next verified public build.", label: "Request unpublish", run: () => publication("unpublish") })}
           >
             Request unpublish
           </Button>
           <Button
             type="button"
-            disabled={state.loading}
+            loading={publicationBusy}
+            loadingLabel="Refreshing…"
+            disabled={state.loading || publicationBusy}
             onClick={() => publication("refresh")}
           >
             Refresh publication status
@@ -1282,10 +1298,18 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           renderAction={job=><>
             {job.environment&&<p>Environment: {job.environment}</p>}
             {job.target&&<p>Saved version: {job.target.version}{job.target.recordSlug&&` · ${job.target.recordSlug}`}</p>}
-            {job.status==='pending' && job.can_cancel === true && canPublish && <Button type="button" disabled={state.loading} onClick={()=>cancelStalePublication(job)}>Cancel stale publication</Button>}
-            {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading} onClick={()=>publication('retry',job.id)}>Retry failed publication</Button>}
+            {job.status==='pending' && job.can_cancel === true && canPublish && <Button type="button" disabled={state.loading || publicationBusy} onClick={()=>setConfirmAction({ kind: "cancel", title: "Cancel pending publication?", message: "It will not deploy. Saved drafts and publication history will be preserved.", label: "Cancel publication", run: () => cancelStalePublication(job) })}>Cancel stale publication</Button>}
+            {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading||publicationBusy} onClick={()=>setConfirmAction({ kind: "retry", title: "Retry failed publication?", message: "This retries the existing failed job without creating a duplicate publication request.", label: "Retry publication", run: () => publication('retry',job.id) })}>Retry failed publication</Button>}
           </>}/>
       </section>
+      <ERPConfirmDialog open={Boolean(confirmAction)} title={confirmAction?.title} message={confirmAction?.message} confirmLabel={confirmAction?.label || "Confirm"} confirmTone={confirmAction?.kind === "cancel" || confirmAction?.kind === "unpublish" ? "danger" : "primary"} loading={publicationBusy} onCancel={() => setConfirmAction(null)} onConfirm={async () => { const action = confirmAction; setConfirmAction(null); await action?.run(); }} />
+      <ERPModal open={publicationProgressOpen} title="Publication progress" description="You can close this window while publishing continues." onClose={() => setPublicationProgressOpen(false)} size="sm" footer={<Button type="button" onClick={() => setPublicationProgressOpen(false)}>Continue working</Button>}>
+        <div className="publication-progress" role="status" aria-live="polite">
+          <p><strong>{activePublication ? activePublication.status.replaceAll("_", " ") : jobs[0]?.status?.replaceAll("_", " ") || "Request accepted"}</strong></p>
+          <progress value={activePublication ? ["pending", "building", "deploying", "verifying"].indexOf(activePublication.status) + 1 : jobs[0]?.status === "succeeded" ? 4 : 0} max="4" />
+          <p>{activePublication ? "The publication worker is processing the saved version." : jobs[0]?.status === "succeeded" ? "Deployment verified successfully." : jobs[0]?.status === "failed" ? "Publication failed. Review the history before retrying." : "Waiting for the publication worker."}</p>
+        </div>
+      </ERPModal>
       {preview && !visualPreview && (
         <section aria-label="Saved content preview">
           <h3>{preview.heading}</h3>
@@ -1346,7 +1370,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       <section className="workspace-panel">
         <h3>Revision history</h3>
         <ActivityList title="Content revision history" items={history.map(revision=>({...revision,action:`Saved revision ${revision.version}`,actor_id:revision.editor_id,record_id:revision.id}))}
-          renderAction={revision=><Button type="button" disabled={state.loading} onClick={()=>revert(revision.id)}>Restore version {revision.version}</Button>}/>
+          renderAction={revision=><Button type="button" disabled={state.loading} onClick={()=>setConfirmAction({ kind: "restore", title: `Restore version ${revision.version}?`, message: "This creates a new draft from the selected revision. Nothing is published automatically.", label: "Restore version", run: () => revert(revision.id) })}>Restore version {revision.version}</Button>}/>
       </section>
       </div>
       {visualPreview && preview && <VisualPreview key={visualPreview.id} job={visualPreview} api={api} body={preview} />}
