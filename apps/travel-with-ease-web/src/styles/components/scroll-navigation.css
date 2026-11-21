@@ -161,7 +161,7 @@ body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
     margin-left: auto;
     color: var(--brand-cream);
   }
-  body .site-header-shell .site-header:not(.is-scrolled) .brand__wordmark--gold {
+  body .site-header-shell .site-header .brand__wordmark--gold {
     width: 116px;
   }
   body .site-header-shell .site-header.is-scrolled .brand__symbol--scrolled {
@@ -170,7 +170,9 @@ body .site-header-shell .site-header .menu-toggle:is(:hover, :active) {
   }
   body .site-header-shell .site-header.is-scrolled {
     left: 12px;
-    padding: 8px 16px;
+    /* Subtract the pill's 12px viewport inset from the responsive full-width
+       header padding, preserving the same content anchor at every width. */
+    padding: 8px calc(clamp(20px, 4vw, 56px) - 12px);
     min-height: 64px;
     width: calc(100% - 24px);
   }
