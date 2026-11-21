@@ -78,6 +78,17 @@
   color: #f4ede3;
   font: inherit;
   gap: 0.5rem;
+  min-width: 9rem;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+.public-enquiry-form .ui-button:not(:disabled):hover,
+.public-enquiry-form .ui-button:not(:disabled):focus-visible { background: #18264a; color: #fff; transform: translateY(-1px); }
+.public-enquiry-form .ui-button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+.public-enquiry-form .ui-button[aria-busy="true"] { cursor: progress; }
+.publication-progress progress { width: 100%; accent-color: #010c33; }
+@media (prefers-reduced-motion: reduce) {
+  .public-enquiry-form .ui-button { transition-duration: 0.01ms; }
+  .public-enquiry-form .ui-button:not(:disabled):is(:hover, :focus-visible) { transform: none; }
 }
 .public-enquiry-form > a {
   display: inline-flex;

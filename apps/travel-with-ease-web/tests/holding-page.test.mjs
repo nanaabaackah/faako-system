@@ -23,7 +23,7 @@ test("holding page publishes only allowlisted assets without any functional webs
     const html = await readFile(path.join(outputDirectory, "index.html"), "utf8");
     assert.match(html, /noindex, nofollow/);
     assert.match(html, /https:\/\/wa\.me\/233208387020/);
-    assert.match(html, /mailto:nana@travelwitheasegh\.com/);
+    assert.match(html, /mailto:info@travelwitheasegh\.com/);
     assert.match(html, /The best journeys are worth the wait/);
     assert.match(html, /Our website is currently under construction/);
     assert.match(html, /class="signature">A Little More You/);
