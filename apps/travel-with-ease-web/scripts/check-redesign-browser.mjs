@@ -237,6 +237,8 @@ try {
     }
     const firstTicket = featured.first().locator(".twe-package-ticket .tilted-card");
     await firstTicket.scrollIntoViewIfNeeded();
+    const firstTicketIsland = firstTicket.locator("xpath=ancestor::astro-island[1]");
+    await page.waitForFunction(element => !element.hasAttribute("ssr"), await firstTicketIsland.elementHandle());
     const front = firstTicket.locator(".twe-ticket--front");
     assert.equal((await front.locator("h3 a").textContent()).trim(), "Zanzibar");
     assert.equal(await front.locator(".twe-ticket__flip svg").count(), 1);
