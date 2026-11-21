@@ -70,7 +70,8 @@ or historic migration rewrite. Downgrade needs separate assessment.
 | Variable | Placement/purpose |
 | --- | --- |
 | `TWE_CMS_PREVIEW_ENABLED` | API; enable after resource/build acceptance |
-| `TWE_PUBLICATION_WORKER_ENABLED` | Publishing worker activation |
+| `TWE_PUBLICATION_WORKER_ENABLED` | Publishing worker activation; set only on the dedicated worker process |
+| `TWE_PUBLICATION_POLL_INTERVAL_MS` | Optional worker recovery poll; default 15000, minimum 1000 |
 | `TWE_NOTIFICATION_WORKER_ENABLED` | Notification worker activation |
 | `RAILWAY_GIT_COMMIT_SHA` | Railway-injected Git commit identity (not operator configured); API and worker must deploy the same reviewed commit |
 | `TWE_PAGES_PROJECT` | Publishing worker: twe-concierge |
@@ -87,15 +88,18 @@ Reuse environment-specific runtime DB/tenant/TLS/R2/Resend settings. Set secrets
 directly with providers, not in chat/Git. The background worker is not another
 portal service. Git-linked Railway deploys must expose their commit identity; if Git metadata is available it is checked against the deployment SHA. Missing or conflicting identity fails closed. API health is not proof of worker acceptance.
 
-After acceptance, configure short non-overlapping provider schedules:
+After baseline acceptance, run one continuously supervised publication worker:
 
 ```bash
-pnpm --filter @faako/travel-with-ease-api publication:once
-pnpm --filter @faako/travel-with-ease-api notifications:once
+pnpm --filter @faako/travel-with-ease-api publication:worker
 ```
 
-Each invocation processes one eligible job; PostgreSQL claims atomically. Keep
-the regular publisher stopped until the initial baseline is accepted.
+The worker polls PostgreSQL every 15 seconds, so clicking Publish requires no
+CLI or manual deployment trigger. Claims remain atomic and the database's one
+active-job constraint prevents concurrent deployments. The process stops on an
+uncertain provider or confirmation outcome so an operator can reconcile it
+without racing another deployment. Railway restarts recover ordinary pending
+jobs. Keep this worker stopped until the initial staging baseline is accepted.
 
 ## One-time technical acceptance and rollback
 

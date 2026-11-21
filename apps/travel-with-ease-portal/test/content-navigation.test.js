@@ -9,6 +9,7 @@ test("collections remain inside Content rather than becoming top-level portal mo
   for (const id of ["packages", "journal", "travel-tips", "travel-footprint"]) assert.doesNotMatch(navigation, new RegExp(`\\["${id}",`));
   const editor = readFileSync(new URL("../src/components/WebsiteContent.jsx", import.meta.url), "utf8");
   for (const id of ["packages", "journal", "travel-tips", "travel-footprint"]) assert.ok(editor.includes(`"${id}"`));
+  assert.doesNotMatch(editor, /initialPage === "travel-tips" \? "journal"/);
 });
 
 test("CMS exposes cancellation only for stale pending publications, without retrying cancelled history", () => {
