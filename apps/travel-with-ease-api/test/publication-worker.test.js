@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { publishOne } from "../src/content/publication-worker.js";
-import { PagesProvider, readPagesConfiguration } from "../src/content/pages-provider.js";
+import { deploymentOriginForProject, PagesProvider, readPagesConfiguration } from "../src/content/pages-provider.js";
 
 const sha = "a".repeat(40);
 function fixture(overrides = {}) {
@@ -61,6 +61,27 @@ test("provider configuration pins environment, exact public origin, account, pro
 test("provider refuses a project with an unexpected production branch before upload", async () => {
   const provider = new PagesProvider({ accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" }, { fetcher: async () => ({ ok: true, json: async () => ({ success: true, result: { production_branch: "unexpected" } }) }) });
   await assert.rejects(provider.previous(), /branch/);
+});
+test("provider validates deployments against the authoritative Pages subdomain after a project rename", () => {
+  const project = { name: "twe-concierge", subdomain: "tee-concierge.pages.dev" };
+  assert.equal(
+    deploymentOriginForProject(
+      { url: "https://abc123.tee-concierge.pages.dev" },
+      project,
+      "twe-concierge",
+    ),
+    "https://abc123.tee-concierge.pages.dev",
+  );
+  assert.throws(() => deploymentOriginForProject(
+    { url: "https://abc123.attacker.pages.dev" },
+    project,
+    "twe-concierge",
+  ), /deployment identity/);
+  assert.throws(() => deploymentOriginForProject(
+    { url: "https://abc123.tee-concierge.pages.dev" },
+    { ...project, name: "another-project" },
+    "twe-concierge",
+  ), /project identity/);
 });
 test("shared-project staging restores the archived artifact on develop and never calls production rollback", async () => {
   const f = fixture();

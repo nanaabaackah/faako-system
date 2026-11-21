@@ -13,6 +13,17 @@ export function readPagesConfiguration(env = process.env) {
   return { environment, origin: expectedOrigin, branch, accountId: env.TWE_PAGES_ACCOUNT_ID, project: env.TWE_PAGES_PROJECT, token: env.TWE_PAGES_API_TOKEN, sourceSha: requireRailwaySourceSha(env) };
 }
 
+export function deploymentOriginForProject(deployment, project, expectedProject) {
+  if (project?.name !== expectedProject ||
+    !/^[a-z0-9][a-z0-9-]{0,57}\.pages\.dev$/.test(project?.subdomain || ""))
+    throw new Error("Unexpected Pages project identity.");
+  const origin = new URL(deployment?.url);
+  if (origin.protocol !== "https:" || origin.origin !== deployment.url ||
+    !origin.hostname.endsWith(`.${project.subdomain}`))
+    throw new Error("Unexpected deployment identity.");
+  return origin.origin;
+}
+
 export class PagesProvider {
   constructor(settings, { fetcher = fetch, run = runReviewedCommand } = {}) { Object.assign(this, { settings, fetcher, run }); }
   async request(suffix = "", method = "GET") {
@@ -39,6 +50,8 @@ export class PagesProvider {
     return previous;
   }
   async deploy(directory, job) {
+    const project = await this.request();
+    if (project.production_branch !== "main") throw new Error("Pages project production branch must remain main.");
     const wrangler = fileURLToPath(new URL("bin/wrangler.js", import.meta.resolve("wrangler/package.json")));
     await this.run(process.execPath, [wrangler, "pages", "deploy", path.resolve(directory),
       "--project-name", this.settings.project, "--branch", this.settings.branch,
@@ -51,9 +64,9 @@ export class PagesProvider {
     const candidates = deployments.filter(item => item.deployment_trigger?.metadata?.commit_hash === job.source_sha && item.deployment_trigger?.metadata?.branch === this.settings.branch && Date.parse(item.created_on) >= Date.parse(job.startedAt));
     if (candidates.length !== 1 || candidates[0].latest_stage?.status !== "success") throw new Error("The exact successful deployment could not be identified.");
     const deployment = candidates[0];
-    const origin = new URL(deployment.url);
-    if (origin.protocol !== "https:" || origin.origin !== deployment.url || !origin.hostname.endsWith(`.${this.settings.project}.pages.dev`) || !/^[a-f0-9-]{36}$/.test(deployment.id)) throw new Error("Unexpected deployment identity.");
-    return { id: deployment.id, origin: origin.origin };
+    const origin = deploymentOriginForProject(deployment, project, this.settings.project);
+    if (!/^[a-f0-9-]{36}$/.test(deployment.id)) throw new Error("Unexpected deployment identity.");
+    return { id: deployment.id, origin };
   }
   async rollback(previous) {
     if (!/^[a-f0-9-]{36}$/.test(previous?.id || "")) throw new Error("Invalid recovery deployment.");
