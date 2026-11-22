@@ -62,6 +62,20 @@ test("provider refuses a project with an unexpected production branch before upl
   const provider = new PagesProvider({ accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" }, { fetcher: async () => ({ ok: true, json: async () => ({ success: true, result: { production_branch: "unexpected" } }) }) });
   await assert.rejects(provider.previous(), /branch/);
 });
+test("staging baseline lookup stays within the Pages deployment page-size limit", async () => {
+  const requests = [];
+  const provider = new PagesProvider(
+    { accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" },
+    { fetcher: async url => {
+      requests.push(url);
+      return { ok: true, json: async () => ({ success: true, result: requests.length === 1
+        ? { production_branch: "main" }
+        : [{ id: "11111111-1111-4111-8111-111111111111", environment: "preview", latest_stage: { status: "success" }, deployment_trigger: { metadata: { branch: "develop" } } }] }) };
+    } },
+  );
+  assert.equal((await provider.previous()).id, "11111111-1111-4111-8111-111111111111");
+  assert.match(requests[1], /\/deployments\?per_page=25$/);
+});
 test("provider retries only safe transient reads and never retries mutations or permission failures", async () => {
   const settings = { accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" };
   let reads = 0, waits = 0;
