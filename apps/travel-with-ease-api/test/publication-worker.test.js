@@ -62,6 +62,31 @@ test("provider refuses a project with an unexpected production branch before upl
   const provider = new PagesProvider({ accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" }, { fetcher: async () => ({ ok: true, json: async () => ({ success: true, result: { production_branch: "unexpected" } }) }) });
   await assert.rejects(provider.previous(), /branch/);
 });
+test("provider retries only safe transient reads and never retries mutations or permission failures", async () => {
+  const settings = { accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" };
+  let reads = 0, waits = 0;
+  const provider = new PagesProvider(settings, {
+    fetcher: async () => {
+      reads++;
+      if (reads === 1) throw new DOMException("timed out", "TimeoutError");
+      if (reads === 2) return { ok: false, status: 503, body: { cancel: async () => {} } };
+      return { ok: true, json: async () => ({ success: true, result: { name: "twe-concierge" } }) };
+    },
+    wait: async () => { waits++; },
+  });
+  assert.equal((await provider.request()).name, "twe-concierge");
+  assert.equal(reads, 3); assert.equal(waits, 2);
+
+  let denied = 0;
+  const permissionFailure = new PagesProvider(settings, { fetcher: async () => { denied++; return { ok: false, status: 403 }; }, wait: async () => {} });
+  await assert.rejects(permissionFailure.request(), /request failed/);
+  assert.equal(denied, 1);
+
+  let mutations = 0;
+  const mutationFailure = new PagesProvider(settings, { fetcher: async () => { mutations++; throw new DOMException("timed out", "TimeoutError"); }, wait: async () => {} });
+  await assert.rejects(mutationFailure.request("/deployment/rollback", "POST"), /timed out/);
+  assert.equal(mutations, 1);
+});
 test("provider validates deployments against the authoritative Pages subdomain after a project rename", () => {
   const project = { name: "twe-concierge", subdomain: "tee-concierge.pages.dev" };
   assert.equal(
