@@ -62,7 +62,9 @@ export class PagesProvider {
     if (project.production_branch !== "main") throw new Error("Pages project production branch must remain main.");
     let previous = project.canonical_deployment || project.production_deployment;
     if (this.settings.environment === "staging") {
-      const deployments = await this.request("/deployments?per_page=100");
+      // The Pages deployments endpoint currently rejects page sizes above 25.
+      // The newest accepted develop preview is all recovery needs.
+      const deployments = await this.request("/deployments?per_page=25");
       previous = deployments.find(item => item.environment === "preview" && item.deployment_trigger?.metadata?.branch === "develop" && item.latest_stage?.status === "success");
     }
     if (!previous?.id || !/^[a-f0-9-]{36}$/.test(previous.id)) throw new Error("A known-good Pages deployment is required before automated publication.");
