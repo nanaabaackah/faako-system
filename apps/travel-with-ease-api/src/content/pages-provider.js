@@ -25,16 +25,35 @@ export function deploymentOriginForProject(deployment, project, expectedProject)
 }
 
 export class PagesProvider {
-  constructor(settings, { fetcher = fetch, run = runReviewedCommand } = {}) { Object.assign(this, { settings, fetcher, run }); }
+  constructor(settings, { fetcher = fetch, run = runReviewedCommand, wait = delay => new Promise(resolve => setTimeout(resolve, delay)) } = {}) {
+    Object.assign(this, { settings, fetcher, run, wait });
+  }
   async request(suffix = "", method = "GET") {
     const { accountId, project, token } = this.settings;
-    const response = await this.fetcher(`https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${project}${suffix}`, {
-      method, headers: { Authorization: `Bearer ${token}` }, redirect: "error", signal: AbortSignal.timeout(20_000),
-    });
-    if (!response.ok) throw new Error("Pages provider request failed.");
-    const payload = await response.json();
-    if (!payload.success || !payload.result) throw new Error("Pages provider rejected the operation.");
-    return payload.result;
+    const attempts = method === "GET" ? 3 : 1;
+    for (let attempt = 0; attempt < attempts; attempt++) {
+      try {
+        const response = await this.fetcher(`https://api.cloudflare.com/client/v4/accounts/${accountId}/pages/projects/${project}${suffix}`, {
+          method, headers: { Authorization: `Bearer ${token}` }, redirect: "error", signal: AbortSignal.timeout(20_000),
+        });
+        if (!response.ok) {
+          const retryable = response.status === 408 || response.status === 429 || response.status >= 500;
+          if (retryable && attempt + 1 < attempts) {
+            await response.body?.cancel();
+            await this.wait(250 * (attempt + 1));
+            continue;
+          }
+          throw new Error("Pages provider request failed.");
+        }
+        const payload = await response.json();
+        if (!payload.success || !payload.result) throw new Error("Pages provider rejected the operation.");
+        return payload.result;
+      } catch (error) {
+        if (method !== "GET" || attempt + 1 >= attempts || error?.message === "Pages provider request failed." || error?.message === "Pages provider rejected the operation.") throw error;
+        await this.wait(250 * (attempt + 1));
+      }
+    }
+    throw new Error("Pages provider request failed.");
   }
   async previous() {
     const project = await this.request();
