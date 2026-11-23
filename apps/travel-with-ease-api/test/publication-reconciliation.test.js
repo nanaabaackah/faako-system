@@ -103,21 +103,67 @@ test("reconciliation refuses multiple marker-matching deployments across Pages p
   assert.equal(result, null);
 });
 
-test("reconciliation reports an older matching commit rejected by the time safeguard", async () => {
-  const olderJob = { ...job, created_at: "2026-11-23T09:00:00Z" };
+test("reconciliation verifies an exact matching Pages artifact even when it predates the CMS job record", async () => {
+  const laterJob = { ...job, created_at: "2026-11-23T09:00:00Z" };
+  const candidate = deployment("55555555-5555-4555-8555-555555555555");
+  const marker = { jobId: laterJob.id, sourceSha: sha, digest: manifestDigest(laterJob.manifest) };
+  const visited = [], reports = [];
+  const found = await provider([candidate]).findPublicationDeployment(
+    laterJob,
+    async (origin, proof) => {
+      assert.deepEqual(proof, marker);
+      visited.push(origin);
+    },
+    marker, { info: meta => reports.push(meta) },
+  );
+  assert.equal(found.id, candidate.id);
+  assert.deepEqual(visited, [candidate.url, "https://staging.travelwitheasegh.com"]);
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].reason, "candidate_found");
+  assert.equal(reports[0].olderThanJob, 1);
+  assert.equal(reports[0].sourceMatches, 1);
+  assert.equal(reports[0].candidates, 1);
+  assert.equal(reports[0].verified, 1);
+});
+
+test("reconciliation still refuses a preexisting Pages artifact without the exact immutable marker", async () => {
+  const laterJob = { ...job, created_at: "2026-11-23T09:00:00Z" };
   const candidate = deployment("55555555-5555-4555-8555-555555555555");
   const reports = [];
-  const result = await provider([candidate]).findPublicationDeployment(
-    olderJob, async () => { throw new Error("Must not verify rejected candidate."); },
-    { jobId: olderJob.id, sourceSha: sha, digest: manifestDigest(olderJob.manifest) },
+  let customOriginChecked = false;
+  const found = await provider([candidate]).findPublicationDeployment(
+    laterJob,
+    async origin => {
+      if (origin === "https://staging.travelwitheasegh.com")
+        customOriginChecked = true;
+      else
+        throw new Error("Deployed marker does not match this publication.");
+    },
+    { jobId: laterJob.id, sourceSha: sha, digest: manifestDigest(laterJob.manifest) },
     { info: meta => reports.push(meta) },
   );
-  assert.equal(result, null);
-  assert.equal(reports.length, 1);
-  assert.equal(reports[0].reason, "no_match");
-  assert.equal(reports[0].sourceMatches, 1);
-  assert.equal(reports[0].rejectionReasons.beforeJob, 1);
-  assert.equal(reports[0].candidates, 0);
+  assert.equal(found, null);
+  assert.equal(customOriginChecked, false);
+  assert.equal(reports[0].olderThanJob, 1);
+  assert.equal(reports[0].rejectionReasons.markerMismatch, 1);
+  assert.equal(reports[0].verified, 0);
+});
+
+test("reconciliation still refuses an older artifact when the staging origin marker differs", async () => {
+  const laterJob = { ...job, created_at: "2026-11-23T09:00:00Z" };
+  const candidate = deployment("55555555-5555-4555-8555-555555555555");
+  const marker = { jobId: laterJob.id, sourceSha: sha, digest: manifestDigest(laterJob.manifest) };
+  await assert.rejects(
+    provider([candidate]).findPublicationDeployment(
+      laterJob,
+      async origin => {
+        if (origin === "https://staging.travelwitheasegh.com")
+          throw new Error("Custom origin does not match publication.");
+      },
+      marker,
+    ),
+    /Custom origin does not match publication/,
+  );
 });
 
 test("reconciliation does not loop through pages repeatedly returning the same deployments", async () => {
