@@ -89,6 +89,38 @@ export class PagesProvider {
     if (!/^[a-f0-9-]{36}$/.test(deployment.id)) throw new Error("Unexpected deployment identity.");
     return { id: deployment.id, origin };
   }
+  // Read-only search for a successfully deployed, environment-scoped artifact.
+  // The caller must additionally verify its exact publication marker on both
+  // the immutable Pages URL and the custom origin before acknowledging it.
+  async findPublicationDeployment(job, verify, marker) {
+    const project = await this.request();
+    if (project.production_branch !== "main" || project.name !== this.settings.project)
+      throw new Error("Unexpected Pages project identity.");
+    const deployments = await this.request("/deployments?per_page=25");
+    if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
+    const earliest = Date.parse(job.created_at);
+    if (!Number.isFinite(earliest)) throw new Error("Invalid publication creation date.");
+    const matches = [];
+    for (const deployment of deployments) {
+      if (deployment.latest_stage?.status !== "success" ||
+          deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
+          deployment.deployment_trigger?.metadata?.commit_hash !== job.source_sha ||
+          deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production") ||
+          !(Date.parse(deployment.created_on) >= earliest - 60_000) ||
+          !/^[a-f0-9-]{36}$/i.test(deployment.id || "")) continue;
+      const origin = deploymentOriginForProject(deployment, project, this.settings.project);
+      try {
+        await verify(origin, marker);
+        matches.push({ id: deployment.id, origin });
+      } catch {
+        // Same commit can have unrelated Git/worker deployments; the immutable
+        // marker, not its commit SHA, establishes the publication identity.
+      }
+    }
+    if (matches.length !== 1) return null;
+    await verify(this.settings.origin, marker);
+    return matches[0];
+  }
   async rollback(previous) {
     if (!/^[a-f0-9-]{36}$/.test(previous?.id || "")) throw new Error("Invalid recovery deployment.");
     if (this.settings.environment === "staging") throw new Error("Preview branch recovery requires the retained exact artifact; production rollback must not be used for staging.");
