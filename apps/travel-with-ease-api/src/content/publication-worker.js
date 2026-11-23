@@ -6,11 +6,40 @@ import { preparePublication, verifyPublishedMarker } from "./artifact.js";
 import { publicBuildEnvironment, runReviewedCommand } from "./build.js";
 import { assertPublicationSource } from "./source-identity.js";
 
+// Recover only a stale job whose exact artifact is already verifiably live.
+// If provider evidence is missing/ambiguous, leave the database and live site
+// untouched; never unblock another publish by guessing.
+export async function reconcileStalePublication({ publication, provider, verify = verifyPublishedMarker, logger = {} }) {
+  const job = await publication.staleDeployment?.();
+  if (!job) return null;
+  const digest = manifestDigest(job.manifest);
+  const marker = { jobId: job.id, sourceSha: job.source_sha, digest };
+  try {
+    const deployed = await provider.findPublicationDeployment(job, verify, marker);
+    if (!deployed) throw new Error("No unique verified Pages deployment.");
+    await publication.confirmReconciled(job.id, job.build_token, deployed.id, digest);
+    logger.info?.({ eventName: "publication.deployment_reconciled", jobId: job.id, deploymentId: deployed.id }, "Previously deployed publication confirmed.");
+    return { id: job.id, status: "live", deploymentId: deployed.id };
+  } catch {
+    // The concurrent worker may have confirmed the same job just now.
+    try {
+      const deployedId = await publication.confirmed(job.id, digest);
+      if (deployedId) return { id: job.id, status: "live", deploymentId: deployedId };
+    } catch {
+      // A DB read failure is not evidence that the deployment is live.
+    }
+    logger.error?.({ eventName: "publication.reconciliation_required", jobId: job.id }, "A stale publication requires deployment evidence before another publication can begin.");
+    return { id: job.id, status: "recovery_required" };
+  }
+}
+
 export async function publishOne({ publication, media, provider, archive, settings, prepare = preparePublication,
   run = runReviewedCommand, verify = verifyPublishedMarker, logger = {} }) {
   // Validate the reviewed source before claiming a job; never build newer code
   // just because it happens to be deployed on Railway.
   const sha = await assertPublicationSource(settings.sourceSha, { run });
+  const reconciled = await reconcileStalePublication({ publication, provider, verify, logger });
+  if (reconciled) return reconciled;
   await publication.coordinateSource?.();
   const job = await publication.claim();
   if (!job) return { status: "idle" };
