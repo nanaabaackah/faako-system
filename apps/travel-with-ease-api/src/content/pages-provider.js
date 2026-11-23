@@ -155,10 +155,10 @@ export class PagesProvider {
     if (matches.length !== 1) return null;
     try {
       await verify(this.settings.origin, marker);
-    } catch {
+    } catch (error) {
       logger.warn?.({ eventName: "publication.reconciliation_scan", reason: "current_origin_marker_mismatch",
         pagesScanned, candidates, verified: matches.length }, "The current site does not match the candidate publication.");
-      return null;
+      throw error;
     }
     return matches[0];
   }
