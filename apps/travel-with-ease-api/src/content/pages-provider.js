@@ -109,49 +109,87 @@ export class PagesProvider {
       throw new Error("Unexpected Pages project identity.");
     const earliest = Date.parse(job.created_at);
     if (!Number.isFinite(earliest)) throw new Error("Invalid publication creation date.");
-    // The first Pages deployment page can contain only newer Git-triggered
-    // builds. Search older pages without relaxing publication-identity checks.
-    // Cloudflare Pages limits per_page to 25; bound the scan to 500 entries
-    // to avoid an unbounded provider request loop.
+    // Recovery is read-only. Inspect bounded provider pages without relaxing
+    // any requirement for matching environment, source, time or markers.
     const pageSize = 25;
     const maxPages = 20;
     const matches = [];
     const seen = new Set();
-    let pagesScanned = 0, candidates = 0, hasMore = false;
+    const reasons = {
+      malformedId: 0, duplicate: 0, notSuccessful: 0, wrongBranch: 0,
+      wrongSource: 0, shortSource: 0, wrongEnvironment: 0, beforeJob: 0,
+      invalidOrigin: 0, markerMismatch: 0,
+    };
+    let pagesScanned = 0, rowsSeen = 0, candidates = 0, hasMore = false;
+    let sourceMatches = 0, repeatedPages = 0;
+    const report = reason => logger.info?.({
+      eventName: "publication.reconciliation_scan", reason,
+      pagesScanned, rowsSeen, distinctDeployments: seen.size,
+      repeatedPages, sourceMatches, candidates, verified: matches.length,
+      rejectionReasons: reasons,
+    }, "Pages publication candidates checked.");
     for (let page = 1; page <= maxPages; page++) {
       const deployments = await this.request(`/deployments?per_page=${pageSize}&page=${page}`);
       if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
       pagesScanned++;
       hasMore = deployments.length === pageSize;
+      let newOnPage = 0;
       for (const deployment of deployments) {
-        if (deployment.latest_stage?.status !== "success" ||
-            deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
-            deployment.deployment_trigger?.metadata?.commit_hash !== job.source_sha ||
-            deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production") ||
-            !(Date.parse(deployment.created_on) >= earliest - 60_000) ||
-            !/^[a-f0-9-]{36}$/i.test(deployment.id || "") ||
-            seen.has(deployment.id)) continue;
+        rowsSeen++;
+        if (!/^[a-f0-9-]{36}$/i.test(deployment.id || "")) {
+          reasons.malformedId++;
+          continue;
+        }
+        if (seen.has(deployment.id)) {
+          reasons.duplicate++;
+          continue;
+        }
         seen.add(deployment.id);
+        newOnPage++;
+        const source = deployment.deployment_trigger?.metadata?.commit_hash;
+        if (source === job.source_sha) sourceMatches++;
+        if (deployment.latest_stage?.status !== "success") {
+          reasons.notSuccessful++;
+          continue;
+        }
+        if (deployment.deployment_trigger?.metadata?.branch !== this.settings.branch) {
+          reasons.wrongBranch++;
+          continue;
+        }
+        if (source !== job.source_sha) {
+          if (typeof source === "string" && source.length >= 7 &&
+              source.length < job.source_sha.length && job.source_sha.startsWith(source))
+            reasons.shortSource++;
+          else reasons.wrongSource++;
+          continue;
+        }
+        if (deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production")) {
+          reasons.wrongEnvironment++;
+          continue;
+        }
+        if (!(Date.parse(deployment.created_on) >= earliest - 60_000)) {
+          reasons.beforeJob++;
+          continue;
+        }
         candidates++;
         try {
           const origin = deploymentOriginForProject(deployment, project, this.settings.project);
           await verify(origin, marker);
           matches.push({ id: deployment.id, origin });
         } catch {
-          // A matching commit is insufficient: only the immutable marker
-          // on the deployment's own URL establishes publication identity.
+          // The immutable marker and deployment URL must both be valid.
+          // Keep diagnostics categorical; never log tokens or provider payloads.
+          reasons.markerMismatch++;
         }
       }
+      if (newOnPage === 0 && deployments.length > 0) repeatedPages++;
       if (matches.length > 1) {
-        logger.warn?.({ eventName: "publication.reconciliation_scan", reason: "ambiguous",
-          pagesScanned, candidates, verified: matches.length }, "Multiple Pages releases match this publication.");
-        return null; // Ambiguous identity; do not confirm.
+        report("ambiguous");
+        return null;
       }
-      if (!hasMore) break;
+      if (!hasMore || newOnPage === 0) break;
     }
-    logger.info?.({ eventName: "publication.reconciliation_scan",
-      reason: matches.length === 1 ? "candidate_found" : hasMore ? "scan_limit" : "no_match",
-      pagesScanned, candidates, verified: matches.length }, "Pages publication candidates checked.");
+    report(matches.length === 1 ? "candidate_found" : repeatedPages ? "repeated_page" : hasMore ? "scan_limit" : "no_match");
     if (matches.length !== 1) return null;
     try {
       await verify(this.settings.origin, marker);
