@@ -95,3 +95,12 @@ test("monorepo monitoring keeps Faako API optional until an API host is configur
   assert.equal(configured.baseUrl, "https://api.faako.example.com");
   assert.equal(configured.configured, true);
 });
+
+test("TTNGH API monitoring checks the actual Railway health route", () => {
+  const sites = getMonorepoMonitoringSites({ TTNGH_API_BASE_URL: "https://api.thethrivingnetworkgh.org" });
+  const api = findSite(sites, "ttngh-api");
+  assert.ok(api);
+  assert.equal(api.configured, true);
+  assert.equal(api.baseUrl, "https://api.thethrivingnetworkgh.org");
+  assert.deepEqual([...pagePaths(api)], ["/health"]);
+});
