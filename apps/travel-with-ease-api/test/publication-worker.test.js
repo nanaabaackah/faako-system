@@ -187,7 +187,7 @@ test("staging baseline lookup stays within the Pages deployment page-size limit"
     { fetcher: async url => {
       requests.push(url);
       return { ok: true, json: async () => ({ success: true, result: requests.length === 1
-        ? { production_branch: "main" }
+        ? { name: "twe-concierge", production_branch: "main" }
         : [{ id: "11111111-1111-4111-8111-111111111111", environment: "preview", latest_stage: { status: "success" }, deployment_trigger: { metadata: { branch: "develop" } } }] }) };
     } },
   );
