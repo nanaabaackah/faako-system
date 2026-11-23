@@ -55,3 +55,12 @@ test("calendar event days use a visual marker without displaying numeric badges"
   assert.match(upcoming, /upcomingCalendarEvents\(response\.events, editorialLinks/);
   assert.match(script, /ttngh:calendar-select/);
 });
+
+test("homepage upcoming links select the requested date on the Events calendar", () => {
+  const home = readFileSync(new URL("../src/pages/index.astro", import.meta.url), "utf8");
+  const live = readFileSync(new URL("../src/scripts/live-upcoming-events.ts", import.meta.url), "utf8");
+  const calendar = readFileSync(new URL("../src/scripts/month-calendar.ts", import.meta.url), "utf8");
+  assert.match(home, /<LiveUpcomingEvents editorialEvents=\{publishedEvents\}/);
+  assert.match(live, /\/events\?date=/);
+  assert.match(calendar, /new URLSearchParams\(location\.search\)\.get\("date"\)/);
+});
