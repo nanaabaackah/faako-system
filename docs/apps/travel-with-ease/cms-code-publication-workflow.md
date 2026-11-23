@@ -24,6 +24,29 @@ Version 2 manifests carry their checked-in baseline rather than reading a newer 
 Do not enable a competing Cloudflare Git deployment for a worker-controlled branch. Do not update routine CMS content directly in SQL. Failed or uncertain provider operations use the existing retry, reconciliation and recovery controls.
 
 
+## Staging publication failure diagnostics
+
+A healthy worker can still mark an individual release `failed`. The stage is
+reported as `publication.release_stage_failed` using a fixed pipeline stage
+(e.g. `previous_deployment`, `baseline_validation`, `archive_restore`,
+`prepare_artifact`, `website_build`, `pages_deployment`,
+`immutable_marker`, or `current_origin_marker`). Raw provider exceptions,
+tokens, and asset keys are intentionally not logged.
+
+For `baseline_validation`, the worker also emits
+`publication.baseline_rejected` with an enumerated reason:
+`archive_unavailable`, `no_live_baseline`, or
+`baseline_deployment_mismatch`. The last reason means the most recent
+successful `develop` preview selected by Pages is not the deployment ID
+recorded for the last verified archived CMS publication. Ordinary Git-triggered
+previews may produce this mismatch. The worker currently fails closed before
+upload; do not manually reset publication rows, manufacture an archive, or
+automatically treat a newer Git preview as an approved CMS baseline.
+
+Use these events to establish the actual failed stage of a release before
+designing a separate, verified baseline-selection fix. A `failed` release
+cannot be treated as live or retried blindly.
+
 ## Recovery: CMS remains in Deploying after the website appears live
 
 The public site being reachable is not sufficient proof that the CMS publication completed.
