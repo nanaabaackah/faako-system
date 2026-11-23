@@ -44,37 +44,62 @@ export async function publishOne({ publication, media, provider, archive, settin
   const job = await publication.claim();
   if (!job) return { status: "idle" };
   let directory, previous, recovery, recoveryDirectory, deploymentStarted = false, deployed, confirmed = false, confirmationStarted = false;
+  // Only predefined stages and reasons are recorded; provider errors, tokens,
+  // asset keys, and arbitrary exception messages must never reach worker logs.
+  let stage = "source_identity";
   try {
     if (job.source_sha !== sha || job.environment !== settings.environment) throw new Error("Queued release identity does not match this worker.");
+    stage = "previous_deployment";
     previous = await provider.previous();
+    stage = "temporary_directory";
     directory = await mkdtemp(path.join(tmpdir(), "twe-publication-worker-"));
     if (settings.environment === "staging") {
+      stage = "baseline_validation";
       recovery = await publication.lastLive();
-      if (!archive || !recovery || recovery.deployment_id !== previous.id) throw new Error("Staging requires an accepted, archived baseline matching its current preview deployment.");
+      if (!archive || !recovery || recovery.deployment_id !== previous.id) {
+        const reason = !archive ? "archive_unavailable"
+          : !recovery ? "no_live_baseline" : "baseline_deployment_mismatch";
+        logger.warn?.({ eventName: "publication.baseline_rejected", jobId: job.id, reason },
+          "Staging baseline does not match the archived live publication.");
+        throw new Error("Staging requires an accepted, archived baseline matching its current preview deployment.");
+      }
+      stage = "archive_restore";
       recoveryDirectory = path.join(directory, "recovery");
       await archive.restore(recovery.id, recoveryDirectory);
     }
+    stage = "prepare_artifact";
     const artifact = await prepare(job, media, directory, { approvedBaseline: true });
     const out = path.join(directory, "dist");
+    stage = "website_build";
     await run("pnpm", ["--filter", "@faako/travel-with-ease-web", "run", "build"], publicBuildEnvironment({
       environment: settings.environment, siteOrigin: settings.origin, apiOrigin: settings.apiOrigin,
       turnstileSiteKey: settings.turnstileSiteKey, indexable: settings.environment === "production" && settings.indexable === true,
       sourceSha: job.source_sha, googleVerification: settings.googleVerification || "",
       snapshot: artifact.snapshot, publicDirectory: artifact.publicDirectory, out,
     }));
+    stage = "archive_retain";
     if (archive) await archive.retain(job.id, out);
+    stage = "mark_deploying";
     await publication.transition(job.id, job.build_token, "building", "deploying");
     deploymentStarted = true;
+    stage = "pages_deployment";
     deployed = await provider.deploy(out, { ...job, startedAt: new Date().toISOString() });
+    stage = "mark_verifying";
     await publication.transition(job.id, job.build_token, "deploying", "verifying");
     // Verify both the immutable deployment and the public custom domain.
+    stage = "immutable_marker";
     await verify(deployed.origin, artifact.marker);
+    stage = "current_origin_marker";
     await verify(settings.origin, artifact.marker);
     confirmationStarted = true;
+    stage = "database_confirmation";
     await publication.confirm(job.id, job.build_token, deployed.id, manifestDigest(job.manifest));
     confirmed = true;
     return { id: job.id, status: "live", deploymentId: deployed.id };
   } catch {
+    logger.error?.({ eventName: "publication.release_stage_failed", jobId: job.id,
+      stage, deploymentStarted, confirmationStarted },
+      "Publication failed at a specific pipeline stage; no raw provider errors were logged.");
     if (confirmationStarted) {
       try {
         const id = await publication.confirmed(job.id, manifestDigest(job.manifest));
