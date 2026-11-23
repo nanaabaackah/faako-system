@@ -25,6 +25,22 @@ export function deploymentOriginForProject(deployment, project, expectedProject)
 }
 
 export class PagesProvider {
+  // A dedicated staging Pages project serves 'develop' as its production
+  // branch; the legacy shared project still serves it as a preview.
+  // Keep both modes until a separately verified migration is completed.
+  expectedProductionBranch() {
+    return this.settings.environment === "staging" &&
+      this.settings.project === "twe-concierge-staging" ? "develop" : "main";
+  }
+  expectedDeploymentEnvironment() {
+    return this.settings.environment === "production" ||
+      this.expectedProductionBranch() === "develop" ? "production" : "preview";
+  }
+  assertProject(project) {
+    if (project?.name !== this.settings.project ||
+      project?.production_branch !== this.expectedProductionBranch())
+      throw new Error("Unexpected Pages project identity or production branch.");
+  }
   constructor(settings, { fetcher = fetch, run = runReviewedCommand, wait = delay => new Promise(resolve => setTimeout(resolve, delay)) } = {}) {
     Object.assign(this, { settings, fetcher, run, wait });
   }
@@ -59,9 +75,9 @@ export class PagesProvider {
     const project = await this.request();
     // Each environment needs its own Pages project/custom domain. Rollback is
     // authoritative only for the project's production branch, not a preview alias.
-    if (project.production_branch !== "main") throw new Error("Pages project production branch must remain main.");
+    this.assertProject(project);
     let previous = project.canonical_deployment || project.production_deployment;
-    if (this.settings.environment === "staging") {
+    if (this.settings.environment === "staging" && this.expectedDeploymentEnvironment() === "preview") {
       // The Pages deployments endpoint currently rejects page sizes above 25.
       // The newest accepted develop preview is all recovery needs.
       const deployments = await this.request("/deployments?per_page=25");
@@ -82,12 +98,11 @@ export class PagesProvider {
       recovery.source_sha !== marker?.sourceSha)
       throw new Error("Invalid staging publication baseline.");
     const project = await this.request();
-    if (project.production_branch !== "main" || project.name !== this.settings.project)
-      throw new Error("Unexpected Pages project identity.");
+    this.assertProject(project);
     const deployment = await this.request(`/deployments/${recovery.deployment_id}`);
     if (deployment.id !== recovery.deployment_id ||
       deployment.latest_stage?.status !== "success" ||
-      deployment.environment !== "preview" ||
+      deployment.environment !== this.expectedDeploymentEnvironment() ||
       deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
       deployment.deployment_trigger?.metadata?.commit_hash !== recovery.source_sha)
       throw new Error("The recorded staging publication is not a verified Pages deployment.");
@@ -98,7 +113,7 @@ export class PagesProvider {
   }
   async deploy(directory, job) {
     const project = await this.request();
-    if (project.production_branch !== "main") throw new Error("Pages project production branch must remain main.");
+    this.assertProject(project);
     const wrangler = fileURLToPath(new URL("bin/wrangler.js", import.meta.resolve("wrangler/package.json")));
     await this.run(process.execPath, [wrangler, "pages", "deploy", path.resolve(directory),
       "--project-name", this.settings.project, "--branch", this.settings.branch,
@@ -113,7 +128,10 @@ export class PagesProvider {
     for (let attempt = 0; attempt < 8; attempt++) {
       const deployments = await this.request("/deployments?per_page=10");
       if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
-      const candidates = deployments.filter(item => item.deployment_trigger?.metadata?.commit_hash === job.source_sha && item.deployment_trigger?.metadata?.branch === this.settings.branch && Date.parse(item.created_on) >= Date.parse(job.startedAt));
+      const candidates = deployments.filter(item => item.deployment_trigger?.metadata?.commit_hash === job.source_sha &&
+        item.deployment_trigger?.metadata?.branch === this.settings.branch &&
+        item.environment === this.expectedDeploymentEnvironment() &&
+        Date.parse(item.created_on) >= Date.parse(job.startedAt));
       if (candidates.length === 1 && candidates[0].latest_stage?.status === "success") {
         const deployment = candidates[0];
         const origin = deploymentOriginForProject(deployment, project, this.settings.project);
@@ -131,8 +149,7 @@ export class PagesProvider {
   // the immutable Pages URL and the custom origin before acknowledging it.
   async findPublicationDeployment(job, verify, marker, logger = {}) {
     const project = await this.request();
-    if (project.production_branch !== "main" || project.name !== this.settings.project)
-      throw new Error("Unexpected Pages project identity.");
+    this.assertProject(project);
     const earliest = Date.parse(job.created_at);
     if (!Number.isFinite(earliest)) throw new Error("Invalid publication creation date.");
     // Recovery is read-only. Cloudflare can report an artifact timestamp that
@@ -191,7 +208,7 @@ export class PagesProvider {
           else reasons.wrongSource++;
           continue;
         }
-        if (deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production")) {
+        if (deployment.environment !== this.expectedDeploymentEnvironment()) {
           reasons.wrongEnvironment++;
           continue;
         }

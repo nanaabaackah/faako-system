@@ -1,5 +1,59 @@
 # TWE code and CMS publication workflow
 
+## Dedicated staging Pages project migration (not yet cut over)
+
+The Cloudflare Direct Upload project `twe-concierge-staging` is separate
+from the original `tee-concierge` public site and its `develop` preview.
+The new project's **production branch is `develop`**. Wrangler's
+`--branch develop` therefore creates a **production** Pages deployment in
+that project, although `APP_ENV=staging` and the website remains nonindexable.
+The publication provider must verify the project name, production branch,
+deployment environment, full Git SHA, immutable marker and current origin
+against this exact target. Production's original Pages project remains
+`main` and its existing production environment is unchanged.
+
+**Migration is intentionally not activated by this code change.**
+Keep Railway's staging `TWE_PAGES_PROJECT` pointed at its current project
+and do not update DNS or assign the staging custom domain until migration
+preconditions are satisfied. A Cloudflare placeholder upload is neither a
+verified TWE publication nor a safe rollback baseline.
+
+Migration preconditions and ordered cutover:
+
+1. Resolve or explicitly investigate the **currently verifying** staging
+   publication on the old project using existing read-only reconciliation.
+   Never manually change job statuses, clear database tables, or fabricate
+   Live confirmation. Maintain the existing website throughout.
+2. Verify the old project's last Live CMS content manifest, archive, recorded
+   deployment and both markers. Preserve that evidence and an export/backup.
+   Its deployment ID belongs to the old Pages project and **cannot** serve
+   as a baseline in the new Pages project.
+3. Prepare and review a dedicated migration/bootstrap procedure that uploads
+   that immutable, approved content artifact to the new Pages project, checks
+   its marker on the project's own production `.pages.dev` origin, and
+   records the new-project baseline **only after** the required provider
+   evidence is independently verified. Do not treat the placeholder or an
+   unrelated Git-triggered build as this proof. The existing publication-job
+   schema does not store a Pages project identity, so the original
+   `deployment_id` must not be reinterpreted as a new-project deployment.
+4. After a reviewed bootstrap and passing CI, change only the staging
+   worker's existing `TWE_PAGES_PROJECT` to `twe-concierge-staging`.
+   Verify account/token permissions for that exact project. Do not create
+   a duplicate Railway worker or duplicate provider-managed variables.
+5. Attach `staging.travelwitheasegh.com` to the new project only after
+   staging content is verified on `twe-concierge-staging.pages.dev`.
+   Update the proxied CNAME to the new project target as needed. Validate
+   the exact marker on **both** the immutable deployment URL and the staging
+   domain before claiming the release Live.
+6. Run one CMS edit → autosave → preview → publish smoke test and confirm
+   deployment identity, publication status Live, and live content. Retain
+   the old project and recovery evidence until this passes.
+
+This branch changes only the Pages provider's interpretation of Cloudflare
+production/preview environments and adds coverage. It does **not** perform
+a database migration, bootstrap or backfill, content publish, Railway variable
+change, DNS cutover, or production release.
+
 ## Sources of truth
 
 Git owns application structure, routes, validation, security, styling and publishing code. Each environment's CMS owns its published copy, selected media, collections, footer and supported brand settings. Staging and production use separate databases and R2 resources; neither environment copies or continuously synchronizes the other's CMS.
