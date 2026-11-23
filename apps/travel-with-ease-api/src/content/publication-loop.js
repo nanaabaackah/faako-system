@@ -1,10 +1,14 @@
 const defaultSleep = (milliseconds, signal) =>
   new Promise((resolve) => {
-    const timer = setTimeout(resolve, milliseconds);
-    signal?.addEventListener("abort", () => {
+    if (signal?.aborted) return resolve();
+    let timer;
+    const finish = () => {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", finish);
       resolve();
-    }, { once: true });
+    };
+    timer = setTimeout(finish, milliseconds);
+    signal?.addEventListener("abort", finish, { once: true });
   });
 
 const MIN_RECONCILIATION_INTERVAL_MS = 60_000;
