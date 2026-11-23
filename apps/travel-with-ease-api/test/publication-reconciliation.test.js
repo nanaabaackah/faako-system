@@ -68,6 +68,7 @@ test("stale publication confirms only after matching the exact provider artifact
     publication,
     provider: { findPublicationDeployment: async (row, verify, marker) => {
       assert.equal(row, job);
+      assert.equal(typeof verify, "function");
       assert.deepEqual(marker, { jobId: job.id, sourceSha: sha, digest: manifestDigest(job.manifest) });
       return { id: "33333333-3333-4333-8333-333333333333" };
     } },
