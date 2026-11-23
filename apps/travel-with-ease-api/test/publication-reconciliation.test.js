@@ -143,14 +143,22 @@ test("database reconciliation confirms only the stale leased job and leaves an a
   assert.equal(queries.at(-1).sql, "COMMIT");
 });
 
-test("continuous worker remains alive for bounded reconciliation but stops on missing proof", async () => {
-  const statuses = ["deploying", "verifying", "recovery_required"];
-  const calls = [];
+test("continuous worker retries unverified recovery without starting a replacement release", async () => {
+  const controller = new AbortController();
+  const statuses = ["deploying", "verifying", "recovery_required", "recovery_required"];
+  const calls = [], delays = [];
   const result = await runPublicationLoop({
-    runOnce: async () => { const status = statuses.shift(); calls.push(status); return { status }; },
-    sleep: async () => {},
+    signal: controller.signal,
+    runOnce: async () => {
+      const status = statuses.shift();
+      calls.push(status);
+      if (calls.length === 4) controller.abort();
+      return { id: "unverified-job", status };
+    },
+    sleep: async ms => { delays.push(ms); },
     intervalMs: 1000,
   });
-  assert.deepEqual(calls, ["deploying", "verifying", "recovery_required"]);
-  assert.equal(result.status, "recovery_required");
+  assert.deepEqual(calls, ["deploying", "verifying", "recovery_required", "recovery_required"]);
+  assert.deepEqual(delays, [1000, 1000, 60000]);
+  assert.deepEqual(result, { status: "stopped" });
 });

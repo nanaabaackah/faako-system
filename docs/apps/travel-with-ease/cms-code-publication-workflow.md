@@ -37,8 +37,12 @@ URL and the configured website origin. Only then does it atomically confirm
 the original published content revision and mark the job Live.
 
 If provider evidence is missing, a different deployment is serving the custom
-domain, or multiple candidate deployments match, the worker stops with
-`publication.reconciliation_required`. The job intentionally remains blocked:
+domain, or multiple candidate deployments match, the worker reports
+`publication.reconciliation_required`. The continuous worker remains healthy,
+leaves the original job blocked, and checks again at least 60 seconds later
+without initiating a new deployment. A one-shot diagnostic still exits nonzero
+for unresolved recovery. Alert operators for sustained unresolved cases;
+a blocked publication is not permission to republish or redeploy. The job intentionally remains blocked:
 do not reset its status, change CMS publication pointers, or queue a second release.
 Investigate the existing Pages deployment and its
 `/twe-publication.json` marker, the job/source SHA, the worker logs, and the
