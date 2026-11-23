@@ -20,7 +20,7 @@ const defaults = {
   faviconId: null,
   socialImageId: null,
 };
-export default function BrandAppearance({ branding, change, api, session, disabled = false }) {
+export default function BrandAppearance({ branding, change, api, session, disabled = false, assetKeys = null, showFonts = true }) {
   const [picker, setPicker] = useState("");
   const value = { ...defaults, ...branding };
   const update = (key, next) => change("branding", { ...value, [key]: next });
@@ -28,7 +28,7 @@ export default function BrandAppearance({ branding, change, api, session, disabl
     <section className="workspace-panel brand-appearance" aria-label="Brand and appearance">
       <h3>Brand and appearance</h3>
       <p>Choose a logo for each placement and select approved website fonts.</p>
-      <div className="brand-appearance__fonts">
+      {showFonts && <div className="brand-appearance__fonts">
         <SelectField label="Heading font" value={value.headingFont}
           disabled={disabled}
           onChange={event => update("headingFont", event.target.value)}
@@ -46,9 +46,9 @@ export default function BrandAppearance({ branding, change, api, session, disabl
             { value: "inter", label: "Inter" },
             { value: "outfit", label: "Outfit" },
           ]}/>
-      </div>
+      </div>}
       <div className="brand-appearance__assets">
-        {slots.map(([key, label, hint]) => (
+        {slots.filter(([key]) => !assetKeys || assetKeys.includes(key)).map(([key, label, hint]) => (
           <div className="brand-appearance__asset" key={key}>
             <div>
               <strong>{label}</strong>

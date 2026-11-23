@@ -63,14 +63,15 @@ try {
     assert.equal(await headingInput.evaluate(element => getComputedStyle(element.closest(".ui-field__control")).outlineWidth), "3px", "Wrapper keeps visible focus");
     const select = async (value) => {
       await page.getByRole("button", { name: "Section", exact: true }).click();
-      await page.getByRole("option", { name: value.replaceAll('-',' '), exact: true }).click();
+      const label = value.replaceAll("-", " ");
+      await page.getByRole("option", { name: label[0].toUpperCase() + label.slice(1), exact: true }).click();
     };
     // Travel Tips remain a separately publishable collection while Journal
     // manages its own articles and optional tip series/CTAs.
     await page.getByRole("button", { name: "Section", exact: true }).click();
-    assert.equal(await page.getByRole("option", { name: "travel tips", exact: true }).count(), 1,
+    assert.equal(await page.getByRole("option", { name: "Travel tips", exact: true }).count(), 1,
       "Travel Tips remains available as its own CMS collection");
-    await page.getByRole("option", { name: "journal", exact: true }).click();
+    await page.getByRole("option", { name: "Journal", exact: true }).click();
     await page.getByLabel("Travel tip series").first().waitFor();
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();
     await page.getByLabel(/^Title/).fill("Changed demo article");

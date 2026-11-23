@@ -26,6 +26,7 @@ import { approvedEditorCopy } from "../lib/approved-copy.js";
 import { serviceSlug } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
 import { withUpdatedPackageFlow } from "../../../travel-with-ease-api/src/content/process-flow.js";
 import EditorialFields from "./EditorialFields.jsx";
+import { editorialFields } from "../../../travel-with-ease-api/src/content/editorial-fields.js";
 
 import countryOptions from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
 const countries = [...countryOptions].sort((a, b) =>
@@ -46,7 +47,14 @@ const pages = [
   "terms",
   "cookies",
   'site-appearance',
+  'footer',
 ];
+const sentenceCase = (value = "") => {
+  const words = value.replaceAll("_", " ").replaceAll("-", " ");
+  return words ? words[0].toUpperCase() + words.slice(1) : words;
+};
+const sectionLabel = (name) =>
+  name === "site-appearance" ? "Brand & appearance" : sentenceCase(name);
 const emptyBody = () => ({
   heading: "",
   body: "",
@@ -58,6 +66,7 @@ const emptyBody = () => ({
   entries: [],
   contactEmail: "",
   contactPhone: "",
+  footerLinks: [],
   articles: [],
   tips: [],
   packages: [],
@@ -112,7 +121,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     const previous = lastPublicationState.current;
     lastPublicationState.current = latest.status;
     if (!previous) return;
-    if (latest.status === "succeeded") pushToast({ id: `publication-${latest.id}`, tone: "success", title: "Website published", message: "The deployment was verified successfully." });
+    if (latest.status === "live") pushToast({ id: `publication-${latest.id}`, tone: "success", title: "Website published", message: "The deployment was verified successfully." });
     if (latest.status === "failed") pushToast({ id: `publication-${latest.id}`, tone: "error", title: "Publication failed", message: "Open publication history for the failure details and permitted retry action." });
   }, [jobs, pushToast]);
   useEffect(() => {
@@ -177,11 +186,31 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           { responseMode: "data" },
         );
         if (!active) return;
-        const draft = { ...emptyBody(), ...(!item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
+        let inheritedFooter = null;
+        if (page === "footer" && !item) {
+          const [legacyAppearance, legacyContact] = await Promise.all([
+            api.get("/api/agent/content/site-appearance", { responseMode: "data" }).catch(() => null),
+            api.get("/api/agent/content/contact", { responseMode: "data" }).catch(() => null),
+          ]);
+          const footerKeys = new Set((editorialFields.footer || []).map(([key]) => key));
+          inheritedFooter = {
+            heading: "Travel With Ease",
+            body: "",
+            seoTitle: "Website footer",
+            seoDescription: "Footer contact, navigation and business information.",
+            contactEmail: legacyContact?.body?.contactEmail || "",
+            contactPhone: legacyContact?.body?.contactPhone || "",
+            branding: { footerLogoId: legacyAppearance?.body?.branding?.footerLogoId || null },
+            imagePlacements: legacyAppearance?.body?.imagePlacements?.["footer-background"] ? { "footer-background": legacyAppearance.body.imagePlacements["footer-background"] } : {},
+            editorialCopy: Object.fromEntries(Object.entries(legacyAppearance?.body?.editorialCopy || {}).filter(([key]) => footerKeys.has(key))),
+          };
+        }
+        const draft = { ...emptyBody(), ...(!item && inheritedFooter ? inheritedFooter : !item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
         if (page === "how-it-works" && draft.processFlows) draft.processFlows = withUpdatedPackageFlow(draft.processFlows);
         draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
         if(page==="home"&&!draft.ctaLabel)draft.ctaLabel="Plan your trip";
         if(page==='site-appearance'&&!item){draft.heading='Shared website imagery';draft.seoTitle='Website appearance';draft.seoDescription='Internal shared imagery settings.';}
+        if(page==='footer'&&!item){draft.heading='Travel With Ease';draft.body='';draft.seoTitle='Website footer';draft.seoDescription='Footer contact, navigation and business information.';}
         bodyRef.current = draft;
         setBody(draft);
         setVersion(item?.version || 0);
@@ -361,13 +390,13 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               setState({ loading: true, error: "", message: "" });
               setPage(nextPage);
             } else {
-              setConfirmAction({ kind: "discard", title: "Discard unsaved changes?", message: `Switch to ${nextPage.replaceAll("-", " ")} and discard the edits currently in this form?`, label: "Discard and switch", run: () => { setState({ loading: true, error: "", message: "" }); setPage(nextPage); } });
+              setConfirmAction({ kind: "discard", title: "Discard unsaved changes?", message: `Switch to ${sectionLabel(nextPage)} and discard the edits currently in this form?`, label: "Discard and switch", run: () => { setState({ loading: true, error: "", message: "" }); setPage(nextPage); } });
             }
           }}
         >
           {pages.map((name) => (
             <option key={name} value={name}>
-              {name==='site-appearance'?'Brand & appearance':name.replaceAll('-',' ')}
+              {sectionLabel(name)}
             </option>
           ))}
         </SelectField>
@@ -422,6 +451,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       )}
       {!state.loading && page==='site-appearance' && <BrandAppearance branding={body.branding} change={change} api={api} session={session}
         disabled={!session.user.permissions?.includes("content.write") || state.loading}/>}
+      {!state.loading && page==='footer' && <BrandAppearance branding={body.branding} change={change} api={api} session={session}
+        assetKeys={['footerLogoId']} showFonts={false} disabled={!session.user.permissions?.includes("content.write") || state.loading}/>}
       {!state.loading&&<ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/>}
       {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
       {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
@@ -483,6 +514,27 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 maxLength={40}
                 onChange={(e) => change("contactPhone", e.target.value)}
               />
+            </>
+          )}
+          {page === "footer" && (
+            <>
+              <h3>Contact information</h3>
+              <TextField label="Business email address" type="email" value={body.contactEmail} onChange={(e) => change("contactEmail", e.target.value)} />
+              <TextField label="Business phone number" type="tel" value={body.contactPhone} maxLength={40} onChange={(e) => change("contactPhone", e.target.value)} />
+              <h3>Navigation, social media and legal links</h3>
+              {[...(body.footerLinks || [])].sort((a,b)=>a.order-b.order).map((link, index) => <fieldset key={link.id}>
+                <legend>Footer link {index + 1}</legend>
+                <SelectField label="Group" value={link.group} onChange={event => change("footerLinks", body.footerLinks.map(item => item.id === link.id ? {...item, group:event.target.value} : item))}>
+                  <option value="explore">Explore</option><option value="social">Social media</option><option value="contact">Contact</option><option value="legal">Legal information</option>
+                </SelectField>
+                <TextField label="Link label" value={link.label} maxLength={120} onChange={event => change("footerLinks", body.footerLinks.map(item => item.id === link.id ? {...item, label:event.target.value} : item))}/>
+                <TextField label="Link destination" value={link.href} maxLength={500} onChange={event => change("footerLinks", body.footerLinks.map(item => item.id === link.id ? {...item, href:event.target.value} : item))}/>
+                <label><input type="checkbox" checked={link.visible} onChange={event => change("footerLinks", body.footerLinks.map(item => item.id === link.id ? {...item, visible:event.target.checked} : item))}/> Show this link</label>
+                <Button type="button" disabled={index === 0} onClick={() => { const items=[...body.footerLinks].sort((a,b)=>a.order-b.order); [items[index-1],items[index]]=[items[index],items[index-1]]; change("footerLinks", items.map((item,order)=>({...item,order}))); }}>Move up</Button>
+                <Button type="button" disabled={index === body.footerLinks.length - 1} onClick={() => { const items=[...body.footerLinks].sort((a,b)=>a.order-b.order); [items[index],items[index+1]]=[items[index+1],items[index]]; change("footerLinks", items.map((item,order)=>({...item,order}))); }}>Move down</Button>
+                <Button type="button" onClick={() => change("footerLinks", body.footerLinks.filter(item => item.id !== link.id))}>Remove link</Button>
+              </fieldset>)}
+              <Button type="button" onClick={() => change("footerLinks", [...body.footerLinks, {id:crypto.randomUUID(), group:"explore", label:"", href:"/", visible:true, order:body.footerLinks.length}])}>Add footer link</Button>
             </>
           )}
           {page === "packages" && (
@@ -1273,7 +1325,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             loading={publicationBusy}
             loadingLabel="Requesting publication…"
             disabled={!canPublish || state.loading || publicationBusy || Boolean(activePublication) || dirty || !version}
-            onClick={() => setConfirmAction({ kind: "publish", title: "Publish saved changes?", message: "This requests a website build using the saved content. The site changes only after deployment is verified.", label: import.meta.env.MODE === "staging" ? "Publish to staging" : "Publish saved changes", run: () => publication("publish") })}
+            onClick={() => setConfirmAction({ kind: "publish", title: "Publish saved changes?", message: "This requests a website build using the saved content and currently approved code. The site changes only after deployment is verified.", label: import.meta.env.MODE === "staging" ? "Publish to staging" : "Publish saved changes", run: () => publication("publish") })}
           >
             {import.meta.env.MODE === "staging" ? "Publish to staging" : "Publish saved changes"}
           </Button>
@@ -1297,6 +1349,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
           renderAction={job=><>
             {job.environment&&<p>Environment: {job.environment}</p>}
+            {job.trigger_type&&<p>Release trigger: {sentenceCase(job.trigger_type)}</p>}
+            {['superadmin','platform_admin'].includes(session.user.role) && job.source_sha && <p>Code revision: <code>{job.source_sha.slice(0,12)}</code></p>}
+            {job.deployment_id&&<p>Deployment verified: {job.status === 'live' ? 'Yes' : 'No'}</p>}
             {job.target&&<p>Saved version: {job.target.version}{job.target.recordSlug&&` · ${job.target.recordSlug}`}</p>}
             {job.status==='pending' && job.can_cancel === true && canPublish && <Button type="button" disabled={state.loading || publicationBusy} onClick={()=>setConfirmAction({ kind: "cancel", title: "Cancel pending publication?", message: "It will not deploy. Saved drafts and publication history will be preserved.", label: "Cancel publication", run: () => cancelStalePublication(job) })}>Cancel stale publication</Button>}
             {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading||publicationBusy} onClick={()=>setConfirmAction({ kind: "retry", title: "Retry failed publication?", message: "This retries the existing failed job without creating a duplicate publication request.", label: "Retry publication", run: () => publication('retry',job.id) })}>Retry failed publication</Button>}
@@ -1305,9 +1360,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       <ERPConfirmDialog open={Boolean(confirmAction)} title={confirmAction?.title} message={confirmAction?.message} confirmLabel={confirmAction?.label || "Confirm"} confirmTone={confirmAction?.kind === "cancel" || confirmAction?.kind === "unpublish" ? "danger" : "primary"} loading={publicationBusy} onCancel={() => setConfirmAction(null)} onConfirm={async () => { const action = confirmAction; setConfirmAction(null); await action?.run(); }} />
       <ERPModal open={publicationProgressOpen} title="Publication progress" description="You can close this window while publishing continues." onClose={() => setPublicationProgressOpen(false)} size="sm" footer={<Button type="button" onClick={() => setPublicationProgressOpen(false)}>Continue working</Button>}>
         <div className="publication-progress" role="status" aria-live="polite">
-          <p><strong>{activePublication ? activePublication.status.replaceAll("_", " ") : jobs[0]?.status?.replaceAll("_", " ") || "Request accepted"}</strong></p>
-          <progress value={activePublication ? ["pending", "building", "deploying", "verifying"].indexOf(activePublication.status) + 1 : jobs[0]?.status === "succeeded" ? 4 : 0} max="4" />
-          <p>{activePublication ? "The publication worker is processing the saved version." : jobs[0]?.status === "succeeded" ? "Deployment verified successfully." : jobs[0]?.status === "failed" ? "Publication failed. Review the history before retrying." : "Waiting for the publication worker."}</p>
+          <p><strong>{activePublication ? sentenceCase(activePublication.status) : jobs[0]?.status ? sentenceCase(jobs[0].status) : "Request accepted"}</strong></p>
+          <progress value={activePublication ? ["pending", "building", "deploying", "verifying"].indexOf(activePublication.status) + 1 : jobs[0]?.status === "live" ? 4 : 0} max="4" />
+          <p>{activePublication ? "The publication worker is processing the saved version." : jobs[0]?.status === "live" ? "Deployment verified successfully." : jobs[0]?.status === "failed" ? "Publication failed. Review the history before retrying." : "Waiting for the publication worker."}</p>
         </div>
       </ERPModal>
       {preview && !visualPreview && (

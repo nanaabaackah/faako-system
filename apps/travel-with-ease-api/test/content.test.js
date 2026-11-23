@@ -94,6 +94,22 @@ test("CMS uses fixed page names, bounded fields and code-owned CTA destinations"
   );
 });
 
+test("Footer content uses stable ordered links and responsive managed background media", () => {
+  const background = "40000000-0000-4000-8000-000000000001";
+  const mobile = "40000000-0000-4000-8000-000000000002";
+  const linkId = "40000000-0000-4000-8000-000000000003";
+  const body = contentForPage("footer", {
+    heading: "Travel With Ease", body: "Plan with confidence", seoTitle: "Footer", seoDescription: "Footer information",
+    contactEmail: "info@travelwitheasegh.com", contactPhone: "+233 20 020 9170",
+    imagePlacements: { "footer-background": { imageId: background, mobileImageId: mobile, focalY: 40 } },
+    footerLinks: [{ id: linkId, group: "social", label: "Instagram", href: "https://www.instagram.com/travelwitheasegh/", visible: true, order: 0 }],
+  });
+  assert.equal(body.footerLinks[0].id, linkId);
+  assert.deepEqual(contentMediaIds(body), [background, mobile]);
+  assert.throws(() => contentForPage("footer", { ...body, footerLinks: [{ ...body.footerLinks[0], href: "javascript:alert(1)" }] }));
+  assert.throws(() => contentForPage("home", { ...body }));
+});
+
 test("CMS cannot be mounted without staff session protection", () => {
   assert.throws(
     () => createApp({ contentRepository: {} }),

@@ -121,3 +121,45 @@ test("claimed, fresh and cross-organisation jobs cannot be cancelled", async () 
   assert.ok(statements.includes("ROLLBACK"));
   assert.equal(statements.some(sql => sql.includes("INSERT INTO twe.audit_records")), false);
 });
+
+test("a new deployed source queues one code release from the last verified content snapshot", async () => {
+  const organisationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const sourceSha = "b".repeat(40);
+  const previous = { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", source_sha: "a".repeat(40), manifest: { version: 1, pages: [{ slug: "home", body: { heading: "Published" } }] } };
+  const statements = [];
+  const client = { query: async (sql, params) => {
+    statements.push({ sql, params });
+    if (sql.includes("status IN ('pending','building'")) return { rowCount: 0, rows: [] };
+    if (sql.includes("status='live'")) return { rowCount: 1, rows: [previous] };
+    if (sql.includes("manifest->>'triggerType'='code_release'")) return { rowCount: 0, rows: [] };
+    return { rowCount: 1, rows: [] };
+  }, release() {} };
+  const repository = new PublicationRepository({ connect: async () => client }, { organisationId, environment: "staging", sourceSha });
+  const result = await repository.coordinateSource();
+  assert.equal(result.status, "queued");
+  const insert = statements.find(({ sql }) => sql.includes("INSERT INTO twe.publication_jobs"));
+  assert.equal(insert.params[4], sourceSha);
+  assert.equal(insert.params[3].triggerType, "code_release");
+  assert.deepEqual(insert.params[3].pages, previous.manifest.pages);
+  assert.ok(insert.params[3].baseline.home);
+  assert.ok(statements.some(({ sql, params }) => sql.includes("INSERT INTO twe.audit_records") && params.includes("content.code_release_requested")));
+});
+
+test("a pending CMS release is rebased onto newly deployed code without losing its snapshot", async () => {
+  const organisationId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const sourceSha = "c".repeat(40);
+  const pending = { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", status: "pending", source_sha: "a".repeat(40), requested_by: null, manifest: { version: 1, triggerType: "cms_publication", pages: [{ slug: "footer", body: { heading: "Client footer" } }] } };
+  const statements = [];
+  const client = { query: async (sql, params) => {
+    statements.push({ sql, params });
+    if (sql.includes("status IN ('pending','building'")) return { rowCount: 1, rows: [pending] };
+    return { rowCount: 1, rows: [] };
+  }, release() {} };
+  const repository = new PublicationRepository({ connect: async () => client }, { organisationId, environment: "staging", sourceSha });
+  const result = await repository.coordinateSource();
+  assert.equal(result.status, "queued");
+  const insert = statements.find(({ sql }) => sql.includes("INSERT INTO twe.publication_jobs"));
+  assert.equal(insert.params[3].triggerType, "coordinated_release");
+  assert.deepEqual(insert.params[3].pages, pending.manifest.pages);
+  assert.ok(statements.some(({ sql }) => sql.includes("superseded_by_code_release")));
+});
