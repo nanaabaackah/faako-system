@@ -103,33 +103,63 @@ export class PagesProvider {
   // Read-only search for a successfully deployed, environment-scoped artifact.
   // The caller must additionally verify its exact publication marker on both
   // the immutable Pages URL and the custom origin before acknowledging it.
-  async findPublicationDeployment(job, verify, marker) {
+  async findPublicationDeployment(job, verify, marker, logger = {}) {
     const project = await this.request();
     if (project.production_branch !== "main" || project.name !== this.settings.project)
       throw new Error("Unexpected Pages project identity.");
-    const deployments = await this.request("/deployments?per_page=25");
-    if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
     const earliest = Date.parse(job.created_at);
     if (!Number.isFinite(earliest)) throw new Error("Invalid publication creation date.");
+    // The first Pages deployment page can contain only newer Git-triggered
+    // builds. Search older pages without relaxing publication-identity checks.
+    // Cloudflare Pages limits per_page to 25; bound the scan to 500 entries
+    // to avoid an unbounded provider request loop.
+    const pageSize = 25;
+    const maxPages = 20;
     const matches = [];
-    for (const deployment of deployments) {
-      if (deployment.latest_stage?.status !== "success" ||
-          deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
-          deployment.deployment_trigger?.metadata?.commit_hash !== job.source_sha ||
-          deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production") ||
-          !(Date.parse(deployment.created_on) >= earliest - 60_000) ||
-          !/^[a-f0-9-]{36}$/i.test(deployment.id || "")) continue;
-      const origin = deploymentOriginForProject(deployment, project, this.settings.project);
-      try {
-        await verify(origin, marker);
-        matches.push({ id: deployment.id, origin });
-      } catch {
-        // Same commit can have unrelated Git/worker deployments; the immutable
-        // marker, not its commit SHA, establishes the publication identity.
+    const seen = new Set();
+    let pagesScanned = 0, candidates = 0, hasMore = false;
+    for (let page = 1; page <= maxPages; page++) {
+      const deployments = await this.request(`/deployments?per_page=${pageSize}&page=${page}`);
+      if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
+      pagesScanned++;
+      hasMore = deployments.length === pageSize;
+      for (const deployment of deployments) {
+        if (deployment.latest_stage?.status !== "success" ||
+            deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
+            deployment.deployment_trigger?.metadata?.commit_hash !== job.source_sha ||
+            deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production") ||
+            !(Date.parse(deployment.created_on) >= earliest - 60_000) ||
+            !/^[a-f0-9-]{36}$/i.test(deployment.id || "") ||
+            seen.has(deployment.id)) continue;
+        seen.add(deployment.id);
+        candidates++;
+        try {
+          const origin = deploymentOriginForProject(deployment, project, this.settings.project);
+          await verify(origin, marker);
+          matches.push({ id: deployment.id, origin });
+        } catch {
+          // A matching commit is insufficient: only the immutable marker
+          // on the deployment's own URL establishes publication identity.
+        }
       }
+      if (matches.length > 1) {
+        logger.warn?.({ eventName: "publication.reconciliation_scan", reason: "ambiguous",
+          pagesScanned, candidates, verified: matches.length }, "Multiple Pages releases match this publication.");
+        return null; // Ambiguous identity; do not confirm.
+      }
+      if (!hasMore) break;
     }
+    logger.info?.({ eventName: "publication.reconciliation_scan",
+      reason: matches.length === 1 ? "candidate_found" : hasMore ? "scan_limit" : "no_match",
+      pagesScanned, candidates, verified: matches.length }, "Pages publication candidates checked.");
     if (matches.length !== 1) return null;
-    await verify(this.settings.origin, marker);
+    try {
+      await verify(this.settings.origin, marker);
+    } catch (error) {
+      logger.warn?.({ eventName: "publication.reconciliation_scan", reason: "current_origin_marker_mismatch",
+        pagesScanned, candidates, verified: matches.length }, "The current site does not match the candidate publication.");
+      throw error;
+    }
     return matches[0];
   }
   async rollback(previous) {

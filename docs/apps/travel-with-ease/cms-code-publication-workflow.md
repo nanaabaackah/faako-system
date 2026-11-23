@@ -31,10 +31,14 @@ The worker marks a release Live only when its exact Pages deployment, Git SHA,
 environment, immutable publication marker and current custom-domain marker agree.
 
 The worker now rechecks abandoned `deploying` or `verifying` jobs after ten minutes,
-using read-only Cloudflare Pages lookups. It verifies a unique successful deployment
-with the exact `jobId`, `sourceSha` and `digest` on both the immutable deployment
-URL and the configured website origin. Only then does it atomically confirm
-the original published content revision and mark the job Live.
+using read-only Cloudflare Pages lookups. Because newer code deployments may push
+a valid CMS publication beyond Cloudflare's first 25 results, recovery scans
+successive Pages deployment pages (up to 20 pages of 25) while preserving exact
+project, branch, environment, source SHA, time, and publication-marker checks.
+It verifies a unique successful deployment with the exact `jobId`, `sourceSha`
+and `digest` on both the immutable deployment URL and the configured website
+origin. Only then does it atomically confirm the original published content
+revision and mark the job Live.
 
 If provider evidence is missing, a different deployment is serving the custom
 domain, or multiple candidate deployments match, the worker reports

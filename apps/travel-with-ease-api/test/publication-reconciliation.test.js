@@ -46,6 +46,63 @@ test("reconciliation selects only the one matching immutable deployment, then ve
   assert.deepEqual(visited, [first.url, "https://staging.travelwitheasegh.com"]);
 });
 
+test("reconciliation locates an older deployment beyond Cloudflare's first page", async () => {
+  const old = deployment("33333333-3333-4333-8333-333333333333");
+  const unrelated = Array.from({ length: 25 }, (_, i) => deployment(
+    `11111111-1111-4111-8111-${String(i).padStart(12, "0")}`, "main",
+  ));
+  const pagesRead = [], originsVerified = [];
+  const p = new PagesProvider({
+    accountId: "a".repeat(32), project: "twe-concierge", environment: "staging",
+    branch: "develop", origin: "https://staging.travelwitheasegh.com", token: "synthetic",
+  }, {
+    fetcher: async url => ({
+      ok: true,
+      json: async () => {
+        const query = new URL(url).searchParams;
+        if (!url.includes("/deployments?")) return { success: true, result: {
+          production_branch: "main", name: "twe-concierge",
+          subdomain: "twe-concierge.pages.dev",
+        } };
+        const page = Number(query.get("page"));
+        pagesRead.push(page);
+        return { success: true, result: page === 1 ? unrelated : page === 2 ? [old] : [] };
+      },
+    }),
+  });
+  const marker = { jobId: job.id, sourceSha: sha, digest: manifestDigest(job.manifest) };
+  const found = await p.findPublicationDeployment(job, async (origin, expected) => {
+    originsVerified.push(origin);
+    assert.deepEqual(expected, marker);
+  }, marker);
+  assert.equal(found.id, old.id);
+  assert.deepEqual(pagesRead, [1, 2]);
+  assert.deepEqual(originsVerified, [old.url, "https://staging.travelwitheasegh.com"]);
+});
+
+test("reconciliation refuses multiple marker-matching deployments across Pages pages", async () => {
+  const first = deployment("33333333-3333-4333-8333-333333333333");
+  const second = deployment("44444444-4444-4444-8444-444444444444");
+  const unrelated = Array.from({ length: 24 }, (_, i) => deployment(
+    `11111111-1111-4111-8111-${String(i).padStart(12, "0")}`, "main",
+  ));
+  const p = new PagesProvider({
+    accountId: "a".repeat(32), project: "twe-concierge", environment: "staging",
+    branch: "develop", origin: "https://staging.travelwitheasegh.com", token: "synthetic",
+  }, {
+    fetcher: async url => ({
+      ok: true,
+      json: async () => ({ success: true, result: !url.includes("/deployments?")
+        ? { production_branch: "main", name: "twe-concierge", subdomain: "twe-concierge.pages.dev" }
+        : new URL(url).searchParams.get("page") === "1" ? [...unrelated, first] : [second] }),
+    }),
+  });
+  const result = await p.findPublicationDeployment(job, async () => {}, {
+    jobId: job.id, sourceSha: sha, digest: manifestDigest(job.manifest),
+  });
+  assert.equal(result, null);
+});
+
 test("Pages upload waits for terminal success before returning a deployment", async () => {
   const deploymentId = "11111111-1111-4111-8111-111111111111";
   let reads = 0, waited = 0, uploads = 0;
