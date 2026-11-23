@@ -25,16 +25,10 @@ export function deploymentOriginForProject(deployment, project, expectedProject)
 }
 
 export class PagesProvider {
-  // A dedicated staging Pages project serves 'develop' as its production
-  // branch; the legacy shared project still serves it as a preview.
-  // Keep both modes until a separately verified migration is completed.
-  expectedProductionBranch() {
-    return this.settings.environment === "staging" &&
-      this.settings.project === "twe-concierge-staging" ? "develop" : "main";
-  }
+  // Reuse the existing Pages project: main is production, develop is staging preview.
+  expectedProductionBranch() { return "main"; }
   expectedDeploymentEnvironment() {
-    return this.settings.environment === "production" ||
-      this.expectedProductionBranch() === "develop" ? "production" : "preview";
+    return this.settings.environment === "production" ? "production" : "preview";
   }
   assertProject(project) {
     if (project?.name !== this.settings.project ||
@@ -77,7 +71,7 @@ export class PagesProvider {
     // authoritative only for the project's production branch, not a preview alias.
     this.assertProject(project);
     let previous = project.canonical_deployment || project.production_deployment;
-    if (this.settings.environment === "staging" && this.expectedDeploymentEnvironment() === "preview") {
+    if (this.settings.environment === "staging") {
       // The Pages deployments endpoint currently rejects page sizes above 25.
       // The newest accepted develop preview is all recovery needs.
       const deployments = await this.request("/deployments?per_page=25");
