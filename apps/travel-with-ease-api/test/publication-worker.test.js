@@ -67,6 +67,69 @@ test("provider refuses a project with an unexpected production branch before upl
   const provider = new PagesProvider({ accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" }, { fetcher: async () => ({ ok: true, json: async () => ({ success: true, result: { production_branch: "unexpected" } }) }) });
   await assert.rejects(provider.previous(), /branch/);
 });
+test("staging baseline reads the recorded Live deployment rather than the newest develop preview", async () => {
+  const baselineId = "11111111-1111-4111-8111-111111111111";
+  const sha = "a".repeat(40);
+  const calls = [], verified = [];
+  const settings = {
+    accountId: "a".repeat(32), project: "twe-concierge", environment: "staging",
+    branch: "develop", origin: "https://staging.travelwitheasegh.com", token: "synthetic",
+  };
+  const provider = new PagesProvider(settings, { fetcher: async url => {
+    calls.push(url);
+    const detail = url.endsWith("/deployments/" + baselineId);
+    return { ok: true, json: async () => ({ success: true, result: detail ? {
+      id: baselineId, url: "https://verified.twe-concierge.pages.dev",
+      environment: "preview", latest_stage: { status: "success" },
+      deployment_trigger: { metadata: { branch: "develop", commit_hash: sha } },
+    } : { name: "twe-concierge", production_branch: "main",
+      subdomain: "twe-concierge.pages.dev" } }) };
+  } });
+  const baseline = { id: "previous-live", deployment_id: baselineId,
+    source_sha: sha, manifest: { pages: [] } };
+  const marker = { jobId: baseline.id, sourceSha: sha, digest: "expected-digest" };
+  const result = await provider.verifiedStagingBaseline(baseline, async (origin, actual) => {
+    verified.push(origin);
+    assert.deepEqual(actual, marker);
+  }, marker);
+  assert.equal(result.id, baselineId);
+  assert.deepEqual(verified, [
+    "https://verified.twe-concierge.pages.dev",
+    "https://staging.travelwitheasegh.com",
+  ]);
+  assert.equal(calls.length, 2);
+  assert.ok(calls[1].endsWith("/deployments/" + baselineId));
+  assert.equal(calls.some(url => url.includes("/deployments?")), false);
+});
+
+test("staging baseline refuses an invalid deployment, wrong branch, and mismatched public marker", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const src = "a".repeat(40);
+  const baseline = { id: "previous-live", deployment_id: id, source_sha: src };
+  const marker = { jobId: baseline.id, sourceSha: src, digest: "expected-digest" };
+  const settings = { accountId: "a".repeat(32), project: "twe-concierge",
+    environment: "staging", branch: "develop",
+    origin: "https://staging.travelwitheasegh.com", token: "synthetic" };
+  const make = (branch) => new PagesProvider(settings, { fetcher: async url => ({
+    ok: true, json: async () => ({ success: true, result:
+      url.endsWith("/deployments/" + id)
+        ? { id, url: "https://verified.twe-concierge.pages.dev",
+          environment: "preview", latest_stage: { status: "success" },
+          deployment_trigger: { metadata: { branch, commit_hash: src } } }
+        : { name: "twe-concierge", production_branch: "main",
+          subdomain: "twe-concierge.pages.dev" } }),
+  }) });
+  await assert.rejects(make("main").verifiedStagingBaseline(baseline, async () => {
+    throw Error("Verification must not run.");
+  }, marker), /not a verified Pages deployment/);
+  await assert.rejects(make("develop").verifiedStagingBaseline(baseline, async origin => {
+    if (origin === settings.origin) throw Error("Current site serves a different publication.");
+  }, marker), /different publication/);
+  await assert.rejects(make("develop").verifiedStagingBaseline(
+    baseline, async () => {}, { ...marker, sourceSha: "b".repeat(40) },
+  ), /Invalid staging publication baseline/);
+});
+
 test("staging baseline lookup stays within the Pages deployment page-size limit", async () => {
   const requests = [];
   const provider = new PagesProvider(
