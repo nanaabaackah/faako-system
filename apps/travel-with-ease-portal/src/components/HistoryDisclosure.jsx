@@ -9,7 +9,7 @@ export default function HistoryDisclosure({ title, count, children }) {
         <span className="twe-history-disclosure__actions">
           <span className="twe-history-disclosure__count" aria-label={`${count} entries`}>{count}</span>
           <span className="twe-history-disclosure__chevron" aria-hidden="true">
-            <IconsaxIcon name="ArrowDown2" />
+            <IconsaxIcon name="ArrowRight4" />
           </span>
         </span>
       </summary>
