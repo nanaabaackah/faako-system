@@ -1319,6 +1319,13 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           <option value="">Whole collection (all saved records)</option>
           {(page === "packages" ? body.packages : page === "journal" ? body.articles : body.tips).map(record => <option key={record.slug} value={record.slug}>{record.title} only</option>)}
         </SelectField>}
+        {activePublication?.needs_reconciliation && (
+          <InlineNotice
+            tone="warning"
+            title="Publication verification is delayed"
+            message="The last deployment has not been confirmed by the CMS. The publishing worker will check its exact Cloudflare release before allowing another publication. Refresh status after recovery; contact the developer if this persists."
+          />
+        )}
         <div className="editor-actions">
           <Button
             type="button"
@@ -1348,6 +1355,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         </div>
         <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
           renderAction={job=><>
+            {job.needs_reconciliation && <p>Verification delayed — deployment reconciliation required. New publications remain blocked until the exact release is verified.</p>}
             {job.environment&&<p>Environment: {job.environment}</p>}
             {job.trigger_type&&<p>Release trigger: {sentenceCase(job.trigger_type)}</p>}
             {['superadmin','platform_admin'].includes(session.user.role) && job.source_sha && <p>Code revision: <code>{job.source_sha.slice(0,12)}</code></p>}
@@ -1362,7 +1370,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         <div className="publication-progress" role="status" aria-live="polite">
           <p><strong>{activePublication ? sentenceCase(activePublication.status) : jobs[0]?.status ? sentenceCase(jobs[0].status) : "Request accepted"}</strong></p>
           <progress value={activePublication ? ["pending", "building", "deploying", "verifying"].indexOf(activePublication.status) + 1 : jobs[0]?.status === "live" ? 4 : 0} max="4" />
-          <p>{activePublication ? "The publication worker is processing the saved version." : jobs[0]?.status === "live" ? "Deployment verified successfully." : jobs[0]?.status === "failed" ? "Publication failed. Review the history before retrying." : "Waiting for the publication worker."}</p>
+          <p>{activePublication?.needs_reconciliation ? "Verification is delayed. The worker must reconcile the exact deployed release before you can publish again." : activePublication ? "The publication worker is processing the saved version." : jobs[0]?.status === "live" ? "Deployment verified successfully." : jobs[0]?.status === "failed" ? "Publication failed. Review the history before retrying." : "Waiting for the publication worker."}</p>
         </div>
       </ERPModal>
       {preview && !visualPreview && (
