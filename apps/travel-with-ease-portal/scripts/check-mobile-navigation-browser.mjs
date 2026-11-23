@@ -124,10 +124,21 @@ try {
           .getByRole("button", { name: "Discard and continue", exact: true }).click();
         await expect(nav.getByRole("button", { name: "Home", exact: true })).toHaveAttribute("aria-current", "page");
         assert.ok(await page.locator(".portal-shell > .ui-page-shell").evaluate((node) => parseFloat(getComputedStyle(node).paddingBottom) >= 100));
-        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-        const tutorialEnd = await page.getByText("Help & tutorials", { exact: true }).boundingBox();
-        const dock = await nav.boundingBox();
-        assert.ok(tutorialEnd.y + tutorialEnd.height <= dock.y - 8);
+        // Content can finish rendering after navigation changes. Check the
+        // final scrolled layout, not the first frame after scrollTo(), while
+        // retaining the real minimum clearance requirement at every viewport.
+        await expect.poll(async () => {
+          await page.evaluate(() => {
+            const scroller = document.scrollingElement || document.documentElement;
+            scroller.scrollTo({ top: scroller.scrollHeight, behavior: "instant" });
+          });
+          const tutorialEnd = await page.getByText("Help & tutorials", { exact: true }).boundingBox();
+          const dock = await nav.boundingBox();
+          return dock.y - (tutorialEnd.y + tutorialEnd.height);
+        }, {
+          message: "Help & tutorials must clear the fixed mobile navigation dock by at least 8px",
+          timeout: 5000,
+        }).toBeGreaterThanOrEqual(8);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         if (role === "owner") await page.screenshot({ path: path.join(output, `owner-${width}.png`) });
       }
