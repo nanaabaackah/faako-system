@@ -15,7 +15,7 @@ export async function reconcileStalePublication({ publication, provider, verify 
   const digest = manifestDigest(job.manifest);
   const marker = { jobId: job.id, sourceSha: job.source_sha, digest };
   try {
-    const deployed = await provider.findPublicationDeployment(job, verify, marker);
+    const deployed = await provider.findPublicationDeployment(job, verify, marker, logger);
     if (!deployed) throw new Error("No unique verified Pages deployment.");
     await publication.confirmReconciled(job.id, job.build_token, deployed.id, digest);
     logger.info?.({ eventName: "publication.deployment_reconciled", jobId: job.id, deploymentId: deployed.id }, "Previously deployed publication confirmed.");
