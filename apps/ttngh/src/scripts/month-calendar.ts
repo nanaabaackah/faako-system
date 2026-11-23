@@ -24,8 +24,12 @@ class MonthCalendar extends HTMLElement {
       }
     } catch { /* The live schedule remains usable if editorial links are unavailable. */ }
     const today = dateKey(new Date());
-    let year = Number(today.slice(0, 4)), month = Number(today.slice(5, 7)) - 1;
-    let selected = today, events: CalendarEvent[] = [], loaded = false, busy = false;
+    const requested = new URLSearchParams(location.search).get("date");
+    const validRequested = requested && /^20\d{2}-\d{2}-\d{2}$/.test(requested) &&
+      Number.isFinite(Date.parse(requested)) && new Date(requested).toISOString().slice(0, 10) === requested;
+    const openingDate = validRequested ? requested : today;
+    let year = Number(openingDate.slice(0, 4)), month = Number(openingDate.slice(5, 7)) - 1;
+    let selected = openingDate, events: CalendarEvent[] = [], loaded = false, busy = false;
     let desired = { year, month };
     const cache = new Map<string, { data: CalendarData; expires: number }>();
     const client = this.dataset.api ? createBrowserApiClient({ baseUrl: this.dataset.api, credentials: "omit" }) : null;
