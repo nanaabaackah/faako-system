@@ -301,7 +301,8 @@ export class PublicationRepository {
   // reconciliation. Pending/building jobs are never implicitly approved.
   async staleDeployment() {
     const { rows } = await this.pool.query(
-      `SELECT id, status, build_token, source_sha, manifest, created_at
+      `SELECT id, status, build_token, source_sha, manifest, created_at,
+              last_error, recovery_deployment_id
        FROM twe.publication_jobs
        WHERE organisation_id = $1 AND environment = $2
          AND status IN ('deploying', 'verifying')
@@ -310,6 +311,37 @@ export class PublicationRepository {
       [this.organisationId, this.environment],
     );
     return rows[0] || null;
+  }
+  // Reserve at most one archived-artifact replay for an abandoned staging job.
+  // last_error is an existing durable column; no schema change or new service.
+  // Do not touch updated_at: the stale reconciliation lease must remain eligible.
+  async claimStagingReplay(id, token) {
+    if (this.environment !== "staging") return false;
+    const result = await this.pool.query(
+      `UPDATE twe.publication_jobs SET last_error = 'staging_replay_claimed'
+       WHERE id = $1 AND organisation_id = $2 AND environment = $3
+         AND build_token = $4 AND status = 'verifying'
+         AND updated_at <= now() - interval '10 minutes'
+         AND recovery_deployment_id IS NULL
+         AND last_error IS DISTINCT FROM 'staging_replay_claimed'
+       RETURNING id`,
+      [id, this.organisationId, this.environment, token],
+    );
+    return result.rowCount === 1;
+  }
+  async recordStagingReplay(id, token, deploymentId) {
+    if (this.environment !== "staging" ||
+      !/^[a-f0-9-]{36}$/i.test(deploymentId || "")) throw new Error("Invalid staging replay.");
+    const result = await this.pool.query(
+      `UPDATE twe.publication_jobs SET recovery_deployment_id = $5
+       WHERE id = $1 AND organisation_id = $2 AND environment = $3
+         AND build_token = $4 AND status = 'verifying'
+         AND last_error = 'staging_replay_claimed'
+         AND recovery_deployment_id IS NULL
+       RETURNING id`,
+      [id, this.organisationId, this.environment, token, deploymentId],
+    );
+    if (result.rowCount !== 1) throw new Error("Staging replay lease is no longer active.");
   }
   async confirmReconciled(id, token, deploymentId, digest) {
     return this.confirm(id, token, deploymentId, digest, { reconciliation: true });
@@ -339,7 +371,7 @@ export class PublicationRepository {
           [page.revisionId, this.organisationId, page.id, page.body],
         );
       await client.query(
-        "UPDATE twe.publication_jobs SET status = 'live', deployment_id = $1, completed_at = now() WHERE id = $2 AND organisation_id = $3",
+        "UPDATE twe.publication_jobs SET status = 'live', deployment_id = $1, completed_at = now(), last_error = NULL WHERE id = $2 AND organisation_id = $3",
         [deploymentId, id, this.organisationId],
       );
       await appendAudit(client, {
