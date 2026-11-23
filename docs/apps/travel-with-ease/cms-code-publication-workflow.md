@@ -1,5 +1,35 @@
 # TWE code and CMS publication workflow
 
+### Archived-artifact bootstrap helper (isolated, not a cutover)
+
+The existing staging worker's private R2 archive is the source of the
+last **confirmed** Live artifact. Do not build from draft or upload the
+Cloudflare placeholder as the baseline.
+
+Run from the existing staging worker environment with its existing
+`DATABASE_URL`, `TWE_R2_*`, `TWE_PAGES_*` variables and the old
+Pages project still in `TWE_PAGES_PROJECT`:
+
+```sh
+pnpm --filter @faako/travel-with-ease-api publication:staging-bootstrap inspect
+pnpm --filter @faako/travel-with-ease-api publication:staging-bootstrap deploy --confirm-isolated-bootstrap
+```
+
+The first command is read-only. The second requires its explicit flag,
+restores and verifies the archived artifact, checks the old immutable
+Pages deployment and uploads the artifact to `twe-concierge-staging`
+on `develop` only if no matching deployment is already verified. It
+checks both the immutable deployment and the new project's production
+alias `twe-concierge-staging.pages.dev`. Neither command changes
+CMS state, Railway settings, DNS, or production.
+
+**This is not the final cutover.** An unresolved `verifying` job must
+be reconciled separately; old Pages deployment IDs cannot be treated as
+deployment IDs in the new project. The current publication worker will
+reject that old baseline on the new Pages project until an authoritative
+new-project baseline mapping is safely persisted. Do not switch the
+worker variable or DNS before those actions are reviewed and verified.
+
 ## Dedicated staging Pages project migration (not yet cut over)
 
 The Cloudflare Direct Upload project `twe-concierge-staging` is separate
