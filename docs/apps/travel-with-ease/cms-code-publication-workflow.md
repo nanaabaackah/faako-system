@@ -71,8 +71,12 @@ minutes, the existing read-only reconciliation evaluates a unique provider
 deployment and both markers. Do not manually mark the job Live or publish
 another release while verification is unresolved.
 
-If the marker never converges, check that staging's DNS CNAME targets the
-**develop branch alias** and that competing automatic Git-triggered Cloudflare
+If the marker never converges, check that staging's DNS CNAME targets
+`develop.tee-concierge.pages.dev` (the project subdomain observed in
+Cloudflare), and that the DNS record is **proxied through Cloudflare**.
+Cloudflare branch custom domains require a proxied record; a DNS-only
+record can route to the project's production deployment instead.
+Also confirm that competing automatic Git-triggered Cloudflare
 Pages preview deployments are not overwriting worker-controlled content.
 Railway builds the reviewed code and the publication worker deploys its
 combined CMS artifact; the Cloudflare Git integration must not independently
