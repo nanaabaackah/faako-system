@@ -5,19 +5,18 @@ import { publishedPage } from "./published.js";
 export function siteCopy(page) {
   const values = publishedPage(page)?.editorialCopy;
   if (page === "footer") {
-    // Older published snapshots kept footer fields under site-appearance.
-    // A dedicated footer revision takes precedence without losing prior edits.
+    // Previously published footer fields lived under site-appearance. Keep
+    // those values until a dedicated footer revision explicitly overrides them.
     const legacy = publishedPage("site-appearance")?.editorialCopy;
     return editorialValues("footer", { ...legacy, ...values });
   }
   if (page === "site-appearance") {
-    // Shared navigation and enquiry components still read site-appearance.
-    // Retain their legacy values and expose footer defaults/new social links.
+    // Navigation stays with site-appearance; shared social/enquiry links
+    // follow the dedicated footer revision when one has been published.
     const footer = publishedPage("footer")?.editorialCopy;
-    const combined = { ...footer, ...values };
     return {
-      ...editorialValues("footer", combined),
-      ...editorialValues("site-appearance", combined),
+      ...editorialValues("footer", { ...values, ...footer }),
+      ...editorialValues("site-appearance", values),
     };
   }
   return editorialValues(page, values);
