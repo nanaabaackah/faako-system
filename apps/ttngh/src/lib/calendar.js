@@ -33,3 +33,26 @@ export function eventTime(event) {
   }
   return date.format(start) + ", " + time.format(start) + " – " + (dateKey(start) !== dateKey(end) ? date.format(end) + ", " : "") + time.format(end) + " (Ghana time)";
 }
+
+/**
+ * Calendar is the live schedule; Sanity supplies richer editorial event pages.
+ * Suppress only an occurrence linked by exact UID AND Ghana calendar date.
+ * A repeating Google event can have another occurrence under the same UID.
+ */
+export function upcomingCalendarEvents(events, editorialEvents = [], now = new Date(), limit = 3) {
+  const linked = new Set(editorialEvents
+    .filter(item => item && typeof item.uid === "string" && typeof item.start === "string" && Number.isFinite(Date.parse(item.start)))
+    .map(item => item.uid + "|" + dateKey(new Date(item.start))));
+  const seen = new Set();
+  return events
+    .filter(event => Date.parse(event.end) > +now)
+    .sort((a, b) => Date.parse(a.start) - Date.parse(b.start) || a.id.localeCompare(b.id))
+    .filter(event => {
+      const occurrence = event.uid + "|" + dateKey(new Date(event.start));
+      const exact = event.uid + "|" + event.start;
+      if (linked.has(occurrence) || seen.has(exact)) return false;
+      seen.add(exact);
+      return true;
+    })
+    .slice(0, limit);
+}
