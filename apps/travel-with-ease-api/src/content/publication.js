@@ -8,6 +8,7 @@ import {
   pageNames,
 } from "./schema.js";
 import { validateEnvironment } from "../config.js";
+import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json" with { type: "json" };
 
 export const manifestDigest = (manifest) => {
   // PostgreSQL jsonb may reorder object keys. Canonicalize recursively.
@@ -38,6 +39,8 @@ export class PublicationRepository {
     const { rows } = await this.pool.query(
       `SELECT id, status, attempts, source_sha, deployment_id, created_at, completed_at, last_error,
       environment, requested_by, recovery_deployment_id, manifest->'target' AS target,
+      COALESCE(manifest->>'triggerType', 'cms_publication') AS trigger_type,
+      COALESCE(manifest->>'schemaVersion', '1')::int AS schema_version,
       (status = 'pending' AND created_at <= now() - interval '30 minutes') AS can_cancel
       FROM twe.publication_jobs WHERE organisation_id = $1 AND environment = $2 ORDER BY created_at DESC LIMIT 50`,
       [this.organisationId, this.environment],
@@ -133,7 +136,7 @@ export class PublicationRepository {
         }
         pages.push({ id: item.id, slug: item.slug, revisionId, body });
       }
-      const manifest = { version: 1, pages, target: { page, version: expectedVersion, recordSlug, unpublish } };
+      const manifest = { version: 1, schemaVersion: 2, triggerType: "cms_publication", baseline: approvedRelease.pages, pages, target: { page, version: expectedVersion, recordSlug, unpublish } };
       const id = randomUUID();
       await client.query(
         "INSERT INTO twe.publication_jobs (id, organisation_id, environment, manifest, source_sha, requested_by) VALUES ($1, $2, $3, $4, $5, $6)",
@@ -149,6 +152,55 @@ export class PublicationRepository {
         requestId,
       });
       return { id, status: "pending" };
+    });
+  }
+  async coordinateSource() {
+    if (!/^[a-f0-9]{40}$/.test(this.sourceSha || "")) throw new Error("A reviewed source revision is required.");
+    return transaction(this.pool, async (client) => {
+      await this.lockOrganisation(client);
+      const active = await client.query(
+        `SELECT * FROM twe.publication_jobs WHERE organisation_id=$1 AND environment=$2
+         AND status IN ('pending','building','deploying','verifying') ORDER BY created_at LIMIT 1 FOR UPDATE`,
+        [this.organisationId, this.environment],
+      );
+      const current = active.rows[0];
+      if (current) {
+        if (current.source_sha === this.sourceSha || current.status !== "pending") return { status: "unchanged", id: current.id };
+        const replacementId = randomUUID();
+        const manifest = { ...current.manifest, schemaVersion: 2, baseline: current.manifest.baseline || approvedRelease.pages, triggerType: "coordinated_release", supersedes: current.id };
+        await client.query(
+          "UPDATE twe.publication_jobs SET status='failed', last_error='superseded_by_code_release', updated_at=now() WHERE id=$1 AND status='pending'",
+          [current.id],
+        );
+        await client.query(
+          `INSERT INTO twe.publication_jobs (id, organisation_id, environment, manifest, source_sha, requested_by)
+           VALUES ($1,$2,$3,$4,$5,$6)`,
+          [replacementId, this.organisationId, this.environment, manifest, this.sourceSha, current.requested_by],
+        );
+        await appendAudit(client, { organisationId: this.organisationId, action: "content.release_coordinated", recordId: replacementId, requestId: replacementId });
+        return { status: "queued", id: replacementId };
+      }
+      const live = await client.query(
+        `SELECT id, manifest, source_sha FROM twe.publication_jobs WHERE organisation_id=$1 AND environment=$2
+         AND status='live' ORDER BY completed_at DESC LIMIT 1`,
+        [this.organisationId, this.environment],
+      );
+      const previous = live.rows[0];
+      if (!previous || previous.source_sha === this.sourceSha) return { status: "unchanged", id: previous?.id };
+      const duplicate = await client.query(
+        `SELECT id FROM twe.publication_jobs WHERE organisation_id=$1 AND environment=$2 AND source_sha=$3
+         AND manifest->>'triggerType'='code_release' ORDER BY created_at DESC LIMIT 1`,
+        [this.organisationId, this.environment, this.sourceSha],
+      );
+      if (duplicate.rowCount) return { status: "unchanged", id: duplicate.rows[0].id };
+      const id = randomUUID();
+      const manifest = { ...previous.manifest, schemaVersion: 2, baseline: previous.manifest.baseline || approvedRelease.pages, triggerType: "code_release", target: { page: "website", version: previous.id, unpublish: false } };
+      await client.query(
+        "INSERT INTO twe.publication_jobs (id, organisation_id, environment, manifest, source_sha) VALUES ($1,$2,$3,$4,$5)",
+        [id, this.organisationId, this.environment, manifest, this.sourceSha],
+      );
+      await appendAudit(client, { organisationId: this.organisationId, action: "content.code_release_requested", recordId: id, requestId: id });
+      return { status: "queued", id };
     });
   }
   async claim() {

@@ -987,6 +987,18 @@ select:focus-visible {
   font-weight: 600;
   font-size: 14px;
 }
+.portal-shell .content-editor fieldset > label,
+.portal-shell .content-editor fieldset > .ui-field,
+.portal-shell .content-editor fieldset > .ui-dropdown-field {
+  margin-block: 0;
+}
+.portal-shell .content-editor fieldset > .editor-actions {
+  margin-top: 6px;
+}
+.portal-shell .content-editor fieldset > h3 {
+  margin: 8px 0 0;
+  font-size: 16px;
+}
 .website-workspace .workspace-panel li,
 .system-workspace .workspace-panel li {
   padding-block: 12px;
@@ -1102,6 +1114,14 @@ select:focus-visible {
   }
   .system-health dd {
     margin-bottom: 12px;
+  }
+  .website-workspace .editor-actions > .ui-button,
+  .website-workspace .editor-actions > .twe-action-button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .cms-editor-view-switch > * {
+    flex: 1 1 0;
   }
 }
 .portal-shell .ui-field__control,

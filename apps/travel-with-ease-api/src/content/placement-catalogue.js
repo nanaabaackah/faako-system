@@ -7,11 +7,13 @@ export const sharedMockupSlots = [
   "camera",
 ];
 export function placementSlots(page) {
+  if (page === "footer")
+    return [{ id: "footer-background", label: "Footer background image", shape: "Tall portrait on mobile; wide landscape on desktop", minWidth: 1920 }];
   if (page === "site-appearance")
     return [
       {
         id: "footer-background",
-        label: "Enquiry and footer background",
+        label: "Legacy enquiry and footer background",
         shape: "Tall portrait on mobile; one continuous background",
         minWidth: 1920,
       },

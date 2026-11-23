@@ -11,6 +11,7 @@ export async function publishOne({ publication, media, provider, archive, settin
   // Validate the reviewed source before claiming a job; never build newer code
   // just because it happens to be deployed on Railway.
   const sha = await assertPublicationSource(settings.sourceSha, { run });
+  await publication.coordinateSource?.();
   const job = await publication.claim();
   if (!job) return { status: "idle" };
   let directory, previous, recovery, recoveryDirectory, deploymentStarted = false, deployed, confirmed = false, confirmationStarted = false;

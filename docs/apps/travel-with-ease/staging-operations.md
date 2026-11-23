@@ -1,5 +1,9 @@
 # Prompt 03 staging setup and operating gate
 
+The current unified code/CMS release and client Footer procedures are documented
+in [CMS code publication workflow](./cms-code-publication-workflow.md) and
+[Editing the footer](./editing-the-footer.md).
+
 > Implementation update, 2026-10-25: [hosted startup correction](./hosted-startup-2026-10-25.md)
 > supersedes the production API blanket block and startup release-SHA requirement
 > below. Both hosted API environments require verified persistence and Access;

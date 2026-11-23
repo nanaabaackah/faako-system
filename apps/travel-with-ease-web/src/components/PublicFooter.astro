@@ -10,20 +10,24 @@ const { cinematic = false } = Astro.props;
 const visible = (slug: string) =>
   Boolean(publishedPage(slug));
 const contact = publishedPage("contact");
-const copy = siteCopy("site-appearance");
-const branding = siteBranding(publishedPage("site-appearance"));
+const footer = publishedPage("footer");
+type FooterLink = { id: string; group: "explore" | "social" | "contact" | "legal"; label: string; href: string; visible: boolean; order: number };
+const footerLinks = (footer?.footerLinks || []) as FooterLink[];
+const copy = footer ? siteCopy("footer") : siteCopy("site-appearance");
+const branding = siteBranding(footer || publishedPage("site-appearance"));
 const currencyNoticePublished = publishedPage("terms")?.entries?.some(
   (entry: { heading: string }) => entry.heading === displayCurrencyPolicyHeading,
 );
 const closingPhoto = photography.footer;
+const footerPhoto = footer?.imagePlacements?.["footer-background"]?.image || closingPhoto;
 const email =
-  contact?.contactEmail &&
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.contactEmail)
-    ? contact.contactEmail
+  (footer?.contactEmail || contact?.contactEmail) &&
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(footer?.contactEmail || contact.contactEmail)
+    ? (footer?.contactEmail || contact.contactEmail)
     : "info@travelwitheasegh.com";
 const phone =
-  contact?.contactPhone && /^\+?[\d ()-]{7,30}$/.test(contact.contactPhone)
-    ? contact.contactPhone
+  (footer?.contactPhone || contact?.contactPhone) && /^\+?[\d ()-]{7,30}$/.test(footer?.contactPhone || contact.contactPhone)
+    ? (footer?.contactPhone || contact.contactPhone)
     : "+233200209170";
 ---
 
@@ -38,17 +42,17 @@ const phone =
     !cinematic && (
       <img
         class="footer-scene-image"
-        src={closingPhoto.src}
-        srcset={(closingPhoto.sources || [])
+        src={footerPhoto.src}
+        srcset={(footerPhoto.sources || [])
           .map(
             (source: { src: string; width: number }) =>
               `${source.src} ${source.width}w`,
           )
           .join(", ")}
         sizes="100vw"
-        alt=""
-        width={closingPhoto.width}
-        height={closingPhoto.height}
+        alt={footerPhoto.alt || ""}
+        width={footerPhoto.width}
+        height={footerPhoto.height}
         loading="lazy"
         decoding="async"
       />
@@ -64,12 +68,14 @@ const phone =
           src={branding.footerLogo}
           width="640"
           height="248"
-          alt="Travel With Ease"
+          alt={copy.logoAlt || "Travel With Ease"}
           loading="lazy"
         /></a
       >
+      {footer?.body && <p>{footer.body}</p>}
     </div>
     <div class="footer-links">
+      {footerLinks.length ? ["explore", "social", "contact"].map(group => <nav aria-label={group === "social" ? "Social media" : group}><h2>{group === "explore" ? copy.footerExplore : group === "social" ? copy.footerSocial : copy.footerContact}</h2>{footerLinks.filter(link => link.visible && link.group === group).sort((a,b)=>a.order-b.order).map(link => <a href={link.href} rel={link.href.startsWith("http") ? "noreferrer" : undefined}>{link.label}</a>)}</nav>) : <>
       <nav aria-label="Explore">
         <h2>{copy.footerExplore}</h2>{
           (visible("packages") || visible("destinations")) && (
@@ -95,6 +101,7 @@ const phone =
         >
         <a href={copy.whatsappUrl} rel="noreferrer">WhatsApp</a>
       </nav>
+      </>}
       <nav aria-label="Help and contact">
         <h2>{copy.footerContact}</h2>{
           visible("faqs") && <a href="/faqs">{copy.footerFaqs}</a>
@@ -115,16 +122,17 @@ const phone =
       {
         (
           <>
-            {visible("privacy") && <a href="/privacy">{copy.footerPrivacy}</a>}
-            {visible("terms") && <a href="/terms">{copy.footerTerms}</a>}
-            {visible("cookies") && <a href="/cookies">{copy.footerCookies}</a>}
+            {footerLinks.some(link => link.visible && link.group === "legal")
+              ? footerLinks.filter(link => link.visible && link.group === "legal").sort((a,b)=>a.order-b.order).map(link => <a href={link.href} rel={link.href.startsWith("http") ? "noreferrer" : undefined}>{link.label}</a>)
+              : <>{visible("privacy") && <a href="/privacy">{copy.footerPrivacy}</a>}{visible("terms") && <a href="/terms">{copy.footerTerms}</a>}{visible("cookies") && <a href="/cookies">{copy.footerCookies}</a>}</>}
           </>
         )
       }<button type="button" data-cookie-settings
-        >Cookie settings</button
+        >{copy.cookieSettingsLabel || "Cookie settings"}</button
       >{currencyNoticePublished && <CurrencySwitcher client:load />}<a href="#top">{copy.footerTop}</a>
     </nav>
   </div>
+  {footer && <p class="footer-copyright">{copy.copyrightText}</p>}
   <SharedFaakoFooter />
   <p class="footer-signature" aria-label="Travel With Ease">TRAVEL WITH EASE</p>
 </footer>

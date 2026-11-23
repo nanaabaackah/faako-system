@@ -18,7 +18,11 @@ export async function preparePublication(job, media, directory, { approvedBaseli
   // Missing CMS rows preserve the version-controlled, approved release pinned
   // by the worker's source SHA. Explicit null rows still unpublish a section.
   const approvedPages=JSON.parse(await readFile(new URL("../../../travel-with-ease-web/content/approved-public-release.json", import.meta.url), "utf8")).pages;
-  const pages = approvedBaseline ? structuredClone(approvedPages) : {};
+  // Version 2 manifests are complete environment snapshots. They must fail
+  // closed instead of silently restoring repository defaults.
+  const baselinePages = (job.manifest.schemaVersion || 1) >= 2 ? job.manifest.baseline : approvedPages;
+  if ((job.manifest.schemaVersion || 1) >= 2 && (!baselinePages || typeof baselinePages !== "object")) throw new Error("Publication baseline is missing.");
+  const pages = approvedBaseline ? structuredClone(baselinePages) : {};
   const imageFor = async (imageId,fallback) => {
     let image = fallback?.image||null;
     let socialImage = fallback?.socialImage||null;
@@ -78,17 +82,17 @@ export async function preparePublication(job, media, directory, { approvedBaseli
     const placementFor=async placement=>placement?{...placement,image:(await imageFor(placement.imageId)).image,mobileImage:(await imageFor(placement.mobileImageId)).image}:undefined;
     const imagePlacements=Object.fromEntries(await Promise.all(Object.entries(body.imagePlacements).map(async([key,value])=>[key,await placementFor(value)])));
     const entries=await Promise.all(body.entries.map(async entry=>({...entry,imagePlacement:await placementFor(entry.imagePlacement)})));
-    const { image, socialImage } = await imageFor(body.imageId,approvedPages[item.slug]);
+    const { image, socialImage } = await imageFor(body.imageId,baselinePages[item.slug]);
     const tips = await Promise.all(
       body.tips.map(async (tip) => ({
         ...tip,
-        ...(await imageFor(tip.imagePlacement?.imageId||tip.imageId,approvedPages[item.slug]?.tips?.find(record=>record.slug===tip.slug))),
+        ...(await imageFor(tip.imagePlacement?.imageId||tip.imageId,baselinePages[item.slug]?.tips?.find(record=>record.slug===tip.slug))),
         imagePlacement:await placementFor(tip.imagePlacement),
       })),
     );
     const records = async (items,key) =>
       Promise.all(items.map(async (record) => {
-        const approved = approvedPages[item.slug]?.[key]?.find(candidate =>
+        const approved = baselinePages[item.slug]?.[key]?.find(candidate =>
           record.id ? candidate.id === record.id : candidate.slug === record.slug);
         const managedGallery = await Promise.all(record.galleryImageIds.map(async id => (await imageFor(id)).image));
         return {

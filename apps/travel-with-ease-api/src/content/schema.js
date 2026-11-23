@@ -19,6 +19,7 @@ export const pageNames = [
   "privacy",
   "terms",
   "cookies",
+  "footer",
   'site-appearance',
 ];
 export const pageSchema = z.enum(pageNames);
@@ -218,6 +219,14 @@ export const contentBodySchema = z
     contactPhone: text(40)
       .regex(/^[+0-9 ()-]*$/)
       .default(""),
+    footerLinks: z.array(z.object({
+      id: z.string().uuid(),
+      group: z.enum(["explore", "social", "contact", "legal"]),
+      label: text(120).min(1),
+      href: text(500).refine(value => value.startsWith("/") || /^https:\/\//.test(value) || /^(mailto:|tel:)/.test(value), "Enter a supported internal or secure external link."),
+      visible: z.boolean().default(true),
+      order: z.number().int().min(0).max(999).default(0),
+    }).strict()).max(40).default([]).refine(items => new Set(items.map(item => item.id)).size === items.length, "Footer link IDs must be unique."),
     articles: z
       .array(articleSchema)
       .max(20)
@@ -282,13 +291,17 @@ export const contentBodySchema = z
 export function contentForPage(page, body) {
   pageSchema.parse(page);
   const value = contentBodySchema.parse(body);
-  const editorialKeys = new Set((editorialFields[page] || []).map(([key]) => key));
+  const editorialKeys = new Set([
+    ...(editorialFields[page] || []).map(([key]) => key),
+    ...(page === "site-appearance" ? (editorialFields.footer || []).map(([key]) => key) : []),
+  ]);
   for (const [key, copy] of Object.entries(value.editorialCopy)) {
     if (!editorialKeys.has(key)) throw new ContentError(400, "validation_error", "Choose a supported editorial field for this section.");
     const socialPatterns = { instagramUrl: /^https:\/\/www\.instagram\.com\/[a-zA-Z0-9_.]+\/?$/, tiktokUrl: /^https:\/\/www\.tiktok\.com\/@[a-zA-Z0-9_.]+\/?$/, whatsappUrl: /^https:\/\/wa\.me\/[1-9][0-9]{6,14}$/ };
     if (Object.hasOwn(socialPatterns, key) && !socialPatterns[key].test(copy)) throw new ContentError(400, "validation_error", "Enter a valid Instagram, TikTok or WhatsApp profile link.");
   }
   if (page !== "home" && value.reviews !== undefined) throw new ContentError(400, "validation_error", "Edit traveller reviews in Home.");
+  if (page !== "footer" && value.footerLinks.length) throw new ContentError(400, "validation_error", "Edit footer links in Footer.");
   const allowed=new Set(placementSlots(page).map(slot=>slot.id));
   for(const [key,placement] of Object.entries(value.imagePlacements)) {
     if(!allowed.has(key)||(!placementSlots(page).find(slot=>slot.id===key)?.split&&placement.layout!=='default')) throw new ContentError(400,'validation_error','Choose a supported image placement and layout for this section.');
