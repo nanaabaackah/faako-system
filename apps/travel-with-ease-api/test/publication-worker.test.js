@@ -293,6 +293,75 @@ test("website build failure is reported as its safe stage without starting anoth
   assert.deepEqual(f.events, ["failed"]);
 });
 
+test("staging waits for the exact public marker to propagate without redeploying", async () => {
+  const f = fixture(); const reads = [], waits = [];
+  f.options.settings.environment = "staging";
+  f.options.settings.origin = "https://staging.travelwitheasegh.com";
+  f.options.publication.claim = async () => ({
+    id: "pending-release", source_sha: sha, environment: "staging",
+    build_token: "lease", manifest: { pages: [] },
+  });
+  f.options.publication.lastLive = async () => ({
+    id: "old-live", source_sha: sha, deployment_id: "previous", manifest: { pages: [] },
+  });
+  f.options.archive = {
+    restore: async () => f.events.push("archive-restored"),
+    retain: async () => f.events.push("archive-retained"),
+  };
+  f.options.originAttempts = 3;
+  f.options.originWait = async ms => waits.push(ms);
+  f.options.verify = async origin => {
+    reads.push(origin);
+    if (origin === f.options.settings.origin &&
+      reads.filter(item => item === origin).length < 3)
+      throw new Error("Custom domain is still showing the earlier artifact.");
+  };
+  const result = await publishOne(f.options);
+  assert.equal(result.status, "live");
+  assert.equal(f.events.filter(event => event === "deployed").length, 1);
+  assert.equal(f.events.includes("confirmed"), true);
+  assert.deepEqual(waits, [5000, 5000]);
+  assert.equal(reads.filter(origin => origin === f.options.settings.origin).length, 3);
+});
+
+test("unpropagated staging marker preserves verifying job without rolling back or uploading again", async () => {
+  const f = fixture(), events = [];
+  f.options.settings.environment = "staging";
+  f.options.settings.origin = "https://staging.travelwitheasegh.com";
+  f.options.publication.claim = async () => ({
+    id: "unconfirmed-release", source_sha: sha, environment: "staging",
+    build_token: "lease", manifest: { pages: [] },
+  });
+  f.options.publication.lastLive = async () => ({
+    id: "old-live", source_sha: sha, deployment_id: "previous", manifest: { pages: [] },
+  });
+  f.options.archive = { restore: async () => {}, retain: async () => {} };
+  f.options.originAttempts = 3;
+  f.options.originWait = async () => {};
+  f.options.logger = {
+    warn: details => events.push(details),
+    error: details => events.push(details),
+  };
+  let requests = 0;
+  f.options.verify = async origin => {
+    if (origin === f.options.settings.origin) {
+      requests++;
+      throw new Error("DO_NOT_LOG_RAW_ORIGIN_ERROR");
+    }
+  };
+  const result = await publishOne(f.options);
+  assert.equal(result.status, "verifying");
+  assert.equal(requests, 3);
+  assert.equal(f.events.filter(event => event === "deployed").length, 1);
+  assert.equal(f.events.includes("rolled-back"), false);
+  assert.equal(f.events.includes("failed"), false);
+  assert.deepEqual(events.map(event => event.eventName), [
+    "publication.release_stage_failed", "publication.current_origin_pending",
+  ]);
+  assert.equal(events[0].stage, "current_origin_marker");
+  assert.equal(JSON.stringify(events).includes("DO_NOT_LOG_RAW_ORIGIN_ERROR"), false);
+});
+
 test("staging without an accepted archived baseline cannot replace the current website", async () => {
   const f = fixture(); f.options.settings.environment = "staging";
   f.options.publication.claim = async () => ({ id: "job", source_sha: sha, environment: "staging", build_token: "lease", manifest: { pages: [] } });
