@@ -1,3 +1,5 @@
+import { writeFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PagesProvider } from "../src/content/pages-provider.js";
@@ -312,4 +314,143 @@ test("continuous worker retries unverified recovery without starting a replaceme
   assert.deepEqual(calls, ["deploying", "verifying", "recovery_required", "recovery_required"]);
   assert.deepEqual(delays, [1000, 1000, 60000]);
   assert.deepEqual(result, { status: "stopped" });
+});
+
+test("one-shot staging replay restores the exact archived CMS artifact and confirms only after origin verification", async () => {
+  const stalled = { ...job, status: "verifying", recovery_deployment_id: null };
+  const marker = { jobId: stalled.id, sourceSha: sha, digest: manifestDigest(stalled.manifest) };
+  const baseline = { id: "bbbbbbbb-1111-4111-8111-111111111111",
+    source_sha: "b".repeat(40), deployment_id: "cccccccc-1111-4111-8111-111111111111",
+    manifest: { version: 1, pages: [] } };
+  const oldMarker = { jobId: baseline.id, sourceSha: baseline.source_sha,
+    digest: manifestDigest(baseline.manifest) };
+  const calls = [], verified = [];
+  const result = await reconcileStalePublication({
+    publication: {
+      staleDeployment: async () => stalled,
+      lastLive: async () => baseline,
+      claimStagingReplay: async (id, token) => {
+        calls.push("claim"); assert.equal(id, stalled.id); assert.equal(token, stalled.build_token);
+        return true;
+      },
+      recordStagingReplay: async (id, token, deployedId) => {
+        assert.equal(id, stalled.id); assert.equal(deployedId, "dddddddd-1111-4111-8111-111111111111");
+        calls.push("record");
+      },
+      confirmReconciled: async (id, token, deployedId, digest) => {
+        assert.equal(id, stalled.id); assert.equal(deployedId, "dddddddd-1111-4111-8111-111111111111");
+        assert.equal(digest, marker.digest); calls.push("confirm");
+      },
+      confirmed: async () => null,
+    },
+    provider: {
+      findPublicationDeployment: async (_job, _verify, _marker, _logger, options) => {
+        assert.equal(options.allowCurrentMismatch, true);
+        return { id: "original", currentMatches: false };
+      },
+      verifiedStagingBaseline: async (row, _verify, proof) => {
+        assert.equal(row, baseline); assert.deepEqual(proof, oldMarker); calls.push("baseline");
+      },
+      deploy: async (_dir, args) => {
+        assert.equal(args.source_sha, stalled.source_sha);
+        calls.push("upload");
+        return { id: "dddddddd-1111-4111-8111-111111111111",
+          origin: "https://fresh.tee-concierge.pages.dev" };
+      },
+    },
+    archive: {
+      restore: async (_id, directory) => {
+        calls.push("restore");
+        await writeFile(path.join(directory, "twe-publication.json"), JSON.stringify(marker));
+      },
+    },
+    settings: { environment: "staging", origin: "https://staging.travelwitheasegh.com" },
+    verify: async (origin, proof) => {
+      verified.push(origin);
+      assert.deepEqual(proof, origin === "https://fresh.tee-concierge.pages.dev" ? marker :
+        calls.includes("upload") ? marker : oldMarker);
+    },
+    originAttempts: 1,
+  });
+  assert.equal(result.status, "live");
+  assert.deepEqual(calls, ["baseline", "restore", "claim", "upload", "record", "confirm"]);
+  assert.deepEqual(verified, [
+    "https://staging.travelwitheasegh.com",
+    "https://fresh.tee-concierge.pages.dev",
+    "https://staging.travelwitheasegh.com",
+  ]);
+});
+
+test("stale staging replay never reuploads after durable claim or for an unverified archive", async () => {
+  const stalled = { ...job, status: "verifying" };
+  const marker = { jobId: job.id, sourceSha: sha, digest: manifestDigest(job.manifest) };
+  const make = (claim, archived = marker) => {
+    let uploads = 0, claims = 0;
+    const options = {
+      publication: {
+        staleDeployment: async () => stalled,
+        lastLive: async () => ({ id: "prior", source_sha: sha, manifest: { pages: [] } }),
+        claimStagingReplay: async () => { claims++; return claim; },
+        confirmed: async () => null,
+      },
+      provider: {
+        findPublicationDeployment: async () => ({ id: "original", currentMatches: false }),
+        verifiedStagingBaseline: async () => {},
+        deploy: async () => { uploads++; throw new Error("Upload must not be reached."); },
+      },
+      archive: {
+        restore: async (_id, directory) => {
+          await writeFile(path.join(directory, "twe-publication.json"), JSON.stringify(archived));
+        },
+      },
+      settings: { environment: "staging", origin: "https://staging.travelwitheasegh.com" },
+      verify: async () => {},
+    };
+    return { options, counts: () => ({ uploads, claims }) };
+  };
+  const alreadyClaimed = make(false);
+  assert.equal((await reconcileStalePublication(alreadyClaimed.options)).status, "recovery_required");
+  assert.deepEqual(alreadyClaimed.counts(), { uploads: 0, claims: 1 });
+  const badArchive = make(true, { ...marker, digest: "not-the-archived-release" });
+  assert.equal((await reconcileStalePublication(badArchive.options)).status, "recovery_required");
+  assert.deepEqual(badArchive.counts(), { uploads: 0, claims: 0 });
+});
+
+test("staging reconciliation verifies a recorded replay without another Pages scan or upload", async () => {
+  const replay = { ...job, status: "verifying",
+    recovery_deployment_id: "aaaaaaaa-1111-4111-8111-111111111111" };
+  let confirmed = 0;
+  const result = await reconcileStalePublication({
+    publication: {
+      staleDeployment: async () => replay,
+      confirmReconciled: async (_id, _lease, id) => {
+        assert.equal(id, replay.recovery_deployment_id); confirmed++;
+      },
+      confirmed: async () => null,
+    },
+    provider: {
+      findPublicationDeployment: async () => { throw Error("Must not scan Pages list."); },
+      verifyRecordedReplay: async (_job, _verify, marker) => {
+        assert.equal(marker.jobId, replay.id);
+        return { id: replay.recovery_deployment_id };
+      },
+    },
+  });
+  assert.equal(result.status, "live");
+  assert.equal(confirmed, 1);
+});
+
+test("staging replay claim uses existing database lease and permits only one upload", async () => {
+  const queries = [];
+  const repository = new PublicationRepository({
+    query: async (sql, params) => {
+      queries.push({ sql, params }); return { rowCount: queries.length === 1 ? 1 : 0 };
+    },
+  }, { organisationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    environment: "staging", sourceSha: sha });
+  assert.equal(await repository.claimStagingReplay(job.id, job.build_token), true);
+  assert.equal(await repository.claimStagingReplay(job.id, job.build_token), false);
+  assert.match(queries[0].sql, /status = 'verifying'/);
+  assert.match(queries[0].sql, /last_error IS DISTINCT FROM 'staging_replay_claimed'/);
+  assert.doesNotMatch(queries[0].sql, /updated_at\s*=/);
 });
