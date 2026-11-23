@@ -49,20 +49,29 @@ export async function publishOne({ publication, media, provider, archive, settin
   let stage = "source_identity";
   try {
     if (job.source_sha !== sha || job.environment !== settings.environment) throw new Error("Queued release identity does not match this worker.");
-    stage = "previous_deployment";
-    previous = await provider.previous();
-    stage = "temporary_directory";
-    directory = await mkdtemp(path.join(tmpdir(), "twe-publication-worker-"));
     if (settings.environment === "staging") {
       stage = "baseline_validation";
       recovery = await publication.lastLive();
-      if (!archive || !recovery || recovery.deployment_id !== previous.id) {
-        const reason = !archive ? "archive_unavailable"
-          : !recovery ? "no_live_baseline" : "baseline_deployment_mismatch";
+      if (!archive || !recovery) {
+        const reason = !archive ? "archive_unavailable" : "no_live_baseline";
         logger.warn?.({ eventName: "publication.baseline_rejected", jobId: job.id, reason },
-          "Staging baseline does not match the archived live publication.");
-        throw new Error("Staging requires an accepted, archived baseline matching its current preview deployment.");
+          "Staging requires a retained, confirmed CMS baseline.");
+        throw new Error("Staging requires a retained, confirmed CMS baseline.");
       }
+      // Git-triggered develop previews may be newer than the last Live CMS
+      // publication. Only the exact recorded Pages deployment can anchor
+      // rollback, and it must match both the immutable and public markers.
+      stage = "baseline_verification";
+      const baselineMarker = { jobId: recovery.id, sourceSha: recovery.source_sha,
+        digest: manifestDigest(recovery.manifest) };
+      previous = await provider.verifiedStagingBaseline(recovery, verify, baselineMarker);
+    } else {
+      stage = "previous_deployment";
+      previous = await provider.previous();
+    }
+    stage = "temporary_directory";
+    directory = await mkdtemp(path.join(tmpdir(), "twe-publication-worker-"));
+    if (settings.environment === "staging") {
       stage = "archive_restore";
       recoveryDirectory = path.join(directory, "recovery");
       await archive.restore(recovery.id, recoveryDirectory);
