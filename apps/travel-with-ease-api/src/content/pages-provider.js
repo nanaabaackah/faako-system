@@ -107,26 +107,39 @@ export class PagesProvider {
     const project = await this.request();
     if (project.production_branch !== "main" || project.name !== this.settings.project)
       throw new Error("Unexpected Pages project identity.");
-    const deployments = await this.request("/deployments?per_page=25");
-    if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
     const earliest = Date.parse(job.created_at);
     if (!Number.isFinite(earliest)) throw new Error("Invalid publication creation date.");
+    // The first Pages deployment page can contain only newer Git-triggered
+    // builds. Search older pages without relaxing publication-identity checks.
+    // Cloudflare Pages limits per_page to 25; bound the scan to 500 entries
+    // to avoid an unbounded provider request loop.
+    const pageSize = 25;
+    const maxPages = 20;
     const matches = [];
-    for (const deployment of deployments) {
-      if (deployment.latest_stage?.status !== "success" ||
-          deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
-          deployment.deployment_trigger?.metadata?.commit_hash !== job.source_sha ||
-          deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production") ||
-          !(Date.parse(deployment.created_on) >= earliest - 60_000) ||
-          !/^[a-f0-9-]{36}$/i.test(deployment.id || "")) continue;
-      const origin = deploymentOriginForProject(deployment, project, this.settings.project);
-      try {
-        await verify(origin, marker);
-        matches.push({ id: deployment.id, origin });
-      } catch {
-        // Same commit can have unrelated Git/worker deployments; the immutable
-        // marker, not its commit SHA, establishes the publication identity.
+    const seen = new Set();
+    for (let page = 1; page <= maxPages; page++) {
+      const deployments = await this.request(`/deployments?per_page=${pageSize}&page=${page}`);
+      if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
+      for (const deployment of deployments) {
+        if (deployment.latest_stage?.status !== "success" ||
+            deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
+            deployment.deployment_trigger?.metadata?.commit_hash !== job.source_sha ||
+            deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production") ||
+            !(Date.parse(deployment.created_on) >= earliest - 60_000) ||
+            !/^[a-f0-9-]{36}$/i.test(deployment.id || "") ||
+            seen.has(deployment.id)) continue;
+        seen.add(deployment.id);
+        try {
+          const origin = deploymentOriginForProject(deployment, project, this.settings.project);
+          await verify(origin, marker);
+          matches.push({ id: deployment.id, origin });
+        } catch {
+          // A matching commit is insufficient: only the immutable marker
+          // on the deployment's own URL establishes publication identity.
+        }
       }
+      if (matches.length > 1) return null; // Ambiguous identity; do not confirm.
+      if (deployments.length < pageSize) break;
     }
     if (matches.length !== 1) return null;
     await verify(this.settings.origin, marker);
