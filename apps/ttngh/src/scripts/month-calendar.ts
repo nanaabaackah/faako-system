@@ -156,6 +156,16 @@ class MonthCalendar extends HTMLElement {
       void load(Number(now.slice(0, 4)), Number(now.slice(5, 7)) - 1);
     });
     retry.addEventListener("click", () => void load(desired.year, desired.month, true));
+    // Live upcoming cards may open an event date in a future calendar month.
+    this.addEventListener("ttngh:calendar-select", (event: Event) => {
+      const date = (event as CustomEvent<{ date?: string }>).detail?.date;
+      if (typeof date !== "string" || !/^20\d{2}-\d{2}-\d{2}$/.test(date) ||
+          !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date) return;
+      selected = date;
+      void load(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1).then(() => {
+        this.querySelector<HTMLButtonElement>('[data-day="' + date + '"]')?.focus({ preventScroll: true });
+      });
+    });
     void load();
     this.timer = setInterval(() => {
       const bounds = this.getBoundingClientRect();
