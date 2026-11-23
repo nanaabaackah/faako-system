@@ -81,13 +81,56 @@ export class PagesProvider {
       CLOUDFLARE_API_TOKEN: this.settings.token, CLOUDFLARE_ACCOUNT_ID: this.settings.accountId,
       CI: "true", WRANGLER_SEND_METRICS: "false",
     }, { timeout: 180_000 });
-    const deployments = await this.request("/deployments?per_page=10");
-    const candidates = deployments.filter(item => item.deployment_trigger?.metadata?.commit_hash === job.source_sha && item.deployment_trigger?.metadata?.branch === this.settings.branch && Date.parse(item.created_on) >= Date.parse(job.startedAt));
-    if (candidates.length !== 1 || candidates[0].latest_stage?.status !== "success") throw new Error("The exact successful deployment could not be identified.");
-    const deployment = candidates[0];
-    const origin = deploymentOriginForProject(deployment, project, this.settings.project);
-    if (!/^[a-f0-9-]{36}$/.test(deployment.id)) throw new Error("Unexpected deployment identity.");
-    return { id: deployment.id, origin };
+    // Wrangler can return before the Pages deployment reaches its terminal
+    // stage. Poll read-only provider status instead of treating that normal
+    // transition as an uncertain upload or issuing another deployment.
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const deployments = await this.request("/deployments?per_page=10");
+      if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
+      const candidates = deployments.filter(item => item.deployment_trigger?.metadata?.commit_hash === job.source_sha && item.deployment_trigger?.metadata?.branch === this.settings.branch && Date.parse(item.created_on) >= Date.parse(job.startedAt));
+      if (candidates.length === 1 && candidates[0].latest_stage?.status === "success") {
+        const deployment = candidates[0];
+        const origin = deploymentOriginForProject(deployment, project, this.settings.project);
+        if (!/^[a-f0-9-]{36}$/i.test(deployment.id)) throw new Error("Unexpected deployment identity.");
+        return { id: deployment.id, origin };
+      }
+      if (candidates.some(item => ["failure", "canceled"].includes(item.latest_stage?.status)))
+        throw new Error("Pages deployment did not succeed.");
+      if (attempt < 7) await this.wait(3_000);
+    }
+    throw new Error("The exact successful deployment could not be identified.");
+  }
+  // Read-only search for a successfully deployed, environment-scoped artifact.
+  // The caller must additionally verify its exact publication marker on both
+  // the immutable Pages URL and the custom origin before acknowledging it.
+  async findPublicationDeployment(job, verify, marker) {
+    const project = await this.request();
+    if (project.production_branch !== "main" || project.name !== this.settings.project)
+      throw new Error("Unexpected Pages project identity.");
+    const deployments = await this.request("/deployments?per_page=25");
+    if (!Array.isArray(deployments)) throw new Error("Invalid Pages deployment list.");
+    const earliest = Date.parse(job.created_at);
+    if (!Number.isFinite(earliest)) throw new Error("Invalid publication creation date.");
+    const matches = [];
+    for (const deployment of deployments) {
+      if (deployment.latest_stage?.status !== "success" ||
+          deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
+          deployment.deployment_trigger?.metadata?.commit_hash !== job.source_sha ||
+          deployment.environment !== (this.settings.environment === "staging" ? "preview" : "production") ||
+          !(Date.parse(deployment.created_on) >= earliest - 60_000) ||
+          !/^[a-f0-9-]{36}$/i.test(deployment.id || "")) continue;
+      const origin = deploymentOriginForProject(deployment, project, this.settings.project);
+      try {
+        await verify(origin, marker);
+        matches.push({ id: deployment.id, origin });
+      } catch {
+        // Same commit can have unrelated Git/worker deployments; the immutable
+        // marker, not its commit SHA, establishes the publication identity.
+      }
+    }
+    if (matches.length !== 1) return null;
+    await verify(this.settings.origin, marker);
+    return matches[0];
   }
   async rollback(previous) {
     if (!/^[a-f0-9-]{36}$/.test(previous?.id || "")) throw new Error("Invalid recovery deployment.");

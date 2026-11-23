@@ -23,6 +23,38 @@ Version 2 manifests carry their checked-in baseline rather than reading a newer 
 
 Do not enable a competing Cloudflare Git deployment for a worker-controlled branch. Do not update routine CMS content directly in SQL. Failed or uncertain provider operations use the existing retry, reconciliation and recovery controls.
 
+
+## Recovery: CMS remains in Deploying after the website appears live
+
+The public site being reachable is not sufficient proof that the CMS publication completed.
+The worker marks a release Live only when its exact Pages deployment, Git SHA,
+environment, immutable publication marker and current custom-domain marker agree.
+
+The worker now rechecks abandoned `deploying` or `verifying` jobs after ten minutes,
+using read-only Cloudflare Pages lookups. It verifies a unique successful deployment
+with the exact `jobId`, `sourceSha` and `digest` on both the immutable deployment
+URL and the configured website origin. Only then does it atomically confirm
+the original published content revision and mark the job Live.
+
+If provider evidence is missing, a different deployment is serving the custom
+domain, or multiple candidate deployments match, the worker stops with
+`publication.reconciliation_required`. The job intentionally remains blocked:
+do not reset its status, change CMS publication pointers, or queue a second release.
+Investigate the existing Pages deployment and its
+`/twe-publication.json` marker, the job/source SHA, the worker logs, and the
+environment-scoped Railway worker deployment. Never log or share provider
+credentials. If a worker is disabled or stopped, restore the **existing** worker
+with its current reviewed source/configuration; do not create a duplicate worker.
+
+The CMS shows a delayed-verification warning once a claimed deployment has been
+unconfirmed for ten minutes. After the worker confirms the matching artifact,
+the existing publication status polling updates the editor to Live and restores
+the Publish action without resaving or republishing the draft.
+
+A successful Git-triggered Pages deployment is **not** proof of a CMS publication
+unless it carries the exact publication marker. Do not overwrite the current
+website or copy staging/production databases to clear a stuck state.
+
 ## Recovery
 
 The previous verified artifact remains archived. A replacement is marked live only after marker verification. Staging restores its accepted archived baseline after a failed post-upload verification; production uses its separately reviewed rollback path. Content rollback remains an explicit publication of a selected historic revision.

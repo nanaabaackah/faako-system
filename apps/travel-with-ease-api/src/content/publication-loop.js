@@ -14,9 +14,10 @@ export async function runPublicationLoop({ runOnce, signal, intervalMs = 15_000,
   while (!signal?.aborted) {
     const result = await runOnce();
     logger.info?.({ eventName: "publication.worker_cycle", status: result.status, jobId: result.id }, "Publication worker cycle completed.");
-    // An uncertain provider or confirmation outcome must be reconciled before
-    // another deployment can begin. Stopping avoids racing the provider.
-    if (["deploying", "verifying"].includes(result.status)) return result;
+    // Uncertain deployments remain active in PostgreSQL, so no new job can be
+    // claimed while this loop polls for an exact provider-marker reconciliation.
+    // Stop only when provider evidence is missing and operator review is needed.
+    if (result.status === "recovery_required") return result;
     if (!signal?.aborted) await sleep(intervalMs, signal);
   }
   return { status: "stopped" };

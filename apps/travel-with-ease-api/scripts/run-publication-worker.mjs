@@ -38,7 +38,7 @@ try {
       intervalMs: Number(process.env.TWE_PUBLICATION_POLL_INTERVAL_MS || 15_000) })
     : await runOnce();
   logger.info({ eventName: "publication.worker_completed", status: result.status, jobId: result.id }, "Publication worker completed.");
-  if (result.status === "failed") process.exitCode = 1;
+  if (["failed", "recovery_required"].includes(result.status)) process.exitCode = 1;
 } catch {
   logger.error({ eventName: "publication.worker_failed" }, "Publication worker needs configuration or recovery review.");
   process.exitCode = 1;
