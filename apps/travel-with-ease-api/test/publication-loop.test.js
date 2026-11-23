@@ -20,13 +20,14 @@ test("continuous publication polling processes a queued job without a manual com
   assert.deepEqual(result, { status: "stopped" });
 });
 
-test("uncertain provider outcomes stop recovery polling before another claim", async () => {
-  let claims = 0;
+test("uncertain provider outcomes continue safe reconciliation polling but stop for operator review", async () => {
+  let cycles = 0, sleeps = 0;
   const result = await runPublicationLoop({
     intervalMs: 1_000,
-    runOnce: async () => { claims += 1; return { id: "job", status: "deploying" }; },
-    sleep: async () => { throw new Error("must not sleep"); },
+    runOnce: async () => ({ id: "job", status: ++cycles === 1 ? "deploying" : "recovery_required" }),
+    sleep: async () => { sleeps++; },
   });
-  assert.equal(claims, 1);
-  assert.equal(result.status, "deploying");
+  assert.equal(cycles, 2);
+  assert.equal(sleeps, 1);
+  assert.equal(result.status, "recovery_required");
 });
