@@ -71,7 +71,7 @@ try {
     await page.getByRole("button", { name: "Section", exact: true }).click();
     assert.equal(await page.getByRole("option", { name: "Travel tips", exact: true }).count(), 1,
       "Travel Tips remains available as its own CMS collection");
-    await page.getByRole("option", { name: "journal", exact: true }).click();
+    await page.getByRole("option", { name: "Journal", exact: true }).click();
     await page.getByLabel("Travel tip series").first().waitFor();
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();
     await page.getByLabel(/^Title/).fill("Changed demo article");
