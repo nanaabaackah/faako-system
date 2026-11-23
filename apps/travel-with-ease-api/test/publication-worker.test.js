@@ -19,7 +19,12 @@ function fixture(overrides = {}) {
       assert.equal(env.TWE_CONTENT_SNAPSHOT, "private-snapshot");
       assert.equal(env.TWE_PAGES_API_TOKEN, undefined); events.push("built"); return "";
     },
-    provider: { previous: async () => ({ id: "previous" }), deploy: async () => { events.push("deployed"); return { id: "new", origin: "https://abc.twe.pages.dev" }; }, rollback: async () => events.push("rolled-back") },
+    provider: {
+      previous: async () => ({ id: "previous" }),
+      verifiedStagingBaseline: async () => ({ id: "previous" }),
+      deploy: async () => { events.push("deployed"); return { id: "new", origin: "https://abc.twe.pages.dev" }; },
+      rollback: async () => events.push("rolled-back"),
+    },
     verify: async origin => events.push("verified:" + origin),
     ...overrides,
   };
@@ -137,12 +142,37 @@ test("shared-project staging restores the archived artifact on develop and never
   assert.equal(f.events.includes("rolled-back"), false);
   assert.equal(f.events.includes("recovery-recorded"), true);
 });
-test("staging baseline mismatch logs an exact safe stage without deploying or changing the baseline", async () => {
+test("staging ignores newer Git previews and publishes from the exact verified Live baseline", async () => {
+  const f = fixture();
+  const events = f.events;
+  f.options.settings.environment = "staging";
+  f.options.publication.claim = async () => ({
+    id: "new-cms-job", source_sha: sha, environment: "staging",
+    build_token: "lease", manifest: { pages: [] },
+  });
+  f.options.publication.lastLive = async () => ({
+    id: "verified-old-release", source_sha: sha,
+    deployment_id: "archived-preview", manifest: { pages: [] },
+  });
+  f.options.archive = {
+    restore: async () => events.push("archive-restored"),
+    retain: async () => events.push("archive-retained"),
+  };
+  f.options.provider.previous = async () => { throw new Error("Must not depend on latest Git preview."); };
+  f.options.provider.verifiedStagingBaseline = async (recovery, verify, marker) => {
+    assert.equal(recovery.deployment_id, "archived-preview");
+    assert.equal(marker.jobId, "verified-old-release");
+    assert.equal(marker.sourceSha, sha);
+    return { id: recovery.deployment_id };
+  };
+  assert.equal((await publishOne(f.options)).status, "live");
+  assert.ok(events.includes("archive-restored"));
+  assert.ok(events.includes("confirmed"));
+});
+
+test("staging refuses a baseline whose immutable proof cannot be verified", async () => {
   const diagnostics = [];
-  const f = fixture({ logger: {
-    warn: details => diagnostics.push(details),
-    error: details => diagnostics.push(details),
-  } });
+  const f = fixture({ logger: { error: details => diagnostics.push(details) } });
   f.options.settings.environment = "staging";
   f.options.publication.claim = async () => ({
     id: "test-baseline-mismatch", source_sha: sha, environment: "staging",
@@ -152,13 +182,13 @@ test("staging baseline mismatch logs an exact safe stage without deploying or ch
     id: "verified-old-release", source_sha: sha,
     deployment_id: "archived-preview", manifest: { pages: [] },
   });
-  f.options.provider.previous = async () => ({ id: "newest-git-preview" });
+  f.options.provider.verifiedStagingBaseline = async () => {
+    throw Error("No matching deployment marker.");
+  };
   f.options.archive = { restore: async () => { throw Error("Should not restore."); } };
   assert.equal((await publishOne(f.options)).status, "failed");
-  assert.deepEqual(diagnostics.map(x => [x.eventName, x.reason || x.stage]), [
-    ["publication.baseline_rejected", "baseline_deployment_mismatch"],
-    ["publication.release_stage_failed", "baseline_validation"],
-  ]);
+  assert.equal(diagnostics.length, 1);
+  assert.equal(diagnostics[0].stage, "baseline_verification");
   assert.deepEqual(f.events, ["failed"]);
 });
 
