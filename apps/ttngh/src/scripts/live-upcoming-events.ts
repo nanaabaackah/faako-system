@@ -47,11 +47,12 @@ class LiveUpcomingEvents extends HTMLElement {
         if (event.status === "tentative") card.append(element("p", "Tentative · Date or time may change", "live-upcoming-tentative"));
 
         const link = element("a", "View date on calendar", "text-link");
-        link.href = "#calendar-title";
+        const chosenDate = Date.parse(event.start) < Date.now() ? dateKey(new Date()) : dateKey(new Date(event.start));
+        const calendar = document.querySelector("month-calendar");
+        link.href = calendar ? "#calendar-title" : "/events?date=" + encodeURIComponent(chosenDate) + "#calendar-title";
         link.setAttribute("aria-label", "View " + event.title + " on the event calendar");
-        link.addEventListener("click", () => {
-          const chosenDate = Date.parse(event.start) < Date.now() ? dateKey(new Date()) : dateKey(new Date(event.start));
-          document.querySelector("month-calendar")?.dispatchEvent(new CustomEvent("ttngh:calendar-select", { detail: { date: chosenDate } }));
+        if (calendar) link.addEventListener("click", () => {
+          calendar.dispatchEvent(new CustomEvent("ttngh:calendar-select", { detail: { date: chosenDate } }));
         });
         card.append(link);
         return card;
