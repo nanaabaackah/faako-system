@@ -109,23 +109,25 @@ export class PagesProvider {
       throw new Error("Unexpected Pages project identity.");
     const earliest = Date.parse(job.created_at);
     if (!Number.isFinite(earliest)) throw new Error("Invalid publication creation date.");
-    // Recovery is read-only. Inspect bounded provider pages without relaxing
-    // any requirement for matching environment, source, time or markers.
+    // Recovery is read-only. Cloudflare can report an artifact timestamp that
+    // precedes its CMS job record (for example, when deployment evidence is
+    // recorded later). Time ordering is not publication identity: require the
+    // exact source SHA and markers on both the immutable and current origins.
     const pageSize = 25;
     const maxPages = 20;
     const matches = [];
     const seen = new Set();
     const reasons = {
       malformedId: 0, duplicate: 0, notSuccessful: 0, wrongBranch: 0,
-      wrongSource: 0, shortSource: 0, wrongEnvironment: 0, beforeJob: 0,
+      wrongSource: 0, shortSource: 0, wrongEnvironment: 0,
       invalidOrigin: 0, markerMismatch: 0,
     };
     let pagesScanned = 0, rowsSeen = 0, candidates = 0, hasMore = false;
-    let sourceMatches = 0, repeatedPages = 0;
+    let sourceMatches = 0, repeatedPages = 0, olderThanJob = 0;
     const report = reason => logger.info?.({
       eventName: "publication.reconciliation_scan", reason,
       pagesScanned, rowsSeen, distinctDeployments: seen.size,
-      repeatedPages, sourceMatches, candidates, verified: matches.length,
+      repeatedPages, sourceMatches, olderThanJob, candidates, verified: matches.length,
       rejectionReasons: reasons,
     }, "Pages publication candidates checked.");
     for (let page = 1; page <= maxPages; page++) {
@@ -167,10 +169,10 @@ export class PagesProvider {
           reasons.wrongEnvironment++;
           continue;
         }
-        if (!(Date.parse(deployment.created_on) >= earliest - 60_000)) {
-          reasons.beforeJob++;
-          continue;
-        }
+        // Keep temporal ordering as diagnostics, never as proof of identity.
+        // A matching artifact must still pass both exact marker checks.
+        if (!(Date.parse(deployment.created_on) >= earliest - 60_000))
+          olderThanJob++;
         candidates++;
         try {
           const origin = deploymentOriginForProject(deployment, project, this.settings.project);

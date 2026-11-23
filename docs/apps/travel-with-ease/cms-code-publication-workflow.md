@@ -34,13 +34,18 @@ The worker now rechecks abandoned `deploying` or `verifying` jobs after ten minu
 using read-only Cloudflare Pages lookups. Because newer code deployments may push
 a valid CMS publication beyond Cloudflare's first 25 results, recovery scans
 successive Pages deployment pages (up to 20 pages of 25) while preserving exact
-project, branch, environment, source SHA, time, and publication-marker checks.
-The read-only scan now records categorical rejection counts for status,
-branch, commit (including shortened commit metadata), environment, timestamp
-and duplicate deployment pages. A matching public marker alone cannot override
-the provider's identity checks. Treat `publication.reconciliation_scan` as
-diagnostic evidence before choosing a focused fix; no provider tokens, raw
-deployment records or publication manifests are logged.
+project, branch, environment, source SHA, and publication-marker checks.
+The Cloudflare deployment creation timestamp may precede the CMS job timestamp;
+this is retained as an `olderThanJob` diagnostic rather than rejecting an
+otherwise exact publication. Temporal order is not proof of identity. Recovery
+still requires an unambiguous successful deployment and matching `jobId`,
+`sourceSha` and `digest` on both its immutable Pages URL and the current
+custom domain; it never confirms on a matching Git SHA alone.
+The read-only scan records categorical rejection counts for status,
+branch, commit (including shortened commit metadata), environment, and
+duplicate deployment pages. Treat `publication.reconciliation_scan` as
+diagnostic evidence; no provider tokens, raw deployment records or publication
+manifests are logged.
 
 It verifies a unique successful deployment with the exact `jobId`, `sourceSha`
 and `digest` on both the immutable deployment URL and the configured website
