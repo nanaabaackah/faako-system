@@ -137,6 +137,69 @@ test("shared-project staging restores the archived artifact on develop and never
   assert.equal(f.events.includes("rolled-back"), false);
   assert.equal(f.events.includes("recovery-recorded"), true);
 });
+test("staging baseline mismatch logs an exact safe stage without deploying or changing the baseline", async () => {
+  const diagnostics = [];
+  const f = fixture({ logger: {
+    warn: details => diagnostics.push(details),
+    error: details => diagnostics.push(details),
+  } });
+  f.options.settings.environment = "staging";
+  f.options.publication.claim = async () => ({
+    id: "test-baseline-mismatch", source_sha: sha, environment: "staging",
+    build_token: "lease", manifest: { pages: [] },
+  });
+  f.options.publication.lastLive = async () => ({
+    id: "verified-old-release", source_sha: sha,
+    deployment_id: "archived-preview", manifest: { pages: [] },
+  });
+  f.options.provider.previous = async () => ({ id: "newest-git-preview" });
+  f.options.archive = { restore: async () => { throw Error("Should not restore."); } };
+  assert.equal((await publishOne(f.options)).status, "failed");
+  assert.deepEqual(diagnostics.map(x => [x.eventName, x.reason || x.stage]), [
+    ["publication.baseline_rejected", "baseline_deployment_mismatch"],
+    ["publication.release_stage_failed", "baseline_validation"],
+  ]);
+  assert.deepEqual(f.events, ["failed"]);
+});
+
+test("staging archive restoration failure is categorized without logging provider exception content", async () => {
+  const diagnostics = [];
+  const f = fixture({ logger: { error: data => diagnostics.push(data) } });
+  f.options.settings.environment = "staging";
+  f.options.publication.claim = async () => ({
+    id: "test-archive-failure", source_sha: sha, environment: "staging",
+    build_token: "lease", manifest: { pages: [] },
+  });
+  f.options.publication.lastLive = async () => ({
+    id: "archived-release", source_sha: sha,
+    deployment_id: "previous", manifest: { pages: [] },
+  });
+  f.options.archive = { restore: async () => { throw Error("DO_NOT_LOG_SECRET_VALUE"); } };
+  assert.equal((await publishOne(f.options)).status, "failed");
+  assert.equal(diagnostics.length, 1);
+  assert.equal(diagnostics[0].stage, "archive_restore");
+  assert.equal(diagnostics[0].deploymentStarted, false);
+  assert.equal(JSON.stringify(diagnostics).includes("DO_NOT_LOG_SECRET_VALUE"), false);
+  assert.deepEqual(f.events, ["failed"]);
+});
+
+test("website build failure is reported as its safe stage without starting another deployment", async () => {
+  const diagnostics = [];
+  const f = fixture({
+    logger: { error: data => diagnostics.push(data) },
+    run: async (command, args) => {
+      if (command === "git") return args[0] === "rev-parse" ? sha : "";
+      throw Error("DO_NOT_LOG_SECRET_BUILD_ERROR");
+    },
+  });
+  assert.equal((await publishOne(f.options)).status, "failed");
+  assert.equal(diagnostics[0].eventName, "publication.release_stage_failed");
+  assert.equal(diagnostics[0].stage, "website_build");
+  assert.equal(diagnostics[0].deploymentStarted, false);
+  assert.equal(JSON.stringify(diagnostics).includes("DO_NOT_LOG_SECRET_BUILD_ERROR"), false);
+  assert.deepEqual(f.events, ["failed"]);
+});
+
 test("staging without an accepted archived baseline cannot replace the current website", async () => {
   const f = fixture(); f.options.settings.environment = "staging";
   f.options.publication.claim = async () => ({ id: "job", source_sha: sha, environment: "staging", build_token: "lease", manifest: { pages: [] } });
