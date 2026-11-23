@@ -55,6 +55,35 @@ reset publication jobs, manufacture an archive, or silently republish a failed
 job. Use worker logs and a reviewed fix, then verify the next coordinated
 release and CMS publication status.
 
+## Staging custom-domain propagation and safe reconciliation
+
+A successful Wrangler upload and verified immutable Pages deployment may become
+visible on the staging branch alias/custom domain later. The worker performs
+up to 13 read-only marker checks, five seconds apart, against the configured
+staging HTTPS origin, with the same exact `jobId`, `sourceSha`, and `digest`
+required at every attempt. There is no second deployment or implicit approval.
+
+If the domain still does not match, the original publication stays `verifying`.
+The worker emits `publication.release_stage_failed` at
+`current_origin_marker` and `publication.current_origin_pending`; it does
+**not** upload the archived baseline as a competing rollback. After ten
+minutes, the existing read-only reconciliation evaluates a unique provider
+deployment and both markers. Do not manually mark the job Live or publish
+another release while verification is unresolved.
+
+If the marker never converges, check that staging's DNS CNAME targets
+`develop.tee-concierge.pages.dev` (the project subdomain observed in
+Cloudflare), and that the DNS record is **proxied through Cloudflare**.
+Cloudflare branch custom domains require a proxied record; a DNS-only
+record can route to the project's production deployment instead.
+Also confirm that competing automatic Git-triggered Cloudflare
+Pages preview deployments are not overwriting worker-controlled content.
+Railway builds the reviewed code and the publication worker deploys its
+combined CMS artifact; the Cloudflare Git integration must not independently
+publish a competing `develop` artifact. Confirm the existing Cloudflare
+branch-deployment controls before changing settings; do not recreate
+Railway/Cloudflare variables or add another worker.
+
 ## Recovery: CMS remains in Deploying after the website appears live
 
 The public site being reachable is not sufficient proof that the CMS publication completed.

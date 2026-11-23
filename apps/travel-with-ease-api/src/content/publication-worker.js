@@ -6,6 +6,28 @@ import { preparePublication, verifyPublishedMarker } from "./artifact.js";
 import { publicBuildEnvironment, runReviewedCommand } from "./build.js";
 import { assertPublicationSource } from "./source-identity.js";
 
+// Cloudflare preview aliases and custom domains can lag a successful immutable
+// deployment. Retry only READS; never treat the upload's success as proof that
+// the public origin serves this CMS publication.
+const defaultOriginWait = ms => new Promise(resolve => setTimeout(resolve, ms));
+export async function verifyStagingOriginEventually(origin, marker, verify, {
+  wait = defaultOriginWait, attempts = 13, intervalMs = 5_000,
+} = {}) {
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 40 ||
+    !Number.isInteger(intervalMs) || intervalMs < 1)
+    throw new Error("Invalid staging origin verification policy.");
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      await verify(origin, marker);
+      return attempt;
+    } catch {
+      if (attempt === attempts)
+        throw new Error("Staging origin publication marker did not match within the verification window.");
+      await wait(intervalMs);
+    }
+  }
+}
+
 // Recover only a stale job whose exact artifact is already verifiably live.
 // If provider evidence is missing/ambiguous, leave the database and live site
 // untouched; never unblock another publish by guessing.
@@ -34,7 +56,8 @@ export async function reconcileStalePublication({ publication, provider, verify 
 }
 
 export async function publishOne({ publication, media, provider, archive, settings, prepare = preparePublication,
-  run = runReviewedCommand, verify = verifyPublishedMarker, logger = {} }) {
+  run = runReviewedCommand, verify = verifyPublishedMarker, logger = {},
+  originWait = defaultOriginWait, originAttempts = 13 }) {
   // Validate the reviewed source before claiming a job; never build newer code
   // just because it happens to be deployed on Railway.
   const sha = await assertPublicationSource(settings.sourceSha, { run });
@@ -99,7 +122,11 @@ export async function publishOne({ publication, media, provider, archive, settin
     stage = "immutable_marker";
     await verify(deployed.origin, artifact.marker);
     stage = "current_origin_marker";
-    await verify(settings.origin, artifact.marker);
+    if (settings.environment === "staging")
+      await verifyStagingOriginEventually(settings.origin, artifact.marker, verify, {
+        wait: originWait, attempts: originAttempts,
+      });
+    else await verify(settings.origin, artifact.marker);
     confirmationStarted = true;
     stage = "database_confirmation";
     await publication.confirm(job.id, job.build_token, deployed.id, manifestDigest(job.manifest));
@@ -109,6 +136,16 @@ export async function publishOne({ publication, media, provider, archive, settin
     logger.error?.({ eventName: "publication.release_stage_failed", jobId: job.id,
       stage, deploymentStarted, confirmationStarted },
       "Publication failed at a specific pipeline stage; no raw provider errors were logged.");
+    if (settings.environment === "staging" && stage === "current_origin_marker" && deployed) {
+      // Immutable Pages proof succeeded, but the current custom domain still
+      // disagrees. Do not race Cloudflare by uploading an old archive on top of
+      // a potentially propagating deployment. Leave the existing job verifying
+      // for the read-only stale-job reconciler.
+      logger.warn?.({ eventName: "publication.current_origin_pending",
+        jobId: job.id, deploymentId: deployed.id },
+        "Immutable publication is deployed; staging origin must be reconciled before confirming Live.");
+      return { id: job.id, status: "verifying" };
+    }
     if (confirmationStarted) {
       try {
         const id = await publication.confirmed(job.id, manifestDigest(job.manifest));
