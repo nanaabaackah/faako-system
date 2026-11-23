@@ -41,7 +41,8 @@ export class PublicationRepository {
       environment, requested_by, recovery_deployment_id, manifest->'target' AS target,
       COALESCE(manifest->>'triggerType', 'cms_publication') AS trigger_type,
       COALESCE(manifest->>'schemaVersion', '1')::int AS schema_version,
-      (status = 'pending' AND created_at <= now() - interval '30 minutes') AS can_cancel
+      (status = 'pending' AND created_at <= now() - interval '30 minutes') AS can_cancel,
+      (status IN ('deploying', 'verifying') AND updated_at <= now() - interval '10 minutes') AS needs_reconciliation
       FROM twe.publication_jobs WHERE organisation_id = $1 AND environment = $2 ORDER BY created_at DESC LIMIT 50`,
       [this.organisationId, this.environment],
     );
@@ -296,7 +297,24 @@ export class PublicationRepository {
       return result.rows[0];
     });
   }
-  async confirm(id, token, deploymentId, digest) {
+  // Only an abandoned, already-deployed job is eligible for read-only provider
+  // reconciliation. Pending/building jobs are never implicitly approved.
+  async staleDeployment() {
+    const { rows } = await this.pool.query(
+      `SELECT id, status, build_token, source_sha, manifest, created_at
+       FROM twe.publication_jobs
+       WHERE organisation_id = $1 AND environment = $2
+         AND status IN ('deploying', 'verifying')
+         AND updated_at <= now() - interval '10 minutes'
+       ORDER BY created_at ASC LIMIT 1`,
+      [this.organisationId, this.environment],
+    );
+    return rows[0] || null;
+  }
+  async confirmReconciled(id, token, deploymentId, digest) {
+    return this.confirm(id, token, deploymentId, digest, { reconciliation: true });
+  }
+  async confirm(id, token, deploymentId, digest, { reconciliation = false } = {}) {
     if (
       typeof deploymentId !== "string" ||
       !/^[a-zA-Z0-9_-]{1,120}$/.test(deploymentId)
@@ -305,7 +323,9 @@ export class PublicationRepository {
     return transaction(this.pool, async (client) => {
       await this.lockOrganisation(client);
       const { rows } = await client.query(
-        "SELECT * FROM twe.publication_jobs WHERE organisation_id = $1 AND environment = $2 AND id = $3 AND build_token = $4 AND status IN ('building', 'verifying') FOR UPDATE",
+        reconciliation
+          ? "SELECT * FROM twe.publication_jobs WHERE organisation_id = $1 AND environment = $2 AND id = $3 AND build_token = $4 AND status IN ('deploying', 'verifying') AND updated_at <= now() - interval '10 minutes' FOR UPDATE"
+          : "SELECT * FROM twe.publication_jobs WHERE organisation_id = $1 AND environment = $2 AND id = $3 AND build_token = $4 AND status IN ('building', 'verifying') FOR UPDATE",
         [this.organisationId, this.environment, id, token],
       );
       const job = rows[0];
@@ -324,7 +344,7 @@ export class PublicationRepository {
       );
       await appendAudit(client, {
         organisationId: this.organisationId,
-        action: "content.deployment_confirmed",
+        action: reconciliation ? "content.deployment_reconciled" : "content.deployment_confirmed",
         recordId: id,
         requestId: id,
       });
