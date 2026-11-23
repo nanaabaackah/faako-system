@@ -19,7 +19,12 @@ function fixture(overrides = {}) {
       assert.equal(env.TWE_CONTENT_SNAPSHOT, "private-snapshot");
       assert.equal(env.TWE_PAGES_API_TOKEN, undefined); events.push("built"); return "";
     },
-    provider: { previous: async () => ({ id: "previous" }), deploy: async () => { events.push("deployed"); return { id: "new", origin: "https://abc.twe.pages.dev" }; }, rollback: async () => events.push("rolled-back") },
+    provider: {
+      previous: async () => ({ id: "previous" }),
+      verifiedStagingBaseline: async () => ({ id: "previous" }),
+      deploy: async () => { events.push("deployed"); return { id: "new", origin: "https://abc.twe.pages.dev" }; },
+      rollback: async () => events.push("rolled-back"),
+    },
     verify: async origin => events.push("verified:" + origin),
     ...overrides,
   };
@@ -62,6 +67,69 @@ test("provider refuses a project with an unexpected production branch before upl
   const provider = new PagesProvider({ accountId: "a".repeat(32), project: "twe-concierge", environment: "staging", branch: "develop", token: "test" }, { fetcher: async () => ({ ok: true, json: async () => ({ success: true, result: { production_branch: "unexpected" } }) }) });
   await assert.rejects(provider.previous(), /branch/);
 });
+test("staging baseline reads the recorded Live deployment rather than the newest develop preview", async () => {
+  const baselineId = "11111111-1111-4111-8111-111111111111";
+  const sha = "a".repeat(40);
+  const calls = [], verified = [];
+  const settings = {
+    accountId: "a".repeat(32), project: "twe-concierge", environment: "staging",
+    branch: "develop", origin: "https://staging.travelwitheasegh.com", token: "synthetic",
+  };
+  const provider = new PagesProvider(settings, { fetcher: async url => {
+    calls.push(url);
+    const detail = url.endsWith("/deployments/" + baselineId);
+    return { ok: true, json: async () => ({ success: true, result: detail ? {
+      id: baselineId, url: "https://verified.twe-concierge.pages.dev",
+      environment: "preview", latest_stage: { status: "success" },
+      deployment_trigger: { metadata: { branch: "develop", commit_hash: sha } },
+    } : { name: "twe-concierge", production_branch: "main",
+      subdomain: "twe-concierge.pages.dev" } }) };
+  } });
+  const baseline = { id: "previous-live", deployment_id: baselineId,
+    source_sha: sha, manifest: { pages: [] } };
+  const marker = { jobId: baseline.id, sourceSha: sha, digest: "expected-digest" };
+  const result = await provider.verifiedStagingBaseline(baseline, async (origin, actual) => {
+    verified.push(origin);
+    assert.deepEqual(actual, marker);
+  }, marker);
+  assert.equal(result.id, baselineId);
+  assert.deepEqual(verified, [
+    "https://verified.twe-concierge.pages.dev",
+    "https://staging.travelwitheasegh.com",
+  ]);
+  assert.equal(calls.length, 2);
+  assert.ok(calls[1].endsWith("/deployments/" + baselineId));
+  assert.equal(calls.some(url => url.includes("/deployments?")), false);
+});
+
+test("staging baseline refuses an invalid deployment, wrong branch, and mismatched public marker", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  const src = "a".repeat(40);
+  const baseline = { id: "previous-live", deployment_id: id, source_sha: src };
+  const marker = { jobId: baseline.id, sourceSha: src, digest: "expected-digest" };
+  const settings = { accountId: "a".repeat(32), project: "twe-concierge",
+    environment: "staging", branch: "develop",
+    origin: "https://staging.travelwitheasegh.com", token: "synthetic" };
+  const make = (branch) => new PagesProvider(settings, { fetcher: async url => ({
+    ok: true, json: async () => ({ success: true, result:
+      url.endsWith("/deployments/" + id)
+        ? { id, url: "https://verified.twe-concierge.pages.dev",
+          environment: "preview", latest_stage: { status: "success" },
+          deployment_trigger: { metadata: { branch, commit_hash: src } } }
+        : { name: "twe-concierge", production_branch: "main",
+          subdomain: "twe-concierge.pages.dev" } }),
+  }) });
+  await assert.rejects(make("main").verifiedStagingBaseline(baseline, async () => {
+    throw Error("Verification must not run.");
+  }, marker), /not a verified Pages deployment/);
+  await assert.rejects(make("develop").verifiedStagingBaseline(baseline, async origin => {
+    if (origin === settings.origin) throw Error("Current site serves a different publication.");
+  }, marker), /different publication/);
+  await assert.rejects(make("develop").verifiedStagingBaseline(
+    baseline, async () => {}, { ...marker, sourceSha: "b".repeat(40) },
+  ), /Invalid staging publication baseline/);
+});
+
 test("staging baseline lookup stays within the Pages deployment page-size limit", async () => {
   const requests = [];
   const provider = new PagesProvider(
@@ -137,6 +205,94 @@ test("shared-project staging restores the archived artifact on develop and never
   assert.equal(f.events.includes("rolled-back"), false);
   assert.equal(f.events.includes("recovery-recorded"), true);
 });
+test("staging ignores newer Git previews and publishes from the exact verified Live baseline", async () => {
+  const f = fixture();
+  const events = f.events;
+  f.options.settings.environment = "staging";
+  f.options.publication.claim = async () => ({
+    id: "new-cms-job", source_sha: sha, environment: "staging",
+    build_token: "lease", manifest: { pages: [] },
+  });
+  f.options.publication.lastLive = async () => ({
+    id: "verified-old-release", source_sha: sha,
+    deployment_id: "archived-preview", manifest: { pages: [] },
+  });
+  f.options.archive = {
+    restore: async () => events.push("archive-restored"),
+    retain: async () => events.push("archive-retained"),
+  };
+  f.options.provider.previous = async () => { throw new Error("Must not depend on latest Git preview."); };
+  f.options.provider.verifiedStagingBaseline = async (recovery, verify, marker) => {
+    assert.equal(recovery.deployment_id, "archived-preview");
+    assert.equal(marker.jobId, "verified-old-release");
+    assert.equal(marker.sourceSha, sha);
+    return { id: recovery.deployment_id };
+  };
+  assert.equal((await publishOne(f.options)).status, "live");
+  assert.ok(events.includes("archive-restored"));
+  assert.ok(events.includes("confirmed"));
+});
+
+test("staging refuses a baseline whose immutable proof cannot be verified", async () => {
+  const diagnostics = [];
+  const f = fixture({ logger: { error: details => diagnostics.push(details) } });
+  f.options.settings.environment = "staging";
+  f.options.publication.claim = async () => ({
+    id: "test-baseline-mismatch", source_sha: sha, environment: "staging",
+    build_token: "lease", manifest: { pages: [] },
+  });
+  f.options.publication.lastLive = async () => ({
+    id: "verified-old-release", source_sha: sha,
+    deployment_id: "archived-preview", manifest: { pages: [] },
+  });
+  f.options.provider.verifiedStagingBaseline = async () => {
+    throw Error("No matching deployment marker.");
+  };
+  f.options.archive = { restore: async () => { throw Error("Should not restore."); } };
+  assert.equal((await publishOne(f.options)).status, "failed");
+  assert.equal(diagnostics.length, 1);
+  assert.equal(diagnostics[0].stage, "baseline_verification");
+  assert.deepEqual(f.events, ["failed"]);
+});
+
+test("staging archive restoration failure is categorized without logging provider exception content", async () => {
+  const diagnostics = [];
+  const f = fixture({ logger: { error: data => diagnostics.push(data) } });
+  f.options.settings.environment = "staging";
+  f.options.publication.claim = async () => ({
+    id: "test-archive-failure", source_sha: sha, environment: "staging",
+    build_token: "lease", manifest: { pages: [] },
+  });
+  f.options.publication.lastLive = async () => ({
+    id: "archived-release", source_sha: sha,
+    deployment_id: "previous", manifest: { pages: [] },
+  });
+  f.options.archive = { restore: async () => { throw Error("DO_NOT_LOG_SECRET_VALUE"); } };
+  assert.equal((await publishOne(f.options)).status, "failed");
+  assert.equal(diagnostics.length, 1);
+  assert.equal(diagnostics[0].stage, "archive_restore");
+  assert.equal(diagnostics[0].deploymentStarted, false);
+  assert.equal(JSON.stringify(diagnostics).includes("DO_NOT_LOG_SECRET_VALUE"), false);
+  assert.deepEqual(f.events, ["failed"]);
+});
+
+test("website build failure is reported as its safe stage without starting another deployment", async () => {
+  const diagnostics = [];
+  const f = fixture({
+    logger: { error: data => diagnostics.push(data) },
+    run: async (command, args) => {
+      if (command === "git") return args[0] === "rev-parse" ? sha : "";
+      throw Error("DO_NOT_LOG_SECRET_BUILD_ERROR");
+    },
+  });
+  assert.equal((await publishOne(f.options)).status, "failed");
+  assert.equal(diagnostics[0].eventName, "publication.release_stage_failed");
+  assert.equal(diagnostics[0].stage, "website_build");
+  assert.equal(diagnostics[0].deploymentStarted, false);
+  assert.equal(JSON.stringify(diagnostics).includes("DO_NOT_LOG_SECRET_BUILD_ERROR"), false);
+  assert.deepEqual(f.events, ["failed"]);
+});
+
 test("staging without an accepted archived baseline cannot replace the current website", async () => {
   const f = fixture(); f.options.settings.environment = "staging";
   f.options.publication.claim = async () => ({ id: "job", source_sha: sha, environment: "staging", build_token: "lease", manifest: { pages: [] } });

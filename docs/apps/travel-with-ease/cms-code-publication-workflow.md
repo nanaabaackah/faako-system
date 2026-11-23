@@ -24,6 +24,37 @@ Version 2 manifests carry their checked-in baseline rather than reading a newer 
 Do not enable a competing Cloudflare Git deployment for a worker-controlled branch. Do not update routine CMS content directly in SQL. Failed or uncertain provider operations use the existing retry, reconciliation and recovery controls.
 
 
+## Staging baseline validation and publication failure diagnostics
+
+The staging publication worker must use the **last confirmed Live CMS release**
+as its rollback baseline. A newer Git-triggered `develop` Pages preview is
+not an accepted CMS publication and must not replace this baseline. The worker
+fetches the **exact recorded deployment ID** from Cloudflare, verifies the
+project, successful status, `develop` branch, preview environment, and full
+source SHA, then validates `jobId`, `sourceSha`, and manifest `digest`
+on both the immutable deployment URL and the current staging custom domain.
+Only then does it restore the retained artifact archive and proceed with a
+new release. A missing or mismatched provider record, unavailable archive,
+or changed current-domain marker fails closed before another upload.
+
+A healthy worker can still mark an individual release `failed`. The stage is
+reported as `publication.release_stage_failed` using a fixed pipeline stage
+(e.g. `baseline_validation`, `baseline_verification`,
+`archive_restore`, `prepare_artifact`, `website_build`,
+`pages_deployment`, `immutable_marker`, or `current_origin_marker`).
+Raw provider exceptions, tokens, and asset keys are intentionally not logged.
+
+At `baseline_validation`, the worker emits `publication.baseline_rejected`
+with the enumerated reason `archive_unavailable` or `no_live_baseline`.
+At `baseline_verification`, it refuses provider deployment or marker
+mismatches without changing the published revisions, attempting a rollback,
+or marking an unverified publication Live.
+
+A `failed` release is not proof that the current website changed. Do not
+reset publication jobs, manufacture an archive, or silently republish a failed
+job. Use worker logs and a reviewed fix, then verify the next coordinated
+release and CMS publication status.
+
 ## Recovery: CMS remains in Deploying after the website appears live
 
 The public site being reachable is not sufficient proof that the CMS publication completed.

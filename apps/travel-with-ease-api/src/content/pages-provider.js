@@ -70,6 +70,32 @@ export class PagesProvider {
     if (!previous?.id || !/^[a-f0-9-]{36}$/.test(previous.id)) throw new Error("A known-good Pages deployment is required before automated publication.");
     return previous;
   }
+  // The staging rollback baseline is the last confirmed CMS publication,
+  // not whichever Git-triggered develop preview is newest.
+  // Verify the exact provider deployment and both publication markers before
+  // trusting the retained archive for recovery.
+  async verifiedStagingBaseline(recovery, verify, marker) {
+    if (this.settings.environment !== "staging" ||
+      !/^[a-f0-9-]{36}$/i.test(recovery?.deployment_id || "") ||
+      !/^[a-f0-9]{40}$/.test(recovery?.source_sha || "") ||
+      recovery?.id !== marker?.jobId ||
+      recovery.source_sha !== marker?.sourceSha)
+      throw new Error("Invalid staging publication baseline.");
+    const project = await this.request();
+    if (project.production_branch !== "main" || project.name !== this.settings.project)
+      throw new Error("Unexpected Pages project identity.");
+    const deployment = await this.request(`/deployments/${recovery.deployment_id}`);
+    if (deployment.id !== recovery.deployment_id ||
+      deployment.latest_stage?.status !== "success" ||
+      deployment.environment !== "preview" ||
+      deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
+      deployment.deployment_trigger?.metadata?.commit_hash !== recovery.source_sha)
+      throw new Error("The recorded staging publication is not a verified Pages deployment.");
+    const origin = deploymentOriginForProject(deployment, project, this.settings.project);
+    await verify(origin, marker);
+    await verify(this.settings.origin, marker);
+    return { id: deployment.id, origin };
+  }
   async deploy(directory, job) {
     const project = await this.request();
     if (project.production_branch !== "main") throw new Error("Pages project production branch must remain main.");
