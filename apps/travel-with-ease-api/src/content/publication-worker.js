@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { manifestDigest } from "./publication.js";
@@ -28,17 +28,76 @@ export async function verifyStagingOriginEventually(origin, marker, verify, {
   }
 }
 
-// Recover only a stale job whose exact artifact is already verifiably live.
-// If provider evidence is missing/ambiguous, leave the database and live site
-// untouched; never unblock another publish by guessing.
-export async function reconcileStalePublication({ publication, provider, verify = verifyPublishedMarker, logger = {} }) {
+// Recover only an exact publication artifact. If Cloudflare's develop alias
+// was overwritten, staging may replay its archived artifact ONCE after proving
+// the previous Live version still owns the public origin. A durable DB claim
+// stops repeated deployments when the worker restarts or verification lags.
+export async function reconcileStalePublication({
+  publication, provider, archive, settings, verify = verifyPublishedMarker,
+  logger = {}, originWait = defaultOriginWait, originAttempts = 13,
+}) {
   const job = await publication.staleDeployment?.();
   if (!job) return null;
   const digest = manifestDigest(job.manifest);
   const marker = { jobId: job.id, sourceSha: job.source_sha, digest };
   try {
-    const deployed = await provider.findPublicationDeployment(job, verify, marker, logger);
-    if (!deployed) throw new Error("No unique verified Pages deployment.");
+    let deployed;
+    if (job.recovery_deployment_id) {
+      // The one-shot replay may have succeeded before the public alias caught
+      // up or before DB acknowledgement. Its exact ID is the source of truth.
+      deployed = await provider.verifyRecordedReplay(job, verify, marker);
+    } else {
+      deployed = await provider.findPublicationDeployment(
+        job, verify, marker, logger,
+        { allowCurrentMismatch: settings?.environment === "staging" && Boolean(archive) },
+      );
+      if (!deployed) throw new Error("No unique verified Pages deployment.");
+      if (deployed.currentMatches === false) {
+        if (settings?.environment !== "staging" || job.status !== "verifying" ||
+          !archive || typeof publication.claimStagingReplay !== "function")
+          throw new Error("Staging archived replay is unavailable.");
+        // Even a perfectly verified immutable Pages artifact is not proof it
+        // owns the public branch. Verify the actual public version is still
+        // the last confirmed Live CMS release before considering a replay.
+        const baseline = await publication.lastLive();
+        if (!baseline || baseline.id === job.id)
+          throw new Error("No separate confirmed staging baseline.");
+        const baselineMarker = { jobId: baseline.id,
+          sourceSha: baseline.source_sha, digest: manifestDigest(baseline.manifest) };
+        await provider.verifiedStagingBaseline(baseline, verify, baselineMarker);
+        const directory = await mkdtemp(path.join(tmpdir(), "twe-staging-replay-"));
+        try {
+          await archive.restore(job.id, directory);
+          const archivedMarker = JSON.parse(
+            await readFile(path.join(directory, "twe-publication.json"), "utf8"),
+          );
+          if (Object.keys(archivedMarker).length !== 3 ||
+            archivedMarker.jobId !== marker.jobId ||
+            archivedMarker.sourceSha !== marker.sourceSha ||
+            archivedMarker.digest !== marker.digest)
+            throw new Error("Archived publication marker does not match the stalled job.");
+          // Check again immediately before a single reserved upload; another
+          // worker or operator could have changed the live branch meanwhile.
+          await verify(settings.origin, baselineMarker);
+          const claimed = await publication.claimStagingReplay(job.id, job.build_token);
+          if (!claimed) throw new Error("Staging replay already claimed or job changed.");
+          logger.warn?.({ eventName: "publication.staging_replay_claimed", jobId: job.id },
+            "One archived publication replay reserved to restore the develop branch.");
+          // Never rebuild a stale manifest against today's checked-out code.
+          // The archived output is content-addressed and is verified on restore.
+          deployed = await provider.deploy(directory, {
+            source_sha: job.source_sha, startedAt: new Date().toISOString(),
+          });
+          await publication.recordStagingReplay(job.id, job.build_token, deployed.id);
+          await verify(deployed.origin, marker);
+          await verifyStagingOriginEventually(settings.origin, marker, verify, {
+            wait: originWait, attempts: originAttempts,
+          });
+        } finally {
+          await rm(directory, { recursive: true, force: true });
+        }
+      }
+    }
     await publication.confirmReconciled(job.id, job.build_token, deployed.id, digest);
     logger.info?.({ eventName: "publication.deployment_reconciled", jobId: job.id, deploymentId: deployed.id }, "Previously deployed publication confirmed.");
     return { id: job.id, status: "live", deploymentId: deployed.id };
@@ -61,7 +120,10 @@ export async function publishOne({ publication, media, provider, archive, settin
   // Validate the reviewed source before claiming a job; never build newer code
   // just because it happens to be deployed on Railway.
   const sha = await assertPublicationSource(settings.sourceSha, { run });
-  const reconciled = await reconcileStalePublication({ publication, provider, verify, logger });
+  const reconciled = await reconcileStalePublication({
+    publication, provider, archive, settings, verify, logger,
+    originWait, originAttempts,
+  });
   if (reconciled) return reconciled;
   await publication.coordinateSource?.();
   const job = await publication.claim();
