@@ -117,6 +117,70 @@ test("dedicated staging project refuses deployment before Wrangler when branch d
   await assert.rejects(provider.deploy("dist", { source_sha: sha }), /production branch/);
   assert.equal(uploads, 0);
 });
+test("dedicated staging Wrangler upload targets develop production and validates project origin", async () => {
+  const deploymentId = "11111111-1111-4111-8111-111111111111";
+  let executed = 0, reads = 0;
+  const provider = new PagesProvider({
+    accountId: "a".repeat(32), project: "twe-concierge-staging",
+    environment: "staging", branch: "develop", token: "synthetic",
+  }, {
+    fetcher: async url => {
+      reads++;
+      return { ok: true, json: async () => ({ success: true, result: url.endsWith("/deployments?per_page=10")
+        ? [{ id: deploymentId, url: "https://verified.twe-concierge-staging.pages.dev",
+          environment: "production", created_on: "2026-11-23T18:50:00Z",
+          latest_stage: { status: "success" },
+          deployment_trigger: { metadata: { branch: "develop", commit_hash: sha } } }]
+        : { name: "twe-concierge-staging", subdomain: "twe-concierge-staging.pages.dev",
+          production_branch: "develop" },
+      }) };
+    },
+    run: async (_command, args, environment) => {
+      executed++;
+      assert.ok(args.includes("--project-name"));
+      assert.equal(args[args.indexOf("--project-name") + 1], "twe-concierge-staging");
+      assert.equal(args[args.indexOf("--branch") + 1], "develop");
+      assert.equal(args[args.indexOf("--commit-hash") + 1], sha);
+      assert.equal(environment.CLOUDFLARE_API_TOKEN, "synthetic");
+    },
+    wait: async () => { throw Error("Should resolve without waiting"); },
+  });
+  const result = await provider.deploy("dist", { source_sha: sha, startedAt: "2026-11-23T18:40:00Z" });
+  assert.equal(result.id, deploymentId);
+  assert.equal(result.origin, "https://verified.twe-concierge-staging.pages.dev");
+  assert.equal(executed, 1);
+  assert.equal(reads, 2);
+});
+test("dedicated staging recovery confirms only exact production artifact and both markers", async () => {
+  const deploymentId = "11111111-1111-4111-8111-111111111111";
+  const origin = "https://staging.travelwitheasegh.com";
+  const marker = { jobId: "previous-live", sourceSha: sha, digest: "expected-digest" };
+  const job = { id: marker.jobId, source_sha: sha, created_at: "2026-11-23T18:40:00Z" };
+  const calls = [];
+  const deploymentEnvironment = { value: "production" };
+  const provider = new PagesProvider({
+    accountId: "a".repeat(32), project: "twe-concierge-staging",
+    environment: "staging", branch: "develop", origin, token: "synthetic",
+  }, { fetcher: async url => ({ ok: true, json: async () => ({ success: true,
+    result: url.includes("/deployments?per_page=25&page=")
+      ? url.endsWith("page=1")
+        ? [{ id: deploymentId, url: "https://verified.twe-concierge-staging.pages.dev",
+          environment: deploymentEnvironment.value, created_on: "2026-11-23T18:45:00Z",
+          latest_stage: { status: "success" },
+          deployment_trigger: { metadata: { branch: "develop", commit_hash: sha } } }]
+        : []
+      : { name: "twe-concierge-staging", production_branch: "develop",
+        subdomain: "twe-concierge-staging.pages.dev" },
+  }) }) });
+  const verify = async (url, actual) => { calls.push(url); assert.deepEqual(actual, marker); };
+  const result = await provider.findPublicationDeployment(job, verify, marker);
+  assert.equal(result.id, deploymentId);
+  assert.deepEqual(calls, ["https://verified.twe-concierge-staging.pages.dev", origin]);
+  calls.length = 0;
+  deploymentEnvironment.value = "preview";
+  assert.equal(await provider.findPublicationDeployment(job, verify, marker), null);
+  assert.deepEqual(calls, []);
+});
 test("staging baseline reads the recorded Live deployment rather than the newest develop preview", async () => {
   const baselineId = "11111111-1111-4111-8111-111111111111";
   const sha = "a".repeat(40);
