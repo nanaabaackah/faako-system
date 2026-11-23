@@ -46,6 +46,36 @@ test("reconciliation selects only the one matching immutable deployment, then ve
   assert.deepEqual(visited, [first.url, "https://staging.travelwitheasegh.com"]);
 });
 
+test("Pages upload waits for terminal success before returning a deployment", async () => {
+  const deploymentId = "11111111-1111-4111-8111-111111111111";
+  let reads = 0, waited = 0, uploads = 0;
+  const p = new PagesProvider({
+    accountId: "a".repeat(32), project: "twe-concierge", environment: "staging",
+    branch: "develop", origin: "https://staging.travelwitheasegh.com", token: "synthetic",
+  }, {
+    fetcher: async url => ({
+      ok: true,
+      json: async () => {
+        if (!url.includes("?per_page=10")) return { success: true, result: {
+          name: "twe-concierge", production_branch: "main", subdomain: "twe-concierge.pages.dev",
+        } };
+        reads++;
+        return { success: true, result: [{
+          ...deployment(deploymentId),
+          latest_stage: { status: reads === 1 ? "active" : "success" },
+        }] };
+      },
+    }),
+    run: async () => { uploads++; },
+    wait: async milliseconds => { assert.equal(milliseconds, 3000); waited++; },
+  });
+  const result = await p.deploy("/tmp/staged-build", { source_sha: sha, startedAt: "2026-11-23T08:01:00Z" });
+  assert.equal(result.id, deploymentId);
+  assert.equal(uploads, 1);
+  assert.equal(reads, 2);
+  assert.equal(waited, 1);
+});
+
 test("reconciliation does not confirm an ambiguous, missing or unverified deployment", async () => {
   const first = deployment("11111111-1111-4111-8111-111111111111");
   const second = deployment("22222222-2222-4222-8222-222222222222");
