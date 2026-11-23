@@ -84,7 +84,7 @@ class MonthCalendar extends HTMLElement {
             const button = document.createElement("button");
             button.type = "button"; button.dataset.day = date; button.className = "month-day";
             button.append(node("span", String(day)));
-            if (matches.length) button.append(node("span", String(matches.length), "month-count"));
+            if (matches.length) button.dataset.hasEvents = "true";
             button.setAttribute("aria-label", longDate(date) + (date === dateKey(new Date()) ? ", today" : "") + (loaded ? ", " + matches.length + " events" : ", schedule not loaded"));
             if (date === dateKey(new Date())) button.setAttribute("aria-current", "date");
             if (matches.length) button.title = matches.map(event => event.title).join("; ");
