@@ -51,7 +51,12 @@ try {
     const provider = new PagesProvider(settings);
     const [project, deployed] = await Promise.all([provider.request(), provider.request(`/deployments/${deploymentId}`)]);
     deploymentOriginForProject(deployed, project, settings.project);
-    if (project.production_branch !== "main" || deployed.latest_stage?.status !== "success" || deployed.deployment_trigger?.metadata?.branch !== settings.branch || deployed.deployment_trigger?.metadata?.commit_hash !== sha || deployed.environment !== (settings.environment === "staging" ? "preview" : "production")) throw new Error();
+    provider.assertProject(project);
+    if (deployed.latest_stage?.status !== "success" ||
+      deployed.deployment_trigger?.metadata?.branch !== settings.branch ||
+      deployed.deployment_trigger?.metadata?.commit_hash !== sha ||
+      deployed.environment !== provider.expectedDeploymentEnvironment())
+      throw new Error();
     const marker = { jobId: id, sourceSha: sha, digest: manifestDigest(job.manifest) };
     directory = await mkdtemp(path.join(tmpdir(), "twe-baseline-verification-"));
     await archive.restore(id, directory);
