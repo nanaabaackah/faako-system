@@ -103,6 +103,54 @@ test("reconciliation refuses multiple marker-matching deployments across Pages p
   assert.equal(result, null);
 });
 
+test("reconciliation reports an older matching commit rejected by the time safeguard", async () => {
+  const olderJob = { ...job, created_at: "2026-11-23T09:00:00Z" };
+  const candidate = deployment("55555555-5555-4555-8555-555555555555");
+  const reports = [];
+  const result = await provider([candidate]).findPublicationDeployment(
+    olderJob, async () => { throw new Error("Must not verify rejected candidate."); },
+    { jobId: olderJob.id, sourceSha: sha, digest: manifestDigest(olderJob.manifest) },
+    { info: meta => reports.push(meta) },
+  );
+  assert.equal(result, null);
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].reason, "no_match");
+  assert.equal(reports[0].sourceMatches, 1);
+  assert.equal(reports[0].rejectionReasons.beforeJob, 1);
+  assert.equal(reports[0].candidates, 0);
+});
+
+test("reconciliation does not loop through pages repeatedly returning the same deployments", async () => {
+  const row = deployment("66666666-6666-4666-8666-666666666666", "main");
+  const entries = Array.from({ length: 25 }, (_, i) => ({
+    ...row, id: `66666666-6666-4666-8666-${String(i).padStart(12, "0")}`,
+  }));
+  const requests = [], reports = [];
+  const p = new PagesProvider({
+    accountId: "a".repeat(32), project: "twe-concierge", environment: "staging",
+    branch: "develop", origin: "https://staging.travelwitheasegh.com", token: "synthetic",
+  }, {
+    fetcher: async url => ({
+      ok: true,
+      json: async () => {
+        if (!url.includes("/deployments?")) return { success: true, result: {
+          name: "twe-concierge", production_branch: "main", subdomain: "twe-concierge.pages.dev",
+        } };
+        requests.push(url);
+        return { success: true, result: entries };
+      },
+    }),
+  });
+  const result = await p.findPublicationDeployment(job, async () => {}, {
+    jobId: job.id, sourceSha: sha, digest: manifestDigest(job.manifest),
+  }, { info: meta => reports.push(meta) });
+  assert.equal(result, null);
+  assert.equal(requests.length, 2);
+  assert.equal(reports[0].reason, "repeated_page");
+  assert.equal(reports[0].repeatedPages, 1);
+  assert.equal(reports[0].rejectionReasons.duplicate, 25);
+});
+
 test("Pages upload waits for terminal success before returning a deployment", async () => {
   const deploymentId = "11111111-1111-4111-8111-111111111111";
   let reads = 0, waited = 0, uploads = 0;
