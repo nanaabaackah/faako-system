@@ -955,6 +955,7 @@ select:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transform: rotate(90deg);
   transition: transform 160ms ease;
 }
 .twe-history-disclosure__chevron svg {
@@ -962,7 +963,7 @@ select:focus-visible {
   height: 18px;
 }
 .twe-history-disclosure[open] .twe-history-disclosure__chevron {
-  transform: rotate(180deg);
+  transform: rotate(-90deg);
 }
 .twe-history-disclosure__body {
   min-width: 0;
