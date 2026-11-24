@@ -2,6 +2,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createDatabase, verifyDatabaseIdentity } from "../src/db/database.js";
 import { ContentPromotionImporter, verifyPromotionBundle } from "../src/content/promotion.js";
 import { readR2Config, R2Store } from "../src/media/r2.js";
+import { requireRailwaySourceSha, assertPublicationSource } from "../src/content/source-identity.js";
 
 const [input, mode, ...extra] = process.argv.slice(2);
 if (extra.length || !["--dry-run", "--confirm-initial-production-content"].includes(mode))
@@ -21,6 +22,8 @@ if (mode === "--dry-run") {
 } else {
   if (process.env.APP_ENV !== "production" || process.env.NODE_ENV !== "production")
     throw new Error("Promotion import is production-only.");
+  const publicationSourceSha = requireRailwaySourceSha();
+  await assertPublicationSource(publicationSourceSha);
   const organisationId = process.env.TWE_ORGANISATION_ID;
   const actorId = process.env.TWE_PROMOTION_ACTOR_ID;
   const pool = createDatabase(process.env, "TWE_MIGRATION_DATABASE_URL");
@@ -28,7 +31,7 @@ if (mode === "--dry-run") {
     await verifyDatabaseIdentity(pool, { environment: "production", organisationId });
     const storage = readR2Config();
     if (!storage) throw new Error("Production R2 is required for promotion import.");
-    const result = await new ContentPromotionImporter(pool, new R2Store(storage), { organisationId, actorId }).apply(bundle);
+    const result = await new ContentPromotionImporter(pool, new R2Store(storage), { organisationId, actorId, publicationSourceSha }).apply(bundle);
     console.log(JSON.stringify(result));
   } finally { await pool.end(); }
 }
