@@ -17,28 +17,35 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
         <fieldset key={item.id}>
           <legend>Package {index + 1}</legend>
           {[
-            ["title", "Package title", 120],
-            ["slug", "Package URL name", 80],
-            ["destination", "Destination", 100],
-            ["category", "Package category", 60],
-            ["duration", "Duration", 60],
-            ["dates", "Approved travel dates", 160],
-            ["overview", "Package overview", 6000],
-            ["tagline", "Package tagline", 200],
-            ["transport", "Flight and transport information", 2000],
-            ["accommodation", "Accommodation", 2000],
-            ["important", "Important travel information", 2000],
-          ].map(([key, label, max]) => (
-            <TextareaField
-              key={key}
-              label={label}
-              maxLength={max}
-              required={["title", "slug", "destination", "overview"].includes(
-                key,
-              )}
-              value={item[key] || ""}
-              onChange={(event) => update(index, key, event.target.value)}
-            />
+            ["Card & listing", [
+              ["title", "Package title", 120],
+              ["slug", "Package URL name", 80],
+              ["destination", "Destination", 100],
+              ["category", "Package category", 60],
+              ["tagline", "Card summary / tagline", 200],
+            ]],
+            ["Package detail page", [
+              ["overview", "Full package overview", 6000],
+              ["duration", "Duration", 60],
+              ["dates", "Approved travel dates", 160],
+              ["transport", "Flight and transport information", 2000],
+              ["accommodation", "Accommodation", 2000],
+              ["important", "Important travel information", 2000],
+            ]],
+          ].map(([group, fields]) => (
+            <fieldset key={group} className="cms-editor-group">
+              <legend>{group}</legend>
+              {fields.map(([key, label, max]) => (
+                <TextareaField
+                  key={key}
+                  label={label}
+                  maxLength={max}
+                  required={["title", "slug", "destination", "overview"].includes(key)}
+                  value={item[key] || ""}
+                  onChange={(event) => update(index, key, event.target.value)}
+                />
+              ))}
+            </fieldset>
           ))}
           <TextField label="Number of days" type="number" min="1" max="101" value={item.days ?? ""} onChange={event => update(index, "days", event.target.value === "" ? null : Number(event.target.value))} />
           <TextField label="Number of nights" type="number" min="0" max="100" value={item.nights ?? ""} onChange={event => update(index, "nights", event.target.value === "" ? null : Number(event.target.value))} />
