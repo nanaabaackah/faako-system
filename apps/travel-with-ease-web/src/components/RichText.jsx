@@ -1,6 +1,6 @@
 import { inlineRuns, richTextBlocks } from "../../../travel-with-ease-api/src/content/rich-text.js";
 
-export function RichInline({ value }) {
+function RichInline({ value }) {
   return inlineRuns(value).map((run, index) => run.type === "bold" ? <strong key={index}>{run.text}</strong> :
     run.type === "italic" ? <em key={index}>{run.text}</em> : run.text);
 }
