@@ -1076,7 +1076,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Edit five package-booking steps or four planning steps. Each path also has a separate four-stage example.</p>
+              <p>Add, remove, and edit booking or planning steps and their worked examples. Each path is independent.</p>
               {(["package", "planning"]).map((flowKey) => {
                 const flows = withUpdatedPackageFlow(body.processFlows || approvedRelease.pages["how-it-works"].processFlows);
                 const flow = flows[flowKey];
@@ -1105,8 +1105,26 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                           [flowKey]: { ...flow, steps: flow.steps.map((item, i) => i === index ? { ...item, text: event.target.value } : item) },
                         })}
                       />
+                      <Button type="button" icon="close" disabled={flow.steps.length <= 1}
+                        onClick={() => change("processFlows", {
+                          ...flows,
+                          [flowKey]: {
+                            ...flow,
+                            ...(flowKey === "package" ? { customStepCount: true } : {}),
+                            steps: flow.steps.filter((_, i) => i !== index),
+                          },
+                        })}>Remove step {index + 1}</Button>
                     </fieldset>
                   ))}
+                  <Button type="button" icon="add" disabled={flow.steps.length >= 12}
+                    onClick={() => change("processFlows", {
+                      ...flows,
+                      [flowKey]: {
+                        ...flow,
+                        ...(flowKey === "package" ? { customStepCount: true } : {}),
+                        steps: [...flow.steps, { heading: "", text: "" }],
+                      },
+                    })}>Add step</Button>
                   <TextareaField
                     label="Example introduction"
                     value={flow.example}
@@ -1118,7 +1136,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     })}
                   />
                   <fieldset>
-                    <legend>Worked example — four stages</legend>
+                    <legend>Worked example stages</legend>
                     {(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).map((step, index) => (
                       <fieldset key={index}>
                         <legend>Example stage {index + 1}</legend>
@@ -1150,8 +1168,29 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                             },
                           })}
                         />
+                        <Button type="button" icon="close" disabled={(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).length <= 1}
+                          onClick={() => change("processFlows", {
+                            ...flows,
+                            [flowKey]: {
+                              ...flow,
+                              exampleSteps: (flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps)
+                                .filter((_, i) => i !== index),
+                            },
+                          })}>Remove example stage {index + 1}</Button>
                       </fieldset>
                     ))}
+                    <Button type="button" icon="add"
+                      disabled={(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).length >= 12}
+                      onClick={() => change("processFlows", {
+                        ...flows,
+                        [flowKey]: {
+                          ...flow,
+                          exampleSteps: [
+                            ...(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps),
+                            { heading: "", text: "" },
+                          ],
+                        },
+                      })}>Add example stage</Button>
                   </fieldset>
                   <p>{flowKey === "package" ? "Terms: Section B · Package bookings" : "Terms: Section A · Planning services"}</p>
                 </fieldset>;
