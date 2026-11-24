@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { editorialValues } from "../../travel-with-ease-api/src/content/editorial-fields.js";
 import approved from "../content/approved-public-release.json" with { type: "json" };
 
 const source = file => readFileSync(new URL(`../src/${file}`, import.meta.url), "utf8");
@@ -68,8 +69,12 @@ test("updated how-it-works separates package and bespoke planning flows with app
   assert.match(tabs, /ArrowRight/);
   assert.match(tabs, /"\/terms#package-terms"/);
   assert.match(tabs, /"\/terms#planning-terms"/);
-  assert.match(tabs, /<ContentLink href="\/packages\/nairobi"/);
-  assert.match(tabs, /<ContentLink href="\/services\/travel-readiness-session"/);
+  assert.match(tabs, /publishedPage\(copy\.packageExamplePath\.slice\(1\)\) && <ContentLink href=\{copy\.packageExamplePath\}/);
+  assert.match(tabs, /publishedPage\(copy\.readinessPath\.slice\(1\)\) && <ContentLink href=\{copy\.readinessPath\}/);
+  const defaults = editorialValues("how-it-works");
+  assert.equal(defaults.packageExamplePath,"/packages/nairobi");
+  assert.equal(defaults.readinessPath,"/services/travel-readiness-session");
+  assert.equal(editorialValues("how-it-works",{packageExamplePath:"/packages/zanzibar"}).packageExamplePath,"/packages/zanzibar");
   assert.deepEqual(Object.keys(content.processFlows).sort(), ["package", "planning"]);
   assert.equal(content.processFlows.package.steps.length, 5);
   assert.equal(content.processFlows.planning.steps.length, 4);
