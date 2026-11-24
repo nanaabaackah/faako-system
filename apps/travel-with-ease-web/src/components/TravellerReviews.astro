@@ -1,5 +1,6 @@
 ---
 import "../styles/components/traveller-reviews.css";
+import RichText from "./RichText.astro";
 
 import { publishedPage } from "../lib/published.js";
 import { siteCopy } from "../lib/editorial-copy.js";
@@ -7,7 +8,6 @@ import { approvedTravellerReviews } from "../../../travel-with-ease-api/src/cont
 const home = publishedPage("home");
 const copy = siteCopy("home");
 const reviews: {preview:string; more:string}[] = home ? (home.reviews ?? approvedTravellerReviews) : [];
-const paragraphs = (text: string) => text.split(/\n\s*\n/).filter(Boolean);
 ---
 
 {reviews.length > 0 && <section id="traveller-reviews" class="traveller-reviews" aria-labelledby="traveller-reviews-heading">
@@ -21,12 +21,12 @@ const paragraphs = (text: string) => text.split(/\n\s*\n/).filter(Boolean);
         <article class="traveller-reviews__card" id={`traveller-review-${index + 1}`} aria-label={`Traveller review ${index + 1} of ${reviews.length}`}>
           <span class="traveller-reviews__quote-mark" aria-hidden="true">“</span>
           <blockquote class="traveller-reviews__quote">
-            {paragraphs(review.preview).map(text => <p>{text}</p>)}
+            <RichText value={review.preview}/>
           </blockquote>
           {review.more && <details class="traveller-reviews__details">
             <summary>{copy.reviewsExpand}</summary>
             <div class="traveller-reviews__continuation">
-              {paragraphs(review.more).map(text => <p>{text}</p>)}
+              <RichText value={review.more}/>
             </div>
           </details>}
         </article>
