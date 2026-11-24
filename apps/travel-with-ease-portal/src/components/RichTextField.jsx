@@ -7,8 +7,8 @@ import "../styles/rich-text.css";
 const actions = [
   ["bold", "Bold", <strong>B</strong>],
   ["italic", "Italic", <em>I</em>],
-  ["unordered", "Bulleted list", <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/><path d="M9 6h12M9 12h12M9 18h12"/></svg>],
-  ["ordered", "Numbered list", <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 4h2v5M3 9h4M3 14c0-2 4-2 4 0 0 1-4 4-4 5h4M10 6h11M10 16h11"/></svg>],
+  ["unordered", "Bulleted list", "Bullets"],
+  ["ordered", "Numbered list", "Numbering"],
 ];
 
 export default function RichTextField({ value = "", onChange, disabled, maxLength, ...props }) {
