@@ -6,11 +6,14 @@ export function RichInline({ value }) {
 }
 
 export default function RichText({ value, className = "" }) {
-  return <div className={`twe-rich-text ${className}`.trim()}>
-    {richTextBlocks(value).map((block, index) => {
+  const blocks = richTextBlocks(value);
+  const classes = `twe-rich-text ${className}`.trim();
+  if (blocks.length === 1 && blocks[0].type === "paragraph") return <p className={classes}><RichInline value={blocks[0].text}/></p>;
+  return <div className={classes}>
+    {blocks.map((block, index) => {
       if (block.type === "paragraph") return <p key={index}><RichInline value={block.text}/></p>;
       const List = block.type === "ordered" ? "ol" : "ul";
-      return <List key={index} start={block.start}>{block.items.map((item, i) => <li key={i}><RichInline value={item}/></li>)}</List>;
+      return <List key={index} start={block.type === "ordered" ? block.start : undefined}>{block.items.map((item, i) => <li key={i}><RichInline value={item}/></li>)}</List>;
     })}
   </div>;
 }
