@@ -74,7 +74,7 @@ try {
     await page.getByRole("option", { name: "Journal", exact: true }).click();
     await page.getByLabel("Travel tip series").first().waitFor();
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();
-    await page.getByLabel(/^Title/).fill("Changed demo article");
+    await page.getByLabel("Article title", { exact: true }).first().fill("Changed demo article");
     await page.getByLabel("Website CTA button text (optional)").first().fill("Plan my trip");
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await page
