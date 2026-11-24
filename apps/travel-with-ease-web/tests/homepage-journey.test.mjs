@@ -63,7 +63,7 @@ test("homepage exposes both client-approved booking and personal planning flows"
   const process = source("components/JourneyProcess.astro");
   const stepper = source("components/HomeJourneyStepper.jsx");
   assert.match(process, /const homepageFlows: Props\["content"\]\["processFlows"\] = withUpdatedPackageFlow\(content\.processFlows\)/);
-  assert.match(process, /<HomeJourneyStepper flows=\{homepageFlows\} client:visible/);
+  assert.match(process, /<HomeJourneyStepper flows=\{readyFlows\} client:visible/);
   assert.match(process, /\["package", "planning"\] as const/);
   assert.match(process, /copy\.detailsLink/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);

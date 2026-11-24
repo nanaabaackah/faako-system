@@ -10,7 +10,19 @@ export interface AppUpdateNoticeProps {
   dismissStorageKey?: string;
   enabled?: boolean;
   mode?: "prompt" | "auto";
+  /** In prompt mode, keep the update visible but disable refresh until work is safe. */
+  refreshBlocked?: boolean;
+  refreshBlockedMessage?: string;
+  /** Optional daily UTC hour for applying pending prompt-mode updates when safe. */
+  dailyRefreshHourUtc?: number;
 }
+
+const nextUtcDeadline = (hour: number, now = Date.now()) => {
+  const deadline = new Date(now);
+  deadline.setUTCHours(hour, 0, 0, 0);
+  if (deadline.getTime() < now) deadline.setUTCDate(deadline.getUTCDate() + 1);
+  return deadline.getTime();
+};
 
 const normalizeAssetPath = (value: string) => {
   try {
@@ -59,9 +71,15 @@ export const AppUpdateNotice = ({
   dismissStorageKey,
   enabled = true,
   mode = "prompt",
+  refreshBlocked = false,
+  refreshBlockedMessage = "Finish saving your current work before refreshing.",
+  dailyRefreshHourUtc,
 }: AppUpdateNoticeProps) => {
   const [latestSignature, setLatestSignature] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingUpdate, setPendingUpdate] = useState<{ signature: string; deadline: number } | null>(null);
+  const automaticAttempt = useRef("");
+  const scheduled = mode === "prompt" && typeof dailyRefreshHourUtc === "number" && Number.isInteger(dailyRefreshHourUtc) && dailyRefreshHourUtc >= 0 && dailyRefreshHourUtc <= 23;
   const initialSignatureRef = useRef("");
   const parserRef = useRef<DOMParser | null>(null);
   const storageKey = useMemo(
@@ -94,7 +112,7 @@ export const AppUpdateNotice = ({
           headers: { Accept: "text/html" },
         });
         const contentType = response.headers.get("content-type") || "";
-        if (!response.ok || !contentType.includes("text/html")) return;
+        if (!response.ok || response.redirected || !contentType.includes("text/html")) return;
 
         const html = await response.text();
         if (cancelled) return;
@@ -103,10 +121,20 @@ export const AppUpdateNotice = ({
         if (!nextDocument) return;
 
         const nextSignature = getDocumentBuildSignature(nextDocument);
-        const dismissedSignature =
-          typeof window.localStorage !== "undefined"
-            ? window.localStorage.getItem(storageKey)
-            : "";
+        let dismissedSignature = "";
+        try { dismissedSignature = window.localStorage.getItem(storageKey) || ""; } catch { /* Storage may be unavailable. */ }
+        if (scheduled && nextSignature) {
+          if (nextSignature === initialSignatureRef.current) {
+            setPendingUpdate(null);
+            setLatestSignature("");
+          } else {
+            const deadline = nextUtcDeadline(dailyRefreshHourUtc!);
+            // A newer deployment or Later dismissal cannot postpone a pending deadline.
+            setPendingUpdate(previous => previous?.signature === nextSignature ? previous : {
+              signature: nextSignature, deadline: previous?.deadline ?? deadline,
+            });
+          }
+        }
 
         if (
           nextSignature &&
@@ -143,29 +171,53 @@ export const AppUpdateNotice = ({
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", visibilityHandler);
     };
-  }, [autoRefreshStorageKey, checkIntervalMs, checkUrl, enabled, mode, storageKey]);
+  }, [autoRefreshStorageKey, checkIntervalMs, checkUrl, dailyRefreshHourUtc, enabled, mode, scheduled, storageKey]);
+
+  useEffect(() => {
+    if (!enabled || !scheduled || !pendingUpdate || refreshBlocked || refreshing) return;
+    const { signature, deadline } = pendingUpdate;
+    const applyIfDue = () => {
+      if (Date.now() < deadline || automaticAttempt.current === signature) return;
+      automaticAttempt.current = signature;
+      // A stale cache or unavailable deployment must not cause a reload loop.
+      try {
+        if (window.sessionStorage.getItem(autoRefreshStorageKey) === signature) return;
+        window.sessionStorage.setItem(autoRefreshStorageKey, signature);
+      } catch { /* In-memory protection is still available. */ }
+      window.location.reload();
+    };
+    const timeout = window.setTimeout(applyIfDue, Math.max(0, deadline - Date.now()));
+    const onVisible = () => { if (document.visibilityState === "visible") applyIfDue(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [autoRefreshStorageKey, enabled, pendingUpdate, refreshBlocked, refreshing, scheduled]);
 
   if (!enabled || !latestSignature) return null;
 
   const rootClassName = ["ui-app-update-notice", className].filter(Boolean).join(" ");
   const handleRefresh = () => {
+    if (refreshBlocked || refreshing) return;
     setRefreshing(true);
     setLatestSignature("");
-    window.setTimeout(() => window.location.reload(), 0);
+    setPendingUpdate(null);
+    window.location.reload();
   };
 
   return (
     <aside className={rootClassName} aria-live="polite" aria-label="App update available">
       <div className="ui-app-update-notice__copy">
         <strong>Update ready</strong>
-        <span>A newer version of {appName} is available. Finish your current work, then refresh.</span>
+        <span>{refreshBlocked ? refreshBlockedMessage : `A newer version of ${appName} is available. Finish your current work, then refresh.${scheduled ? ` Pending updates refresh automatically at ${String(dailyRefreshHourUtc).padStart(2, "0")}:00 GMT when safe.` : ""}`}</span>
       </div>
       <div className="ui-app-update-notice__actions">
         <button
           type="button"
           className="ui-app-update-notice__button ui-app-update-notice__button--primary"
           onClick={handleRefresh}
-          disabled={refreshing}
+          disabled={refreshing || refreshBlocked}
         >
           {refreshing ? "Refreshing..." : "Refresh now"}
         </button>

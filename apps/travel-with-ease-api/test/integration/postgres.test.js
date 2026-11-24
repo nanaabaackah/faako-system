@@ -558,11 +558,11 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       assert.equal(await store().getSession(tokenHash), undefined);
       await assert.rejects(store().createSession(identity, replayHash, "9".repeat(64), "issue03-replay-revoked"), { code: "23505" });
 
-      const later = { ...identity, assertionHash: randomBytes(32).toString("hex"), expiresAt: new Date(Date.now() + 7_200_000) };
+      const later = { ...identity, assertionHash: randomBytes(32).toString("hex"), expiresAt: new Date(Date.now() + 86_400_000) };
       await store().createSession(later, freshHash, "9".repeat(64), "issue03-fresh-login");
       const bounded = await store().getSession(freshHash);
-      assert.ok(bounded.expires_at.getTime() <= Date.now() + 3_600_000, "New login remains capped at one hour");
-      assert.ok(bounded.expires_at.getTime() > Date.now() + 3_500_000);
+      assert.ok(bounded.expires_at.getTime() <= Date.now() + 43_200_000, "Access login remains capped at twelve hours");
+      assert.ok(bounded.expires_at.getTime() > Date.now() + 43_100_000);
       await store().revokeAll(staffId, "issue03-logout-all");
       assert.equal(await store().getSession(freshHash), undefined);
       assert.equal((await query(
@@ -809,7 +809,9 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     await assert.rejects(content.save('services',{...input,entries:[{...input.entries[0],imagePlacement:{imageId:replacement.id}}]},reverted.version,actor,'archived-placement'),/available image/);
     const foreignActor={id:(await pool.query("SELECT id FROM twe.staff_users WHERE organisation_id=$1 LIMIT 1",[otherOrg])).rows[0].id,organisationId:otherOrg};
     await assert.rejects(new ContentRepository(pool,otherOrg).save('site-appearance',{...body,imagePlacements:{'footer-background':{imageId:asset.id}}},0,foreignActor,'foreign-placement'),/available image/);
-    const globals=await content.save('site-appearance',{...body,imagePlacements:{'footer-background':{imageId:asset.id,mobileImageId:asset.id,focalY:20},'cta-laptop':{imageId:asset.id}}},0,actor,'shared-images');
+    const sharedImages={...body,imagePlacements:{'footer-background':{imageId:asset.id,mobileImageId:asset.id,focalY:20},'cta-laptop':{imageId:asset.id}}};
+    await assert.rejects(content.save('site-appearance',sharedImages,0,{...actor,role:'owner'},'owner-layout-denied'),{status:403});
+    const globals=await content.save('site-appearance',sharedImages,0,platform,'shared-images');
     const directory=await mkdtemp(path.join(tmpdir(),'twe-image-placement-'));
     const artifact=await preparePublication({id:randomUUID(),source_sha:'1'.repeat(40),manifest:{version:1,pages:[{slug:'services',body:reverted.body},{slug:'site-appearance',body:globals.body}]}},media,directory);
     const snapshot=JSON.parse(await readFile(artifact.snapshot,'utf8'));

@@ -65,7 +65,7 @@ is trusted. Application identity is `(organisation, issuer, subject, audience)`.
 POST `/api/auth/access-session` requires an exact portal Origin, custom initiation
 header and verified Access assertion. The cookie is HttpOnly, SameSite=Lax,
 Secure on HTTPS and host-only; no tokens go into browser storage. Session expiry
-is at most one hour and never exceeds the login assertion expiry. Each protected
+is at most twelve hours and never exceeds the login assertion expiry. Configure the Cloudflare Access application and applicable staff policy session durations to twelve hours as well; a shorter provider duration still takes precedence. Existing local sessions retain their original expiry until the next successful sign-in. Each protected
 request requires a freshly verified signed assertion **and** the same active local
 session bound to `(organisation, issuer, subject, audience)`. Access may renew the
 JWT without extending or rewriting that local session. The unique login assertion

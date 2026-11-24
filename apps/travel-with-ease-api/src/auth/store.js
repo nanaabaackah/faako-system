@@ -21,7 +21,7 @@ export class PostgresAuthStore {
       const { rows } = await client.query("SELECT id, role FROM twe.staff_users WHERE organisation_id = $1 AND issuer = $2 AND subject = $3 AND active = true AND access_audience IS NOT DISTINCT FROM $4 FOR UPDATE", [this.organisationId, identity.issuer, identity.subject, identity.audience || null]);
       const user = rows[0];
       if (!user) return null;
-      await client.query("INSERT INTO twe.staff_sessions (token_hash, organisation_id, user_id, csrf_hash, expires_at, access_assertion_hash) VALUES ($1, $2, $3, $4, LEAST(now() + interval '1 hour', COALESCE($5::timestamptz, now() + interval '1 hour')), $6)", [tokenHash, this.organisationId, user.id, csrfHash, identity.expiresAt || null, identity.assertionHash || null]);
+      await client.query("INSERT INTO twe.staff_sessions (token_hash, organisation_id, user_id, csrf_hash, expires_at, access_assertion_hash) VALUES ($1, $2, $3, $4, LEAST(now() + CASE WHEN $6::text IS NOT NULL THEN interval '12 hours' ELSE interval '1 hour' END, COALESCE($5::timestamptz, now() + interval '1 hour')), $6)", [tokenHash, this.organisationId, user.id, csrfHash, identity.expiresAt || null, identity.assertionHash || null]);
       await this.audit(client, user.id, "auth.login", requestId);
       return user;
     });

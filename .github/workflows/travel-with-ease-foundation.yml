@@ -85,11 +85,12 @@ jobs:
       - name: Guided workspace, CMS, website and email browser acceptance
         run: |
           pnpm --filter @faako/stroane-web exec playwright install --with-deps chromium
-          pnpm --filter @faako/travel-with-ease-portal exec vite --host 127.0.0.1 --port 5197 > "$RUNNER_TEMP/twe-onboarding-vite.log" 2>&1 &
+          VITE_ENABLE_APP_UPDATE_NOTICE=true pnpm --filter @faako/travel-with-ease-portal exec vite --host 127.0.0.1 --port 5197 > "$RUNNER_TEMP/twe-onboarding-vite.log" 2>&1 &
           node apps/travel-with-ease-portal/scripts/check-onboarding-browser.mjs
           node apps/travel-with-ease-portal/scripts/check-content-browser.mjs
           node apps/travel-with-ease-portal/scripts/check-cms-management-browser.mjs
           node apps/travel-with-ease-portal/scripts/check-mobile-navigation-browser.mjs
+          node apps/travel-with-ease-portal/scripts/check-update-notice-browser.mjs
           node apps/travel-with-ease-web/scripts/check-public-followup.mjs
           node apps/travel-with-ease-web/scripts/check-redesign-browser.mjs
           node apps/travel-with-ease-web/scripts/check-collections-browser.mjs

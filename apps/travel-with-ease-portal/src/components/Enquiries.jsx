@@ -276,12 +276,10 @@ export default function Enquiries({ api, session }) {
             <ul className="enquiry-list">
               {result.items.map((item) => (
                 <li key={item.id}>
-                  <button type="button" onClick={() => setSelectedId(item.id)}>
-                    {item.demo ? "[STAGING DEMO] " : ""}
-                    {item.contact.name || "Traveller"}
-                  </button>
-                  <span className="enquiry-summary">{item.package || item.service || item.category}</span>
-                  <span className="enquiry-meta">
+                  <button className="enquiry-row-action" type="button" onClick={() => setSelectedId(item.id)} aria-label={`Open enquiry from ${item.contact.name || "Traveller"}`}>
+                    <strong className="enquiry-row-action__name">{item.demo ? "[STAGING DEMO] " : ""}{item.contact.name || "Traveller"}</strong>
+                    <span className="enquiry-summary">{item.package || item.service || item.category}</span>
+                    <span className="enquiry-meta">
                     <StatusPill
                       tone={
                         item.status === "new"
@@ -298,7 +296,8 @@ export default function Enquiries({ api, session }) {
                         timeZone: "Africa/Accra",
                       })}
                     </time>
-                  </span>
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

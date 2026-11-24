@@ -26,6 +26,8 @@ const photo = imagePlacement(content,"feature",photography.park);
 // Homepage and dedicated page both use the same client-approved, CMS-authored
 // processes. Keep the original photograph and homepage React Bits stepper.
 const homepageFlows: Props["content"]["processFlows"] = withUpdatedPackageFlow(content.processFlows);
+const readyFlows = (homepageFlows?.package?.steps?.length ?? 0) > 0
+  && (homepageFlows?.planning?.steps?.length ?? 0) > 0 ? homepageFlows : null;
 const copy = siteCopy("how-it-works");
 ---
 
@@ -37,15 +39,15 @@ const copy = siteCopy("how-it-works");
     {page && <HowItWorksTabs flows={homepageFlows} mode="steps" />}
     {!page && (
       <>
-        {homepageFlows?.package?.steps?.length === 5 && homepageFlows?.planning?.steps?.length === 4 && (
-          <HomeJourneyStepper flows={homepageFlows} client:visible copy={copy} />
+        {readyFlows && (
+          <HomeJourneyStepper flows={readyFlows} client:visible copy={copy} />
         )}
         <noscript>
-          {(["package", "planning"] as const).map((flow) => homepageFlows?.[flow]?.steps?.length === (flow === "package" ? 5 : 4) && (
+          {(["package", "planning"] as const).map((flow) => readyFlows && (
             <section class="journey-process__noscript-flow">
               <h3>{flow === "package" ? copy.packageTab : copy.planningTab}</h3>
               <ol class="journey-process__fallback">
-                {homepageFlows[flow].steps.map((step, index) => (
+                {readyFlows[flow].steps.map((step, index) => (
                   <li>
                     <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
                     <div><h3>{step.heading}</h3><p>{step.text}</p></div>

@@ -17,7 +17,7 @@ interface Props {
     ctaPath: string;
     contactEmail: string;
     contactPhone: string;
-    entries: { heading: string; text: string; attribution: string }[];
+    entries: { heading: string; text: string; attribution: string; section?: "A" | "B" }[];
     image: {
       src: string;
       alt: string;
@@ -32,6 +32,11 @@ const page = Astro.url.pathname.replace(/\/$/, "");
 const services = page === "/services";
 const story = page === "/about";
 const terms = page === "/terms";
+const termsSection = (entry: { section?: "A" | "B" }, index: number) =>
+  entry.section || (index < 4 ? "A" : "B");
+const startsTermsSection = (index: number) =>
+  index === 0 || (content && termsSection(content.entries[index], index)
+    !== termsSection(content.entries[index - 1], index - 1));
 ---
 
 <section class:list={["published-content", {
@@ -65,10 +70,12 @@ const terms = page === "/terms";
             </Accordion>
           ) : (
             <section>
-              {terms && (index === 0 || index === 4) && (
-                <p class="published-content__terms-section">Section {index === 0 ? "A" : "B"}</p>
+              {terms && startsTermsSection(index) && (
+                <p class="published-content__terms-section">Section {termsSection(entry, index)}</p>
               )}
-              <h2 id={terms ? (index === 0 ? "planning-terms" : index === 4 ? "package-terms" : undefined) : undefined}><MoneyText text={entry.heading} /></h2>
+              <h2 id={terms && startsTermsSection(index)
+                ? (termsSection(entry, index) === "A" ? "planning-terms" : "package-terms")
+                : undefined}><MoneyText text={entry.heading} /></h2>
               <p><MoneyText text={entry.text} /></p>
               {entry.attribution && <p class={story ? "published-content__attribution" : undefined}>{entry.attribution}</p>}
             </section>

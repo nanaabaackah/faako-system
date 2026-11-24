@@ -13,7 +13,11 @@ export function withPackageTravelPackStep(steps) {
 
 export function withUpdatedPackageFlow(flows) {
   if (!flows?.package?.steps || !flows?.planning?.steps) return flows;
-  const updatedSteps = withPackageTravelPackStep(flows.package.steps);
+  // Existing four-step drafts from before the approved travel-pack addition are
+  // still upgraded, but deliberate CMS add/remove actions always win.
+  const updatedSteps = flows.package.customStepCount === true
+    ? flows.package.steps
+    : withPackageTravelPackStep(flows.package.steps);
   return updatedSteps === flows.package.steps ? flows : {
     ...flows,
     package: { ...flows.package, steps: updatedSteps },

@@ -21,6 +21,8 @@ import VisualPreview from "./VisualPreview.jsx";
 import ImagePlacements from './ImagePlacements.jsx';
 import { ActivityList } from './ActivityView.jsx';
 import HistoryDisclosure from "./HistoryDisclosure.jsx";
+import ServicesEditor from "./ServicesEditor.jsx";
+import TermsEditor from "./TermsEditor.jsx";
 import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
@@ -77,7 +79,7 @@ const emptyBody = () => ({
   editorialCopy: {},
 });
 
-export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
+export default function WebsiteContent({ api, session, onDirtyChange, onRefreshBlockedChange, initialPage = "home" }) {
   const { pushToast } = useToast();
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
@@ -129,6 +131,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
   useEffect(() => {
+    onRefreshBlockedChange?.(dirty || saveState.status === "saving" || state.loading || publicationBusy || chooseImage || Boolean(confirmAction));
+    return () => onRefreshBlockedChange?.(false);
+  }, [dirty, saveState.status, state.loading, publicationBusy, chooseImage, confirmAction, onRefreshBlockedChange]);
+  useEffect(() => {
     if (!dirty) return;
     const warn = (event) => {
       event.preventDefault();
@@ -148,7 +154,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         try { return await api.get(`/api/agent/content/${page}`, { responseMode: "data" }); }
         catch (error) { if (error.status === 404) return { body: emptyBody(), version: 0 }; throw error; }
       },
-      onState: result => { if (active) { setSaveState(result); setDirty(result.dirty); } },
+      onState: result => { if (active) { setSaveState(result); setDirty(result.dirty); onDirtyChange(result.dirty); } },
       onSaved: (result, replace) => {
         if (!active) return;
         if (replace) { bodyRef.current = result.body; setBody(result.body); }
@@ -232,7 +238,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       autosave.dispose();
       if (writer.current === autosave) writer.current = null;
     };
-  }, [api, page, session.csrfToken]);
+  }, [api, page, session.csrfToken, onDirtyChange]);
   const change = (key, value) => {
     if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) && entry.text.trim() ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
     if (["packages", "articles"].includes(key)) {
@@ -458,7 +464,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
       {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
         <fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}>
-          <legend>Selected website fields</legend>
+          <legend>{sectionLabel(page)} content</legend>
+          <fieldset className="cms-editor-group">
+            <legend>Page introduction</legend>
           <TextField
             label="Heading"
             value={body.heading}
@@ -473,6 +481,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             rows={6}
             onChange={(e) => change("body", e.target.value)}
           />
+          </fieldset>
           {page !== "site-appearance" && <EditorialFields page={page} body={body} change={change} />}
           {page === "home" && (
             <>
@@ -562,32 +571,18 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 <fieldset key={index}>
                   <legend>Article {index + 1}</legend>
                   {[
-                    ["title", "Title", 120],
-                    [
-                      "slug",
-                      "URL name (lowercase words separated by hyphens)",
-                      80,
-                    ],
-                    ["excerpt", "Short introduction", 240],
-                    ["body", "Article text", 6000],
-                  ].map(([key, label, max]) => (
-                    <TextareaField
-                      key={key}
-                      label={label}
-                      required
-                      maxLength={max}
-                      value={article[key]}
-                      onChange={(event) =>
-                        change(
-                          "articles",
-                          body.articles.map((item, i) =>
-                            i === index
-                              ? { ...item, [key]: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
+                    ["Article card & listing", [["title", "Article title", 120], ["slug", "Article URL name", 80], ["excerpt", "Card summary", 240]]],
+                    ["Article detail page", [["body", "Full article", 6000]]],
+                  ].map(([group, fields]) => (
+                    <fieldset key={group} className="cms-editor-group">
+                      <legend>{group}</legend>
+                      {fields.map(([key, label, max]) => (
+                        <TextareaField key={key} label={label} required={true}
+                          maxLength={max} value={article[key] || ""}
+                          onChange={event => change("articles", body.articles.map((item, i) =>
+                            i === index ? { ...item, [key]: event.target.value } : item))} />
+                      ))}
+                    </fieldset>
                   ))}
                   <DateField
                     label="Article date"
@@ -737,7 +732,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         "articles",
                         body.articles.map((item, i) =>
                           i === index
-                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: undefined }
+                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: item.imagePlacement ? { ...item.imagePlacement, imageId: null, mobileImageId: null } : undefined }
                             : item,
                         ),
                       )
@@ -821,33 +816,18 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 <fieldset key={index}>
                   <legend>Tip {index + 1}</legend>
                   {[
-                    ["title", "Tip title", 120],
-                    ["slug", "Tip URL name", 80],
-                    ["excerpt", "Tip summary", 240],
-                    ["body", "Tip text", 6000],
-                    [
-                      "relatedArticle",
-                      "Related published Journal URL name (optional)",
-                      80,
-                    ],
-                  ].map(([key, label, max]) => (
-                    <TextareaField
-                      key={key}
-                      label={label}
-                      value={tip[key]}
-                      maxLength={max}
-                      required={key !== "relatedArticle"}
-                      onChange={(event) =>
-                        change(
-                          "tips",
-                          body.tips.map((item, i) =>
-                            i === index
-                              ? { ...item, [key]: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
+                    ["Travel tip card & listing", [["title", "Tip title", 120], ["slug", "Tip URL name", 80], ["excerpt", "Card summary", 240]]],
+                    ["Travel tip detail page", [["body", "Full travel tip", 6000], ["relatedArticle", "Related Journal URL name (optional)", 80]]],
+                  ].map(([group, fields]) => (
+                    <fieldset key={group} className="cms-editor-group">
+                      <legend>{group}</legend>
+                      {fields.map(([key, label, max]) => (
+                        <TextareaField key={key} label={label} required={key !== "relatedArticle"}
+                          maxLength={max} value={tip[key] || ""}
+                          onChange={event => change("tips", body.tips.map((item, i) =>
+                            i === index ? { ...item, [key]: event.target.value } : item))} />
+                      ))}
+                    </fieldset>
                   ))}
                   <SelectField
                     label="Tip category"
@@ -1076,7 +1056,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Edit five package-booking steps or four planning steps. Each path also has a separate four-stage example.</p>
+              <p>Add, remove, and edit booking or planning steps and their worked examples. Each path is independent.</p>
               {(["package", "planning"]).map((flowKey) => {
                 const flows = withUpdatedPackageFlow(body.processFlows || approvedRelease.pages["how-it-works"].processFlows);
                 const flow = flows[flowKey];
@@ -1105,8 +1085,26 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                           [flowKey]: { ...flow, steps: flow.steps.map((item, i) => i === index ? { ...item, text: event.target.value } : item) },
                         })}
                       />
+                      <Button type="button" icon="close" disabled={flow.steps.length <= 1}
+                        onClick={() => change("processFlows", {
+                          ...flows,
+                          [flowKey]: {
+                            ...flow,
+                            ...(flowKey === "package" ? { customStepCount: true } : {}),
+                            steps: flow.steps.filter((_, i) => i !== index),
+                          },
+                        })}>Remove step {index + 1}</Button>
                     </fieldset>
                   ))}
+                  <Button type="button" icon="add" disabled={flow.steps.length >= 12}
+                    onClick={() => change("processFlows", {
+                      ...flows,
+                      [flowKey]: {
+                        ...flow,
+                        ...(flowKey === "package" ? { customStepCount: true } : {}),
+                        steps: [...flow.steps, { heading: "", text: "" }],
+                      },
+                    })}>Add step</Button>
                   <TextareaField
                     label="Example introduction"
                     value={flow.example}
@@ -1118,7 +1116,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     })}
                   />
                   <fieldset>
-                    <legend>Worked example — four stages</legend>
+                    <legend>Worked example stages</legend>
                     {(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).map((step, index) => (
                       <fieldset key={index}>
                         <legend>Example stage {index + 1}</legend>
@@ -1150,44 +1148,59 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                             },
                           })}
                         />
+                        <Button type="button" icon="close" disabled={(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).length <= 1}
+                          onClick={() => change("processFlows", {
+                            ...flows,
+                            [flowKey]: {
+                              ...flow,
+                              exampleSteps: (flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps)
+                                .filter((_, i) => i !== index),
+                            },
+                          })}>Remove example stage {index + 1}</Button>
                       </fieldset>
                     ))}
+                    <Button type="button" icon="add"
+                      disabled={(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).length >= 12}
+                      onClick={() => change("processFlows", {
+                        ...flows,
+                        [flowKey]: {
+                          ...flow,
+                          exampleSteps: [
+                            ...(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps),
+                            { heading: "", text: "" },
+                          ],
+                        },
+                      })}>Add example stage</Button>
                   </fieldset>
                   <p>{flowKey === "package" ? "Terms: Section B · Package bookings" : "Terms: Section A · Planning services"}</p>
                 </fieldset>;
               })}
             </section>
           )}
-          {!["packages", "journal", "travel-tips", "how-it-works"].includes(
+          {page === "services" && <ServicesEditor entries={body.entries}
+            onChange={entries => change("entries", entries)} />}
+          {page === "terms" && <TermsEditor entries={body.entries}
+            onChange={entries => change("entries", entries)} />}
+          {!["packages", "journal", "travel-tips", "how-it-works", "services", "terms"].includes(
             page,
           ) && (
             <>
               {body.entries.map((entry, index) => (
                 <fieldset key={index}>
                   <legend>Entry {index + 1}</legend>
-                  {[
-                    ["heading", "Title / question", 160],
-                    ["text", "Text / answer", 2000],
-                    ["attribution", "Attribution (where applicable)", 160],
-                  ].map(([key, label, max]) => (
-                    <TextareaField
-                      key={key}
-                      label={label}
-                      value={entry[key]}
-                      maxLength={max}
-                      required={key !== "attribution"}
-                      onChange={(event) =>
-                        change(
-                          "entries",
-                          body.entries.map((value, i) =>
-                            i === index
-                              ? { ...value, [key]: event.target.value }
-                              : value,
-                          ),
-                        )
-                      }
-                    />
-                  ))}
+                  <fieldset className="cms-editor-group">
+                    <legend>Section entry</legend>
+                    {[
+                      ["heading", "Title / question", 160],
+                      ["text", "Text / answer", 2000],
+                      ["attribution", "Attribution (where applicable)", 160],
+                    ].map(([key, label, max]) => (
+                      <TextareaField key={key} label={label} value={entry[key] || ""} maxLength={max}
+                        required={key !== "attribution"}
+                        onChange={event => change("entries", body.entries.map((item, i) =>
+                          i === index ? { ...item, [key]: event.target.value } : item))} />
+                    ))}
+                  </fieldset>
                   <Button
                     type="button"
                     onClick={() =>

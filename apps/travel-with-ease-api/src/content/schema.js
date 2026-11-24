@@ -184,17 +184,20 @@ export const contentBodySchema = z
         steps: z.array(z.object({
           heading: text(160).min(1),
           text: text(2000).min(1),
-        }).strict()).min(4).max(5),
+        }).strict()).min(1).max(12),
+        // Explicit step-count edits must not trigger the legacy four-to-five
+        // package migration on later autosaves or publications.
+        customStepCount: z.boolean().default(false),
         example: text(2500).min(1),
-        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
+        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).min(1).max(12).optional(),
       }).strict(),
       planning: z.object({
         steps: z.array(z.object({
           heading: text(160).min(1),
           text: text(2000).min(1),
-        }).strict()).length(4),
+        }).strict()).min(1).max(12),
         example: text(2500).min(1),
-        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
+        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).min(1).max(12).optional(),
       }).strict(),
     }).strict().optional(),
     entries: z
@@ -205,6 +208,9 @@ export const contentBodySchema = z
             imagePlacement:imagePlacementSchema.optional(),
             heading: text(160).min(1),
             serviceSlug: slug.optional(),
+            section: z.enum(["A", "B"]).optional(),
+            // Independent listing/home card copy; legacy pages fall back to text.
+            cardSummary: text(240).optional(),
             text: text(2000).min(1),
             attribution: text(160).default(""),
           })
@@ -310,6 +316,14 @@ export function contentForPage(page, body) {
     const slugs = value.entries.map(entry => entry.serviceSlug || serviceSlug(entry.heading));
     if (slugs.some(key => !key) || new Set(slugs).size !== slugs.length) throw new ContentError(400, "validation_error", "Service URLs must be unique.");
   } else if (value.entries.some(entry => entry.serviceSlug)) throw new ContentError(400, "validation_error", "Service URLs belong in Services.");
+  if (page !== "terms" && value.entries.some(entry => entry.section)) throw new ContentError(400, "validation_error", "Terms Section A/B grouping belongs in Terms.");
+  if (page === "terms") {
+    // Legacy revisions have four A entries followed by B entries. Preserve that
+    // boundary until an editor explicitly tags each entry; never reorder terms.
+    const sectionOrder = value.entries.map((entry, index) => entry.section || (index < 4 ? "A" : "B"));
+    if (sectionOrder.some((section, index) => section === "A" && sectionOrder.slice(0, index).includes("B")))
+      throw new ContentError(400, "validation_error", "Section A terms must precede Section B terms.");
+  }
   const entryIds=value.entries.map(entry=>entry.id).filter(Boolean);
   const recordPlacements=[...value.entries,...value.packages,...value.articles,...value.tips].map(record=>record.imagePlacement).filter(Boolean);
   if(recordPlacements.some(placement=>placement.layout!=='default'))throw new ContentError(400,'validation_error','Record photographs use the existing card or gallery layout.');

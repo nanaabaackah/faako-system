@@ -14,6 +14,7 @@ interface ServiceEntry {
   heading: string;
   serviceSlug?: string;
   text: string;
+  cardSummary?: string;
   imagePlacement?: ImagePlacement;
 }
 interface Props {
@@ -44,7 +45,7 @@ const { heading, body, entries } = Astro.props;
     {entries.map((entry) => {
       const [title, ...priceParts] = entry.heading.split(" · ");
       const price = priceParts.join(" · ");
-      const summary = entry.text.split(/(?<=[.!?])\s+/)[0];
+      const summary = entry.cardSummary?.trim() || entry.text.split(/(?<=[.!?])\s+/)[0];
       return (
         <li class="home-services__item home-services__row">
           <div class="home-services__row-heading">
