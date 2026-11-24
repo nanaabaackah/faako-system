@@ -37,11 +37,11 @@ const copy = siteCopy("how-it-works");
     {page && <HowItWorksTabs flows={homepageFlows} mode="steps" />}
     {!page && (
       <>
-        {homepageFlows?.package?.steps?.length === 5 && homepageFlows?.planning?.steps?.length === 4 && (
+        {homepageFlows?.package?.steps?.length >= 1 && homepageFlows?.planning?.steps?.length >= 1 && (
           <HomeJourneyStepper flows={homepageFlows} client:visible copy={copy} />
         )}
         <noscript>
-          {(["package", "planning"] as const).map((flow) => homepageFlows?.[flow]?.steps?.length === (flow === "package" ? 5 : 4) && (
+          {(["package", "planning"] as const).map((flow) => homepageFlows?.[flow]?.steps?.length >= 1 && (
             <section class="journey-process__noscript-flow">
               <h3>{flow === "package" ? copy.packageTab : copy.planningTab}</h3>
               <ol class="journey-process__fallback">
