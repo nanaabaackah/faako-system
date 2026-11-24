@@ -79,7 +79,7 @@ const emptyBody = () => ({
   editorialCopy: {},
 });
 
-export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
+export default function WebsiteContent({ api, session, onDirtyChange, onRefreshBlockedChange, initialPage = "home" }) {
   const { pushToast } = useToast();
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
@@ -131,6 +131,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
   useEffect(() => {
+    onRefreshBlockedChange?.(dirty || saveState.status === "saving" || state.loading || publicationBusy || chooseImage || Boolean(confirmAction));
+    return () => onRefreshBlockedChange?.(false);
+  }, [dirty, saveState.status, state.loading, publicationBusy, chooseImage, confirmAction, onRefreshBlockedChange]);
+  useEffect(() => {
     if (!dirty) return;
     const warn = (event) => {
       event.preventDefault();
@@ -150,7 +154,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         try { return await api.get(`/api/agent/content/${page}`, { responseMode: "data" }); }
         catch (error) { if (error.status === 404) return { body: emptyBody(), version: 0 }; throw error; }
       },
-      onState: result => { if (active) { setSaveState(result); setDirty(result.dirty); } },
+      onState: result => { if (active) { setSaveState(result); setDirty(result.dirty); onDirtyChange(result.dirty); } },
       onSaved: (result, replace) => {
         if (!active) return;
         if (replace) { bodyRef.current = result.body; setBody(result.body); }
@@ -234,7 +238,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       autosave.dispose();
       if (writer.current === autosave) writer.current = null;
     };
-  }, [api, page, session.csrfToken]);
+  }, [api, page, session.csrfToken, onDirtyChange]);
   const change = (key, value) => {
     if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) && entry.text.trim() ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
     if (["packages", "articles"].includes(key)) {
