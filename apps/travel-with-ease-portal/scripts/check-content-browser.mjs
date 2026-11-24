@@ -76,7 +76,7 @@ try {
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();
     await page.getByRole("group", { name: "Article card & listing", exact: true }).first().getByLabel(/^Article title/).fill("Changed demo article");
     const articleEditor = page.getByRole("group", { name: "Article detail page", exact: true }).first();
-    const articleBody = articleEditor.getByLabel(/^Full article/);
+    const articleBody = articleEditor.getByRole("textbox", { name: /^Full article/ });
     await articleBody.fill("Pack your bag\nCheck your passport");
     await articleBody.evaluate(node => node.setSelectionRange(0, 4));
     await articleEditor.getByRole("button", { name: "Bold", exact: true }).click();
