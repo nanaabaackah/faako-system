@@ -14,15 +14,15 @@ export function journalBodyBlocks(body = "") {
     const text = raw.trim();
     if (!text) continue;
     const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
-    if (lines.every(line => /^-\s+/.test(line))) {
-      blocks.push({ type: "unordered", items: lines.map(line => line.replace(/^-\s+/, "")) });
+    if (lines.every(line => /^[-•]\s+/.test(line))) {
+      blocks.push({ type: "unordered", items: lines.map(line => line.replace(/^[-•]\s+/, "")) });
       continue;
     }
-    if (lines.length === 1 && /^\d+\.\s+/.test(lines[0])) {
-      const item = lines[0].replace(/^\d+\.\s+/, "");
+    if (lines.every(line => /^\d+\.\s+/.test(line))) {
+      const items = lines.map(line => line.replace(/^\d+\.\s+/, ""));
       const last = blocks.at(-1);
-      if (last?.type === "ordered") last.items.push(item);
-      else blocks.push({ type: "ordered", items: [item] });
+      if (last?.type === "ordered") last.items.push(...items);
+      else blocks.push({ type: "ordered", items });
       continue;
     }
     if (["Why it happens", "If you're turned away at the desk"].includes(text)) {
