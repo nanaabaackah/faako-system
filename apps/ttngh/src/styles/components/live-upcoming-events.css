@@ -1,0 +1,13 @@
+/* Live Google Calendar dates complement, but never replace, editorial Sanity cards. */
+live-upcoming-events { display: block; width: 100%; padding: var(--section-space) var(--editorial-inset); }
+live-upcoming-events[hidden] { display: none !important; }
+live-upcoming-events h2 { margin-bottom: 1.5rem; }
+.live-upcoming-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; }
+.live-upcoming-card { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; gap: .85rem; padding: clamp(1.25rem, 2.5vw, 1.75rem); overflow-wrap: anywhere; border-top: 3px solid var(--brand-pink-dark); }
+.live-upcoming-card h3 { margin: 0; font-size: clamp(1.1rem, 1.8vw, 1.4rem); line-height: 1.35; }
+.live-upcoming-card p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+.live-upcoming-date { color: var(--accent); font-size: .85rem; font-weight: 700; line-height: 1.5; }
+.live-upcoming-card .live-upcoming-tentative { color: var(--brand-pink-dark); }
+.live-upcoming-card .text-link { margin-top: auto; }
+@media (max-width: 1000px) { .live-upcoming-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .live-upcoming-grid { grid-template-columns: 1fr; } }

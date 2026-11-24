@@ -46,7 +46,12 @@ test("contact form retains consent and safeguarding while using Faako visual tok
 });
 
 test("Faako shared icon and reduced-motion calendar support remain", () => {
-  assert.match(source("components/Icon.jsx"), /import \{ ArrowRight4 \} from "@faako\/ui"/);
+  const icons = source("components/Icon.jsx");
+  assert.match(icons, /import \{ ArrowRight4, IconsaxIcon \} from "@faako\/ui"/);
+  assert.match(icons, /name="ArrowLeft4"/);
+  assert.match(icons, /"arrow-left": ArrowLeft4, "arrow-right": ArrowRight4/);
+  assert.match(source("components/MonthCalendar.astro"), /data-month-prev aria-label="Previous month"><Icon name="arrow-left"/);
+  assert.match(source("components/MonthCalendar.astro"), /data-month-next aria-label="Next month"><Icon name="arrow-right"/);
   assert.match(source("components/MonthCalendar.astro"), /month-calendar-sr-only/);
   assert.match(source("styles/components/month-calendar.css"), /prefers-reduced-motion/);
   assert.match(source("components/ScrollExpandSection.astro"), /prefers-reduced-motion/);
