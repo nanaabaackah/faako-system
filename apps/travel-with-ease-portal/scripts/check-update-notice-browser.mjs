@@ -28,14 +28,35 @@ try {
       }
       await button.click();
     };
-    await navigate("Templates");
-    const heading = page.getByLabel(/^Heading/);
-    await heading.waitFor();
-    await heading.fill("Pending template update fixture");
+    // Hold the first CMS save until the update notice is visible. A failed
+    // acknowledgement must also keep the current draft protected.
+    let failSave = true;
+    await page.route("**/api/agent/content/home/draft", async route => {
+      if (!failSave) return route.fallback();
+      await new Promise(resolve => setTimeout(resolve, 800));
+      return route.fulfill({ status: 503, json: { ok:false, error:{ code:"service_unavailable", message:"Synthetic save failure" } } });
+    });
+    await navigate("Content");
+    const draftHeading = page.getByLabel(/^Heading/);
+    await draftHeading.fill("Pending CMS draft fixture");
     version = 1;
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     const notice = page.getByRole("complementary", { name: "App update available" });
     const refresh = notice.getByRole("button", { name: "Refresh now" });
+    await expect(refresh).toBeDisabled();
+    await expect(page.getByText("Error — unsaved edits retained", {exact:true})).toBeVisible();
+    await expect(refresh).toBeDisabled();
+    await expect(draftHeading).toHaveValue("Pending CMS draft fixture");
+    failSave = false;
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await expect(refresh).toBeEnabled();
+    await notice.getByRole("button", { name: "Later" }).click();
+    await navigate("Templates");
+    const heading = page.getByLabel(/^Heading/);
+    await heading.waitFor();
+    await heading.fill("Pending template update fixture");
+    version = 2;
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await expect(notice).toBeVisible();
     await expect(refresh).toBeDisabled();
     await expect(heading).toHaveValue("Pending template update fixture");
@@ -43,7 +64,7 @@ try {
     await notice.getByRole("button", { name: "Later" }).click();
     await expect(notice).toHaveCount(0);
     await expect(heading).toHaveValue("Pending template update fixture");
-    version = 2;
+    version = 3;
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await expect(notice).toBeVisible();
     await expect(refresh).toBeDisabled();
