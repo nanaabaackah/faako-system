@@ -20,6 +20,7 @@ import { createDraftAutosave } from "../lib/draft-autosave.js";
 import VisualPreview from "./VisualPreview.jsx";
 import ImagePlacements from './ImagePlacements.jsx';
 import { ActivityList } from './ActivityView.jsx';
+import HistoryDisclosure from "./HistoryDisclosure.jsx";
 import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
@@ -1353,7 +1354,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             Refresh publication status
           </Button>
         </div>
-        <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
+        <HistoryDisclosure title="Publication history" count={jobs.length}>
+          <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
           renderAction={job=><>
             {job.needs_reconciliation && <p>Verification delayed — deployment reconciliation required. New publications remain blocked until the exact release is verified.</p>}
             {job.environment&&<p>Environment: {job.environment}</p>}
@@ -1364,6 +1366,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             {job.status==='pending' && job.can_cancel === true && canPublish && <Button type="button" disabled={state.loading || publicationBusy} onClick={()=>setConfirmAction({ kind: "cancel", title: "Cancel pending publication?", message: "It will not deploy. Saved drafts and publication history will be preserved.", label: "Cancel publication", run: () => cancelStalePublication(job) })}>Cancel stale publication</Button>}
             {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading||publicationBusy} onClick={()=>setConfirmAction({ kind: "retry", title: "Retry failed publication?", message: "This retries the existing failed job without creating a duplicate publication request.", label: "Retry publication", run: () => publication('retry',job.id) })}>Retry failed publication</Button>}
           </>}/>
+        </HistoryDisclosure>
       </section>
       <ERPConfirmDialog open={Boolean(confirmAction)} title={confirmAction?.title} message={confirmAction?.message} confirmLabel={confirmAction?.label || "Confirm"} confirmTone={confirmAction?.kind === "cancel" || confirmAction?.kind === "unpublish" ? "danger" : "primary"} loading={publicationBusy} onCancel={() => setConfirmAction(null)} onConfirm={async () => { const action = confirmAction; setConfirmAction(null); await action?.run(); }} />
       <ERPModal open={publicationProgressOpen} title="Publication progress" description="You can close this window while publishing continues." onClose={() => setPublicationProgressOpen(false)} size="sm" footer={<Button type="button" onClick={() => setPublicationProgressOpen(false)}>Continue working</Button>}>
@@ -1431,9 +1434,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         </section>
       )}
       <section className="workspace-panel">
-        <h3>Revision history</h3>
-        <ActivityList title="Content revision history" items={history.map(revision=>({...revision,action:`Saved revision ${revision.version}`,actor_id:revision.editor_id,record_id:revision.id}))}
+        <HistoryDisclosure title="Version history" count={history.length}>
+          <ActivityList title="Content revision history" items={history.map(revision=>({...revision,action:`Saved revision ${revision.version}`,actor_id:revision.editor_id,record_id:revision.id}))}
           renderAction={revision=><Button type="button" disabled={state.loading} onClick={()=>setConfirmAction({ kind: "restore", title: `Restore version ${revision.version}?`, message: "This creates a new draft from the selected revision. Nothing is published automatically.", label: "Restore version", run: () => revert(revision.id) })}>Restore version {revision.version}</Button>}/>
+        </HistoryDisclosure>
       </section>
       </div>
       {visualPreview && preview && <VisualPreview key={visualPreview.id} job={visualPreview} api={api} body={preview} />}

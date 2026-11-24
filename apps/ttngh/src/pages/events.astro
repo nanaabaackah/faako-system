@@ -4,6 +4,7 @@ import PageHero from "../components/PageHero.astro";
 import FaqList from "../components/FaqList.astro";
 import ScrollExpandSection from "../components/ScrollExpandSection.astro";
 import EventCalendar from "../components/EventCalendar.astro";
+import LiveUpcomingEvents from "../components/LiveUpcomingEvents.astro";
 import EventListings from "../components/EventListings.astro";
 import EventSpotlight from "../components/EventSpotlight.astro";
 import { getPublishedEvents } from "../lib/event-source.js";
@@ -34,6 +35,7 @@ const faqItems = [
     ]} />
     {highlights.next && <EventSpotlight event={highlights.next} />}
     {highlights.upcoming.length > 0 && <EventListings selectedEvents={highlights.upcoming} id="upcoming-events" showEmpty={false} />}
+    <LiveUpcomingEvents editorialEvents={events} />
     <EventStories pastEvents={past} />
     <EventCalendar editorialEvents={events} />
     <section class="events-recurring " aria-labelledby="event-types-title">

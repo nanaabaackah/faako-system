@@ -24,8 +24,12 @@ class MonthCalendar extends HTMLElement {
       }
     } catch { /* The live schedule remains usable if editorial links are unavailable. */ }
     const today = dateKey(new Date());
-    let year = Number(today.slice(0, 4)), month = Number(today.slice(5, 7)) - 1;
-    let selected = today, events: CalendarEvent[] = [], loaded = false, busy = false;
+    const requested = new URLSearchParams(location.search).get("date");
+    const validRequested = requested && /^20\d{2}-\d{2}-\d{2}$/.test(requested) &&
+      Number.isFinite(Date.parse(requested)) && new Date(requested).toISOString().slice(0, 10) === requested;
+    const openingDate = validRequested ? requested : today;
+    let year = Number(openingDate.slice(0, 4)), month = Number(openingDate.slice(5, 7)) - 1;
+    let selected = openingDate, events: CalendarEvent[] = [], loaded = false, busy = false;
     let desired = { year, month };
     const cache = new Map<string, { data: CalendarData; expires: number }>();
     const client = this.dataset.api ? createBrowserApiClient({ baseUrl: this.dataset.api, credentials: "omit" }) : null;
@@ -84,7 +88,7 @@ class MonthCalendar extends HTMLElement {
             const button = document.createElement("button");
             button.type = "button"; button.dataset.day = date; button.className = "month-day";
             button.append(node("span", String(day)));
-            if (matches.length) button.append(node("span", String(matches.length), "month-count"));
+            if (matches.length) button.dataset.hasEvents = "true";
             button.setAttribute("aria-label", longDate(date) + (date === dateKey(new Date()) ? ", today" : "") + (loaded ? ", " + matches.length + " events" : ", schedule not loaded"));
             if (date === dateKey(new Date())) button.setAttribute("aria-current", "date");
             if (matches.length) button.title = matches.map(event => event.title).join("; ");
@@ -156,6 +160,16 @@ class MonthCalendar extends HTMLElement {
       void load(Number(now.slice(0, 4)), Number(now.slice(5, 7)) - 1);
     });
     retry.addEventListener("click", () => void load(desired.year, desired.month, true));
+    // Live upcoming cards may open an event date in a future calendar month.
+    this.addEventListener("ttngh:calendar-select", (event: Event) => {
+      const date = (event as CustomEvent<{ date?: string }>).detail?.date;
+      if (typeof date !== "string" || !/^20\d{2}-\d{2}-\d{2}$/.test(date) ||
+          !Number.isFinite(Date.parse(date)) || new Date(date).toISOString().slice(0, 10) !== date) return;
+      selected = date;
+      void load(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1).then(() => {
+        this.querySelector<HTMLButtonElement>('[data-day="' + date + '"]')?.focus({ preventScroll: true });
+      });
+    });
     void load();
     this.timer = setInterval(() => {
       const bounds = this.getBoundingClientRect();
