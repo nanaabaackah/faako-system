@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import SharedFaakoFooter from "./SharedFaakoFooter.jsx";
 import CurrencySwitcher from "./CurrencySwitcher.jsx";
 import { displayCurrencyPolicyHeading } from "../lib/currency-display.js";
@@ -72,7 +73,7 @@ const phone =
           loading="lazy"
         /></a
       >
-      {footer?.body && <p>{footer.body}</p>}
+      {footer?.body && <RichText value={footer.body}/> }
     </div>
     <div class="footer-links">
       {footerLinks.length ? ["explore", "social", "contact"].map(group => <nav aria-label={group === "social" ? "Social media" : group}><h2>{group === "explore" ? copy.footerExplore : group === "social" ? copy.footerSocial : copy.footerContact}</h2>{footerLinks.filter(link => link.visible && link.group === group).sort((a,b)=>a.order-b.order).map(link => <a href={link.href} rel={link.href.startsWith("http") ? "noreferrer" : undefined}>{link.label}</a>)}</nav>) : <>
