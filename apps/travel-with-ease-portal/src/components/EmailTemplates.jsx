@@ -15,7 +15,7 @@ import tiktok from "../../../travel-with-ease-web/public/brand/social/tiktok.png
 import "../styles/email-templates.css";
 import { emailTemplateOptions } from "../../../travel-with-ease-api/src/notifications/template-catalogue.js";
 
-export default function EmailTemplates({ api, session, onDirtyChange }) {
+export default function EmailTemplates({ api, session, onDirtyChange, onRefreshBlockedChange }) {
   const { pushToast } = useToast();
   const [slug, setSlug] = useState("enquiry-acknowledgement");
   const definition = emailTemplateOptions.find(
@@ -29,6 +29,10 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
   const [notice, setNotice] = useState("");
   const [dirty, setDirty] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  useEffect(() => {
+    onRefreshBlockedChange?.(dirty || busy || Boolean(confirmation));
+    return () => onRefreshBlockedChange?.(false);
+  }, [dirty, busy, confirmation, onRefreshBlockedChange]);
   // Preview branding is bundled locally; the actual outgoing email retains
   // absolute public asset URLs for email-client compatibility.
   const previewHtml = preview?.html
