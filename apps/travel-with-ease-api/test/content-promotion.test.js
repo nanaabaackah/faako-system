@@ -110,3 +110,34 @@ test("promotion recognizes the actual platform_admin Superadmin role", async () 
   });
   assert.equal((await importer.apply(bundle)).status, "imported");
 });
+
+test("promotion exports only active email copy and verifies its integrity", async () => {
+  const active = { subject: "Subject", heading: "Heading", message: "Active copy", ctaLabel: "Continue" };
+  const bundle = await exportPromotionBundle({
+    publication: { lastLive: async () => ({ id: publicationId, source_sha: source.sourceSha, deployment_id: source.deploymentId, manifest: { pages: [] } }) },
+    media: { get: async () => { throw new Error("no media expected"); }, store: {} },
+    templates: { activeCopy: async () => active },
+    source: { organisationId }, approvedPages: approved.pages,
+  });
+  assert.deepEqual(bundle.emailTemplates["enquiry-acknowledgement"], active);
+  assert.deepEqual(bundle.emailTemplates["staff-invitation"], active);
+  assert.equal(verifyPromotionBundle(bundle).fingerprint, bundle.fingerprint);
+  const tampered = structuredClone(bundle);
+  tampered.emailTemplates["staff-invitation"].message = "Changed";
+  assert.throws(() => verifyPromotionBundle(tampered), /integrity/);
+  assert.throws(() => createPromotionBundle({ source, pages, emailTemplates: { "staff-invitation": active } }), /both active/);
+  const statements = [];
+  const client = { query: async (sql, values) => {
+    statements.push({ sql, values });
+    if (sql.startsWith("SELECT role")) return { rows: [{ role: "owner", active: true }] };
+    if (sql.startsWith("SELECT count")) return { rows: [{ count: 0 }] };
+    return { rows: [], rowCount: 1 };
+  } };
+  const importer = new ContentPromotionImporter({}, { put: async () => {}, remove: async () => {} }, {
+    organisationId, actorId: "44444444-4444-4444-8444-444444444444",
+    transact: async (_pool, operation) => operation(client),
+  });
+  await importer.apply(bundle);
+  assert.equal(statements.filter(({sql}) => sql.startsWith("INSERT INTO twe.email_templates")).length, 2);
+  assert.equal(statements.some(({sql}) => /notification_outbox|staff_sessions|enquiries/.test(sql)), false);
+});
