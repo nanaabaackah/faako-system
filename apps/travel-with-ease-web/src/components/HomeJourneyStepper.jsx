@@ -79,7 +79,7 @@ export default function HomeJourneyStepper({ flows, copy = {} }) {
         completedContent={
           <div className="journey-process__finished">
             <h3>{copy.finishHeading || "Ready when you are."}</h3>
-            <p>{copy.finishBody || "Share your ideas and we'll help you work out your next steps."}</p>
+            <RichText value={copy.finishBody || "Share your ideas and we'll help you work out your next steps."}/>
             <a className="journey-process__action" href="#plan">{copy.finishCta || "Plan my trip"}</a>
           </div>
         }
