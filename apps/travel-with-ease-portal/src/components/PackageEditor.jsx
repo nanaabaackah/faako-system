@@ -239,7 +239,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
                   )
                 }
               />
-              <TextareaField
+              <RichTextField
                 label="Day details"
                 maxLength={2000}
                 required
