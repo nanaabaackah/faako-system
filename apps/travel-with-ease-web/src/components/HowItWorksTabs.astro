@@ -12,7 +12,7 @@ const { flows, mode = "steps" } = Astro.props;
 const copy = siteCopy("how-it-works");
 const exampleSteps = (flow: "package" | "planning"): Step[] => {
   const configured = flows?.[flow]?.exampleSteps;
-  if (configured?.length === 4) return configured;
+  if (configured?.length >= 1 && configured.length <= 12) return configured;
   // Older CMS revisions have only a one-paragraph example; preserve a
   // structured example until the client saves the four editable stages.
   return (flow === "package" ? [
@@ -28,8 +28,8 @@ const exampleSteps = (flow: "package" | "planning"): Step[] => {
   ]);
 };
 const valid = flows &&
-  flows.package?.steps?.length === 5 &&
-  flows.planning?.steps?.length === 4;
+  flows.package?.steps?.length >= 1 && flows.package.steps.length <= 12 &&
+  flows.planning?.steps?.length >= 1 && flows.planning.steps.length <= 12;
 ---
 
 {valid ? (
