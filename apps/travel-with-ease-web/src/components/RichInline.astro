@@ -1,8 +1,8 @@
 ---
 import { inlineRuns } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import MoneyText from "./MoneyText.astro";
-interface Props { value?: string }
-const { value = "" } = Astro.props;
+interface Props { value?: string; money?: boolean }
+const { value = "", money = false } = Astro.props;
 ---
-{inlineRuns(value).map(run => run.type === "bold" ? <strong><MoneyText text={run.text}/></strong> :
-  run.type === "italic" ? <em><MoneyText text={run.text}/></em> : <MoneyText text={run.text}/>)}
+{inlineRuns(value).map(run => run.type === "bold" ? <strong>{money ? <MoneyText text={run.text}/> : run.text}</strong> :
+  run.type === "italic" ? <em>{money ? <MoneyText text={run.text}/> : run.text}</em> : money ? <MoneyText text={run.text}/> : run.text)}
