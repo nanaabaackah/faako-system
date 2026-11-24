@@ -104,7 +104,6 @@ try {
     if (width <= 900) {
       assert.ok((await goldLogo.boundingBox()).width <= 118, "Mobile gold logo is compact");
     }
-    const unscrolledLogoBox = width <= 900 ? await goldLogo.boundingBox() : null;
     if (width <= 600) {
       const actions = page.locator(".cinematic-hero__actions > .twe-content-link");
       assert.equal(await actions.count(), 2);
@@ -327,12 +326,20 @@ try {
       "Scrolled navbar uses brand navy");
     assert.equal(await scrollSymbol.isVisible(), true, "Scrolled navbar shows approved dark-mode symbol");
     assert.equal(await goldLogo.isVisible(), false, "Scrolled navbar hides gold wordmark");
-    if (width <= 900) {
-      const scrolledLogoBox = await scrollSymbol.boundingBox();
-      assert.ok(unscrolledLogoBox && scrolledLogoBox &&
-        Math.abs((scrolledLogoBox.x + scrolledLogoBox.width / 2) -
-          (unscrolledLogoBox.x + unscrolledLogoBox.width / 2)) <= 1,
-      "Mobile logo keeps its visual centre when the navbar becomes a floating pill");
+    // Wait for the actual pill transition before checking its geometry.
+    await page.waitForFunction(() => {
+      const header = document.querySelector(".site-header");
+      return header.getAnimations({subtree:true}).every(animation => animation.playState !== "running");
+    });
+    const alignment = await header.evaluate(el => {
+      const logo = el.querySelector(".brand__symbol--scrolled").getBoundingClientRect();
+      const bounds = el.getBoundingClientRect();
+      return { inset: logo.left - bounds.left, padding: parseFloat(getComputedStyle(el).paddingLeft),
+        next: el.querySelector(".header-links a")?.getBoundingClientRect().left, right: logo.right };
+    });
+    assert.ok(Math.abs(alignment.inset - alignment.padding) <= 1, "Scrolled logo begins at the navbar's left padding");
+    if (width > 900 && alignment.next !== undefined) {
+      assert.ok(alignment.next >= alignment.right, "Desktop navigation does not overlap the left-aligned logo");
     }
     const logoSrc = await scrollSymbol.getAttribute("src");
     assert.equal(logoSrc, "/brand/dark mode symbol.png");
