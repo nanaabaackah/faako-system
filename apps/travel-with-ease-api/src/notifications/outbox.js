@@ -35,7 +35,7 @@ export class NotificationOutbox {
       const job = rows[0];
       if (job && !job.delivery_payload && typeof payload === "function") {
         const enquiry = await client.query(
-          `SELECT id, contact, created_at FROM twe.enquiries
+          `SELECT id, kind, contact, created_at FROM twe.enquiries
           WHERE organisation_id = $1 AND id = $2`,
           [this.organisationId, job.enquiry_id],
         );
@@ -44,6 +44,7 @@ export class NotificationOutbox {
         try {
           job.delivery_payload = payload({
             id: enquiry.rows[0].id,
+            kind: enquiry.rows[0].kind,
             contact: enquiry.rows[0].contact,
             createdAt: enquiry.rows[0].created_at,
           });
@@ -80,11 +81,11 @@ export class NotificationOutbox {
   }
   async fail(job, reason = "delivery_failed") {
     await this.pool.query(
-      `UPDATE twe.notification_outbox SET status = CASE WHEN attempts >= 5 THEN 'failed' ELSE 'pending' END,
+      `UPDATE twe.notification_outbox SET status = CASE WHEN attempts >= 5 OR $4 = 'legacy_cc_review_required' THEN 'failed' ELSE 'pending' END,
       available_at = now() + interval '1 minute' * power(2, attempts), lease_until = NULL, lease_token = NULL,
-      delivery_payload = CASE WHEN attempts >= 5 THEN NULL ELSE delivery_payload END,
+      delivery_payload = CASE WHEN attempts >= 5 OR $4 = 'legacy_cc_review_required' THEN NULL ELSE delivery_payload END,
       last_error = $4 WHERE organisation_id = $1 AND id = $2 AND status = 'processing' AND lease_token = $3`,
-      [this.organisationId, job.id, job.lease_token, ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response"].includes(reason) ? reason : "delivery_failed"],
+      [this.organisationId, job.id, job.lease_token, ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response", "legacy_cc_review_required"].includes(reason) ? reason : "delivery_failed"],
     );
   }
 }
@@ -100,7 +101,7 @@ export async function deliverOne(outbox, sender, logger) {
         "Notification needs reconciliation",
       );
   } catch (error) {
-    const reason = ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response"].includes(error?.message) ? error.message : "delivery_failed";
+    const reason = ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response", "legacy_cc_review_required"].includes(error?.message) ? error.message : "delivery_failed";
     await outbox.fail(job, reason);
     logger?.warn(
       { eventName: "notification.failed", jobId: job.id, reason },
