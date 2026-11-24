@@ -21,6 +21,8 @@ import VisualPreview from "./VisualPreview.jsx";
 import ImagePlacements from './ImagePlacements.jsx';
 import { ActivityList } from './ActivityView.jsx';
 import HistoryDisclosure from "./HistoryDisclosure.jsx";
+import ServicesEditor from "./ServicesEditor.jsx";
+import TermsEditor from "./TermsEditor.jsx";
 import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
@@ -1171,46 +1173,30 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               })}
             </section>
           )}
-          {!["packages", "journal", "travel-tips", "how-it-works"].includes(
+          {page === "services" && <ServicesEditor entries={body.entries}
+            onChange={entries => change("entries", entries)} />}
+          {page === "terms" && <TermsEditor entries={body.entries}
+            onChange={entries => change("entries", entries)} />}
+          {!["packages", "journal", "travel-tips", "how-it-works", "services", "terms"].includes(
             page,
           ) && (
             <>
               {body.entries.map((entry, index) => (
                 <fieldset key={index}>
-                  <legend>{page === "services" ? `Service ${index + 1}` : `Entry ${index + 1}`}</legend>
-                  {page === "services" ? (
-                    <>
-                      <fieldset className="cms-editor-group">
-                        <legend>Service card & listing</legend>
-                        <TextField label="Service title" maxLength={160} required value={entry.heading}
-                          onChange={event => change("entries", body.entries.map((item, i) => i === index ? { ...item, heading: event.target.value } : item))} />
-                        <TextareaField label="Card summary" maxLength={240}
-                          value={entry.cardSummary ?? ""} placeholder="Leave blank to use the detail description"
-                          onChange={event => change("entries", body.entries.map((item, i) => i === index ? { ...item, cardSummary: event.target.value } : item))} />
-                      </fieldset>
-                      <fieldset className="cms-editor-group">
-                        <legend>Service detail page</legend>
-                        <TextareaField label="Full service description" required maxLength={2000} value={entry.text}
-                          onChange={event => change("entries", body.entries.map((item, i) => i === index ? { ...item, text: event.target.value } : item))} />
-                        <TextField label="Attribution (optional)" maxLength={160} value={entry.attribution || ""}
-                          onChange={event => change("entries", body.entries.map((item, i) => i === index ? { ...item, attribution: event.target.value } : item))} />
-                      </fieldset>
-                    </>
-                  ) : (
-                    <fieldset className="cms-editor-group">
-                      <legend>Section entry</legend>
-                      {[
-                        ["heading", "Title / question", 160],
-                        ["text", "Text / answer", 2000],
-                        ["attribution", "Attribution (where applicable)", 160],
-                      ].map(([key, label, max]) => (
-                        <TextareaField key={key} label={label} value={entry[key]} maxLength={max}
-                          required={key !== "attribution"}
-                          onChange={event => change("entries", body.entries.map((item, i) =>
-                            i === index ? { ...item, [key]: event.target.value } : item))} />
-                      ))}
-                    </fieldset>
-                  )}
+                  <legend>Entry {index + 1}</legend>
+                  <fieldset className="cms-editor-group">
+                    <legend>Section entry</legend>
+                    {[
+                      ["heading", "Title / question", 160],
+                      ["text", "Text / answer", 2000],
+                      ["attribution", "Attribution (where applicable)", 160],
+                    ].map(([key, label, max]) => (
+                      <TextareaField key={key} label={label} value={entry[key] || ""} maxLength={max}
+                        required={key !== "attribution"}
+                        onChange={event => change("entries", body.entries.map((item, i) =>
+                          i === index ? { ...item, [key]: event.target.value } : item))} />
+                    ))}
+                  </fieldset>
                   <Button
                     type="button"
                     onClick={() =>
