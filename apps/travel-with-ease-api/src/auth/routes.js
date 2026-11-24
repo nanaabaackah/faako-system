@@ -113,7 +113,10 @@ export function createStaffAuth({ store, provider, settings, limiter, logger, ad
       if (!user) { await store.recordDenied(req.requestId); return reject(req, res, 403, "permission_error", "Your identity is not provisioned for this workspace. Contact your owner."); }
       const previous = tokenFrom(req, sessionName);
       if (previous) await store.revoke(hash(previous), req.requestId);
-      res.cookie(sessionName, token, cookie);
+      // Mobile browsers may discard session-only cookies when suspended. Keep the
+      // local credential until its fixed, Access-bounded expiry, never longer.
+      const expires = new Date(Math.min(Date.now() + 12 * 60 * 60 * 1000, new Date(identity.expiresAt).getTime()));
+      res.cookie(sessionName, token, { ...cookie, expires });
       res.status(201).json(createSuccessResponse({ signedIn: true }, { requestId: req.requestId }));
     } catch {
       await store.recordDenied(req.requestId);
