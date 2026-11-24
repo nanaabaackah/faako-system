@@ -58,7 +58,7 @@ const footprint = publishedPage("travel-footprint");
 {services?.entries?.length > 0 && (
   <AnimatedContent client:visible className="home-scroll-motion" distance={28} duration={0.78} ease="power3.out" blur={3} threshold={0.12}>
     <div class="home-journey-chapters">
-      <HomeServices heading={services.heading} body={services.body} entries={services.entries} />
+      <HomeServices heading={services.heading} body={services.body} entries={services.entries} placement={content.imagePlacements?.["services-feature"]} />
     </div>
   </AnimatedContent>
 )}
