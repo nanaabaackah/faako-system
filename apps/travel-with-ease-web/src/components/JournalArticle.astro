@@ -1,4 +1,5 @@
 ---
+import RichInline from "./RichInline.astro";
 import PlacedImage from "./PlacedImage.astro";
 import ContentLink from "./ContentLink.astro";
 import { IconsaxIcon } from "@faako/ui";
@@ -64,15 +65,15 @@ const relatedHeading = siteCopy("journal").relatedReading;
       )}
       <div class="journal-detail__content collection-reading" id="journal-body">
         {blocks.map((block, index) => block.type === "ordered" ? (
-          <ol>{block.items.map(text => <li>{text}</li>)}</ol>
+          <ol>{block.items.map(text => <li><RichInline value={text}/></li>)}</ol>
         ) : block.type === "unordered" ? (
-          <ul>{block.items.map(text => <li>{text}</li>)}</ul>
+          <ul>{block.items.map(text => <li><RichInline value={text}/></li>)}</ul>
         ) : block.type === "heading" ? (
           <h2 id={`journal-section-${index}`}>{block.text}</h2>
         ) : block.type === "disclaimer" ? (
-          <p class="journal-entry-disclaimer">{block.text}</p>
+          <p class="journal-entry-disclaimer"><RichInline value={block.text}/></p>
         ) : (
-          <p>{block.text}</p>
+          <p><RichInline value={block.text}/></p>
         ))}
       </div>
       {item.ctaLabel && item.ctaPath && (
@@ -123,9 +124,7 @@ const relatedHeading = siteCopy("journal").relatedReading;
         </div>
       </section>
       <section class="journal-detail__planning" aria-labelledby="journal-planning-heading">
-        <span>Travel With Ease</span>
         <h2 id="journal-planning-heading">Plan your next trip with confidence.</h2>
-        <p>Explore the journeys and planning services that match your ideas.</p>
         <ContentLink button href="/packages">Explore packages</ContentLink>
       </section>
       {packages.length > 0 && (
