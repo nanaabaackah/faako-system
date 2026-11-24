@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const root = resolve("dist");
 assert.ok(existsSync(root), "Run the production build first");
+const headerLogo = join(root, "images/brand/ttngh-logo-header.webp");
+assert.ok(existsSync(headerLogo), "Header logo WebP must be generated with the build");
+assert.ok(statSync(headerLogo).size < statSync("public/ttngh-logo-transparent.png").size, "Header logo must be smaller than the source PNG");
 const files = readdirSync(root, { recursive: true }).filter(file => file.endsWith(".html"));
 const titles = new Set();
 const descriptions = new Set();

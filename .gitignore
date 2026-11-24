@@ -25,3 +25,6 @@ SECURITY_AUDIT.md
 **/.env.*
 !.env.example
 !**/.env.example
+
+# Rebuilt from approved TTNGH source logo during Astro dev/build
+apps/ttngh/public/images/brand/ttngh-logo-header.webp
