@@ -1,6 +1,6 @@
 // Static, reviewed grants only. No role creation, passwords, memberships or DDL
 // authority are granted to the API. Future tables need an explicit review here.
-export async function grantRuntimeAccess(client, role) {
+export async function verifyRuntimeRole(client, role, { schemaExists = true } = {}) {
   if (!/^[a-z][a-z0-9_]{0,62}$/.test(role || "")) throw new Error("Runtime role must be a simple PostgreSQL role name.");
   const result = await client.query("SELECT oid, rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolreplication FROM pg_roles WHERE rolname = $1", [role]);
   const record = result.rows[0];
@@ -9,8 +9,14 @@ export async function grantRuntimeAccess(client, role) {
   if (memberships.rowCount) throw new Error("Runtime role must not inherit other roles.");
   const owns = await client.query("SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'twe' AND c.relowner = $1 UNION ALL SELECT 1 FROM pg_namespace WHERE nspname = 'twe' AND nspowner = $1 UNION ALL SELECT 1 FROM pg_database WHERE datname = current_database() AND datdba = $1", [record.oid]);
   if (owns.rowCount) throw new Error("Runtime role must not own TWE schema or tables.");
-  const canCreate = await client.query("SELECT has_schema_privilege($1, 'twe', 'CREATE') AS allowed", [role]);
-  if (canCreate.rows[0].allowed) throw new Error("Runtime role must not have schema CREATE.");
+  if (schemaExists) {
+    const canCreate = await client.query("SELECT has_schema_privilege($1, 'twe', 'CREATE') AS allowed", [role]);
+    if (canCreate.rows[0].allowed) throw new Error("Runtime role must not have schema CREATE.");
+  }
+}
+
+export async function grantRuntimeAccess(client, role) {
+  await verifyRuntimeRole(client, role);
   const identifier = `"${role}"`; // Strict allowlist above; never interpolate arbitrary input.
   await client.query(`GRANT USAGE ON SCHEMA twe TO ${identifier}`);
   await client.query(`GRANT SELECT ON twe.environment_identity, twe.schema_migrations, twe.organisations TO ${identifier}`);
