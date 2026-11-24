@@ -173,7 +173,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
           <Button type="button" onClick={() => onChooseImage(index, false)}>
             Choose package image
           </Button>
-          <Button type="button" onClick={() => onChange(items.map((value, i) => i === index ? { ...value, imageId: null, retainApprovedImage: false, imagePlacement: undefined } : value))}>
+          <Button type="button" onClick={() => onChange(items.map((value, i) => i === index ? { ...value, imageId: null, retainApprovedImage: false, imagePlacement: value.imagePlacement ? { ...value.imagePlacement, imageId: null, mobileImageId: null } : undefined } : value))}>
             Remove package image
           </Button>
           <p>{(item.galleryImageIds || []).length ? `${item.galleryImageIds.length} gallery images selected.` : item.retainApprovedGallery === false ? "No gallery images." : "Existing approved gallery retained until replaced."}</p>
