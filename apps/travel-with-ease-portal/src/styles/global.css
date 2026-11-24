@@ -1238,3 +1238,179 @@ select:focus-visible {
 .ui-dropdown-field__option {
   font-size: 1rem;
 }
+
+/* CMS editing hierarchy: each visual surface has its own grouped fields.
+   Use the existing Faako colours, input primitives, and button treatments. */
+.portal-shell .cms-editor-groups {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.portal-shell .content-editor .cms-editor-group {
+  min-width: 0;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  border: 1px solid #e0e5ed;
+  background: #fbfcfd;
+}
+.portal-shell .cms-editor-group > .ui-field,
+.portal-shell .cms-editor-group > .ui-dropdown-field,
+.portal-shell .cms-editor-group > .ui-select {
+  min-width: 0;
+  width: 100%;
+}
+.portal-shell .cms-editor-group legend {
+  padding: 0 8px;
+  font-weight: 600;
+  color: #010c33;
+}
+.portal-shell .content-editor .editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.portal-shell .website-workspace .workspace-panel li .ui-button {
+  margin: 0;
+}
+.portal-shell .twe-kpi-link {
+  display: block;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 0;
+  min-width: 0;
+  width: 100%;
+  cursor: pointer;
+  font: inherit;
+}
+.portal-shell .twe-kpi-link .ui-kpi-card {
+  height: 100%;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.portal-shell .twe-kpi-link:hover .ui-kpi-card {
+  border-color: #8a9bb5;
+  box-shadow: 0 3px 12px rgb(1 12 51 / 7%);
+}
+.portal-shell .twe-kpi-link:focus-visible {
+  outline: 3px solid #7ab8ff;
+  outline-offset: 3px;
+}
+.portal-shell .dashboard-metrics > .twe-kpi-link {
+  border-right: 0;
+  padding: 0;
+}
+.portal-shell .enquiry-list li {
+  display: block;
+  padding: 0;
+}
+.portal-shell .enquiry-list li > .enquiry-row-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px 20px;
+  min-height: 68px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-radius: 0;
+  padding: 16px 20px;
+  background: transparent;
+  color: #010c33;
+  font: inherit;
+  cursor: pointer;
+}
+.portal-shell .enquiry-row-action:hover {
+  background: #f8fafc;
+}
+.portal-shell .enquiry-row-action:focus-visible {
+  outline: 3px solid #7ab8ff;
+  outline-offset: -3px;
+}
+.portal-shell .enquiry-row-action__name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.portal-shell .enquiry-row-action .enquiry-meta {
+  margin-left: 0;
+  justify-content: flex-end;
+}
+@media (prefers-reduced-motion: reduce) {
+  .portal-shell .twe-kpi-link .ui-kpi-card { transition: none; }
+}
+@media (max-width: 800px) {
+  .portal-shell .content-editor .cms-editor-group {
+    padding: 14px;
+    gap: 12px;
+  }
+  .portal-shell .cms-editor-groups {
+    gap: 14px;
+  }
+  .portal-shell .website-workspace,
+  .portal-shell .enquiries-workspace {
+    gap: 16px;
+  }
+  .portal-shell .dashboard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .portal-shell .enquiry-list li > .enquiry-row-action {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 16px;
+  }
+  .portal-shell .enquiry-row-action .enquiry-summary {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    overflow-wrap: anywhere;
+  }
+  .portal-shell .enquiry-row-action .enquiry-meta {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-content: space-between;
+  }
+}
+@media (max-width: 600px) {
+  .portal-shell .content-editor > form > fieldset {
+    padding: 14px;
+    gap: 16px;
+  }
+  .portal-shell .content-editor .cms-editor-group {
+    padding: 12px;
+    gap: 12px;
+  }
+  .portal-shell .content-editor fieldset fieldset:not(.cms-editor-group) {
+    padding: 12px;
+    gap: 12px;
+  }
+  .portal-shell .content-editor .editor-actions > .ui-button,
+  .portal-shell .content-editor .editor-actions > .twe-action-button {
+    width: 100%;
+    flex: 1 1 100%;
+    margin: 0;
+  }
+  .portal-shell .cms-editor-view-switch {
+    display: flex;
+    gap: 10px;
+  }
+  .portal-shell .cms-editor-view-switch .ui-button {
+    min-width: 0;
+    flex: 1;
+  }
+  .portal-shell .twe-history-disclosure__body {
+    padding: 12px;
+  }
+  .portal-shell .dashboard-metrics {
+    gap: 10px;
+  }
+  .portal-shell .dashboard-metrics .ui-kpi-card {
+    padding: 14px;
+  }
+  .portal-shell .enquiry-list li > .enquiry-row-action {
+    padding: 14px;
+  }
+}
