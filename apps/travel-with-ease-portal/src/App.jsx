@@ -1,5 +1,5 @@
 import Button from "./components/ActionButton.jsx";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
 import {
   InlineNotice,
@@ -36,19 +36,41 @@ const loadSession = createSessionLoader(baseApi);
 function StaffWorkspace() {
   const [pendingWrites, setPendingWrites] = useState(0);
   const [editorBusy, setEditorBusy] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const sessionGuard = useRef("active");
+  const checkSessionRef = useRef(null);
+  const [sessionStatus, setSessionStatus] = useState("active");
+  const updateSessionStatus = useCallback(status => {
+    // A different identity or CSRF token must never gain access to retained edits.
+    if (sessionGuard.current === "changed" && status !== "reset") return;
+    const next = status === "reset" ? "active" : status;
+    sessionGuard.current = next;
+    setSessionStatus(next);
+  }, []);
   // Module-specific notices already show precise success and error outcomes.
   const api = useMemo(() => ({
     ...baseApi,
+    get: async (...args) => {
+      try { return await baseApi.get(...args); }
+      catch (error) {
+        if (String(args[0]).startsWith("/api/agent/") && error.status === 401) updateSessionStatus("expired");
+        throw error;
+      }
+    },
     post: async (...args) => {
+      if (String(args[0]).startsWith("/api/agent/") && sessionGuard.current !== "active") throw new Error("Check your session before saving. Your edits are retained.");
       const options = { ...args[1] };
       delete options.silent;
       setPendingWrites(count => count + 1);
       try { return await baseApi.post(args[0], options); }
+      catch (error) {
+        if (error.status === 401 && String(args[0]).startsWith("/api/agent/")) updateSessionStatus("expired");
+        throw error;
+      }
       finally { setPendingWrites(count => count - 1); }
     },
-  }), []);
+  }), [updateSessionStatus]);
   const [session, setSession] = useState(null);
-  const [sessionStatus, setSessionStatus] = useState("active");
   const [activation, setActivation] = useState(null);
   const [section, setSection] = useState("overview");
   const [dirty, setDirty] = useState(false);
@@ -119,13 +141,13 @@ function StaffWorkspace() {
           throw new Error("The session response was incomplete.");
       }
       setSession(activeSession);
-      setSessionStatus("active");
+      updateSessionStatus("reset");
       setState({ loading: false, configured: status.configured, error: "" });
     } catch (error) {
       setSession(null);
       setState({ loading: false, configured, error: error.message });
     }
-  }, [api]);
+  }, [api, updateSessionStatus]);
   useEffect(() => {
     sessionStorage.removeItem("twe-agent-token");
     load();
@@ -138,35 +160,53 @@ function StaffWorkspace() {
     let disposed = false;
     let pending = false;
     let lastCheck = 0;
-    const check = async () => {
-      if (disposed || pending || document.visibilityState !== "visible" || Date.now() - lastCheck < 15000) return;
+    const check = async (manual = false) => {
+      if (disposed || pending || sessionGuard.current === "changed" || document.visibilityState !== "visible" || (!manual && Date.now() - lastCheck < 15000)) return;
       pending = true;
       lastCheck = Date.now();
       try {
         const result = await checkCurrentSession(baseApi, session);
-        if (!disposed) setSessionStatus(current => result.status === "unavailable" ? current : result.status);
+        if (!disposed) updateSessionStatus(result.status);
       } finally { pending = false; }
     };
-    document.addEventListener("visibilitychange", check);
-    window.addEventListener("pageshow", check);
-    window.addEventListener("focus", check);
+    const foreground = () => { void check(); };
+    checkSessionRef.current = () => check(true);
+    document.addEventListener("visibilitychange", foreground);
+    window.addEventListener("pageshow", foreground);
+    window.addEventListener("focus", foreground);
+    window.addEventListener("online", foreground);
+    const interval = window.setInterval(foreground, 60_000);
     return () => {
       disposed = true;
-      document.removeEventListener("visibilitychange", check);
-      window.removeEventListener("pageshow", check);
-      window.removeEventListener("focus", check);
+      checkSessionRef.current = null;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", foreground);
+      window.removeEventListener("pageshow", foreground);
+      window.removeEventListener("focus", foreground);
+      window.removeEventListener("online", foreground);
     };
-  }, [session, accountLinks.mode]);
+  }, [session, accountLinks.mode, updateSessionStatus]);
+
+  useEffect(() => {
+    if (!dirty && !editorBusy && pendingWrites === 0) return;
+    const protect = event => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", protect);
+    return () => window.removeEventListener("beforeunload", protect);
+  }, [dirty, editorBusy, pendingWrites]);
 
   async function logout(all = false, discardConfirmed = false) {
     if (dirty && !discardConfirmed) { setPendingExit({ kind: "logout", all }); return; }
-    setState((current) => ({ ...current, loading: true, error: "" }));
+    if (loggingOut || pendingWrites > 0) return;
+    setLoggingOut(true);
+    setState((current) => ({ ...current, error: "" }));
     try {
       await api.post(all ? "/api/auth/logout-all" : "/api/auth/logout", {
         responseMode: "data",
         headers: { "X-CSRF-Token": session.csrfToken },
       });
       setSession(null);
+      setDirty(false);
+      updateSessionStatus("reset");
       setState({ loading: false, configured: true, error: "" });
       if (accountLinks.mode === "cloudflare_access")
         window.location.assign("/cdn-cgi/access/logout");
@@ -176,7 +216,7 @@ function StaffWorkspace() {
         loading: false,
         error: error.message,
       }));
-    }
+    } finally { setLoggingOut(false); }
   }
 
   const navigation = [
@@ -204,7 +244,7 @@ function StaffWorkspace() {
   // are not represented by the editorial draft state. Finish there first.
   const transientWorkspace = section === "media" || section === "staff" ||
     (section === "overview" && activation?.canIssueOwner);
-  const refreshBlocked = sessionStatus !== "active" || dirty || editorBusy || pendingWrites > 0 || state.loading || Boolean(pendingExit) || transientWorkspace;
+  const refreshBlocked = loggingOut || sessionStatus !== "active" || dirty || editorBusy || pendingWrites > 0 || state.loading || Boolean(pendingExit) || transientWorkspace;
   return (
     <div className="portal-shell">
       <PortalNavigation navigation={navigation} section={section} navigate={navigate} session={session}/>
@@ -235,7 +275,12 @@ function StaffWorkspace() {
             message={state.error}
           />
         )}
-        {session && sessionStatus !== "active" && <InlineNotice tone="warning" title={sessionStatus === "changed" ? "Session changed" : "Session expired"} message="Sign in again before saving. Keep this tab open if you have unsaved edits." />}
+        {session && sessionStatus !== "active" && <div className="session-recovery">
+          <InlineNotice tone="warning"
+            title={sessionStatus === "changed" ? "Session changed" : sessionStatus === "unavailable" ? "Session check unavailable" : "Session expired"}
+            message={sessionStatus === "changed" ? "Reload to use the new session. Unsaved edits cannot be transferred to another session." : "Your work remains in this tab. Check your session before continuing."} />
+          {sessionStatus !== "changed" && <Button type="button" variant="ghost" icon="refresh" onClick={() => checkSessionRef.current?.()}>Check session</Button>}
+        </div>} 
         {state.loading ? (
           <AnimatedLoadingState
             compact
@@ -251,6 +296,7 @@ function StaffWorkspace() {
               icon="logout"
               variant="ghost"
               type="button"
+              disabled={loggingOut || pendingWrites > 0}
               onClick={() => logout()}
             >
               Sign out
@@ -355,7 +401,7 @@ function StaffWorkspace() {
               )}
             </section>
           )}
-        <div data-tour={section}>
+        <div data-tour={section} inert={session && sessionStatus !== "active" ? true : undefined} hidden={sessionStatus === "changed"}>
           {!state.loading &&
             session &&
             activation?.canIssueOwner &&
@@ -417,7 +463,7 @@ function StaffWorkspace() {
             session?.user.permissions?.includes("staff.manage") &&
             section === "staff" && <StaffAccess api={api} session={session} />}
         </div>
-        {!state.loading && session && (
+        {!state.loading && session && sessionStatus === "active" && (
           <TutorialWorkspace
             key={session.user.id}
             api={api}
@@ -426,7 +472,7 @@ function StaffWorkspace() {
             section={section}
           />
         )}
-        {!state.loading && !dirty && state.error && (
+        {!state.loading && !session && !dirty && state.error && (
           <Button icon="refresh" variant="ghost" type="button" onClick={load}>
             Retry connection
           </Button>
@@ -434,7 +480,7 @@ function StaffWorkspace() {
         <ERPConfirmDialog open={Boolean(pendingExit)} title={pendingExit?.kind === "logout" ? "Discard changes and sign out?" : "Discard unsaved changes?"}
           message={pendingExit?.kind === "logout" ? "Your unsaved edits will be lost before this session ends." : "Your unsaved edits will be lost when you leave this workspace."}
           confirmLabel={pendingExit?.kind === "logout" ? "Discard and sign out" : "Discard and continue"}
-          onCancel={() => setPendingExit(null)} onConfirm={() => { const action = pendingExit; setPendingExit(null); setDirty(false); if (action?.kind === "logout") { void logout(action.all, true); } else if (action?.kind === "navigate") setSection(action.next); }} />
+          onCancel={() => setPendingExit(null)} onConfirm={() => { const action = pendingExit; setPendingExit(null); if (action?.kind === "logout") { void logout(action.all, true); } else if (action?.kind === "navigate") { setDirty(false); setSection(action.next); } }} />
       </PageShell>
       <AppUpdateNotice appName="Travel With Ease CMS" mode="prompt"
         enabled={Boolean(session) && (import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true")}
