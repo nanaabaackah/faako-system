@@ -41,5 +41,9 @@ test("foreground validation never exchanges a session or signs out on connection
     assert.equal(result.status,status===401?"expired":"unavailable");
   }
   assert.deepEqual(await checkCurrentSession({...api, async get() {return {...session,csrfToken:"other"};}},session),{status:"changed"});
+  for (const user of [{...session.user, role:"owner"}, {...session.user, id:"other"}, {...session.user, organisationId:"other"}]) {
+    assert.deepEqual(await checkCurrentSession({...api, async get() {return {...session,user};}},session),{status:"changed"});
+  }
+  assert.deepEqual(await checkCurrentSession({...api, async get() {return {user:session.user};}},session),{status:"unavailable"});
   assert.equal(posts,0);
 });
