@@ -17,6 +17,16 @@ export async function readMigrations(directory = migrationDirectory) {
   }));
 }
 
+// Shared by the read-only preflight and the actual migration transaction.
+export function pendingMigrations(files, rows) {
+  for (const applied of rows) {
+    if (files.find((file) => file.name === applied.name)?.checksum !== applied.checksum) throw new Error("Migration history differs from this checkout; refusing to continue.");
+  }
+  const pending = files.filter((file) => !rows.some((applied) => applied.name === file.name));
+  if (pending.some((file) => rows.some((applied) => applied.name > file.name))) throw new Error("Out-of-order migrations are not allowed.");
+  return pending;
+}
+
 export async function migrate(pool, { environment, organisationId, initialise = false, organisationName, runtimeRole, migrations }) {
   validateEnvironment(environment);
   if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(organisationId || "")) throw new Error("TWE_ORGANISATION_ID must be a UUID.");
@@ -34,11 +44,7 @@ export async function migrate(pool, { environment, organisationId, initialise = 
     }
     await verifyDatabaseIdentity(client, { environment, organisationId });
     const { rows } = await client.query("SELECT name, checksum FROM twe.schema_migrations ORDER BY name");
-    for (const applied of rows) {
-      if (files.find((file) => file.name === applied.name)?.checksum !== applied.checksum) throw new Error("Migration history differs from this checkout; refusing to continue.");
-    }
-    const pending = files.filter((file) => !rows.some((applied) => applied.name === file.name));
-    if (pending.some((file) => rows.some((applied) => applied.name > file.name))) throw new Error("Out-of-order migrations are not allowed.");
+    const pending = pendingMigrations(files, rows);
     for (const file of pending) {
       await client.query(file.sql);
       await client.query("INSERT INTO twe.schema_migrations (name, checksum) VALUES ($1, $2)", [file.name, file.checksum]);
