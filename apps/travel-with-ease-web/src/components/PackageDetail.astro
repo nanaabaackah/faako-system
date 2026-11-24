@@ -1,4 +1,6 @@
 ---
+import RichText from "./RichText.astro";
+import { plainRichText } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import PlacedImage from './PlacedImage.astro';
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
@@ -38,7 +40,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
     <div class="package-experience__hero">
       <header class="collection-detail-heading">
         <p class="package-section-label">{item.destination}</p><h1>{item.title}</h1>
-        <p class="package-experience__tagline">{item.tagline || item.overview}</p>
+        <p class="package-experience__tagline">{item.tagline || plainRichText(item.overview)}</p>
         <dl class="package-experience__facts">
           {item.duration && <div><dt>Your time away</dt><dd>{item.duration}</dd></div>}
           <div><dt>{item.pricingStatus === "indicative" ? "Starting price" : "Pricing"}</dt><dd><MoneyText text={packageStartingPrice(item)} /></dd></div>
@@ -73,7 +75,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
     <div class="package-detail-grid">
       <div class="collection-reading">
         <section id="package-overview">
-          <h2>{copy.overviewHeading}</h2><p class="preserve-lines">{item.overview}</p>
+          <h2>{copy.overviewHeading}</h2><RichText value={item.overview}/>
         </section>
         {
           (item.highlights?.length || 0) > 0 && (
@@ -123,7 +125,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
             <section>
               <>
                 <h2>{copy.transportHeading}</h2>
-                <p>{item.transport}</p>
+                <RichText value={item.transport}/>
               </>
             </section>
           )
@@ -133,7 +135,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
             <section>
               <>
                 <h2>{copy.accommodationHeading}</h2>
-                <p>{item.accommodation}</p>
+                <RichText value={item.accommodation}/>
               </>
             </section>
           )
@@ -164,7 +166,7 @@ const enquiry = `?package=${encodeURIComponent(item.slug)}#plan`;
             <section>
               <>
                 <h2>{copy.importantHeading}</h2>
-                <p>{item.important}</p>
+                <RichText value={item.important}/>
               </>
             </section>
           )
