@@ -371,3 +371,20 @@ test("staging without an accepted archived baseline cannot replace the current w
   assert.equal((await publishOne(f.options)).status, "failed");
   assert.equal(f.events.includes("deployed"), false);
 });
+
+test("stale worker waits without coordinating or claiming a publication", async () => {
+  const f = fixture();
+  f.options.sourceMatches = async () => false;
+  f.options.publication.coordinateSource = async () => assert.fail("must not coordinate");
+  f.options.publication.claim = async () => assert.fail("must not claim");
+  assert.deepEqual(await publishOne(f.options), { status: "source_wait" });
+  assert.deepEqual(f.events, []);
+});
+
+test("worker rechecks active source after build and never uploads stale output", async () => {
+  const f = fixture();
+  let checks = 0;
+  f.options.sourceMatches = async () => ++checks === 1;
+  assert.equal((await publishOne(f.options)).status, "failed");
+  assert.deepEqual(f.events, ["built", "failed"]);
+});
