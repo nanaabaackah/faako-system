@@ -85,7 +85,7 @@ const valid = flows &&
         </section>
       ))}
       <aside class="planning-flow__readiness">
-        <p>{copy.readinessBody}</p>
+        <RichText value={copy.readinessBody}/>
         <ContentLink href="/services/travel-readiness-session">{copy.readinessCta}</ContentLink>
       </aside>
     </div>
