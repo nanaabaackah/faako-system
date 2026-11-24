@@ -565,32 +565,18 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 <fieldset key={index}>
                   <legend>Article {index + 1}</legend>
                   {[
-                    ["title", "Title", 120],
-                    [
-                      "slug",
-                      "URL name (lowercase words separated by hyphens)",
-                      80,
-                    ],
-                    ["excerpt", "Short introduction", 240],
-                    ["body", "Article text", 6000],
-                  ].map(([key, label, max]) => (
-                    <TextareaField
-                      key={key}
-                      label={label}
-                      required
-                      maxLength={max}
-                      value={article[key]}
-                      onChange={(event) =>
-                        change(
-                          "articles",
-                          body.articles.map((item, i) =>
-                            i === index
-                              ? { ...item, [key]: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
+                    ["Article card & listing", [["title", "Article title", 120], ["slug", "Article URL name", 80], ["excerpt", "Card summary", 240]]],
+                    ["Article detail page", [["body", "Full article", 6000]]],
+                  ].map(([group, fields]) => (
+                    <fieldset key={group} className="cms-editor-group">
+                      <legend>{group}</legend>
+                      {fields.map(([key, label, max]) => (
+                        <TextareaField key={key} label={label} required={true}
+                          maxLength={max} value={article[key] || ""}
+                          onChange={event => change("articles", body.articles.map((item, i) =>
+                            i === index ? { ...item, [key]: event.target.value } : item))} />
+                      ))}
+                    </fieldset>
                   ))}
                   <DateField
                     label="Article date"
@@ -824,33 +810,18 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 <fieldset key={index}>
                   <legend>Tip {index + 1}</legend>
                   {[
-                    ["title", "Tip title", 120],
-                    ["slug", "Tip URL name", 80],
-                    ["excerpt", "Tip summary", 240],
-                    ["body", "Tip text", 6000],
-                    [
-                      "relatedArticle",
-                      "Related published Journal URL name (optional)",
-                      80,
-                    ],
-                  ].map(([key, label, max]) => (
-                    <TextareaField
-                      key={key}
-                      label={label}
-                      value={tip[key]}
-                      maxLength={max}
-                      required={key !== "relatedArticle"}
-                      onChange={(event) =>
-                        change(
-                          "tips",
-                          body.tips.map((item, i) =>
-                            i === index
-                              ? { ...item, [key]: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
+                    ["Travel tip card & listing", [["title", "Tip title", 120], ["slug", "Tip URL name", 80], ["excerpt", "Card summary", 240]]],
+                    ["Travel tip detail page", [["body", "Full travel tip", 6000], ["relatedArticle", "Related Journal URL name (optional)", 80]]],
+                  ].map(([group, fields]) => (
+                    <fieldset key={group} className="cms-editor-group">
+                      <legend>{group}</legend>
+                      {fields.map(([key, label, max]) => (
+                        <TextareaField key={key} label={label} required={key !== "relatedArticle"}
+                          maxLength={max} value={tip[key] || ""}
+                          onChange={event => change("tips", body.tips.map((item, i) =>
+                            i === index ? { ...item, [key]: event.target.value } : item))} />
+                      ))}
+                    </fieldset>
                   ))}
                   <SelectField
                     label="Tip category"
