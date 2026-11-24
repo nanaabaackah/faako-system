@@ -21,6 +21,9 @@ const cases = [
   ["28000", "database_authentication_failed"],
   ["3D000", "database_missing"],
   ["42501", "database_permission_denied"],
+  ["57014", "database_statement_timeout"],
+  ["55P03", "database_lock_unavailable"],
+  ["40P01", "database_lock_unavailable"],
   ["42P01", "database_object_missing"],
   ["3F000", "database_object_missing"],
   ["42601", "database_sql_error"],
@@ -44,6 +47,11 @@ test("recognises developer-owned migration failures without echoing SQL or secre
     ["Database environment or organisation does not match this application.", "database_identity_mismatch"],
     ["Migration history differs from this checkout; refusing to continue.", "migration_history_mismatch"],
     ["Out-of-order migrations are not allowed.", "migration_order_mismatch"],
+    ["Runtime role must be a simple PostgreSQL role name.", "runtime_role_invalid"],
+    ["Runtime role is missing or privileged.", "runtime_role_missing_or_privileged"],
+    ["Runtime role must not inherit other roles.", "runtime_role_membership_unsafe"],
+    ["Runtime role must not own TWE schema or tables.", "runtime_role_ownership_unsafe"],
+    ["Runtime role must not have schema CREATE.", "runtime_role_schema_create_unsafe"],
   ]);
   for (const [message, code] of messages) assert.equal(classifyPredeployFailure(new Error(message)).code, code);
   const privateError = new Error("failed at secret schema with password=secret");
