@@ -726,7 +726,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         "articles",
                         body.articles.map((item, i) =>
                           i === index
-                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: undefined }
+                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: item.imagePlacement ? { ...item.imagePlacement, imageId: null, mobileImageId: null } : undefined }
                             : item,
                         ),
                       )
