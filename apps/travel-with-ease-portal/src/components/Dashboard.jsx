@@ -76,12 +76,15 @@ export default function Dashboard({
       <div className="dashboard-metrics" aria-label="Workspace indicators">
         {canEnquire && (
           <>
+            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("enquiries")} aria-label="Open new enquiries">
             <KpiCard
               label="New enquiries"
               value={enquiries.filter((item) => item.status === "new").length}
               detail={`In the latest ${enquiries.length} enquiries`}
               tone="warning"
             />
+            </button>
+            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("enquiries")} aria-label="Open contacted enquiries">
             <KpiCard
               label="Contacted"
               value={
@@ -90,21 +93,25 @@ export default function Dashboard({
               
               tone="info"
             />
+            </button>
           </>
         )}
         {canEdit && (
           <>
+            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("content")} aria-label="Open website drafts">
             <KpiCard
               label="Pages with drafts"
               value={drafts.length}
               detail="Saved revisions not yet published"
             />
+            </button>
+            <button type="button" className="twe-kpi-link metric-word" onClick={() => onNavigate("content")} aria-label="Open publication history">
             <KpiCard
               className="metric-word"
               label="Latest publication"
               value={latest?.status || "No requests"}
-              
             />
+            </button>
           </>
         )}
       </div>
