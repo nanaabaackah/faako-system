@@ -1,4 +1,5 @@
 import Button from "./ActionButton.jsx";
+import RichTextField from "./RichTextField.jsx";
 import GalleryOrder from './GalleryOrder.jsx';
 import { TextField, TextareaField, SelectField } from "@faako/ui";
 import { packageOccasions } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
@@ -35,16 +36,17 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
           ].map(([group, fields]) => (
             <fieldset key={group} className="cms-editor-group">
               <legend>{group}</legend>
-              {fields.map(([key, label, max]) => (
-                <TextareaField
+              {fields.map(([key, label, max]) => {
+                const Field = ["overview", "transport", "accommodation", "important"].includes(key) ? RichTextField : TextareaField;
+                return <Field
                   key={key}
                   label={label}
                   maxLength={max}
                   required={["title", "slug", "destination", "overview"].includes(key)}
                   value={item[key] || ""}
                   onChange={(event) => update(index, key, event.target.value)}
-                />
-              ))}
+                />;
+              })}
             </fieldset>
           ))}
           <TextField label="Number of days" type="number" min="1" max="101" value={item.days ?? ""} onChange={event => update(index, "days", event.target.value === "" ? null : Number(event.target.value))} />
@@ -237,7 +239,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
                   )
                 }
               />
-              <TextareaField
+              <RichTextField
                 label="Day details"
                 maxLength={2000}
                 required

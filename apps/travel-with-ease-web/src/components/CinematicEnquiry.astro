@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import PublicFooter from "./PublicFooter.astro";
 import EnquiryForm from "./EnquiryForm.jsx";
 import photography from "../lib/assigned-photography.json";
@@ -35,9 +36,7 @@ const catalogue = Astro.props.catalogue || { services: [], packages: [] };
       >
         <div class="cinematic-enquiry__copy">
           <h2 id="enquiry-heading">{contactCopy.enquiryHeading === "Where would you like to go?" ? <>Where would you<br />like to go?</> : contactCopy.enquiryHeading}</h2>
-          <p>
-            {contactCopy.enquiryBody}
-          </p>
+          <RichText value={contactCopy.enquiryBody}/>
           <slot name="intro" />
         </div>
         {

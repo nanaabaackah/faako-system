@@ -42,7 +42,7 @@ test("protected hero, packages, footprint and closing CTA are preserved", () => 
 
 test("About uses the approved story content and available media, without new claims", () => {
   assert.match(home, /<h2>\{about\.heading\}<\/h2>/);
-  assert.match(home, /<p>\{about\.body\}<\/p>/);
+  assert.match(home, /<RichText value=\{about\.body\}\/>/);
   assert.match(home, /<EditorialPhoto[\s\S]*?image=\{about\.image\}/);
   assert.match(home, /\{about\.image && \(/);
   assert.ok(home.includes('<ContentLink href="/about">{siteCopy("home").aboutCta}</ContentLink>'));

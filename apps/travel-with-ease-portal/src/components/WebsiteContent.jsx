@@ -1,4 +1,6 @@
 import Button from "./ActionButton.jsx";
+import RichTextField from "./RichTextField.jsx";
+import RichText from "../../../travel-with-ease-web/src/components/RichText.jsx";
 import { useEffect, useRef, useState } from "react";
 import {
   SelectField,
@@ -434,9 +436,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
       {(approvedRelease.pages[page] || reviewDrafts[page]) && (
         <section className="workspace-panel">
           <h3>{approvedRelease.pages[page] ? "Approved company copy" : "Starter copy for review"}</h3>
-          <p>
-            {approvedRelease.pages[page] ? "Replace this draft with the approved website copy." : "Load the review draft into the editor."}
-          </p>
           <Button
             type="button"
             disabled={state.loading}
@@ -474,7 +473,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
             required
             onChange={(e) => change("heading", e.target.value)}
           />
-          <TextareaField
+          <RichTextField
             label="Body text"
             value={body.body}
             maxLength={6000}
@@ -564,9 +563,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           {page === "journal" && (
             <section aria-label="Journal articles">
               <h3>Journal articles</h3>
-              <p>
-                Edit each article, assign its series and choose where it appears.
-              </p>
               {(body.articles || []).map((article, index) => (
                 <fieldset key={index}>
                   <legend>Article {index + 1}</legend>
@@ -576,12 +572,13 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                   ].map(([group, fields]) => (
                     <fieldset key={group} className="cms-editor-group">
                       <legend>{group}</legend>
-                      {fields.map(([key, label, max]) => (
-                        <TextareaField key={key} label={label} required={true}
+                      {fields.map(([key, label, max]) => {
+                        const Field = key === "body" ? RichTextField : TextareaField;
+                        return <Field key={key} label={label} required={true}
                           maxLength={max} value={article[key] || ""}
                           onChange={event => change("articles", body.articles.map((item, i) =>
-                            i === index ? { ...item, [key]: event.target.value } : item))} />
-                      ))}
+                            i === index ? { ...item, [key]: event.target.value } : item))} />;
+                      })}
                     </fieldset>
                   ))}
                   <DateField
@@ -821,12 +818,13 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                   ].map(([group, fields]) => (
                     <fieldset key={group} className="cms-editor-group">
                       <legend>{group}</legend>
-                      {fields.map(([key, label, max]) => (
-                        <TextareaField key={key} label={label} required={key !== "relatedArticle"}
+                      {fields.map(([key, label, max]) => {
+                        const Field = key === "body" ? RichTextField : TextareaField;
+                        return <Field key={key} label={label} required={key !== "relatedArticle"}
                           maxLength={max} value={tip[key] || ""}
                           onChange={event => change("tips", body.tips.map((item, i) =>
-                            i === index ? { ...item, [key]: event.target.value } : item))} />
-                      ))}
+                            i === index ? { ...item, [key]: event.target.value } : item))} />;
+                      })}
                     </fieldset>
                   ))}
                   <SelectField
@@ -1056,7 +1054,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Add, remove, and edit booking or planning steps and their worked examples. Each path is independent.</p>
               {(["package", "planning"]).map((flowKey) => {
                 const flows = withUpdatedPackageFlow(body.processFlows || approvedRelease.pages["how-it-works"].processFlows);
                 const flow = flows[flowKey];
@@ -1075,7 +1072,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                           [flowKey]: { ...flow, steps: flow.steps.map((item, i) => i === index ? { ...item, heading: event.target.value } : item) },
                         })}
                       />
-                      <TextareaField
+                      <RichTextField
                         label="Step instructions"
                         value={step.text}
                         maxLength={2000}
@@ -1105,7 +1102,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                         steps: [...flow.steps, { heading: "", text: "" }],
                       },
                     })}>Add step</Button>
-                  <TextareaField
+                  <RichTextField
                     label="Example introduction"
                     value={flow.example}
                     maxLength={2500}
@@ -1134,7 +1131,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                             },
                           })}
                         />
-                        <TextareaField
+                        <RichTextField
                           label="Stage description"
                           value={step.text}
                           maxLength={2000}
@@ -1194,12 +1191,13 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                       ["heading", "Title / question", 160],
                       ["text", "Text / answer", 2000],
                       ["attribution", "Attribution (where applicable)", 160],
-                    ].map(([key, label, max]) => (
-                      <TextareaField key={key} label={label} value={entry[key] || ""} maxLength={max}
+                    ].map(([key, label, max]) => {
+                      const Field = key === "text" ? RichTextField : TextareaField;
+                      return <Field key={key} label={label} value={entry[key] || ""} maxLength={max}
                         required={key !== "attribution"}
                         onChange={event => change("entries", body.entries.map((item, i) =>
-                          i === index ? { ...item, [key]: event.target.value } : item))} />
-                    ))}
+                          i === index ? { ...item, [key]: event.target.value } : item))} />;
+                    })}
                   </fieldset>
                   <Button
                     type="button"
@@ -1324,9 +1322,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
       )}
       <section className="workspace-panel" data-tour="content-publication">
         <h3>Publication</h3>
-        <p>
-          Your update is live only after deployment succeeds.
-        </p>
         {["packages", "journal", "travel-tips"].includes(page) && <SelectField
           label="Publication scope" value={recordSlug} disabled={state.loading || dirty}
           onChange={event => setRecordSlug(event.target.value)}>
@@ -1392,11 +1387,11 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
       {preview && !visualPreview && (
         <section aria-label="Saved content preview">
           <h3>{preview.heading}</h3>
-          <p className="preserve-lines">{preview.body}</p>
+          <RichText value={preview.body}/>
           {preview.entries.map((entry, index) => (
             <div key={index}>
               <h4>{entry.heading}</h4>
-              <p>{entry.text}</p>
+              <RichText value={entry.text}/>
               {entry.attribution && <p>{entry.attribution}</p>}
             </div>
           ))}
@@ -1407,7 +1402,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                 {article.date} · /journal/{article.slug}
               </p>
               <p>{article.excerpt}</p>
-              <p className="preserve-lines">{article.body}</p>
+              <RichText value={article.body}/>
             </article>
           ))}
           {(preview.packages || []).map((item) => (
@@ -1416,7 +1411,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
               <p>
                 {item.destination} · /packages/{item.slug}
               </p>
-              <p>{item.overview}</p>
+              <RichText value={item.overview}/>
             </article>
           ))}
           {(preview.tips || []).map((tip) => (
@@ -1426,7 +1421,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                 {tip.category} · /travel-tips/{tip.slug}
               </p>
               <p>{tip.excerpt}</p>
-              <p className="preserve-lines">{tip.body}</p>
+              <RichText value={tip.body}/>
             </article>
           ))}
           {(preview.footprint || []).length > 0 && (
@@ -1443,7 +1438,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
               ))}
             </ul>
           )}
-          <p>Text preview</p>
         </section>
       )}
       <section className="workspace-panel">

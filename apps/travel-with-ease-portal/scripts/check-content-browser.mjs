@@ -75,6 +75,20 @@ try {
     await page.getByLabel("Travel tip series").first().waitFor();
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();
     await page.getByRole("group", { name: "Article card & listing", exact: true }).first().getByLabel(/^Article title/).fill("Changed demo article");
+    const articleEditor = page.getByRole("group", { name: "Article detail page", exact: true }).first();
+    const articleBody = articleEditor.getByRole("textbox", { name: /^Full article/ });
+    await articleBody.fill("Pack your bag\nCheck your passport");
+    await articleBody.evaluate(node => node.setSelectionRange(0, 4));
+    await articleEditor.getByRole("button", { name: "Bold", exact: true }).click();
+    await expect(articleBody).toHaveValue("**Pack** your bag\nCheck your passport");
+    await articleBody.evaluate(node => node.setSelectionRange(0, node.value.length));
+    await articleEditor.getByRole("button", { name: "Bulleted list", exact: true }).click();
+    await expect(articleBody).toHaveValue("- **Pack** your bag\n- Check your passport");
+    await articleEditor.getByRole("button", { name: "Preview", exact: true }).click();
+    const formattedPreview = articleEditor.locator(".twe-rich-preview");
+    await expect(formattedPreview.locator("li strong")).toHaveText("Pack");
+    await expect(formattedPreview.locator("li")).toHaveCount(2);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "Formatting controls wrap without overflow");
     await page.getByLabel("Website CTA button text (optional)").first().fill("Plan my trip");
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await page

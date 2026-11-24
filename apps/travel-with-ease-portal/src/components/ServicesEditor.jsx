@@ -1,5 +1,6 @@
 import { TextField, TextareaField } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import RichTextField from "./RichTextField.jsx";
 
 const splitHeading = (heading = "") => {
   const [title, ...feeParts] = heading.split(" · ");
@@ -49,7 +50,7 @@ export default function ServicesEditor({ entries = [], onChange }) {
           const { title } = splitHeading(entry.heading);
           return <fieldset key={entry.id || entry.serviceSlug || index}>
             <legend>{title || `Service ${index + 1}`}</legend>
-            <TextareaField label="Full service description" required maxLength={2000}
+            <RichTextField label="Full service description" required maxLength={2000}
               value={entry.text || ""}
               onChange={event => edit(index, "text", event.target.value)} />
             <TextField label="Attribution (optional)" maxLength={160}

@@ -1,4 +1,5 @@
 ---
+import { plainRichText } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import MoneyText from "./MoneyText.astro";
@@ -27,7 +28,7 @@ const images = [photography.hippos, photography.coast, photography.garden, photo
           <h2><ContentLink href={`/services/${entry.serviceSlug || serviceSlug(entry.heading)}`}>{title}</ContentLink></h2>
           {price && <p><MoneyText text={price} /></p>}
         </div>
-        {all && <p class="service-panel__description"><MoneyText text={entry.cardSummary?.trim() || entry.text} /></p>}
+        {all && <p class="service-panel__description"><MoneyText text={entry.cardSummary?.trim() || plainRichText(entry.text)} /></p>}
         {all && <span class="service-panel__explore" aria-hidden="true">{siteCopy("services").cardCta}</span>}
       </article>
     );

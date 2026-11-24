@@ -1,3 +1,4 @@
+import { plainRichText } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight4 } from "@faako/ui";
 import TiltedCard, { TiltedCardLayer } from "./reactbits/TiltedCard.jsx";
@@ -79,7 +80,7 @@ export default function PackageTicketCard({
             </div>
             <div className="twe-ticket__back-main">
               <Heading>{title}</Heading>
-              <p className="twe-ticket__description">{overview}</p>
+              <p className="twe-ticket__description">{plainRichText(overview)}</p>
               <div className="twe-ticket__actions">
                 <button
                   ref={backToggleRef}
@@ -109,7 +110,7 @@ export default function PackageTicketCard({
             <div className="twe-ticket__content">
               <Heading><a href={href}>{title}</a></Heading>
               {duration && <p className="twe-ticket__duration">{duration}</p>}
-              <p className="twe-ticket__summary">{tagline}</p>
+              <p className="twe-ticket__summary">{plainRichText(tagline)}</p>
             </div>
             <div className="twe-ticket__bottom">
               <div className="twe-ticket__price-group">

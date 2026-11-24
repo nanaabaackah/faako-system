@@ -1,0 +1,7 @@
+@import "../../../travel-with-ease-web/src/styles/components/rich-text.css";
+.twe-rich-field { display: grid; gap: 6px; min-width: 0; }
+.twe-rich-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.twe-rich-toolbar button { min-width: 44px; min-height: 44px; padding: 6px 10px; }
+.twe-rich-toolbar svg { width: 20px; height: 20px; }
+.twe-rich-toolbar button[aria-pressed="true"] { background: var(--sys-surface); }
+.twe-rich-preview { padding: 12px; border: 1px solid var(--sys-border); border-radius: var(--sys-radius-md); min-width: 0; }

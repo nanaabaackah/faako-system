@@ -30,7 +30,8 @@ test("media and CMS copy do not expose developer or infrastructure setup details
   assert.doesNotMatch(media, /Baaba|R2 setup before uploads|notification worker/);
   assert.match(media, /Media uploads are unavailable/);
   assert.doesNotMatch(contentEditor, /November 16 two-path process|Re-select managed R2 images|free-checklist offers/);
-  assert.match(contentEditor, /deployment succeeds/);
+  assert.match(contentEditor, /The site changes only after deployment is verified/);
+  assert.doesNotMatch(contentEditor, /Your update is live only after deployment succeeds/);
 });
 
 test("Help menu retains all tutorial actions but does not show five controls by default", () => {

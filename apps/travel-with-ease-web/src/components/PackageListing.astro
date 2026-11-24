@@ -1,4 +1,6 @@
 ---
+import RichText from "./RichText.astro";
+import { plainRichText } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import PlacedImage from './PlacedImage.astro';
 import PackageTicketCard from './PackageTicketCard.jsx';
 import ContentLink from "./ContentLink.astro";
@@ -28,7 +30,7 @@ const {
 <section class="editorial-wrap collection-page package-catalogue" id="package-collection">
   <header class="collection-introduction package-catalogue__introduction">
     <div><h1>{heading}</h1></div>
-    <div><p>{publishedPage("packages")?.body || ""}</p>
+    <div><RichText value={publishedPage("packages")?.body || ""}/>
       <ContentLink href="#plan">{siteCopy("packages").listingCta}</ContentLink>
     </div>
   </header>
@@ -69,7 +71,7 @@ const {
                   duration={item.duration}
                   price={packageStartingPrice(item)}
                   priceNote={item.pricingStatus === "indicative" ? "per person sharing" : undefined}
-                  tagline={item.tagline || item.overview.slice(0, 160)}
+                  tagline={item.tagline || plainRichText(item.overview).slice(0, 160)}
                   overview={item.overview}
                   href={`${prefix}/${item.slug}`}
                   imageSrc={photo?.src}

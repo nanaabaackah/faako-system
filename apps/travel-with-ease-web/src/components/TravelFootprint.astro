@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import world from "../lib/world-boundaries.json";
 import { footprintRows, footprintBand, experienceRows } from "../lib/footprint.js";
 import smallCountries from "../lib/footprint-small-countries.json";
@@ -39,15 +40,12 @@ const id = compact ? "footer-footprint" : "travel-footprint";
   aria-labelledby={id + "-heading"}
 >
   <div class="footprint-heading">
-    <h2 id={id + "-heading"}>{heading}</h2><p>
-      {
-        description || (showingExperience
+    <h2 id={id + "-heading"}>{heading}</h2><RichText value={description || (showingExperience
             ? "Countries explored, near and far. Select a country to discover more."
           : rows.length
             ? "Completed and confirmed upcoming trips, combined by country."
             : "Verified travel activity is not available yet.")
-      }
-    </p>
+      }/>
   </div>
   <slot />
   <svg
