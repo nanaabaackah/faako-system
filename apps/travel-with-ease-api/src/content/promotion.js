@@ -3,6 +3,7 @@ import { contentForPage, contentMediaIds, pageNames } from "./schema.js";
 import { transaction } from "../db/database.js";
 import { appendAudit } from "../audit.js";
 import { approvedEditorCopy } from "./approved-copy.js";
+import { templateCopySchema } from "../notifications/templates.js";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const stable = (value) => Array.isArray(value) ? value.map(stable)
@@ -12,8 +13,9 @@ const stable = (value) => Array.isArray(value) ? value.map(stable)
 const fingerprint = (value) => sha256(JSON.stringify(stable(value)));
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const hex = /^[a-f0-9]{64}$/;
+const templateSlugs = ["enquiry-acknowledgement", "staff-invitation"];
 
-export function createPromotionBundle({ source, pages, media = [] }) {
+export function createPromotionBundle({ source, pages, media = [], emailTemplates }) {
   if (source?.environment !== "staging" || !uuid.test(source.organisationId || "") ||
     !uuid.test(source.publicationId || "") || !/^[a-f0-9]{40}$/.test(source.sourceSha || "") ||
     !/^[a-zA-Z0-9_-]{1,120}$/.test(source.deploymentId || ""))
@@ -46,7 +48,16 @@ export function createPromotionBundle({ source, pages, media = [] }) {
   });
   if (ids.size !== referenced.size || [...referenced].some((id) => !ids.has(id)))
     throw new Error("Promotion is missing referenced media.");
-  const payload = { version: 1, source: { ...source, contentFingerprint: fingerprint(validatedPages) }, pages: validatedPages, media: validatedMedia };
+  // Older reviewed bundles remain verifiable. New exports include active
+  // template copy only, never draft, delivery payload or recipient configuration.
+  let validatedTemplates;
+  if (emailTemplates !== undefined) {
+    if (!emailTemplates || Object.keys(emailTemplates).sort().join("|") !== [...templateSlugs].sort().join("|"))
+      throw new Error("Promotion must include both active email templates.");
+    validatedTemplates = Object.fromEntries(templateSlugs.map(slug => [slug, templateCopySchema.parse(emailTemplates[slug])]));
+  }
+  const payload = { version: 1, source: { ...source, contentFingerprint: fingerprint(validatedPages) }, pages: validatedPages, media: validatedMedia,
+    ...(validatedTemplates ? { emailTemplates: validatedTemplates } : {}) };
   return Object.freeze({ ...payload, fingerprint: fingerprint(payload) });
 }
 
@@ -59,7 +70,7 @@ export function verifyPromotionBundle(bundle) {
   return rebuilt;
 }
 
-export async function exportPromotionBundle({ publication, media, source, approvedPages }) {
+export async function exportPromotionBundle({ publication, media, source, approvedPages, templates }) {
   const live = await publication.lastLive();
   if (!live?.id || !live.manifest || !live.deployment_id) throw new Error("A verified live staging publication is required.");
   // Use the baseline captured by the verified publication, not a newer checkout.
@@ -87,11 +98,15 @@ export async function exportPromotionBundle({ publication, media, source, approv
     }
     transferred.push({ id, altText: stored.alt_text, rights: stored.rights, objects });
   }
+  const emailTemplates = templates
+    ? Object.fromEntries(await Promise.all(templateSlugs.map(async slug => [slug, await templates.activeCopy(slug)])))
+    : undefined;
   return createPromotionBundle({
     source: { ...source, environment: "staging", approvedBaselineFingerprint: fingerprint(baselinePages), publicationId: live.id,
       deploymentId: live.deployment_id, sourceSha: live.source_sha },
     pages,
     media: transferred,
+    emailTemplates,
   });
 }
 
@@ -121,6 +136,15 @@ export class ContentPromotionImporter {
         if (bundle.media.length) {
           const collision = await client.query("SELECT count(*)::int AS count FROM twe.media WHERE organisation_id=$1 AND id = ANY($2::uuid[])", [this.organisationId, bundle.media.map(({ id }) => id)]);
           if (collision.rows[0].count !== 0) throw new Error("Promotion media already exists; import will not overwrite it.");
+        }
+        if (bundle.emailTemplates) {
+          const existingTemplates = await client.query("SELECT count(*)::int AS count FROM twe.email_templates WHERE organisation_id=$1 AND slug = ANY($2::text[])", [this.organisationId, templateSlugs]);
+          if (existingTemplates.rows[0].count !== 0) throw new Error("Production email templates already exist; promotion will not overwrite them.");
+          for (const slug of templateSlugs) {
+            const copy = bundle.emailTemplates[slug];
+            await client.query(`INSERT INTO twe.email_templates (organisation_id, slug, version, draft, active, active_version, updated_by)
+              VALUES ($1,$2,2,$3,$3,1,$4)`, [this.organisationId, slug, copy, this.actorId]);
+          }
         }
         for (const media of bundle.media) for (const object of media.objects) {
           const key = `${this.organisationId}/${media.id}/${object.variant}.webp`;
