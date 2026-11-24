@@ -81,3 +81,32 @@ test("production import rejects cross-tenant bundles before storage", async () =
   await assert.rejects(importer.apply(bundle), /source organisation/);
   assert.equal(writes, 0);
 });
+
+
+test("promotion uses the verified manifest baseline rather than a later checkout", async () => {
+  const baseline = structuredClone(approved.pages);
+  baseline.home.heading = "Verified staging baseline";
+  const bundle = await exportPromotionBundle({
+    publication: { lastLive: async () => ({
+      id: publicationId, source_sha: source.sourceSha, deployment_id: source.deploymentId,
+      manifest: { baseline, pages: [] },
+    }) },
+    media: { get: async () => { throw new Error("no media expected"); }, store: {} },
+    source: { organisationId }, approvedPages: approved.pages,
+  });
+  assert.equal(bundle.pages.home.heading, "Verified staging baseline");
+});
+
+test("promotion recognizes the actual platform_admin Superadmin role", async () => {
+  const bundle = createPromotionBundle({ source, pages, media: [] });
+  const client = { query: async (sql) => {
+    if (sql.startsWith("SELECT role")) return { rows: [{ role: "platform_admin", active: true }] };
+    if (sql.startsWith("SELECT count")) return { rows: [{ count: 0 }] };
+    return { rows: [], rowCount: 1 };
+  } };
+  const importer = new ContentPromotionImporter({}, { put: async () => {}, remove: async () => {} }, {
+    organisationId, actorId: "44444444-4444-4444-8444-444444444444",
+    transact: async (_pool, operation) => operation(client),
+  });
+  assert.equal((await importer.apply(bundle)).status, "imported");
+});
