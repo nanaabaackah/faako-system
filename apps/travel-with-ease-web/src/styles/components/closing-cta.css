@@ -191,3 +191,8 @@
 .closing-expand[data-motion-active] .closing-cta {
   will-change: clip-path;
 }
+
+/* Long CMS copy and short viewports must never be clipped by scroll animation. */
+.closing-expand[data-static-layout] .closing-cta { position: relative; height: auto; clip-path: none !important; }
+.closing-copy { overflow-wrap: anywhere; }
+@media (max-width: 700px) { .closing-cta { padding-inline: clamp(16px, 5vw, 24px); } }
