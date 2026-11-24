@@ -9,7 +9,7 @@ import "../styles/components/journey-editorial.css";
 import "../styles/components/service-experience.css";
 import { serviceSlug } from "../lib/services.js";
 interface Props {
-  entries: { heading: string; serviceSlug?: string; text: string; attribution?: string; imagePlacement?:import('../lib/collections').ImagePlacement }[];
+  entries: { heading: string; serviceSlug?: string; text: string; cardSummary?: string; attribution?: string; imagePlacement?:import('../lib/collections').ImagePlacement }[];
   all?: boolean;
 }
 const { entries, all = false } = Astro.props;
@@ -27,7 +27,7 @@ const images = [photography.hippos, photography.coast, photography.garden, photo
           <h2><ContentLink href={`/services/${entry.serviceSlug || serviceSlug(entry.heading)}`}>{title}</ContentLink></h2>
           {price && <p><MoneyText text={price} /></p>}
         </div>
-        {all && <p class="service-panel__description"><MoneyText text={entry.text} /></p>}
+        {all && <p class="service-panel__description"><MoneyText text={entry.cardSummary?.trim() || entry.text} /></p>}
         {all && <span class="service-panel__explore" aria-hidden="true">{siteCopy("services").cardCta}</span>}
       </article>
     );
