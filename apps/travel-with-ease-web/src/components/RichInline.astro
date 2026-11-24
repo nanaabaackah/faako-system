@@ -1,0 +1,8 @@
+---
+import { inlineRuns } from "../../../travel-with-ease-api/src/content/rich-text.js";
+import MoneyText from "./MoneyText.astro";
+interface Props { value?: string }
+const { value = "" } = Astro.props;
+---
+{inlineRuns(value).map(run => run.type === "bold" ? <strong><MoneyText text={run.text}/></strong> :
+  run.type === "italic" ? <em><MoneyText text={run.text}/></em> : <MoneyText text={run.text}/>)}
