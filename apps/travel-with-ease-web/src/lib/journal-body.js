@@ -1,3 +1,5 @@
+import { richTextBlocks } from "../../../travel-with-ease-api/src/content/rich-text.js";
+
 // Presentation-only parser for client-authored plain-text Journal entries.
 // Preserves every entry-rule sentence and supplied date verbatim; it only
 // converts existing numbered/bulleted paragraphs to semantic lists.
@@ -33,7 +35,11 @@ export function journalBodyBlocks(body = "") {
       blocks.push({ type: "disclaimer", text: lines.join(" ") });
       continue;
     }
-    blocks.push({ type: "paragraph", text: lines.join(" ") });
+    for (const block of richTextBlocks(text)) {
+      if (block.type === "paragraph") blocks.push({ type: "paragraph", text: block.text.replace(/\n/g, " ") });
+      else if (block.type === "ordered") blocks.push({ type: "ordered", items: block.items });
+      else blocks.push({ type: "unordered", items: block.items });
+    }
   }
   return blocks;
 }
