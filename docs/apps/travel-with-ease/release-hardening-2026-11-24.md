@@ -25,3 +25,27 @@ The predeploy classifier now recognizes the exact existing runtime-role guard me
 ## Gate
 
 P0-01 is open until a production predeploy and runtime readiness check succeed. Branch CI and isolated database tests do not close the live gate. P0-02 through P0-05 remain open. Trello: https://trello.com/c/Hri5RyJ4 and https://trello.com/c/uMtsq7vq.
+
+## P0-02 — Worker parity and public build prerequisites
+
+Staging uses two independent processes with one replica each:
+- Notification worker: `pnpm --filter @faako/travel-with-ease-api notifications:worker`.
+- Publication worker: `pnpm --filter @faako/travel-with-ease-api publication:worker`.
+
+Production currently lacks both worker services. Keep the tested separation initially: publication builds are CPU-intensive and must not delay enquiry acknowledgement or staff API traffic. Do not introduce a new queue, database, duplicate storage or extra replica just for this release. Reuse the existing environment's runtime DB references and provider-managed Git SHA. Review actual resource usage before any consolidation.
+
+The staging publication worker's listed variables omit TWE_PUBLIC_TURNSTILE_SITE_KEY. The production API's listed variables omit TWE_TURNSTILE_SECRET_KEY. These are distinct public/secret values, not interchangeable. Confirm the effective environment, configure the existing environment-specific references where missing and verify both the widget and API verification. Publication worker now validates TWE_PUBLIC_API_ORIGIN (exact HTTPS origin) and a real public site key before claiming jobs, so a missing key cannot silently publish a disabled form. Verify TWE_PUBLIC_GOOGLE_SITE_VERIFICATION where production indexing requires it. Never copy API secrets into the public build.
+
+Production worker checklist: use the appropriate existing environment database reference, organisation ID, TLS trust, enablement flags and production-only provider settings. Publication requires the correct Pages project, main branch, R2 bucket, public API origin, site key and Git-linked source identity; notification requires Resend, continuation secret, public origin and verified sender. No provider settings were changed.
+
+## P0-03 — Approved content promotion
+
+The existing export/import commands are reused rather than duplicated. Export uses the latest verified staging publication manifest and its pinned baseline when available, not a later checkout baseline. Legacy manifests without a baseline retain the prior fallback; verify provenance before using those bundles. The importer recognizes platform_admin (the displayed Superadmin role). New exports include both active email template copies, excluding drafts, delivery payloads and recipient configuration. Media derivatives and website sections continue to be validated against their hashes and references.
+
+Run offline validation on the private reviewed export:
+```
+pnpm --filter @faako/travel-with-ease-api promotion:import <private-bundle.json> --dry-run
+```
+Use the actual package script name from package.json if it differs. This mode checks integrity, counts and fingerprint without connecting to PostgreSQL or R2; it does not verify target state. Do not commit bundles or put them into public storage. The import continues to require explicit initial-production confirmation and refuses to overwrite initialized content or existing email template rows. Repeated import currently rejects rather than duplicates; a verified no-op replay, live target preflight, asset completeness and full production rollback/reconciliation remain acceptance work.
+
+P0-02 and P0-03 branch changes are subject to CI. Live production workers, production database and Cloudflare/Turnstile acceptance remain open; no production or staging changes were executed.
