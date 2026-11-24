@@ -10,6 +10,7 @@ import {
   saveContentSchema,
 } from "../src/content/schema.js";
 import { readFileSync } from "node:fs";
+import { approvedEditorCopy } from "../../travel-with-ease-portal/src/lib/approved-copy.js";
 import { createApp } from "../src/app.js";
 import { isAllowedPortalApiRoute } from "../src/portal/proxy.js";
 
@@ -93,6 +94,22 @@ test("CMS uses fixed page names, bounded fields and code-owned CTA destinations"
   );
 });
 
+test("Footer content uses stable ordered links and responsive managed background media", () => {
+  const background = "40000000-0000-4000-8000-000000000001";
+  const mobile = "40000000-0000-4000-8000-000000000002";
+  const linkId = "40000000-0000-4000-8000-000000000003";
+  const body = contentForPage("footer", {
+    heading: "Travel With Ease", body: "Plan with confidence", seoTitle: "Footer", seoDescription: "Footer information",
+    contactEmail: "info@travelwitheasegh.com", contactPhone: "+233 20 020 9170",
+    imagePlacements: { "footer-background": { imageId: background, mobileImageId: mobile, focalY: 40 } },
+    footerLinks: [{ id: linkId, group: "social", label: "Instagram", href: "https://www.instagram.com/travelwitheasegh/", visible: true, order: 0 }],
+  });
+  assert.equal(body.footerLinks[0].id, linkId);
+  assert.deepEqual(contentMediaIds(body), [background, mobile]);
+  assert.throws(() => contentForPage("footer", { ...body, footerLinks: [{ ...body.footerLinks[0], href: "javascript:alert(1)" }] }));
+  assert.throws(() => contentForPage("home", { ...body }));
+});
+
 test("CMS cannot be mounted without staff session protection", () => {
   assert.throws(
     () => createApp({ contentRepository: {} }),
@@ -163,4 +180,54 @@ test("journal and map content validates public URLs, dates, unique records and p
     [...footprintCountryCodes].sort(),
     countries.map((country) => country.code).sort(),
   );
+});
+
+test("Journal lead selection and brand settings are constrained and tracked as media references", () => {
+  const base = { heading:"Fixture", body:"", seoTitle:"Fixture", seoDescription:"Synthetic" };
+  const id1="40000000-0000-4000-8000-000000000001";
+  const id2="40000000-0000-4000-8000-000000000002";
+  const entry = {slug:"sample-article", title:"Synthetic", excerpt:"Summary", body:"Article", date:"2026-11-01"};
+  assert.equal(contentForPage("journal",{...base,articles:[{...entry,featuredOnJournal:true}]}).articles[0].featuredOnJournal,true);
+  assert.throws(()=>contentForPage("journal",{...base,articles:[{...entry,featuredOnJournal:true},{...entry,slug:"another-article",featuredOnJournal:true}]}));
+  assert.throws(()=>contentForPage("journal",{...base,articles:[{...entry,featuredOnJournal:"yes"}]}));
+  const selected = contentForPage("site-appearance",{...base,branding:{
+    headingFont:"outfit",bodyFont:"inter",headerLogoId:id1,scrolledLogoId:id2,
+    footerLogoId:id1,faviconId:id2,socialImageId:id1,
+  }});
+  assert.equal(selected.branding.headingFont,"outfit");
+  assert.equal(selected.branding.bodyFont,"inter");
+  assert.deepEqual(contentMediaIds(selected).sort(),[id1,id2].sort());
+  const defaults = contentForPage("site-appearance",base).branding;
+  assert.equal(defaults.headingFont,"poiret-one");
+  assert.equal(defaults.bodyFont,"quicksand");
+  assert.equal(defaults.headerLogoId,null);
+  for (const invalid of [{headingFont:"Georgia"},{bodyFont:"url(https://bad.invalid)"},{footerLogoId:"https://bad.invalid/file.png"},{script:"<script>"}])
+    assert.throws(()=>contentForPage("site-appearance",{...base,branding:invalid}));
+});
+
+test("package booking grows to five editable steps without changing personal planning or a four-stage example", () => {
+  const approved = JSON.parse(readFileSync(new URL("../../travel-with-ease-web/content/approved-public-release.json", import.meta.url), "utf8"));
+  const original = approvedEditorCopy(approved.pages["how-it-works"]);
+  const approvedStep = {
+    heading: "Travel with your pack",
+    text: "You receive your travel pack with all your confirmed bookings, and we walk you through it on WhatsApp before you go.",
+  };
+  assert.equal(original.processFlows.package.steps.length, 5);
+  assert.deepEqual(original.processFlows.package.steps[4], approvedStep);
+  assert.equal(original.processFlows.planning.steps.length, 4);
+  assert.equal(original.processFlows.package.exampleSteps.length, 4);
+
+  const earlier = structuredClone(original);
+  earlier.processFlows.package.steps.pop();
+  const parsed = contentForPage("how-it-works", earlier);
+  assert.equal(parsed.processFlows.package.steps.length, 5);
+  assert.deepEqual(parsed.processFlows.package.steps[4], approvedStep);
+  assert.equal(earlier.processFlows.package.steps.length, 4, "Upgrading a historic draft does not mutate stored revisions");
+  assert.equal(parsed.processFlows.planning.steps.length, 4);
+  assert.equal(parsed.processFlows.package.exampleSteps.length, 4);
+  assert.deepEqual(contentForPage("how-it-works", parsed).processFlows.package.steps, parsed.processFlows.package.steps,
+    "Revalidating a five-step draft never duplicates the final step");
+  const tooLong = structuredClone(parsed);
+  tooLong.processFlows.package.steps.push({ heading: "Invalid sixth step", text: "Not an approved process" });
+  assert.throws(() => contentForPage("how-it-works", tooLong));
 });

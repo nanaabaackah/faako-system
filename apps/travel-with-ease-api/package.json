@@ -20,7 +20,10 @@
     "notifications:status": "node scripts/notification-status.mjs",
     "publication": "node --env-file-if-exists=.env src/content/publication-command.js",
     "publication:once": "node scripts/run-publication-worker.mjs",
+    "publication:worker": "node scripts/run-publication-worker.mjs --continuous",
     "publication:baseline": "node scripts/accept-publication-baseline.mjs",
+    "promotion:export": "node scripts/export-content-promotion.mjs",
+    "promotion:import": "node scripts/import-content-promotion.mjs",
     "db:migrate": "node --env-file-if-exists=.env src/db/migrate.js",
     "db:deploy": "node scripts/deploy-database.mjs"
   },

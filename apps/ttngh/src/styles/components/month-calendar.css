@@ -10,11 +10,13 @@ month-calendar { display: block; min-width: 0; }
 .month-grid th { padding: .65rem 0; color: var(--muted); font-size: .75rem; }
 .month-grid td { height: 60px; padding: .2rem; border-top: 1px solid var(--line); vertical-align: middle; font-size: .9rem; font-variant-numeric: tabular-nums; }
 .month-day { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; min-height: 52px; gap: .15rem; padding: .2rem 0; border: 0; border-radius: var(--sys-radius-sm, var(--radius-sm)); background: transparent; color: var(--sys-text); cursor: pointer; transition: background .3s ease, color .3s ease; }
+/* Calendar dates with events use one consistent branded highlight rather than a count badge. */
+.month-day[data-has-events="true"] { background: var(--surface-soft-pink); color: var(--brand-pink-deep, #a20c58); font-weight: 700; }
+.month-day[data-has-events="true"]::after { content: ""; display: block; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .month-day[aria-current="date"] { box-shadow: inset 0 -3px var(--sys-accent); }
 .month-day:hover, .month-toolbar button:hover, .month-retry:hover { background: var(--sys-accent-soft); }
 .month-day[aria-pressed="true"] { background: var(--brand-pink-deep, #a20c58); color: white; }
 month-calendar button:focus-visible { outline: 2px solid var(--sys-accent); outline-offset: 3px; }
-.month-count { font-size: .65rem; font-weight: 700; line-height: 1; }
 .month-caption { caption-side: bottom; padding-top: 1rem; text-align: left; color: var(--muted); font-size: .8rem; line-height: 1.6; }
 .month-agenda { margin-top: 1.5rem; overflow-wrap: anywhere; }
 .month-agenda h4 { font-size: 1.2rem; line-height: 1.5; }

@@ -7,6 +7,7 @@ import { MediaService } from "../src/media/service.js";
 import { readR2Config, R2Store } from "../src/media/r2.js";
 import { ArtifactArchive } from "../src/content/artifact-archive.js";
 import { verifyHostedDatabase } from "../src/portal/readiness.js";
+import { runPublicationLoop } from "../src/content/publication-loop.js";
 
 const settings = readPagesConfiguration();
 const logger = createLogger("twe-publication-worker", { environment: settings.environment });
@@ -17,8 +18,9 @@ try {
   await verifyHostedDatabase(pool, { environment: settings.environment, organisationId });
   const storage = readR2Config();
   const store = storage ? new R2Store(storage) : null;
-  const result = await publishOne({
-    publication: new PublicationRepository(pool, { organisationId, environment: settings.environment, sourceSha: settings.sourceSha }),
+  const publication = new PublicationRepository(pool, { organisationId, environment: settings.environment, sourceSha: settings.sourceSha });
+  const workerOptions = {
+    publication,
     media: new MediaService(pool, organisationId, store),
     archive: store ? new ArtifactArchive(store, { organisationId, environment: settings.environment }) : null,
     provider: new PagesProvider(settings),
@@ -26,9 +28,19 @@ try {
       turnstileSiteKey: process.env.TWE_PUBLIC_TURNSTILE_SITE_KEY || "", indexable: process.env.TWE_PUBLIC_SITE_INDEXABLE === "true",
       googleVerification: process.env.TWE_PUBLIC_GOOGLE_SITE_VERIFICATION || "" },
     logger,
-  });
+  };
+  const runOnce = () => publishOne(workerOptions);
+  const continuous = process.argv.includes("--continuous");
+  const controller = new AbortController();
+  if (continuous) for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => controller.abort());
+  const result = continuous
+    ? await runPublicationLoop({ runOnce, signal: controller.signal, logger,
+      intervalMs: Number(process.env.TWE_PUBLICATION_POLL_INTERVAL_MS || 15_000) })
+    : await runOnce();
   logger.info({ eventName: "publication.worker_completed", status: result.status, jobId: result.id }, "Publication worker completed.");
-  if (result.status === "failed") process.exitCode = 1;
+  // A one-shot diagnostic must still signal that reconciliation is blocked.
+  // The continuous worker stays alive and polls safely instead of crashing.
+  if (result.status === "failed" || (!continuous && result.status === "recovery_required")) process.exitCode = 1;
 } catch {
   logger.error({ eventName: "publication.worker_failed" }, "Publication worker needs configuration or recovery review.");
   process.exitCode = 1;

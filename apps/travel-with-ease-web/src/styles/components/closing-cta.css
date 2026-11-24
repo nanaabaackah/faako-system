@@ -1,59 +1,193 @@
+.closing-expand {
+  display: block;
+  width: 100%;
+  background: #f4ede3;
+}
+
+.closing-expand--sand {
+  background: #071438;
+}
+
+.closing-expand--mist {
+  background: #eadfcd;
+}
+
+.closing-expand__track {
+  position: relative;
+  width: 100%;
+}
+
 .closing-cta {
-  overflow: clip;
-  text-align: center;
-  padding: 72px 0 32px;
-}
-.closing-copy {
-  max-width: 650px;
-  padding-inline: 24px;
-  margin: 0 auto 28px;
-}
-h2 {
-  font-size: clamp(2rem, 4vw, 3.3rem);
-  letter-spacing: -0.04em;
-  line-height: 1.1;
-  margin: 0 0 20px;
-}
-p {
-  max-width: 46ch;
-  margin: 0 auto 24px;
-  line-height: 1.7;
-}
-.closing-photos {
+  position: sticky;
+  top: 0;
+  isolation: isolate;
   display: grid;
-  grid-template-columns: 1fr 1.8fr 0.65fr;
-  align-items: center;
-  gap: 0;
-  width: min(98%, 1600px);
-  margin: 0 auto;
+  min-height: clamp(400px, 42vw, 500px);
+  overflow: clip;
+  place-items: center;
+  padding: clamp(80px, 10vw, 128px) 24px;
+  color: #f4ede3;
+  text-align: center;
+  background: #010c33;
+  clip-path: inset(16% 19% round 24px);
+}
+
+.closing-cta--sand {
+  color: #071438;
+  background: #eadfcd;
+}
+
+.closing-cta--mist {
+  color: #071438;
+  background: #dce5df;
+}
+
+.closing-topography-fallback,
+.closing-topography-canvas,
+.closing-topography-fade {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
 }
-.mockup,
-.mockup-reveal {
-  min-width: 0;
+
+.closing-cta--sand .closing-topography-fade {
+  background:
+    linear-gradient(180deg, #eadfcd 0%, rgb(234 223 205 / 52%) 28%, rgb(234 223 205 / 12%) 100%),
+    radial-gradient(circle at 50% 38%, rgb(234 223 205 / 58%) 0 20%, rgb(234 223 205 / 18%) 58%, rgb(234 223 205 / 48%) 100%);
 }
-/* Use the transparent asset margins to tighten the row without cropping artwork. */
-.mockup :global(img) {
+
+.closing-cta--mist .closing-topography-fade {
+  background:
+    linear-gradient(180deg, #dce5df 0%, rgb(220 229 223 / 52%) 28%, rgb(220 229 223 / 12%) 100%),
+    radial-gradient(circle at 50% 38%, rgb(220 229 223 / 58%) 0 20%, rgb(220 229 223 / 18%) 58%, rgb(220 229 223 / 48%) 100%);
+}
+
+.closing-topography-fallback {
+  z-index: -3;
+  opacity: 0.34;
+  background:
+    repeating-radial-gradient(ellipse at 12% 118%, transparent 0 20px, rgb(216 181 106 / 42%) 21px 22px, transparent 23px 36px),
+    repeating-radial-gradient(ellipse at 92% 116%, transparent 0 26px, rgb(216 181 106 / 30%) 27px 28px, transparent 29px 44px);
+}
+
+.closing-topography-canvas {
+  z-index: -2;
+  opacity: 1;
+}
+
+.closing-topography-canvas :global(astro-island) {
   display: block;
-  width: 120%;
-  max-width: none;
-  margin-inline: -10%;
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: contain;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  width: 100%;
+  height: 100%;
 }
-@media (max-width: 700px) {
-  .closing-cta {
-    padding: 44px 0 24px;
-  }
-  .closing-copy {
-    margin-bottom: 20px;
-  }
+
+.closing-topography-canvas :global(.closing-topography),
+.closing-topography-canvas :global(.topography-canvas) {
+  width: 100%;
+  height: 100%;
+}
+
+.closing-topography-fade {
+  z-index: -1;
+  background:
+    linear-gradient(180deg, #010c33 0%, rgb(1 12 51 / 48%) 24%, rgb(1 12 51 / 8%) 100%),
+    radial-gradient(circle at 50% 38%, rgb(1 12 51 / 46%) 0 20%, rgb(1 12 51 / 14%) 58%, rgb(1 12 51 / 42%) 100%);
+}
+
+.closing-cta > :global(astro-island) {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: min(100%, 680px);
+}
+
+.closing-copy-motion {
+  width: 100%;
+}
+
+.closing-copy {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+}
+
+.closing-cta :global(.closing-copy__heading) {
+  margin: 0 0 20px;
+  color: #f4ede3;
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.closing-cta :global(.closing-copy__body) {
+  max-width: 47ch;
+  margin: 0 auto 30px;
+  color: rgb(244 237 227 / 88%);
+  font-size: clamp(1rem, 1.5vw, 1.125rem);
+  line-height: 1.7;
+  text-wrap: pretty;
+}
+
+.closing-cta.closing-cta--sand :global(.closing-copy__heading),
+.closing-cta.closing-cta--mist :global(.closing-copy__heading),
+.closing-cta.closing-cta--sand :global(.closing-copy__body),
+.closing-cta.closing-cta--mist :global(.closing-copy__body) {
+  color: #071438;
 }
 
 .closing-copy :global(.button) {
+  min-height: 50px;
+  padding-inline: 28px;
+  border-color: #d8b56a;
   border-radius: var(--twe-radius-button);
+  color: #010c33;
+  background: #d8b56a;
+}
+
+.closing-copy :global(.button:hover) {
+  border-color: #f4ede3;
+  background: #f4ede3;
+}
+
+.closing-copy :global(.button:focus-visible) {
+  outline: 3px solid #f4ede3;
+  outline-offset: 4px;
+}
+
+@media (max-width: 700px) {
+  .closing-cta {
+    min-height: 400px;
+    padding-block: 72px;
+  }
+
+  .closing-topography-canvas {
+    opacity: 0.84;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closing-cta {
+    clip-path: none !important;
+  }
+
+  .closing-topography-fallback {
+    opacity: 0.36;
+  }
+
+  .closing-topography-canvas {
+    display: none;
+  }
+}
+
+.closing-expand:not([data-ready]) .closing-expand__track {
+  min-height: 400px;
+}
+
+.closing-expand:not([data-ready]) .closing-cta {
+  clip-path: none;
+}
+
+.closing-expand[data-motion-active] .closing-cta {
+  will-change: clip-path;
 }

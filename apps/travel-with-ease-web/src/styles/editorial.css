@@ -82,15 +82,29 @@ button,
     color 180ms,
     transform 180ms;
 }
-.button:hover,
-button:hover {
+.button:not([aria-disabled="true"]):hover,
+button:not(:disabled):hover {
   background: var(--brand-grey);
   color: var(--brand-navy);
   text-decoration: none;
 }
-.button:active,
-button:active {
+.button:not([aria-disabled="true"]):active,
+button:not(:disabled):active {
   transform: translateY(1px);
+}
+button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.52;
+  cursor: not-allowed;
+  transform: none;
+}
+button[aria-busy="true"] { cursor: progress; }
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  button { transition-duration: 0.01ms; }
+  .button:is(:hover, :active),
+  button:is(:hover, :active) { transform: none; }
 }
 
 a:hover .link-arrow,

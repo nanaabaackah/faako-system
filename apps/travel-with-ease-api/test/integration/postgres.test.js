@@ -24,6 +24,10 @@ import { EmailTemplates } from "../../src/notifications/templates.js";
 import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
 import { smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
 import { QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds, questions } from "../../src/enquiries/questionnaires/index.js";
+import { ContentPromotionImporter, createPromotionBundle } from "../../src/content/promotion.js";
+import { approvedEditorCopy } from "../../src/content/approved-copy.js";
+import { pageNames } from "../../src/content/schema.js";
+import approved from "../../../travel-with-ease-web/content/approved-public-release.json" with { type: "json" };
 
 function progressiveAnswers(contact) {
   const answers = { "1428564940": "I want full trip planning (itinerary, accommodation, activities, bookings)" };
@@ -107,6 +111,29 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.equal((await pool.query("SELECT to_regclass('twe.must_rollback') AS table_name")).rows[0].table_name, null);
   assert.deepEqual(await migrate(pool, options), []);
   await verifyDatabaseIdentity(pool, options);
+
+  await context.test("initial production promotion is tenant-scoped, audited and single-execution", async () => {
+    const promotionOrg = "10000000-0000-4000-8000-000000000003";
+    const actorId = randomUUID();
+    await pool.query("INSERT INTO twe.organisations (id, name) VALUES ($1, 'Synthetic promoted TWE')", [promotionOrg]);
+    await pool.query("INSERT INTO twe.staff_users (id, organisation_id, issuer, subject, role) VALUES ($1,$2,'https://promotion.example.invalid','promotion-owner','owner')", [actorId, promotionOrg]);
+    const appearance = { heading: "Shared website imagery", body: "", ctaLabel: "", ctaPath: "/#plan",
+      seoTitle: "Website appearance", seoDescription: "Internal shared imagery settings." };
+    const pages = Object.fromEntries(pageNames.map((slug) => [slug,
+      approved.pages[slug] ? approvedEditorCopy(approved.pages[slug]) : (slug === "site-appearance" ? appearance : null)]));
+    const bundle = createPromotionBundle({
+      source: { environment: "staging", organisationId: promotionOrg,
+        publicationId: randomUUID(), sourceSha: "a".repeat(40), deploymentId: "synthetic-staging-deployment" },
+      pages, media: [],
+    });
+    const store = { put: async () => assert.fail("No media is referenced"), remove: async () => assert.fail("No cleanup is expected") };
+    const importer = new ContentPromotionImporter(pool, store, { organisationId: promotionOrg, actorId });
+    assert.equal((await importer.apply(bundle, "integration-promotion")).status, "imported");
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.content_items WHERE organisation_id=$1", [promotionOrg])).rows[0].n, pageNames.length);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='content.production_seed_imported'", [promotionOrg])).rows[0].n, 1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.enquiries WHERE organisation_id=$1", [promotionOrg])).rows[0].n, 0);
+    await assert.rejects(importer.apply(bundle, "integration-promotion-replay"), /already initialised/);
+  });
 
   await context.test("native intake and outbox are atomic, idempotent and tenant-scoped", async () => {
     const repository = new PostgresLeadRepository(pool, options);

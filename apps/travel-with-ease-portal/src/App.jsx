@@ -7,6 +7,7 @@ import {
   PageShell,
   UiSystemProvider,
   AnimatedLoadingState,
+  ERPConfirmDialog,
 } from "@faako/ui";
 import "@faako/ui/twe-feedback.css";
 import appSystem from "../appSystem.js";
@@ -48,17 +49,19 @@ function StaffWorkspace() {
   const [remember, setRemember] = useState(false);
   const [accountFlow, setAccountFlow] = useState("login");
   const [accountLinks, setAccountLinks] = useState({});
+  const [pendingExit, setPendingExit] = useState(null);
   const [state, setState] = useState({
     loading: true,
     configured: false,
     error: "",
   });
   const navigate = (next) => {
-    if (!dirty || window.confirm("Discard unsaved changes?")) {
+    if (!dirty) {
       setDirty(false);
       setSection(next);
       return true;
     }
+    setPendingExit({ kind: "navigate", next });
     return false;
   };
   const load = useCallback(async () => {
@@ -121,9 +124,8 @@ function StaffWorkspace() {
     load();
   }, [load]);
 
-  async function logout(all = false) {
-    if (dirty && !window.confirm("Discard unsaved changes and sign out?"))
-      return;
+  async function logout(all = false, discardConfirmed = false) {
+    if (dirty && !discardConfirmed) { setPendingExit({ kind: "logout", all }); return; }
     setState((current) => ({ ...current, loading: true, error: "" }));
     try {
       await api.post(all ? "/api/auth/logout-all" : "/api/auth/logout", {
@@ -152,6 +154,7 @@ function StaffWorkspace() {
       session?.user.permissions?.includes("enquiries.read"),
     ],
     ["content", "Content", session?.user.permissions?.includes("content.read")],
+    ["appearance", "Appearance", session?.user.permissions?.includes("content.read")],
     ["media", "Media", session?.user.permissions?.includes("media.read")],
     ["templates", "Templates", session?.user.permissions?.includes("templates.manage")],
     ["staff", "Staff", session?.user.permissions?.includes("staff.manage")],
@@ -176,6 +179,7 @@ function StaffWorkspace() {
                     settings: "Account settings",
                     enquiries: "Enquiries",
                     content: "Website content",
+                    appearance: "Brand & appearance",
                     media: "Media library",
                     templates: "Email templates",
                     staff: "Staff access",
@@ -335,6 +339,15 @@ function StaffWorkspace() {
                 onDirtyChange={setDirty}
               />
             )}
+          {!state.loading && session?.user.permissions?.includes("content.read") &&
+            section === "appearance" && (
+              <WebsiteContent
+                api={api}
+                session={session}
+                initialPage="site-appearance"
+                onDirtyChange={setDirty}
+              />
+            )}
           {!state.loading && session && section === "overview" && (
             <Dashboard
               api={api}
@@ -375,6 +388,10 @@ function StaffWorkspace() {
             Retry connection
           </Button>
         )}
+        <ERPConfirmDialog open={Boolean(pendingExit)} title={pendingExit?.kind === "logout" ? "Discard changes and sign out?" : "Discard unsaved changes?"}
+          message={pendingExit?.kind === "logout" ? "Your unsaved edits will be lost before this session ends." : "Your unsaved edits will be lost when you leave this workspace."}
+          confirmLabel={pendingExit?.kind === "logout" ? "Discard and sign out" : "Discard and continue"}
+          onCancel={() => setPendingExit(null)} onConfirm={() => { const action = pendingExit; setPendingExit(null); setDirty(false); if (action?.kind === "logout") { void logout(action.all, true); } else if (action?.kind === "navigate") setSection(action.next); }} />
       </PageShell>
     </div>
   );

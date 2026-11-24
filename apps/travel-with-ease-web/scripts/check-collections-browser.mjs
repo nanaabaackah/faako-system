@@ -162,7 +162,9 @@ try {
     await form.getByRole("button", { name: "Send enquiry", exact: true }).click();
     await form.getByRole("status").filter({ hasText: "Enquiry received" }).waitFor();
     assert.equal(submissions, 1);
-    await expect(form.getByRole("status")).toContainText("No booking has been made.");
+    const confirmation = page.getByRole("dialog", { name: "Enquiry received", exact: true });
+    await expect(confirmation).toContainText("This is not a booking.");
+    await confirmation.getByRole("button", { name: "Close", exact: true }).click();
 
     const continuationToken = `v1.${"x".repeat(100)}`;
     let completions = 0;
@@ -179,7 +181,7 @@ try {
       const body = route.request().postDataJSON();
       assert.equal(body.continuationToken, continuationToken);
       assert.equal(body.questionnaireId, "twe-smart-enquiry");
-      assert.equal(body.questionnaireVersion, "2026-11-15.1");
+      assert.equal(body.questionnaireVersion, "2026-11-21.1");
       assert.equal(body.answers["541981576"], "Singapore");
       assert.equal(body.contact.email, "browser@example.invalid");
       return route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify({ ok: true,
@@ -230,7 +232,8 @@ try {
     const planningTab = page.getByRole("tab", { name: "Planning a trip with us", exact: true });
     await bookingTab.waitFor();
     assert.equal(await bookingTab.getAttribute("aria-selected"), "true");
-    assert.equal(await page.locator("#package-booking .planning-flow__steps li").count(), 4);
+    assert.equal(await page.locator("#package-booking .planning-flow__steps li").count(), 5);
+    await expect(page.locator("#package-booking .planning-flow__steps li").nth(4)).toContainText("Travel with your pack");
     assert.equal(await page.locator("#trip-planning .planning-flow__steps li").count(), 4);
     assert.equal(await page.getByRole("link", { name: "Explore the Nairobi package", exact: true }).getAttribute("href"), "/packages/nairobi");
     assert.equal(await page.getByRole("link", { name: "Read the package terms", exact: true }).getAttribute("href"), "/terms#package-terms");
@@ -256,23 +259,30 @@ try {
     assert.equal(await page.locator('[data-collection-item][data-series="Before you fly"]').count(), 5);
     assert.equal(await page.locator('[data-collection-item][data-series="Visas and entry"]').count(), 2);
     assert.equal(await page.getByText(/Demonstration editorial/).count(), 0);
-    await page.locator(".journal-card").first().click();
+    assert.equal(await page.locator(".journal-landing__hero").count(), 1, "Featured Journal story is present");
+    assert.equal(await page.locator(".journal-landing__rail-item").count(), 3, "Three linked stories appear beside the feature");
+    assert.equal(await page.locator(".journal-landing__archive-grid [data-collection-item]").count(), 8);
+    await page.locator(".journal-landing__story-link").first().click();
     await page.waitForURL("**/journal/*");
-    const paragraphs = page.locator(".journal-reading .collection-reading > p");
-    assert.ok(await paragraphs.count() >= 2, "Journal has an introduction and article paragraphs");
+    assert.equal(await page.locator(".journal-detail__sidebar").count(), 1);
+    assert.ok(await page.locator(".journal-detail__related-item").count() >= 1, "Related articles come from the published CMS");
+    assert.equal(await page.locator(".journal-detail__facts").count(), 1);
+    assert.equal(await page.locator(".journal-detail__planning a[href='/packages']").count(), 1);
+    const paragraphs = page.locator(".journal-detail__content > p");
+    assert.ok(await paragraphs.count() >= 1, "Journal body remains readable");
     for (const paragraph of await paragraphs.all()) {
       const font = await paragraph.evaluate(el => {
         const style = getComputedStyle(el);
         return { family: style.fontFamily, size: parseFloat(style.fontSize), lineHeight: parseFloat(style.lineHeight) };
       });
-      assert.match(font.family, /Caveat/, "Full journal body uses the handwriting font");
-      assert.ok(font.size >= 24, "Journal handwriting is large enough for extended reading");
-      assert.ok(font.lineHeight >= 1.3 * font.size, "Handwriting retains generous line spacing");
+      assert.match(font.family, /Quicksand/, "Long-form articles use the TWE body font");
+      assert.ok(font.size >= 16, "Journal body is at least 16px");
+      assert.ok(font.lineHeight >= 1.55 * font.size, "Journal reading retains generous line spacing");
     }
     assert.match(
-      await page.locator(".journal-reading .collection-detail-heading > p").first().evaluate(el => getComputedStyle(el).fontFamily),
-      /Quicksand/,
-      "Journal metadata remains in the UI font"
+      await page.locator(".journal-detail__header h1").evaluate(el => getComputedStyle(el).fontFamily),
+      /Poiret One/,
+      "Article headings use the TWE display font"
     );
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     await page.screenshot({ path: path.join(output, `approved-journal-reading-${width}.png`), fullPage: true });
@@ -319,7 +329,7 @@ try {
     "Approved package photographs remain accessible as native links without scripting");
   await expect(published.locator(".twe-package-itinerary")).toContainText("Arrive in Nairobi");
   await published.goto(origin + "/how-it-works");
-  assert.equal(await published.locator("#package-booking .planning-flow__steps li").count(), 4);
+  assert.equal(await published.locator("#package-booking .planning-flow__steps li").count(), 5);
   assert.equal(await published.locator("#trip-planning .planning-flow__steps li").count(), 4);
   await published.getByRole("link", { name: "Explore the Nairobi package", exact: true }).click();
   assert.equal(new URL(published.url()).pathname, "/packages/nairobi");

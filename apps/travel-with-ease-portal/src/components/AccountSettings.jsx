@@ -1,12 +1,13 @@
 import Button from "./ActionButton.jsx";
 import { useEffect, useState } from "react";
-import { IconsaxIcon, InlineNotice, StatusPill } from "@faako/ui";
+import { IconsaxIcon, InlineNotice, StatusPill, ERPConfirmDialog } from "@faako/ui";
 import "../styles/account-settings.css";
 
 export default function AccountSettings({ api, session, onLogout, onHandoverCompleted }) {
   const [handover, setHandover] = useState(null);
   const [handoverMessage, setHandoverMessage] = useState("");
   const [handoverBusy, setHandoverBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
   useEffect(() => {
     let active = true;
     api.get("/api/agent/administration/handover", { responseMode: "data" })
@@ -50,9 +51,7 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
             type="button"
             variant="danger"
             icon="logout"
-            onClick={() => {
-              if (window.confirm("Sign out all your Travel With Ease sessions?")) onLogout(true);
-            }}
+            onClick={() => setConfirmation({ kind: "logout", title: "Sign out all devices?", message: "Every active Travel With Ease portal session for this account will end.", label: "Sign out all devices" })}
           >Sign out all devices</Button>
         </section>
       </div>
@@ -68,8 +67,23 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
               type="button"
               variant="primary"
               disabled={handoverBusy}
-              onClick={async () => {
-                if (!window.confirm("Approve this staging handover now? You will become Owner, the developer will become Superadmin, and both application sessions will end.")) return;
+              loading={handoverBusy}
+              loadingLabel="Approving handover…"
+              onClick={() => setConfirmation({ kind: "handover", title: "Approve staging handover?", message: "You will become Owner, the developer will become Superadmin, and both application sessions will end.", label: "Approve and sign out" })}
+            >
+              Approve handover and sign out
+            </Button>
+          ) : (
+            <p>Awaiting approval from the selected client. Do not share sign-in codes.</p>
+          )}
+        </section>
+      )}
+      <ERPConfirmDialog open={Boolean(confirmation)} title={confirmation?.title} message={confirmation?.message} confirmLabel={confirmation?.label} loading={handoverBusy}
+        onCancel={() => setConfirmation(null)} onConfirm={async () => {
+          const kind = confirmation?.kind;
+          setConfirmation(null);
+          if (kind === "logout") { onLogout(true); return; }
+          if (kind === "handover") {
                 setHandoverBusy(true);
                 setHandoverMessage("");
                 try {
@@ -84,15 +98,8 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
                 } finally {
                   setHandoverBusy(false);
                 }
-              }}
-            >
-              Approve handover and sign out
-            </Button>
-          ) : (
-            <p>Awaiting approval from the selected client. Do not share sign-in codes.</p>
-          )}
-        </section>
-      )}
+          }
+        }} />
     </section>
   );
 }

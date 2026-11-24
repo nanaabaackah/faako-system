@@ -88,14 +88,14 @@
     );
   }
 
-  // Reuse only the package-ticket pointer tilt on the site's other card
-  // surfaces. Their existing colours, borders, shadows and layout stay intact.
+  // Pointer tilt is limited to editorial cards inside page content, never
+  // enquiry forms, booking panels, overlays or the closing enquiry scene.
   const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
   const tiltCards = [
     ...document.querySelectorAll<HTMLElement>(
-      ".twe-action-card, .service-panel, .journey-card, .estimate-card, .traveller-reviews__card, .gallery-panel, .cinematic-enquiry__card, .enquiry-wizard-page__card, .package-enquiry-panel",
+      ".twe-action-card, .service-panel, .journey-card, .estimate-card, .traveller-reviews__card, .gallery-panel",
     ),
-  ].filter((card) => !card.closest(".tilted-card"));
+  ].filter((card) => !card.closest(".tilted-card, .cinematic-enquiry, .closing-scene, .enquiry-wizard-page, .package-enquiry-panel, form"));
   const tiltCleanups = tiltCards.map((card) => {
     let frame = 0;
     const reset = () => {

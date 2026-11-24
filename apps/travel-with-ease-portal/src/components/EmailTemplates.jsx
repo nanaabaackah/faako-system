@@ -5,6 +5,8 @@ import {
   TextField,
   TextareaField,
   SelectField,
+  ERPConfirmDialog,
+  useToast,
 } from "@faako/ui";
 import Button from "./ActionButton.jsx";
 import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
@@ -14,6 +16,7 @@ import "../styles/email-templates.css";
 import { emailTemplateOptions } from "../../../travel-with-ease-api/src/notifications/template-catalogue.js";
 
 export default function EmailTemplates({ api, session, onDirtyChange }) {
+  const { pushToast } = useToast();
   const [slug, setSlug] = useState("enquiry-acknowledgement");
   const definition = emailTemplateOptions.find(
     (option) => option.slug === slug,
@@ -25,6 +28,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [confirmation, setConfirmation] = useState(null);
   // Preview branding is bundled locally; the actual outgoing email retains
   // absolute public asset URLs for email-client compatibility.
   const previewHtml = preview?.html
@@ -56,7 +60,10 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
   }, [api, slug]);
   function changeTemplate(event) {
     if (event.target.value === slug) return;
-    if (dirty && !window.confirm("Discard unsaved template changes?")) return;
+    if (dirty) { setConfirmation({ kind: "switch", slug: event.target.value }); return; }
+    switchTemplate(event.target.value);
+  }
+  function switchTemplate(nextSlug) {
     setDirty(false);
     onDirtyChange(false);
     setPreview(null);
@@ -66,7 +73,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
     // response must never leave its copy editable under another template name.
     setRecord(null);
     setCopy(null);
-    setSlug(event.target.value);
+    setSlug(nextSlug);
   }
   function edit(field, value) {
     setCopy((previous) => ({ ...previous, [field]: value }));
@@ -105,6 +112,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
                 ? "Template activated for newly prepared enquiry emails. Existing queued email payloads are unchanged."
                 : "Invitation template approved and saved. No invitations were created or sent. Use Staff access for email invitations when enabled, or for manually shared codes.",
         );
+        pushToast({ tone: "success", title: kind === "draft" ? "Template draft saved" : definition.automated ? "Template activated" : "Template approved", message: kind === "draft" ? "Outgoing emails have not changed." : "No email was sent by this action." });
       }
     } catch (error) {
       setError(error.message);
@@ -208,16 +216,7 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
                 type="button"
                 icon="check"
                 disabled={busy || dirty || record.version === 0}
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      definition.automated
-                        ? "Activate this saved template for new enquiry emails? No email will be sent now."
-                        : "Approve this saved invitation copy? No invitation will be created or sent, and activation requirements are unchanged.",
-                    )
-                  )
-                    action("activate");
-                }}
+                onClick={() => setConfirmation({ kind: "activate" })}
               >
                 {definition.automated
                   ? "Activate saved template"
@@ -246,6 +245,10 @@ export default function EmailTemplates({ api, session, onDirtyChange }) {
           </section>
         </div>
       )}
+      <ERPConfirmDialog open={Boolean(confirmation)} title={confirmation?.kind === "switch" ? "Discard unsaved template changes?" : definition.automated ? "Activate saved template?" : "Approve saved template?"}
+        message={confirmation?.kind === "switch" ? "The current unsaved template edits will be lost." : definition.automated ? "Newly prepared enquiry emails will use this saved version. No email will be sent now." : "The invitation copy will be approved without creating or sending an invitation."}
+        confirmLabel={confirmation?.kind === "switch" ? "Discard and switch" : definition.automated ? "Activate template" : "Approve template"} confirmTone="primary" loading={busy}
+        onCancel={() => setConfirmation(null)} onConfirm={async () => { const pending = confirmation; setConfirmation(null); if (pending?.kind === "switch") switchTemplate(pending.slug); else await action("activate"); }} />
     </div>
   );
 }

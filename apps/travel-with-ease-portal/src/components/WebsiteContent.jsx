@@ -7,8 +7,12 @@ import {
   DateField,
   InlineNotice,
   AnimatedLoadingState,
+  ERPConfirmDialog,
+  ERPModal,
+  useToast,
 } from "@faako/ui";
 import MediaLibrary from "./MediaLibrary.jsx";
+import BrandAppearance from "./BrandAppearance.jsx";
 import PackageEditor from "./PackageEditor.jsx";
 import ExperienceEditor from "./ExperienceEditor.jsx";
 import reviewDrafts from "../../../../docs/apps/travel-with-ease/content-review-drafts.json";
@@ -16,11 +20,14 @@ import { createDraftAutosave } from "../lib/draft-autosave.js";
 import VisualPreview from "./VisualPreview.jsx";
 import ImagePlacements from './ImagePlacements.jsx';
 import { ActivityList } from './ActivityView.jsx';
+import HistoryDisclosure from "./HistoryDisclosure.jsx";
 import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
 import { serviceSlug } from "../../../travel-with-ease-api/src/content/catalogue-constants.js";
+import { withUpdatedPackageFlow } from "../../../travel-with-ease-api/src/content/process-flow.js";
 import EditorialFields from "./EditorialFields.jsx";
+import { editorialFields } from "../../../travel-with-ease-api/src/content/editorial-fields.js";
 
 import countryOptions from "../../../travel-with-ease-web/src/lib/footprint-countries.json";
 const countries = [...countryOptions].sort((a, b) =>
@@ -34,13 +41,21 @@ const pages = [
   "faqs",
   "contact",
   "journal",
+  "travel-tips",
   "packages",
   "travel-footprint",
   "privacy",
   "terms",
   "cookies",
   'site-appearance',
+  'footer',
 ];
+const sentenceCase = (value = "") => {
+  const words = value.replaceAll("_", " ").replaceAll("-", " ");
+  return words ? words[0].toUpperCase() + words.slice(1) : words;
+};
+const sectionLabel = (name) =>
+  name === "site-appearance" ? "Brand & appearance" : sentenceCase(name);
 const emptyBody = () => ({
   heading: "",
   body: "",
@@ -52,6 +67,7 @@ const emptyBody = () => ({
   entries: [],
   contactEmail: "",
   contactPhone: "",
+  footerLinks: [],
   articles: [],
   tips: [],
   packages: [],
@@ -62,9 +78,12 @@ const emptyBody = () => ({
 });
 
 export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
+  const { pushToast } = useToast();
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
-  const [page, setPage] = useState(initialPage === "travel-tips" ? "journal" : initialPage === "testimonials" ? "home" : initialPage);
+  // Testimonials are edited as the homepage review section. Travel Tips retain
+  // their own collection and must not be silently redirected to Journal.
+  const [page, setPage] = useState(initialPage === "testimonials" ? "home" : initialPage);
   const [recordSlug, setRecordSlug] = useState("");
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
@@ -79,6 +98,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
   const [collectionImage, setCollectionImage] = useState(null);
   const [state, setState] = useState({ loading: true, error: "", message: "" });
   const [saveState, setSaveState] = useState({ status: "saved", dirty: false, error: "" });
+  const [publicationBusy, setPublicationBusy] = useState(false);
+  const [publicationProgressOpen, setPublicationProgressOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const lastPublicationState = useRef("");
   const writer = useRef(null);
   const bodyRef = useRef(body);
   const heading = useRef(null);
@@ -92,6 +115,16 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }, 3000);
     return () => { active = false; clearTimeout(timer); };
   }, [api, jobs]);
+  const activePublication = jobs.find(job => ["pending", "building", "deploying", "verifying"].includes(job.status));
+  useEffect(() => {
+    const latest = jobs[0];
+    if (!latest || latest.status === lastPublicationState.current) return;
+    const previous = lastPublicationState.current;
+    lastPublicationState.current = latest.status;
+    if (!previous) return;
+    if (latest.status === "live") pushToast({ id: `publication-${latest.id}`, tone: "success", title: "Website published", message: "The deployment was verified successfully." });
+    if (latest.status === "failed") pushToast({ id: `publication-${latest.id}`, tone: "error", title: "Publication failed", message: "Open publication history for the failure details and permitted retry action." });
+  }, [jobs, pushToast]);
   useEffect(() => {
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
@@ -154,10 +187,31 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           { responseMode: "data" },
         );
         if (!active) return;
-        const draft = { ...emptyBody(), ...(!item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
+        let inheritedFooter = null;
+        if (page === "footer" && !item) {
+          const [legacyAppearance, legacyContact] = await Promise.all([
+            api.get("/api/agent/content/site-appearance", { responseMode: "data" }).catch(() => null),
+            api.get("/api/agent/content/contact", { responseMode: "data" }).catch(() => null),
+          ]);
+          const footerKeys = new Set((editorialFields.footer || []).map(([key]) => key));
+          inheritedFooter = {
+            heading: "Travel With Ease",
+            body: "",
+            seoTitle: "Website footer",
+            seoDescription: "Footer contact, navigation and business information.",
+            contactEmail: legacyContact?.body?.contactEmail || "",
+            contactPhone: legacyContact?.body?.contactPhone || "",
+            branding: { footerLogoId: legacyAppearance?.body?.branding?.footerLogoId || null },
+            imagePlacements: legacyAppearance?.body?.imagePlacements?.["footer-background"] ? { "footer-background": legacyAppearance.body.imagePlacements["footer-background"] } : {},
+            editorialCopy: Object.fromEntries(Object.entries(legacyAppearance?.body?.editorialCopy || {}).filter(([key]) => footerKeys.has(key))),
+          };
+        }
+        const draft = { ...emptyBody(), ...(!item && inheritedFooter ? inheritedFooter : !item && approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : item?.body) };
+        if (page === "how-it-works" && draft.processFlows) draft.processFlows = withUpdatedPackageFlow(draft.processFlows);
         draft.entries=draft.entries.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
         if(page==="home"&&!draft.ctaLabel)draft.ctaLabel="Plan your trip";
         if(page==='site-appearance'&&!item){draft.heading='Shared website imagery';draft.seoTitle='Website appearance';draft.seoDescription='Internal shared imagery settings.';}
+        if(page==='footer'&&!item){draft.heading='Travel With Ease';draft.body='';draft.seoTitle='Website footer';draft.seoDescription='Footer contact, navigation and business information.';}
         bodyRef.current = draft;
         setBody(draft);
         setVersion(item?.version || 0);
@@ -195,7 +249,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
   };
   async function save(event) {
     event.preventDefault();
-    await writer.current?.flush();
+    const saved = await writer.current?.flush();
+    if (saved) pushToast({ tone: "success", title: "Draft saved", message: `Version ${version + (dirty ? 1 : 0)} is saved.` });
   }
   async function showPreview() {
     setState({ loading: true, error: "", message: "" });
@@ -219,13 +274,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }
   }
   async function revert(id) {
-    if (
-      dirty &&
-      !window.confirm(
-        "Discard unsaved changes and restore this revision as a new draft?",
-      )
-    )
-      return;
     setState({ loading: true, error: "", message: "" });
     try {
       const result = await api.post(`/api/agent/content/${page}/revert/${id}`, {
@@ -258,16 +306,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }
   }
   async function publication(action, id) {
-    if (
-      action !== "refresh" &&
-      !window.confirm(
-        action === "unpublish"
-          ? "Request removal of this page from the next public build?"
-          : "Request a website build using the saved content?",
-      )
-    )
-      return;
-    setState({ loading: true, error: "", message: "" });
+    setPublicationBusy(true);
+    setState(current => ({ ...current, error: "", message: "" }));
     try {
       if (action !== "refresh")
         await api.post(
@@ -284,6 +324,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         responseMode: "data",
       });
       setJobs(result.items);
+      if (action !== "refresh") setPublicationProgressOpen(true);
       setState({
         loading: false,
         error: "",
@@ -292,14 +333,17 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             ? "Publication status refreshed."
             : "Request queued. The site changes only after a successful deployment is verified.",
       });
+      if (action === "refresh") pushToast({ tone: "success", title: "Publication status refreshed", message: "The latest worker status is now shown." });
     } catch (error) {
-      setState({ loading: false, error: error.message, message: "" });
+      setState(current => ({ ...current, error: error.message, message: "" }));
+    } finally {
+      setPublicationBusy(false);
     }
   }
 
   async function cancelStalePublication(job) {
-    if (!window.confirm("Cancel this older pending publication? It will not deploy. Saved drafts and publication history will be preserved.")) return;
-    setState({ loading: true, error: "", message: "" });
+    setPublicationBusy(true);
+    setState(current => ({ ...current, error: "", message: "" }));
     try {
       await api.post(`/api/agent/content/publication-jobs/${job.id}/cancel`, {
         responseMode: "data",
@@ -307,9 +351,12 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       });
       const result = await api.get("/api/agent/content/publication-jobs", { responseMode: "data" });
       setJobs(result.items);
-      setState({ loading: false, error: "", message: "Pending publication cancelled. Your saved drafts are unchanged." });
+      setState(current => ({ ...current, error: "", message: "Pending publication cancelled. Your saved drafts are unchanged." }));
+      pushToast({ tone: "success", title: "Publication cancelled", message: "Your saved drafts are unchanged." });
     } catch (error) {
-      setState({ loading: false, error: error.message, message: "" });
+      setState(current => ({ ...current, error: error.message, message: "" }));
+    } finally {
+      setPublicationBusy(false);
     }
   }
 
@@ -337,18 +384,20 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             // Reselecting the active section is a no-op. Otherwise we'd mark
             // the editor loading without a page change to trigger a fresh load.
             if (nextPage === page) return;
-            if (!dirty || window.confirm("Discard unsaved changes?")) {
+            if (!dirty) {
               // Close the gap between changing the section and its load effect.
               // Otherwise stale fields remain editable for one render, and an
               // approved-copy click can send the new section into the old writer.
               setState({ loading: true, error: "", message: "" });
               setPage(nextPage);
+            } else {
+              setConfirmAction({ kind: "discard", title: "Discard unsaved changes?", message: `Switch to ${sectionLabel(nextPage)} and discard the edits currently in this form?`, label: "Discard and switch", run: () => { setState({ loading: true, error: "", message: "" }); setPage(nextPage); } });
             }
           }}
         >
           {pages.map((name) => (
             <option key={name} value={name}>
-              {name==='site-appearance'?'Shared website imagery':name.replaceAll('-',' ')}
+              {sectionLabel(name)}
             </option>
           ))}
         </SelectField>
@@ -386,22 +435,25 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             type="button"
             disabled={state.loading}
             onClick={() => {
-              if (
-                dirty &&
-                !window.confirm("Replace unsaved edits with the review draft?")
-              )
-                return;
-              const draft = { ...emptyBody(), ...(approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : structuredClone(reviewDrafts[page])) };
-              bodyRef.current = draft;
-              setBody(draft);
-              writer.current?.edit(draft);
-              setPreview(null);
+              const replace = () => {
+                const draft = { ...emptyBody(), ...(approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : structuredClone(reviewDrafts[page])) };
+                bodyRef.current = draft;
+                setBody(draft);
+                writer.current?.edit(draft);
+                setPreview(null);
+              };
+              if (dirty) setConfirmAction({ kind: "replace", title: "Replace unsaved edits?", message: "The current unsaved fields will be replaced by the approved review copy.", label: "Replace edits", run: replace });
+              else replace();
             }}
           >
             {approvedRelease.pages[page] ? (page === "how-it-works" ? "Load updated client-approved flow" : "Load approved copy") : "Load review draft"}
           </Button>
         </section>
       )}
+      {!state.loading && page==='site-appearance' && <BrandAppearance branding={body.branding} change={change} api={api} session={session}
+        disabled={!session.user.permissions?.includes("content.write") || state.loading}/>}
+      {!state.loading && page==='footer' && <BrandAppearance branding={body.branding} change={change} api={api} session={session}
+        assetKeys={['footerLogoId']} showFonts={false} disabled={!session.user.permissions?.includes("content.write") || state.loading}/>}
       {!state.loading&&<ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/>}
       {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
       {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
@@ -463,6 +515,27 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 maxLength={40}
                 onChange={(e) => change("contactPhone", e.target.value)}
               />
+            </>
+          )}
+          {page === "footer" && (
+            <>
+              <h3>Contact information</h3>
+              <TextField label="Business email address" type="email" value={body.contactEmail} onChange={(e) => change("contactEmail", e.target.value)} />
+              <TextField label="Business phone number" type="tel" value={body.contactPhone} maxLength={40} onChange={(e) => change("contactPhone", e.target.value)} />
+              <h3>Navigation, social media and legal links</h3>
+              {[...(body.footerLinks || [])].sort((a,b)=>a.order-b.order).map((link, index) => <fieldset key={link.id}>
+                <legend>Footer link {index + 1}</legend>
+                <SelectField label="Group" value={link.group} onChange={event => change("footerLinks", body.footerLinks.map(item => item.id === link.id ? {...item, group:event.target.value} : item))}>
+                  <option value="explore">Explore</option><option value="social">Social media</option><option value="contact">Contact</option><option value="legal">Legal information</option>
+                </SelectField>
+                <TextField label="Link label" value={link.label} maxLength={120} onChange={event => change("footerLinks", body.footerLinks.map(item => item.id === link.id ? {...item, label:event.target.value} : item))}/>
+                <TextField label="Link destination" value={link.href} maxLength={500} onChange={event => change("footerLinks", body.footerLinks.map(item => item.id === link.id ? {...item, href:event.target.value} : item))}/>
+                <label><input type="checkbox" checked={link.visible} onChange={event => change("footerLinks", body.footerLinks.map(item => item.id === link.id ? {...item, visible:event.target.checked} : item))}/> Show this link</label>
+                <Button type="button" disabled={index === 0} onClick={() => { const items=[...body.footerLinks].sort((a,b)=>a.order-b.order); [items[index-1],items[index]]=[items[index],items[index-1]]; change("footerLinks", items.map((item,order)=>({...item,order}))); }}>Move up</Button>
+                <Button type="button" disabled={index === body.footerLinks.length - 1} onClick={() => { const items=[...body.footerLinks].sort((a,b)=>a.order-b.order); [items[index],items[index+1]]=[items[index+1],items[index]]; change("footerLinks", items.map((item,order)=>({...item,order}))); }}>Move down</Button>
+                <Button type="button" onClick={() => change("footerLinks", body.footerLinks.filter(item => item.id !== link.id))}>Remove link</Button>
+              </fieldset>)}
+              <Button type="button" onClick={() => change("footerLinks", [...body.footerLinks, {id:crypto.randomUUID(), group:"explore", label:"", href:"/", visible:true, order:body.footerLinks.length}])}>Add footer link</Button>
             </>
           )}
           {page === "packages" && (
@@ -558,6 +631,18 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     <option value="Visas and entry">Visas and entry</option>
                     <option value="Destinations">Destinations</option>
                   </SelectField>
+                  <SelectField
+                    label="Featured story on the Journal page"
+                    value={article.featuredOnJournal ? "yes" : "no"}
+                    onChange={(event) => change("articles", body.articles.map((item, i) =>
+                      i === index ? { ...item, featuredOnJournal: event.target.value === "yes" } :
+                        event.target.value === "yes" ? { ...item, featuredOnJournal: false } : item
+                    ))}
+                    options={[
+                      { value: "no", label: "Standard story" },
+                      { value: "yes", label: "Featured lead story" },
+                    ]}
+                  />
                   <SelectField
                     label="Homepage Before you go placement"
                     value={String(article.homeTipOrder || 0)}
@@ -708,6 +793,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       category: "Travel tip",
                       series: "Before you fly",
                       homeTipOrder: undefined,
+                      featuredOnJournal: false,
                       ctaLabel: "",
                       ctaPath: "",
                       relatedArticleSlugs: [],
@@ -990,9 +1076,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Edit four steps and an example for each path.</p>
+              <p>Edit five package-booking steps or four planning steps. Each path also has a separate four-stage example.</p>
               {(["package", "planning"]).map((flowKey) => {
-                const flows = body.processFlows || approvedRelease.pages["how-it-works"].processFlows;
+                const flows = withUpdatedPackageFlow(body.processFlows || approvedRelease.pages["how-it-works"].processFlows);
                 const flow = flows[flowKey];
                 return <fieldset key={flowKey}>
                   <legend>{flowKey === "package" ? "Booking a package" : "Planning a trip with us"}</legend>
@@ -1022,7 +1108,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     </fieldset>
                   ))}
                   <TextareaField
-                    label="Illustrative example"
+                    label="Example introduction"
                     value={flow.example}
                     maxLength={2500}
                     required
@@ -1031,6 +1117,42 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                       [flowKey]: { ...flow, example: event.target.value },
                     })}
                   />
+                  <fieldset>
+                    <legend>Worked example — four stages</legend>
+                    {(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).map((step, index) => (
+                      <fieldset key={index}>
+                        <legend>Example stage {index + 1}</legend>
+                        <TextField
+                          label="Stage heading"
+                          value={step.heading}
+                          maxLength={160}
+                          required
+                          onChange={(event) => change("processFlows", {
+                            ...flows,
+                            [flowKey]: {
+                              ...flow,
+                              exampleSteps: (flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps)
+                                .map((item, i) => i === index ? { ...item, heading: event.target.value } : item),
+                            },
+                          })}
+                        />
+                        <TextareaField
+                          label="Stage description"
+                          value={step.text}
+                          maxLength={2000}
+                          required
+                          onChange={(event) => change("processFlows", {
+                            ...flows,
+                            [flowKey]: {
+                              ...flow,
+                              exampleSteps: (flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps)
+                                .map((item, i) => i === index ? { ...item, text: event.target.value } : item),
+                            },
+                          })}
+                        />
+                      </fieldset>
+                    ))}
+                  </fieldset>
                   <p>{flowKey === "package" ? "Terms: Section B · Package bookings" : "Terms: Section A · Planning services"}</p>
                 </fieldset>;
               })}
@@ -1198,37 +1320,62 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           <option value="">Whole collection (all saved records)</option>
           {(page === "packages" ? body.packages : page === "journal" ? body.articles : body.tips).map(record => <option key={record.slug} value={record.slug}>{record.title} only</option>)}
         </SelectField>}
+        {activePublication?.needs_reconciliation && (
+          <InlineNotice
+            tone="warning"
+            title="Publication verification is delayed"
+            message="The last deployment has not been confirmed by the CMS. The publishing worker will check its exact Cloudflare release before allowing another publication. Refresh status after recovery; contact the developer if this persists."
+          />
+        )}
         <div className="editor-actions">
           <Button
             type="button"
-            disabled={!canPublish || state.loading || dirty || !version}
-            onClick={() => publication("publish")}
+            loading={publicationBusy}
+            loadingLabel="Requesting publication…"
+            disabled={!canPublish || state.loading || publicationBusy || Boolean(activePublication) || dirty || !version}
+            onClick={() => setConfirmAction({ kind: "publish", title: "Publish saved changes?", message: "This requests a website build using the saved content and currently approved code. The site changes only after deployment is verified.", label: import.meta.env.MODE === "staging" ? "Publish to staging" : "Publish saved changes", run: () => publication("publish") })}
           >
             {import.meta.env.MODE === "staging" ? "Publish to staging" : "Publish saved changes"}
           </Button>
           <Button
             type="button"
-            disabled={!canPublish || state.loading || dirty || !version}
-            onClick={() => publication("unpublish")}
+            disabled={!canPublish || state.loading || publicationBusy || Boolean(activePublication) || dirty || !version}
+            onClick={() => setConfirmAction({ kind: "unpublish", title: "Request unpublish?", message: "This requests removal of the selected page or record in the next verified public build.", label: "Request unpublish", run: () => publication("unpublish") })}
           >
             Request unpublish
           </Button>
           <Button
             type="button"
-            disabled={state.loading}
+            loading={publicationBusy}
+            loadingLabel="Refreshing…"
+            disabled={state.loading || publicationBusy}
             onClick={() => publication("refresh")}
           >
             Refresh publication status
           </Button>
         </div>
-        <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
+        <HistoryDisclosure title="Publication history" count={jobs.length}>
+          <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
           renderAction={job=><>
+            {job.needs_reconciliation && <p>Verification delayed — deployment reconciliation required. New publications remain blocked until the exact release is verified.</p>}
             {job.environment&&<p>Environment: {job.environment}</p>}
+            {job.trigger_type&&<p>Release trigger: {sentenceCase(job.trigger_type)}</p>}
+            {['superadmin','platform_admin'].includes(session.user.role) && job.source_sha && <p>Code revision: <code>{job.source_sha.slice(0,12)}</code></p>}
+            {job.deployment_id&&<p>Deployment verified: {job.status === 'live' ? 'Yes' : 'No'}</p>}
             {job.target&&<p>Saved version: {job.target.version}{job.target.recordSlug&&` · ${job.target.recordSlug}`}</p>}
-            {job.status==='pending' && job.can_cancel === true && canPublish && <Button type="button" disabled={state.loading} onClick={()=>cancelStalePublication(job)}>Cancel stale publication</Button>}
-            {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading} onClick={()=>publication('retry',job.id)}>Retry failed publication</Button>}
+            {job.status==='pending' && job.can_cancel === true && canPublish && <Button type="button" disabled={state.loading || publicationBusy} onClick={()=>setConfirmAction({ kind: "cancel", title: "Cancel pending publication?", message: "It will not deploy. Saved drafts and publication history will be preserved.", label: "Cancel publication", run: () => cancelStalePublication(job) })}>Cancel stale publication</Button>}
+            {job.status==='failed'&&job.last_error!=='cancelled_by_operator'&&job.id===jobs[0]?.id&&<Button type="button" disabled={!canPublish||state.loading||publicationBusy} onClick={()=>setConfirmAction({ kind: "retry", title: "Retry failed publication?", message: "This retries the existing failed job without creating a duplicate publication request.", label: "Retry publication", run: () => publication('retry',job.id) })}>Retry failed publication</Button>}
           </>}/>
+        </HistoryDisclosure>
       </section>
+      <ERPConfirmDialog open={Boolean(confirmAction)} title={confirmAction?.title} message={confirmAction?.message} confirmLabel={confirmAction?.label || "Confirm"} confirmTone={confirmAction?.kind === "cancel" || confirmAction?.kind === "unpublish" ? "danger" : "primary"} loading={publicationBusy} onCancel={() => setConfirmAction(null)} onConfirm={async () => { const action = confirmAction; setConfirmAction(null); await action?.run(); }} />
+      <ERPModal open={publicationProgressOpen} title="Publication progress" description="You can close this window while publishing continues." onClose={() => setPublicationProgressOpen(false)} size="sm" footer={<Button type="button" onClick={() => setPublicationProgressOpen(false)}>Continue working</Button>}>
+        <div className="publication-progress" role="status" aria-live="polite">
+          <p><strong>{activePublication ? sentenceCase(activePublication.status) : jobs[0]?.status ? sentenceCase(jobs[0].status) : "Request accepted"}</strong></p>
+          <progress value={activePublication ? ["pending", "building", "deploying", "verifying"].indexOf(activePublication.status) + 1 : jobs[0]?.status === "live" ? 4 : 0} max="4" />
+          <p>{activePublication?.needs_reconciliation ? "Verification is delayed. The worker must reconcile the exact deployed release before you can publish again." : activePublication ? "The publication worker is processing the saved version." : jobs[0]?.status === "live" ? "Deployment verified successfully." : jobs[0]?.status === "failed" ? "Publication failed. Review the history before retrying." : "Waiting for the publication worker."}</p>
+        </div>
+      </ERPModal>
       {preview && !visualPreview && (
         <section aria-label="Saved content preview">
           <h3>{preview.heading}</h3>
@@ -1287,9 +1434,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         </section>
       )}
       <section className="workspace-panel">
-        <h3>Revision history</h3>
-        <ActivityList title="Content revision history" items={history.map(revision=>({...revision,action:`Saved revision ${revision.version}`,actor_id:revision.editor_id,record_id:revision.id}))}
-          renderAction={revision=><Button type="button" disabled={state.loading} onClick={()=>revert(revision.id)}>Restore version {revision.version}</Button>}/>
+        <HistoryDisclosure title="Version history" count={history.length}>
+          <ActivityList title="Content revision history" items={history.map(revision=>({...revision,action:`Saved revision ${revision.version}`,actor_id:revision.editor_id,record_id:revision.id}))}
+          renderAction={revision=><Button type="button" disabled={state.loading} onClick={()=>setConfirmAction({ kind: "restore", title: `Restore version ${revision.version}?`, message: "This creates a new draft from the selected revision. Nothing is published automatically.", label: "Restore version", run: () => revert(revision.id) })}>Restore version {revision.version}</Button>}/>
+        </HistoryDisclosure>
       </section>
       </div>
       {visualPreview && preview && <VisualPreview key={visualPreview.id} job={visualPreview} api={api} body={preview} />}

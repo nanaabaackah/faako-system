@@ -2,6 +2,7 @@
 import Icon from "../components/Icon.jsx";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import FeaturedEvent from "../components/FeaturedEvent.astro";
+import LiveUpcomingEvents from "../components/LiveUpcomingEvents.astro";
 import ImpactFigures from "../components/ImpactFigures.astro";
 import EditorialImage from "../components/EditorialImage.astro";
 import HomePartnerBand from "../components/HomePartnerBand.astro";
@@ -11,7 +12,9 @@ import { impactStats } from "../content/home.js";
 import homeStyles from "../styles/pages/home.css?url";
 import CmsCards from "../components/CmsCards.astro";
 import { getCmsDocuments } from "../lib/cms-source.js";
+import { getPublishedEvents } from "../lib/event-source.js";
 const documents=await getCmsDocuments();
+const publishedEvents = await getPublishedEvents();
 const homepage=documents.find(doc=>doc._type==="homePage");
 const featuredProgrammes=documents.filter(doc=>doc._type==="programme"&&homepage?.featuredProgrammes?.includes(doc._id));
 const featuredUpdates=documents.filter(doc=>["newsArticle","resource"].includes(doc._type)&&(!homepage?.featuredUpdates?.length||homepage.featuredUpdates.includes(doc._id))).sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt)).slice(0,3);
@@ -29,6 +32,7 @@ const selectedStats=homepage?.impact?.length?impactStats.filter(stat=>homepage.i
   <section class="home-impact" data-reveal aria-labelledby="impact-title"><div class="home-shell"><div class="section-heading"><h2 id="impact-title">A growing community.<br />A shared purpose.</h2></div><ImpactFigures stats={selectedStats} /><a class="text-link" href="/impact">Explore our impact and milestones <Icon name="external" /></a></div></section>
   {featuredProgrammes.length>0&&<div class="home-shell"><CmsCards documents={featuredProgrammes} title="Explore our programmes" /></div>}
   <FeaturedEvent featuredEventId={homepage?.featuredEvent} />
+  <LiveUpcomingEvents editorialEvents={publishedEvents} />
   <div class="home-shell">{featuredUpdates.length ? <CmsCards documents={featuredUpdates} title="Latest from TTNGH" /> : <section class="home-updates"><h2>Keep the conversation going.</h2><div><a class="text-link" href="/news">Explore news <Icon name="arrow-right" /></a><a class="text-link" href="/resources">Reviewed resources <Icon name="arrow-right" /></a></div></section>}</div>
   <ScrollExpandSection image="/images/refresh/vision-facilitator-1600.webp" alt="A speaker addressing participants at Vision with Clarity" title="Help the work reach further." frameTitle="Together, we thrive." id="get-involved-title" />
   <HomePartnerBand />

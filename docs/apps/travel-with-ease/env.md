@@ -66,8 +66,9 @@ The table records current/future variable names, not implemented capabilities. P
 | `DATABASE_URL` | API | Production | Yes | PostgreSQL connection URL |
 | `TWE_MIGRATION_DATABASE_URL` | Migration CLI | PostgreSQL setup | Yes | Separate migration-role connection URL |
 | `TWE_ORGANISATION_ID` | API / migrations | PostgreSQL mode | No | Server-owned UUID; must match persisted DB identity |
-| `TWE_DATABASE_TLS` | API / migrations | No | No | Verified TLS by default; disable only for loopback development/test |
-| `TWE_DATABASE_CA` | API / migrations | Provider-dependent | Yes | Trusted provider CA, not a TLS-verification bypass |
+| `TWE_DATABASE_TLS` | API / migrations | No | No | Omit in Railway; verified TLS is the default. `require` is an equivalent explicit setting; `disable` is loopback development/test only. |
+| `TWE_DATABASE_CA` | API / migrations | Usually no | Yes | Omit when Node trusts the Railway certificate chain. If provider evidence proves a private CA is required, store one complete public CA PEM with real line breaks. |
+| `TWE_PROMOTION_ACTOR_ID` | One-time production content import | Initial launch only | No | Existing active production Owner/Superadmin who authorises the audited import; never copied from staging. |
 | `TWE_TEST_DATABASE_URL` | Integration tests only | test:db | Yes | Disposable loopback twe_test_* database |
 | `TWE_LOCAL_DATA_FILE` | API | Development only | No | Local Phase 1 repository file |
 | `TWE_TEST_PG_BIN` | Isolated test runner | test:db:isolated | No | Absolute supported local PostgreSQL bin directory; runner never consumes an application DB URL |
@@ -83,6 +84,13 @@ The table records current/future variable names, not implemented capabilities. P
 | `AI_PROVIDER_API_KEY` | Future API | Before AI | Yes | Sanitised draft-generation requests |
 
 Only variables intentionally prefixed `PUBLIC_` or `VITE_` enter browser builds. Provider secrets are API-only.
+
+`DATABASE_URL` and `TWE_MIGRATION_DATABASE_URL` may use Railway's redundant
+`?sslmode=require`; the API removes that option before passing an explicit
+`rejectUnauthorized: true` TLS configuration to `pg`. Other URL options remain
+forbidden because `pg` connection-string parsing can override explicit TLS
+settings. Never use `no-verify`, `rejectUnauthorized=false`, or global Node TLS
+bypasses.
 
 Additional implemented names (values belong in provider secret stores):
 

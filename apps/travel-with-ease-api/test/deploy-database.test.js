@@ -23,6 +23,8 @@ test("configuration failures produce actionable, secret-free deployment logs", (
     [{ DATABASE_URL: env.DATABASE_URL + "?sslmode=" + sentinel }, "runtime_url_options_forbidden", "DATABASE_URL"],
     [{ TWE_MIGRATION_DATABASE_URL: env.TWE_MIGRATION_DATABASE_URL + "#" + sentinel }, "migration_url_options_forbidden", "TWE_MIGRATION_DATABASE_URL"],
     [{ TWE_DATABASE_TLS: "disable" }, "database_tls_disabled", "TWE_DATABASE_TLS"],
+    [{ TWE_DATABASE_TLS: "optional" }, "database_tls_mode_invalid", "verified TLS"],
+    [{ TWE_DATABASE_CA: "-----BEGIN CERTIFICATE-----\\ninvalid\\n-----END CERTIFICATE-----" }, "database_ca_invalid", "real line breaks"],
     [{ DATABASE_URL: "postgresql://twe_runtime:secret@" + sentinel + "/twe" }, "database_endpoint_mismatch", "host, port and database"],
     [{ DATABASE_URL: env.TWE_MIGRATION_DATABASE_URL }, "database_roles_not_separate", "distinct database usernames"],
     [{ DATABASE_URL: "postgresql://%ZZ:secret@postgres.example/twe" }, "database_username_invalid", "percent encoding"],
@@ -48,6 +50,7 @@ test("configuration failures produce actionable, secret-free deployment logs", (
     assert.ok(!output.includes("database_unavailable"), output);
   }
   assert.equal(readDeployConfig({ ...env, TWE_DATABASE_TLS: "require" }).environment, "staging");
+  assert.equal(readDeployConfig({ ...env, DATABASE_URL: env.DATABASE_URL + "?sslmode=require", TWE_MIGRATION_DATABASE_URL: env.TWE_MIGRATION_DATABASE_URL + "?sslmode=require" }).environment, "staging");
 });
 
 test("predeploy requires explicit environment approval and separate roles on one target", () => {
@@ -69,4 +72,5 @@ test("Railway uses a predeploy step, not startup migrations or local env files",
   assert.equal(config.deploy.startCommand, "pnpm --filter @faako/travel-with-ease-api start");
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url)));
   assert.equal(pkg.scripts["db:deploy"], "node scripts/deploy-database.mjs");
+  assert.equal(pkg.scripts["publication:worker"], "node scripts/run-publication-worker.mjs --continuous");
 });

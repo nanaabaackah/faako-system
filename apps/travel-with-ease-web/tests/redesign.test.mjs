@@ -10,23 +10,17 @@ test("the brand links home without a redundant Home menu entry", () => {
   assert.doesNotMatch(layout, /\["\/", "Home"\]/);
 });
 
-test("shared CTA preserves the selected three mockups, one action and no copied reference assets", () => {
+test("shared CTA uses one accessible action and the lazy Topography background", () => {
   const component = source("components/ClosingCta.astro");
-  assert.match(component, /astro:assets/);
-  assert.match(component, /widths=\{\[320, 640, 960\]\}/);
-  assert.match(component, /loading="lazy"/);
+  assert.match(component, /TopographyBackground client:visible/);
   assert.match(component, /aria-hidden="true"/);
   assert.equal((component.match(/<ContentLink\b/g) || []).length, 1);
   assert.doesNotMatch(component, /<figcaption|framerusercontent|flyward.com/);
-  for (const index of [1, 2, 5])
-    assert.match(component, new RegExp(`TWE_mockup${index}\\.png`));
-  assert.match(
-    component,
-    /image: laptop, name: "laptop"[\s\S]*image: phone, name: "phone"/,
-  );
+  assert.doesNotMatch(component, /TWE_mockup|astro:assets|<img\b/);
+  assert.match(component, /href="#plan"/);
   assert.match(
     source("styles/components/closing-cta.css"),
-    /border-radius: var\(--twe-radius-button\)/,
+    /@media \(prefers-reduced-motion: reduce\)/,
   );
 });
 

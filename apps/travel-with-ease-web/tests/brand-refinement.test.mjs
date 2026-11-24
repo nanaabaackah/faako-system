@@ -4,25 +4,23 @@ import { readFileSync } from "node:fs";
 import { editorialValues } from "../../travel-with-ease-api/src/content/editorial-fields.js";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("public typography uses licensed Google Fonts with scoped hero and journal handwriting", () => {
+test("public typography consistently uses TWE display and body fonts in journal", () => {
   const typography = read("../src/styles/typography.css");
   assert.match(typography, /--font-display: "Poiret One"/);
   assert.match(typography, /--font-body: "Quicksand"/);
   assert.match(typography, /--font-impact: "Inter"/);
   assert.match(typography, /--font-signature: "Sassy Frass"/);
-  assert.match(typography, /--font-journal: "Caveat"/);
+  assert.match(typography, /body \.journal-detail \.journal-detail__header h1/);
+  assert.match(typography, /body \.journal-detail \.journal-detail__content > p/);
+  assert.match(typography, /body \.journal-detail[\s\S]*?font-family: var\(--font-body\)/);
   assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-family: var\(--font-display\) !important;[\s\S]*?font-weight: 400 !important/);
   assert.match(typography, /-webkit-text-stroke: 0\.03em currentColor/);
-  assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{[\s\S]*?-webkit-text-stroke: 0/);
   assert.match(typography, /body \.cinematic-hero \.hero-signature \{/);
   assert.match(typography, /body \.journal-collection-grid \.journal-card h2 \{/);
-  assert.match(typography, /body \.journal-reading \.collection-detail-heading h1 \{/);
-  assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\)/);
-  assert.match(typography, /body \.journal-reading \.collection-reading > p:not\(\.collection-standfirst\) \{[\s\S]*?font-family: var\(--font-journal\)/);
   assert.match(typography, /font-size: clamp\(2\.65rem, 13vw, 15rem\)/);
   assert.match(typography, /font-size: clamp\(4\.25rem, 19vw, 6\.25rem\)/);
   const layout = read("../src/layouts/BaseLayout.astro");
-  for (const family of ["Caveat", "Inter", "Poiret+One", "Quicksand", "Sassy+Frass"])
+  for (const family of ["Inter", "Poiret+One", "Quicksand", "Sassy+Frass"])
     assert.ok(layout.includes(`family=${family}`) || layout.includes(`&family=${family}`));
   assert.match(layout, /display=swap/);
   assert.doesNotMatch(layout, /DM\+Sans|Instrument\+Serif/);
@@ -74,8 +72,8 @@ test("public mobile menu uses an accessible icon and a borderless vertical layou
 test("scrolled header uses the approved dark-mode symbol on brand navy", () => {
   const layout = read("../src/layouts/BaseLayout.astro");
   const nav = read("../src/styles/components/scroll-navigation.css");
-  assert.match(layout, /src="\/brand\/Primary gold\.png"/);
-  assert.match(layout, /src="\/brand\/dark mode symbol\.png"/);
+  assert.match(layout, /src=\{branding\.headerLogo\}/);
+  assert.match(layout, /src=\{branding\.scrolledLogo\}/);
   assert.match(nav, /\.site-header\.is-scrolled[\s\S]*?background: var\(--brand-navy\)/);
   assert.match(nav, /\.brand__symbol--scrolled[\s\S]*?object-fit: contain/);
   assert.match(nav, /\.site-header:not\(\.is-scrolled\) \.brand__wordmark--gold/);

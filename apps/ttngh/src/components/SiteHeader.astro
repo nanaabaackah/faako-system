@@ -8,7 +8,7 @@ const links = [
 const path = Astro.url.pathname.replace(/\/$/, "") || "/";
 ---
 <header class="site-header">
-  <a class="header-logo" href="/" aria-label={organization.name + " home"}><img src="/ttngh-logo-transparent.png" alt={organization.name} width="1927" height="816" /></a>
+  <a class="header-logo" href="/" aria-label={organization.name + " home"}><picture><source type="image/webp" srcset="/images/brand/ttngh-logo-header.webp" /><img src="/ttngh-logo-transparent.png" alt={organization.name} width="1927" height="816" decoding="async" /></picture></a>
   <nav class="desktop-nav" aria-label="Primary navigation">
     {links.map(([label, href]) => <a href={href} aria-current={path === href ? "page" : undefined}>{label}</a>)}
   </nav>
