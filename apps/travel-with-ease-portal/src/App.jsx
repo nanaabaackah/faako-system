@@ -8,6 +8,7 @@ import {
   UiSystemProvider,
   AnimatedLoadingState,
   ERPConfirmDialog,
+  AppUpdateNotice,
 } from "@faako/ui";
 import "@faako/ui/twe-feedback.css";
 import appSystem from "../appSystem.js";
@@ -33,13 +34,17 @@ const baseApi = createBrowserApiClient({ baseUrl, credentials: "include" });
 const loadSession = createSessionLoader(baseApi);
 
 function StaffWorkspace() {
+  const [pendingWrites, setPendingWrites] = useState(0);
+  const [editorBusy, setEditorBusy] = useState(false);
   // Module-specific notices already show precise success and error outcomes.
   const api = useMemo(() => ({
     ...baseApi,
     post: async (...args) => {
       const options = { ...args[1] };
       delete options.silent;
-      return baseApi.post(args[0], options);
+      setPendingWrites(count => count + 1);
+      try { return await baseApi.post(args[0], options); }
+      finally { setPendingWrites(count => count - 1); }
     },
   }), []);
   const [session, setSession] = useState(null);
@@ -166,6 +171,11 @@ function StaffWorkspace() {
         session?.user.permissions?.includes("system.read"),
     ],
   ].filter(([, , visible]) => visible);
+  // Media and staff forms contain transient files or invitation details that
+  // are not represented by the editorial draft state. Finish there first.
+  const transientWorkspace = section === "media" || section === "staff" ||
+    (section === "overview" && activation?.canIssueOwner);
+  const refreshBlocked = dirty || editorBusy || pendingWrites > 0 || state.loading || Boolean(pendingExit) || transientWorkspace;
   return (
     <div className="portal-shell">
       <PortalNavigation navigation={navigation} section={section} navigate={navigate} session={session}/>
@@ -318,7 +328,7 @@ function StaffWorkspace() {
           {!state.loading &&
             session &&
             activation?.canIssueOwner &&
-            section === "overview" && <Invitations api={baseApi} installer />}
+            section === "overview" && <Invitations api={api} installer />}
           {!state.loading && session && section === "settings" && (
             <AccountSettings
               api={api}
@@ -337,6 +347,7 @@ function StaffWorkspace() {
                 api={api}
                 session={session}
                 onDirtyChange={setDirty}
+                onRefreshBlockedChange={setEditorBusy}
               />
             )}
           {!state.loading && session?.user.permissions?.includes("content.read") &&
@@ -346,6 +357,7 @@ function StaffWorkspace() {
                 session={session}
                 initialPage="site-appearance"
                 onDirtyChange={setDirty}
+                onRefreshBlockedChange={setEditorBusy}
               />
             )}
           {!state.loading && session && section === "overview" && (
@@ -364,7 +376,7 @@ function StaffWorkspace() {
               <Enquiries api={api} session={session} />
             )}
           {!state.loading && session?.user.permissions?.includes("templates.manage") && section === "templates" && (
-            <EmailTemplates api={api} session={session} onDirtyChange={setDirty} />
+            <EmailTemplates api={api} session={session} onDirtyChange={setDirty} onRefreshBlockedChange={setEditorBusy} />
           )}
           {!state.loading && session && section === "system" && (
             <SystemAdministration api={api} session={session} />
@@ -377,7 +389,7 @@ function StaffWorkspace() {
         {!state.loading && session && (
           <TutorialWorkspace
             key={session.user.id}
-            api={baseApi}
+            api={api}
             session={session}
             navigate={navigate}
             section={section}
@@ -393,6 +405,11 @@ function StaffWorkspace() {
           confirmLabel={pendingExit?.kind === "logout" ? "Discard and sign out" : "Discard and continue"}
           onCancel={() => setPendingExit(null)} onConfirm={() => { const action = pendingExit; setPendingExit(null); setDirty(false); if (action?.kind === "logout") { void logout(action.all, true); } else if (action?.kind === "navigate") setSection(action.next); }} />
       </PageShell>
+      <AppUpdateNotice appName="Travel With Ease CMS" mode="prompt"
+        enabled={Boolean(session) && (import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true")}
+        checkIntervalMs={60_000} className="twe-app-update-notice"
+        refreshBlocked={refreshBlocked}
+        refreshBlockedMessage={transientWorkspace ? "Finish your current work and return to Overview or Content to refresh." : "Save your changes and finish the current action before refreshing."} />
     </div>
   );
 }
