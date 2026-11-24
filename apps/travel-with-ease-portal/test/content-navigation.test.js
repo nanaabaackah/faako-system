@@ -24,9 +24,25 @@ test("CMS exposes cancellation only for stale pending publications, without retr
 
 test("How It Works keeps independent editable four-stage examples", () => {
   const editor = readFileSync(new URL("../src/components/WebsiteContent.jsx", import.meta.url), "utf8");
-  assert.match(editor, /Worked example — four stages/);
+  assert.match(editor, /Worked example stages/);
   assert.match(editor, /Example stage \{index \+ 1\}/);
   assert.match(editor, /label="Stage heading"/);
   assert.match(editor, /label="Stage description"/);
   assert.match(editor, /exampleSteps: \(flow\.exampleSteps/);
+});
+
+test("Services, Terms and navigation expose independent editing surfaces", () => {
+  const website = readFileSync(new URL("../src/components/WebsiteContent.jsx", import.meta.url), "utf8");
+  const services = readFileSync(new URL("../src/components/ServicesEditor.jsx", import.meta.url), "utf8");
+  const terms = readFileSync(new URL("../src/components/TermsEditor.jsx", import.meta.url), "utf8");
+  const dashboard = readFileSync(new URL("../src/components/Dashboard.jsx", import.meta.url), "utf8");
+  const enquiries = readFileSync(new URL("../src/components/Enquiries.jsx", import.meta.url), "utf8");
+  assert.match(website, /<ServicesEditor entries={body.entries}/);
+  assert.match(website, /<TermsEditor entries={body.entries}/);
+  assert.match(services, /Service listing cards/);
+  assert.match(services, /Individual service detail pages/);
+  assert.match(terms, /Section A · Planning services/);
+  assert.match(terms, /Section B · Package bookings/);
+  assert.match(dashboard, /twe-kpi-link/);
+  assert.match(enquiries, /enquiry-row-action/);
 });
