@@ -10,6 +10,9 @@ export interface AppUpdateNoticeProps {
   dismissStorageKey?: string;
   enabled?: boolean;
   mode?: "prompt" | "auto";
+  /** In prompt mode, keep the update visible but disable refresh until work is safe. */
+  refreshBlocked?: boolean;
+  refreshBlockedMessage?: string;
 }
 
 const normalizeAssetPath = (value: string) => {
@@ -59,6 +62,8 @@ export const AppUpdateNotice = ({
   dismissStorageKey,
   enabled = true,
   mode = "prompt",
+  refreshBlocked = false,
+  refreshBlockedMessage = "Finish saving your current work before refreshing.",
 }: AppUpdateNoticeProps) => {
   const [latestSignature, setLatestSignature] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -94,7 +99,7 @@ export const AppUpdateNotice = ({
           headers: { Accept: "text/html" },
         });
         const contentType = response.headers.get("content-type") || "";
-        if (!response.ok || !contentType.includes("text/html")) return;
+        if (!response.ok || response.redirected || !contentType.includes("text/html")) return;
 
         const html = await response.text();
         if (cancelled) return;
@@ -149,6 +154,7 @@ export const AppUpdateNotice = ({
 
   const rootClassName = ["ui-app-update-notice", className].filter(Boolean).join(" ");
   const handleRefresh = () => {
+    if (refreshBlocked || refreshing) return;
     setRefreshing(true);
     setLatestSignature("");
     window.setTimeout(() => window.location.reload(), 0);
@@ -158,14 +164,14 @@ export const AppUpdateNotice = ({
     <aside className={rootClassName} aria-live="polite" aria-label="App update available">
       <div className="ui-app-update-notice__copy">
         <strong>Update ready</strong>
-        <span>A newer version of {appName} is available. Finish your current work, then refresh.</span>
+        <span>{refreshBlocked ? refreshBlockedMessage : `A newer version of ${appName} is available. Finish your current work, then refresh.`}</span>
       </div>
       <div className="ui-app-update-notice__actions">
         <button
           type="button"
           className="ui-app-update-notice__button ui-app-update-notice__button--primary"
           onClick={handleRefresh}
-          disabled={refreshing}
+          disabled={refreshing || refreshBlocked}
         >
           {refreshing ? "Refreshing..." : "Refresh now"}
         </button>
