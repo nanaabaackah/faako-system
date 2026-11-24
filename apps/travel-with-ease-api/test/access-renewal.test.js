@@ -74,6 +74,8 @@ test("Issue 03: renewed assertions preserve a fixed session and CSRF without wea
   assert.match(setCookie, /^__Host-twe_session=/);
   for (const flag of [/; HttpOnly/i, /; Secure/i, /; SameSite=Lax/i, /; Path=\//i]) assert.match(setCookie, flag);
   assert.doesNotMatch(setCookie, /; Domain=/i);
+  const cookieExpiry = Date.parse(setCookie.match(/; Expires=([^;]+)/i)?.[1]);
+  assert.equal(cookieExpiry, claims.exp * 1000, "Persistent cookie cannot outlive the verified Access assertion");
   const cookie = setCookie.split(";")[0];
   const request = (assertion, route = "/session", options = {}) => fetch(`${base}${route}`, {
     ...options, headers: { cookie, "Cf-Access-Jwt-Assertion": assertion, ...options.headers },
