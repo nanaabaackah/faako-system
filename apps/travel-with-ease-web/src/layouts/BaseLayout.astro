@@ -92,7 +92,6 @@ const releaseSha = [
   process.env.TWE_RELEASE_SHA,
 ].find((value) => typeof value === "string" && /^[a-f0-9]{40}$/i.test(value));
 const visible = (href: string) =>
-  href === "/journal" ||
   (cinematic && href.startsWith("#")) ||
   Boolean(publishedPage(href === "/" ? "home" : href.slice(1)));
 const copy = siteCopy("site-appearance");
