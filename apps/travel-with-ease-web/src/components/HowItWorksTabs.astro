@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import "../styles/components/how-it-works-tabs.css";
@@ -48,7 +49,7 @@ const valid = flows &&
             {flows[flow].steps.map((step, index) => (
               <li>
                 <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-                <div><h3>{step.heading}</h3><p>{step.text}</p></div>
+                <div><h3>{step.heading}</h3><RichText value={step.text}/></div>
               </li>
             ))}
           </ol>
@@ -62,13 +63,12 @@ const valid = flows &&
           aria-label={flow === "package" ? copy.packageExample : copy.planningExample}>
           <div class="planning-example">
             <div class="planning-example__intro">
-              <span class="planning-example__label">An illustrative example</span>
               <h2>{flow === "package" ? copy.packageExample : copy.planningExample}</h2>
-              <p>{flows[flow].example}</p>
+              <RichText value={flows[flow].example}/>
               {flow === "package" && <ContentLink href="/packages/nairobi">{copy.packageExampleCta}</ContentLink>}
             </div>
             <ol class="planning-example__steps">
-              {exampleSteps(flow).map(step => <li><h3>{step.heading}</h3><p>{step.text}</p></li>)}
+              {exampleSteps(flow).map(step => <li><h3>{step.heading}</h3><RichText value={step.text}/></li>)}
             </ol>
             <div class="planning-example__next">
               <p>{flow === "package"
