@@ -1,0 +1,12 @@
+---
+import { richTextBlocks } from "../../../travel-with-ease-api/src/content/rich-text.js";
+import RichInline from "./RichInline.astro";
+import "../styles/components/rich-text.css";
+interface Props { value?: string; class?: string }
+const { value = "", class: className = "" } = Astro.props;
+---
+<div class:list={["twe-rich-text", className]}>
+  {richTextBlocks(value).map(block => block.type === "paragraph" ? <p><RichInline value={block.text}/></p> :
+    block.type === "ordered" ? <ol start={block.start}>{block.items.map(item => <li><RichInline value={item}/></li>)}</ol> :
+    <ul>{block.items.map(item => <li><RichInline value={item}/></li>)}</ul>)}
+</div>
