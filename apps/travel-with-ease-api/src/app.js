@@ -79,6 +79,13 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
   if (mediaService) app.use("/api/agent/media", mediaRoutes({ service: mediaService, auth: staffAuth }));
   if (repository?.pool && staffAuth) app.use("/api/agent/templates", emailTemplateRoutes(new EmailTemplates(repository.pool, repository.organisationId), staffAuth));
 
+  // Public release identity contains only the deployed code SHA and environment.
+  // Workers must agree with the running API before coordinating any content release.
+  app.get("/api/public/release", (_req, res) => {
+    const sourceSha = publicationRepository?.sourceSha;
+    if (!["staging", "production"].includes(environment) || !/^[a-f0-9]{40}$/.test(sourceSha || "")) return res.sendStatus(503);
+    return res.json({ environment, sourceSha });
+  });
   app.get("/healthz", (_req, res) => res.json({ ok: true, service: "travel-with-ease-api" }));
   app.get("/readyz", async (req, res) => {
     try {
