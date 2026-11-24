@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createSessionLoader } from "../src/lib/session.js";
+import { createSessionLoader, checkCurrentSession } from "../src/lib/session.js";
 
 test("concurrent initial loads create only one Access session and then read it", async () => {
   let reads = 0, writes = 0;
@@ -29,4 +29,21 @@ test("permission and network failures are not retried or converted into new sess
   });
   await assert.rejects(load("cloudflare_access"), /not provisioned/);
   assert.equal(attempts, 1);
+});
+
+test("foreground validation never exchanges a session or signs out on connection failure", async () => {
+  const session = { user: { id:"editor", organisationId:"tenant", role:"editor" }, csrfToken:"synthetic" };
+  let posts = 0;
+  const api = { async get(path, options) { assert.equal(path,"/api/auth/session"); assert.equal(options.cache,"no-store"); return session; }, async post() { posts++; } };
+  assert.deepEqual(await checkCurrentSession(api,session), {status:"active"});
+  for (const status of [401, 500, 0]) {
+    const result = await checkCurrentSession({...api, async get() { throw Object.assign(new Error("unavailable"),{status}); }},session);
+    assert.equal(result.status,status===401?"expired":"unavailable");
+  }
+  assert.deepEqual(await checkCurrentSession({...api, async get() {return {...session,csrfToken:"other"};}},session),{status:"changed"});
+  for (const user of [{...session.user, role:"owner"}, {...session.user, id:"other"}, {...session.user, organisationId:"other"}]) {
+    assert.deepEqual(await checkCurrentSession({...api, async get() {return {...session,user};}},session),{status:"changed"});
+  }
+  assert.deepEqual(await checkCurrentSession({...api, async get() {return {user:session.user};}},session),{status:"unavailable"});
+  assert.equal(posts,0);
 });
