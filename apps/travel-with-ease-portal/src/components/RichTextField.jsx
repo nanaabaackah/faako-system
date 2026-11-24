@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Button, TextareaField } from "@faako/ui";
 import { formatSelection } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import RichText from "../../../travel-with-ease-web/src/components/RichText.jsx";
@@ -17,11 +18,15 @@ export default function RichTextField({ value = "", onChange, disabled, maxLengt
   const apply = action => {
     const node = input.current;
     if (!node || node.matches(":disabled")) return;
-    const result = formatSelection(value, node.selectionStart, node.selectionEnd, action);
+    const result = formatSelection(node.value, node.selectionStart, node.selectionEnd, action);
     if (maxLength && result.value.length > maxLength) return;
-    onChange?.({ target: { value: result.value }, currentTarget: { value: result.value } });
-    node.focus();
-    requestAnimationFrame(() => node.setSelectionRange(result.start, result.end));
+    // Commit the controlled value and restore selection in the same event.
+    // A deferred animation-frame callback can overwrite a later user selection.
+    flushSync(() => onChange?.({ target: { value: result.value }, currentTarget: { value: result.value } }));
+    const current = input.current;
+    if (!current) return;
+    current.focus({ preventScroll: true });
+    current.setSelectionRange(result.start, result.end);
   };
   return <div className="twe-rich-field">
     <TextareaField {...props} value={value} onChange={onChange} ref={input} disabled={disabled} maxLength={maxLength}
