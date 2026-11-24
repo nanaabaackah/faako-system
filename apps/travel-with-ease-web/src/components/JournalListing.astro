@@ -79,7 +79,7 @@ const formatDate = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateS
         <div class="journal-landing__section-heading">
           <div>
             <h2 id="journal-archive-heading">{copy.archiveHeading}</h2>
-            <p>{copy.archiveBody}</p>
+            <RichText value={copy.archiveBody}/>
           </div>
         </div>
         <CollectionFilters client:load scope="journal-archive"
