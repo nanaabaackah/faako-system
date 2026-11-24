@@ -1436,3 +1436,12 @@ select:focus-visible {
 .portal-shell .ui-button { border-radius: var(--twe-radius-control); }
 .portal-shell .session-toolbar .ui-button { min-height: 44px; }
 .session-recovery { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+
+/* Let narrow CMS toolbars and disclosure headings wrap instead of overflowing. */
+@media (max-width: 600px) {
+  .portal-shell .dashboard-section-heading { flex-wrap: wrap; }
+  .portal-shell .dashboard-section-heading > *, .portal-shell .session-toolbar > *, .portal-shell .cms-editor-group > * { min-width: 0; max-width: 100%; }
+  .portal-shell .ui-button { white-space: normal; overflow-wrap: anywhere; }
+  .portal-shell .twe-action-button > span:first-child { min-width: 0; }
+  .portal-shell .metric-word .ui-kpi-card__value { overflow-wrap: anywhere; }
+}
