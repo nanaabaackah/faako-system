@@ -141,3 +141,35 @@ test("promotion exports only active email copy and verifies its integrity", asyn
   assert.equal(statements.filter(({sql}) => sql.startsWith("INSERT INTO twe.email_templates")).length, 2);
   assert.equal(statements.some(({sql}) => /notification_outbox|staff_sessions|enquiries/.test(sql)), false);
 });
+
+test("identical recorded production promotion is a no-write replay; edited content is not overwritten", async () => {
+  const active = { subject: "Subject", heading: "Heading", message: "Active copy", ctaLabel: "Continue" };
+  const bundle = createPromotionBundle({ source, pages, emailTemplates: { "enquiry-acknowledgement": active, "staff-invitation": active } });
+  let edited = false;
+  let receipt = true;
+  const statements = [];
+  const client = { query: async (sql) => {
+    statements.push(sql);
+    if (sql.startsWith("SELECT role")) return { rows: [{ role: "owner", active: true }] };
+    if (sql.startsWith("SELECT count")) return { rows: [{ count: pageNames.length }] };
+    if (sql.includes("FROM twe.audit_records")) return { rows: receipt ? [{}] : [] };
+    if (sql.includes("FROM twe.content_items c")) return { rows: pageNames.map(slug => ({
+      slug, publication_initialized: true, published_body: bundle.pages[slug],
+      draft_body: edited && slug === "home" ? { ...bundle.pages[slug], heading: "Production edit" } : bundle.pages[slug],
+    })) };
+    if (sql.includes("FROM twe.email_templates")) return { rows: Object.entries(bundle.emailTemplates).map(([slug, copy]) => ({ slug, draft: copy, active: copy })) };
+    return { rows: [], rowCount: 1 };
+  } };
+  const importer = new ContentPromotionImporter({}, {
+    put: async () => { throw new Error("no object write expected"); },
+    remove: async () => { throw new Error("no object removal expected"); },
+  }, { organisationId, actorId: "44444444-4444-4444-8444-444444444444",
+    transact: async (_pool, operation) => operation(client) });
+  assert.equal((await importer.apply(bundle)).status, "already_imported");
+  edited = true;
+  await assert.rejects(importer.apply(bundle), /will not overwrite/);
+  edited = false;
+  receipt = false;
+  await assert.rejects(importer.apply(bundle), /will not overwrite/);
+  assert.ok(statements.every(sql => sql.startsWith("SELECT")));
+});
