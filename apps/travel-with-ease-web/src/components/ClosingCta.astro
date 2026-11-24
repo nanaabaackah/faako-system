@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import TopographyBackground from "./TopographyBackground.jsx";
@@ -19,9 +20,7 @@ const topographyColor = variant === "midnight" ? "#D8B56A" : "#15234B";
       <AnimatedContent client:visible className="closing-copy-motion" distance={24} duration={0.9} ease="power3.out" blur={4} stagger={0.08} threshold={0.16}>
         <div class="closing-copy">
           <h2 class="closing-copy__heading" id="closing-cta-heading">{copy.closingHeading}</h2>
-          <p class="closing-copy__body">
-            {copy.closingBody}
-          </p>
+          <RichText class="closing-copy__body" value={copy.closingBody}/>
           <ContentLink
             button
             href="#plan"
