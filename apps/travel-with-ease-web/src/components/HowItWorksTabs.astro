@@ -1,6 +1,7 @@
 ---
 import RichText from "./RichText.astro";
 import ContentLink from "./ContentLink.astro";
+import { publishedPage } from "../lib/published.js";
 import { siteCopy } from "../lib/editorial-copy.js";
 import "../styles/components/how-it-works-tabs.css";
 interface Step { heading: string; text: string }
@@ -65,7 +66,7 @@ const valid = flows &&
             <div class="planning-example__intro">
               <h2>{flow === "package" ? copy.packageExample : copy.planningExample}</h2>
               <RichText value={flows[flow].example}/>
-              {flow === "package" && <ContentLink href="/packages/nairobi">{copy.packageExampleCta}</ContentLink>}
+              {flow === "package" && publishedPage("packages/nairobi") && <ContentLink href="/packages/nairobi">{copy.packageExampleCta}</ContentLink>}
             </div>
             <ol class="planning-example__steps">
               {exampleSteps(flow).map(step => <li><h3>{step.heading}</h3><RichText value={step.text}/></li>)}
@@ -78,15 +79,15 @@ const valid = flows &&
             </div>
           </div>
           <div class="planning-flow__footer">
-            <ContentLink href={flow === "package" ? "/terms#package-terms" : "/terms#planning-terms"}>
+            {publishedPage("terms") && <ContentLink href={flow === "package" ? "/terms#package-terms" : "/terms#planning-terms"}>
               {flow === "package" ? copy.packageTermsCta : copy.planningTermsCta}
-            </ContentLink>
+            </ContentLink>}
           </div>
         </section>
       ))}
       <aside class="planning-flow__readiness">
         <RichText value={copy.readinessBody}/>
-        <ContentLink href="/services/travel-readiness-session">{copy.readinessCta}</ContentLink>
+        {publishedPage("services/travel-readiness-session") && <ContentLink href="/services/travel-readiness-session">{copy.readinessCta}</ContentLink>}
       </aside>
     </div>
   )
