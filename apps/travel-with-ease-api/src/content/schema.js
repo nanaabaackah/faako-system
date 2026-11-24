@@ -184,15 +184,18 @@ export const contentBodySchema = z
         steps: z.array(z.object({
           heading: text(160).min(1),
           text: text(2000).min(1),
-        }).strict()).min(4).max(5),
+        }).strict()).min(1).max(12),
+        // Explicit step-count edits must not trigger the legacy four-to-five
+        // package migration on later autosaves or publications.
+        customStepCount: z.boolean().default(false),
         example: text(2500).min(1),
-        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
+        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).min(1).max(12).optional(),
       }).strict(),
       planning: z.object({
         steps: z.array(z.object({
           heading: text(160).min(1),
           text: text(2000).min(1),
-        }).strict()).length(4),
+        }).strict()).min(1).max(12),
         example: text(2500).min(1),
         exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
       }).strict(),
@@ -205,6 +208,8 @@ export const contentBodySchema = z
             imagePlacement:imagePlacementSchema.optional(),
             heading: text(160).min(1),
             serviceSlug: slug.optional(),
+            // Independent listing/home card copy; legacy pages fall back to text.
+            cardSummary: text(240).optional(),
             text: text(2000).min(1),
             attribution: text(160).default(""),
           })
