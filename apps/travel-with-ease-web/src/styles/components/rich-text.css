@@ -1,5 +1,5 @@
 .twe-rich-text { min-width: 0; overflow-wrap: anywhere; }
-.twe-rich-text > p { white-space: pre-line; }
+.twe-rich-text:is(p), .twe-rich-text > p { white-space: pre-line; }
 .twe-rich-text > :first-child { margin-top: 0; }
 .twe-rich-text > :last-child { margin-bottom: 0; }
 .twe-rich-text > ul, .twe-rich-text > ol { padding-inline-start: 1.4em; margin-block: .65em; }
