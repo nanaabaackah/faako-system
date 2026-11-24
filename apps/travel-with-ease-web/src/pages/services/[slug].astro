@@ -36,7 +36,7 @@ const others: Props["service"][] = publishedServices(publishedPage("services")).
       <div>
         <h1>{service.title}</h1>
         {service.fee && <p class="service-detail__fee"><MoneyText text={service.fee} /></p>}
-        <RichText class="service-detail__summary" value={service.text}/>
+        <RichText class="service-detail__summary" value={service.text} money/>
         <CurrencyAttribution />
         <ContentLink button href={`?service=${service.slug}#plan`}>{copy.detailCta}</ContentLink>
       </div>
