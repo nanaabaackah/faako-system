@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import EditorialPhoto from "./EditorialPhoto.astro";
 import photography from "../lib/journey-photography.json";
 import { imagePlacement } from "../lib/image-placements.js";
@@ -35,7 +36,7 @@ const copy = siteCopy("how-it-works");
   <EditorialPhoto image={photography.park} placement={photo} class="journey-process__photo" />
   <div class="journey-process__steps">
     {page ? <h1>{content.heading}</h1> : <h2>{content.heading}</h2>}
-    <p class="journey-process__introduction">{content.body}</p>
+    <RichText class="journey-process__introduction" value={content.body}/>
     {page && <HowItWorksTabs flows={homepageFlows} mode="steps" />}
     {!page && (
       <>
@@ -50,7 +51,7 @@ const copy = siteCopy("how-it-works");
                 {readyFlows[flow].steps.map((step, index) => (
                   <li>
                     <span class="journey-process__number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-                    <div><h3>{step.heading}</h3><p>{step.text}</p></div>
+                    <div><h3>{step.heading}</h3><RichText value={step.text}/></div>
                   </li>
                 ))}
               </ol>
