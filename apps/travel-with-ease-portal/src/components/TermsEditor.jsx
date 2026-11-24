@@ -1,5 +1,6 @@
-import { TextField, TextareaField } from "@faako/ui";
+import { TextField } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import RichTextField from "./RichTextField.jsx";
 
 // Match the public terms page's existing Section A / Section B order.
 // Old revisions have no section key; their original four-entry split is retained.
@@ -37,7 +38,7 @@ export default function TermsEditor({ entries = [], onChange }) {
               <legend>Term {position + 1}</legend>
               <TextField label="Term heading" required maxLength={160} value={entry.heading || ""}
                 onChange={event => update(index, { heading: event.target.value })} />
-              <TextareaField label="Term details" required maxLength={2000} value={entry.text || ""}
+              <RichTextField label="Term details" required maxLength={2000} value={entry.text || ""}
                 onChange={event => update(index, { text: event.target.value })} />
               <TextField label="Attribution (optional)" maxLength={160} value={entry.attribution || ""}
                 onChange={event => update(index, { attribution: event.target.value })} />
