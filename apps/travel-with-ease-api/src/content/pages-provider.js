@@ -105,6 +105,27 @@ export class PagesProvider {
     await verify(this.settings.origin, marker);
     return { id: deployment.id, origin };
   }
+  // A prior one-shot replay has an exact recorded deployment ID. Recover
+  // directly from that immutable artifact instead of scanning and treating two
+  // identically marked uploads as ambiguous.
+  async verifyRecordedReplay(job, verify, marker) {
+    const id = job?.recovery_deployment_id;
+    if (this.settings.environment !== "staging" ||
+      !/^[a-f0-9-]{36}$/i.test(id || "")) throw new Error("Invalid recorded staging replay.");
+    const project = await this.request();
+    this.assertProject(project);
+    const deployment = await this.request(`/deployments/${id}`);
+    if (deployment.id !== id ||
+      deployment.latest_stage?.status !== "success" ||
+      deployment.environment !== "preview" ||
+      deployment.deployment_trigger?.metadata?.branch !== this.settings.branch ||
+      deployment.deployment_trigger?.metadata?.commit_hash !== job.source_sha)
+      throw new Error("Recorded staging replay is not a verified Pages deployment.");
+    const origin = deploymentOriginForProject(deployment, project, this.settings.project);
+    await verify(origin, marker);
+    await verify(this.settings.origin, marker);
+    return { id, origin };
+  }
   async deploy(directory, job) {
     const project = await this.request();
     this.assertProject(project);
@@ -141,7 +162,7 @@ export class PagesProvider {
   // Read-only search for a successfully deployed, environment-scoped artifact.
   // The caller must additionally verify its exact publication marker on both
   // the immutable Pages URL and the custom origin before acknowledging it.
-  async findPublicationDeployment(job, verify, marker, logger = {}) {
+  async findPublicationDeployment(job, verify, marker, logger = {}, { allowCurrentMismatch = false } = {}) {
     const project = await this.request();
     this.assertProject(project);
     const earliest = Date.parse(job.created_at);
@@ -235,9 +256,11 @@ export class PagesProvider {
     } catch (error) {
       logger.warn?.({ eventName: "publication.reconciliation_scan", reason: "current_origin_marker_mismatch",
         pagesScanned, candidates, verified: matches.length }, "The current site does not match the candidate publication.");
+      if (allowCurrentMismatch && this.settings.environment === "staging")
+        return { ...matches[0], currentMatches: false };
       throw error;
     }
-    return matches[0];
+    return { ...matches[0], currentMatches: true };
   }
   async rollback(previous) {
     if (!/^[a-f0-9-]{36}$/.test(previous?.id || "")) throw new Error("Invalid recovery deployment.");
