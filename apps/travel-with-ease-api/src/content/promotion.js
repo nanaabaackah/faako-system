@@ -117,13 +117,47 @@ export class ContentPromotionImporter {
     Object.assign(this, { pool, store, organisationId, actorId, transact });
   }
 
+  // A replay is accepted only when the original import is recorded and every
+  // currently published/draft value and referenced object still matches.
+  // Never reset production edits merely because the bundle is the same.
+  async matchesImportedBundle(client, bundle) {
+    const receipt = await client.query("SELECT 1 FROM twe.audit_records WHERE organisation_id=$1 AND action='content.production_seed_imported' AND record_id=$2 LIMIT 1", [this.organisationId, bundle.source.publicationId]);
+    if (!receipt.rows.length) return false;
+    const { rows } = await client.query(`SELECT c.slug, c.publication_initialized, c.published_body, r.body AS draft_body
+      FROM twe.content_items c LEFT JOIN twe.content_revisions r ON r.id=c.draft_revision_id AND r.organisation_id=c.organisation_id
+      WHERE c.organisation_id=$1`, [this.organisationId]);
+    if (rows.length !== pageNames.length) return false;
+    if (rows.some(row => !Object.hasOwn(bundle.pages, row.slug) || !row.publication_initialized ||
+      fingerprint(row.published_body ?? null) !== fingerprint(bundle.pages[row.slug]) ||
+      fingerprint(row.draft_body ?? null) !== fingerprint(bundle.pages[row.slug]))) return false;
+    if (bundle.emailTemplates) {
+      const result = await client.query("SELECT slug, draft, active FROM twe.email_templates WHERE organisation_id=$1 AND slug = ANY($2::text[])", [this.organisationId, templateSlugs]);
+      if (result.rows.length !== templateSlugs.length || result.rows.some(row =>
+        !Object.hasOwn(bundle.emailTemplates, row.slug) || fingerprint(row.active) !== fingerprint(bundle.emailTemplates[row.slug]) ||
+        fingerprint(row.draft) !== fingerprint(bundle.emailTemplates[row.slug]))) return false;
+    }
+    for (const item of bundle.media) {
+      const result = await client.query("SELECT alt_text, rights, derivatives, archived_at FROM twe.media WHERE organisation_id=$1 AND id=$2", [this.organisationId, item.id]);
+      const row = result.rows[0];
+      if (!row || row.archived_at || row.alt_text !== item.altText || row.rights !== item.rights ||
+        row.derivatives?.length !== item.objects.length) return false;
+      for (const object of item.objects) {
+        const key = `${this.organisationId}/${item.id}/${object.variant}.webp`;
+        const derivative = row.derivatives.find(value => value.variant === object.variant);
+        if (!derivative || derivative.key !== key || derivative.width !== object.width || derivative.height !== object.height ||
+          sha256(await this.store.get(key)) !== object.sha256) return false;
+      }
+    }
+    return true;
+  }
+
   async apply(input, requestId = randomUUID()) {
     const bundle = verifyPromotionBundle(input);
     if (bundle.source.organisationId !== this.organisationId)
       throw new Error("Promotion source organisation does not match production.");
     const keys = [];
     try {
-      await this.transact(this.pool, async (client) => {
+      const status = await this.transact(this.pool, async (client) => {
         // Serialise the one-time import before touching object storage. Without
         // this lock, a losing concurrent importer could remove the winner's
         // objects while cleaning up its own failed attempt.
@@ -132,7 +166,10 @@ export class ContentPromotionImporter {
         if (actor.rows.length !== 1 || actor.rows[0].active !== true || !["owner", "platform_admin"].includes(actor.rows[0].role))
           throw new Error("Production promotion requires an active Owner or Superadmin.");
         const existing = await client.query("SELECT count(*)::int AS count FROM twe.content_items WHERE organisation_id=$1 AND (publication_initialized OR draft_revision_id IS NOT NULL OR published_revision_id IS NOT NULL)", [this.organisationId]);
-        if (existing.rows[0].count !== 0) throw new Error("Production content is already initialised; promotion will not overwrite it.");
+        if (existing.rows[0].count !== 0) {
+          if (await this.matchesImportedBundle(client, bundle)) return "already_imported";
+          throw new Error("Production content is already initialised or has changed; promotion will not overwrite it.");
+        }
         if (bundle.media.length) {
           const collision = await client.query("SELECT count(*)::int AS count FROM twe.media WHERE organisation_id=$1 AND id = ANY($2::uuid[])", [this.organisationId, bundle.media.map(({ id }) => id)]);
           if (collision.rows[0].count !== 0) throw new Error("Promotion media already exists; import will not overwrite it.");
@@ -173,8 +210,9 @@ export class ContentPromotionImporter {
         }
         await appendAudit(client, { organisationId: this.organisationId, actorId: this.actorId,
           action: "content.production_seed_imported", recordId: bundle.source.publicationId, requestId });
+        return "imported";
       });
-      return { status: "imported", sourcePublicationId: bundle.source.publicationId, contentFingerprint: bundle.source.contentFingerprint };
+      return { status, sourcePublicationId: bundle.source.publicationId, contentFingerprint: bundle.source.contentFingerprint };
     } catch (error) {
       for (const key of keys.reverse()) try { await this.store.remove(key); } catch { /* operator cleanup is documented */ }
       throw error;
