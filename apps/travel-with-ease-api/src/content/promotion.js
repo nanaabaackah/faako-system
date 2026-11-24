@@ -62,12 +62,14 @@ export function verifyPromotionBundle(bundle) {
 export async function exportPromotionBundle({ publication, media, source, approvedPages }) {
   const live = await publication.lastLive();
   if (!live?.id || !live.manifest || !live.deployment_id) throw new Error("A verified live staging publication is required.");
+  // Use the baseline captured by the verified publication, not a newer checkout.
+  const baselinePages = live.manifest.baseline || approvedPages;
   const siteAppearance = {
     heading: "Shared website imagery", body: "", ctaLabel: "", ctaPath: "/#plan",
     seoTitle: "Website appearance", seoDescription: "Internal shared imagery settings.",
   };
   const pages = Object.fromEntries(pageNames.map((slug) => {
-    const publicBaseline = approvedPages[slug] ?? (slug === "site-appearance" ? siteAppearance : null);
+    const publicBaseline = baselinePages[slug] ?? (slug === "site-appearance" ? siteAppearance : null);
     const baseline = publicBaseline === null ? null : approvedEditorCopy(publicBaseline);
     return [slug, baseline === null ? null : contentForPage(slug, baseline)];
   }));
@@ -86,7 +88,7 @@ export async function exportPromotionBundle({ publication, media, source, approv
     transferred.push({ id, altText: stored.alt_text, rights: stored.rights, objects });
   }
   return createPromotionBundle({
-    source: { ...source, environment: "staging", approvedBaselineFingerprint: fingerprint(approvedPages), publicationId: live.id,
+    source: { ...source, environment: "staging", approvedBaselineFingerprint: fingerprint(baselinePages), publicationId: live.id,
       deploymentId: live.deployment_id, sourceSha: live.source_sha },
     pages,
     media: transferred,
@@ -112,7 +114,7 @@ export class ContentPromotionImporter {
         // objects while cleaning up its own failed attempt.
         await client.query("SELECT pg_advisory_xact_lock(hashtextextended('twe_content_promotion:' || $1, 0))", [this.organisationId]);
         const actor = await client.query("SELECT role, active FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 FOR SHARE", [this.organisationId, this.actorId]);
-        if (actor.rows.length !== 1 || actor.rows[0].active !== true || !["owner", "superadmin"].includes(actor.rows[0].role))
+        if (actor.rows.length !== 1 || actor.rows[0].active !== true || !["owner", "platform_admin"].includes(actor.rows[0].role))
           throw new Error("Production promotion requires an active Owner or Superadmin.");
         const existing = await client.query("SELECT count(*)::int AS count FROM twe.content_items WHERE organisation_id=$1 AND (publication_initialized OR draft_revision_id IS NOT NULL OR published_revision_id IS NOT NULL)", [this.organisationId]);
         if (existing.rows[0].count !== 0) throw new Error("Production content is already initialised; promotion will not overwrite it.");
