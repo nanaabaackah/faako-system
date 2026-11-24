@@ -18,7 +18,7 @@ import EmailTemplates from "./components/EmailTemplates.jsx";
 import SystemAdministration from "./components/SystemAdministration.jsx";
 import StaffAccess from "./components/StaffAccess.jsx";
 import Enquiries from "./components/Enquiries.jsx";
-import { createSessionLoader } from "./lib/session.js";
+import { createSessionLoader, checkCurrentSession } from "./lib/session.js";
 import Dashboard from "./components/Dashboard.jsx";
 import PortalNavigation from './components/PortalNavigation.jsx';
 import ActivityView from './components/ActivityView.jsx';
@@ -48,6 +48,7 @@ function StaffWorkspace() {
     },
   }), []);
   const [session, setSession] = useState(null);
+  const [sessionStatus, setSessionStatus] = useState("active");
   const [activation, setActivation] = useState(null);
   const [section, setSection] = useState("overview");
   const [dirty, setDirty] = useState(false);
@@ -118,6 +119,7 @@ function StaffWorkspace() {
           throw new Error("The session response was incomplete.");
       }
       setSession(activeSession);
+      setSessionStatus("active");
       setState({ loading: false, configured: status.configured, error: "" });
     } catch (error) {
       setSession(null);
@@ -128,6 +130,33 @@ function StaffWorkspace() {
     sessionStorage.removeItem("twe-agent-token");
     load();
   }, [load]);
+
+  // Recheck on return without resetting the workspace or discarding edits.
+  // No automatic sign-in exchange: explicit logout/revocation remains final.
+  useEffect(() => {
+    if (!session || accountLinks.mode !== "cloudflare_access") return;
+    let disposed = false;
+    let pending = false;
+    let lastCheck = 0;
+    const check = async () => {
+      if (disposed || pending || document.visibilityState !== "visible" || Date.now() - lastCheck < 15000) return;
+      pending = true;
+      lastCheck = Date.now();
+      try {
+        const result = await checkCurrentSession(baseApi, session);
+        if (!disposed) setSessionStatus(current => result.status === "unavailable" ? current : result.status);
+      } finally { pending = false; }
+    };
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("pageshow", check);
+    window.addEventListener("focus", check);
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("pageshow", check);
+      window.removeEventListener("focus", check);
+    };
+  }, [session, accountLinks.mode]);
 
   async function logout(all = false, discardConfirmed = false) {
     if (dirty && !discardConfirmed) { setPendingExit({ kind: "logout", all }); return; }
@@ -175,7 +204,7 @@ function StaffWorkspace() {
   // are not represented by the editorial draft state. Finish there first.
   const transientWorkspace = section === "media" || section === "staff" ||
     (section === "overview" && activation?.canIssueOwner);
-  const refreshBlocked = dirty || editorBusy || pendingWrites > 0 || state.loading || Boolean(pendingExit) || transientWorkspace;
+  const refreshBlocked = sessionStatus !== "active" || dirty || editorBusy || pendingWrites > 0 || state.loading || Boolean(pendingExit) || transientWorkspace;
   return (
     <div className="portal-shell">
       <PortalNavigation navigation={navigation} section={section} navigate={navigate} session={session}/>
@@ -206,6 +235,7 @@ function StaffWorkspace() {
             message={state.error}
           />
         )}
+        {session && sessionStatus !== "active" && <InlineNotice tone="warning" title={sessionStatus === "changed" ? "Session changed" : "Session expired"} message="Sign in again before saving. Keep this tab open if you have unsaved edits." />}
         {state.loading ? (
           <AnimatedLoadingState
             compact
@@ -235,6 +265,7 @@ function StaffWorkspace() {
           >
             <h2 id="access-signin-heading">Welcome to Travel With Ease</h2>
             <p>Sign in with your approved work account.</p>
+            {state.error && <Button type="button" icon="refresh" onClick={load}>Retry session</Button>}
             <a className="signin-link" href="/cdn-cgi/access/logout">
               Sign in again securely
             </a>
