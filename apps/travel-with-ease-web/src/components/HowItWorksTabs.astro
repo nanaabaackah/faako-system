@@ -66,7 +66,7 @@ const valid = flows &&
             <div class="planning-example__intro">
               <h2>{flow === "package" ? copy.packageExample : copy.planningExample}</h2>
               <RichText value={flows[flow].example}/>
-              {flow === "package" && publishedPage("packages/nairobi") && <ContentLink href="/packages/nairobi">{copy.packageExampleCta}</ContentLink>}
+              {flow === "package" && publishedPage(copy.packageExamplePath.slice(1)) && <ContentLink href={copy.packageExamplePath}>{copy.packageExampleCta}</ContentLink>}
             </div>
             <ol class="planning-example__steps">
               {exampleSteps(flow).map(step => <li><h3>{step.heading}</h3><RichText value={step.text}/></li>)}
@@ -75,7 +75,7 @@ const valid = flows &&
               <p>{flow === "package"
                 ? "This illustrates the package process, not a real booking or confirmed quote. Your live quote sets out the agreed arrangements."
                 : "This is an illustrative planning journey, not a client testimonial or confirmed arrangement. Booking costs remain separate from the planning fee."}</p>
-              <ContentLink button href="#plan">{flow === "package" ? "Ask about a package" : "Tell us about your trip"}</ContentLink>
+              <ContentLink button href="#plan">{flow === "package" ? copy.packageExampleAction : copy.planningExampleAction}</ContentLink>
             </div>
           </div>
           <div class="planning-flow__footer">
@@ -87,7 +87,7 @@ const valid = flows &&
       ))}
       <aside class="planning-flow__readiness">
         <RichText value={copy.readinessBody}/>
-        {publishedPage("services/travel-readiness-session") && <ContentLink href="/services/travel-readiness-session">{copy.readinessCta}</ContentLink>}
+        {publishedPage(copy.readinessPath.slice(1)) && <ContentLink href={copy.readinessPath}>{copy.readinessCta}</ContentLink>}
       </aside>
     </div>
   )
