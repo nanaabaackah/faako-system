@@ -123,18 +123,30 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       approved.pages[slug] ? approvedEditorCopy(approved.pages[slug]) : (slug === "site-appearance" ? appearance : null)]));
     const bundle = createPromotionBundle({
       source: { environment: "staging", organisationId: promotionOrg,
-        publicationId: randomUUID(), sourceSha: "a".repeat(40), deploymentId: "synthetic-staging-deployment" },
+        publicationId: randomUUID(), sourceSha: "a".repeat(40), deploymentId: "synthetic-staging-deployment", approvedBaselineFingerprint: manifestDigest(approved.pages) },
       pages, media: [],
     });
     const store = { put: async () => assert.fail("No media is referenced"), remove: async () => assert.fail("No cleanup is expected") };
-    const importer = new ContentPromotionImporter(pool, store, { organisationId: promotionOrg, actorId });
-    assert.equal((await importer.apply(bundle, "integration-promotion")).status, "imported");
+    const productionSource = "b".repeat(40);
+    const importer = new ContentPromotionImporter(pool, store, { organisationId: promotionOrg, actorId, publicationSourceSha: productionSource });
+    const imported = await importer.apply(bundle, "integration-promotion");
+    assert.equal(imported.status, "imported");
+    const job = (await pool.query("SELECT id,status,source_sha,manifest FROM twe.publication_jobs WHERE organisation_id=$1 AND environment='production'", [promotionOrg])).rows[0];
+    assert.equal(job.id, imported.publicationId);
+    assert.equal(job.status, "pending");
+    assert.equal(job.source_sha, productionSource);
+    assert.equal(job.manifest.triggerType, "initial_promotion");
+    assert.deepEqual(Object.fromEntries(job.manifest.pages.map(page => [page.slug, page.body])), bundle.pages);
+    const wrongWorker = new PublicationRepository(pool, { organisationId: promotionOrg, environment: "production", sourceSha: "c".repeat(40) });
+    assert.equal(await wrongWorker.claim(), undefined);
+    assert.equal((await pool.query("SELECT status FROM twe.publication_jobs WHERE id=$1", [job.id])).rows[0].status, "pending");
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.content_items WHERE organisation_id=$1", [promotionOrg])).rows[0].n, pageNames.length);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='content.production_seed_imported'", [promotionOrg])).rows[0].n, 1);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.enquiries WHERE organisation_id=$1", [promotionOrg])).rows[0].n, 0);
     const beforeReplay = (await pool.query("SELECT id, slug, version, draft_revision_id, published_revision_id FROM twe.content_items WHERE organisation_id=$1 ORDER BY slug", [promotionOrg])).rows;
     const revisionCount = (await pool.query("SELECT count(*)::int AS n FROM twe.content_revisions WHERE organisation_id=$1", [promotionOrg])).rows[0].n;
     assert.equal((await importer.apply(bundle, "integration-promotion-replay")).status, "already_imported");
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.publication_jobs WHERE organisation_id=$1", [promotionOrg])).rows[0].n, 1);
     assert.deepEqual((await pool.query("SELECT id, slug, version, draft_revision_id, published_revision_id FROM twe.content_items WHERE organisation_id=$1 ORDER BY slug", [promotionOrg])).rows, beforeReplay);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.content_revisions WHERE organisation_id=$1", [promotionOrg])).rows[0].n, revisionCount);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='content.production_seed_imported'", [promotionOrg])).rows[0].n, 1);
