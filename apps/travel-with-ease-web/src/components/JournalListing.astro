@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import PlacedImage from "./PlacedImage.astro";
 import { IconsaxIcon } from "@faako/ui";
 import { publishedPage } from "../lib/published.js";
@@ -26,7 +27,7 @@ const formatDate = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateS
 <section class="editorial-wrap collection-page journal-landing" id="journal-collection">
   <header class="journal-landing__intro">
     <h1>{publishedPage("journal")?.heading || "Stories for the journey."}</h1>
-    <p>{publishedPage("journal")?.body || ""}</p>
+    <RichText value={publishedPage("journal")?.body || ""}/>
   </header>
 
   {orderedItems.length ? (
