@@ -1,6 +1,6 @@
 import { plainRichText } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight4, ArrowLeft4 } from "@faako/ui";
+import { ArrowRight4, IconsaxIcon } from "@faako/ui";
 import TiltedCard, { TiltedCardLayer } from "./reactbits/TiltedCard.jsx";
 import { moneySegments } from "../lib/currency-display.js";
 import "../styles/components/package-ticket.css";
@@ -90,7 +90,7 @@ export default function PackageTicketCard({
                   title="Back to ticket"
                   onClick={() => setFlipped(false)}
                 >
-                  <ArrowLeft4 size={20} aria-hidden="true" focusable="false" />
+                  <IconsaxIcon name="ArrowLeft4" width={20} height={20} aria-hidden="true" focusable="false" />
                 </button>
                 <a
                   href={href}
