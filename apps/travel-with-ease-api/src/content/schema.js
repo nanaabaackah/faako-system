@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { packageOccasions, serviceSlug } from "./catalogue-constants.js";
 import { editorialFields } from "./editorial-fields.js";
+import { withUpdatedPackageFlow } from "./process-flow.js";
 import { placementSlots } from './placement-catalogue.js';
 
 export const pageNames = [
@@ -18,6 +19,7 @@ export const pageNames = [
   "privacy",
   "terms",
   "cookies",
+  "footer",
   'site-appearance',
 ];
 export const pageSchema = z.enum(pageNames);
@@ -143,6 +145,7 @@ const articleSchema = z
     ctaPath: z.enum(["", "/#plan", "/services/travel-readiness-session", "/packages/nairobi", "/packages"]).default(""),
     relatedArticleSlugs: z.array(slug).max(8).default([]),
     homeTipOrder: z.number().int().min(1).max(3).optional(),
+    featuredOnJournal: z.boolean().default(false),
     author: text(120).default(""),
     imagePlacement:imagePlacementSchema.optional(),
     imageId: z.string().uuid().nullable().default(null),
@@ -156,6 +159,15 @@ export const contentBodySchema = z
   .object({
     heading: text(120).min(1),
     body: text(6000),
+    branding: z.object({
+      headingFont: z.enum(["poiret-one", "quicksand", "inter", "outfit"]).default("poiret-one"),
+      bodyFont: z.enum(["quicksand", "inter", "outfit"]).default("quicksand"),
+      headerLogoId: z.string().uuid().nullable().default(null),
+      scrolledLogoId: z.string().uuid().nullable().default(null),
+      footerLogoId: z.string().uuid().nullable().default(null),
+      faviconId: z.string().uuid().nullable().default(null),
+      socialImageId: z.string().uuid().nullable().default(null),
+    }).strict().default({}),
     editorialCopy: z.record(text(2000).min(1)).default({}),
     reviews: z.array(z.object({ preview: text(3000).min(1), more: text(6000) }).strict()).max(30).optional(),
     ctaLabel: text(60).default(""),
@@ -172,8 +184,9 @@ export const contentBodySchema = z
         steps: z.array(z.object({
           heading: text(160).min(1),
           text: text(2000).min(1),
-        }).strict()).length(4),
+        }).strict()).min(4).max(5),
         example: text(2500).min(1),
+        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
       }).strict(),
       planning: z.object({
         steps: z.array(z.object({
@@ -181,6 +194,7 @@ export const contentBodySchema = z
           text: text(2000).min(1),
         }).strict()).length(4),
         example: text(2500).min(1),
+        exampleSteps: z.array(z.object({ heading: text(160).min(1), text: text(2000).min(1) }).strict()).length(4).optional(),
       }).strict(),
     }).strict().optional(),
     entries: z
@@ -205,6 +219,14 @@ export const contentBodySchema = z
     contactPhone: text(40)
       .regex(/^[+0-9 ()-]*$/)
       .default(""),
+    footerLinks: z.array(z.object({
+      id: z.string().uuid(),
+      group: z.enum(["explore", "social", "contact", "legal"]),
+      label: text(120).min(1),
+      href: text(500).refine(value => value.startsWith("/") || /^https:\/\//.test(value) || /^(mailto:|tel:)/.test(value), "Enter a supported internal or secure external link."),
+      visible: z.boolean().default(true),
+      order: z.number().int().min(0).max(999).default(0),
+    }).strict()).max(40).default([]).refine(items => new Set(items.map(item => item.id)).size === items.length, "Footer link IDs must be unique."),
     articles: z
       .array(articleSchema)
       .max(20)
@@ -213,7 +235,8 @@ export const contentBodySchema = z
         (items) =>
           new Set(items.map((item) => item.slug)).size === items.length,
         "Article URLs must be unique.",
-      ),
+      ).refine(items => items.filter(item => item.featuredOnJournal).length <= 1,
+        "Select only one featured Journal article."),
     tips: z
       .array(tipSchema)
       .max(30)
@@ -268,13 +291,17 @@ export const contentBodySchema = z
 export function contentForPage(page, body) {
   pageSchema.parse(page);
   const value = contentBodySchema.parse(body);
-  const editorialKeys = new Set((editorialFields[page] || []).map(([key]) => key));
+  const editorialKeys = new Set([
+    ...(editorialFields[page] || []).map(([key]) => key),
+    ...(page === "site-appearance" ? (editorialFields.footer || []).map(([key]) => key) : []),
+  ]);
   for (const [key, copy] of Object.entries(value.editorialCopy)) {
     if (!editorialKeys.has(key)) throw new ContentError(400, "validation_error", "Choose a supported editorial field for this section.");
     const socialPatterns = { instagramUrl: /^https:\/\/www\.instagram\.com\/[a-zA-Z0-9_.]+\/?$/, tiktokUrl: /^https:\/\/www\.tiktok\.com\/@[a-zA-Z0-9_.]+\/?$/, whatsappUrl: /^https:\/\/wa\.me\/[1-9][0-9]{6,14}$/ };
     if (Object.hasOwn(socialPatterns, key) && !socialPatterns[key].test(copy)) throw new ContentError(400, "validation_error", "Enter a valid Instagram, TikTok or WhatsApp profile link.");
   }
   if (page !== "home" && value.reviews !== undefined) throw new ContentError(400, "validation_error", "Edit traveller reviews in Home.");
+  if (page !== "footer" && value.footerLinks.length) throw new ContentError(400, "validation_error", "Edit footer links in Footer.");
   const allowed=new Set(placementSlots(page).map(slot=>slot.id));
   for(const [key,placement] of Object.entries(value.imagePlacements)) {
     if(!allowed.has(key)||(!placementSlots(page).find(slot=>slot.id===key)?.split&&placement.layout!=='default')) throw new ContentError(400,'validation_error','Choose a supported image placement and layout for this section.');
@@ -299,6 +326,7 @@ export function contentForPage(page, body) {
       "Use the packages, journal, travel tips or travel footprint section for those records.",
     );
   }
+  if (page === "how-it-works" && value.processFlows) value.processFlows = withUpdatedPackageFlow(value.processFlows);
   return value;
 }
 export const saveContentSchema = z
@@ -324,6 +352,11 @@ export function contentMediaIds(body) {
     ...new Set(
       [
         body.imageId,
+        body.branding?.headerLogoId,
+        body.branding?.scrolledLogoId,
+        body.branding?.footerLogoId,
+        body.branding?.faviconId,
+        body.branding?.socialImageId,
         ...[...Object.values(body.imagePlacements||{}),...body.entries.map(entry=>entry.imagePlacement),...body.tips.map(tip=>tip.imagePlacement),...[...body.packages,...body.articles].map(item=>item.imagePlacement)].filter(Boolean).flatMap(placement=>[placement.imageId,placement.mobileImageId]),
         ...body.tips.map((tip) => tip.imageId),
         ...[...body.packages, ...body.articles].flatMap((item) => [

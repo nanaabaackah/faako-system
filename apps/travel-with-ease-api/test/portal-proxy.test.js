@@ -22,6 +22,13 @@ test("portal upstream allows only fixed HTTPS origins outside local tests", () =
   assert.equal(isAllowedPortalApiRoute("GET", `/api/agent/content/publication-jobs/${publicationId}/cancel`), false);
   assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/content/publication-jobs/bad/cancel"), false);
   assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/content/publication-jobs/${publicationId}/delete`), false);
+  const mediaId = "234c845f-49e7-4566-8752-a23a3ad0185c";
+  assert.equal(isAllowedPortalApiRoute("GET", "/api/agent/media/drive"), true);
+  assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/media/drive/import"), true);
+  assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/media/upload"), true);
+  assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/media/${mediaId}/replace`), true);
+  assert.equal(isAllowedPortalApiRoute("GET", "/api/agent/media/drive/import"), false);
+  assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/media/drive/delete"), false);
 });
 
 test("portal verifies Access, restricts proxy routes and preserves only scoped credentials", async () => {
@@ -91,14 +98,24 @@ test("portal verifies Access, restricts proxy routes and preserves only scoped c
     assert.equal(calls[1].options.headers["x-csrf-token"], "fixture-csrf");
     assert.equal(calls[1].options.headers.cookie, "__Host-twe_session=fixture");
     assert.equal((await request(cancelPath, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).status, 403);
+    const image = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+    const upload = await request("/api/agent/media/upload", { method: "POST", body: image, headers: {
+      origin: settings.portalOrigin, "content-type": "image/png", "content-length": String(image.length),
+      "x-csrf-token": "fixture-csrf", "x-media-alt": "Beach%20at%20sunset", cookie: "__Host-twe_session=fixture",
+    } });
+    assert.equal(upload.status, 200);
+    assert.equal(calls[2].url, "https://api.example.test/api/agent/media/upload");
+    assert.equal(calls[2].options.headers["content-type"], "image/png");
+    assert.equal(calls[2].options.headers["x-media-alt"], "Beach%20at%20sunset");
+    assert.deepEqual(calls[2].options.body, image);
     assert.equal((await request("/api/auth/session", { headers: { cookie: "__Host-twe_session=a; __Host-twe_session=b" } })).status, 400);
     assert.equal((await request("/api/auth/access-session", { method: "POST", headers: { origin: settings.portalOrigin, "content-type": "application/json" }, body: "x".repeat(32769) })).status, 413);
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     upstreamStatus = 302;
     const redirect = await request("/api/auth/session");
     assert.equal(redirect.status, 502);
     assert.equal(redirect.headers.location, undefined);
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 4);
     upstreamFailure = true;
     const unavailable = await request("/api/auth/session");
     assert.equal(unavailable.status, 502);

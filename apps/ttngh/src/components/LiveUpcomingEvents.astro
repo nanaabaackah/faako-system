@@ -1,0 +1,17 @@
+---
+import "../styles/components/live-upcoming-events.css";
+const api = import.meta.env.PUBLIC_TTNGH_API_ORIGIN?.trim() || "";
+const { editorialEvents = [] } = Astro.props;
+// Only public, published editorial UID/date pairs are shared; no unpublished content.
+const linked = editorialEvents.filter(event => event.calendarUid).map(event => ({
+  uid: event.calendarUid, start: event.start,
+}));
+const hasEditorialUpcoming = editorialEvents.some(event => Date.parse(event.end) > Date.now());
+---
+<live-upcoming-events data-api={api} data-editorial-links={JSON.stringify(linked)} hidden>
+  <h2 id="live-upcoming-title">{hasEditorialUpcoming ? "More upcoming dates" : "Upcoming events"}</h2>
+  <div class="live-upcoming-grid" data-live-upcoming-list></div>
+</live-upcoming-events>
+<script>
+  import "../scripts/live-upcoming-events.ts";
+</script>

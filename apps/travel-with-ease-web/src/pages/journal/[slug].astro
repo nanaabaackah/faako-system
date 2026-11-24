@@ -31,14 +31,14 @@ const packages =
 >
   <JournalArticle
     item={item}
-    related={articles
-      .filter(
-        (other: Article) =>
-          other.slug !== item.slug && other.category === item.category &&
-          (item.category !== "Travel tip" || other.series === item.series) &&
-          !item.relatedArticleSlugs?.includes(other.slug),
-      )
-      .slice(0, 3)}
+    related={[...articles]
+      .filter((other: Article) =>
+        other.slug !== item.slug && !item.relatedArticleSlugs?.includes(other.slug))
+      .sort((a: Article, b: Article) =>
+        Number(b.category === item.category) - Number(a.category === item.category) ||
+        Number(b.series === item.series) - Number(a.series === item.series) ||
+        b.date.localeCompare(a.date))
+      .slice(0, 4)}
     linked={articles.filter((other: Article) => item.relatedArticleSlugs?.includes(other.slug))}
     packages={packages.filter((pkg: TravelPackage) =>
       item.relatedPackageSlugs?.includes(pkg.slug),

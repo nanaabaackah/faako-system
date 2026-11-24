@@ -1,6 +1,7 @@
 ---
-import PlacedImage from './PlacedImage.astro';
+import PlacedImage from "./PlacedImage.astro";
 import ContentLink from "./ContentLink.astro";
+import { IconsaxIcon } from "@faako/ui";
 import { siteCopy } from "../lib/editorial-copy.js";
 import Breadcrumbs from "./Breadcrumbs.astro";
 import ClosingCta from "./ClosingCta.astro";
@@ -9,6 +10,8 @@ import ImageGallery from "./ImageGallery.astro";
 import { journalBodyBlocks } from "../lib/journal-body.js";
 import type { JournalArticle, TravelPackage } from "../lib/collections";
 import "../styles/components/collections.css";
+import "../styles/components/journal-detail.css";
+
 interface Props {
   item: JournalArticle;
   related?: JournalArticle[];
@@ -18,94 +21,167 @@ interface Props {
   packagePrefix?: string;
 }
 const {
-  item,
-  related = [],
-  linked = [],
-  packages = [],
-  prefix = "/journal",
-  packagePrefix = "/packages",
+  item, related = [], linked = [], packages = [],
+  prefix = "/journal", packagePrefix = "/packages",
 } = Astro.props;
 const blocks = journalBodyBlocks(item.body);
-const isTip = item.category === "Travel tip";
+const readingMinutes = Math.max(1, Math.ceil(([item.title, item.excerpt, item.body].join(" ").trim().split(/\s+/).length) / 220));
+const formattedDate = new Date(`${item.date}T12:00:00Z`).toLocaleDateString("en-GH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const author = item.author?.trim() || "Travel With Ease";
+const otherArticles = [...new Map([...linked, ...related].filter(other => other.slug !== item.slug).map(other => [other.slug, other])).values()];
+const sideArticles = otherArticles.slice(0, 4);
+const footerArticles = otherArticles.slice(0, 3);
+const relatedHeading = siteCopy("journal").relatedReading;
 ---
 
-<article class="editorial-wrap collection-detail journal-reading">
+<article class="editorial-wrap journal-detail journal-reading">
   <Breadcrumbs collection="Travel Journal" href={prefix} title={item.title} />
+  <div class="journal-detail__grid">
+    <div class="journal-detail__main">
+      <header class="journal-detail__header collection-detail-heading">
+        <a class="journal-detail__category" href={`${prefix}?category=${encodeURIComponent(item.category || "Travel stories")}`}>
+          {item.category || "Travel stories"}
+        </a>
+        {item.series && <span class="journal-detail__series">{item.series}</span>}
+        <h1>{item.title}</h1>
+        <p class="journal-detail__summary collection-standfirst">{item.excerpt}</p>
+        <div class="journal-detail__meta" aria-label="Article details">
+          <span class="journal-detail__meta-entry"><IconsaxIcon name="People" /> {author}</span>
+          <span class="journal-detail__meta-entry"><IconsaxIcon name="DocumentText" /> <time datetime={item.date}>{formattedDate}</time></span>
+          <span class="journal-detail__meta-entry"><IconsaxIcon name="Timer" /> {readingMinutes} min read</span>
+          <button class="journal-detail__share" type="button" data-journal-share data-title={item.title} aria-label="Share this article">
+            <IconsaxIcon name="ArrowRight4" /> <span data-journal-share-label>Share</span>
+          </button>
+        </div>
+      </header>
+      {item.image && (
+        <PlacedImage
+          image={item.image} placement={item.imagePlacement}
+          class="journal-detail__hero collection-hero"
+          sizes="(max-width: 960px) 94vw, (max-width: 1360px) 65vw, 900px"
+          alt={item.image.alt} fetchpriority="high"
+        />
+      )}
+      <div class="journal-detail__content collection-reading" id="journal-body">
+        {blocks.map((block, index) => block.type === "ordered" ? (
+          <ol>{block.items.map(text => <li>{text}</li>)}</ol>
+        ) : block.type === "unordered" ? (
+          <ul>{block.items.map(text => <li>{text}</li>)}</ul>
+        ) : block.type === "heading" ? (
+          <h2 id={`journal-section-${index}`}>{block.text}</h2>
+        ) : block.type === "disclaimer" ? (
+          <p class="journal-entry-disclaimer">{block.text}</p>
+        ) : (
+          <p>{block.text}</p>
+        ))}
+      </div>
+      {item.ctaLabel && item.ctaPath && (
+        <div class="journal-entry-cta"><ContentLink button href={item.ctaPath}>{item.ctaLabel}</ContentLink></div>
+      )}
+      {(item.gallery?.length || 0) > 0 && (
+        <div class="journal-detail__gallery"><ImageGallery images={item.gallery || []} /></div>
+      )}
+    </div>
 
-  <header class="collection-detail-heading">
-    <p>{item.category || "Travel stories"}{item.series ? ` · ${item.series}` : ""}</p><h1>{item.title}</h1><p>
-      <time datetime={item.date}>{item.date}</time>{
-        item.author && ` · ${item.author}`
-      }
-    </p>
-  </header>
-  {
-    item.image && (
-      <PlacedImage image={item.image} placement={item.imagePlacement}
-        class="collection-hero"
-        src={item.image.src}
-        srcset={item.image.sources
-          ?.map((source) => `${source.src} ${source.width}w`)
-          .join(", ")}
-        sizes="90vw"
-        width={item.image.width}
-        height={item.image.height}
-        alt={item.image.alt}
-        fetchpriority="high"
-      />
-    )
-  }
-  <div class="collection-reading">
-    <p class:list={["collection-standfirst", { "journal-standfirst--tip": isTip }]}>{item.excerpt}</p>
-    {blocks.map((block) => block.type === "ordered" ? (
-      <ol>{block.items.map((text) => <li>{text}</li>)}</ol>
-    ) : block.type === "unordered" ? (
-      <ul>{block.items.map((text) => <li>{text}</li>)}</ul>
-    ) : block.type === "heading" ? (
-      <h2>{block.text}</h2>
-    ) : block.type === "disclaimer" ? (
-      <p class="journal-entry-disclaimer">{block.text}</p>
-    ) : (
-      <p>{block.text}</p>
-    ))}
+    <aside class="journal-detail__sidebar" aria-label="Article sidebar">
+      <section class="journal-detail__facts" aria-label="About this article">
+        <h2><IconsaxIcon name="InfoCircle" /> About this article</h2>
+        <dl>
+          <div><dt>Category</dt><dd>{item.category || "Travel stories"}</dd></div>
+          {item.series && <div><dt>Series</dt><dd>{item.series}</dd></div>}
+          <div><dt>Published</dt><dd><time datetime={item.date}>{formattedDate}</time></dd></div>
+          <div><dt>Reading time</dt><dd>{readingMinutes} min</dd></div>
+        </dl>
+      </section>
+      {sideArticles.length > 0 && (
+        <section class="journal-detail__side-reading" aria-labelledby="journal-related-heading">
+          <div class="journal-detail__section-header">
+            <h2 id="journal-related-heading">{relatedHeading}</h2>
+            <ContentLink href={prefix}>All stories</ContentLink>
+          </div>
+          <div class="journal-detail__side-list">
+            {sideArticles.map(other => (
+              <a class="journal-detail__related-item" href={`${prefix}/${other.slug}`}>
+                {other.image && <PlacedImage image={other.image} placement={other.imagePlacement} alt={other.image.alt} sizes="116px" loading="lazy" />}
+                <span>
+                  <small>{other.category || "Travel stories"}</small>
+                  <strong>{other.title}</strong>
+                  <time datetime={other.date}>{new Date(`${other.date}T12:00:00Z`).toLocaleDateString("en-GH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</time>
+                </span>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+      <section class="journal-detail__topics" aria-labelledby="journal-topics-heading">
+        <h2 id="journal-topics-heading">Explore the Journal</h2>
+        <div>
+          <a href={`${prefix}?category=${encodeURIComponent("Travel tip")}`}>Travel tips</a>
+          <a href={`${prefix}?category=${encodeURIComponent("Trip story")}`}>Trip stories</a>
+          <a href={`${prefix}?series=${encodeURIComponent("Before you fly")}`}>Before you fly</a>
+          <a href={`${prefix}?series=${encodeURIComponent("Visas and entry")}`}>Visas and entry</a>
+        </div>
+      </section>
+      <section class="journal-detail__planning" aria-labelledby="journal-planning-heading">
+        <span>Travel With Ease</span>
+        <h2 id="journal-planning-heading">Plan your next trip with confidence.</h2>
+        <p>Explore the journeys and planning services that match your ideas.</p>
+        <ContentLink button href="/packages">Explore packages</ContentLink>
+      </section>
+      {packages.length > 0 && (
+        <section class="journal-detail__side-reading" aria-label="Related packages">
+          <h2>{siteCopy("journal").relatedJourneys}</h2>
+          {packages.map(other => (
+            <a class="journal-detail__package-link" href={`${packagePrefix}/${other.slug}`}>{other.title}<IconsaxIcon name="ArrowRight4" /></a>
+          ))}
+        </section>
+      )}
+    </aside>
   </div>
-  {item.ctaLabel && item.ctaPath && (
-    <div class="journal-entry-cta"><ContentLink button href={item.ctaPath}>{item.ctaLabel}</ContentLink></div>
-  )}
-  {linked.length > 0 && (
-    <section class="collection-related" aria-label="Related reading">
-      <h2>{siteCopy("journal").relatedReading}</h2>
-      {linked.map((other) => <ContentLink href={`/journal/${other.slug}`}>{other.title}</ContentLink>)}
+
+  {footerArticles.length > 0 && (
+    <section class="journal-detail__more" aria-labelledby="journal-more-heading">
+      <div class="journal-detail__section-header">
+        <h2 id="journal-more-heading">{siteCopy("journal").keepReading}</h2>
+        <ContentLink href={prefix}>View all stories</ContentLink>
+      </div>
+      <div class="journal-detail__more-grid">
+        {footerArticles.map(other => (
+          <article class="journal-detail__more-card">
+            <a href={`${prefix}/${other.slug}`}>
+              {other.image && <PlacedImage image={other.image} placement={other.imagePlacement} alt={other.image.alt} sizes="(max-width: 760px) 92vw, 33vw" loading="lazy" />}
+              <div>
+                <span>{other.category || "Travel stories"}</span>
+                <h3>{other.title}</h3>
+                <time datetime={other.date}>{new Date(`${other.date}T12:00:00Z`).toLocaleDateString("en-GH", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</time>
+              </div>
+            </a>
+          </article>
+        ))}
+      </div>
     </section>
   )}
-  {
-    (item.gallery?.length || 0) > 0 && (
-      <ImageGallery images={item.gallery || []} />
-    )
-  }
-  {
-    packages.length > 0 && (
-      <section class="collection-related">
-        <h2>{siteCopy("journal").relatedJourneys}</h2>
-        {packages.map((other) => (
-          <ContentLink href={`${packagePrefix}/${other.slug}`}>
-            {other.title}
-          </ContentLink>
-        ))}
-      </section>
-    )
-  }
-  {
-    related.length > 0 && (
-      <section class="collection-related">
-        <h2>{siteCopy("journal").keepReading}</h2>
-        {related.map((other) => (
-          <ContentLink href={`${prefix}/${other.slug}`}>
-            {other.title}
-          </ContentLink>
-        ))}
-      </section>
-    )
-  }
 </article>
-<ClosingCta standalone enquiryAvailable={Boolean(publishedPage("contact"))} />
+<ClosingCta variant="sand" standalone enquiryAvailable={Boolean(publishedPage("contact"))} />
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>("[data-journal-share]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const url = window.location.href;
+      const title = button.dataset.title || document.title;
+      try {
+        if (navigator.share) await navigator.share({ title, url });
+        else if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(url);
+          const label = button.querySelector<HTMLElement>("[data-journal-share-label]");
+          if (label) {
+            label.textContent = "Link copied";
+            window.setTimeout(() => { label.textContent = "Share"; }, 2500);
+          }
+        } else window.prompt("Copy article link", url);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") button.setAttribute("aria-label", "Could not share; try again");
+      }
+    });
+  });
+</script>

@@ -32,7 +32,7 @@ test("Option A changes four editorial homepage sections only", () => {
 
 test("protected hero, packages, footprint and closing CTA are preserved", () => {
   assert.match(home, /<CinematicHero heading=\{content\.heading\} body=\{content\.body\} image=\{content\.image\} placement=\{content\.imagePlacements\?\.hero\} \/>/);
-  assert.match(home, /\{packages\?\.packages\?\.length > 0 && <FeaturedJourneys items=\{packages\.packages\} \/>\}/);
+  assert.match(home, /\{packages\?\.packages\?\.length > 0 && \([\s\S]*?<AnimatedContent[\s\S]*?<FeaturedJourneys items=\{packages\.packages\} \/>[\s\S]*?<\/AnimatedContent>[\s\S]*?\)\}/);
   assert.match(home, /<section id="our-world" class="cream-footprint">[\s\S]*?<TravelFootprint heading=\{footprint\?\.heading\} description=\{footprint\?\.body\}>/);
   assert.match(home, /footprint\.entries\.map/);
   assert.match(home, /<ClosingCta enquiryAvailable=\{Boolean\(contact\)\} \/>/);
@@ -60,7 +60,7 @@ test("services keep published labels, prices, currency formatting and direct lin
 });
 
 test("process preserves the existing Stepper for both approved homepage routes", () => {
-  assert.match(process, /const homepageFlows = content\.processFlows/);
+  assert.match(process, /const homepageFlows: Props\["content"\]\["processFlows"\] = withUpdatedPackageFlow\(content\.processFlows\)/);
   assert.match(process, /<HomeJourneyStepper flows=\{homepageFlows\} client:visible/);
   assert.match(process, /"planning-process": page/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);

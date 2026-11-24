@@ -10,6 +10,7 @@ import CinematicHero from "./CinematicHero.astro";
 import HomeServices from "./HomeServices.astro";
 import FeaturedJourneys from "./FeaturedJourneys.astro";
 import JourneyProcess from "./JourneyProcess.astro";
+import AnimatedContent from "./react-bits/AnimatedContent.jsx";
 import { publishedPage } from "../lib/published.js";
 import type { JournalArticle } from "../lib/collections";
 import "../styles/components/home-sections.css";
@@ -26,8 +27,9 @@ const footprint = publishedPage("travel-footprint");
 ---
 
 <CinematicHero heading={content.heading} body={content.body} image={content.image} placement={content.imagePlacements?.hero} />
-<div class="home-journey-chapters">
-  {about && (
+{about && (
+  <AnimatedContent client:visible className="home-scroll-motion" distance={28} duration={0.78} ease="power3.out" blur={3} threshold={0.12}>
+    <div class="home-journey-chapters">
     <section id="about" class:list={["journey-introduction", "journey-introduction--option-a", { "journey-introduction--no-photo": !about.image }]}>
       <div class="editorial-wrap journey-introduction__inner">
         <div class="journey-introduction__story">
@@ -49,34 +51,51 @@ const footprint = publishedPage("travel-footprint");
         )}
       </div>
     </section>
-  )}
-</div>
+    </div>
+  </AnimatedContent>
+)}
 {services?.entries?.length > 0 && (
-  <div class="home-journey-chapters">
-    <HomeServices heading={services.heading} body={services.body} entries={services.entries} />
-  </div>
+  <AnimatedContent client:visible className="home-scroll-motion" distance={28} duration={0.78} ease="power3.out" blur={3} threshold={0.12}>
+    <div class="home-journey-chapters">
+      <HomeServices heading={services.heading} body={services.body} entries={services.entries} />
+    </div>
+  </AnimatedContent>
 )}
-{packages?.packages?.length > 0 && <FeaturedJourneys items={packages.packages} />}
+{packages?.packages?.length > 0 && (
+  <AnimatedContent client:visible className="home-scroll-motion" distance={28} duration={0.78} ease="power3.out" blur={3} threshold={0.12}>
+    <FeaturedJourneys items={packages.packages} />
+  </AnimatedContent>
+)}
 {process && (
-  <div class="home-journey-chapters">
-    <JourneyProcess content={process} />
-  </div>
+  <AnimatedContent client:visible className="home-scroll-motion" distance={28} duration={0.78} ease="power3.out" blur={3} threshold={0.12}>
+    <div class="home-journey-chapters">
+      <JourneyProcess content={process} />
+    </div>
+  </AnimatedContent>
 )}
-<section id="our-world" class="cream-footprint">
-  <div class="editorial-wrap">
-    <TravelFootprint heading={footprint?.heading} description={footprint?.body}>
-      {footprint && (
-        <ul class="footprint-totals">
-          {footprint.entries.map((entry: { heading: string; text: string }) => (
-            <li><strong>{entry.heading}</strong><span>{entry.text}</span></li>
-          ))}
-        </ul>
-      )}
-    </TravelFootprint>
-  </div>
-</section>
-{journal?.articles?.some((article: JournalArticle) => article.category === "Travel tip" && article.homeTipOrder) && <TravelTips tips={journal.articles} />}
+<AnimatedContent client:visible className="home-scroll-motion" distance={28} duration={0.78} ease="power3.out" blur={3} threshold={0.12}>
+  <section id="our-world" class="cream-footprint">
+    <div class="editorial-wrap">
+      <TravelFootprint heading={footprint?.heading} description={footprint?.body}>
+        {footprint && (
+          <ul class="footprint-totals">
+            {footprint.entries.map((entry: { heading: string; text: string }) => (
+              <li><strong>{entry.heading}</strong><span>{entry.text}</span></li>
+            ))}
+          </ul>
+        )}
+      </TravelFootprint>
+    </div>
+  </section>
+</AnimatedContent>
+{journal?.articles?.some((article: JournalArticle) => article.category === "Travel tip" && article.homeTipOrder) && (
+  <AnimatedContent client:visible className="home-scroll-motion" distance={28} duration={0.78} ease="power3.out" blur={3} threshold={0.12}>
+    <TravelTips tips={journal.articles} />
+  </AnimatedContent>
+)}
 <!-- Packages and Journal retain their dedicated listing and detail pages. -->
 <!-- The CTA and continuous enquiry/footer keep their existing appearance. -->
 <ClosingCta enquiryAvailable={Boolean(contact)} />
-<TravellerReviews />
+<AnimatedContent client:visible className="home-scroll-motion" distance={24} duration={0.72} ease="power3.out" threshold={0.12}>
+  <TravellerReviews />
+</AnimatedContent>

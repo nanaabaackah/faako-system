@@ -16,6 +16,8 @@ function answerFor(question) {
   if (question.id === "214964047") return "synthetic@example.invalid";
   if (question.id === "836507955") return "2";
   if (question.id === "502234433") return "No";
+  if (question.id === "300000009") return "Not yet, we need ideas";
+  if (question.id === "300000026") return "No, everyone pays their own way";
   if (question.type === "CHECKBOX") return question.options.slice(0, 1);
   if (question.type === "MULTIPLE_CHOICE") return question.options[0];
   return "Synthetic answer";
@@ -34,15 +36,48 @@ function planningPayload() {
   };
 }
 
-test("source inventory retains all 29 planning and 3 Start Here questions with original IDs", () => {
+function groupPayload() {
+  const context = { serviceId: "group", serviceTitle: "Group Trip Planning" };
+  const answers = {};
+  for (const id of applicableQuestionIds(context, answers)) {
+    if (id === "300000015") answers[id] = "4";
+    else if (id === "300000023") answers[id] = "GHS 10,000";
+    else if (questions[id].required || ["476632894", "1078451195", "214964047"].includes(id)) answers[id] = answerFor(questions[id]);
+  }
+  return {
+    ...planningPayload(), entryType: "service", context, answers,
+    contact: { name: answers["476632894"], phone: answers["1078451195"], email: answers["214964047"] },
+  };
+}
+
+test("source inventory retains planning, Start Here and group-lead questions with stable IDs", () => {
   const actual = (source) => source.items.filter((item) => !["PAGE_BREAK", "SECTION_HEADER"].includes(item.type));
   assert.equal(actual(sourceQuestionnaires.fullTripPlanning).length, 29);
   assert.equal(actual(sourceQuestionnaires.startHere).length, 3);
+  assert.equal(actual(sourceQuestionnaires.groupTripPlanning).length, 30);
   assert.equal(questions["1444304495"].maxSelections, 3);
   assert.equal(questions["1366732008"].requireAllOptions, true);
   assert.equal(questions["1811901185"].collection, "deferred");
   assert.equal(questions["1811901185"].label, "Do you have any dietary requirements or allergies?");
   assert.equal(questions["180737542"].collection, "deferred");
+});
+
+test("group route enforces minimum size, conditional details, budget currency and selection limits", () => {
+  const base = groupPayload();
+  assert.equal(smartEnquirySchema.safeParse(base).success, true);
+  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: { ...base.answers, "300000015": "3" } }).success, false);
+  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: { ...base.answers, "300000023": "10000" } }).success, false);
+  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: { ...base.answers, "300000019": questions["300000019"].options.slice(0, 4) } }).success, false);
+
+  const destination = { ...base.answers, "300000009": "Yes, we have decided" };
+  assert.ok(applicableQuestionIds(base.context, destination).includes("300000010"));
+  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: destination }).success, false);
+  const destinationComplete = { ...destination, "300000010": "Lisbon" };
+  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: destinationComplete }).success, true);
+
+  const sponsored = { ...base.answers, "300000026": "A sponsor, employer or organisation will pay part" };
+  assert.ok(applicableQuestionIds(base.context, sponsored).includes("300000027"));
+  assert.equal(smartEnquirySchema.safeParse({ ...base, answers: sponsored }).success, false);
 });
 
 test("server validates a complete planning route and stores immutable question snapshots", () => {

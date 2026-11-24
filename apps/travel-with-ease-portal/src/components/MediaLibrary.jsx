@@ -6,9 +6,12 @@ import {
   TextField,
   SelectField,
   AnimatedLoadingState,
+  ERPConfirmDialog,
+  useToast,
 } from "@faako/ui";
 
 export default function MediaLibrary({ api, session, onSelect }) {
+  const { pushToast } = useToast();
   const [items, setItems] = useState([]);
   const [configured, setConfigured] = useState(false);
   const [driveConfigured, setDriveConfigured] = useState(false);
@@ -19,6 +22,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
   const [state, setState] = useState({ loading: true, error: "", message: "" });
   const [replacement, setReplacement] = useState("");
   const [preview, setPreview] = useState(null);
+  const [archiveTarget, setArchiveTarget] = useState(null);
   const form = useRef(null);
   const notice = useRef(null);
   const load = useCallback(async () => {
@@ -211,12 +215,6 @@ export default function MediaLibrary({ api, session, onSelect }) {
     }
   }
   async function archive(item) {
-    if (
-      !window.confirm(
-        "Archive this image? Images referenced by content history cannot be archived.",
-      )
-    )
-      return;
     setState({ loading: true, error: "", message: "" });
     try {
       await api.post(`/api/agent/media/${item.id}/archive`, {
@@ -231,6 +229,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         message:
           "Image archived. Stored files are retained; nothing was permanently deleted.",
       });
+      pushToast({ tone: "success", title: "Image archived", message: "Stored files were retained; nothing was permanently deleted." });
     } catch (error) {
       setState({ loading: false, error: error.message, message: "" });
     }
@@ -261,9 +260,11 @@ export default function MediaLibrary({ api, session, onSelect }) {
         <p role="status">{state.message}</p>
       )}
       {!state.loading && !configured && (
-        <p>
-          Media uploads are unavailable. Contact support.
-        </p>
+        <InlineNotice
+          tone="warning"
+          title="Media uploads are unavailable"
+          message="Photo storage is not connected for this workspace. Ask Faako for help; your existing content is unchanged."
+        />
       )}
       <section
         className="workspace-panel"
@@ -275,7 +276,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         </p>
         {!driveConfigured && !state.loading && (
           <p>
-            Drive import is unavailable. {configured ? "Upload a photo directly or contact support." : "Contact support."}
+            Drive import is unavailable. {configured ? "You can upload a JPG, PNG or WebP directly." : "Private image storage must be connected first."}
           </p>
         )}
         <Button
@@ -417,7 +418,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
               <Button
                 type="button"
                 disabled={state.loading}
-                onClick={() => archive(item)}
+                onClick={() => setArchiveTarget(item)}
               >
                 Archive {item.alt_text}
               </Button>
@@ -448,6 +449,8 @@ export default function MediaLibrary({ api, session, onSelect }) {
           </Button>
         </figure>
       )}
+      <ERPConfirmDialog open={Boolean(archiveTarget)} title="Archive this image?" message="Images referenced by content history cannot be archived. Stored files are retained; nothing is permanently deleted." confirmLabel="Archive image" loading={state.loading}
+        onCancel={() => setArchiveTarget(null)} onConfirm={async () => { const item = archiveTarget; setArchiveTarget(null); await archive(item); }} />
     </section>
   );
 }

@@ -126,3 +126,36 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Keep the process steps beside the photo, while the worked example spans the full page. */
+.planning-process__details {
+  padding-top: 0;
+  padding-bottom: clamp(48px, 7vw, 96px);
+}
+.planning-process__details .planning-example {
+  margin-top: clamp(48px, 7vw, 88px);
+  border-top: 1px solid var(--brand-grey);
+}
+.planning-process__details .planning-example__intro {
+  align-self: start;
+}
+.planning-process__details .planning-example__intro h2 {
+  text-transform: none;
+}
+.planning-process__details .planning-example__steps li {
+  padding: 0;
+  border: 0;
+}
+.planning-process__details .planning-example__steps li::before {
+  position: static;
+  width: auto;
+  background: none;
+  top: auto;
+  bottom: auto;
+  left: auto;
+}
+
+.planning-process .planning-flow--steps { width: 100%; }
+.planning-process .planning-flow--steps .planning-flow__steps li { padding-block: 18px; }
+.planning-process__details .planning-flow--examples { width: 100%; }
+.planning-flow__example-panel[hidden] { display: none !important; }

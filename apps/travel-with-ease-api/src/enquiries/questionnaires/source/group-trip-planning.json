@@ -1,0 +1,50 @@
+{
+  "title": "Group Trip Planning Questionnaire (Group Lead)",
+  "formId": "twe-group-trip-planning-group-lead",
+  "exportedAt": "2026-11-16T00:00:00.000Z",
+  "items": [
+    { "id": "390000001", "order": 1, "type": "PAGE_BREAK", "title": "About you", "description": "Tell us about your group trip. This takes about 10 minutes. You only need to answer for yourself and the trip. We will send a separate short form to your travellers later." },
+    { "id": "476632894", "order": 2, "sectionId": "390000001", "type": "TEXT", "title": "Full name", "description": "", "required": true },
+    { "id": "214964047", "order": 3, "sectionId": "390000001", "type": "TEXT", "title": "Email address", "description": "", "required": true },
+    { "id": "1078451195", "order": 4, "sectionId": "390000001", "type": "TEXT", "title": "WhatsApp number", "description": "", "required": true },
+    { "id": "300000004", "order": 5, "sectionId": "390000001", "type": "MULTIPLE_CHOICE", "title": "Your role in this trip", "description": "", "required": true, "options": [{"label":"Organiser"},{"label":"Celebrant"},{"label":"Both"},{"label":"Other"}], "allowOther": false },
+    { "id": "300000005", "order": 6, "sectionId": "390000001", "type": "TEXT", "title": "Were you referred by someone? If so, who?", "description": "", "required": false },
+
+    { "id": "390000002", "order": 7, "type": "PAGE_BREAK", "title": "About the trip", "description": "" },
+    { "id": "300000006", "order": 8, "sectionId": "390000002", "type": "MULTIPLE_CHOICE", "title": "What is the trip for?", "description": "", "required": true, "options": [{"label":"Milestone birthday"},{"label":"Friends' getaway"},{"label":"Honeymoon or couples' celebration"},{"label":"Family trip or reunion"},{"label":"Church or faith group"},{"label":"Alumni or association"},{"label":"Corporate or team"},{"label":"Something else"}], "allowOther": false },
+    { "id": "300000007", "order": 9, "sectionId": "390000002", "type": "PARAGRAPH_TEXT", "title": "Tell us a little about the occasion", "description": "", "required": false },
+    { "id": "300000008", "order": 10, "sectionId": "390000002", "type": "PARAGRAPH_TEXT", "title": "Imagine your group has been back home for two weeks. What has to have happened for you to feel incredible about booking this trip?", "description": "", "required": true },
+
+    { "id": "390000003", "order": 11, "type": "PAGE_BREAK", "title": "Where and when", "description": "" },
+    { "id": "300000009", "order": 12, "sectionId": "390000003", "type": "MULTIPLE_CHOICE", "title": "Have you chosen a destination?", "description": "", "required": true, "options": [{"label":"Yes, we have decided"},{"label":"We have a shortlist"},{"label":"Not yet, we need ideas"}], "allowOther": false },
+    { "id": "300000010", "order": 13, "sectionId": "390000003", "type": "TEXT", "title": "Which destination, or which ones are on the shortlist?", "description": "", "required": false },
+    { "id": "300000011", "order": 14, "sectionId": "390000003", "type": "TEXT", "title": "When would you like to travel?", "description": "Enter a month and year or a date range.", "required": true },
+    { "id": "300000012", "order": 15, "sectionId": "390000003", "type": "MULTIPLE_CHOICE", "title": "How flexible are the dates?", "description": "", "required": true, "options": [{"label":"Fixed"},{"label":"A few days either way"},{"label":"A month either way"}], "allowOther": false },
+    { "id": "300000013", "order": 16, "sectionId": "390000003", "type": "TEXT", "title": "How many nights would you like?", "description": "Enter a number or ‘Not sure’.", "required": false },
+    { "id": "300000014", "order": 17, "sectionId": "390000003", "type": "TEXT", "title": "Which city or cities will your travellers fly from?", "description": "For example: Accra, London or Houston.", "required": true },
+
+    { "id": "390000004", "order": 18, "type": "PAGE_BREAK", "title": "The group", "description": "" },
+    { "id": "300000015", "order": 19, "sectionId": "390000004", "type": "TEXT", "title": "How many travellers, including you?", "description": "Group Trip Planning starts at four travellers.", "required": true },
+    { "id": "300000016", "order": 20, "sectionId": "390000004", "type": "TEXT", "title": "How many are children under 12, and how old are they?", "description": "", "required": false },
+    { "id": "300000017", "order": 21, "sectionId": "390000004", "type": "MULTIPLE_CHOICE", "title": "How firm is the group?", "description": "", "required": true, "options": [{"label":"Everyone has confirmed"},{"label":"Most have confirmed"},{"label":"Still forming"}], "allowOther": false },
+    { "id": "300000018", "order": 22, "sectionId": "390000004", "type": "PARAGRAPH_TEXT", "title": "Is there anything about the group we should plan around?", "description": "For example: older travellers, mobility needs, young children, or a mix of couples and singles. Do not include medical information.", "required": false },
+
+    { "id": "390000005", "order": 23, "type": "PAGE_BREAK", "title": "The vibe", "description": "" },
+    { "id": "300000019", "order": 24, "sectionId": "390000005", "type": "CHECKBOX", "title": "What should this trip feel like?", "description": "Choose up to three.", "required": true, "options": [{"label":"Relaxing and beachy"},{"label":"Adventure"},{"label":"Culture and sightseeing"},{"label":"Food and drink"},{"label":"Nightlife and parties"},{"label":"Luxury and pampering"},{"label":"Spiritual or faith"},{"label":"Shopping"}], "allowOther": false },
+    { "id": "300000020", "order": 25, "sectionId": "390000005", "type": "MULTIPLE_CHOICE", "title": "What pace do you prefer?", "description": "", "required": true, "options": [{"label":"Slow and restful"},{"label":"A balance"},{"label":"Packed with activities"}], "allowOther": false },
+    { "id": "300000021", "order": 26, "sectionId": "390000005", "type": "MULTIPLE_CHOICE", "title": "Where would your group like to stay?", "description": "", "required": true, "options": [{"label":"Private villa or house"},{"label":"Hotel or resort"},{"label":"Apartments"},{"label":"A mix"},{"label":"No preference"}], "allowOther": false },
+    { "id": "300000022", "order": 27, "sectionId": "390000005", "type": "PARAGRAPH_TEXT", "title": "Is there anything that must be part of the trip, or that you want to avoid?", "description": "", "required": false },
+
+    { "id": "390000006", "order": 28, "type": "PAGE_BREAK", "title": "Budget and costs", "description": "" },
+    { "id": "300000023", "order": 29, "sectionId": "390000006", "type": "TEXT", "title": "What is the approximate budget per person for the whole trip?", "description": "Enter an amount with GHS, USD or GBP, for example GHS 10,000.", "required": true },
+    { "id": "300000024", "order": 30, "sectionId": "390000006", "type": "MULTIPLE_CHOICE", "title": "Does that budget include flights?", "description": "", "required": true, "options": [{"label":"Yes"},{"label":"No"},{"label":"Not sure"}], "allowOther": false },
+    { "id": "300000025", "order": 31, "sectionId": "390000006", "type": "MULTIPLE_CHOICE", "title": "Is that budget firm or flexible?", "description": "", "required": true, "options": [{"label":"Firm"},{"label":"Slightly flexible"},{"label":"Flexible for the right trip"}], "allowOther": false },
+    { "id": "300000026", "order": 32, "sectionId": "390000006", "type": "MULTIPLE_CHOICE", "title": "Will anyone cover part of the group's costs?", "description": "", "required": true, "options": [{"label":"No, everyone pays their own way"},{"label":"The group will cover the celebrant or organiser's costs"},{"label":"A sponsor, employer or organisation will pay part"},{"label":"Not sure yet"}], "allowOther": false },
+    { "id": "300000027", "order": 33, "sectionId": "390000006", "type": "TEXT", "title": "If so, tell us who and roughly how much", "description": "", "required": false },
+    { "id": "300000028", "order": 34, "sectionId": "390000006", "type": "MULTIPLE_CHOICE", "title": "How would you like payments to work?", "description": "", "required": true, "options": [{"label":"Each traveller pays their own share"},{"label":"I will collect and pay for the group"},{"label":"Not sure yet"}], "allowOther": false },
+
+    { "id": "390000007", "order": 35, "type": "PAGE_BREAK", "title": "Timing and next steps", "description": "" },
+    { "id": "300000029", "order": 36, "sectionId": "390000007", "type": "TEXT", "title": "When do you need to confirm the trip with your group?", "description": "Enter a date or ‘Not sure’.", "required": false },
+    { "id": "300000030", "order": 37, "sectionId": "390000007", "type": "PARAGRAPH_TEXT", "title": "Anything else you would like us to know?", "description": "", "required": false }
+  ]
+}

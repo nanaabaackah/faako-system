@@ -4,15 +4,13 @@ Source: client-supplied “Travel with Ease: How It Works and Enquiry Flow (for 
 
 ## Approved page
 
-The dedicated /how-it-works page has two accessible tabs, each with four
-client-approved steps, an illustrative example and a link to the correct
-terms section:
+The dedicated /how-it-works page has two accessible tabs, with five steps for package bookings and four for personal planning, each with a separate four-stage illustrative example and a link to the correct terms section:
 
 1. **Booking a package**: choose package, tier, dates and travellers (no
    budget); receive a 14-day live quote; pay GHS 5,000 per person as a
    non-refundable deposit if withdrawing and pay balance on the quote date
    (typically 45–70 days before departure); receive itinerary, pack and
-   travel support. Example: two friends considering a 3-night, 4-day Nairobi
+   travel support. The fifth step, added on 19 November, reads “Travel with your pack”: “You receive your travel pack with all your confirmed bookings, and we walk you through it on WhatsApp before you go.” Example: two friends considering a 3-night, 4-day Nairobi
    package. Terms section B: `/terms#package-terms`.
 2. **Planning a trip with us**: complete the bespoke planning questionnaire
    including a budget; pay 50% planning-fee deposit (60% for groups), receive
@@ -35,12 +33,12 @@ applying to planning, is removed.
 
 ## Implementation / preservation
 
-- `processFlows` contains two separately editable four-step flows in the
+- `processFlows` contains two independently editable flows: five package steps and four planning steps in the
   approved public snapshot and optional validated CMS content schema. The
   portal's How It Works editor displays both sets of steps/examples and its
   Load approved copy action can import the client's 16 November revision.
 - The homepage retains its original photograph, editorial framing and the
-  existing React Bits stepper, now drawing the package-specific four steps,
+  existing React Bits stepper, now drawing the package-specific five steps,
   with a direct link to the separate planning tab.
 - On /how-it-works, tabs use native buttons, roles, arrow-key/Home/End
   navigation and focus; without scripting, both flows and their terms are
@@ -64,3 +62,11 @@ native icon links, no package budget, CMS schema/editability, no-script
 availability and desktop/mobile browser behavior. Confirm staging content
 has both tabs after the reviewed deployment, and keep production behind the
 approved holding page until go-live.
+
+## Fifth package-booking step — 19 November 2026
+
+Step 5 is **Travel with your pack**. Its client-supplied description is exactly:
+
+> You receive your travel pack with all your confirmed bookings, and we walk you through it on WhatsApp before you go.
+
+The existing four-stage *worked example* remains separate. Previously saved four-step CMS drafts are upgraded when edited, validated for publication, or rendered by the latest website build; this does not change personal planning's four steps. The homepage stepper, dedicated page and CMS editor share the same text. Hosted output still requires the existing verified CMS publication process.

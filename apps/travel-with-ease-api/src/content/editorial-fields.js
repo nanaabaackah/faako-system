@@ -213,7 +213,15 @@ export const editorialFields = {
       "Explore this service"
     ]
   ],
-  "journal": [["relatedReading","Journal article · related reading heading","Related reading"],["relatedJourneys","Journal article · related trips heading","Explore related journeys"],["keepReading","Journal article · more articles heading","Keep reading"]],
+  "journal": [
+    ["featuredHeading","Journal listing · featured section","Featured stories"],
+    ["browseCta","Journal listing · browse link","Browse all stories"],
+    ["archiveHeading","Journal listing · story grid heading","All stories"],
+    ["archiveBody","Journal listing · story grid introduction","Explore travel tips and stories for your next journey."],
+    ["relatedReading","Journal article · related reading heading","Related reading"],
+    ["relatedJourneys","Journal article · related trips heading","Explore related journeys"],
+    ["keepReading","Journal article · more articles heading","Keep reading"],
+  ],
   "contact": [
     [
       "enquiryHeading",
@@ -236,7 +244,7 @@ export const editorialFields = {
       "Prefer WhatsApp? Talk to us directly."
     ]
   ],
-  "site-appearance": [
+  "footer": [
     ["footerPrivacy","Footer · privacy link","Privacy"],
     ["footerTerms","Footer · terms link","Terms"],
     ["footerCookies","Footer · cookies link","Cookies"],
@@ -335,7 +343,18 @@ export const editorialFields = {
       "companyDetails",
       "Footer · company registration and credentials",
       "Travel with Ease is a trading name of TWE Concierge, registration BN045370826. IATA TIDS 96245096. Certified Group Travel Specialist, The Travel Institute. Accra, Ghana."
-    ]
+    ],
+    ["logoAlt", "Footer logo alternative text", "Travel With Ease"],
+    ["copyrightText", "Copyright text", "Travel With Ease. All rights reserved."],
+    ["cookieSettingsLabel", "Cookie settings label", "Cookie settings"]
+  ],
+  "site-appearance": [
+    ["navPackages", "Navigation · Packages", "Packages"],
+    ["navServices", "Navigation · Services", "Services"],
+    ["navProcess", "Navigation · How It Works", "How It Works"],
+    ["navJournal", "Navigation · Journal", "Journal"],
+    ["navAbout", "Navigation · About", "About"],
+    ["navCta", "Navigation · CTA", "Plan My Trip"]
   ]
 };
 export const approvedTravellerReviews = [

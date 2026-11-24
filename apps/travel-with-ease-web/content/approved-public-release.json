@@ -171,7 +171,7 @@
           }
         ]
       },
-      "contactEmail": "nana@travelwitheasegh.com",
+      "contactEmail": "info@travelwitheasegh.com",
       "contactPhone": "+233200209170"
     },
     "faqs": {
@@ -663,7 +663,7 @@
       "entries": [
         {
           "heading": "Who handles your information",
-          "text": "Travel With Ease, a trading name of TWE Concierge, is based in Accra, Ghana. Contact nana@travelwitheasegh.com or +233 20 020 9170 with questions about your information.",
+          "text": "Travel With Ease, a trading name of TWE Concierge, is based in Accra, Ghana. Contact info@travelwitheasegh.com or +233 20 020 9170 with questions about your information.",
           "attribution": ""
         },
         {
@@ -1332,9 +1332,31 @@
             {
               "heading": "Travel",
               "text": "You receive your itinerary and travel pack, and we support you through the trip."
+            },
+            {
+              "heading": "Travel with your pack",
+              "text": "You receive your travel pack with all your confirmed bookings, and we walk you through it on WhatsApp before you go."
             }
           ],
-          "example": "Two friends considering 3 nights and 4 days in Nairobi send their preferred travel month, two travellers and the package they like. They compare the hotel tiers against the live quote, review the payment schedule, confirm with their deposit and receive their itinerary."
+          "example": "Two friends considering 3 nights and 4 days in Nairobi send their preferred travel month, two travellers and the package they like. They compare the hotel tiers against the live quote, review the payment schedule, confirm with their deposit and receive their itinerary.",
+          "exampleSteps": [
+            {
+              "heading": "Start with the Nairobi package",
+              "text": "Two friends choose the 3-night, 4-day Nairobi package, share their preferred month, confirm two travellers and select the hotel tier they want to explore."
+            },
+            {
+              "heading": "Compare the live quote",
+              "text": "They check their exact dates, accommodation options, inclusions and exclusions, then ask about room sharing and any extras before agreeing."
+            },
+            {
+              "heading": "Confirm the booking",
+              "text": "They review the 14-day quote and payment schedule, then each pay the GHS 5,000 deposit to confirm. Their quote states when the remaining balance is due."
+            },
+            {
+              "heading": "Get ready for departure",
+              "text": "They receive their itinerary and travel pack, check their travel arrangements and use the support included in their package."
+            }
+          ]
         },
         "planning": {
           "steps": [
@@ -1355,7 +1377,25 @@
               "text": "Your planning balance is settled first, then you receive your final travel pack."
             }
           ],
-          "example": "A couple planning an anniversary in Italy complete the questionnaire with their dates and budget. They pay the planning deposit, review their day-by-day plan and ask for one change. They then fund their flights and hotels through the Travel Fund Request, and receive their travel pack before they fly."
+          "example": "A couple planning an anniversary in Italy complete the questionnaire with their dates and budget. They pay the planning deposit, review their day-by-day plan and ask for one change. They then fund their flights and hotels through the Travel Fund Request, and receive their travel pack before they fly.",
+          "exampleSteps": [
+            {
+              "heading": "Share the anniversary plans",
+              "text": "A couple describe their Italy anniversary trip, including preferred dates, destinations, travellers and approximate budget in the planning questionnaire."
+            },
+            {
+              "heading": "Start the itinerary",
+              "text": "They pay the 50% planning-fee deposit, receive their proposed day-by-day itinerary and budget, and request one revision under Full Trip Planning."
+            },
+            {
+              "heading": "Fund the bookings separately",
+              "text": "After reviewing the plan, they receive a Travel Fund Request for flights and hotels. Bookings proceed only after those funds have cleared."
+            },
+            {
+              "heading": "Receive the final travel pack",
+              "text": "They settle the balance of the planning fee and receive their travel pack with their final arrangements before departure."
+            }
+          ]
         }
       }
     },
@@ -1393,7 +1433,7 @@
         },
         {
           "heading": "Questions",
-          "text": "Contact nana@travelwitheasegh.com about cookies or personal information.",
+          "text": "Contact info@travelwitheasegh.com about cookies or personal information.",
           "attribution": ""
         }
       ],
