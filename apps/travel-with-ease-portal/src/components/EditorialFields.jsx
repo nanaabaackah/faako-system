@@ -21,7 +21,7 @@ export default function EditorialFields({ page, body, change }) {
         <fieldset key={context} className="cms-editor-group">
           <legend>{context}</legend>
           {groupFields.map(([key, label, fallback]) => {
-            const Field = fallback.length > 120 || key.endsWith("Body") || key === "companyDetails" ? TextareaField : TextField;
+            const Field = key.endsWith("Body") || key === "companyDetails" ? RichTextField : fallback.length > 120 ? TextareaField : TextField;
             return <Field key={key} label={label} maxLength={2000} required
               value={body.editorialCopy?.[key] ?? values[key]}
               onChange={event => change("editorialCopy", { ...body.editorialCopy, [key]: event.target.value })} />;
