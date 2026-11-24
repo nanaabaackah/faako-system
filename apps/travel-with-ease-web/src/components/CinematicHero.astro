@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import photos from "../lib/approved-preview-media.json";
@@ -56,7 +57,7 @@ const variants = photos.find((item) =>
         )
       }
     </h1>
-    <p>{body}</p>
+    <RichText value={body}/>
     <div class="cinematic-hero__actions">
       <ContentLink
         button
