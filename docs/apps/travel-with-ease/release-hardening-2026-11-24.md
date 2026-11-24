@@ -49,3 +49,17 @@ pnpm --filter @faako/travel-with-ease-api promotion:import <private-bundle.json>
 Use the actual package script name from package.json if it differs. This mode checks integrity, counts and fingerprint without connecting to PostgreSQL or R2; it does not verify target state. Do not commit bundles or put them into public storage. The import continues to require explicit initial-production confirmation and refuses to overwrite initialized content or existing email template rows. Repeated import currently rejects rather than duplicates; a verified no-op replay, live target preflight, asset completeness and full production rollback/reconciliation remain acceptance work.
 
 P0-02 and P0-03 branch changes are subject to CI. Live production workers, production database and Cloudflare/Turnstile acceptance remain open; no production or staging changes were executed.
+
+## Follow-up — read-only migration preflight and verified replay
+
+The existing deployment hook now checks migration identity, schema inventory and role privileges in a repeatable-read, read-only transaction before any migration writes, and checks both runtime and migration database connections. For a controlled diagnostic from the correctly configured Railway environment using the reviewed release checkout:
+
+```bash
+pnpm --filter @faako/travel-with-ease-api db:deploy --check-only
+```
+
+This does not create schemas, execute migration files, grant privileges or reset anything. It does not establish full runtime readiness; the actual deployment still performs migrations and the existing post-migration checks. A preflight failure is reported with a fixed diagnostic code. The production root cause has not been independently reproduced.
+
+The importer now returns `already_imported` only if the source publication's recorded receipt exists and the current published and draft content, active and draft templates, and referenced media metadata and byte hashes match the bundle. Otherwise it refuses to overwrite initialized production content. This is a no-write replay check, not a forced synchronization. Target dry-run, rollback and live verification remain open.
+
+Production configuration observed at 16:20 GMT: API build override corrected; preview, public origin and Turnstile secret names present; both workers staged with the required configuration names, including all three Pages credentials. No workers deployed. Earlier PR head c97bc782a8aca27c97cf38521b0866762d2f00be passed all three workflows; follow-up changes require new CI evidence.
