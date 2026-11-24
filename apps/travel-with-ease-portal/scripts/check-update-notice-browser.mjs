@@ -80,5 +80,49 @@ try {
     assert.equal(navigations, 2, "Only explicit refresh navigates");
     await context.close();
   }
-  console.log("Update notice: guarded edits, save, defer and explicit refresh passed");
+  // At 02:00 UTC, apply a deferred deployment without requiring a click.
+  // A dirty editor crossing the deadline must remain intact until saved.
+  for (const dirtyAtDeadline of [false, true]) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, timezoneId: "America/New_York" });
+    const page = await context.newPage();
+    await page.clock.install({ time: new Date("2026-11-24T01:55:00Z") });
+    let updateAvailable = false, navigations = 0;
+    page.on("framenavigated", frame => { if (frame === page.mainFrame()) navigations++; });
+    await mockWorkspaceApi(page, { role: "owner" });
+    await page.route("**/?__faako_update_check=*", async route => {
+      if (!updateAvailable) return route.continue();
+      return route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><script type="module" src="/assets/daily-update-fixture.js"></script></head><body></body></html>' });
+    });
+    await page.goto(origin, { waitUntil: "domcontentloaded" });
+    await page.locator(".session-toolbar").waitFor();
+    if (dirtyAtDeadline) {
+      await page.getByRole("button", { name: "Templates", exact: true }).filter({ visible: true }).first().click();
+      await page.getByLabel(/^Heading/).fill("Keep this edit across the deadline");
+    }
+    updateAvailable = true;
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    const notice = page.getByRole("complementary", { name: "App update available" });
+    await expect(notice).toBeVisible();
+    await notice.getByRole("button", { name: "Later" }).click();
+    await expect(notice).toHaveCount(0);
+    await page.clock.fastForward(4 * 60_000);
+    assert.equal(navigations, 1, "No scheduled reload before 02:00 UTC");
+    if (dirtyAtDeadline) {
+      await page.clock.fastForward(2 * 60_000);
+      assert.equal(navigations, 1, "Unsaved work blocks the overnight refresh");
+      await expect(page.getByLabel(/^Heading/)).toHaveValue("Keep this edit across the deadline");
+      await Promise.all([
+        page.waitForEvent("framenavigated", { predicate: frame => frame === page.mainFrame() }),
+        page.getByRole("button", { name: "Save draft", exact: true }).click(),
+      ]);
+    } else {
+      await Promise.all([
+        page.waitForEvent("framenavigated", { predicate: frame => frame === page.mainFrame() }),
+        page.clock.fastForward(2 * 60_000),
+      ]);
+    }
+    assert.equal(navigations, 2, "Apply a pending deployment once when due and safe");
+    await context.close();
+  }
+  console.log("Update notice: guarded edits, save, defer, explicit refresh and 02:00 UTC fallback passed");
 } finally { await browser.close(); }
