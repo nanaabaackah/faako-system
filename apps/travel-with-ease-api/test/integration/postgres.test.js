@@ -558,11 +558,11 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       assert.equal(await store().getSession(tokenHash), undefined);
       await assert.rejects(store().createSession(identity, replayHash, "9".repeat(64), "issue03-replay-revoked"), { code: "23505" });
 
-      const later = { ...identity, assertionHash: randomBytes(32).toString("hex"), expiresAt: new Date(Date.now() + 7_200_000) };
+      const later = { ...identity, assertionHash: randomBytes(32).toString("hex"), expiresAt: new Date(Date.now() + 86_400_000) };
       await store().createSession(later, freshHash, "9".repeat(64), "issue03-fresh-login");
       const bounded = await store().getSession(freshHash);
-      assert.ok(bounded.expires_at.getTime() <= Date.now() + 3_600_000, "New login remains capped at one hour");
-      assert.ok(bounded.expires_at.getTime() > Date.now() + 3_500_000);
+      assert.ok(bounded.expires_at.getTime() <= Date.now() + 43_200_000, "Access login remains capped at twelve hours");
+      assert.ok(bounded.expires_at.getTime() > Date.now() + 43_100_000);
       await store().revokeAll(staffId, "issue03-logout-all");
       assert.equal(await store().getSession(freshHash), undefined);
       assert.equal((await query(
