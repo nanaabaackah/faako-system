@@ -4,6 +4,8 @@ import { transaction } from "../db/database.js";
 import { appendAudit } from "../audit.js";
 import { approvedEditorCopy } from "./approved-copy.js";
 import { templateCopySchema } from "../notifications/templates.js";
+import { PublicationRepository } from "./publication.js";
+import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json" with { type: "json" };
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const stable = (value) => Array.isArray(value) ? value.map(stable)
@@ -111,10 +113,11 @@ export async function exportPromotionBundle({ publication, media, source, approv
 }
 
 export class ContentPromotionImporter {
-  constructor(pool, store, { organisationId, actorId, transact = transaction }) {
+  constructor(pool, store, { organisationId, actorId, publicationSourceSha, transact = transaction }) {
     if (!pool || !store || !uuid.test(organisationId || "") || !uuid.test(actorId || ""))
       throw new Error("Promotion importer configuration is incomplete.");
-    Object.assign(this, { pool, store, organisationId, actorId, transact });
+    if (publicationSourceSha !== undefined && !/^[a-f0-9]{40}$/.test(publicationSourceSha)) throw new Error("Promotion requires a reviewed production source.");
+    Object.assign(this, { pool, store, organisationId, actorId, publicationSourceSha, transact });
   }
 
   // A replay is accepted only when the original import is recorded and every
@@ -155,13 +158,17 @@ export class ContentPromotionImporter {
     const bundle = verifyPromotionBundle(input);
     if (bundle.source.organisationId !== this.organisationId)
       throw new Error("Promotion source organisation does not match production.");
+    if (this.publicationSourceSha && bundle.source.approvedBaselineFingerprint !== fingerprint(approvedRelease.pages))
+      throw new Error("Production release baseline does not match the verified staging export.");
     const keys = [];
+    let publicationId;
     try {
       const status = await this.transact(this.pool, async (client) => {
         // Serialise the one-time import before touching object storage. Without
         // this lock, a losing concurrent importer could remove the winner's
         // objects while cleaning up its own failed attempt.
         await client.query("SELECT pg_advisory_xact_lock(hashtextextended('twe_content_promotion:' || $1, 0))", [this.organisationId]);
+        if (this.publicationSourceSha) await new PublicationRepository(this.pool, { organisationId: this.organisationId, environment: "production", sourceSha: this.publicationSourceSha }).lockOrganisation(client);
         const actor = await client.query("SELECT role, active FROM twe.staff_users WHERE organisation_id=$1 AND id=$2 FOR SHARE", [this.organisationId, this.actorId]);
         if (actor.rows.length !== 1 || actor.rows[0].active !== true || !["owner", "platform_admin"].includes(actor.rows[0].role))
           throw new Error("Production promotion requires an active Owner or Superadmin.");
@@ -169,6 +176,10 @@ export class ContentPromotionImporter {
         if (existing.rows[0].count !== 0) {
           if (await this.matchesImportedBundle(client, bundle)) return "already_imported";
           throw new Error("Production content is already initialised or has changed; promotion will not overwrite it.");
+        }
+        if (this.publicationSourceSha) {
+          const jobs = await client.query("SELECT id FROM twe.publication_jobs WHERE organisation_id=$1 AND environment='production' LIMIT 1", [this.organisationId]);
+          if (jobs.rowCount) throw new Error("Production publication history already exists; initial promotion will not overwrite it.");
         }
         if (bundle.media.length) {
           const collision = await client.query("SELECT count(*)::int AS count FROM twe.media WHERE organisation_id=$1 AND id = ANY($2::uuid[])", [this.organisationId, bundle.media.map(({ id }) => id)]);
@@ -198,21 +209,32 @@ export class ContentPromotionImporter {
           [media.id, this.organisationId, derivatives.at(-1).key, Buffer.from(largest.bytes, "base64").length,
             largest.width, largest.height, media.altText, media.rights, derivatives, this.actorId]);
         }
+        const publicationPages = [];
         for (const slug of pageNames) {
           const body = bundle.pages[slug];
           const contentId = randomUUID();
           await client.query("INSERT INTO twe.content_items (id, organisation_id, kind, slug, publication_initialized) VALUES ($1,$2,'page',$3,true)", [contentId, this.organisationId, slug]);
+          const revisionId = body === null ? null : randomUUID();
+          publicationPages.push({ id: contentId, slug, revisionId, body });
           if (body === null) continue;
-          const revisionId = randomUUID();
           await client.query("INSERT INTO twe.content_revisions (id, organisation_id, content_id, version, body, editor_id) VALUES ($1,$2,$3,1,$4,$5)", [revisionId, this.organisationId, contentId, body, this.actorId]);
           for (const mediaId of contentMediaIds(body)) await client.query("INSERT INTO twe.content_media (organisation_id, content_id, revision_id, media_id) VALUES ($1,$2,$3,$4)", [this.organisationId, contentId, revisionId, mediaId]);
           await client.query("UPDATE twe.content_items SET version=1, draft_revision_id=$1, published_revision_id=$1, published_body=$2 WHERE organisation_id=$3 AND id=$4", [revisionId, body, this.organisationId, contentId]);
+        }
+        if (this.publicationSourceSha) {
+          publicationId = randomUUID();
+          const manifest = { version: 1, schemaVersion: 2, triggerType: "initial_promotion", baseline: approvedRelease.pages,
+            pages: publicationPages, target: { page: "website", version: bundle.source.publicationId, unpublish: false } };
+          await client.query("INSERT INTO twe.publication_jobs (id, organisation_id, environment, manifest, source_sha, requested_by) VALUES ($1,$2,'production',$3,$4,$5)",
+            [publicationId, this.organisationId, manifest, this.publicationSourceSha, this.actorId]);
+          await appendAudit(client, { organisationId: this.organisationId, actorId: this.actorId,
+            action: "content.publish_requested", recordId: publicationId, requestId });
         }
         await appendAudit(client, { organisationId: this.organisationId, actorId: this.actorId,
           action: "content.production_seed_imported", recordId: bundle.source.publicationId, requestId });
         return "imported";
       });
-      return { status, sourcePublicationId: bundle.source.publicationId, contentFingerprint: bundle.source.contentFingerprint };
+      return { status, ...(publicationId ? { publicationId } : {}), sourcePublicationId: bundle.source.publicationId, contentFingerprint: bundle.source.contentFingerprint };
     } catch (error) {
       for (const key of keys.reverse()) try { await this.store.remove(key); } catch { /* operator cleanup is documented */ }
       throw error;
