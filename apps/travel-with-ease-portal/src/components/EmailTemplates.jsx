@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createDraftAutosave } from "../lib/draft-autosave.js";
 import {
   AnimatedLoadingState,
   InlineNotice,
@@ -29,10 +30,14 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
   const [notice, setNotice] = useState("");
   const [dirty, setDirty] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  const [saveState, setSaveState] = useState({ status: "saved", error: "" });
+  const writer = useRef(null);
+  const copyRef = useRef(null);
+  const saving = saveState.status === "saving";
   useEffect(() => {
-    onRefreshBlockedChange?.(dirty || busy || Boolean(confirmation));
+    onRefreshBlockedChange?.(dirty || busy || saving || !record || Boolean(confirmation));
     return () => onRefreshBlockedChange?.(false);
-  }, [dirty, busy, confirmation, onRefreshBlockedChange]);
+  }, [dirty, busy, saving, record, confirmation, onRefreshBlockedChange]);
   // Preview branding is bundled locally; the actual outgoing email retains
   // absolute public asset URLs for email-client compatibility.
   const previewHtml = preview?.html
@@ -47,23 +52,48 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
     let current = true;
     setRecord(null);
     setCopy(null);
-    api
-      .get(`/api/agent/templates/${slug}`, { responseMode: "data" })
-      .then((result) => {
-        if (current) {
-          setRecord(result);
-          setCopy(result.draft);
-        }
-      })
-      .catch((error) => {
-        if (current) setError(error.message);
-      });
+    copyRef.current = null;
+    const read = async () => {
+      const result = await api.get(`/api/agent/templates/${slug}`, { responseMode: "data" });
+      return { ...result, body: result.draft };
+    };
+    const autosave = createDraftAutosave({
+      read,
+      save: async (body, expectedVersion) => {
+        const result = await api.post(`/api/agent/templates/${slug}/draft`, {
+          headers: { "X-CSRF-Token": session.csrfToken },
+          responseMode: "data", json: { copy: body, expectedVersion },
+        });
+        return { ...result, body: result.draft };
+      },
+      onState: result => {
+        if (!current) return;
+        setSaveState(result);
+        setDirty(result.dirty);
+        onDirtyChange(result.dirty);
+      },
+      onSaved: (result, replace) => {
+        if (!current) return;
+        setRecord(result);
+        if (replace) { copyRef.current = result.draft; setCopy(result.draft); }
+      },
+    });
+    writer.current = autosave;
+    read().then(result => {
+      if (!current) return;
+      setRecord(result);
+      copyRef.current = result.draft;
+      setCopy(result.draft);
+      autosave.reset(result.draft, result.version);
+    }).catch(error => { if (current) setError(error.message); });
     return () => {
       current = false;
+      autosave.dispose();
+      if (writer.current === autosave) writer.current = null;
     };
-  }, [api, slug]);
+  }, [api, slug, session.csrfToken, onDirtyChange]);
   function changeTemplate(event) {
-    if (event.target.value === slug) return;
+    if (busy || saving || event.target.value === slug) return;
     if (dirty) { setConfirmation({ kind: "switch", slug: event.target.value }); return; }
     switchTemplate(event.target.value);
   }
@@ -80,13 +110,17 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
     setSlug(nextSlug);
   }
   function edit(field, value) {
-    setCopy((previous) => ({ ...previous, [field]: value }));
-    setDirty(true);
-    onDirtyChange(true);
+    if (busy || !copyRef.current) return;
+    const next = { ...copyRef.current, [field]: value };
+    copyRef.current = next;
+    setCopy(next);
+    writer.current?.edit(next);
     setPreview(null);
     setNotice("");
   }
   async function action(kind) {
+    if (busy || (kind === "activate" && (dirty || saving))) return;
+    if (kind === "draft") { await writer.current?.flush(); return; }
     setBusy(true);
     setError("");
     setNotice("");
@@ -97,18 +131,16 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
         json:
           kind === "preview"
             ? copy
-            : kind === "draft"
-              ? { copy, expectedVersion: record.version }
-              : { expectedVersion: record.version },
+            : { expectedVersion: record.version },
       });
       if (kind === "preview") {
         setPreview(result);
         setNotice("Preview only. No email was sent.");
       } else {
         setRecord(result);
+        copyRef.current = result.draft;
         setCopy(result.draft);
-        setDirty(false);
-        onDirtyChange(false);
+        writer.current?.reset(result.draft, result.version);
         setNotice(
           kind === "draft"
               ? "Draft saved. Outgoing emails have not changed."
@@ -130,7 +162,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
         <SelectField
           label="Email type"
           value={slug}
-          disabled={busy}
+          disabled={busy || saving || Boolean(confirmation)}
           onChange={changeTemplate}
         >
           {emailTemplateOptions.map((option) => (
@@ -175,7 +207,10 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
                   : "Default invitation copy"
                 : `${definition.automated ? "Active" : "Approved"} revision ${record.active_version}`}
             </p>
+            <p role="status">{saving ? "Saving draft…" : dirty ? "Unsaved changes" : "Draft saved"}</p>
+            {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error} />}
             <TextField
+              disabled={busy || Boolean(confirmation)}
               label="Subject"
               value={copy.subject}
               maxLength={160}
@@ -183,6 +218,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               onChange={(event) => edit("subject", event.target.value)}
             />
             <TextField
+              disabled={busy || Boolean(confirmation)}
               label="Heading"
               value={copy.heading}
               maxLength={160}
@@ -190,6 +226,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               onChange={(event) => edit("heading", event.target.value)}
             />
             <TextareaField
+              disabled={busy || Boolean(confirmation)}
               label="Message"
               value={copy.message}
               maxLength={3000}
@@ -198,6 +235,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               onChange={(event) => edit("message", event.target.value)}
             />
             <TextField
+              disabled={busy || Boolean(confirmation)}
               label="Button label"
               value={copy.ctaLabel}
               maxLength={60}
@@ -213,13 +251,13 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               >
                 Preview email
               </Button>
-              <Button type="submit" icon="save" disabled={busy || !dirty}>
+              <Button type="submit" icon="save" disabled={busy || saving || !dirty}>
                 Save draft
               </Button>
               <Button
                 type="button"
                 icon="check"
-                disabled={busy || dirty || record.version === 0}
+                disabled={busy || saving || dirty || record.version === 0}
                 onClick={() => setConfirmation({ kind: "activate" })}
               >
                 {definition.automated
