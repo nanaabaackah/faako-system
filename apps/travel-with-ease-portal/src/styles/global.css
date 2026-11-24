@@ -903,6 +903,78 @@ select:focus-visible {
   font-size: 16px;
   font-weight: 600;
 }
+
+/* Website CMS publication and revision history use the established portal
+   panel colours and Faako Iconsax controls, with native keyboard disclosure. */
+.twe-history-disclosure {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e0e5ed;
+  border-radius: 8px;
+  background: #fff;
+}
+.twe-history-disclosure__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 12px 16px;
+  color: #010c33;
+  cursor: pointer;
+  list-style: none;
+}
+.twe-history-disclosure__summary::-webkit-details-marker {
+  display: none;
+}
+.twe-history-disclosure__summary:focus-visible {
+  outline: 3px solid var(--sys-info);
+  outline-offset: -3px;
+}
+.twe-history-disclosure__title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.twe-history-disclosure__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+.twe-history-disclosure__count {
+  padding: 2px 9px;
+  border: 1px solid #e0e5ed;
+  border-radius: 999px;
+  background: #f6f7f9;
+  color: #535966;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.twe-history-disclosure__chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(90deg);
+  transition: transform 160ms ease;
+}
+.twe-history-disclosure__chevron svg {
+  width: 18px;
+  height: 18px;
+}
+.twe-history-disclosure[open] .twe-history-disclosure__chevron {
+  transform: rotate(-90deg);
+}
+.twe-history-disclosure__body {
+  min-width: 0;
+  padding: 16px;
+  border-top: 1px solid #edf0f4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .twe-history-disclosure__chevron {
+    transition: none;
+  }
+}
 .workspace-caption,
 .detail-reference {
   color: #606a7b;

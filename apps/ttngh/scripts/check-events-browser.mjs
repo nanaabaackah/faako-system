@@ -21,8 +21,15 @@ try {
       await page.route("https://**/*", async route => {
         if (route.request().url().includes("cdn.sanity.io/images/")) return route.fulfill({contentType:"image/webp",body:image});
         if (route.request().url().includes("/api/calendar/events?")) {
-          const from = new URL(route.request().url()).searchParams.get("from");
+          const params = new URL(route.request().url()).searchParams;
+          const from = params.get("from");
+          const days = (Date.parse(params.get("to")) - Date.parse(from)) / 86400_000;
           const base = {id:"linked",uid:"qa-only",title:"Live schedule title differs",start:from,end:from,allDay:true,timezone:"Africa/Accra",location:"QA venue",status:"confirmed"};
+          if (days > 35) {
+            const start = new Date(Date.parse(from) + 7 * 86400_000).toISOString().slice(0, 10);
+            const end = new Date(Date.parse(start) + 86400_000).toISOString().slice(0, 10);
+            return route.fulfill({json:{data:{events:[{...base,id:"calendar-upcoming",uid:"upcoming-uid",title:"Fixture: upcoming from Google Calendar",start,end}],freshnessSeconds:300}}});
+          }
           return route.fulfill({json:{data:{events:[base,{...base,id:"unlinked",uid:"no-editorial-record"}],freshnessSeconds:300}}});
         }
         return route.abort();
@@ -35,6 +42,19 @@ try {
       assert.deepEqual(await page.locator("#upcoming-events .event-card").evaluateAll(els=>els.map(el=>el.getAttribute("href"))), ["/events/qa-event-1","/events/qa-event-2","/events/qa-event-3"]);
       assert.match(await page.locator("#previous-event").innerText(), /QA event 6/);
       assert.match(await page.locator("#previous-event").innerText(), /Event completed/);
+      const upcomingLive = page.locator(".live-upcoming-card");
+      await upcomingLive.first().waitFor();
+      assert.equal(await upcomingLive.count(),1,"Google Calendar upcoming event appears in page body");
+      assert.match(await upcomingLive.first().innerText(),/Fixture: upcoming from Google Calendar/);
+      await page.locator("[data-day$='-01']").first().waitFor();
+      await upcomingLive.first().getByRole("link", {name:/View .* on the event calendar/}).click();
+      await page.waitForFunction(() => {
+        const date = document.querySelector(".live-upcoming-card time")?.getAttribute("datetime");
+        const day = document.querySelector('month-calendar [data-day="' + date + '"]');
+        return day?.getAttribute("aria-pressed") === "true";
+      });
+      await page.locator("[data-month-today]").click();
+      await page.waitForFunction(() => !document.querySelector("[data-month-today]").disabled);
       for (const target of ["#next-up", "#upcoming-events", "#previous-event", ".event-calendar-section", ".events-recurring"]) {
         await page.locator(target).scrollIntoViewIfNeeded();
         await page.waitForFunction(selector=>!document.querySelector(selector)?.hasAttribute("data-reveal-pending"),target);

@@ -99,7 +99,7 @@ export const MONOREPO_APP_REGISTRY = [
         category: "api",
         envBaseUrlKeys: ["TTNGH_API_BASE_URL"],
         monitoringOptional: true,
-        monitoringPages: [{ label: "Health", path: "/healthz" }],
+        monitoringPages: [{ label: "Health", path: "/health" }],
       },
     ],
   },

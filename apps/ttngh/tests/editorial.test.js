@@ -71,3 +71,14 @@ test("FAQ and photograph ribbon have semantic controls and hidden clones",()=>{
   assert.match(ribbon,/aria-pressed/);
   assert.match(ribbon,/prefers-reduced-motion/);
 });
+
+test("header uses a compact WebP derived from approved brand artwork", () => {
+  const header = read("../src/components/SiteHeader.astro");
+  const scripts = JSON.parse(read("../package.json")).scripts;
+  const optimizer = read("../scripts/optimize-header-logo.mjs");
+  assert.match(header, /images\/brand\/ttngh-logo-header\.webp/);
+  assert.match(header, /src="\/ttngh-logo-transparent\.png"/);
+  assert.match(scripts.build, /optimize-header-logo\.mjs/);
+  assert.match(scripts.dev, /optimize-header-logo\.mjs/);
+  assert.match(optimizer, /width: 384/);
+});

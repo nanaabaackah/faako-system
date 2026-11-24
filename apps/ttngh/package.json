@@ -6,8 +6,8 @@
   "scripts": {
     "test": "node --test appSystem.test.js indexability.test.js events.test.js cms.test.js tests/editorial.test.js tests/calendar.test.js tests/motion.test.js tests/social-metadata.test.js tests/front-facing-copy.test.js",
     "test:seo": "node scripts/check-built-site.mjs",
-    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --host 0.0.0.0 --port 5177",
-    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "dev": "node scripts/optimize-header-logo.mjs && ASTRO_TELEMETRY_DISABLED=1 astro dev --host 0.0.0.0 --port 5177",
+    "build": "node scripts/optimize-header-logo.mjs && ASTRO_TELEMETRY_DISABLED=1 astro build",
     "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --host 0.0.0.0 --port 4177"
   },
   "dependencies": {
