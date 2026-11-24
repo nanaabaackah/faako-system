@@ -116,17 +116,18 @@ export async function reconcileStalePublication({
 
 export async function publishOne({ publication, media, provider, archive, settings, prepare = preparePublication,
   run = runReviewedCommand, verify = verifyPublishedMarker, logger = {},
-  originWait = defaultOriginWait, originAttempts = 13 }) {
+  originWait = defaultOriginWait, originAttempts = 13, sourceMatches = async () => true }) {
   // Validate the reviewed source before claiming a job; never build newer code
   // just because it happens to be deployed on Railway.
   const sha = await assertPublicationSource(settings.sourceSha, { run });
+  if (!await sourceMatches(settings)) return { status: "source_wait" };
   const reconciled = await reconcileStalePublication({
     publication, provider, archive, settings, verify, logger,
     originWait, originAttempts,
   });
   if (reconciled) return reconciled;
   await publication.coordinateSource?.();
-  const job = await publication.claim();
+  const job = await publication.claim(sha);
   if (!job) return { status: "idle" };
   let directory, previous, recovery, recoveryDirectory, deploymentStarted = false, deployed, confirmed = false, confirmationStarted = false;
   // Only predefined stages and reasons are recorded; provider errors, tokens,
@@ -173,6 +174,8 @@ export async function publishOne({ publication, media, provider, archive, settin
     }));
     stage = "archive_retain";
     if (archive) await archive.retain(job.id, out);
+    stage = "active_source_verification";
+    if (!await sourceMatches(settings)) throw new Error("Active API source changed before upload.");
     stage = "mark_deploying";
     await publication.transition(job.id, job.build_token, "building", "deploying");
     deploymentStarted = true;

@@ -32,3 +32,17 @@ export function publicBuildEnvironment({ environment, snapshot, publicDirectory,
     TWE_BUILD_OUT_DIR: out,
   };
 }
+
+// Validate hosted public build settings before the worker claims any job. A
+// build with no Turnstile site key would disable the deployed enquiry form.
+export function readHostedPublicBuildSettings(env = process.env) {
+  const environment = env.APP_ENV;
+  if (!["staging", "production"].includes(environment)) throw new Error("Hosted public build requires a staging or production environment.");
+  const apiOrigin = env.TWE_PUBLIC_API_ORIGIN;
+  let url;
+  try { url = new URL(apiOrigin); } catch { throw new Error("TWE_PUBLIC_API_ORIGIN must be an exact HTTPS origin."); }
+  if (url.protocol !== "https:" || url.origin !== apiOrigin || url.username || url.password) throw new Error("TWE_PUBLIC_API_ORIGIN must be an exact HTTPS origin.");
+  const turnstileSiteKey = env.TWE_PUBLIC_TURNSTILE_SITE_KEY;
+  if (typeof turnstileSiteKey !== "string" || !/^[A-Za-z0-9_-]{10,150}$/.test(turnstileSiteKey) || /^[123]x0{10,}/.test(turnstileSiteKey)) throw new Error("TWE_PUBLIC_TURNSTILE_SITE_KEY must contain a real hosted site key.");
+  return { apiOrigin, turnstileSiteKey, indexable: environment === "production" && env.TWE_PUBLIC_SITE_INDEXABLE === "true", googleVerification: env.TWE_PUBLIC_GOOGLE_SITE_VERIFICATION || "" };
+}

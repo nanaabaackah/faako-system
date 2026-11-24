@@ -81,3 +81,95 @@ test("production import rejects cross-tenant bundles before storage", async () =
   await assert.rejects(importer.apply(bundle), /source organisation/);
   assert.equal(writes, 0);
 });
+
+
+test("promotion uses the verified manifest baseline rather than a later checkout", async () => {
+  const baseline = structuredClone(approved.pages);
+  baseline.home.heading = "Verified staging baseline";
+  const bundle = await exportPromotionBundle({
+    publication: { lastLive: async () => ({
+      id: publicationId, source_sha: source.sourceSha, deployment_id: source.deploymentId,
+      manifest: { baseline, pages: [] },
+    }) },
+    media: { get: async () => { throw new Error("no media expected"); }, store: {} },
+    source: { organisationId }, approvedPages: approved.pages,
+  });
+  assert.equal(bundle.pages.home.heading, "Verified staging baseline");
+});
+
+test("promotion recognizes the actual platform_admin Superadmin role", async () => {
+  const bundle = createPromotionBundle({ source, pages, media: [] });
+  const client = { query: async (sql) => {
+    if (sql.startsWith("SELECT role")) return { rows: [{ role: "platform_admin", active: true }] };
+    if (sql.startsWith("SELECT count")) return { rows: [{ count: 0 }] };
+    return { rows: [], rowCount: 1 };
+  } };
+  const importer = new ContentPromotionImporter({}, { put: async () => {}, remove: async () => {} }, {
+    organisationId, actorId: "44444444-4444-4444-8444-444444444444",
+    transact: async (_pool, operation) => operation(client),
+  });
+  assert.equal((await importer.apply(bundle)).status, "imported");
+});
+
+test("promotion exports only active email copy and verifies its integrity", async () => {
+  const active = { subject: "Subject", heading: "Heading", message: "Active copy", ctaLabel: "Continue" };
+  const bundle = await exportPromotionBundle({
+    publication: { lastLive: async () => ({ id: publicationId, source_sha: source.sourceSha, deployment_id: source.deploymentId, manifest: { pages: [] } }) },
+    media: { get: async () => { throw new Error("no media expected"); }, store: {} },
+    templates: { activeCopy: async () => active },
+    source: { organisationId }, approvedPages: approved.pages,
+  });
+  assert.deepEqual(bundle.emailTemplates["enquiry-acknowledgement"], active);
+  assert.deepEqual(bundle.emailTemplates["staff-invitation"], active);
+  assert.equal(verifyPromotionBundle(bundle).fingerprint, bundle.fingerprint);
+  const tampered = structuredClone(bundle);
+  tampered.emailTemplates["staff-invitation"].message = "Changed";
+  assert.throws(() => verifyPromotionBundle(tampered), /integrity/);
+  assert.throws(() => createPromotionBundle({ source, pages, emailTemplates: { "staff-invitation": active } }), /both active/);
+  const statements = [];
+  const client = { query: async (sql, values) => {
+    statements.push({ sql, values });
+    if (sql.startsWith("SELECT role")) return { rows: [{ role: "owner", active: true }] };
+    if (sql.startsWith("SELECT count")) return { rows: [{ count: 0 }] };
+    return { rows: [], rowCount: 1 };
+  } };
+  const importer = new ContentPromotionImporter({}, { put: async () => {}, remove: async () => {} }, {
+    organisationId, actorId: "44444444-4444-4444-8444-444444444444",
+    transact: async (_pool, operation) => operation(client),
+  });
+  await importer.apply(bundle);
+  assert.equal(statements.filter(({sql}) => sql.startsWith("INSERT INTO twe.email_templates")).length, 2);
+  assert.equal(statements.some(({sql}) => /notification_outbox|staff_sessions|enquiries/.test(sql)), false);
+});
+
+test("identical recorded production promotion is a no-write replay; edited content is not overwritten", async () => {
+  const active = { subject: "Subject", heading: "Heading", message: "Active copy", ctaLabel: "Continue" };
+  const bundle = createPromotionBundle({ source, pages, emailTemplates: { "enquiry-acknowledgement": active, "staff-invitation": active } });
+  let edited = false;
+  let receipt = true;
+  const statements = [];
+  const client = { query: async (sql) => {
+    statements.push(sql);
+    if (sql.startsWith("SELECT role")) return { rows: [{ role: "owner", active: true }] };
+    if (sql.startsWith("SELECT count")) return { rows: [{ count: pageNames.length }] };
+    if (sql.includes("FROM twe.audit_records")) return { rows: receipt ? [{}] : [] };
+    if (sql.includes("FROM twe.content_items c")) return { rows: pageNames.map(slug => ({
+      slug, publication_initialized: true, published_body: bundle.pages[slug],
+      draft_body: edited && slug === "home" ? { ...bundle.pages[slug], heading: "Production edit" } : bundle.pages[slug],
+    })) };
+    if (sql.includes("FROM twe.email_templates")) return { rows: Object.entries(bundle.emailTemplates).map(([slug, copy]) => ({ slug, draft: copy, active: copy })) };
+    return { rows: [], rowCount: 1 };
+  } };
+  const importer = new ContentPromotionImporter({}, {
+    put: async () => { throw new Error("no object write expected"); },
+    remove: async () => { throw new Error("no object removal expected"); },
+  }, { organisationId, actorId: "44444444-4444-4444-8444-444444444444",
+    transact: async (_pool, operation) => operation(client) });
+  assert.equal((await importer.apply(bundle)).status, "already_imported");
+  edited = true;
+  await assert.rejects(importer.apply(bundle), /will not overwrite/);
+  edited = false;
+  receipt = false;
+  await assert.rejects(importer.apply(bundle), /will not overwrite/);
+  assert.ok(statements.every(sql => sql.startsWith("SELECT")));
+});

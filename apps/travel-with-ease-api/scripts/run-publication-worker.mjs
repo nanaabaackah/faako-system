@@ -8,11 +8,14 @@ import { readR2Config, R2Store } from "../src/media/r2.js";
 import { ArtifactArchive } from "../src/content/artifact-archive.js";
 import { verifyHostedDatabase } from "../src/portal/readiness.js";
 import { runPublicationLoop } from "../src/content/publication-loop.js";
+import { readHostedPublicBuildSettings } from "../src/content/build.js";
+import { activeApiSourceMatches } from "../src/content/source-identity.js";
 
 const settings = readPagesConfiguration();
 const logger = createLogger("twe-publication-worker", { environment: settings.environment });
 const pool = createDatabase();
 try {
+  const publicBuild = readHostedPublicBuildSettings();
   const organisationId = process.env.TWE_ORGANISATION_ID;
   await verifyDatabaseIdentity(pool, { environment: settings.environment, organisationId });
   await verifyHostedDatabase(pool, { environment: settings.environment, organisationId });
@@ -24,9 +27,8 @@ try {
     media: new MediaService(pool, organisationId, store),
     archive: store ? new ArtifactArchive(store, { organisationId, environment: settings.environment }) : null,
     provider: new PagesProvider(settings),
-    settings: { ...settings, apiOrigin: process.env.TWE_PUBLIC_API_ORIGIN || "",
-      turnstileSiteKey: process.env.TWE_PUBLIC_TURNSTILE_SITE_KEY || "", indexable: process.env.TWE_PUBLIC_SITE_INDEXABLE === "true",
-      googleVerification: process.env.TWE_PUBLIC_GOOGLE_SITE_VERIFICATION || "" },
+    settings: { ...settings, ...publicBuild },
+    sourceMatches: activeApiSourceMatches,
     logger,
   };
   const runOnce = () => publishOne(workerOptions);
@@ -40,7 +42,7 @@ try {
   logger.info({ eventName: "publication.worker_completed", status: result.status, jobId: result.id }, "Publication worker completed.");
   // A one-shot diagnostic must still signal that reconciliation is blocked.
   // The continuous worker stays alive and polls safely instead of crashing.
-  if (result.status === "failed" || (!continuous && result.status === "recovery_required")) process.exitCode = 1;
+  if (result.status === "failed" || (!continuous && ["recovery_required", "source_wait"].includes(result.status))) process.exitCode = 1;
 } catch {
   logger.error({ eventName: "publication.worker_failed" }, "Publication worker needs configuration or recovery review.");
   process.exitCode = 1;

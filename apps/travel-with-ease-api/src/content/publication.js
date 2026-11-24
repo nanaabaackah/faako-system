@@ -204,13 +204,14 @@ export class PublicationRepository {
       return { status: "queued", id };
     });
   }
-  async claim() {
+  async claim(sourceSha = this.sourceSha) {
+    if (!/^[a-f0-9]{40}$/.test(sourceSha || "")) throw new Error("A reviewed source revision is required to claim a publication.");
     const { rows } = await this.pool.query(
       `WITH candidate AS (SELECT id FROM twe.publication_jobs
-      WHERE organisation_id = $1 AND environment = $2 AND status = 'pending' ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1)
+      WHERE organisation_id = $1 AND environment = $2 AND status = 'pending' AND source_sha = $4 ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1)
       UPDATE twe.publication_jobs p SET status = 'building', attempts = attempts + 1, build_token = $3, last_error = NULL, updated_at = now()
       FROM candidate WHERE p.id = candidate.id RETURNING p.*`,
-      [this.organisationId, this.environment, randomUUID()],
+      [this.organisationId, this.environment, randomUUID(), sourceSha],
     );
     return rows[0];
   }

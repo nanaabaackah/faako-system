@@ -16,7 +16,7 @@ try {
     [process.env.TWE_ORGANISATION_ID],
   );
   const errors = await pool.query(
-    "SELECT CASE WHEN last_error IN ('provider_rejected','delivery_configuration_changed','invalid_provider_response','delivery_failed','retry_window_expired','invalid_delivery_payload') THEN last_error ELSE 'other_redacted' END AS reason,count(*)::int AS count FROM twe.notification_outbox WHERE organisation_id=$1 AND last_error IS NOT NULL GROUP BY 1 ORDER BY 1",
+    "SELECT CASE WHEN last_error IN ('provider_rejected','delivery_configuration_changed','invalid_provider_response','delivery_failed','retry_window_expired','invalid_delivery_payload','legacy_cc_review_required') THEN last_error ELSE 'other_redacted' END AS reason,count(*)::int AS count FROM twe.notification_outbox WHERE organisation_id=$1 AND last_error IS NOT NULL GROUP BY 1 ORDER BY 1",
     [process.env.TWE_ORGANISATION_ID],
   );
   const invitations = await pool.query(
@@ -28,7 +28,8 @@ try {
       environment,
       configured,
       workerEnabledHere: process.env.TWE_NOTIFICATION_WORKER_ENABLED === "true",
-      counts: counts.rows,
+      counts: counts.rows.map(row => ({ ...row, status: row.status === "sent" ? "provider_accepted" : row.status })),
+      deliveryEvidence: "Provider acceptance is not confirmed inbox delivery.",
       errors: errors.rows,
       invitationEmailEnabledHere: process.env.TWE_INVITATION_DELIVERY_ENABLED === "true",
       invitationCounts: invitations.rows,
