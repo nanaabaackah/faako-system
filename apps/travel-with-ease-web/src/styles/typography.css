@@ -23,8 +23,8 @@ body { font-size: var(--text-body); font-weight: 400; line-height: 1.65; }
    pretending a native ExtraBold file exists or synthetically loading 800. */
 body :is(h1, h2, h3) {
   font-family: var(--font-display) !important;
-  font-weight: 400 !important;
-  -webkit-text-stroke: 0.024em currentColor;
+  font-weight: var(--font-display-weight, 400) !important;
+  -webkit-text-stroke: var(--font-display-stroke, 0.024em) currentColor;
   paint-order: stroke fill;
   line-height: 1.12;
   letter-spacing: -0.025em;
@@ -53,11 +53,11 @@ body .cinematic-hero h1 {
   width: 100%;
   max-width: none;
   font-family: var(--font-display) !important;
-  font-weight: 400 !important;
+  font-weight: var(--font-display-weight, 400) !important;
   font-size: clamp(2.1rem, 4.35vw, 4.5rem);
   line-height: 1.1;
   letter-spacing: -0.025em;
-  -webkit-text-stroke: 0.03em currentColor;
+  -webkit-text-stroke: var(--font-hero-stroke, 0.03em) currentColor;
   text-transform: none;
 }
 body .cinematic-hero .hero-signature {
@@ -96,8 +96,8 @@ body .site-header-shell .site-header nav .nav-cta {
 /* Journal listing and article details share the approved TWE typography. */
 body .journal-collection-grid .journal-card h2 {
   font-family: var(--font-display) !important;
-  font-weight: 400 !important;
-  -webkit-text-stroke: 0.024em currentColor;
+  font-weight: var(--font-display-weight, 400) !important;
+  -webkit-text-stroke: var(--font-display-stroke, 0.024em) currentColor;
   font-size: clamp(1.65rem, 2.4vw, 2.25rem);
   line-height: 1.16;
   letter-spacing: -0.025em;
@@ -110,16 +110,16 @@ body .journal-collection-grid .journal-card .journal-card__excerpt {
 }
 body .journal-detail .journal-detail__header h1 {
   font-family: var(--font-display) !important;
-  font-weight: 400 !important;
-  -webkit-text-stroke: 0.024em currentColor;
+  font-weight: var(--font-display-weight, 400) !important;
+  -webkit-text-stroke: var(--font-display-stroke, 0.024em) currentColor;
   font-size: clamp(2.5rem, 4.6vw, 4.8rem);
   line-height: 1.08;
   letter-spacing: -0.026em;
 }
 body .journal-detail :is(.journal-detail__sidebar h2, .journal-detail__content h2, .journal-detail__more h2, .journal-detail__more h3) {
   font-family: var(--font-display) !important;
-  font-weight: 400 !important;
-  -webkit-text-stroke: 0.024em currentColor;
+  font-weight: var(--font-display-weight, 400) !important;
+  -webkit-text-stroke: var(--font-display-stroke, 0.024em) currentColor;
   letter-spacing: -0.02em;
 }
 body .journal-detail .journal-detail__summary {
