@@ -6,6 +6,7 @@ import { assertApiStartup } from "./staging-startup.js";
 import { createInlinePortal } from "./portal/inline.js";
 import { contentRoutes } from "./content/routes.js";
 import { enquiriesRoutes } from "./enquiries/routes.js";
+import { IntakeConfiguration, intakeConfigurationRoutes } from "./enquiries/intake-configuration.js";
 import { mediaRoutes } from "./media/routes.js";
 import { EmailTemplates, emailTemplateRoutes } from "./notifications/templates.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
@@ -78,6 +79,18 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
   if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, publication: publicationRepository, preview: previewService, auth: staffAuth }));
   if (mediaService) app.use("/api/agent/media", mediaRoutes({ service: mediaService, auth: staffAuth }));
   if (repository?.pool && staffAuth) app.use("/api/agent/templates", emailTemplateRoutes(new EmailTemplates(repository.pool, repository.organisationId, templateTestSenderFactory), staffAuth));
+
+  const intakeConfiguration = repository?.pool && repository?.organisationId
+    ? new IntakeConfiguration(repository.pool, repository.organisationId) : null;
+  if (intakeConfiguration && staffAuth) app.use("/api/agent/enquiry-forms/intake", intakeConfigurationRoutes(intakeConfiguration, staffAuth));
+  app.get("/api/public/enquiry-forms/intake", createLimiter({ limit: 60, windowMs: 10 * 60_000 }), async (req, res) => {
+    try {
+      if (!intakeConfiguration) throw new Error("Form configuration unavailable.");
+      return res.json(createSuccessResponse(await intakeConfiguration.active(), { requestId: req.requestId }));
+    } catch {
+      return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "The enquiry form is temporarily unavailable." }, { requestId: req.requestId }));
+    }
+  });
 
   // Public release identity contains only the deployed code SHA and environment.
   // Workers must agree with the running API before coordinating any content release.
