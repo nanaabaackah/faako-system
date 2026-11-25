@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
-import { Button, SelectField, IconsaxIcon, AnimatedLoadingState, InlineNotice, ERPModal } from "@faako/ui";
+import { Button, SelectField, TextField, TextareaField, DateField, IconsaxIcon, AnimatedLoadingState, InlineNotice, ERPModal } from "@faako/ui";
 import {
   QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds, branching,
   questionnaireRoute, questionnaireSteps, questions, selectedServiceFromAnswers,
@@ -63,10 +63,10 @@ export function Question({ question, value, onChange, error }) {
     ...(type === "number" ? (question.type === "NUMBER" ? { min: -1e9, max: 1e9, step: "0.0001" } : { min: question.min || 1, max: question.max || 100, step: 1 }) : {}),
   };
   return <div className="question-field">
-    <label htmlFor={controlProps.id}>{question.label}{question.required && <span aria-hidden="true"> *</span>}</label>
-    {question.description && <p id={`${question.id}-hint`} className="question-hint preserve-lines">{question.description}</p>}
-    {multiline ? <textarea {...controlProps} rows={4} /> : <input {...controlProps} type={type} />}
-    {error && <p id={`${question.id}-error`} className="question-error" role="alert">{error}</p>}
+    {multiline ? <TextareaField {...controlProps} label={question.label} hint={question.description} error={error || undefined} rows={4}/> :
+      type === "date" ? <DateField id={controlProps.id} label={question.label} hint={question.description} error={error || undefined} value={controlProps.value} onChangeValue={onChange} required={question.required}/> :
+      <TextField {...controlProps} label={question.label} hint={question.description} error={error || undefined} type={type}/>}
+    
     {question.id === "300000015" && error && <a href="/services/full-trip-planning?service=full-trip-planning#plan">Use Full Trip Planning instead</a>}
   </div>;
 }
