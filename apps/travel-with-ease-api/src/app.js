@@ -6,6 +6,7 @@ import { assertApiStartup } from "./staging-startup.js";
 import { createInlinePortal } from "./portal/inline.js";
 import { contentRoutes } from "./content/routes.js";
 import { enquiriesRoutes } from "./enquiries/routes.js";
+import { configuredSmartEnquirySchema, configuredQuestionnaireSnapshot } from "./enquiries/questionnaire-validation.js";
 import { DETAILED_FORM_ID } from "./enquiries/questionnaires/configuration.js";
 import { IntakeConfiguration, intakeConfigurationRoutes } from "./enquiries/intake-configuration.js";
 import { defaultIntakeDefinition, validateIntakeAdditionalAnswers, INTAKE_FORM_ID, INTAKE_BASELINE_VERSION } from "./enquiries/intake-definition.js";
@@ -146,6 +147,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
         entryType: context.entryType,
         context: context.context,
         expiresAt: verified.expiresAt,
+        ...(context.questionnaireVersion?.startsWith("cms.") ? { questionnaire: await detailedConfiguration.version(Number(context.questionnaireVersion.slice(4))) } : {}),
       }, { requestId: req.requestId }));
     } catch {
       logger.error?.({ requestId: req.requestId, eventName: "enquiry.continuation_context_failed" }, "Enquiry continuation could not be opened");
@@ -164,14 +166,29 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     const questionnaire = Object.fromEntries(
       Object.entries(req.body || {}).filter(([key]) => key !== "continuationToken"),
     );
-    const parsed = smartEnquirySchema.safeParse(questionnaire);
+    let definition = null;
+    let schema = smartEnquirySchema;
+    if (typeof questionnaire.questionnaireVersion === "string" && /^cms\.[1-9]\d{0,9}$/.test(questionnaire.questionnaireVersion)) {
+      if (!detailedConfiguration) return continuationUnavailable(req, res);
+      try {
+        const version = Number(questionnaire.questionnaireVersion.slice(4));
+        const snapshot = await detailedConfiguration.version(version);
+        definition = snapshot.definition;
+        schema = configuredSmartEnquirySchema(definition, version);
+      } catch (error) {
+        if (error.status === 404 || error instanceof z.ZodError) return continuationUnavailable(req, res);
+        return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "The questionnaire is temporarily unavailable." }, { requestId: req.requestId }));
+      }
+    }
+    const parsed = schema.safeParse(questionnaire);
     if (!parsed.success) return res.status(400).json(createErrorResponse({
       code: "validation_error", message: "Please check your questionnaire details.", issues: issuesFor(parsed.error),
     }, { requestId: req.requestId }));
     if (parsed.data.website) return res.status(202).json(createSuccessResponse({ received: true }, { requestId: req.requestId }));
     try {
       await verifyEnquiryChallenge(req, parsed.data.turnstileToken);
-      const result = await repository.completeEnquiryContinuation(verified.enquiryId, parsed.data);
+      const data = definition ? { ...parsed.data, configuredSnapshot: configuredQuestionnaireSnapshot(parsed.data, definition) } : parsed.data;
+      const result = await repository.completeEnquiryContinuation(verified.enquiryId, data);
       return res.status(result.replayed ? 200 : 201).json(createSuccessResponse(result, { requestId: req.requestId }));
     } catch (error) {
       if (error instanceof TurnstileError) return res.status(error.status).json(createErrorResponse({ code: error.code, message: error.message }, { requestId: req.requestId }));
