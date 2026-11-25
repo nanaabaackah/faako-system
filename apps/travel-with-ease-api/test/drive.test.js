@@ -345,3 +345,68 @@ test("Drive routes enforce media permissions, CSRF, input validation and platfor
   );
   assert.equal(imports, 2);
 });
+
+test("OAuth configuration is complete, TWE-specific and mutually exclusive", () => {
+  const env = {
+    TWE_GOOGLE_DRIVE_MEDIA_FOLDER_ID: folderId,
+    TWE_GOOGLE_OAUTH_CLIENT_ID: "synthetic.apps.googleusercontent.com",
+    TWE_GOOGLE_OAUTH_CLIENT_SECRET: "synthetic-client",
+    TWE_GOOGLE_OAUTH_REFRESH_TOKEN: "synthetic-refresh",
+  };
+  assert.equal(readDriveConfig(env).mode, "oauth");
+  assert.equal(readDriveConfig(env).folderId, folderId);
+  for (const invalid of [
+    { ...env, TWE_GOOGLE_OAUTH_REFRESH_TOKEN: "" },
+    { ...env, TWE_GOOGLE_DRIVE_MEDIA_FOLDER_ID: "" },
+    { ...env, TWE_GOOGLE_SERVICE_ACCOUNT_JSON: "synthetic" },
+    { ...env, TWE_GOOGLE_OAUTH_CLIENT_ID: "https://untrusted.invalid" },
+  ]) assert.throws(() => readDriveConfig(invalid), {
+    message: "TWE Google Drive configuration is incomplete or invalid.",
+  });
+  assert.equal(readDriveConfig({ GOOGLE_OAUTH_REFRESH_TOKEN: "other-app" }), null);
+});
+
+test("OAuth refresh is server-only, cached, read-only and redacts upstream errors", async () => {
+  const config = {
+    mode: "oauth", folderId,
+    clientId: "synthetic.apps.googleusercontent.com",
+    clientSecret: "synthetic-client",
+    refreshToken: "synthetic-refresh",
+  };
+  let calls = 0;
+  const drive = new DriveReader(config, async (url, options) => {
+    calls++;
+    assert.equal(url, "https://oauth2.googleapis.com/token");
+    assert.equal(options.method, "POST");
+    assert.equal(options.redirect, "error");
+    assert.equal(options.body.get("grant_type"), "refresh_token");
+    assert.equal(options.body.get("client_id"), config.clientId);
+    assert.equal(options.body.get("client_secret"), config.clientSecret);
+    assert.equal(options.body.get("refresh_token"), config.refreshToken);
+    assert.equal(options.body.get("assertion"), null);
+    return json({
+      access_token: "synthetic-token",
+      token_type: "Bearer", expires_in: 3600,
+      scope: "https://www.googleapis.com/auth/drive.readonly",
+    });
+  });
+  assert.deepEqual(await Promise.all([drive.accessToken(), drive.accessToken()]),
+    ["synthetic-token", "synthetic-token"]);
+  assert.equal(calls, 1);
+  drive.token.expires = 0;
+  await drive.accessToken();
+  assert.equal(calls, 2);
+  const broader = new DriveReader(config, async () => json({
+    access_token: "synthetic-token", token_type: "Bearer", expires_in: 3600,
+    scope: "https://www.googleapis.com/auth/drive",
+  }));
+  await assert.rejects(broader.accessToken(), { status: 503 });
+  const revoked = new DriveReader(config, async () => {
+    throw new Error("synthetic-sensitive-provider-error");
+  });
+  await assert.rejects(revoked.accessToken(), error => {
+    assert.equal(error.status, 503);
+    assert.doesNotMatch(error.message, /sensitive/);
+    return true;
+  });
+});
