@@ -1,5 +1,5 @@
 // Test-only synthetic fixtures. Never imported by application code or builds.
-import { defaultTemplateCopies, renderEmailTemplate } from "../../../travel-with-ease-api/src/notifications/template-catalogue.js";
+import { defaultTemplateCopies, defaultCopyForTemplate, emailTemplateOptions, packageTemplateOption, packageTemplatePattern, renderEmailTemplate } from "../../../travel-with-ease-api/src/notifications/template-catalogue.js";
 import { INTAKE_FORM_ID, defaultIntakeDefinition, intakeDefinitionSchema } from "../../../travel-with-ease-api/src/enquiries/intake-definition.js";
 import { DETAILED_FORM_ID, defaultDetailedDefinition, detailedDefinitionSchema } from "../../../travel-with-ease-api/src/enquiries/questionnaires/configuration.js";
 import { ROLE_PERMISSIONS } from "../../../travel-with-ease-api/src/auth/permissions.js";
@@ -143,8 +143,16 @@ export function createWorkspaceFixture({role='owner', interactivePreview=false}=
         const form = forms.get(formMatch[1]);
         return formMatch[2] ? { items: [...form.history.keys()].reverse().map(version=>({version,activated_at:timestamp})) } : copy(publicFormRecord(form));
       }
+      if (url.pathname === "/api/agent/templates/catalogue") {
+        const packageOptions = (pages.get("packages")?.body || pageBody("packages")).packages.map(packageTemplateOption).filter(Boolean);
+        return copy({ items: [...emailTemplateOptions.filter(option => option.automated || ROLE_PERMISSIONS[role].includes("templates.manage")), ...packageOptions] });
+      }
       if (/^\/api\/agent\/templates(?:\/[^/]+)?$/.test(url.pathname)) {
         const slug = url.pathname.split("/")[4] || "enquiry-acknowledgement";
+        if (!templates.has(slug) && packageTemplatePattern.test(slug) && (pages.get("packages")?.body || pageBody("packages")).packages.map(packageTemplateOption).some(option => option?.slug === slug)) {
+          const defaults = defaultCopyForTemplate(slug);
+          templates.set(slug, { version: 0, draft: copy(defaults), active: copy(defaults), active_version: null });
+        }
         if (!templates.has(slug)) return fail(400, "Unknown email template.");
         return copy(templates.get(slug));
       }
@@ -255,10 +263,11 @@ export function createWorkspaceFixture({role='owner', interactivePreview=false}=
         form.revision++;
         return copy(publicFormRecord(form));
       }
-      const templateAction = path.match(/^\/api\/agent\/templates\/(?:(enquiry-acknowledgement|staff-invitation)\/)?(preview|draft|activate)$/);
+      const templateAction = path.match(/^\/api\/agent\/templates\/(?:([^/]+)\/)?(preview|draft|activate)$/);
       if (templateAction) {
         const slug = templateAction[1] || "enquiry-acknowledgement";
         let template = templates.get(slug);
+        if (!template) return fail(400, "Unknown email template.");
         if (templateAction[2] === "preview") return { ...renderEmailTemplate(slug, json), preview: true, demo: true };
         if (json.expectedVersion !== template.version) return fail(409, "Reload the changed demo template.");
         const activate = path.endsWith("/activate");
