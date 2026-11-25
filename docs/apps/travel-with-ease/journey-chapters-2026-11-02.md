@@ -1,5 +1,7 @@
 # Journey Chapters — selected public-site refinement
 
+> Historical test, retired 2026-11-25; the current TWE foundation workflow covers the approved layout and routes.
+
 The client selected the third displayed visual concept on 2026-11-02. The
 generated concept is a layout reference only, not a published photograph or
 business-content source. Implemented in the regular worktree and mirrored into
