@@ -23,6 +23,7 @@ const reorder = (items, index, delta) => {
 
 export default function IntakeFormEditor({ api, session, onDirtyChange, onRefreshBlockedChange, detailed = false }) {
   const endpoint = "/api/agent/enquiry-forms/" + (detailed ? "detailed" : "intake");
+  const [reload, setReload] = useState(0);
   const [record, setRecord] = useState(null);
   const [definition, setDefinition] = useState(null);
   const [saveState, setSaveState] = useState({ status: "saved", dirty: false, error: "" });
@@ -76,7 +77,7 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
     }).catch(error => { if (current) setError(error.message); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; autosave.dispose(); if (writer.current === autosave) writer.current = null; };
-  }, [api, session.csrfToken, onDirtyChange, endpoint]);
+  }, [api, session.csrfToken, onDirtyChange, endpoint, reload]);
   function edit(transform) {
     if (blocked || !bodyRef.current) return;
     const next = transform(bodyRef.current);
@@ -112,8 +113,8 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
   }
   function orderControls(group, field, index) {
     return <div className="editor-actions">
-      <Button type="button" icon="back" disabled={blocked || index === 0} onClick={() => edit(body => ({ ...body, [group]: reorder(body[group], index, -1) }))}>Move up</Button>
-      <Button type="button" icon="arrow" disabled={blocked || index === definition[group].length - 1} onClick={() => edit(body => ({ ...body, [group]: reorder(body[group], index, 1) }))}>Move down</Button>
+      <Button type="button" icon="up" disabled={blocked || index === 0} onClick={() => edit(body => ({ ...body, [group]: reorder(body[group], index, -1) }))}>Move up</Button>
+      <Button type="button" icon="down" disabled={blocked || index === definition[group].length - 1} onClick={() => edit(body => ({ ...body, [group]: reorder(body[group], index, 1) }))}>Move down</Button>
       {group === "additional" && <Button type="button" icon="close" disabled={blocked} onClick={() => edit(body => ({ ...body, additional: body.additional.filter(item => item.id !== field.id) }))}>Remove question</Button>}
     </div>;
   }
@@ -125,19 +126,20 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
         <TextField label={"Choice " + (i + 1)} value={option.label} maxLength={160} required disabled={blocked}
           onChange={event => fieldEdit(group, field.id, item => ({ ...item, options: item.options.map(choice => choice.value === option.value ? { ...choice, label: event.target.value } : choice) }))}/>
         <div className="editor-actions">
-          <Button type="button" icon="back" disabled={blocked || i === 0} onClick={() => fieldEdit(group, field.id, item => ({ ...item, options: reorder(item.options, i, -1) }))}>Move up</Button>
-          <Button type="button" icon="arrow" disabled={blocked || i === field.options.length - 1} onClick={() => fieldEdit(group, field.id, item => ({ ...item, options: reorder(item.options, i, 1) }))}>Move down</Button>
+          <Button type="button" icon="up" disabled={blocked || i === 0} onClick={() => fieldEdit(group, field.id, item => ({ ...item, options: reorder(item.options, i, -1) }))}>Move up</Button>
+          <Button type="button" icon="down" disabled={blocked || i === field.options.length - 1} onClick={() => fieldEdit(group, field.id, item => ({ ...item, options: reorder(item.options, i, 1) }))}>Move down</Button>
           {custom && <Button type="button" icon="close" disabled={blocked || field.options.length <= 2} onClick={() => fieldEdit(group, field.id, item => ({ ...item, options: item.options.filter(choice => choice.value !== option.value) }))}>Remove choice</Button>}
         </div>
       </div>)}
       {custom && <Button type="button" icon="plus" disabled={blocked || field.options.length >= 20} onClick={() => fieldEdit(group, field.id, item => ({ ...item, options: [...item.options, newOption("New choice")] }))}>Add choice</Button>}
     </div>;
   }
-  return <section className="workspace-panel" aria-label={detailed ? "Detailed questionnaire" : "Initial enquiry form"}>
+  return <section className="workspace-panel content-editor twe-form-editor" aria-label={detailed ? "Detailed questionnaire" : "Initial enquiry form"}>
     {error && <InlineNotice tone="danger" title="Form action unsuccessful" message={error}/>}
+    {!loading && error && !record && <Button type="button" icon="refresh" onClick={() => { setError(""); setReload(value => value + 1); }}>Retry</Button>}
     {notice && <p role="status">{notice}</p>}
     {loading ? <AnimatedLoadingState compact title="Loading enquiry form"/> : definition && record && <>
-      <p role="status">Active version {record.activeVersion} · {saving ? "Saving draft…" : saveState.dirty ? "Unsaved changes" : "Draft saved"}</p>
+      <p className="twe-editor-status" role="status">Active version {record.activeVersion} · {saving ? "Saving draft…" : saveState.dirty ? "Unsaved changes" : "Draft saved"}</p>
       {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error}/>}
       <div className="editor-actions"><Button type="button" icon="preview" aria-expanded={preview} onClick={() => setPreview(value => !value)}>{preview ? "Close preview" : "Preview draft"}</Button></div>
       {preview && (detailed ? <DetailedFormPreview key={record.revision} definition={definition}/> : <IntakeFormPreview key={record.revision} definition={definition}/>)}
@@ -146,7 +148,7 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
       <div className="cms-editor-groups">
         <h2>Core questions</h2>
         {definition.core.map((field, index) => <fieldset className="cms-editor-group" key={field.id}>
-          <legend>{field.id}</legend>
+          <legend>{field.label}</legend>
           <TextField label="Question label" value={field.label} required maxLength={160} disabled={blocked} onChange={event => fieldEdit("core", field.id, item => ({ ...item, label: event.target.value }))}/>
           {!field.options && <TextField label="Placeholder" value={field.placeholder || ""} maxLength={240} disabled={blocked} onChange={event => fieldEdit("core", field.id, item => ({ ...item, placeholder: event.target.value }))}/>}
           {choices("core", field)}

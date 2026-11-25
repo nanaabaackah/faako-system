@@ -17,6 +17,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { SelectOption } from "@faako/types";
+import { IconsaxIcon } from "./IconsaxIcon";
 
 const joinClasses = (...values: Array<string | false | null | undefined>) =>
   values.filter(Boolean).join(" ");
@@ -669,7 +670,7 @@ export const SelectField = forwardRef<
           <span className="ui-dropdown-field__value">
             {displayValue}
           </span>
-          <span className="ui-dropdown-field__caret" aria-hidden="true">▾</span>
+          <span className="ui-dropdown-field__caret" aria-hidden="true"><IconsaxIcon name="ArrowRight4" width={16} height={16} style={{ transform: "rotate(90deg)" }} /></span>
         </button>
       </div>
 
@@ -732,7 +733,7 @@ export const SelectField = forwardRef<
                     >
                       <span>{option.label}</span>
                       {multiple && isSelected ? (
-                        <span className="ui-dropdown-field__option-mark" aria-hidden="true">✓</span>
+                        <span className="ui-dropdown-field__option-mark" aria-hidden="true"><IconsaxIcon name="TickCircle" width={16} height={16} /></span>
                       ) : null}
                     </button>
                   );

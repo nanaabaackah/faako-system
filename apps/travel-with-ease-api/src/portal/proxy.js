@@ -5,7 +5,14 @@ import { buildSecurityHeaders } from "@faako/security";
 
 const id = "[a-fA-F0-9-]{36}";
 const page = `(?:${pageNames.join("|")})`;
+const template = "(?:enquiry-acknowledgement|staff-invitation)";
+const form = "(?:intake|detailed)";
 const routes = [
+  ["GET", new RegExp("^/api/agent/templates(?:/" + template + "(?:/history)?)?$")],
+  ["POST", new RegExp("^/api/agent/templates(?:/" + template + ")?/(?:draft|preview|activate)$")],
+  ["POST", new RegExp("^/api/agent/templates/" + template + "/(?:test|restore)$")],
+  ["GET", new RegExp("^/api/agent/enquiry-forms/" + form + "(?:/history)?$")],
+  ["POST", new RegExp("^/api/agent/enquiry-forms/" + form + "/(?:draft|activate|restore)$")],
   ["GET", /^\/api\/auth\/(activation|invitations)$/],
   ["POST", /^\/api\/auth\/(invitations|activation\/preview|activation\/claim|activation\/owner-invitation)$/],
   ["POST", new RegExp(`^/api/auth/(?:invitations|activation/owner-invitation)/${id}/revoke$`)],

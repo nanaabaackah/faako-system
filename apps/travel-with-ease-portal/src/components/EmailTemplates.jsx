@@ -24,6 +24,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
   const definition = emailTemplateOptions.find(
     (option) => option.slug === slug,
   );
+  const [reload, setReload] = useState(0);
   const [record, setRecord] = useState(null);
   const [copy, setCopy] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -41,9 +42,9 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
   const copyRef = useRef(null);
   const saving = saveState.status === "saving";
   useEffect(() => {
-    onRefreshBlockedChange?.(dirty || busy || saving || historyLoading || !record || Boolean(confirmation));
+    onRefreshBlockedChange?.(dirty || busy || saving || historyLoading || (!record && !error) || Boolean(confirmation));
     return () => onRefreshBlockedChange?.(false);
-  }, [dirty, busy, saving, historyLoading, record, confirmation, onRefreshBlockedChange]);
+  }, [dirty, busy, saving, historyLoading, record, error, confirmation, onRefreshBlockedChange]);
   // Preview branding is bundled locally; the actual outgoing email retains
   // absolute public asset URLs for email-client compatibility.
   const previewHtml = preview?.html
@@ -97,7 +98,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
       autosave.dispose();
       if (writer.current === autosave) writer.current = null;
     };
-  }, [api, slug, session.csrfToken, onDirtyChange]);
+  }, [api, slug, session.csrfToken, onDirtyChange, reload]);
   useEffect(() => {
     historyRequest.current++;
     setHistory([]);
@@ -171,8 +172,8 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
           kind === "restore"
               ? "Revision restored as a draft. Outgoing emails have not changed."
               : definition.automated
-                ? "Template activated for newly prepared enquiry emails. Existing queued email payloads are unchanged."
-                : "Invitation template approved and saved. No invitations were created or sent. Use Staff access for email invitations when enabled, or for manually shared codes.",
+                ? "Template activated."
+                : "Invitation template approved.",
         );
         pushToast({ tone: "success", title: kind === "restore" ? "Template draft restored" : definition.automated ? "Template activated" : "Template approved", message: kind === "restore" ? "Outgoing emails have not changed." : "No email was sent by this action." });
       }
@@ -197,10 +198,6 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
             </option>
           ))}
         </SelectField>
-        <h2>{definition.label}</h2>
-        <p>
-          {definition.description}
-        </p>
       </section>
       {error && (
         <InlineNotice
@@ -212,7 +209,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
       {notice && <p role="status">{notice}</p>}
       {!copy ? (
         error ? (
-          <p>Reload this module to try again.</p>
+          <Button type="button" icon="refresh" onClick={() => { setError(""); setReload(value => value + 1); }}>Retry</Button>
         ) : (
           <AnimatedLoadingState compact title="Loading templates" />
         )

@@ -42,8 +42,8 @@ export default function DetailedQuestionFields({ definition, edit, blocked }) {
       <TextField label="Step title" value={step.title} maxLength={240} required disabled={blocked} onChange={event => stepEdit(step.id,item => ({ ...item,title:event.target.value }))}/>
       {DETAILED_ROUTES.map(route => <SelectField key={route} label={routeLabels[route]} value={step.routes.includes(route)?"show":"hide"} disabled={blocked || (step.routes.length===1 && step.routes.includes(route))} onChangeValue={value => stepEdit(step.id,item => ({ ...item,routes:value==="show"?[...new Set([...item.routes,route])]:item.routes.filter(name=>name!==route) }))}><option value="show">Show step</option><option value="hide">Hide step</option></SelectField>)}
       <div className="editor-actions">
-        <Button type="button" icon="back" disabled={blocked || index===0} onClick={()=>edit(body=>({...body,steps:reorder(body.steps,index,-1)}))}>Move step up</Button>
-        <Button type="button" icon="arrow" disabled={blocked || index===definition.steps.length-1} onClick={()=>edit(body=>({...body,steps:reorder(body.steps,index,1)}))}>Move step down</Button>
+        <Button type="button" icon="up" disabled={blocked || index===0} onClick={()=>edit(body=>({...body,steps:reorder(body.steps,index,-1)}))}>Move step up</Button>
+        <Button type="button" icon="down" disabled={blocked || index===definition.steps.length-1} onClick={()=>edit(body=>({...body,steps:reorder(body.steps,index,1)}))}>Move step down</Button>
         <Button type="button" icon="close" disabled={blocked || definition.steps.length===1 || step.questionIds.some(id=>protectedQuestionIds.includes(id))} onClick={()=>edit(body=>clean({...body,steps:body.steps.filter(item=>item.id!==step.id)}))}>Remove step</Button>
       </div>
       {step.questionIds.map((id,position) => {
@@ -53,7 +53,7 @@ export default function DetailedQuestionFields({ definition, edit, blocked }) {
         const candidates=definition.questions.filter(item=>item.id!==id && choice(item.type));
         const dependency=candidates.find(item=>item.id===question.condition?.questionId);
         return <fieldset className="cms-editor-group" key={id}>
-          <legend>Question {position+1}{locked?" · Protected":""}</legend>
+          <legend>{question.label}</legend>
           <TextField label="Question label" value={question.label} maxLength={240} required disabled={blocked} onChange={event=>field(id,item=>({...item,label:event.target.value}))}/>
           <TextareaField label="Description" value={question.description} maxLength={2000} disabled={blocked} onChange={event=>field(id,item=>({...item,description:event.target.value}))}/>
           <SelectField label="Answer type" value={question.type} disabled={blocked||locked} onChangeValue={type=>field(id,item=>({...item,type,options:choice(type)?(choice(item.type)?item.options:["Choice 1","Choice 2"]):[]}))}>{types.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectField>
@@ -72,8 +72,8 @@ export default function DetailedQuestionFields({ definition, edit, blocked }) {
             {dependency&&<SelectField label="Selected answer" value={question.condition.option} disabled={blocked} onChangeValue={value=>field(id,item=>({...item,condition:{...item.condition,option:value}}))}>{dependency.options.map((option,i)=><option key={i} value={option}>{option}</option>)}</SelectField>}
           </>}
           <div className="editor-actions">
-            <Button type="button" icon="back" disabled={blocked||position===0} onClick={()=>stepEdit(step.id,item=>({...item,questionIds:reorder(item.questionIds,position,-1)}))}>Move question up</Button>
-            <Button type="button" icon="arrow" disabled={blocked||position===step.questionIds.length-1} onClick={()=>stepEdit(step.id,item=>({...item,questionIds:reorder(item.questionIds,position,1)}))}>Move question down</Button>
+            <Button type="button" icon="up" disabled={blocked||position===0} onClick={()=>stepEdit(step.id,item=>({...item,questionIds:reorder(item.questionIds,position,-1)}))}>Move question up</Button>
+            <Button type="button" icon="down" disabled={blocked||position===step.questionIds.length-1} onClick={()=>stepEdit(step.id,item=>({...item,questionIds:reorder(item.questionIds,position,1)}))}>Move question down</Button>
             {!locked&&<Button type="button" icon="close" disabled={blocked||step.questionIds.length===1} onClick={()=>edit(body=>clean({...body,steps:body.steps.map(item=>item.id===step.id?{...item,questionIds:item.questionIds.filter(value=>value!==id)}:item)}))}>Remove question</Button>}
           </div>
         </fieldset>;

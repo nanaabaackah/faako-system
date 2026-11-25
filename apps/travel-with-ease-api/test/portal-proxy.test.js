@@ -123,3 +123,26 @@ test("portal verifies Access, restricts proxy routes and preserves only scoped c
     assert.equal(unavailable.headers["cache-control"], "private, no-store");
   } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
 });
+
+test("hosted CMS guard permits exact template and form operations without widening API access", () => {
+  for (const slug of ["enquiry-acknowledgement", "staff-invitation"]) {
+    const base = "/api/agent/templates/" + slug;
+    for (const path of [base, base + "/history"]) assert.equal(isAllowedPortalApiRoute("GET", path), true);
+    for (const action of ["draft", "preview", "activate", "test", "restore"]) {
+      assert.equal(isAllowedPortalApiRoute("POST", base + "/" + action), true);
+      assert.equal(isAllowedPortalApiRoute("GET", base + "/" + action), false);
+    }
+  }
+  for (const slug of ["intake", "detailed"]) {
+    const base = "/api/agent/enquiry-forms/" + slug;
+    for (const path of [base, base + "/history"]) assert.equal(isAllowedPortalApiRoute("GET", path), true);
+    for (const action of ["draft", "activate", "restore"]) {
+      assert.equal(isAllowedPortalApiRoute("POST", base + "/" + action), true);
+      assert.equal(isAllowedPortalApiRoute("GET", base + "/" + action), false);
+    }
+  }
+  for (const path of ["/api/agent/templates/unknown", "/api/agent/templates/enquiry-acknowledgement/delete", "/api/agent/enquiry-forms/unknown", "/api/agent/enquiry-forms/intake/delete", "/api/agent/enquiry-forms/intake/../detailed", "/api/agent/enquiry-forms/%69ntake", "/api/public/enquiry-forms/intake"]) {
+    assert.equal(isAllowedPortalApiRoute("GET", path), false);
+    assert.equal(isAllowedPortalApiRoute("POST", path), false);
+  }
+});

@@ -1445,3 +1445,23 @@ select:focus-visible {
   .portal-shell .twe-action-button > span:first-child { min-width: 0; }
   .portal-shell .metric-word .ui-kpi-card__value { overflow-wrap: anywhere; }
 }
+
+/* Form builders use the established CMS editor hierarchy, not browser defaults. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.portal-shell .twe-form-editor { display: grid; gap: 16px; min-width: 0; }
+.portal-shell .twe-form-editor :is(fieldset, .cms-editor-group, .cms-editor-groups) { min-width: 0; max-width: 100%; }
+.portal-shell .twe-form-editor .cms-editor-group { border-radius: var(--twe-radius-card); }
+.portal-shell .twe-form-editor legend { max-width: 100%; overflow-wrap: anywhere; font-family: var(--sys-font-body); font-size: 1rem; line-height: 1.45; }
+.portal-shell .twe-form-editor h2 { margin: 4px 0; font-size: 1.125rem; line-height: 1.4; }
+.portal-shell .twe-form-editor .twe-editor-status { margin: 0; font-size: 0.875rem; color: var(--twe-muted); }
+.portal-shell .twe-form-editor .editor-actions { gap: 10px; }
+.portal-shell .twe-form-editor .editor-actions > .ui-field { flex: 1 1 12rem; min-width: 0; }
+.portal-shell .twe-form-editor .public-enquiry-form { overflow-wrap: anywhere; }
+.portal-shell .twe-form-editor .public-enquiry-form .ui-field :is(input,textarea) { font-size: 16px; }
+@media (max-width: 600px) {
+  .portal-shell .twe-form-editor { padding: 14px; gap: 14px; }
+  .portal-shell .twe-form-editor .cms-editor-group { padding: 12px; gap: 12px; }
+  .portal-shell .twe-form-editor .editor-actions > .ui-button { flex: 1 1 100%; min-width: 0; width: 100%; }
+  .portal-shell .twe-form-editor .editor-actions > .ui-field { flex-basis: 100%; }
+  .portal-shell .twe-form-editor :is(.ui-field__input,.ui-field__textarea,.ui-dropdown-field__trigger), .portal-shell .email-templates :is(.ui-field__input,.ui-field__textarea,.ui-dropdown-field__trigger) { font-size: 16px; }
+}
