@@ -5,7 +5,7 @@ import { richTextBlocks } from "../../../travel-with-ease-api/src/content/rich-t
 // converts existing numbered/bulleted paragraphs to semantic lists.
 export function journalBodyBlocks(body = "") {
   /** @type {Array<
-   *  {type: "ordered", items: string[]} |
+   *  {type: "ordered", items: string[], start: number} |
    *  {type: "unordered", items: string[]} |
    *  {type: "heading", text: string} |
    *  {type: "paragraph", text: string} |
@@ -16,17 +16,6 @@ export function journalBodyBlocks(body = "") {
     const text = raw.trim();
     if (!text) continue;
     const lines = text.split("\n").map(line => line.trim()).filter(Boolean);
-    if (lines.every(line => /^[-•]\s+/.test(line))) {
-      blocks.push({ type: "unordered", items: lines.map(line => line.replace(/^[-•]\s+/, "")) });
-      continue;
-    }
-    if (lines.every(line => /^\d+\.\s+/.test(line))) {
-      const items = lines.map(line => line.replace(/^\d+\.\s+/, ""));
-      const last = blocks.at(-1);
-      if (last?.type === "ordered") last.items.push(...items);
-      else blocks.push({ type: "ordered", items });
-      continue;
-    }
     if (["Why it happens", "If you're turned away at the desk"].includes(text)) {
       blocks.push({ type: "heading", text });
       continue;
@@ -37,7 +26,13 @@ export function journalBodyBlocks(body = "") {
     }
     for (const block of richTextBlocks(text)) {
       if (block.type === "paragraph") blocks.push({ type: "paragraph", text: block.text.replace(/\n/g, " ") });
-      else if (block.type === "ordered") blocks.push({ type: "ordered", items: block.items });
+      else if (block.type === "ordered") {
+        // Preserve the published legacy numbered paragraphs that are separated
+        // by blank lines while honouring explicit restarts and non-1 numbering.
+        const last = blocks.at(-1);
+        if (last?.type === "ordered" && block.start === last.start + last.items.length) last.items.push(...block.items);
+        else blocks.push(block);
+      }
       else blocks.push({ type: "unordered", items: block.items });
     }
   }
