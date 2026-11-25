@@ -7,6 +7,7 @@ import { createInlinePortal } from "./portal/inline.js";
 import { contentRoutes } from "./content/routes.js";
 import { enquiriesRoutes } from "./enquiries/routes.js";
 import { IntakeConfiguration, intakeConfigurationRoutes } from "./enquiries/intake-configuration.js";
+import { defaultIntakeDefinition, validateIntakeAdditionalAnswers, INTAKE_FORM_ID, INTAKE_BASELINE_VERSION } from "./enquiries/intake-definition.js";
 import { mediaRoutes } from "./media/routes.js";
 import { EmailTemplates, emailTemplateRoutes } from "./notifications/templates.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
@@ -190,7 +191,35 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     try {
       await verifyEnquiryChallenge(req, parsed.data.turnstileToken);
       if (typeof repository?.createNativeEnquiry !== "function") throw new Error("Enquiry adapter unavailable.");
-      const result = await repository.createNativeEnquiry(parsed.data);
+      let data = parsed.data;
+      if (data.intakeVersion !== undefined) {
+        const version = data.intakeVersion;
+        let snapshot;
+        try {
+          snapshot = intakeConfiguration ? await intakeConfiguration.version(version)
+            : version === INTAKE_BASELINE_VERSION && !["staging", "production"].includes(environment)
+              ? { definition: defaultIntakeDefinition() } : null;
+          if (!snapshot) throw Object.assign(new Error("Unavailable form"), { status: 404 });
+        } catch (error) {
+          if (error.status !== 404) throw error;
+          return res.status(409).json(createErrorResponse({ code: "conflict", message: "This form version is unavailable. Reopen the enquiry before submitting." }, { requestId: req.requestId }));
+        }
+        let answers;
+        try { answers = validateIntakeAdditionalAnswers(snapshot.definition, data.entryType, data.additionalAnswers || {}); }
+        catch (error) {
+          if (!(error instanceof z.ZodError)) throw error;
+          return res.status(400).json(createErrorResponse({ code: "validation_error", message: "Check the additional enquiry answers.", issues: issuesFor(error) }, { requestId: req.requestId }));
+        }
+        const { additionalAnswers, ...core } = data;
+        data = { ...core, intakeSnapshot: {
+          formId: INTAKE_FORM_ID, version, title: snapshot.definition.title,
+          core: snapshot.definition.core.filter(field => field.id !== "budget" || data.entryType !== "package").map(field => ({
+            id: field.id, label: field.label, ...(field.options ? { selectedOption: field.options.find(option => option.value === data[field.id]) || null } : {}),
+          })),
+          additional: answers,
+        } };
+      }
+      const result = await repository.createNativeEnquiry(data);
       return res.status(result.replayed ? 200 : 201).json(createSuccessResponse(result, { requestId: req.requestId }));
     } catch (error) {
       if (error instanceof TurnstileError) return res.status(error.status).json(createErrorResponse({
