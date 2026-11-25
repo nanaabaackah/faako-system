@@ -346,8 +346,12 @@ export class PublicationRepository {
     if (result.rowCount !== 1) throw new Error("Staging replay lease is no longer active.");
   }
   async failTerminalStagingDeployment(job, terminal, baselineId) {
-    if (this.environment !== "staging" || !["failure", "canceled", "skipped"].includes(terminal?.status) ||
-      !/^[a-f0-9-]{36}$/i.test(terminal?.id || "") || !baselineId || baselineId === job.id) return false;
+    const abandoned = terminal?.status === "upload_not_found";
+    if (this.environment !== "staging" || !["failure", "canceled", "skipped", "upload_not_found"].includes(terminal?.status) ||
+      (!abandoned && !/^[a-f0-9-]{36}$/i.test(terminal?.id || "")) ||
+      (abandoned && (terminal.id || job.manifest?.triggerType !== "code_release" ||
+        !/^[a-f0-9]{40}$/.test(this.sourceSha || "") || job.source_sha === this.sourceSha)) ||
+      !baselineId || baselineId === job.id) return false;
     return transaction(this.pool, async client => {
       await this.lockOrganisation(client);
       const live = await client.query(
@@ -356,15 +360,16 @@ export class PublicationRepository {
       );
       if (live.rows[0]?.id !== baselineId) return false;
       const result = await client.query(
-        `UPDATE twe.publication_jobs SET status='failed', last_error='provider_terminal_failure', deployment_id=$5, completed_at=now(), updated_at=now()
+        `UPDATE twe.publication_jobs SET status='failed', last_error=CASE WHEN $5::text IS NULL THEN 'provider_upload_not_found' ELSE 'provider_terminal_failure' END, deployment_id=$5, completed_at=now(), updated_at=now()
         WHERE organisation_id=$1 AND environment=$2 AND id=$3 AND build_token=$4 AND status='deploying'
         AND updated_at=$6 AND updated_at <= now() - interval '10 minutes'
+        AND ($5::text IS NOT NULL OR (updated_at <= now() - interval '1 hour' AND source_sha <> $7 AND manifest->>'triggerType' = 'code_release'))
         AND recovery_deployment_id IS NULL AND last_error IS DISTINCT FROM 'staging_replay_claimed'
         RETURNING id`,
-        [this.organisationId, this.environment, job.id, job.build_token, terminal.id, job.lease_updated_at ?? job.updated_at],
+        [this.organisationId, this.environment, job.id, job.build_token, terminal.id || null, job.lease_updated_at ?? job.updated_at, this.sourceSha],
       );
       if (result.rowCount !== 1) return false;
-      await appendAudit(client, { organisationId: this.organisationId, action: "content.deployment_terminal_failure", recordId: job.id, requestId: job.id });
+      await appendAudit(client, { organisationId: this.organisationId, action: abandoned ? "content.deployment_upload_not_found" : "content.deployment_terminal_failure", recordId: job.id, requestId: job.id });
       return true;
     });
   }

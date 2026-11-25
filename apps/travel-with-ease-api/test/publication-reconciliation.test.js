@@ -561,3 +561,51 @@ test("explicit skipped flag on terminal Direct Upload is not misclassified as li
   const row = { ...directTerminal, latest_stage: { status: "success", ended_on: "2026-11-23T08:03:00Z" } };
   assert.deepEqual(await terminalProvider([row], row).terminalStagingDeployment(terminalJob), { id: row.id, status: "skipped" });
 });
+
+test("abandoned automatic release requires complete absence evidence, a newer source and an hour of age", async () => {
+  const git = { ...directTerminal, deployment_trigger: { ...directTerminal.deployment_trigger, type: "github:push" } };
+  const options = { allowAbandoned: true, now: Date.parse("2026-11-23T10:00:00Z") };
+  const p = terminalProvider([git]);
+  p.settings.sourceSha = "b".repeat(40);
+  assert.deepEqual(await p.terminalStagingDeployment(terminalJob, {}, options), { status: "upload_not_found" });
+  assert.equal(await p.terminalStagingDeployment(terminalJob), null);
+  assert.equal(await p.terminalStagingDeployment(terminalJob, {}, { ...options, now: Date.parse("2026-11-23T08:20:00Z") }), null);
+  assert.equal(await p.terminalStagingDeployment({ ...terminalJob, manifest: { ...terminalJob.manifest, triggerType: "cms_publication" } }, {}, options), null);
+  p.settings.sourceSha = sha;
+  assert.equal(await p.terminalStagingDeployment(terminalJob, {}, options), null);
+  const pending = terminalProvider([{ ...directTerminal, is_skipped: false, latest_stage: { status: "active" }, deployment_trigger: { type: "ad_hoc", metadata: { branch: "develop", commit_hash: "c".repeat(40) } } }]);
+  pending.settings.sourceSha = "b".repeat(40);
+  assert.equal(await pending.terminalStagingDeployment(terminalJob, {}, options), null);
+  const truncated = terminalProvider([]);
+  truncated.settings.sourceSha = "b".repeat(40);
+  truncated.request = async suffix => !suffix ? { name: "twe-concierge", production_branch: "main" } : Array.from({ length: 25 }, (_, i) => ({ ...git, id: "11111111-1111-4111-8111-" + String(Number(new URL("https://example.invalid" + suffix).searchParams.get("page")) * 25 + i).padStart(12, "0") }));
+  assert.equal(await truncated.terminalStagingDeployment(terminalJob, {}, options), null);
+});
+test("abandoned code release closes only after baseline verification and retains all content pointers", async () => {
+  const baseline = { id: "bbbbbbbb-1111-4111-8111-111111111111", source_sha: "b".repeat(40), manifest: { pages: [] } };
+  const events = [];
+  const options = {
+    settings: { environment: "staging", origin: "https://staging.travelwitheasegh.com" },
+    publication: { staleDeployment: async () => terminalJob, lastLive: async () => baseline, confirmed: async () => null,
+      failTerminalStagingDeployment: async (_row, proof, id) => { assert.equal(proof.status, "upload_not_found"); assert.equal(id, baseline.id); events.push("closed"); return true; } },
+    provider: { findPublicationDeployment: async () => null, terminalStagingDeployment: async () => ({ status: "upload_not_found" }), verifiedStagingBaseline: async () => events.push("baseline") },
+    verify: async () => events.push("current"),
+  };
+  assert.equal((await reconcileStalePublication(options)).status, "failed");
+  assert.deepEqual(events, ["baseline", "current", "closed"]);
+  events.length = 0;
+  options.verify = async () => { throw new Error("Changed baseline"); };
+  assert.equal((await reconcileStalePublication(options)).status, "recovery_required");
+  assert.deepEqual(events, ["baseline"]);
+  const queries = [];
+  const repository = new PublicationRepository({ connect: async () => ({
+    query: async (sql, params) => { queries.push({ sql, params }); return sql.includes("status='live'") ? { rows: [{ id: baseline.id }] } : { rows: [], rowCount: 1 }; },
+    release() {},
+  }) }, { organisationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", environment: "staging", sourceSha: "b".repeat(40) });
+  assert.equal(await repository.failTerminalStagingDeployment(terminalJob, { status: "upload_not_found" }, baseline.id), true);
+  assert.equal(queries.some(q => q.sql.includes("UPDATE twe.content_items")), false);
+  const update = queries.find(q => q.sql.includes("provider_upload_not_found"));
+  assert.equal(update.params[4], null);
+  assert.match(update.sql, /interval '1 hour'/);
+  assert.ok(queries.some(q => q.params?.includes("content.deployment_upload_not_found")));
+});
