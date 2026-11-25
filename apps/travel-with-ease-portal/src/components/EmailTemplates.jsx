@@ -20,6 +20,7 @@ import { emailTemplateOptions } from "../../../travel-with-ease-api/src/notifica
 export default function EmailTemplates({ api, session, onDirtyChange, onRefreshBlockedChange }) {
   const { pushToast } = useToast();
   const [slug, setSlug] = useState("enquiry-acknowledgement");
+  const canActivate = session.user.permissions?.includes("templates.manage") === true;
   const definition = emailTemplateOptions.find(
     (option) => option.slug === slug,
   );
@@ -141,7 +142,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
     setNotice("");
   }
   async function action(kind, revision) {
-    if (busy || (["activate", "restore"].includes(kind) && (dirty || saving))) return;
+    if (busy || (kind === "activate" && !canActivate) || (["activate", "restore", "test"].includes(kind) && (dirty || saving))) return;
     if (kind === "draft") { await writer.current?.flush(); return; }
     setBusy(true);
     setError("");
@@ -190,7 +191,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
           disabled={busy || saving || historyLoading || Boolean(confirmation)}
           onChange={changeTemplate}
         >
-          {emailTemplateOptions.map((option) => (
+          {emailTemplateOptions.filter(option => option.automated || canActivate).map((option) => (
             <option key={option.slug} value={option.slug}>
               {option.label}
             </option>
@@ -280,7 +281,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               <Button type="submit" icon="save" disabled={busy || saving || !dirty}>
                 Save draft
               </Button>
-              <Button
+              {canActivate && <Button
                 type="button"
                 icon="check"
                 disabled={busy || saving || dirty || record.version === 0}
@@ -289,7 +290,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
                 {definition.automated
                   ? "Activate saved template"
                   : "Approve saved template"}
-              </Button>
+              </Button>}
             </div>
           </form>
           <section
