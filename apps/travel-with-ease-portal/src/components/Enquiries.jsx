@@ -16,21 +16,25 @@ const serviceOptions = [
   ["readiness", "Travel Readiness Session"], ["full_planning", "Full Trip Planning"],
   ["premium", "Premium Concierge"], ["group", "Group Trip Planning"],
 ];
-export default function Enquiries({ api, session }) {
+export default function Enquiries({ api, session, initialStatus = "", initialEnquiryId = null, onRefreshBlockedChange }) {
   const { pushToast } = useToast();
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(statuses.includes(initialStatus) ? initialStatus : "");
   const [category, setCategory] = useState("");
   const [service, setService] = useState("");
   const [packageFilter, setPackageFilter] = useState("");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [result, setResult] = useState({ items: [], nextOffset: null });
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(initialEnquiryId);
   const [selected, setSelected] = useState(null);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    onRefreshBlockedChange?.(busy || saving);
+    return () => onRefreshBlockedChange?.(false);
+  }, [busy, saving, onRefreshBlockedChange]);
   useEffect(() => {
     let active = true;
     setBusy(true);
@@ -260,16 +264,15 @@ export default function Enquiries({ api, session }) {
             <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
           </div>
           {!busy && !error && (
-            <div className="workspace-kpis">
+            <div className="workspace-kpis" aria-label="Counts on this page">
               {statuses.map((value) => (
-                <KpiCard
-                  key={value}
+                <button type="button" className="twe-kpi-link" key={value} onClick={() => { setStatus(value); setOffset(0); }} aria-pressed={status === value} aria-label={`Filter ${value} enquiries`}><KpiCard
                   label={value[0].toUpperCase() + value.slice(1)}
                   value={
                     result.items.filter((item) => item.status === value).length
                   }
-                  
-                />
+                  detail="On this page"
+                /></button>
               ))}
             </div>
           )}
