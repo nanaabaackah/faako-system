@@ -99,7 +99,7 @@ test("template copy is bounded and escaped; delivery and mandatory footer are co
   assert.match(staging.html, /&lt;script&gt;/);
 });
 
-test("template service refuses editors and cross-tenant administrators before querying", async () => {
+test("template service refuses cross-tenant actors and privileged editor actions before querying", async () => {
   const service = new EmailTemplates(
     {
       query() {
@@ -109,7 +109,6 @@ test("template service refuses editors and cross-tenant administrators before qu
     "tenant-a",
   );
   for (const actor of [
-    { id: "staff", role: "editor", organisationId: "tenant-a" },
     { id: "staff", role: "platform_admin", organisationId: "tenant-b" },
     { id: "staff", role: "owner", organisationId: "tenant-b" },
   ]) {
@@ -118,15 +117,21 @@ test("template service refuses editors and cross-tenant administrators before qu
       status: 403,
     });
   }
+  const editor = { id: "staff", role: "editor", organisationId: "tenant-a" };
+  assert.doesNotThrow(() => service.check(editor, "enquiry-acknowledgement"));
+  await assert.rejects(service.get(editor, "staff-invitation"), { status: 403 });
+  await assert.rejects(service.change(editor, "test", 0, null, true), { status: 403 });
+  await assert.rejects(service.sendTest(editor, "test", defaultInvitationCopy, "staff-invitation"), { status: 403 });
 });
 
-test("template HTTP preview requires owner permission, CSRF and strict input; never sends email", async (context) => {
+test("template HTTP preview requires appropriate permission, CSRF and strict input; never sends email", async (context) => {
   let role = "owner",
     saves = 0;
   const actor = () => ({ id: "staff", role, organisationId: "tenant-a" });
   const service = new EmailTemplates({}, "tenant-a");
-  service.get = async () => ({ version: 0, draft: defaultEnquiryCopy });
-  service.change = async () => {
+  service.get = async (actor, slug) => { service.check(actor, slug); return { version: 0, draft: defaultEnquiryCopy }; };
+  service.change = async (actor, requestId, version, copy, activate, slug) => {
+    service.check(actor, slug, activate);
     saves++;
     return { version: 1 };
   };
@@ -188,8 +193,11 @@ test("template HTTP preview requires owner permission, CSRF and strict input; ne
   assert.equal((await post("/staff-invitation/preview", defaultInvitationCopy)).status, 200);
   for (const denied of ["editor"]) {
     role = denied;
-    assert.equal((await fetch(origin)).status, 403);
+    assert.equal((await fetch(origin)).status, 200);
+    assert.equal((await post("/preview", defaultEnquiryCopy)).status, 200);
+    assert.equal((await post("/activate", { expectedVersion: 1 })).status, 403);
     assert.equal((await fetch(origin + "/staff-invitation")).status, 403);
+    assert.equal((await post("/staff-invitation/draft", { expectedVersion: 0, copy: defaultInvitationCopy })).status, 403);
     assert.equal(
       (await post("/staff-invitation/preview", defaultInvitationCopy)).status,
       403,
@@ -197,7 +205,7 @@ test("template HTTP preview requires owner permission, CSRF and strict input; ne
     assert.equal(
       (await post("/draft", { expectedVersion: 0, copy: defaultEnquiryCopy }))
         .status,
-      403,
+      200,
     );
   }
 });
