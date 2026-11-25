@@ -284,7 +284,6 @@ const navigation = [
       toggle.setAttribute("aria-expanded", String(open));
       nav.dataset.collapsed = String(!open && mobile.matches);
       nav.inert = !open && mobile.matches;
-      toggle.setAttribute("aria-label", open && mobile.matches ? "Close menu" : "Menu");
       document.body.classList.toggle("twe-mobile-menu-open", open && mobile.matches);
     };
     toggle.hidden = false;
