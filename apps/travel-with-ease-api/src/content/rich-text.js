@@ -20,21 +20,27 @@ export function richTextBlocks(value = "") {
   const blocks = [];
   const lines = String(value ?? "").replace(/\r\n?/g, "\n").split("\n");
   let paragraph = [];
+  let listContinues = false;
   const flush = () => {
     if (paragraph.length) blocks.push({ type: "paragraph", text: paragraph.join("\n") });
     paragraph = [];
   };
   for (const line of lines) {
     const match = line.match(/^\s*(?:(\d+)\.|([-•]))\s+(.+)$/);
-    if (match) {
+    const number = match?.[1] ? Number(match[1]) : null;
+    if (match && (number === null || (Number.isSafeInteger(number) && number >= 1 && number <= 2147483647))) {
       flush();
       const type = match[1] ? "ordered" : "unordered";
       const last = blocks.at(-1);
-      if (last?.type === type) last.items.push(match[3]);
-      else if (type === "ordered") blocks.push({ type, items: [match[3]], start: Number(match[1]) });
+      if (listContinues && last?.type === type && (type !== "ordered" || (last.type === "ordered" && number === last.start + last.items.length))) last.items.push(match[3]);
+      else if (type === "ordered") blocks.push({ type, items: [match[3]], start: Number(number) });
       else blocks.push({ type, items: [match[3]] });
-    } else if (!line.trim()) flush();
-    else paragraph.push(line);
+      listContinues = true;
+    } else {
+      listContinues = false;
+      if (!line.trim()) flush();
+      else paragraph.push(line);
+    }
   }
   flush();
   return blocks;
@@ -71,10 +77,14 @@ export function formatSelection(value, start, end, action) {
   const selection = text.slice(first, last);
   const lines = selection.split("\n");
   const prefix = action === "ordered" ? /^\s*\d+\.\s+/ : /^\s*[-•]\s+/;
-  const remove = lines.every(line => prefix.test(line));
-  const formatted = lines.map((line, i) => {
+  const nonEmpty = lines.filter(line => line.trim());
+  const remove = nonEmpty.length > 0 && nonEmpty.every(line => prefix.test(line));
+  let itemNumber = 0;
+  const formatted = lines.map(line => {
+    if (!line.trim()) { itemNumber = 0; return line; }
     const clean = line.replace(/^\s*(?:\d+\.|[-•])\s+/, "");
-    return remove ? clean : (action === "ordered" ? (i + 1) + ". " : "- ") + clean;
+    itemNumber++;
+    return remove ? clean : (action === "ordered" ? itemNumber + ". " : "- ") + clean;
   }).join("\n");
   return { value: text.slice(0, first) + formatted + text.slice(last), start: first, end: first + formatted.length };
 }
