@@ -108,9 +108,16 @@ export const AppUpdateNotice = ({
     parserRef.current = new DOMParser();
     let cancelled = false;
     let checking = false;
+    let checkQueued = false;
 
     const checkForUpdate = async () => {
-      if (checking || cancelled) return;
+      if (cancelled) return;
+      if (checking) {
+        // A foreground or interval check can arrive while the previous HTML
+        // request is still pending. Coalesce it instead of losing the signal.
+        checkQueued = true;
+        return;
+      }
       checking = true;
       try {
         const response = await fetch(getCheckUrl(checkUrl), {
@@ -166,7 +173,13 @@ export const AppUpdateNotice = ({
         }
       } catch {
         // Update checks should never interrupt the active app session.
-      } finally { checking = false; }
+      } finally {
+        checking = false;
+        if (checkQueued && !cancelled) {
+          checkQueued = false;
+          void checkForUpdate();
+        }
+      }
     };
 
     const intervalId = window.setInterval(checkForUpdate, Math.max(30_000, checkIntervalMs));
