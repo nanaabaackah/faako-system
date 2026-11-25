@@ -1,4 +1,4 @@
-import { TextField, TextareaField, SelectField } from "@faako/ui";
+import { TextField, TextareaField, SelectField, DateField } from "@faako/ui";
 import { INTAKE_CORE_FIELDS } from "../../../travel-with-ease-api/src/enquiries/intake-definition.js";
 import "../styles/components/enquiry-form.css";
 
@@ -21,7 +21,7 @@ export default function IntakeQuestionFields({ definition, entryType, form, setF
         {field.options.map(option => <label key={option.value}><input type="checkbox" checked={value.includes(option.value)} onChange={event => setAnswer(field.id, event.target.checked ? [...value, option.value] : value.filter(item => item !== option.value))}/>{option.label}</label>)}
       </div></fieldset> : field.type === "select" ? <SelectField {...props} onChangeValue={next => setAnswer(field.id, next)}>
         <option value="">Choose an option</option>{field.options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </SelectField> : field.type === "textarea" ? <TextareaField {...props} maxLength={1500} onChange={event => setAnswer(field.id, event.target.value)}/> :
+      </SelectField> : field.type === "textarea" ? <TextareaField {...props} maxLength={1500} onChange={event => setAnswer(field.id, event.target.value)}/> : field.type === "date" ? <DateField {...props} onChangeValue={next => setAnswer(field.id, next)}/> :
       <TextField {...props} type={field.type} {...(field.type === "number" ? { min: -1000000000, max: 1000000000, step: "0.0001" } : field.type === "text" ? { maxLength: 240 } : {})} onChange={event => setAnswer(field.id, event.target.value)}/>}
       {field.description && <p className="question-hint">{field.description}</p>}
     </div>;
