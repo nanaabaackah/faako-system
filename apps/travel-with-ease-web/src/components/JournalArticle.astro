@@ -65,7 +65,7 @@ const relatedHeading = siteCopy("journal").relatedReading;
       )}
       <div class="journal-detail__content collection-reading" id="journal-body">
         {blocks.map((block, index) => block.type === "ordered" ? (
-          <ol>{block.items.map(text => <li><RichInline value={text}/></li>)}</ol>
+          <ol start={block.start}>{block.items.map(text => <li><RichInline value={text}/></li>)}</ol>
         ) : block.type === "unordered" ? (
           <ul>{block.items.map(text => <li><RichInline value={text}/></li>)}</ul>
         ) : block.type === "heading" ? (

@@ -16,7 +16,7 @@ try {
     await mockWorkspaceApi(page, { role: "owner" });
     await page.route("**/?__faako_update_check=*", async route => {
       if (!version) return route.continue();
-      return route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><script type="module" src="/assets/update-fixture-' + version + '.js"></script></head><body></body></html>' });
+      return route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><meta name="faako-app" content="travel-with-ease-cms"><script type="module" src="/assets/update-fixture-' + version + '.js"></script></head><body></body></html>' });
     });
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
@@ -98,7 +98,7 @@ try {
     await mockWorkspaceApi(page, { role: "owner" });
     await page.route("**/?__faako_update_check=*", async route => {
       if (!updateAvailable) return route.continue();
-      return route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><script type="module" src="/assets/daily-update-fixture.js"></script></head><body></body></html>' });
+      return route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><meta name="faako-app" content="travel-with-ease-cms"><script type="module" src="/assets/daily-update-fixture.js"></script></head><body></body></html>' });
     });
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();

@@ -109,6 +109,9 @@ export function createWorkspaceFixture({role='owner', interactivePreview=false}=
           ? copy(session)
           : fail(401, "Demo signed out. Reload to start again.");
       if (!signedIn) return fail(401, "Demo signed out.");
+      if (url.pathname === "/api/agent/inquiries/summary") {
+        return { counts: Object.fromEntries(["new", "contacted", "closed"].map(status => [status, enquiries.filter(item => item.status === status).length])) };
+      }
       if (url.pathname === "/api/agent/inquiries") {
         const items = enquiries.filter(
           (item) =>

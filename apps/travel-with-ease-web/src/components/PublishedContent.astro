@@ -84,8 +84,8 @@ const startsTermsSection = (index: number) =>
         )}
         </div>
         )}
-        {content.contactEmail && <p>{content.contactEmail}</p>}
-        {content.contactPhone && <p>{content.contactPhone}</p>}
+        {content.contactEmail && <p><a href={"mailto:" + content.contactEmail}>{content.contactEmail}</a></p>}
+        {content.contactPhone && <p><a href={"tel:" + content.contactPhone.replace(/[^+\\d]/g, "")}>{content.contactPhone}</a></p>}
         {content.ctaLabel && (
           <ContentLink button href={content.ctaPath}>
             {content.ctaLabel}

@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {
   analyticsMeasurementId,
   TWE_MEASUREMENT_ID,
+  analyticsInteraction,
+  analyticsPageAllowed,
 } from "../src/lib/analytics.js";
 
 test("production uses the approved TWE stream only with a published privacy notice", () => {
@@ -53,4 +55,16 @@ test("production analytics is never enabled by copied local/staging configuratio
       privacyAvailable: true,
     }),
   );
+});
+
+test("private questionnaires never initialize analytics and interaction events contain no visitor data", () => {
+  for (const pathname of ["/plan-your-trip", "/plan-your-trip/", "/plan-your-trip/private"]) {
+    assert.equal(analyticsPageAllowed(pathname), false);
+    assert.equal(analyticsMeasurementId({ environment: "production", privacyAvailable: true, pathname }), "");
+    assert.equal(analyticsInteraction("generate_lead", "https://travelwitheasegh.com" + pathname + "#continue=private", "https://travelwitheasegh.com"), null);
+  }
+  const event = analyticsInteraction("generate_lead", "https://travelwitheasegh.com/packages/zanzibar?email=private@example.invalid#secret", "https://travelwitheasegh.com");
+  assert.deepEqual(event, { name: "generate_lead", page_location: "https://travelwitheasegh.com/packages/zanzibar", page_path: "/packages/zanzibar", page_referrer: "" });
+  assert.equal(analyticsInteraction("private@example.invalid", "https://travelwitheasegh.com/", "https://travelwitheasegh.com"), null);
+  assert.equal(analyticsInteraction("generate_lead", "https://untrusted.invalid/", "https://travelwitheasegh.com"), null);
 });

@@ -43,6 +43,15 @@ try {
         assert.ok(box.width >= 44 && box.height >= 44, "Bottom navigation retains touch targets");
       }
     }
+    const filteredRequest = page.waitForRequest(request => { const url = new URL(request.url()); return url.pathname === "/api/agent/inquiries" && url.searchParams.get("status") === "new"; });
+    await page.getByRole("button", { name: "Open new enquiries", exact: true }).click();
+    await filteredRequest;
+    await expect(page.getByRole("button", { name: "Status", exact: true })).toContainText("new");
+    await navigate(width <= 800 ? "Home" : "Overview");
+    await page.getByRole("button", { name: "Open website drafts", exact: true }).click();
+    await page.getByRole("heading", { name: "Pages with drafts", exact: true }).waitFor();
+    await page.getByRole("button", { name: /^About · Version/ }).click();
+    await expect(page.getByRole("button", { name: "Section", exact: true })).toContainText("About");
     await navigate("Account");
     await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();
     assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");

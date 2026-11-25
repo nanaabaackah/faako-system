@@ -74,6 +74,8 @@ function StaffWorkspace() {
   const [session, setSession] = useState(null);
   const [activation, setActivation] = useState(null);
   const [section, setSection] = useState("overview");
+  const [destination, setDestination] = useState({});
+  const [navigationRevision, setNavigationRevision] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [remember, setRemember] = useState(false);
   const [accountFlow, setAccountFlow] = useState("login");
@@ -84,13 +86,18 @@ function StaffWorkspace() {
     configured: false,
     error: "",
   });
-  const navigate = (next) => {
+  const openDestination = (next, options = {}) => {
+    setDestination(options);
+    setSection(next);
+    setNavigationRevision(value => value + 1);
+  };
+  const navigate = (next, options = {}) => {
     if (!dirty) {
       setDirty(false);
-      setSection(next);
+      openDestination(next, options);
       return true;
     }
-    setPendingExit({ kind: "navigate", next });
+    setPendingExit({ kind: "navigate", next, options });
     return false;
   };
   const load = useCallback(async () => {
@@ -426,6 +433,9 @@ function StaffWorkspace() {
             session?.user.permissions?.includes("content.read") &&
             section === "content" && (
               <WebsiteContent
+                key={`content-${navigationRevision}`}
+                initialPage={destination.page || "home"}
+                initialView={destination.view}
                 api={api}
                 session={session}
                 onDirtyChange={setDirty}
@@ -455,7 +465,7 @@ function StaffWorkspace() {
           {!state.loading &&
             session?.user.permissions?.includes("enquiries.read") &&
             section === "enquiries" && (
-              <Enquiries api={api} session={session} />
+              <Enquiries key={`enquiries-${navigationRevision}`} api={api} session={session} initialStatus={destination.status} initialEnquiryId={destination.enquiryId} onRefreshBlockedChange={setEditorBusy} />
             )}
           {!state.loading && session?.user.permissions?.includes("templates.draft") && section === "templates" && (
             <EmailTemplates api={api} session={session} onDirtyChange={setDirty} onRefreshBlockedChange={setEditorBusy} />
@@ -488,11 +498,12 @@ function StaffWorkspace() {
         <ERPConfirmDialog open={Boolean(pendingExit)} title={pendingExit?.kind === "logout" ? "Discard changes and sign out?" : "Discard unsaved changes?"}
           message={pendingExit?.kind === "logout" ? "Your unsaved edits will be lost before this session ends." : "Your unsaved edits will be lost when you leave this workspace."}
           confirmLabel={pendingExit?.kind === "logout" ? "Discard and sign out" : "Discard and continue"}
-          onCancel={() => setPendingExit(null)} onConfirm={() => { const action = pendingExit; setPendingExit(null); if (action?.kind === "logout") { void logout(action.all, true); } else if (action?.kind === "navigate") { setDirty(false); setSection(action.next); } }} />
+          onCancel={() => setPendingExit(null)} onConfirm={() => { const action = pendingExit; setPendingExit(null); if (action?.kind === "logout") { void logout(action.all, true); } else if (action?.kind === "navigate") { setDirty(false); openDestination(action.next, action.options); } }} />
       </PageShell>
       <AppUpdateNotice appName="Travel With Ease CMS" mode="prompt"
         enabled={Boolean(session) && (import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true")}
-        checkIntervalMs={60_000} dailyRefreshHourUtc={2} className="twe-app-update-notice"
+        checkIntervalMs={60_000} dailyRefreshHourUtc={2}
+        expectedDocumentMarker={'meta[name="faako-app"][content="travel-with-ease-cms"]'} className="twe-app-update-notice"
         refreshBlocked={refreshBlocked}
         refreshBlockedMessage={transientWorkspace ? "Finish your current work and return to Overview or Content to refresh." : "Save your changes and finish the current action before refreshing."} />
     </div>

@@ -22,7 +22,7 @@ const routes = [
   ["GET", /^\/api\/auth\/(status|session)$/],
   ["POST", /^\/api\/auth\/(access-session|logout|logout-all)$/],
   ["GET", /^\/api\/agent\/leads$/],
-  ["GET", /^\/api\/agent\/inquiries(?:\/[a-fA-F0-9-]{36})?$/],
+  ["GET", /^\/api\/agent\/inquiries(?:\/(?:summary|[a-fA-F0-9-]{36}))?$/],
   ["POST", /^\/api\/agent\/inquiries\/[a-fA-F0-9-]{36}\/status$/],
   ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff|staff-events|activity|security-activity|handover)$/],
   ["POST", /^\/api\/agent\/administration\/(staff|support-grants|handover)$/],

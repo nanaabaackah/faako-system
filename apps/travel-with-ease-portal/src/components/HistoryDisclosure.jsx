@@ -1,9 +1,9 @@
 import { IconsaxIcon } from "@faako/ui";
 
 // Reuse the native disclosure interaction with the portal's Faako iconography.
-export default function HistoryDisclosure({ title, count, children }) {
+export default function HistoryDisclosure({ title, count, children, initiallyOpen = false }) {
   return (
-    <details className="twe-history-disclosure">
+    <details className="twe-history-disclosure" open={initiallyOpen || undefined}>
       <summary className="twe-history-disclosure__summary">
         <span className="twe-history-disclosure__title">{title}</span>
         <span className="twe-history-disclosure__actions">

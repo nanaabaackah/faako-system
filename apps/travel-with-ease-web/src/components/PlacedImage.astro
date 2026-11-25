@@ -16,5 +16,5 @@ const customFocus=['focalX','focalY','mobileFocalX','mobileFocalY'].some(key=>Ob
 ---
 {image&&<picture class:list={['placed-image',{'placed-image--custom-focus':customFocus}]} style={`--image-x:${position(placement.focalX)}%;--image-y:${position(placement.focalY)}%;--image-mobile-x:${position(placement.mobileFocalX??placement.focalX)}%;--image-mobile-y:${position(placement.mobileFocalY??placement.focalY)}%;`}>
  {placement.mobileImage&&<source media="(max-width:760px)" srcset={sources(placement.mobileImage)} sizes={sizes} width={placement.mobileImage.width} height={placement.mobileImage.height}/>}
- <img {...attributes} class={className} src={image.src} srcset={sources(image)} sizes={sizes} width={image.width} height={image.height} alt={decorative?'':placement.alt||image.alt} loading={highPriority?'eager':'lazy'} fetchpriority={highPriority?'high':undefined} decoding="async"/>
+ <img {...attributes} class={className} src={image.src} srcset={sources(image)} sizes={sizes} width={image.width} height={image.height} alt={decorative?'':placement.alt||image.alt||''} loading={highPriority?'eager':'lazy'} fetchpriority={highPriority?'high':undefined} decoding="async"/>
 </picture>}

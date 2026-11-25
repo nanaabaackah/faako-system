@@ -97,6 +97,7 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
       const reference = data.inquiryId.slice(0, 8).toUpperCase();
       setStatus({ state: "success", message: "Enquiry received." });
       setConfirmation({ reference });
+      if (data.replayed !== true) document.dispatchEvent(new Event("twe:enquiry-received"));
       setForm({ ...initial, ...entry.preset });
       setAdditionalAnswers({});
       operation.current = null;
@@ -121,11 +122,11 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
       <legend>{definition.title}</legend>
       <IntakeQuestionFields definition={definition} entryType={entry.entryType} form={form} setForm={setForm} update={update} additionalAnswers={additionalAnswers} setAnswer={setAnswer}/>
       <div className="enquiry-honeypot" aria-hidden="true"><label>Leave this blank<input name="website" value={form.website} onChange={update} tabIndex={-1} autoComplete="off" /></label></div>
-      <p className="enquiry-privacy-note">We only use your details to respond. <a href="/privacy">Privacy notice</a></p>
       <label className="enquiry-consent"><input name="consent" type="checkbox" checked={form.consent} onChange={update} required /><span>I agree that Travel With Ease may use these details to respond to my enquiry.</span></label>
+      <a className="enquiry-privacy-note" href="/privacy">Privacy notice</a>
       {siteKey && <TurnstileChallenge siteKey={siteKey} resetCount={resetCount} onToken={setTurnstileToken} />}
       {hosted && !siteKey && <p>Online enquiries are temporarily unavailable. Contact us on WhatsApp.</p>}
-      {siteKey && <button type="button" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</button>}
+      {siteKey && <Button type="button" variant="ghost" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</Button>}
       <Button type="submit" aria-busy={disabled} disabled={!ready || !configuration || disabled || (hosted && !turnstileToken)}>{disabled ? "Sending enquiry…" : (copy.submitLabel || "Send enquiry")} <IconsaxIcon name="ArrowRight4" /></Button>
     </fieldset>
     {status.message && <p role={status.state === "error" ? "alert" : "status"} aria-live="polite">{status.message}</p>}
