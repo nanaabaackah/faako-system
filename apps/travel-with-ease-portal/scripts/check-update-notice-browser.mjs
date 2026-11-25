@@ -94,14 +94,25 @@ try {
     const page = await context.newPage();
     await page.clock.install({ time: new Date("2026-11-24T01:55:00Z") });
     let updateAvailable = false, navigations = 0;
+    let firstCheck = true, startInitialCheck, releaseInitialCheck;
+    const initialCheckStarted = new Promise(resolve => { startInitialCheck = resolve; });
+    const initialCheckReleased = new Promise(resolve => { releaseInitialCheck = resolve; });
     page.on("framenavigated", frame => { if (frame === page.mainFrame()) navigations++; });
     await mockWorkspaceApi(page, { role: "owner" });
     await page.route("**/?__faako_update_check=*", async route => {
+      if (firstCheck) {
+        firstCheck = false;
+        const oldShell = await route.fetch();
+        startInitialCheck();
+        await initialCheckReleased;
+        return route.fulfill({ response: oldShell });
+      }
       if (!updateAvailable) return route.continue();
       return route.fulfill({ contentType: "text/html", body: '<!doctype html><html><head><meta name="faako-app" content="travel-with-ease-cms"><script type="module" src="/assets/daily-update-fixture.js"></script></head><body></body></html>' });
     });
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
+    await initialCheckStarted;
     let failTemplateSave = dirtyAtDeadline;
     await page.route("**/api/agent/templates/*/draft", async route => {
       if (!failTemplateSave) return route.fallback();
@@ -114,7 +125,9 @@ try {
       await expect(page.getByText("Draft not saved", { exact: true })).toBeVisible();
     }
     updateAvailable = true;
+    // Force a foreground check while the startup request still holds the old shell.
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    releaseInitialCheck();
     const notice = page.getByRole("complementary", { name: "App update available" });
     await expect(notice).toBeVisible();
     await notice.getByRole("button", { name: "Later" }).click();
