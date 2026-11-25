@@ -10,6 +10,7 @@ import {
 } from "@faako/ui";
 import Button from "./ActionButton.jsx";
 import RichTextField from "./RichTextField.jsx";
+import HistoryDisclosure from "./HistoryDisclosure.jsx";
 import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
 import instagram from "../../../travel-with-ease-web/public/brand/social/instagram.png";
 import tiktok from "../../../travel-with-ease-web/public/brand/social/tiktok.png";
@@ -30,6 +31,9 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
   const [notice, setNotice] = useState("");
   const [dirty, setDirty] = useState(false);
   const [confirmation, setConfirmation] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [historyError, setHistoryError] = useState("");
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [saveState, setSaveState] = useState({ status: "saved", error: "" });
   const writer = useRef(null);
   const copyRef = useRef(null);
@@ -92,8 +96,22 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
       if (writer.current === autosave) writer.current = null;
     };
   }, [api, slug, session.csrfToken, onDirtyChange]);
+  useEffect(() => {
+    setHistory([]);
+    setHistoryError("");
+    setHistoryLoading(false);
+  }, [slug, record?.version]);
+  async function loadHistory() {
+    setHistoryLoading(true);
+    setHistoryError("");
+    try {
+      const result = await api.get(`/api/agent/templates/${slug}/history`, { responseMode: "data" });
+      setHistory(Array.isArray(result.items) ? result.items : []);
+    } catch (error) { setHistoryError(error.message); }
+    finally { setHistoryLoading(false); }
+  }
   function changeTemplate(event) {
-    if (busy || saving || event.target.value === slug) return;
+    if (busy || saving || historyLoading || event.target.value === slug) return;
     if (dirty) { setConfirmation({ kind: "switch", slug: event.target.value }); return; }
     switchTemplate(event.target.value);
   }
@@ -118,8 +136,8 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
     setPreview(null);
     setNotice("");
   }
-  async function action(kind) {
-    if (busy || (kind === "activate" && (dirty || saving))) return;
+  async function action(kind, revision) {
+    if (busy || (["activate", "restore"].includes(kind) && (dirty || saving))) return;
     if (kind === "draft") { await writer.current?.flush(); return; }
     setBusy(true);
     setError("");
@@ -131,7 +149,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
         json:
           kind === "preview"
             ? copy
-            : { expectedVersion: record.version },
+            : { expectedVersion: record.version, ...(kind === "restore" ? { revision } : {}) },
       });
       if (kind === "preview") {
         setPreview(result);
@@ -142,13 +160,13 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
         setCopy(result.draft);
         writer.current?.reset(result.draft, result.version);
         setNotice(
-          kind === "draft"
-              ? "Draft saved. Outgoing emails have not changed."
+          kind === "restore"
+              ? "Revision restored as a draft. Outgoing emails have not changed."
               : definition.automated
                 ? "Template activated for newly prepared enquiry emails. Existing queued email payloads are unchanged."
                 : "Invitation template approved and saved. No invitations were created or sent. Use Staff access for email invitations when enabled, or for manually shared codes.",
         );
-        pushToast({ tone: "success", title: kind === "draft" ? "Template draft saved" : definition.automated ? "Template activated" : "Template approved", message: kind === "draft" ? "Outgoing emails have not changed." : "No email was sent by this action." });
+        pushToast({ tone: "success", title: kind === "restore" ? "Template draft restored" : definition.automated ? "Template activated" : "Template approved", message: kind === "restore" ? "Outgoing emails have not changed." : "No email was sent by this action." });
       }
     } catch (error) {
       setError(error.message);
@@ -162,7 +180,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
         <SelectField
           label="Email type"
           value={slug}
-          disabled={busy || saving || Boolean(confirmation)}
+          disabled={busy || saving || historyLoading || Boolean(confirmation)}
           onChange={changeTemplate}
         >
           {emailTemplateOptions.map((option) => (
@@ -287,10 +305,18 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
           </section>
         </div>
       )}
-      <ERPConfirmDialog open={Boolean(confirmation)} title={confirmation?.kind === "switch" ? "Discard unsaved template changes?" : definition.automated ? "Activate saved template?" : "Approve saved template?"}
-        message={confirmation?.kind === "switch" ? "The current unsaved template edits will be lost." : definition.automated ? "Newly prepared enquiry emails will use this saved version. No email will be sent now." : "The invitation copy will be approved without creating or sending an invitation."}
-        confirmLabel={confirmation?.kind === "switch" ? "Discard and switch" : definition.automated ? "Activate template" : "Approve template"} confirmTone="primary" loading={busy}
-        onCancel={() => setConfirmation(null)} onConfirm={async () => { const pending = confirmation; setConfirmation(null); if (pending?.kind === "switch") switchTemplate(pending.slug); else await action("activate"); }} />
+      {record && <HistoryDisclosure title="Version history" count={history.length}>
+        <Button type="button" icon="refresh" disabled={busy || saving || historyLoading} onClick={loadHistory}>{historyLoading ? "Loading…" : "Load history"}</Button>
+        {historyError && <InlineNotice tone="danger" title="History unavailable" message={historyError}/>}
+        {history.map(item => <div key={item.version} className="editor-actions">
+          <span>Revision {item.version} · {item.kind} · {new Date(item.created_at).toLocaleString()}</span>
+          <Button type="button" disabled={busy || saving || dirty || historyLoading} onClick={() => setConfirmation({ kind: "restore", revision: item.version })}>Restore draft</Button>
+        </div>)}
+      </HistoryDisclosure>}
+      <ERPConfirmDialog open={Boolean(confirmation)} title={confirmation?.kind === "switch" ? "Discard unsaved template changes?" : confirmation?.kind === "restore" ? "Restore this revision?" : definition.automated ? "Activate saved template?" : "Approve saved template?"}
+        message={confirmation?.kind === "switch" ? "The current unsaved template edits will be lost." : confirmation?.kind === "restore" ? "Restore as a new draft without changing outgoing emails." : definition.automated ? "Newly prepared enquiry emails will use this saved version. No email will be sent now." : "The invitation copy will be approved without creating or sending an invitation."}
+        confirmLabel={confirmation?.kind === "switch" ? "Discard and switch" : confirmation?.kind === "restore" ? "Restore draft" : definition.automated ? "Activate template" : "Approve template"} confirmTone="primary" loading={busy}
+        onCancel={() => setConfirmation(null)} onConfirm={async () => { const pending = confirmation; setConfirmation(null); if (pending?.kind === "switch") switchTemplate(pending.slug); else if (pending?.kind === "restore") await action("restore", pending.revision); else await action("activate"); }} />
     </div>
   );
 }
