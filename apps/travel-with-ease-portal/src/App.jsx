@@ -5,6 +5,7 @@ import {
   InlineNotice,
   PageHeader,
   PageShell,
+  ErpShellTopbar,
   UiSystemProvider,
   AnimatedLoadingState,
   ERPConfirmDialog,
@@ -259,27 +260,21 @@ function StaffWorkspace() {
     <div className="portal-shell">
       <PortalNavigation navigation={navigation} section={section} navigate={navigate} session={session}/>
       <PageShell>
-        <PageHeader
-          title={
-            session
-              ? section === "overview"
-                ? "Dashboard"
-                : {
-                    settings: "Account settings",
-                    enquiries: "Enquiries",
-                    content: "Website content",
-                    appearance: "Brand & appearance",
-                    media: "Media library",
-                    templates: "Email templates",
-                    forms: "Enquiry forms",
-                    questionnaire: "Detailed questionnaire",
-                    staff: "Staff access",
-                    activity: 'Workspace activity',
-                    system: "System administration",
-                  }[section]
-              : "Staff sign-in"
-          }
-        />
+        {session ? (
+          <ErpShellTopbar className="session-toolbar twe-workspace-topbar" aria-label="Your session"
+            title={<h1>{section === "overview" ? "Dashboard" : {
+              settings: "Account settings", enquiries: "Enquiries", content: "Website content",
+              appearance: "Brand & appearance", media: "Media library", templates: "Email templates",
+              forms: "Enquiry forms", questionnaire: "Detailed questionnaire", staff: "Staff access",
+              activity: "Workspace activity", system: "System administration",
+            }[section]}</h1>}
+            actions={<>
+              <span className="twe-session-role"><span className="twe-visually-hidden">Signed in as </span><strong>{session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ")}</strong></span>
+              <Button icon="logout" variant="ghost" type="button"
+                disabled={loggingOut || pendingWrites > 0} onClick={() => logout()}>Sign out</Button>
+            </>}
+          />
+        ) : <PageHeader title="Staff sign-in" />}
         {state.error && (
           <InlineNotice
             tone="danger"
@@ -298,23 +293,7 @@ function StaffWorkspace() {
             compact
             title="Signing you in…"
           />
-        ) : session ? (
-          <div className="session-toolbar" aria-label="Your session">
-            <span>
-              Signed in as{" "}
-              <strong>{session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ")}</strong>
-            </span>
-            <Button
-              icon="logout"
-              variant="ghost"
-              type="button"
-              disabled={loggingOut || pendingWrites > 0}
-              onClick={() => logout()}
-            >
-              Sign out
-            </Button>
-          </div>
-        ) : activation && activation.status !== "active" ? (
+        ) : session ? null : activation && activation.status !== "active" ? (
           <Activation status={activation} api={baseApi} onActivated={load} />
         ) : state.configured && accountLinks.mode === "cloudflare_access" ? (
           <section

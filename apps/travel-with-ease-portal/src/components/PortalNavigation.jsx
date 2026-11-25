@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { ERPDrawer, ErpMobileBottomNavFrame } from "@faako/ui";
+import { ERPDrawer, ErpMobileBottomNavFrame, ErpNavSidebar, useSidebarCollapsedState } from "@faako/ui";
+import { getPortalModules } from "../lib/portalModules.js";
 import NavigationIcon from "./NavigationIcon.jsx";
 import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
+import brandMark from "../../../travel-with-ease-web/public/brand/navy symbol.png";
 import "../styles/navigation.css";
 
 const mobileShortcutIds = [
@@ -18,13 +20,7 @@ export default function PortalNavigation({
   session,
 }) {
   const [open, setOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem("twe.sidebar.collapsed") === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [collapsed, setCollapsed] = useSidebarCollapsedState({ storageKey: "twe.sidebar.collapsed" });
   const menu = useRef(null);
   const identity = session
     ? `${session.user.id}:${session.user.role}:${session.user.permissions?.join(",")}`
@@ -33,7 +29,7 @@ export default function PortalNavigation({
     setOpen(false);
   }, [identity]);
   useEffect(() => {
-    const media = matchMedia("(min-width:801px)");
+    const media = matchMedia("(min-width:901px)");
     const close = () => {
       if (media.matches) setOpen(false);
     };
@@ -44,7 +40,7 @@ export default function PortalNavigation({
     if (!open) return;
     const nodes = [
       ...document.querySelectorAll(
-        ".portal-shell > .ui-page-shell,.portal-sidebar,.twe-bottom-nav",
+        ".portal-shell > .ui-page-shell,.portal-sidebar,.twe-faako-sidebar,.twe-bottom-nav",
       ),
     ];
     const previous = nodes.map((node) => node.inert);
@@ -80,9 +76,52 @@ export default function PortalNavigation({
   const shortcuts = mobileShortcutIds
     .map((id) => navigation.find((item) => item[0] === id))
     .filter(Boolean);
+  const modules = getPortalModules(navigation);
+  const activeModule = modules.find(module => module.children.some(child => child.id === section));
+  const account = navigation.find(([id]) => id === "settings");
+  const goModule = path => {
+    const module = modules.find(item => item.path === path);
+    if (!module) return;
+    if (module.id === activeModule?.id && module.children.length > 1) {
+      if (collapsed) setCollapsed(false);
+      return;
+    }
+    if (navigate(module.children[0].id) && collapsed && module.children.length > 1) setCollapsed(false);
+  };
   return (
     <>
-      <aside className={`portal-sidebar${collapsed ? " is-collapsed" : ""}`}>
+      {session && (
+        <ErpNavSidebar
+          className="twe-faako-sidebar"
+          brand={{ name: "Travel With Ease", sidebarMarkUrl: brandMark, homePath: "/overview" }}
+          items={modules}
+          currentPath={activeModule?.path || "/account"}
+          fallbackPath="/overview"
+          navLabel="Staff navigation"
+          hideBrandEyebrow
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed(value => !value)}
+          onNavigate={goModule}
+          renderIcon={name => <NavigationIcon name={name} />}
+          renderContext={item => item.children.length > 1 && (
+            <div className="twe-context-nav" role="group" aria-label={item.label + " sections"}>
+              {item.children.map(child => (
+                <button type="button" key={child.id} aria-current={section === child.id ? "page" : undefined}
+                  onClick={() => navigate(child.id)}>
+                  <NavigationIcon name={child.id}/><span>{child.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          footer={account && <button type="button" className="twe-sidebar-account"
+            aria-label="Account" title={collapsed ? "Account" : undefined}
+            aria-current={section === "settings" ? "page" : undefined}
+            onClick={() => navigate("settings")}>
+            <NavigationIcon name="staff"/><span>Account</span>
+          </button>}
+        />
+      )}
+      <aside className={`portal-sidebar twe-mobile-sidebar${session ? " has-session" : ""}`}>
         <div className="portal-brand">
           <img src={logo} alt="Travel With Ease" width="184" height="72" />
           {session && (
@@ -98,26 +137,6 @@ export default function PortalNavigation({
             </button>
           )}
         </div>
-        <button
-          type="button"
-          className="portal-sidebar-toggle"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!collapsed}
-          onClick={() => {
-            setCollapsed(!collapsed);
-            try {
-              localStorage.setItem("twe.sidebar.collapsed", String(!collapsed));
-            } catch {
-              /* UI preference only */
-            }
-          }}
-        >
-          <NavigationIcon name={collapsed ? "arrow" : "back"} />
-          <span>{collapsed ? "Expand" : "Collapse"} menu</span>
-        </button>
-        <nav aria-label="Staff navigation">
-          {navigation.map((item) => button(item))}
-        </nav>
       </aside>
       <ERPDrawer
         open={open && Boolean(session)}

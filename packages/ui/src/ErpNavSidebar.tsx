@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { ErpBranding, ErpNavItem } from "@faako/types";
 import { isPathActive } from "@faako/utils";
@@ -16,6 +16,12 @@ interface ErpNavSidebarProps {
   searchPlaceholder?: string;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  /** Controlled apps may use their existing guarded navigation instead of Router links. */
+  onNavigate?: (path: string) => void;
+  renderContext?: (item: ErpNavItem) => ReactNode;
+  hideBrandEyebrow?: boolean;
+  navLabel?: string;
+  className?: string;
 }
 
 const DESKTOP_QUERY = "(min-width: 901px)";
@@ -55,6 +61,11 @@ export function ErpNavSidebar({
   searchPlaceholder = "Search modules...",
   collapsed = false,
   onToggleCollapsed,
+  onNavigate,
+  renderContext,
+  hideBrandEyebrow = false,
+  navLabel,
+  className,
 }: ErpNavSidebarProps) {
   const searchFieldId = useId();
   const searchFieldRef = useRef<HTMLInputElement | null>(null);
@@ -108,32 +119,36 @@ export function ErpNavSidebar({
     return () => window.cancelAnimationFrame(frame);
   }, [collapsed]);
 
+  const brandContent = (
+    <>
+      <span className="erp-nav-sidebar__brand-mark" aria-hidden="true">
+        {brand.sidebarMarkUrl ? (
+          <img className="erp-nav-sidebar__brand-mark-image" src={brand.sidebarMarkUrl} alt="" />
+        ) : brandMark}
+      </span>
+      <span className="erp-nav-sidebar__brand-copy">
+        {!hideBrandEyebrow && <span className="erp-nav-sidebar__eyebrow">{brand.shortName || "ERP"}</span>}
+        <span className="erp-nav-sidebar__title">{brand.sidebarTitle || brand.name}</span>
+      </span>
+    </>
+  );
   return (
-    <aside className={["erp-nav-sidebar", collapsed ? "is-collapsed" : ""].filter(Boolean).join(" ")}>
+    <aside className={["erp-nav-sidebar", collapsed ? "is-collapsed" : "", className].filter(Boolean).join(" ")}>
       <div className="erp-nav-sidebar__panel">
         <div className="erp-nav-sidebar__header">
-          <Link
-            className="erp-nav-sidebar__brand-link"
-            to={brand.homePath || fallbackPath}
-            title={collapsed ? brand.sidebarTitle || brand.name : undefined}
-            aria-label={collapsed ? brand.sidebarTitle || brand.name : undefined}
-          >
-            <span className="erp-nav-sidebar__brand-mark" aria-hidden="true">
-              {brand.sidebarMarkUrl ? (
-                <img
-                  className="erp-nav-sidebar__brand-mark-image"
-                  src={brand.sidebarMarkUrl}
-                  alt=""
-                />
-              ) : (
-                brandMark
-              )}
-            </span>
-            <span className="erp-nav-sidebar__brand-copy">
-              <span className="erp-nav-sidebar__eyebrow">{brand.shortName || "ERP"}</span>
-              <span className="erp-nav-sidebar__title">{brand.sidebarTitle || brand.name}</span>
-            </span>
-          </Link>
+          {onNavigate ? (
+            <button type="button" className="erp-nav-sidebar__brand-link"
+              aria-label={brand.sidebarTitle || brand.name}
+              onClick={() => onNavigate(brand.homePath || fallbackPath)}>
+              {brandContent}
+            </button>
+          ) : (
+            <Link className="erp-nav-sidebar__brand-link" to={brand.homePath || fallbackPath}
+              title={collapsed ? brand.sidebarTitle || brand.name : undefined}
+              aria-label={collapsed ? brand.sidebarTitle || brand.name : undefined}>
+              {brandContent}
+            </Link>
+          )}
         </div>
 
         <label className="erp-nav-sidebar__search" htmlFor={searchFieldId}>
@@ -157,7 +172,7 @@ export function ErpNavSidebar({
           </span>
         </label>
 
-        <nav className="erp-nav-sidebar__nav" aria-label={`${brand.name} navigation`}>
+        <nav className="erp-nav-sidebar__nav" aria-label={navLabel || `${brand.name} navigation`}>
           {filteredItems.length > 0 ? (
             filteredItems.map((item) => {
               const isActive = isPathActive(currentPath, item, fallbackPath);
@@ -214,6 +229,21 @@ export function ErpNavSidebar({
                   >
                     {content}
                   </a>
+                );
+              }
+
+              if (onNavigate) {
+                return (
+                  <Fragment key={item.id}>
+                    <button type="button" className={linkClassName}
+                      disabled={item.enabled === false}
+                      aria-label={item.label} title={collapsed ? itemLabel : undefined}
+                      aria-current={isActive ? "page" : undefined}
+                      onClick={() => onNavigate(item.path)}>
+                      {content}
+                    </button>
+                    {isActive && !collapsed ? renderContext?.(item) : null}
+                  </Fragment>
                 );
               }
 

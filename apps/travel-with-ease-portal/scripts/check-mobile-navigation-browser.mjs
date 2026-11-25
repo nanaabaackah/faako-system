@@ -19,7 +19,7 @@ try {
   for (const role of ["owner", "editor", "platform_admin"]) {
     for (const width of [320, 375, 390, 428, 768, 1024]) {
       const context = await browser.newContext({
-        viewport: { width, height: 900 }, hasTouch: width <= 800,
+        viewport: { width, height: 900 }, hasTouch: width <= 900,
         reducedMotion: "reduce",
       });
       const page = await context.newPage();
@@ -28,13 +28,32 @@ try {
       await mockWorkspaceApi(page, { role });
       await page.goto(origin);
       await page.locator(".session-toolbar").waitFor();
-      await expect(page.locator(".session-toolbar > span")).toContainText(
+      await expect(page.locator(".session-toolbar .twe-session-role")).toContainText(
         `Signed in as ${role === "platform_admin" ? "Superadmin" : role}`,
       );
       const nav = page.getByRole("navigation", { name: "Workspace shortcuts" });
-      if (width > 800) {
+      if (width > 900) {
         await expect(nav).toBeHidden();
-        await expect(page.getByRole("navigation", { name: "Staff navigation" })).toBeVisible();
+        const sidebar = page.getByRole("navigation", { name: "Staff navigation" });
+        await expect(sidebar).toBeVisible();
+        await expect(sidebar.getByRole("button", { name: "Website", exact: true })).toBeVisible();
+        await sidebar.getByRole("button", { name: "Website", exact: true }).click();
+        await expect(sidebar.getByRole("group", { name: "Website sections" })).toBeVisible();
+        await expect(sidebar.getByRole("button", { name: "Brand & appearance", exact: true })).toBeVisible();
+        await page.getByRole("button", { name: "Collapse navigation", exact: true }).click();
+        await expect(page.locator(".twe-faako-sidebar")).toHaveClass(/is-collapsed/);
+        await expect(sidebar.getByRole("group", { name: "Website sections" })).toHaveCount(0);
+        await page.getByRole("button", { name: "Expand navigation", exact: true }).click();
+        await expect(sidebar.getByRole("group", { name: "Website sections" })).toBeVisible();
+        await sidebar.getByRole("button", { name: "Overview", exact: true }).click();
+        assert.ok(await page.evaluate(async () => {
+          await document.fonts.load('400 24px "Poiret One"');
+          await document.fonts.load('500 15px "Quicksand"');
+          await document.fonts.load('800 14px "Inter"');
+          return [...document.fonts].some(font => font.family.replaceAll('"', '') === "Poiret One" && font.status === "loaded")
+            && [...document.fonts].some(font => font.family.replaceAll('"', '') === "Quicksand" && font.status === "loaded")
+            && [...document.fonts].some(font => font.family.replaceAll('"', '') === "Inter" && font.status === "loaded");
+        }), "The website-matched fonts must actually load, not just appear in CSS declarations.");
       } else {
         await expect(nav).toBeVisible();
         assert.deepEqual(await nav.getByRole("button").allTextContents(),
