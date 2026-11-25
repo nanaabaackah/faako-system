@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatedLoadingState, InlineNotice, TextField, SelectField, ERPConfirmDialog } from "@faako/ui";
 import Button from "./ActionButton.jsx";
 import HistoryDisclosure from "./HistoryDisclosure.jsx";
+import IntakeFormPreview from "./IntakeFormPreview.jsx";
 import { createDraftAutosave } from "../lib/draft-autosave.js";
 
 const endpoint = "/api/agent/enquiry-forms/intake";
@@ -28,6 +29,7 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
   const [notice, setNotice] = useState("");
   const [history, setHistory] = useState([]);
   const [confirmation, setConfirmation] = useState(null);
+  const [preview, setPreview] = useState(false);
   const writer = useRef(null);
   const bodyRef = useRef(null);
   const canPublish = session.user.permissions?.includes("content.publish") === true;
@@ -134,6 +136,8 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
     {loading ? <AnimatedLoadingState compact title="Loading enquiry form"/> : definition && record && <>
       <p role="status">Active version {record.activeVersion} · {saving ? "Saving draft…" : saveState.dirty ? "Unsaved changes" : "Draft saved"}</p>
       {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error}/>}
+      <div className="editor-actions"><Button type="button" icon="preview" aria-expanded={preview} onClick={() => setPreview(value => !value)}>{preview ? "Close preview" : "Preview draft"}</Button></div>
+      {preview && <IntakeFormPreview key={record.revision} definition={definition}/>}
       <TextField label="Form heading" value={definition.title} maxLength={160} disabled={blocked} required onChange={event => edit(body => ({ ...body, title: event.target.value }))}/>
       <div className="cms-editor-groups">
         <h2>Core questions</h2>
