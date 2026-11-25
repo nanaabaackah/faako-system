@@ -233,6 +233,7 @@ function StaffWorkspace() {
     ["media", "Media", session?.user.permissions?.includes("media.read")],
     ["templates", "Templates", session?.user.permissions?.includes("templates.draft")],
     ["forms", "Enquiry forms", session?.user.permissions?.includes("content.write")],
+    ["questionnaire", "Detailed questionnaire", session?.user.permissions?.includes("content.write")],
     ["staff", "Staff", session?.user.permissions?.includes("staff.manage")],
     ['activity','Activity',session?.user.permissions?.includes('audit.business.read')],
     [
@@ -264,6 +265,7 @@ function StaffWorkspace() {
                     media: "Media library",
                     templates: "Email templates",
                     forms: "Enquiry forms",
+                    questionnaire: "Detailed questionnaire",
                     staff: "Staff access",
                     activity: 'Workspace activity',
                     system: "System administration",
@@ -458,8 +460,8 @@ function StaffWorkspace() {
           {!state.loading && session?.user.permissions?.includes("templates.draft") && section === "templates" && (
             <EmailTemplates api={api} session={session} onDirtyChange={setDirty} onRefreshBlockedChange={setEditorBusy} />
           )}
-          {!state.loading && session?.user.permissions?.includes("content.write") && section === "forms" && (
-            <IntakeFormEditor api={api} session={session} onDirtyChange={setDirty} onRefreshBlockedChange={setEditorBusy} />
+          {!state.loading && session?.user.permissions?.includes("content.write") && ["forms", "questionnaire"].includes(section) && (
+            <IntakeFormEditor key={section} detailed={section === "questionnaire"} api={api} session={session} onDirtyChange={setDirty} onRefreshBlockedChange={setEditorBusy} />
           )}
           {!state.loading && session && section === "system" && (
             <SystemAdministration api={api} session={session} />
