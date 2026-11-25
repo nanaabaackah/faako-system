@@ -1,0 +1,2 @@
+.dashboard-enquiry-link { display: grid; gap: 4px; min-width: 0; color: inherit; background: transparent; border: 0; padding: 8px; text-align: start; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.dashboard-enquiry-link:focus-visible, .twe-kpi-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
