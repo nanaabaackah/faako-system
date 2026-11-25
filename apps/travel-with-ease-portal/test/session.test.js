@@ -34,11 +34,11 @@ test("permission and network failures are not retried or converted into new sess
 test("foreground validation never exchanges a session or signs out on connection failure", async () => {
   const session = { user: { id:"editor", organisationId:"tenant", role:"editor" }, csrfToken:"synthetic" };
   let posts = 0;
-  const api = { async get(path, options) { assert.equal(path,"/api/auth/session"); assert.equal(options.cache,"no-store"); return session; }, async post() { posts++; } };
+  const api = { async get(path, options) { assert.equal(path,"/api/auth/session"); assert.equal(options.cache,"no-store"); assert.equal(options.redirect,"error"); assert.ok(options.signal); return session; }, async post() { posts++; } };
   assert.deepEqual(await checkCurrentSession(api,session), {status:"active"});
-  for (const status of [401, 500, 0]) {
+  for (const status of [401, 403, 500, 0]) {
     const result = await checkCurrentSession({...api, async get() { throw Object.assign(new Error("unavailable"),{status}); }},session);
-    assert.equal(result.status,status===401?"expired":"unavailable");
+    assert.equal(result.status,[401,403].includes(status)?"expired":"unavailable");
   }
   assert.deepEqual(await checkCurrentSession({...api, async get() {return {...session,csrfToken:"other"};}},session),{status:"changed"});
   for (const user of [{...session.user, role:"owner"}, {...session.user, id:"other"}, {...session.user, organisationId:"other"}]) {

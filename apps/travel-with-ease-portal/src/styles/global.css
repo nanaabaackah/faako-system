@@ -64,7 +64,7 @@
 .portal-shell .ui-kpi-card {
   background: #fff;
   border: 1px solid #d7d3cd;
-  border-radius: 4px;
+  border-radius: var(--twe-radius-card);
   box-shadow: none;
   padding: 20px;
 }
@@ -192,6 +192,8 @@
   --twe-gold: #d8b56a;
   --twe-rule: #d7d3cd;
   --twe-muted: #535966;
+  --twe-radius-control: 6px;
+  --twe-radius-card: 8px;
 }
 * {
   box-sizing: border-box;
@@ -1427,4 +1429,19 @@ select:focus-visible {
     align-items: stretch;
   }
   .portal-shell .twe-app-update-notice .ui-app-update-notice__button { min-height: 44px; flex: 1 1 0; }
+}
+
+/* P1: consistent operational surfaces; preserve specialized navigation and modal geometry. */
+.portal-shell :is(.dashboard-panel, .dashboard-welcome, .workspace-panel, .staff-provision) { border-radius: var(--twe-radius-card); }
+.portal-shell .ui-button { border-radius: var(--twe-radius-control); }
+.portal-shell .session-toolbar .ui-button { min-height: 44px; }
+.session-recovery { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+
+/* Let narrow CMS toolbars and disclosure headings wrap instead of overflowing. */
+@media (max-width: 600px) {
+  .portal-shell .dashboard-section-heading { flex-wrap: wrap; }
+  .portal-shell .dashboard-section-heading > *, .portal-shell .session-toolbar > *, .portal-shell .cms-editor-group > * { min-width: 0; max-width: 100%; }
+  .portal-shell .ui-button { white-space: normal; overflow-wrap: anywhere; }
+  .portal-shell .twe-action-button > span:first-child { min-width: 0; }
+  .portal-shell .metric-word .ui-kpi-card__value { overflow-wrap: anywhere; }
 }

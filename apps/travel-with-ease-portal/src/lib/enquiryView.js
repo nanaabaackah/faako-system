@@ -1,6 +1,6 @@
 const privateMetadata = new Set([
   "submissionId", "submissionFingerprint", "continuationSubmissionId",
-  "continuationSubmissionFingerprint", "source",
+  "continuationSubmissionFingerprint", "source", "intakeVersion", "intakeSnapshot",
 ]);
 const initialFields = new Set(["enquiryType", "service", "destination", "travelTimeframe", "travellers", "budget", "notes"]);
 
@@ -26,4 +26,16 @@ export function legacyEnquiryFields(details = {}) {
 
 export function initialEnquiryFields(details = {}) {
   return Object.entries(details).filter(([key, value]) => initialFields.has(key) && value !== null && value !== "");
+}
+
+export function versionedIntakeFields(details = {}) {
+  const snapshot = details.intakeSnapshot;
+  if (!snapshot) return [];
+  return [
+    ...(snapshot.core || []).filter(field => initialFields.has(field.id) && details[field.id] != null && details[field.id] !== "")
+      .map(field => ({ id: field.id, label: field.label, value: field.selectedOption?.label || details[field.id] })),
+    ...(snapshot.additional || []).map(field => ({
+      id: field.id, label: field.label, value: Array.isArray(field.options) && field.options.length ? field.options.map(option => option.label) : field.answer,
+    })),
+  ];
 }

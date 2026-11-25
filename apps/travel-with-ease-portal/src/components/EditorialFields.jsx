@@ -37,7 +37,7 @@ export default function EditorialFields({ page, body, change }) {
         <RichTextField label="Expanded review" maxLength={6000} value={review.more} onChange={event => updateReview(index, "more", event.target.value)} />
         <Button type="button" icon="close" onClick={() => change("reviews", reviews.filter((_, i) => i !== index))}>Remove review {index + 1}</Button>
       </fieldset>)}
-      <Button type="button" icon="add" disabled={reviews.length >= 30} onClick={() => change("reviews", [...reviews, { preview: "", more: "" }])}>Add review</Button>
+      <Button type="button" icon="plus" disabled={reviews.length >= 30} onClick={() => change("reviews", [...reviews, { preview: "", more: "" }])}>Add review</Button>
     </section>}
   </>;
 }

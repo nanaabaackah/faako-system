@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { transaction, verifyDatabaseIdentity } from "./database.js";
+import { DETAILED_FORM_ID } from "../enquiries/questionnaires/configuration.js";
+import { QUESTIONNAIRE_VERSION } from "../enquiries/questionnaires/index.js";
+import { INTAKE_FORM_ID, INTAKE_BASELINE_VERSION } from "../enquiries/intake-definition.js";
 import { continuationRecord, replayContinuation, submissionRecord, replaySubmission } from "../enquiries/submission.js";
 
 export class PostgresLeadRepository {
@@ -27,6 +30,22 @@ export class PostgresLeadRepository {
         "SELECT id, details->>'submissionFingerprint' AS fingerprint FROM twe.enquiries WHERE organisation_id = $1 AND details->>'submissionId' = $2",
         [this.organisationId, record.submissionId]);
       if (prior.rows[0]) return replaySubmission(prior.rows[0], record.fingerprint);
+      if (!data.questionnaireId) {
+        // Shared lock serializes new intake submissions with activation. Keep
+        // replay checks above this gate so accepted retries still work.
+        await client.query("SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))", [`twe-intake:${this.organisationId}`]);
+        const { rows } = await client.query("SELECT active_version FROM twe.enquiry_form_drafts WHERE organisation_id=$1 AND form_id=$2", [this.organisationId, INTAKE_FORM_ID]);
+        if ((data.intakeVersion ?? INTAKE_BASELINE_VERSION) !== (rows[0]?.active_version ?? INTAKE_BASELINE_VERSION)) {
+          throw Object.assign(new Error("Outdated enquiry form."), { code: "intake_version_changed" });
+        }
+      }
+      if (!data.questionnaireId) {
+        await client.query("SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))", [`twe-detailed:${this.organisationId}`]);
+        const { rows } = await client.query("SELECT active_version FROM twe.enquiry_form_drafts WHERE organisation_id=$1 AND form_id=$2", [this.organisationId, DETAILED_FORM_ID]);
+        // Baseline retains the old wire contract; later versions are pinned
+        // at intake creation and are never chosen by the visitor.
+        record.details.pinnedQuestionnaireVersion = rows[0]?.active_version > 1 ? `cms.${rows[0].active_version}` : QUESTIONNAIRE_VERSION;
+      }
       await client.query(
         `INSERT INTO twe.enquiries (id, organisation_id, kind, contact, details, notice_at)
          VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -49,6 +68,7 @@ export class PostgresLeadRepository {
       inquiryId: row.id,
       contact: row.contact,
       entryType: row.details.entryType || "general",
+      questionnaireVersion: row.details.pinnedQuestionnaireVersion || QUESTIONNAIRE_VERSION,
       context: {
         ...(row.details.selectedServiceId && row.details.selectedServiceTitle ? {
           serviceId: row.details.selectedServiceId, serviceTitle: row.details.selectedServiceTitle,
@@ -71,6 +91,17 @@ export class PostgresLeadRepository {
         const error = new Error("Enquiry continuation is unavailable.");
         error.code = "enquiry_continuation_unavailable";
         throw error;
+      }
+      if (data.questionnaireVersion !== (prior.details.pinnedQuestionnaireVersion || QUESTIONNAIRE_VERSION)) {
+        throw Object.assign(new Error("Questionnaire version mismatch."), { code: "enquiry_continuation_unavailable" });
+      }
+      const expectedContext = {
+        ...(prior.details.selectedServiceId && prior.details.selectedServiceTitle ? { serviceId: prior.details.selectedServiceId, serviceTitle: prior.details.selectedServiceTitle } : {}),
+        ...(prior.details.selectedPackageId && prior.details.selectedPackageTitle ? { packageId: prior.details.selectedPackageId, packageTitle: prior.details.selectedPackageTitle } : {}),
+      };
+      if (!prior.details.questionnaireCompletedAt && ((prior.details.entryType || "general") !== data.entryType ||
+        Object.keys({ ...expectedContext, ...data.context }).some(key => expectedContext[key] !== data.context[key]))) {
+        throw Object.assign(new Error("Questionnaire context mismatch."), { code: "enquiry_continuation_unavailable" });
       }
       const next = continuationRecord(prior.details, data);
       if (prior.details.questionnaireCompletedAt) return replayContinuation(prior, data.submissionId, next.fingerprint);

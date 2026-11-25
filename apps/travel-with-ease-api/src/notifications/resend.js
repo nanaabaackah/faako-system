@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { validateEnvironment } from "../config.js";
 import { enquiryTemplate } from "./enquiry-template.js";
+import { renderEmailTemplate } from "./template-catalogue.js";
 
 const email = z.string().trim().email().max(254);
 const uuid = z.string().uuid();
@@ -73,6 +74,18 @@ export class ResendSender {
       }),
       ...(!test && enquiry.id ? { staff: staffNotification(this.config, enquiry.id) } : {}),
     };
+  }
+  async sendTemplateTest(slug, copy, attemptId) {
+    if (!["staging", "production"].includes(this.config.environment)) throw new Error("test_delivery_unavailable");
+    const rendered = renderEmailTemplate(slug, copy);
+    const payload = {
+      from: this.config.from, to: [testMailbox],
+      subject: "[TEST] " + rendered.subject,
+      text: "TEST EMAIL — sample data only. No enquiry or invitation was created.\n\n" + rendered.text,
+      html: rendered.html.replace(/(<body[^>]*>)/i, '$1<p style="padding:12px;text-align:center;background:#f4ede3;color:#010c33;font-family:Arial,sans-serif">TEST EMAIL — sample data only</p>'),
+    };
+    if (!validMessage(payload, this.config.from)) throw new Error("test_delivery_invalid");
+    return this.sendMessage(payload, `twe-template-test-${this.config.environment}-${uuid.parse(attemptId)}`);
   }
   async sendMessage(payload, key) {
     const response = await this.fetcher("https://api.resend.com/emails", {

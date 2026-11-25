@@ -99,7 +99,7 @@ test("template copy is bounded and escaped; delivery and mandatory footer are co
   assert.match(staging.html, /&lt;script&gt;/);
 });
 
-test("template service refuses editors and cross-tenant administrators before querying", async () => {
+test("template service refuses cross-tenant actors and privileged editor actions before querying", async () => {
   const service = new EmailTemplates(
     {
       query() {
@@ -109,7 +109,6 @@ test("template service refuses editors and cross-tenant administrators before qu
     "tenant-a",
   );
   for (const actor of [
-    { id: "staff", role: "editor", organisationId: "tenant-a" },
     { id: "staff", role: "platform_admin", organisationId: "tenant-b" },
     { id: "staff", role: "owner", organisationId: "tenant-b" },
   ]) {
@@ -118,15 +117,21 @@ test("template service refuses editors and cross-tenant administrators before qu
       status: 403,
     });
   }
+  const editor = { id: "staff", role: "editor", organisationId: "tenant-a" };
+  assert.doesNotThrow(() => service.check(editor, "enquiry-acknowledgement"));
+  await assert.rejects(service.get(editor, "staff-invitation"), { status: 403 });
+  await assert.rejects(service.change(editor, "test", 0, null, true), { status: 403 });
+  await assert.rejects(service.sendTest(editor, "test", defaultInvitationCopy, "staff-invitation"), { status: 403 });
 });
 
-test("template HTTP preview requires owner permission, CSRF and strict input; never sends email", async (context) => {
+test("template HTTP preview requires appropriate permission, CSRF and strict input; never sends email", async (context) => {
   let role = "owner",
     saves = 0;
   const actor = () => ({ id: "staff", role, organisationId: "tenant-a" });
   const service = new EmailTemplates({}, "tenant-a");
-  service.get = async () => ({ version: 0, draft: defaultEnquiryCopy });
-  service.change = async () => {
+  service.get = async (actor, slug) => { service.check(actor, slug); return { version: 0, draft: defaultEnquiryCopy }; };
+  service.change = async (actor, requestId, version, copy, activate, slug) => {
+    service.check(actor, slug, activate);
     saves++;
     return { version: 1 };
   };
@@ -188,8 +193,11 @@ test("template HTTP preview requires owner permission, CSRF and strict input; ne
   assert.equal((await post("/staff-invitation/preview", defaultInvitationCopy)).status, 200);
   for (const denied of ["editor"]) {
     role = denied;
-    assert.equal((await fetch(origin)).status, 403);
+    assert.equal((await fetch(origin)).status, 200);
+    assert.equal((await post("/preview", defaultEnquiryCopy)).status, 200);
+    assert.equal((await post("/activate", { expectedVersion: 1 })).status, 403);
     assert.equal((await fetch(origin + "/staff-invitation")).status, 403);
+    assert.equal((await post("/staff-invitation/draft", { expectedVersion: 0, copy: defaultInvitationCopy })).status, 403);
     assert.equal(
       (await post("/staff-invitation/preview", defaultInvitationCopy)).status,
       403,
@@ -197,7 +205,59 @@ test("template HTTP preview requires owner permission, CSRF and strict input; ne
     assert.equal(
       (await post("/draft", { expectedVersion: 0, copy: defaultEnquiryCopy }))
         .status,
-      403,
+      200,
     );
   }
+});
+
+test("email formatting is semantic, safe and equivalent in the plain-text alternative", () => {
+  const copy = { ...defaultEnquiryCopy, message: "**Thank you** for choosing us.\n\n*Next steps*\n- Review <script>unsafe</script>\n- Reply when ready\n\n1. First\n2. Second" };
+  const rendered = enquiryTemplate({ copy, continuation: true, ctaUrl: "https://travelwitheasegh.com/plan-your-trip#continue=sample" });
+  assert.match(rendered.html, /<strong>Thank you<\/strong>/);
+  assert.match(rendered.html, /<em>Next steps<\/em>/);
+  assert.match(rendered.html, /<ul[^>]*><li>Review &lt;script&gt;unsafe&lt;\/script&gt;<\/li><li>Reply when ready<\/li><\/ul>/);
+  assert.match(rendered.html, /<ol start="1"[^>]*><li>First<\/li><li>Second<\/li><\/ol>/);
+  assert.doesNotMatch(rendered.html, /<script>/);
+  assert.match(rendered.text, /Thank you for choosing us\./);
+  assert.match(rendered.text, /1\. First\n2\. Second/);
+  assert.doesNotMatch(rendered.text, /\*\*Thank you\*\*/);
+  assert.match(rendered.text, /Valid for 14 days/);
+  assert.match(rendered.text, /not a booking or payment confirmation/);
+  assert.match(rendered.html, /Complete your trip details/);
+});
+
+test("email revision history and restore use the same tenant and template scope", async () => {
+  const calls = [];
+  const actor = { id: "staff", role: "owner", organisationId: "tenant-a" };
+  const service = new EmailTemplates({ async query(sql, values) {
+    calls.push({ sql, values });
+    return { rows: values.length === 3 && values[2] !== 7 ? [] : [{ version: 7, kind: "draft", copy: defaultInvitationCopy }] };
+  } }, "tenant-a");
+  assert.equal((await service.history(actor, "staff-invitation"))[0].version, 7);
+  service.change = async (...args) => args;
+  assert.deepEqual(await service.restore(actor, "request", 9, 7, "staff-invitation"),
+    [actor, "request", 9, defaultInvitationCopy, false, "staff-invitation", 7]);
+  await assert.rejects(service.restore(actor, "request", 9, 8, "staff-invitation"), { status: 404 });
+  await assert.rejects(service.history({ ...actor, organisationId: "tenant-b" }), { status: 403 });
+  assert.deepEqual(calls.map(call => call.values), [
+    ["tenant-a", "staff-invitation"], ["tenant-a", "staff-invitation", 7], ["tenant-a", "staff-invitation", 8],
+  ]);
+});
+
+test("template test sends sample data to the fixed test mailbox in both hosted environments", async () => {
+  for (const environment of ["staging", "production"]) {
+    let message, key;
+    const sender = new ResendSender({ environment, from: "sender@example.invalid" });
+    sender.sendMessage = async (payload, attemptKey) => { message = payload; key = attemptKey; return "synthetic-id"; };
+    const attempt = "12345678-1234-4234-8234-123456789abc";
+    await sender.sendTemplateTest("staff-invitation", defaultInvitationCopy, attempt);
+    assert.deepEqual(message.to, ["testing@travelwitheasegh.com"]);
+    assert.match(message.subject, /^\[TEST\]/);
+    assert.match(message.text, /sample data only/);
+    assert.match(message.text, /does not grant workspace access/);
+    assert.equal(message.cc, undefined);
+    assert.equal(key, `twe-template-test-${environment}-${attempt}`);
+  }
+  const unavailable = new ResendSender({ environment: "test", from: "sender@example.invalid" });
+  await assert.rejects(unavailable.sendTemplateTest("enquiry-acknowledgement", defaultEnquiryCopy, "12345678-1234-4234-8234-123456789abc"), /test_delivery_unavailable/);
 });

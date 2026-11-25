@@ -9,7 +9,7 @@ import {
   AnimatedLoadingState,
   useToast,
 } from "@faako/ui";
-import { enquiryAnswerSections, formatEnquiryAnswer, initialEnquiryFields, legacyEnquiryFields } from "../lib/enquiryView.js";
+import { enquiryAnswerSections, formatEnquiryAnswer, initialEnquiryFields, legacyEnquiryFields, versionedIntakeFields } from "../lib/enquiryView.js";
 
 const statuses = ["new", "contacted", "closed"];
 const serviceOptions = [
@@ -147,7 +147,7 @@ export default function Enquiries({ api, session }) {
                     {selected.package && <div><dt>Package</dt><dd>{selected.package}</dd></div>}
                     {selected.details?.questionnaireVersion && <div><dt>Questionnaire version</dt><dd>{selected.details.questionnaireVersion}</dd></div>}
                     {selected.details?.questionnaireCompletedAt && <div><dt>Detailed questionnaire</dt><dd>Completed · <time dateTime={selected.details.questionnaireCompletedAt}>{new Date(selected.details.questionnaireCompletedAt).toLocaleString("en-GH", { timeZone: "Africa/Accra" })}</time></dd></div>}
-                    {!selected.details?.questionSnapshots && legacyEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}
+                    {!selected.details?.questionSnapshots && !selected.details?.intakeSnapshot && legacyEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}
                   </dl>
                 </section>
                 <aside className="workspace-panel enquiry-contact">
@@ -177,7 +177,11 @@ export default function Enquiries({ api, session }) {
                   </dl>
                 </aside>
               </div>
-              {selected.details?.questionSnapshots && initialEnquiryFields(selected.details).length > 0 && <section className="workspace-panel enquiry-answers">
+              {selected.details?.intakeSnapshot && <section className="workspace-panel enquiry-answers">
+                <h4>Initial enquiry · Version {selected.details.intakeSnapshot.version}</h4>
+                <dl className="detail-fields">{versionedIntakeFields(selected.details).map(item => <div key={item.id}><dt>{item.label}</dt><dd className="preserve-lines">{formatEnquiryAnswer(item.value)}</dd></div>)}</dl>
+              </section>}
+              {!selected.details?.intakeSnapshot && selected.details?.questionSnapshots && initialEnquiryFields(selected.details).length > 0 && <section className="workspace-panel enquiry-answers">
                 <h4>Initial enquiry</h4>
                 <dl className="detail-fields">{initialEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll(/([A-Z])/g, " $1")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}</dl>
               </section>}

@@ -51,6 +51,11 @@ try {
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(refresh).toBeEnabled();
     await notice.getByRole("button", { name: "Later" }).click();
+    let failTemplateSave = true;
+    await page.route("**/api/agent/templates/*/draft", async route => {
+      if (!failTemplateSave) return route.fallback();
+      return route.fulfill({ status: 503, json: { ok:false, error:{ code:"service_unavailable", message:"Synthetic template save failure" } } });
+    });
     await navigate("Templates");
     const heading = page.getByLabel(/^Heading/);
     await heading.waitFor();
@@ -60,6 +65,7 @@ try {
     await expect(notice).toBeVisible();
     await expect(refresh).toBeDisabled();
     await expect(heading).toHaveValue("Pending template update fixture");
+    await expect(page.getByText("Draft not saved", { exact: true })).toBeVisible();
     assert.equal(navigations, 1, "No automatic reload during an unsaved edit");
     await notice.getByRole("button", { name: "Later" }).click();
     await expect(notice).toHaveCount(0);
@@ -68,6 +74,7 @@ try {
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
     await expect(notice).toBeVisible();
     await expect(refresh).toBeDisabled();
+    failTemplateSave = false;
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(refresh).toBeEnabled();
     await expect(heading).toHaveValue("Pending template update fixture");
@@ -95,9 +102,16 @@ try {
     });
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
+    let failTemplateSave = dirtyAtDeadline;
+    await page.route("**/api/agent/templates/*/draft", async route => {
+      if (!failTemplateSave) return route.fallback();
+      return route.fulfill({ status: 503, json: { ok:false, error:{ code:"service_unavailable", message:"Synthetic template save failure" } } });
+    });
     if (dirtyAtDeadline) {
       await page.getByRole("button", { name: "Templates", exact: true }).filter({ visible: true }).first().click();
       await page.getByLabel(/^Heading/).fill("Keep this edit across the deadline");
+      await page.clock.runFor(1500);
+      await expect(page.getByText("Draft not saved", { exact: true })).toBeVisible();
     }
     updateAvailable = true;
     await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
@@ -111,6 +125,7 @@ try {
       await page.clock.fastForward(2 * 60_000);
       assert.equal(navigations, 1, "Unsaved work blocks the overnight refresh");
       await expect(page.getByLabel(/^Heading/)).toHaveValue("Keep this edit across the deadline");
+      failTemplateSave = false;
       await Promise.all([
         page.waitForEvent("framenavigated", { predicate: frame => frame === page.mainFrame() }),
         page.getByRole("button", { name: "Save draft", exact: true }).click(),

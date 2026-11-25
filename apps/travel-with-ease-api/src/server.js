@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { access } from "node:fs/promises";
 import { createApp, createLimiter } from "./app.js";
+import { readNotificationConfig, ResendSender } from "./notifications/resend.js";
 import { ExchangeRateApiProvider } from "./currency/provider.js";
 import { CurrencyService } from "./currency/service.js";
 import { FileLeadRepository } from "./crm/repository.js";
@@ -105,6 +106,13 @@ const continuationSettings = readContinuationConfig(process.env);
 const continuationLinks = continuationSettings ? createContinuationLinks(continuationSettings) : null;
 const app = createApp({ repository, currencyService, estimatorService: new EstimatorService({ currencyService, configuration }), contentRepository, publicationRepository, previewService, mediaService, allowedOrigins, staffAuth, startupReceipt, environment, logger,
   continuationLinks,
+  templateTestSenderFactory: () => {
+    if (!["staging", "production"].includes(environment)) return null;
+    try {
+      const config = readNotificationConfig(process.env);
+      return config && config.environment === environment ? new ResendSender(config) : null;
+    } catch { return null; }
+  },
   turnstileVerifier: createTurnstileVerifier({
     secret: process.env.TWE_TURNSTILE_SECRET_KEY, environment,
   }),

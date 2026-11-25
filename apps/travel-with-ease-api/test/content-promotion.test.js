@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import approved from "../../travel-with-ease-web/content/approved-public-release.json" with { type: "json" };
 import { ContentPromotionImporter, createPromotionBundle, exportPromotionBundle, verifyPromotionBundle } from "../src/content/promotion.js";
+import { INTAKE_FORM_ID, defaultIntakeDefinition } from "../src/enquiries/intake-definition.js";
+import { DETAILED_FORM_ID, defaultDetailedDefinition } from "../src/enquiries/questionnaires/configuration.js";
 import { pageNames } from "../src/content/schema.js";
 import { approvedEditorCopy } from "../src/content/approved-copy.js";
 
@@ -172,4 +174,30 @@ test("identical recorded production promotion is a no-write replay; edited conte
   receipt = false;
   await assert.rejects(importer.apply(bundle), /will not overwrite/);
   assert.ok(statements.every(sql => sql.startsWith("SELECT")));
+});
+
+test("promotion carries only active form versions, rejects tampering and seeds independent active definitions", async () => {
+  const intake = { formId: INTAKE_FORM_ID, version: 3, definition: defaultIntakeDefinition() };
+  const detailed = { formId: DETAILED_FORM_ID, version: 2, definition: { ...defaultDetailedDefinition(), continueLabel: "Next" } };
+  const enquiryForms = { [INTAKE_FORM_ID]: intake, [DETAILED_FORM_ID]: detailed };
+  const bundle = createPromotionBundle({ source, pages, enquiryForms });
+  assert.deepEqual(verifyPromotionBundle(bundle).enquiryForms, enquiryForms);
+  const changed = structuredClone(bundle);
+  changed.enquiryForms[DETAILED_FORM_ID].definition.continueLabel = "Changed";
+  assert.throws(() => verifyPromotionBundle(changed), /integrity/);
+  assert.throws(() => createPromotionBundle({ source, pages, enquiryForms: { [INTAKE_FORM_ID]: intake } }), /both active/);
+  const statements = [];
+  const client = { query: async (sql, values) => {
+    statements.push({ sql, values });
+    if (sql.startsWith("SELECT role")) return { rows: [{ role: "owner", active: true }] };
+    if (sql.startsWith("SELECT count")) return { rows: [{ count: 0 }] };
+    return { rows: [], rowCount: 1 };
+  } };
+  const importer = new ContentPromotionImporter({}, { put: async () => {}, remove: async () => {} }, {
+    organisationId, actorId: "44444444-4444-4444-8444-444444444444", transact: async (_pool, operation) => operation(client),
+  });
+  assert.equal((await importer.apply(bundle)).status, "imported");
+  assert.deepEqual(statements.filter(({sql})=>sql.startsWith("INSERT INTO twe.enquiry_form_drafts")).map(({values})=>[values[1],values[2]]), [[INTAKE_FORM_ID,3],[DETAILED_FORM_ID,2]]);
+  assert.equal(statements.filter(({sql})=>sql.startsWith("INSERT INTO twe.enquiry_form_versions")).length,4);
+  assert.equal(statements.some(({sql})=>/INSERT INTO twe\.(enquiries|staff_sessions|notification_outbox)\b/.test(sql)),false);
 });

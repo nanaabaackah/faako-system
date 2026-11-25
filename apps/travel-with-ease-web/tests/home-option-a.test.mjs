@@ -134,7 +134,9 @@ test("package tickets reuse the React Bits ticket with visible headings, currenc
   assert.match(packageTicket, /rotateAmplitude=\{9\}/);
   assert.match(packageTicket, /flipped=\{flipped\}/);
   assert.match(packageTicket, /<Heading><a href=\{href\}>\{title\}<\/a><\/Heading>/);
-  assert.match(packageTicket, /import \{ ArrowRight4 \} from "@faako\/ui"/);
+  assert.match(packageTicket, /import \{ ArrowRight4, IconsaxIcon \} from "@faako\/ui"/);
+  assert.match(packageTicket, /<IconsaxIcon name="ArrowLeft4"/);
+  assert.doesNotMatch(ticketSkin, /\.twe-ticket__flip--back svg[^}]*rotate/);
   assert.match(packageTicket, /aria-label=\{`Explore \$\{title\} package`\}/);
   assert.doesNotMatch(packageTicket, /Your planning pass|Your journey, your way|↗|twe-ticket__label/);
   assert.match(ticketSkin, /twe-ticket__barcode/);

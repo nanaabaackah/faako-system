@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { siteBranding } from "../src/lib/branding.js";
 import { editorialValues } from "../../travel-with-ease-api/src/content/editorial-fields.js";
 const read = path => readFileSync(new URL(path, import.meta.url), "utf8");
 
@@ -13,8 +14,8 @@ test("public typography consistently uses TWE display and body fonts in journal"
   assert.match(typography, /body \.journal-detail \.journal-detail__header h1/);
   assert.match(typography, /body \.journal-detail \.journal-detail__content > p/);
   assert.match(typography, /body \.journal-detail[\s\S]*?font-family: var\(--font-body\)/);
-  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-family: var\(--font-display\) !important;[\s\S]*?font-weight: 400 !important/);
-  assert.match(typography, /-webkit-text-stroke: 0\.03em currentColor/);
+  assert.match(typography, /body \.cinematic-hero h1 \{[\s\S]*?font-family: var\(--font-display\) !important;[\s\S]*?font-weight: var\(--font-display-weight, 400\) !important/);
+  assert.match(typography, /-webkit-text-stroke: var\(--font-hero-stroke, 0\.03em\) currentColor/);
   assert.match(typography, /body \.cinematic-hero \.hero-signature \{/);
   assert.match(typography, /body \.journal-collection-grid \.journal-card h2 \{/);
   assert.match(typography, /font-size: clamp\(2\.65rem, 13vw, 15rem\)/);
@@ -30,7 +31,7 @@ test("public typography consistently uses TWE display and body fonts in journal"
   const headers = read("../public/_headers");
   assert.match(headers, /style-src[^\n]*https:\/\/fonts.googleapis.com/);
   assert.match(headers, /font-src[^\n]*https:\/\/fonts.gstatic.com/);
-  assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*A Little More You/);
+  assert.match(read("../src/components/CinematicHero.astro"), /hero-signature.*\{copy\.heroSignature\}/);
   assert.match(read("../src/styles/components/cinematic-hero.css"), /\.cinematic-hero__copy \{\s*width: 100%;/);
   assert.match(typography, /body \.cinematic-hero h1 \{\s*width: 100%;\s*max-width: none;/);
   assert.match(typography, /body \.cinematic-hero \.hero-signature \{[\s\S]*?width: 100%;[\s\S]*?white-space: normal;[\s\S]*?text-wrap: balance;/);
@@ -114,4 +115,23 @@ test("mobile menu matches approved full-screen reference without hiding importan
   assert.match(hero, /font-size: clamp\(2\.65rem, 13vw, 15rem\)/);
   assert.match(hero, /body \.site-header-shell \.site-header nav a \{[\s\S]*?font-weight: 800/);
   assert.match(layout, /twe-mobile-menu-open/);
+});
+
+test("approved heading choices preserve the default Poiret stroke without applying it to other fonts", () => {
+  const defaults = siteBranding();
+  assert.match(defaults.cssVariables, /--font-display-weight: 400;/);
+  assert.match(defaults.cssVariables, /--font-display-stroke: 0\.024em;/);
+  assert.match(defaults.cssVariables, /--font-hero-stroke: 0\.03em;/);
+  assert.equal(defaults.fonts.heading, "poiret-one");
+  assert.equal(defaults.fonts.body, "quicksand");
+  for (const headingFont of ["quicksand","inter","outfit"]) {
+    const chosen = siteBranding({branding:{headingFont,bodyFont:"inter"}});
+    assert.equal(chosen.fonts.heading,headingFont);
+    assert.match(chosen.cssVariables,/--font-display-weight: 700;/);
+    assert.match(chosen.cssVariables,/--font-display-stroke: 0;/);
+    assert.match(chosen.cssVariables,/--font-hero-stroke: 0;/);
+  }
+  assert.equal(siteBranding({branding:{headingFont:"constructor",bodyFont:"__proto__"}}).fonts.heading,"poiret-one");
+  assert.equal(editorialValues("home").heroSignature,"A Little More You");
+  assert.equal(editorialValues("home",{heroSignature:"Travel your way"}).heroSignature,"Travel your way");
 });

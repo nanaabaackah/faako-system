@@ -2,8 +2,10 @@ import { z } from "zod";
 import { emailSchema, phoneSchema } from "@faako/validation";
 import {
   QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, SERVICE_OPTIONS,
-  applicableQuestionIds, branching, questions, selectedServiceFromAnswers,
+  applicableQuestionIds, branching, questions, selectedServiceFromAnswers, questionnaireRoute,
 } from "./questionnaires/index.js";
+
+import { detailedApplicableIds, detailedDefinitionSchema } from "./questionnaires/configuration.js";
 
 const answerValue = z.union([
   z.string().trim().max(2000),
@@ -22,7 +24,7 @@ const contextSchema = z.object({
   if (service && value.serviceTitle !== service.title) context.addIssue({ code: z.ZodIssueCode.custom, message: "Service title does not match the approved service." });
 });
 
-export const smartEnquirySchema = z.object({
+const smartEnquiryBase = z.object({
   submissionId: z.string().uuid(),
   turnstileToken: z.string().max(2048).default(""),
   questionnaireId: z.literal(QUESTIONNAIRE_ID),
@@ -36,15 +38,17 @@ export const smartEnquirySchema = z.object({
   }).strict(),
   consent: z.literal(true),
   website: z.string().max(200).default(""),
-}).strict().superRefine((data, validation) => {
+}).strict();
+
+function validateAnswers(data, validation, applicableIds, questionMap) {
   if (data.entryType === "service" && !data.context.serviceId) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["context", "serviceId"], message: "Choose a valid service." });
   if (data.entryType === "package" && !data.context.packageId) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["context", "packageId"], message: "Choose a valid package." });
-  const applicable = new Set(applicableQuestionIds(data.context, data.answers));
+  const applicable = new Set(applicableIds);
   for (const id of Object.keys(data.answers)) {
     if (!applicable.has(id)) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "Hidden or deferred answers are not accepted." });
   }
   for (const id of applicable) {
-    const question = questions[id];
+    const question = questionMap[id];
     const value = data.answers[id];
     const required = question.required
       || (id === "1653151808" && selectedServiceFromAnswers(data.answers) === "not_sure")
@@ -65,9 +69,14 @@ export const smartEnquirySchema = z.object({
       if (value.some((choice) => !question.options.includes(choice)) || (question.requireAllOptions && value.length !== question.options.length)) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "Select the required listed choices." });
     } else if (Array.isArray(value)) {
       validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "Choose or enter one answer." });
-    } else if (question.type === "MULTIPLE_CHOICE" && !question.options.includes(value) && !question.allowOther) {
+    } else if (["MULTIPLE_CHOICE", "DROPDOWN"].includes(question.type) && !question.options.includes(value) && !question.allowOther) {
       validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "Choose a listed option." });
     }
+    if (question.type === "DATE" && typeof value === "string") {
+      const date = new Date(value + "T00:00:00Z");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(date.getTime()) || date.toISOString().slice(0,10) !== value) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "Choose a valid date." });
+    }
+    if (question.type === "NUMBER" && (typeof value !== "string" || !/^-?\d+(?:\.\d{1,4})?$/.test(value) || Math.abs(Number(value)) > 1e9)) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "Enter a valid number." });
     if (question.integer) {
       const number = Number(value);
       if (!Number.isInteger(number) || number < question.min || number > question.max) validation.addIssue({
@@ -84,7 +93,38 @@ export const smartEnquirySchema = z.object({
   for (const [id, field] of Object.entries(contactMap)) {
     if (data.answers[id] !== data.contact[field]) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["answers", id], message: "Contact answer does not match the contact details." });
   }
-});
+}
+
+export const smartEnquirySchema = smartEnquiryBase.superRefine((data, validation) => validateAnswers(data, validation, applicableQuestionIds(data.context, data.answers), questions));
+
+export function configuredSmartEnquirySchema(definition, version) {
+  const checked = detailedDefinitionSchema.parse(definition);
+  const questionMap = detailedQuestionMap(checked);
+  return smartEnquiryBase.extend({ questionnaireVersion: z.literal(`cms.${version}`) }).superRefine((data, validation) => validateAnswers(data, validation, detailedApplicableIds(checked, data.context, data.answers), questionMap));
+}
+
+export function detailedQuestionMap(definition) {
+  return Object.fromEntries(definition.questions.map(item => {
+    const original = questions[item.id];
+    const metadata = original?.type === item.type ? original : {};
+    return [item.id, { ...metadata, ...item, allowOther: false }];
+  }));
+}
+
+export function configuredQuestionnaireSnapshot(data, definition) {
+  const applicableIds = detailedApplicableIds(definition, data.context, data.answers);
+  const byId = detailedQuestionMap(definition);
+  return {
+    questionnaireId: data.questionnaireId, questionnaireVersion: data.questionnaireVersion,
+    applicableQuestionIds: applicableIds,
+    questionSnapshots: Object.fromEntries(applicableIds.map(id => {
+      const item = byId[id];
+      const step = definition.steps.find(step => step.routes.includes(questionnaireRoute(data.context, data.answers)) && step.questionIds.includes(id));
+      return [id, { id, label: item.label, sectionId: step.id, sectionTitle: step.title, source: item.source || "cms", options: item.options }];
+    })),
+    answers: Object.fromEntries(applicableIds.filter(id => data.answers[id] !== undefined && data.answers[id] !== "" && data.answers[id]?.length !== 0).map(id => [id, data.answers[id]])),
+  };
+}
 
 export function validatedQuestionnaireSnapshot(data) {
   const applicableIds = [...applicableQuestionIds(data.context, data.answers)];

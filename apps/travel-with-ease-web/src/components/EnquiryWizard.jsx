@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
-import { Button, IconsaxIcon, AnimatedLoadingState, InlineNotice, ERPModal } from "@faako/ui";
+import { Button, SelectField, IconsaxIcon, AnimatedLoadingState, InlineNotice, ERPModal } from "@faako/ui";
 import {
   QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds, branching,
   questionnaireRoute, questionnaireSteps, questions, selectedServiceFromAnswers,
 } from "../../../travel-with-ease-api/src/enquiries/questionnaires/index.js";
+import { detailedDefinitionSchema, detailedApplicableIds } from "../../../travel-with-ease-api/src/enquiries/questionnaires/configuration.js";
 import TurnstileChallenge from "./TurnstileChallenge.jsx";
 import "../styles/components/enquiry-form.css";
 
@@ -27,7 +28,7 @@ function questionError(question, value, answers) {
   return "";
 }
 
-function Question({ question, value, onChange, error }) {
+export function Question({ question, value, onChange, error }) {
   const describedBy = `${question.id}-hint${error ? ` ${question.id}-error` : ""}`;
   if (question.type === "CHECKBOX") {
     const selected = Array.isArray(value) ? value : [];
@@ -42,6 +43,7 @@ function Question({ question, value, onChange, error }) {
       {error && <p id={`${question.id}-error`} className="question-error" role="alert">{error}</p>}
     </fieldset>;
   }
+  if (question.type === "DROPDOWN") return <div className="question-field"><SelectField label={question.label} id={`question-${question.id}`} value={value || ""} required={question.required} onChangeValue={onChange}><option value="">Choose an option</option>{question.options.map(option => <option key={option} value={option}>{option}</option>)}</SelectField>{question.description && <p className="question-hint">{question.description}</p>}{error && <p className="question-error" role="alert">{error}</p>}</div>;
   if (question.type === "MULTIPLE_CHOICE") return <fieldset className="question-field" aria-describedby={describedBy}>
     <legend>{question.label}{question.required && <span aria-hidden="true"> *</span>}</legend>
     {question.description && <p id={`${question.id}-hint`} className="question-hint">{question.description}</p>}
@@ -52,13 +54,13 @@ function Question({ question, value, onChange, error }) {
     {error && <p id={`${question.id}-error`} className="question-error" role="alert">{error}</p>}
   </fieldset>;
   const multiline = question.type === "PARAGRAPH_TEXT";
-  const type = question.inputMode === "email" ? "email" : question.inputMode === "tel" ? "tel" : question.inputMode === "number" || question.id === "836507955" ? "number" : "text";
+  const type = question.type === "DATE" ? "date" : question.type === "NUMBER" ? "number" : question.inputMode === "email" ? "email" : question.inputMode === "tel" ? "tel" : question.inputMode === "number" || question.id === "836507955" ? "number" : "text";
   const controlProps = {
     id: `question-${question.id}`, value: typeof value === "string" ? value : "",
     onChange: (event) => onChange(event.target.value), required: question.required,
     maxLength: multiline ? 1500 : 500, autoComplete: question.autoComplete,
     "aria-describedby": describedBy, "aria-invalid": Boolean(error),
-    ...(type === "number" ? { min: question.min || 1, max: question.max || 100, step: 1 } : {}),
+    ...(type === "number" ? (question.type === "NUMBER" ? { min: -1e9, max: 1e9, step: "0.0001" } : { min: question.min || 1, max: question.max || 100, step: 1 }) : {}),
   };
   return <div className="question-field">
     <label htmlFor={controlProps.id}>{question.label}{question.required && <span aria-hidden="true"> *</span>}</label>
@@ -76,6 +78,7 @@ export default function EnquiryWizard() {
   const [access, setAccess] = useState({ state: "loading", token: "", expiresAt: "" });
   const [entry, setEntry] = useState({ entryType: "general", context: {} });
   const [answers, setAnswers] = useState({});
+  const [configured, setConfigured] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [errors, setErrors] = useState({});
   const [turnstileToken, setTurnstileToken] = useState("");
@@ -97,6 +100,11 @@ export default function EnquiryWizard() {
       fallbackMessage: "This private questionnaire link is unavailable or has expired.",
     }).then((data) => {
       if (!active) return;
+      if (data.questionnaire) {
+        const { version, definition } = data.questionnaire;
+        if (!Number.isInteger(version) || version < 2) throw new Error("Invalid questionnaire version.");
+        setConfigured({ version, definition: detailedDefinitionSchema.parse(definition) });
+      }
       setEntry({ entryType: data.entryType, context: data.context || {} });
       setAnswers({
         [contactIds.name]: data.contact?.name || "",
@@ -108,12 +116,13 @@ export default function EnquiryWizard() {
     return () => { active = false; };
   }, [api]);
 
-  const applicable = useMemo(() => applicableQuestionIds(entry.context, answers), [entry, answers]);
+  const questionMap = useMemo(() => configured ? Object.fromEntries(configured.definition.questions.map(item => [item.id, { ...(questions[item.id]?.type === item.type ? questions[item.id] : {}), ...item }])) : questions, [configured]);
+  const applicable = useMemo(() => configured ? detailedApplicableIds(configured.definition, entry.context, answers) : applicableQuestionIds(entry.context, answers), [entry, answers, configured]);
   const route = questionnaireRoute(entry.context, answers);
-  const steps = useMemo(() => questionnaireSteps
+  const steps = useMemo(() => (configured?.definition.steps || questionnaireSteps)
     .filter((step) => step.routes.includes("all") || step.routes.includes(route))
     .map((step) => ({ ...step, questionIds: step.questionIds.filter((id) => applicable.includes(id)) }))
-    .filter((step) => step.questionIds.length), [applicable, route]);
+    .filter((step) => step.questionIds.length), [applicable, route, configured]);
   const safeIndex = Math.min(stepIndex, Math.max(steps.length - 1, 0));
   const currentStep = steps[safeIndex];
 
@@ -128,7 +137,7 @@ export default function EnquiryWizard() {
 
   function move(next) {
     if (next > safeIndex) {
-      const found = Object.fromEntries(currentStep.questionIds.map((id) => [id, questionError(questions[id], answers[id], answers)]).filter(([, message]) => message));
+      const found = Object.fromEntries(currentStep.questionIds.map((id) => [id, questionError(questionMap[id], answers[id], answers)]).filter(([, message]) => message));
       if (Object.keys(found).length) {
         setErrors(found);
         document.getElementById(`question-${Object.keys(found)[0]}`)?.focus();
@@ -141,7 +150,7 @@ export default function EnquiryWizard() {
 
   async function submit(event) {
     event.preventDefault();
-    const allErrors = Object.fromEntries(applicable.map((id) => [id, questionError(questions[id], answers[id], answers)]).filter(([, message]) => message));
+    const allErrors = Object.fromEntries(applicable.map((id) => [id, questionError(questionMap[id], answers[id], answers)]).filter(([, message]) => message));
     if (Object.keys(allErrors).length || !consent) {
       setErrors(allErrors);
       setStatus({ state: "error", message: !consent ? "Confirm the privacy acknowledgement before sending." : "Review the highlighted questions." });
@@ -150,7 +159,7 @@ export default function EnquiryWizard() {
     if (pending.current || (hosted && !turnstileToken)) return;
     const body = {
       continuationToken: access.token, submissionId: crypto.randomUUID(), turnstileToken,
-      questionnaireId: QUESTIONNAIRE_ID, questionnaireVersion: QUESTIONNAIRE_VERSION,
+      questionnaireId: QUESTIONNAIRE_ID, questionnaireVersion: configured ? `cms.${configured.version}` : QUESTIONNAIRE_VERSION,
       entryType: entry.entryType, sourcePath: "/plan-your-trip", context: entry.context,
       answers: Object.fromEntries(applicable.map((id) => [id, answers[id]]).filter(([, value]) => !empty(value))),
       contact: { name: answers[contactIds.name], phone: answers[contactIds.phone], email: answers[contactIds.email] },
@@ -203,7 +212,7 @@ export default function EnquiryWizard() {
     <div className="enquiry-progress" aria-label={`Step ${safeIndex + 1} of ${steps.length}`}><span>Step {safeIndex + 1} of {steps.length}</span><progress value={safeIndex + 1} max={steps.length} /></div>
     <fieldset disabled={disabled} className="enquiry-step">
       <legend id="enquiry-step-heading" tabIndex="-1">{currentStep.title}</legend>
-      {currentStep.questionIds.map((id) => <Question key={id} question={questions[id]} value={answers[id]} onChange={(value) => updateAnswer(id, value)} error={errors[id]} />)}
+      {currentStep.questionIds.map((id) => <Question key={id} question={questionMap[id]} value={answers[id]} onChange={(value) => updateAnswer(id, value)} error={errors[id]} />)}
       {safeIndex === steps.length - 1 && <>
         <div className="enquiry-honeypot" aria-hidden="true"><label>Leave this blank<input name="website" value={website} onChange={(event) => setWebsite(event.target.value)} tabIndex={-1} autoComplete="off" /></label></div>
         <p className="enquiry-privacy-note">Do not include passport numbers, dates of birth, medical information, passwords or payment details. <a href="/privacy">Privacy notice</a></p>
@@ -215,8 +224,8 @@ export default function EnquiryWizard() {
     <div className="enquiry-actions">
       <Button type="button" disabled={disabled || safeIndex === 0} onClick={() => move(safeIndex - 1)}>Back</Button>
       {safeIndex < steps.length - 1
-        ? <Button type="button" disabled={disabled} onClick={() => move(safeIndex + 1)}>Continue <IconsaxIcon name="ArrowRight4" /></Button>
-        : <Button type="submit" aria-busy={disabled} disabled={disabled || (hosted && !turnstileToken)}>{disabled ? "Saving details…" : "Submit"} <IconsaxIcon name="ArrowRight4" /></Button>}
+        ? <Button type="button" disabled={disabled} onClick={() => move(safeIndex + 1)}>{configured?.definition.continueLabel || "Continue"} <IconsaxIcon name="ArrowRight4" /></Button>
+        : <Button type="submit" aria-busy={disabled} disabled={disabled || (hosted && !turnstileToken)}>{disabled ? "Saving details…" : configured?.definition.submitLabel || "Submit"} <IconsaxIcon name="ArrowRight4" /></Button>}
     </div>
     {siteKey && safeIndex === steps.length - 1 && <button type="button" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</button>}
     {status.message && <p role={status.state === "error" ? "alert" : "status"} aria-live="polite">{status.message}</p>}

@@ -49,7 +49,7 @@ const variants = photos.find((item) =>
         signature.test(heading) ? (
           <>
             {parts[0]}
-            <span class="hero-signature">A Little More You</span>
+            <span class="hero-signature">{copy.heroSignature}</span>
             {parts[1]}
           </>
         ) : (
@@ -64,9 +64,7 @@ const variants = photos.find((item) =>
         href={!home?.ctaPath || home.ctaPath === "/#plan" ? "#plan" : home.ctaPath}
         >{home?.ctaLabel || "Plan your trip"}</ContentLink
       >
-      <ContentLink href="/packages"
-        >{copy.heroSecondary}</ContentLink
-      >
+      {publishedPage(copy.heroSecondaryPath.slice(1)) && <ContentLink href={copy.heroSecondaryPath}>{copy.heroSecondary}</ContentLink>}
     </div>
   </div>
   <a

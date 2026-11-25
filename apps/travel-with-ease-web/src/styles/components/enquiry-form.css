@@ -124,3 +124,10 @@
   .enquiry-progress { grid-template-columns: 1fr; gap: 0.25rem; }
   .enquiry-actions .ui-button { flex: 1 1 8rem; justify-content: center; }
 }
+
+/* A constrained CMS viewport uses the same field layout as a narrow device. */
+.intake-question-fields--mobile .enquiry-fields-pair {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.intake-question-fields { min-width: 0; }

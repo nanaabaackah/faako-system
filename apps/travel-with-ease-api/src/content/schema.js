@@ -303,6 +303,13 @@ export function contentForPage(page, body) {
   ]);
   for (const [key, copy] of Object.entries(value.editorialCopy)) {
     if (!editorialKeys.has(key)) throw new ContentError(400, "validation_error", "Choose a supported editorial field for this section.");
+    const routePatterns = {
+      heroSecondaryPath: /^\/(?:packages|services|how-it-works|about|journal)(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)?$/,
+      packageExamplePath: /^\/packages\/[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      readinessPath: /^\/services\/[a-z0-9]+(?:-[a-z0-9]+)*$/,
+    };
+    if (Object.hasOwn(routePatterns, key) && !routePatterns[key].test(copy)) throw new ContentError(400, "validation_error", "Choose a valid internal website destination.");
+    if (key === "heroSignature" && copy.length > 100) throw new ContentError(400, "validation_error", "Keep the handwritten phrase within 100 characters.");
     const socialPatterns = { instagramUrl: /^https:\/\/www\.instagram\.com\/[a-zA-Z0-9_.]+\/?$/, tiktokUrl: /^https:\/\/www\.tiktok\.com\/@[a-zA-Z0-9_.]+\/?$/, whatsappUrl: /^https:\/\/wa\.me\/[1-9][0-9]{6,14}$/ };
     if (Object.hasOwn(socialPatterns, key) && !socialPatterns[key].test(copy)) throw new ContentError(400, "validation_error", "Enter a valid Instagram, TikTok or WhatsApp profile link.");
   }

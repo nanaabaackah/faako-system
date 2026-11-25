@@ -137,7 +137,8 @@ export class PublicationRepository {
         }
         pages.push({ id: item.id, slug: item.slug, revisionId, body });
       }
-      const manifest = { version: 1, schemaVersion: 2, triggerType: "cms_publication", baseline: approvedRelease.pages, pages, target: { page, version: expectedVersion, recordSlug, unpublish } };
+      const liveBaseline = await client.query("SELECT manifest FROM twe.publication_jobs WHERE organisation_id=$1 AND environment=$2 AND status='live' ORDER BY completed_at DESC LIMIT 1", [this.organisationId,this.environment]);
+      const manifest = { version: 1, schemaVersion: 2, triggerType: "cms_publication", baseline: liveBaseline.rows[0]?.manifest?.baseline || approvedRelease.pages, pages, target: { page, version: expectedVersion, recordSlug, unpublish } };
       const id = randomUUID();
       await client.query(
         "INSERT INTO twe.publication_jobs (id, organisation_id, environment, manifest, source_sha, requested_by) VALUES ($1, $2, $3, $4, $5, $6)",
