@@ -53,12 +53,17 @@ export async function reconcileStalePublication({
       );
       if (!deployed && settings?.environment === "staging" && job.status === "deploying" &&
           typeof provider.terminalStagingDeployment === "function" && typeof publication.failTerminalStagingDeployment === "function") {
-        const terminal = await provider.terminalStagingDeployment(job);
+        const terminal = await provider.terminalStagingDeployment(job, logger);
         if (terminal) {
           const baseline = await publication.lastLive();
           if (!baseline || baseline.id === job.id) throw new Error("No separate confirmed staging baseline.");
           const baselineMarker = { jobId: baseline.id, sourceSha: baseline.source_sha, digest: manifestDigest(baseline.manifest) };
-          await provider.verifiedStagingBaseline(baseline, verify, baselineMarker);
+          try {
+            await provider.verifiedStagingBaseline(baseline, verify, baselineMarker);
+          } catch {
+            logger.warn?.({ eventName: "publication.terminal_evidence", jobId: job.id, reason: "baseline_unverified" }, "Terminal evidence exists but the last live baseline could not be verified.");
+            throw new Error("Previous staging baseline not verified.");
+          }
           if (!await publication.failTerminalStagingDeployment(job, terminal, baseline.id))
             throw new Error("Stale publication lease or baseline changed.");
           logger.warn?.({ eventName: "publication.terminal_failure_reconciled", jobId: job.id, deploymentId: terminal.id, providerStatus: terminal.status },
