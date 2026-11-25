@@ -23,6 +23,7 @@ const reorder = (items, index, delta) => {
 
 export default function IntakeFormEditor({ api, session, onDirtyChange, onRefreshBlockedChange, detailed = false }) {
   const endpoint = "/api/agent/enquiry-forms/" + (detailed ? "detailed" : "intake");
+  const [reload, setReload] = useState(0);
   const [record, setRecord] = useState(null);
   const [definition, setDefinition] = useState(null);
   const [saveState, setSaveState] = useState({ status: "saved", dirty: false, error: "" });
@@ -76,7 +77,7 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
     }).catch(error => { if (current) setError(error.message); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; autosave.dispose(); if (writer.current === autosave) writer.current = null; };
-  }, [api, session.csrfToken, onDirtyChange, endpoint]);
+  }, [api, session.csrfToken, onDirtyChange, endpoint, reload]);
   function edit(transform) {
     if (blocked || !bodyRef.current) return;
     const next = transform(bodyRef.current);
@@ -135,6 +136,7 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
   }
   return <section className="workspace-panel content-editor twe-form-editor" aria-label={detailed ? "Detailed questionnaire" : "Initial enquiry form"}>
     {error && <InlineNotice tone="danger" title="Form action unsuccessful" message={error}/>}
+    {!loading && error && !record && <Button type="button" icon="refresh" onClick={() => { setError(""); setReload(value => value + 1); }}>Retry</Button>}
     {notice && <p role="status">{notice}</p>}
     {loading ? <AnimatedLoadingState compact title="Loading enquiry form"/> : definition && record && <>
       <p className="twe-editor-status" role="status">Active version {record.activeVersion} · {saving ? "Saving draft…" : saveState.dirty ? "Unsaved changes" : "Draft saved"}</p>
