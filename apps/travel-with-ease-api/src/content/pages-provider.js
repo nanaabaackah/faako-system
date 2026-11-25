@@ -126,12 +126,13 @@ export class PagesProvider {
     await verify(this.settings.origin, marker);
     return { id, origin };
   }
-  async terminalStagingDeployment(job) {
+  async terminalStagingDeployment(job, logger = {}) {
+    const report = (reason, details = {}) => { logger.info?.({ eventName: "publication.terminal_evidence", jobId: job.id, reason, ...details }, "Checked terminal staging deployment evidence."); return null; };
     // Do not infer failure from a skipped Git build, missing evidence, an
     // incomplete scan, or a newer successful upload with the same SHA.
-    if (this.settings.environment !== "staging" || job.status !== "deploying" || job.recovery_deployment_id || job.last_error === "staging_replay_claimed" || !/^[a-f0-9]{40}$/.test(job.source_sha || "")) return null;
+    if (this.settings.environment !== "staging" || job.status !== "deploying" || job.recovery_deployment_id || job.last_error === "staging_replay_claimed" || !/^[a-f0-9]{40}$/.test(job.source_sha || "")) return report("ineligible");
     const since = Date.parse(job.updated_at);
-    if (!Number.isFinite(since)) return null;
+    if (!Number.isFinite(since)) return report("invalid_lease_time");
     const project = await this.request();
     this.assertProject(project);
     const candidates = [];
@@ -139,32 +140,32 @@ export class PagesProvider {
     let complete = false;
     for (let page = 1; page <= 40; page++) {
       const rows = await this.request(`/deployments?per_page=25&page=${page}&env=preview`);
-      if (!Array.isArray(rows) || rows.length > 25) return null;
+      if (!Array.isArray(rows) || rows.length > 25) return report("invalid_page");
       for (const row of rows) {
-        if (!/^[a-f0-9-]{36}$/i.test(row.id || "") || seen.has(row.id)) return null;
+        if (!/^[a-f0-9-]{36}$/i.test(row.id || "") || seen.has(row.id)) return report("unstable_page", { pagesScanned: page });
         seen.add(row.id);
         const trigger = row.deployment_trigger;
         if (row.environment !== "preview" || trigger?.metadata?.branch !== this.settings.branch || trigger?.type === "github:push") continue;
         // Only an actual Direct Upload can supply terminal evidence.
         if (trigger?.metadata?.commit_hash !== job.source_sha) continue;
         const created = Date.parse(row.created_on);
-        if (!Number.isFinite(created)) return null;
+        if (!Number.isFinite(created)) return report("invalid_candidate_time");
         if (created < since - 5000) continue;
         candidates.push(row);
       }
       if (rows.length < 25) { complete = true; break; }
     }
-    if (!complete || candidates.length !== 1) return null;
+    if (!complete || candidates.length !== 1) return report(!complete ? "incomplete_scan" : candidates.length === 0 ? "no_direct_candidate" : "ambiguous_candidates", { scanned: seen.size, candidates: candidates.length });
     const candidate = candidates[0];
     const exact = await this.request(`/deployments/${candidate.id}`);
     const trigger = exact.deployment_trigger;
-    const status = exact.latest_stage?.status;
-    if (exact.id !== candidate.id || exact.environment !== "preview" || trigger?.type !== "ad_hoc" || trigger.metadata?.branch !== this.settings.branch || trigger.metadata?.commit_hash !== job.source_sha || Date.parse(exact.created_on) < since - 5000 || !Number.isFinite(Date.parse(exact.created_on)) || !["failure", "canceled", "skipped"].includes(status) || !Number.isFinite(Date.parse(exact.latest_stage?.ended_on))) return null;
+    const status = exact.is_skipped === true && ["skipped", "failure", "canceled", "success"].includes(exact.latest_stage?.status) ? "skipped" : exact.latest_stage?.status;
+    if (exact.id !== candidate.id || exact.environment !== "preview" || trigger?.type !== "ad_hoc" || trigger.metadata?.branch !== this.settings.branch || trigger.metadata?.commit_hash !== job.source_sha || Date.parse(exact.created_on) < since - 5000 || !Number.isFinite(Date.parse(exact.created_on)) || !["failure", "canceled", "skipped"].includes(status) || !Number.isFinite(Date.parse(exact.latest_stage?.ended_on))) return report("candidate_not_terminal", { deploymentId: candidate.id, providerStatus: ["active", "idle", "success", "failure", "canceled", "skipped"].includes(status) ? status : "unknown" });
     // A legacy deployment without a job tag can only be reconciled for an
     // automatic code release, with one unambiguous direct attempt. New
     // uploads have their own publication job identifier in provider metadata.
     const tag = trigger.metadata?.commit_message || "";
-    if (tag.startsWith("TWE publication ") ? tag !== `TWE publication ${job.id}` : job.manifest?.triggerType !== "code_release") return null;
+    if (tag.startsWith("TWE publication ") ? tag !== `TWE publication ${job.id}` : job.manifest?.triggerType !== "code_release") return report("job_identity_mismatch", { deploymentId: candidate.id });
     return { id: exact.id, status };
   }
   async deploy(directory, job) {
@@ -225,10 +226,11 @@ export class PagesProvider {
     };
     let pagesScanned = 0, rowsSeen = 0, candidates = 0, hasMore = false;
     let sourceMatches = 0, repeatedPages = 0, olderThanJob = 0;
+    const matchingSourceEvidence = [];
     const report = reason => logger.info?.({
       eventName: "publication.reconciliation_scan", reason,
       pagesScanned, rowsSeen, distinctDeployments: seen.size,
-      repeatedPages, sourceMatches, olderThanJob, candidates, verified: matches.length,
+      repeatedPages, sourceMatches, olderThanJob, candidates, verified: matches.length, matchingSourceEvidence,
       rejectionReasons: reasons,
     }, "Pages publication candidates checked.");
     for (let page = 1; page <= maxPages; page++) {
@@ -250,8 +252,22 @@ export class PagesProvider {
         seen.add(deployment.id);
         newOnPage++;
         const source = deployment.deployment_trigger?.metadata?.commit_hash;
-        if (source === job.source_sha) sourceMatches++;
-        if (deployment.latest_stage?.status !== "success") {
+        if (source === job.source_sha) {
+          sourceMatches++;
+          if (matchingSourceEvidence.length < 12) {
+            const type = deployment.deployment_trigger?.type;
+            const status = deployment.latest_stage?.status;
+            matchingSourceEvidence.push({
+              id: deployment.id,
+              trigger: ["github:push", "ad_hoc", "deploy_hook"].includes(type) ? type : "unknown",
+              status: ["active", "idle", "success", "failure", "canceled", "skipped"].includes(status) ? status : "unknown",
+              skipped: deployment.is_skipped === true,
+              correctBranch: deployment.deployment_trigger?.metadata?.branch === this.settings.branch,
+              correctEnvironment: deployment.environment === this.expectedDeploymentEnvironment(),
+            });
+          }
+        }
+        if (deployment.is_skipped === true || deployment.latest_stage?.status !== "success") {
           reasons.notSuccessful++;
           continue;
         }
