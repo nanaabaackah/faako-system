@@ -7,7 +7,6 @@ import "../styles/components/scroll-navigation.css";
 import "../styles/components/content-surfaces.css";
 import CinematicEnquiry from "../components/CinematicEnquiry.astro";
 import ContentLink from "../components/ContentLink.astro";
-import { IconsaxIcon } from "@faako/ui";
 import EditorialMotion from "../components/EditorialMotion.astro";
 import { canonicalUrl, serializeJsonLd } from "@faako/discovery";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
@@ -123,7 +122,7 @@ const navigation = [
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
     <link rel="stylesheet" href={fontStylesheet} />
-    <meta name="referrer" content="no-referrer" />
+    {path === "/plan-your-trip" && <meta name="referrer" content="no-referrer" /> }
     <meta name="theme-color" content="#010c33" />
     {releaseSha && <meta name="twe-release" content={releaseSha} />}
     {branding.favicon
@@ -204,8 +203,18 @@ const navigation = [
         aria-expanded="false"
         aria-controls="primary-navigation"
         aria-label="Menu">
-        <span class="menu-toggle__open" aria-hidden="true"><IconsaxIcon name="Menu" focusable="false" /></span>
-        <span class="menu-toggle__close" aria-hidden="true"><IconsaxIcon name="CloseCircle" focusable="false" /></span>
+        <svg class="menu-toggle__open" aria-hidden="true" focusable="false"
+          xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+        <svg class="menu-toggle__close" aria-hidden="true" focusable="false"
+          xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round">
+          <path d="M5 5l14 14M19 5L5 19" />
+        </svg>
       </button
       >
       <nav id="primary-navigation" aria-label="Primary navigation">
