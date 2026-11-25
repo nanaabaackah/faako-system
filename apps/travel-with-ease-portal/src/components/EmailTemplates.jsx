@@ -4,12 +4,12 @@ import {
   AnimatedLoadingState,
   InlineNotice,
   TextField,
-  TextareaField,
   SelectField,
   ERPConfirmDialog,
   useToast,
 } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import RichTextField from "./RichTextField.jsx";
 import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
 import instagram from "../../../travel-with-ease-web/public/brand/social/instagram.png";
 import tiktok from "../../../travel-with-ease-web/public/brand/social/tiktok.png";
@@ -225,7 +225,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               required
               onChange={(event) => edit("heading", event.target.value)}
             />
-            <TextareaField
+            <RichTextField
               disabled={busy || Boolean(confirmation)}
               label="Message"
               value={copy.message}
