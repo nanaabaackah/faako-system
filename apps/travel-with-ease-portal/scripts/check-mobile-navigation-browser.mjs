@@ -92,7 +92,8 @@ try {
         );
         await page.keyboard.press("Shift+Tab");
         assert.equal(await drawer.evaluate((node) => node.contains(document.activeElement)), true);
-        for (const label of ["Staff", "Templates", "Activity"]) {
+        assert.equal(await drawer.getByRole("button", { name: "Templates", exact: true }).count(), 1);
+        for (const label of ["Staff", "Activity"]) {
           assert.equal(await drawer.getByRole("button", { name: label, exact: true }).count(), role === "editor" ? 0 : 1);
         }
         assert.equal(await drawer.getByRole("button", { name: "System", exact: true }).count(), role === "platform_admin" ? 1 : 0);
