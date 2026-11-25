@@ -35,7 +35,7 @@ export const defaultTemplateCopies = Object.freeze({
   [generalTemplateSlug]: defaultEnquiryCopy,
   "staff-invitation": defaultInvitationCopy,
   ...Object.fromEntries(serviceOptions.map(option => [option.slug, contextualCopy(option.label, "Thank you for your interest in " + option.label + ". We’ve received your enquiry and will be in touch about the next steps.")])),
-  [packageTemplateSlug]: contextualCopy("Package", "Thank you for your interest in our travel packages. We’ve received your enquiry and will be in touch about your trip."),
+  [packageTemplateSlug]: contextualCopy("Package", "Thank you for your interest in {{package}}. We’ve received your enquiry and will be in touch about your trip."),
   "enquiry-gift": contextualCopy("Travel gift", "Thank you for considering Travel With Ease for your gift. We’ll be in touch about the next steps."),
   "enquiry-group": contextualCopy("Group travel", "Thank you for your group travel enquiry. We’ll be in touch about planning for your group."),
   "enquiry-celebration": contextualCopy("Celebration", "Thank you for considering Travel With Ease for your celebration. We’ll be in touch about your plans."),
@@ -57,7 +57,8 @@ export function templateCandidates(enquiry = {}) {
   else if (details.entryType === "package" || enquiry.kind === "package") candidates.push(packageTemplateSlug);
   const service = serviceOptions.find(item => item.serviceId === details.selectedServiceId);
   if (details.entryType === "service" && service) candidates.push(service.slug);
-  const type = { gift: "enquiry-gift", group: "enquiry-group", celebration: "enquiry-celebration" }[details.enquiryType];
+  const types = { gift: "enquiry-gift", group: "enquiry-group", celebration: "enquiry-celebration" };
+  const type = Object.hasOwn(types, details.enquiryType) ? types[details.enquiryType] : null;
   if (type) candidates.push(type);
   if (service) candidates.push(service.slug);
   return [...new Set([...candidates, generalTemplateSlug])];
@@ -65,8 +66,8 @@ export function templateCandidates(enquiry = {}) {
 export function defaultCopyForTemplate(slug) {
   return defaultTemplateCopies[slug] || (packageTemplatePattern.test(slug) ? defaultTemplateCopies[packageTemplateSlug] : undefined);
 }
-export function renderEmailTemplate(slug, copy) {
+export function renderEmailTemplate(slug, copy, packageLabel) {
   if (slug === "staff-invitation") return invitationTemplate({ copy });
-  if (isTemplateSlug(slug)) return enquiryTemplate({ name: "Sample traveller", copy, context: { serviceTitle: "Full Trip Planning", packageTitle: "Sample package" } });
+  if (isTemplateSlug(slug)) return enquiryTemplate({ name: "Sample traveller", copy, context: { serviceTitle: serviceOptions.find(option => option.slug === slug)?.label || "Full Trip Planning", packageTitle: packageLabel || "Sample package" } });
   throw new Error("Unknown email template.");
 }
