@@ -1,5 +1,7 @@
 # Email templates and brand polish — 2026-10-31
 
+> Historical demo-era test, retired 2026-11-25; use check-content-browser.mjs and check-public-followup.mjs in the current foundation workflow.
+
 ## Website
 
 - “A Little More You” uses Bonheur Royale, with the first letter of each word
