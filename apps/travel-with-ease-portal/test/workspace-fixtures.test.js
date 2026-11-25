@@ -90,3 +90,21 @@ test("demo mutations stay in memory and unsupported actions cannot report succes
   await api.post("/api/auth/logout");
   await assert.rejects(api.get("/api/auth/session"), { status: 401 });
 });
+
+test("contextual template catalogue exposes package-specific editing without changing shared acknowledgement", async () => {
+  const api = createWorkspaceFixture();
+  const { items } = await api.get("/api/agent/templates/catalogue");
+  const selected = items.find(item => item.context === "package");
+  assert.ok(selected);
+  const base = "/api/agent/templates/" + selected.slug;
+  const shared = await api.get("/api/agent/templates/enquiry-package");
+  const initial = await api.get(base);
+  const copy = { ...initial.draft, heading: "Custom package acknowledgement" };
+  const draft = await api.post(base + "/draft", { json: { expectedVersion: 0, copy } });
+  assert.notEqual(draft.active.heading, copy.heading);
+  const activated = await api.post(base + "/activate", { json: { expectedVersion: 1 } });
+  assert.equal(activated.active.heading, copy.heading);
+  assert.deepEqual(await api.get("/api/agent/templates/enquiry-package"), shared);
+  const editor = createWorkspaceFixture({ role: "editor" });
+  assert.equal((await editor.get("/api/agent/templates/catalogue")).items.some(item => item.slug === "staff-invitation"), false);
+});
