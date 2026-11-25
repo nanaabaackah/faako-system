@@ -67,6 +67,26 @@ export class EmailTemplates {
       active: rows[0]?.active || defaultCopy,
     };
   }
+  async history(actor, templateSlug = defaultSlug) {
+    this.check(actor);
+    const slug = templateSlugSchema.parse(templateSlug);
+    const { rows } = await this.pool.query(
+      "SELECT version,kind,copy,created_at FROM twe.email_template_revisions WHERE organisation_id=$1 AND slug=$2 ORDER BY version DESC LIMIT 50",
+      [this.organisationId, slug],
+    );
+    return rows;
+  }
+  async restore(actor, requestId, expectedVersion, revision, templateSlug = defaultSlug) {
+    this.check(actor);
+    const slug = templateSlugSchema.parse(templateSlug);
+    versionSchema.parse(revision);
+    const { rows } = await this.pool.query(
+      "SELECT copy FROM twe.email_template_revisions WHERE organisation_id=$1 AND slug=$2 AND version=$3",
+      [this.organisationId, slug, revision],
+    );
+    if (!rows[0]) throw new ContentError(404, "not_found", "Template revision not found.");
+    return this.change(actor, requestId, expectedVersion, rows[0].copy, false, slug, revision);
+  }
   async activeCopy(templateSlug = defaultSlug) {
     const slug = templateSlugSchema.parse(templateSlug);
     const { rows } = await this.pool.query(
@@ -84,6 +104,7 @@ export class EmailTemplates {
     copy,
     activate = false,
     templateSlug = defaultSlug,
+    restoredFrom = null,
   ) {
     this.check(actor);
     const slug = templateSlugSchema.parse(templateSlug);
@@ -121,11 +142,15 @@ export class EmailTemplates {
             "UPDATE twe.email_templates SET draft=$3,version=version+1,updated_by=$4,updated_at=now() WHERE organisation_id=$1 AND slug=$2 RETURNING version,draft,active,active_version",
             [this.organisationId, slug, validated, actor.id],
           );
+      await client.query(
+        "INSERT INTO twe.email_template_revisions (organisation_id,slug,version,kind,copy,created_by) VALUES ($1,$2,$3,$4,$5,$6)",
+        [this.organisationId, slug, result.rows[0].version, activate ? "activated" : restoredFrom !== null ? "restored" : "draft", result.rows[0].draft, actor.id],
+      );
       await appendAudit(client, {
         organisationId: this.organisationId,
         actorId: actor.id,
         action:
-          slug === "staff-invitation"
+          restoredFrom !== null ? "email_template.restored" : slug === "staff-invitation"
             ? activate
               ? "email_template.staff_invitation.approved"
               : "email_template.staff_invitation.saved"
@@ -151,6 +176,13 @@ export function emailTemplateRoutes(service, auth) {
   router.get(["/", "/:slug"], async (req, res) =>
     send(req, res, await service.get(req.staff, req.params.slug)),
   );
+  router.get("/:slug/history", async (req, res) =>
+    send(req, res, { items: await service.history(req.staff, req.params.slug) }),
+  );
+  router.post("/:slug/restore", auth.requireMutation, async (req, res) => {
+    const input = z.object({ expectedVersion: versionSchema, revision: versionSchema }).strict().parse(req.body);
+    send(req, res, await service.restore(req.staff, req.requestId, input.expectedVersion, input.revision, req.params.slug));
+  });
   router.post(
     ["/preview", "/:slug/preview"],
     auth.requireMutation,
