@@ -47,7 +47,7 @@ export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Da
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, continuationLinks = null, logger = createLogger("travel-with-ease-api") }) => {
+export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, continuationLinks = null, templateTestSenderFactory = null, logger = createLogger("travel-with-ease-api") }) => {
   assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt });
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
   if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
@@ -77,7 +77,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
   if (contentRepository && repository?.pool && repository?.organisationId && staffAuth) app.use("/api/agent/inquiries", enquiriesRoutes({ pool: repository.pool, organisationId: repository.organisationId, auth: staffAuth }));
   if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, publication: publicationRepository, preview: previewService, auth: staffAuth }));
   if (mediaService) app.use("/api/agent/media", mediaRoutes({ service: mediaService, auth: staffAuth }));
-  if (repository?.pool && staffAuth) app.use("/api/agent/templates", emailTemplateRoutes(new EmailTemplates(repository.pool, repository.organisationId), staffAuth));
+  if (repository?.pool && staffAuth) app.use("/api/agent/templates", emailTemplateRoutes(new EmailTemplates(repository.pool, repository.organisationId, templateTestSenderFactory), staffAuth));
 
   // Public release identity contains only the deployed code SHA and environment.
   // Workers must agree with the running API before coordinating any content release.
