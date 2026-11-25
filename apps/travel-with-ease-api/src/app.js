@@ -210,7 +210,8 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
           if (!(error instanceof z.ZodError)) throw error;
           return res.status(400).json(createErrorResponse({ code: "validation_error", message: "Check the additional enquiry answers.", issues: issuesFor(error) }, { requestId: req.requestId }));
         }
-        const { additionalAnswers, ...core } = data;
+        const core = { ...data };
+        delete core.additionalAnswers;
         data = { ...core, intakeSnapshot: {
           formId: INTAKE_FORM_ID, version, title: snapshot.definition.title,
           core: snapshot.definition.core.filter(field => field.id !== "budget" || data.entryType !== "package").map(field => ({
