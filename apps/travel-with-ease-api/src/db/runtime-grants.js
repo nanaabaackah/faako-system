@@ -26,6 +26,6 @@ export async function grantRuntimeAccess(client, role) {
   await client.query(`GRANT SELECT, INSERT, UPDATE ON twe.tutorial_progress TO ${identifier}`);
   await client.query(`GRANT SELECT, INSERT, UPDATE ON twe.staff_invitations, twe.activation_attempts, twe.staff_invitation_deliveries TO ${identifier}`);
   await client.query(`GRANT SELECT, INSERT, UPDATE ON twe.email_templates TO ${identifier}`);
-  await client.query(`GRANT SELECT, INSERT ON twe.staff_role_changes TO ${identifier}`);
+  await client.query(`GRANT SELECT, INSERT ON twe.staff_role_changes, twe.email_template_revisions TO ${identifier}`);
   await client.query(`GRANT SELECT, INSERT, UPDATE ON twe.staff_handover_requests TO ${identifier}`);
 }
