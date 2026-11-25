@@ -35,20 +35,22 @@ export class NotificationOutbox {
       const job = rows[0];
       if (job && !job.delivery_payload && typeof payload === "function") {
         const enquiry = await client.query(
-          `SELECT id, kind, contact, created_at FROM twe.enquiries
+          `SELECT id, kind, contact, details, created_at FROM twe.enquiries
           WHERE organisation_id = $1 AND id = $2`,
           [this.organisationId, job.enquiry_id],
         );
         if (!enquiry.rows[0])
           throw new Error("notification_enquiry_unavailable");
         try {
-          job.delivery_payload = payload({
+          job.delivery_payload = await payload({
             id: enquiry.rows[0].id,
             kind: enquiry.rows[0].kind,
             contact: enquiry.rows[0].contact,
+            details: enquiry.rows[0].details,
             createdAt: enquiry.rows[0].created_at,
-          });
-        } catch {
+          }, client);
+        } catch (error) {
+          if (error?.code === "template_lookup_failed") throw error;
           // A malformed legacy contact must not roll back the lease forever and
           // starve later jobs. Retain the enquiry; flag this delivery for review.
           await client.query(
@@ -91,7 +93,7 @@ export class NotificationOutbox {
 }
 
 export async function deliverOne(outbox, sender, logger) {
-  const job = await outbox.claim((contact) => sender.payload(contact));
+  const job = await outbox.claim((contact, client) => sender.preparePayload ? sender.preparePayload(contact, client) : sender.payload(contact));
   if (!job) return false;
   try {
     const providerId = await sender.send(job);
