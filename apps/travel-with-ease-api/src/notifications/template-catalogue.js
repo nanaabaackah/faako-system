@@ -68,6 +68,6 @@ export function defaultCopyForTemplate(slug) {
 }
 export function renderEmailTemplate(slug, copy, packageLabel) {
   if (slug === "staff-invitation") return invitationTemplate({ copy });
-  if (isTemplateSlug(slug)) return enquiryTemplate({ name: "Sample traveller", copy, context: { serviceTitle: serviceOptions.find(option => option.slug === slug)?.label || "Full Trip Planning", packageTitle: packageLabel || "Sample package" } });
+  if (isTemplateSlug(slug)) return enquiryTemplate({ name: "Sample traveller", copy, continuation: true, context: { serviceTitle: serviceOptions.find(option => option.slug === slug)?.label || "Full Trip Planning", packageTitle: packageLabel || "Sample package" } });
   throw new Error("Unknown email template.");
 }
