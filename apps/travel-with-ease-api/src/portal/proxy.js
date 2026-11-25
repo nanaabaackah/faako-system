@@ -5,9 +5,10 @@ import { buildSecurityHeaders } from "@faako/security";
 
 const id = "[a-fA-F0-9-]{36}";
 const page = `(?:${pageNames.join("|")})`;
-const template = "(?:enquiry-acknowledgement|staff-invitation)";
+const template = "(?:enquiry-acknowledgement|staff-invitation|enquiry-(?:gift|group|celebration|package|service-(?:readiness|full-planning|premium|group))|enquiry-package-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})";
 const form = "(?:intake|detailed)";
 const routes = [
+  ["GET", /^\/api\/agent\/templates\/catalogue$/],
   ["GET", new RegExp("^/api/agent/templates(?:/" + template + "(?:/history)?)?$")],
   ["POST", new RegExp("^/api/agent/templates(?:/" + template + ")?/(?:draft|preview|activate)$")],
   ["POST", new RegExp("^/api/agent/templates/" + template + "/(?:test|restore)$")],
