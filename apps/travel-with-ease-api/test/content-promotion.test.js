@@ -127,7 +127,7 @@ test("promotion exports only active email copy and verifies its integrity", asyn
   const tampered = structuredClone(bundle);
   tampered.emailTemplates["staff-invitation"].message = "Changed";
   assert.throws(() => verifyPromotionBundle(tampered), /integrity/);
-  assert.throws(() => createPromotionBundle({ source, pages, emailTemplates: { "staff-invitation": active } }), /both active/);
+  assert.throws(() => createPromotionBundle({ source, pages, emailTemplates: { "staff-invitation": active } }), /every shared template/);
   const statements = [];
   const client = { query: async (sql, values) => {
     statements.push({ sql, values });
