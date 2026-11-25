@@ -1,9 +1,14 @@
 // Test-only synthetic fixtures. Never imported by application code or builds.
 import { defaultTemplateCopies, renderEmailTemplate } from "../../../travel-with-ease-api/src/notifications/template-catalogue.js";
+import { INTAKE_FORM_ID, defaultIntakeDefinition, intakeDefinitionSchema } from "../../../travel-with-ease-api/src/enquiries/intake-definition.js";
+import { DETAILED_FORM_ID, defaultDetailedDefinition, detailedDefinitionSchema } from "../../../travel-with-ease-api/src/enquiries/questionnaires/configuration.js";
 import { ROLE_PERMISSIONS } from "../../../travel-with-ease-api/src/auth/permissions.js";
 export function createWorkspaceFixture({role='owner', interactivePreview=false}={}) {
   if(!Object.hasOwn(ROLE_PERMISSIONS,role))role='owner';
   const templates = new Map(Object.entries(defaultTemplateCopies).map(([slug, defaults]) => [slug, { version: 0, draft: { ...defaults }, active: { ...defaults }, active_version: null }]));
+  const formSpecs = { intake: { formId: INTAKE_FORM_ID, defaults: defaultIntakeDefinition, schema: intakeDefinitionSchema }, detailed: { formId: DETAILED_FORM_ID, defaults: defaultDetailedDefinition, schema: detailedDefinitionSchema } };
+  const forms = new Map(Object.entries(formSpecs).map(([key,spec]) => [key,{ formId: spec.formId, revision:0, activeVersion:1,draft:spec.defaults(),history:new Map([[1,spec.defaults()]]) }]));
+  const publicFormRecord = ({formId,revision,activeVersion,draft}) => ({formId,revision,activeVersion,draft});
   const session = {
     user: { id: "demo-owner", organisationId: "synthetic-workspace", role, permissions: [...ROLE_PERMISSIONS[role]] },
     csrfToken: "synthetic-not-a-credential",
@@ -133,6 +138,11 @@ export function createWorkspaceFixture({role='owner', interactivePreview=false}=
             ),
           ) || fail(404, "Demo enquiry not found.")
         );
+      const formMatch = url.pathname.match(/^\/api\/agent\/enquiry-forms\/(intake|detailed)(\/history)?$/);
+      if (formMatch) {
+        const form = forms.get(formMatch[1]);
+        return formMatch[2] ? { items: [...form.history.keys()].reverse().map(version=>({version,activated_at:timestamp})) } : copy(publicFormRecord(form));
+      }
       if (/^\/api\/agent\/templates(?:\/[^/]+)?$/.test(url.pathname)) {
         const slug = url.pathname.split("/")[4] || "enquiry-acknowledgement";
         if (!templates.has(slug)) return fail(400, "Unknown email template.");
@@ -225,6 +235,25 @@ export function createWorkspaceFixture({role='owner', interactivePreview=false}=
           events.unshift({id:`demo-event-${events.length+1}`,action:'staff.role_changed',actor_id:'demo-owner',record_id:target.id,previous_role:previous,next_role:target.role,approval_reference:json.approvalReference,created_at:new Date().toISOString()});
         }else if(staffAction[2]==='status')target.active=json.active;
         return copy(target);
+      }
+      const formAction = path.match(/^\/api\/agent\/enquiry-forms\/(intake|detailed)\/(draft|activate|restore)$/);
+      if (formAction) {
+        const form = forms.get(formAction[1]);
+        if (json.expectedRevision !== form.revision) return fail(409,"Reload the changed demo form.");
+        if (formAction[2] === "activate") {
+          if (!ROLE_PERMISSIONS[role].includes("content.publish")) return fail(403,"Activation requires Owner or Superadmin.");
+          form.activeVersion++;
+          form.history.set(form.activeVersion,copy(form.draft));
+        } else if (formAction[2] === "restore") {
+          if (!form.history.has(json.version)) return fail(404,"Version not found.");
+          form.draft=copy(form.history.get(json.version));
+        } else {
+          const checked=formSpecs[formAction[1]].schema.safeParse(json.definition);
+          if (!checked.success) return fail(400,"Check form configuration.");
+          form.draft=checked.data;
+        }
+        form.revision++;
+        return copy(publicFormRecord(form));
       }
       const templateAction = path.match(/^\/api\/agent\/templates\/(?:(enquiry-acknowledgement|staff-invitation)\/)?(preview|draft|activate)$/);
       if (templateAction) {
