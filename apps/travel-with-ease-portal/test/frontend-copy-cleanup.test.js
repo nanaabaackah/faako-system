@@ -74,7 +74,7 @@ test("new CMS editors retain Faako controls, concise labels and approved iconogr
   const fields = source("../../../packages/ui/src/components/Fields.tsx");
   const styles = source("../src/styles/global.css");
   for (const component of [intake,detailed,email,nav]) {
-    assert.doesNotMatch(component, /[\u{1F300}-\u{1FAFF}\uFE0F]/u);
+    assert.doesNotMatch(component, /(?:[\u{1F300}-\u{1FAFF}]|\uFE0F)/u);
     assert.doesNotMatch(component, /<select\b|<textarea\b/);
   }
   assert.match(intake, /content-editor twe-form-editor/);
