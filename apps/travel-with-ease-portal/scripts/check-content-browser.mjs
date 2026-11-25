@@ -49,6 +49,15 @@ try {
     await filteredRequest;
     await expect(page.getByRole("button", { name: "Status", exact: true })).toContainText("new");
     await navigate(width <= 900 ? "Home" : "Overview");
+    // A failing summary must not prevent unrelated CMS or recent-enquiry data from loading.
+    await page.route("**/api/agent/inquiries/summary", route => route.fulfill({
+      status: 503, json: { ok: false, error: { code: "service_unavailable", message: "Synthetic summary outage" } },
+    }));
+    await page.locator(".dashboard-toolbar").getByRole("button", { name: "Refresh", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Open new enquiries", exact: true })).toContainText("Unavailable");
+    await expect(page.getByRole("button", { name: "Open website drafts", exact: true })).not.toContainText("Unavailable");
+    await expect(page.getByRole("heading", { name: "Recent enquiries", exact: true })).toBeVisible();
+    await page.unroute("**/api/agent/inquiries/summary");
     await page.getByRole("button", { name: "Open website drafts", exact: true }).click();
     await page.getByRole("heading", { name: "Pages with drafts", exact: true }).waitFor();
     await page.getByRole("button", { name: /^About · Version/ }).click();

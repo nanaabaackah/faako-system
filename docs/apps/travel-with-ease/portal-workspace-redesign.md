@@ -7,3 +7,8 @@ Approved direction: Faako workspace shell + modular operations studio. This PR c
 - Existing API contracts, permission checks, session preservation, autosave, publication, role restrictions and 02:00 UTC app update schedule remain unchanged.
 
 Acceptance: shared navigation desktop, collapse/expand and context visibility, permission filtering, mobile keyboard and touch navigation, dirty draft guard, real font loading, viewport overflow, independent staging smoke test. Remaining phases: dashboard and enquiry UX, structured content editor, media and synchronisation, communications/form builders, administration, complete rendered QA.
+
+## Phase 2 — operational dashboard and enquiry inbox
+- Independent dashboard resources for summary, recent records, drafts and publication jobs. A failed request no longer masks other data or reports false zero counts. Manual refresh retries each resource. Publication activity uses actual returned jobs; no invented trends.
+- Enquiry list and selected detail fetch independently; preserve filters and pagination on selection. Wide workspace uses master-detail view, smaller screens retain full-width detail and restore focus on return. Existing version checks, CSRF, permission checks, snapshot rendering and status-only writes remain intact.
+- Browser regression coverage includes partial dashboard failure; final live visual acceptance remains outstanding.
