@@ -55,10 +55,15 @@ export function enquiryTemplate({
   copy = defaultEnquiryCopy,
   ctaUrl = "https://travelwitheasegh.com",
   continuation = false,
+  context = {},
 } = {}) {
   const greeting = name.trim()
     ? `Hello ${name.trim().slice(0, 160)},`
     : "Hello,";
+  const safe = value => typeof value === "string" ? value.replace(/[\r\n\u0000-\u001f\u007f]/g, " ").trim().slice(0, 160) : "";
+  const values = { customer: safe(name) || "traveller", service: safe(context.serviceTitle) || "your travel plans", package: safe(context.packageTitle) || "your selected package" };
+  const interpolate = value => value.replace(/\{\{(customer|service|package)\}\}/g, (_, key) => values[key]);
+  copy = Object.fromEntries(Object.entries(copy).map(([key, value]) => [key, interpolate(value)]));
   const heading = test ? "Email delivery preview" : copy.heading;
   const message = test
     ? "This is a test of the Travel With Ease email template. No enquiry, booking or payment was created by this preview."
