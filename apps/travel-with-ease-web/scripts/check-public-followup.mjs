@@ -204,6 +204,18 @@ try {
       ),
       1,
     );
+    // Test the real interaction listener, without submitting a real enquiry.
+    await page.evaluate(() => {
+      document.dispatchEvent(new Event("twe:enquiry-received"));
+    });
+    const leadEvents = () => page.evaluate(() => window.dataLayer
+      .map(command => Array.from(command))
+      .filter(command => command[0] === "event" && command[1] === "generate_lead"));
+    const leads = await leadEvents();
+    assert.equal(leads.length, 1, "One consented enquiry acknowledgement event");
+    assert.equal(leads[0][2].page_location, origin + "/");
+    assert.equal(leads[0][2].page_referrer, "");
+    assert.deepEqual(Object.keys(leads[0][2]).sort(), ["page_location", "page_path", "page_referrer", "send_to"]);
     await page
       .getByRole("button", { name: "Cookie settings", exact: true })
       .click();
@@ -222,6 +234,16 @@ try {
       await page.evaluate(() => window["ga-disable-G-GVJ2HGT6YN"]),
       true,
     );
+    await page.evaluate(() => document.dispatchEvent(new Event("twe:enquiry-received")));
+    assert.equal((await leadEvents()).length, 1, "Revoked consent blocks interaction events");
+    // Preserve the existing preference to prove a private questionnaire does not load GA.
+    await page.getByRole("button", { name: "Cookie settings", exact: true }).click();
+    await page.locator("[data-cookie-analytics-choice]").check();
+    await page.getByRole("button", { name: "Save preferences", exact: true }).click();
+    await page.goto(origin + "/plan-your-trip?ref=synthetic", {waitUntil:"networkidle"});
+    assert.equal(await page.locator('script[src*="googletagmanager.com/gtag/js"]').count(), 0);
+    await page.goto(origin, {waitUntil:"networkidle"});
+
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
