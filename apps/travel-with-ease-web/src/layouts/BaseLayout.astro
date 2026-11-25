@@ -7,6 +7,7 @@ import "../styles/components/scroll-navigation.css";
 import "../styles/components/content-surfaces.css";
 import CinematicEnquiry from "../components/CinematicEnquiry.astro";
 import ContentLink from "../components/ContentLink.astro";
+import { IconsaxIcon } from "@faako/ui";
 import EditorialMotion from "../components/EditorialMotion.astro";
 import { canonicalUrl, serializeJsonLd } from "@faako/discovery";
 import AnalyticsConsent from "../components/AnalyticsConsent.astro";
@@ -32,6 +33,13 @@ const canonical = canonicalUrl(path, site);
 const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
 const branding = siteBranding(publishedPage("site-appearance"));
 const enquiryCatalogue = publishedEnquiryCatalogue();
+// Load only the approved active heading/body faces plus the fixed navigation
+// and signature fonts. Preserve CMS-selectable Outfit without loading it by default.
+const fontFamilies = new Set(["family=Inter:wght@400;500;600;700;800", "family=Sassy+Frass"]);
+if ([branding.fonts.heading, branding.fonts.body].includes("quicksand")) fontFamilies.add("family=Quicksand:wght@400;500;600;700");
+if (branding.fonts.heading === "poiret-one") fontFamilies.add("family=Poiret+One");
+if ([branding.fonts.heading, branding.fonts.body].includes("outfit")) fontFamilies.add("family=Outfit:wght@400;500;600;700");
+const fontStylesheet = `https://fonts.googleapis.com/css2?${[...fontFamilies].sort().join("&")}&display=swap`;
 const sharing = sharingMetadata({
   site: site.href,
   image:
@@ -114,7 +122,8 @@ const navigation = [
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=Poiret+One&family=Quicksand:wght@400;500;600;700&family=Sassy+Frass&display=swap" />
+    <link rel="stylesheet" href={fontStylesheet} />
+    <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#010c33" />
     {releaseSha && <meta name="twe-release" content={releaseSha} />}
     {branding.favicon
@@ -195,18 +204,8 @@ const navigation = [
         aria-expanded="false"
         aria-controls="primary-navigation"
         aria-label="Menu">
-        <svg class="menu-toggle__open" aria-hidden="true" focusable="false"
-          xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-          viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round">
-          <path d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-        <svg class="menu-toggle__close" aria-hidden="true" focusable="false"
-          xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-          viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round">
-          <path d="M5 5l14 14M19 5L5 19" />
-        </svg>
+        <span class="menu-toggle__open" aria-hidden="true"><IconsaxIcon name="Menu" focusable="false" /></span>
+        <span class="menu-toggle__close" aria-hidden="true"><IconsaxIcon name="CloseCircle" focusable="false" /></span>
       </button
       >
       <nav id="primary-navigation" aria-label="Primary navigation">
@@ -242,7 +241,7 @@ const navigation = [
       </nav>
     </header>
     </div>
-    <main id="main-content"><slot /></main>
+    <main id="main-content" tabindex="-1"><slot /></main>
     <slot name="closing" />
     {!Astro.slots.has("closing") && (
       <CinematicEnquiry enquiryAvailable={Boolean(publishedPage("contact"))} catalogue={enquiryCatalogue} />
@@ -277,6 +276,8 @@ const navigation = [
     const setOpen = (open: boolean) => {
       toggle.setAttribute("aria-expanded", String(open));
       nav.dataset.collapsed = String(!open && mobile.matches);
+      nav.inert = !open && mobile.matches;
+      toggle.setAttribute("aria-label", open && mobile.matches ? "Close menu" : "Menu");
       document.body.classList.toggle("twe-mobile-menu-open", open && mobile.matches);
     };
     toggle.hidden = false;
@@ -293,6 +294,9 @@ const navigation = [
     nav.addEventListener("click", (event) => {
       if ((event.target as Element).closest("a") && mobile.matches)
         setOpen(false);
+    });
+    document.addEventListener("click", event => {
+      if (mobile.matches && toggle.getAttribute("aria-expanded") === "true" && event.target instanceof Node && !nav.contains(event.target) && !toggle.contains(event.target)) setOpen(false);
     });
     toggle.addEventListener("keydown", (event) => {
       if (event.key === "Escape") setOpen(false);
