@@ -151,13 +151,16 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
         headers,
         responseMode: "data",
         json:
-          kind === "preview"
+          ["preview", "test"].includes(kind)
             ? copy
             : { expectedVersion: record.version, ...(kind === "restore" ? { revision } : {}) },
       });
       if (kind === "preview") {
         setPreview(result);
         setNotice("Preview only. No email was sent.");
+      } else if (kind === "test") {
+        if (result.status !== "provider_accepted") throw new Error("Test email delivery was not confirmed.");
+        setNotice(`Test email accepted by provider for ${result.recipient}.`);
       } else {
         setRecord(result);
         copyRef.current = result.draft;
@@ -273,6 +276,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               >
                 Preview email
               </Button>
+              <Button type="button" disabled={busy || saving || dirty} onClick={() => setConfirmation({ kind: "test" })}>Send test email</Button>
               <Button type="submit" icon="save" disabled={busy || saving || !dirty}>
                 Save draft
               </Button>
@@ -317,10 +321,10 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
           <Button type="button" disabled={busy || saving || dirty || historyLoading} onClick={() => setConfirmation({ kind: "restore", revision: item.version })}>Restore draft</Button>
         </div>)}
       </HistoryDisclosure>}
-      <ERPConfirmDialog open={Boolean(confirmation)} title={confirmation?.kind === "switch" ? "Discard unsaved template changes?" : confirmation?.kind === "restore" ? "Restore this revision?" : definition.automated ? "Activate saved template?" : "Approve saved template?"}
-        message={confirmation?.kind === "switch" ? "The current unsaved template edits will be lost." : confirmation?.kind === "restore" ? "Restore as a new draft without changing outgoing emails." : definition.automated ? "Newly prepared enquiry emails will use this saved version. No email will be sent now." : "The invitation copy will be approved without creating or sending an invitation."}
-        confirmLabel={confirmation?.kind === "switch" ? "Discard and switch" : confirmation?.kind === "restore" ? "Restore draft" : definition.automated ? "Activate template" : "Approve template"} confirmTone="primary" loading={busy}
-        onCancel={() => setConfirmation(null)} onConfirm={async () => { const pending = confirmation; setConfirmation(null); if (pending?.kind === "switch") switchTemplate(pending.slug); else if (pending?.kind === "restore") await action("restore", pending.revision); else await action("activate"); }} />
+      <ERPConfirmDialog open={Boolean(confirmation)} title={confirmation?.kind === "switch" ? "Discard unsaved template changes?" : confirmation?.kind === "restore" ? "Restore this revision?" : confirmation?.kind === "test" ? "Send a test email?" : definition.automated ? "Activate saved template?" : "Approve saved template?"}
+        message={confirmation?.kind === "switch" ? "The current unsaved template edits will be lost." : confirmation?.kind === "restore" ? "Restore as a new draft without changing outgoing emails." : confirmation?.kind === "test" ? "Send this template with sample data to testing@travelwitheasegh.com. No enquiry or invitation will be created." : definition.automated ? "Newly prepared enquiry emails will use this saved version. No email will be sent now." : "The invitation copy will be approved without creating or sending an invitation."}
+        confirmLabel={confirmation?.kind === "switch" ? "Discard and switch" : confirmation?.kind === "restore" ? "Restore draft" : confirmation?.kind === "test" ? "Send test email" : definition.automated ? "Activate template" : "Approve template"} confirmTone="primary" loading={busy}
+        onCancel={() => setConfirmation(null)} onConfirm={async () => { const pending = confirmation; setConfirmation(null); if (pending?.kind === "switch") switchTemplate(pending.slug); else if (pending?.kind === "restore") await action("restore", pending.revision); else if (pending?.kind === "test") await action("test"); else await action("activate"); }} />
     </div>
   );
 }
