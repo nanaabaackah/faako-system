@@ -252,6 +252,25 @@ try {
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     while (await notifications.count()) await notifications.first().click();
     await page.screenshot({ path: path.join(output, `templates-${width}.png`), fullPage: true });
+    await emailType.click();
+    await page.getByRole("option", { name: "Package — Sample journey", exact: true }).click();
+    await page.getByText("Draft revision 0 · Using shared package template", { exact: true }).waitFor();
+    await expect(page.getByLabel(/^Heading/)).toBeEnabled();
+    await page.getByLabel(/^Heading/).fill("Your sample journey enquiry");
+    await page.getByRole("button", { name: "Preview email", exact: true }).click();
+    const packagePreview = page.frameLocator('iframe[title="Sample journey preview"]');
+    await packagePreview.getByRole("heading", { name: "Your sample journey enquiry", exact: true }).waitFor();
+    assert.match(await packagePreview.locator("body").innerText(), /Sample journey/);
+    await page.getByRole("button", { name: "Mobile", exact: true }).click();
+    await expect(page.locator('iframe[title="Sample journey preview"]')).toHaveClass("template-preview-mobile");
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await page.getByRole("button", { name: "Activate saved template", exact: true }).click();
+    await page.locator(".ui-erp-dialog-backdrop").getByRole("button", { name: "Activate template", exact: true }).click();
+    await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
+    await emailType.click();
+    await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
+    await expect(page.getByLabel(/^Heading/)).toHaveValue("Synthetic acknowledgement");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     assert.ok(requests.length > 0, "Actual API client exercised against isolated HTTP fixtures");
     await context.close();
   }
