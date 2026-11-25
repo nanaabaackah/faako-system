@@ -15,6 +15,7 @@ const placement={focalY:60,mobileFocalY:50,mobileImage:!selected?.image&&!select
 const contactCopy = siteCopy("contact");
 const sharedCopy = siteCopy("site-appearance");
 const catalogue = Astro.props.catalogue || { services: [], packages: [] };
+const enquiryAvailable = Astro.props.enquiryAvailable !== false;
 ---
 
 <div class="closing-scene">
@@ -40,10 +41,12 @@ const catalogue = Astro.props.catalogue || { services: [], packages: [] };
           <slot name="intro" />
         </div>
         {
-          (
+          enquiryAvailable ? (
             <div class="cinematic-enquiry__form">
               <EnquiryForm client:load catalogue={catalogue} copy={{submitLabel:contactCopy.enquiryCta,whatsappLabel:contactCopy.whatsappCta,whatsappUrl:sharedCopy.whatsappUrl}} />
             </div>
+          ) : (
+            <div class="cinematic-enquiry__form"><a href={sharedCopy.whatsappUrl} rel="noreferrer">{contactCopy.whatsappCta}</a></div>
           )
         }
         {
