@@ -44,8 +44,9 @@ export class EmailTemplates {
     this.organisationId = organisationId;
     this.testSenderFactory = testSenderFactory;
   }
-  check(actor) {
-    if (!hasPermission(actor, "templates.manage", this.organisationId))
+  check(actor, slug = defaultSlug, activate = false) {
+    const permission = activate || slug === "staff-invitation" ? "templates.manage" : "templates.draft";
+    if (!hasPermission(actor, permission, this.organisationId))
       throw new ContentError(
         403,
         "permission_error",
@@ -53,8 +54,8 @@ export class EmailTemplates {
       );
   }
   async get(actor, templateSlug = defaultSlug) {
-    this.check(actor);
     const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug);
     const defaultCopy = defaultTemplateCopies[slug];
     const { rows } = await this.pool.query(
       "SELECT version,draft,active,active_version FROM twe.email_templates WHERE organisation_id=$1 AND slug=$2",
@@ -70,8 +71,8 @@ export class EmailTemplates {
     };
   }
   async history(actor, templateSlug = defaultSlug) {
-    this.check(actor);
     const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug);
     const { rows } = await this.pool.query(
       "SELECT version,kind,copy,created_at FROM twe.email_template_revisions WHERE organisation_id=$1 AND slug=$2 ORDER BY version DESC LIMIT 50",
       [this.organisationId, slug],
@@ -79,8 +80,8 @@ export class EmailTemplates {
     return rows;
   }
   async restore(actor, requestId, expectedVersion, revision, templateSlug = defaultSlug) {
-    this.check(actor);
     const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug);
     versionSchema.parse(revision);
     const { rows } = await this.pool.query(
       "SELECT copy FROM twe.email_template_revisions WHERE organisation_id=$1 AND slug=$2 AND version=$3",
@@ -90,8 +91,8 @@ export class EmailTemplates {
     return this.change(actor, requestId, expectedVersion, rows[0].copy, false, slug, revision);
   }
   async sendTest(actor, requestId, copy, templateSlug = defaultSlug) {
-    this.check(actor);
     const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug);
     const validated = templateCopySchema.parse(copy);
     const sender = this.testSenderFactory?.();
     if (!sender) throw new ContentError(503, "service_unavailable", "Test email delivery is not configured.");
@@ -134,8 +135,8 @@ export class EmailTemplates {
     templateSlug = defaultSlug,
     restoredFrom = null,
   ) {
-    this.check(actor);
     const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug, activate);
     versionSchema.parse(expectedVersion);
     const validated = activate ? null : templateCopySchema.parse(copy);
     return transaction(this.pool, async (client) => {
@@ -198,7 +199,7 @@ export class EmailTemplates {
 
 export function emailTemplateRoutes(service, auth) {
   const router = Router();
-  router.use(auth.requirePermission("templates.manage"));
+  router.use(auth.requirePermission("templates.draft"));
   const send = (req, res, data) =>
     res.json(createSuccessResponse(data, { requestId: req.requestId }));
   router.get(["/", "/:slug"], async (req, res) =>
@@ -218,8 +219,8 @@ export function emailTemplateRoutes(service, auth) {
     ["/preview", "/:slug/preview"],
     auth.requireMutation,
     async (req, res) => {
-      service.check(req.staff);
       const slug = templateSlugSchema.parse(req.params.slug || defaultSlug);
+      service.check(req.staff, slug);
       const copy = templateCopySchema.parse(req.body);
       send(req, res, {
         ...renderEmailTemplate(slug, copy),
@@ -252,6 +253,7 @@ export function emailTemplateRoutes(service, auth) {
   router.post(
     ["/activate", "/:slug/activate"],
     auth.requireMutation,
+    auth.requirePermission("templates.manage"),
     async (req, res) => {
       const input = z
         .object({ expectedVersion: versionSchema })
