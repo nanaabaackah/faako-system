@@ -61,6 +61,7 @@ export class IntakeConfiguration {
     revisionSchema.parse(expectedRevision);
     const validated = action === "activate" ? null : intakeDefinitionSchema.parse(definition);
     return transaction(this.pool, async client => {
+      if (action === "activate") await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`twe-intake:${this.organisationId}`]);
       await client.query(
         "INSERT INTO twe.enquiry_form_drafts (organisation_id,form_id,updated_by) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING",
         [this.organisationId, INTAKE_FORM_ID, actor.id],
