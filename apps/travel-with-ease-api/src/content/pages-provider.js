@@ -188,8 +188,9 @@ export class PagesProvider {
       const candidates = deployments.filter(item => item.deployment_trigger?.metadata?.commit_hash === job.source_sha &&
         item.deployment_trigger?.metadata?.branch === this.settings.branch &&
         item.environment === this.expectedDeploymentEnvironment() &&
+        (!job.id || (item.deployment_trigger?.type === "ad_hoc" && item.deployment_trigger.metadata?.commit_message === `TWE publication ${job.id}`)) &&
         Date.parse(item.created_on) >= Date.parse(job.startedAt));
-      if (candidates.length === 1 && candidates[0].latest_stage?.status === "success") {
+      if (candidates.length === 1 && candidates[0].is_skipped !== true && candidates[0].latest_stage?.status === "success") {
         const deployment = candidates[0];
         const origin = deploymentOriginForProject(deployment, project, this.settings.project);
         if (!/^[a-f0-9-]{36}$/i.test(deployment.id)) throw new Error("Unexpected deployment identity.");
