@@ -58,12 +58,12 @@ export class ResendSender {
   }
   async preparePayload(enquiry, client) {
     if (typeof this.templateCopy !== "function") return this.payload(enquiry);
-    let copy;
-    try { copy = await this.templateCopy(enquiry, client); }
+    let resolved;
+    try { resolved = await this.templateCopy(enquiry, client); }
     catch { throw Object.assign(new Error("Template lookup failed."), { code: "template_lookup_failed" }); }
-    return this.payload(enquiry, { copy });
+    return this.payload(enquiry, resolved);
   }
-  payload(enquiry = {}, { test = false, copy = this.templateCopy } = {}) {
+  payload(enquiry = {}, { test = false, copy = this.templateCopy, context = {} } = {}) {
     const production = this.config.environment === "production";
     const contact = enquiry.contact || enquiry;
     const continuation = !test && enquiry.id && enquiry.kind !== "legacy_estimator" && this.continuationLinks
@@ -76,7 +76,7 @@ export class ResendSender {
         name: typeof contact.name === "string" ? contact.name : "",
         test,
         copy,
-        context: { serviceTitle: enquiry.details?.selectedServiceTitle, packageTitle: enquiry.details?.selectedPackageTitle },
+        context,
         continuation: Boolean(continuation),
         ...(continuation ? { ctaUrl: continuation.url } : {}),
       }),
