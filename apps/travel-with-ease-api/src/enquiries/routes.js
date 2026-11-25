@@ -94,6 +94,18 @@ export function enquiriesRoutes({ pool, organisationId, auth }) {
     } catch (cause) { return next(cause); }
   });
 
+  router.get("/summary", async (req, res, next) => {
+    try {
+      const { rows } = await pool.query(
+        "SELECT status, count(*)::int AS count FROM twe.enquiries WHERE organisation_id=$1 GROUP BY status",
+        [organisationId],
+      );
+      const counts = { new: 0, contacted: 0, closed: 0 };
+      for (const row of rows) if (Object.hasOwn(counts, row.status)) counts[row.status] = Number(row.count);
+      return send(req, res, { counts });
+    } catch (cause) { return next(cause); }
+  });
+
   router.get("/:id", async (req, res, next) => {
     const id = uuid.safeParse(req.params.id);
     if (!id.success) return error(req, res, 400, "validation_error", "Invalid enquiry reference.");
