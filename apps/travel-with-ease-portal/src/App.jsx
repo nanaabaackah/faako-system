@@ -502,7 +502,8 @@ function StaffWorkspace() {
       </PageShell>
       <AppUpdateNotice appName="Travel With Ease CMS" mode="prompt"
         enabled={Boolean(session) && (import.meta.env.PROD || import.meta.env.VITE_ENABLE_APP_UPDATE_NOTICE === "true")}
-        checkIntervalMs={60_000} dailyRefreshHourUtc={2} className="twe-app-update-notice"
+        checkIntervalMs={60_000} dailyRefreshHourUtc={2}
+        expectedDocumentMarker={'meta[name="faako-app"][content="travel-with-ease-cms"]'} className="twe-app-update-notice"
         refreshBlocked={refreshBlocked}
         refreshBlockedMessage={transientWorkspace ? "Finish your current work and return to Overview or Content to refresh." : "Save your changes and finish the current action before refreshing."} />
     </div>
