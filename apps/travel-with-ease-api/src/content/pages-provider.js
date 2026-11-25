@@ -262,6 +262,7 @@ export class PagesProvider {
               trigger: ["github:push", "ad_hoc", "deploy_hook"].includes(type) ? type : "unknown",
               status: ["active", "idle", "success", "failure", "canceled", "skipped"].includes(status) ? status : "unknown",
               skipped: deployment.is_skipped === true,
+              skipReason: ["commit_message", "preview_deployments_disabled", "production_deployments_disabled", "path_config", "branch_config", "pages_to_workers_conversion", "superseded_queued_build"].includes(deployment.skip_reason) ? deployment.skip_reason : null,
               correctBranch: deployment.deployment_trigger?.metadata?.branch === this.settings.branch,
               correctEnvironment: deployment.environment === this.expectedDeploymentEnvironment(),
             });
