@@ -303,7 +303,7 @@ export class PublicationRepository {
   // reconciliation. Pending/building jobs are never implicitly approved.
   async staleDeployment() {
     const { rows } = await this.pool.query(
-      `SELECT id, status, build_token, source_sha, manifest, created_at,
+      `SELECT id, status, build_token, source_sha, manifest, created_at, updated_at,
               last_error, recovery_deployment_id
        FROM twe.publication_jobs
        WHERE organisation_id = $1 AND environment = $2
@@ -344,6 +344,29 @@ export class PublicationRepository {
       [id, this.organisationId, this.environment, token, deploymentId],
     );
     if (result.rowCount !== 1) throw new Error("Staging replay lease is no longer active.");
+  }
+  async failTerminalStagingDeployment(job, terminal, baselineId) {
+    if (this.environment !== "staging" || !["failure", "canceled", "skipped"].includes(terminal?.status) ||
+      !/^[a-f0-9-]{36}$/i.test(terminal?.id || "") || !baselineId || baselineId === job.id) return false;
+    return transaction(this.pool, async client => {
+      await this.lockOrganisation(client);
+      const live = await client.query(
+        "SELECT id FROM twe.publication_jobs WHERE organisation_id=$1 AND environment=$2 AND status='live' ORDER BY completed_at DESC LIMIT 1",
+        [this.organisationId, this.environment],
+      );
+      if (live.rows[0]?.id !== baselineId) return false;
+      const result = await client.query(
+        `UPDATE twe.publication_jobs SET status='failed', last_error='provider_terminal_failure', deployment_id=$5, completed_at=now(), updated_at=now()
+        WHERE organisation_id=$1 AND environment=$2 AND id=$3 AND build_token=$4 AND status='deploying'
+        AND updated_at=$6 AND updated_at <= now() - interval '10 minutes'
+        AND recovery_deployment_id IS NULL AND last_error IS DISTINCT FROM 'staging_replay_claimed'
+        RETURNING id`,
+        [this.organisationId, this.environment, job.id, job.build_token, terminal.id, job.updated_at],
+      );
+      if (result.rowCount !== 1) return false;
+      await appendAudit(client, { organisationId: this.organisationId, action: "content.deployment_terminal_failure", recordId: job.id, requestId: job.id });
+      return true;
+    });
   }
   async confirmReconciled(id, token, deploymentId, digest) {
     return this.confirm(id, token, deploymentId, digest, { reconciliation: true });
