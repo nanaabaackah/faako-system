@@ -201,3 +201,19 @@ test("template HTTP preview requires owner permission, CSRF and strict input; ne
     );
   }
 });
+
+test("email formatting is semantic, safe and equivalent in the plain-text alternative", () => {
+  const copy = { ...defaultEnquiryCopy, message: "**Thank you** for choosing us.\n\n*Next steps*\n- Review <script>unsafe</script>\n- Reply when ready\n\n1. First\n2. Second" };
+  const rendered = enquiryTemplate({ copy, continuation: true, ctaUrl: "https://travelwitheasegh.com/plan-your-trip#continue=sample" });
+  assert.match(rendered.html, /<strong>Thank you<\/strong>/);
+  assert.match(rendered.html, /<em>Next steps<\/em>/);
+  assert.match(rendered.html, /<ul[^>]*><li>Review &lt;script&gt;unsafe&lt;\/script&gt;<\/li><li>Reply when ready<\/li><\/ul>/);
+  assert.match(rendered.html, /<ol start="1"[^>]*><li>First<\/li><li>Second<\/li><\/ol>/);
+  assert.doesNotMatch(rendered.html, /<script>/);
+  assert.match(rendered.text, /Thank you for choosing us\./);
+  assert.match(rendered.text, /1\. First\n2\. Second/);
+  assert.doesNotMatch(rendered.text, /\*\*Thank you\*\*/);
+  assert.match(rendered.text, /Valid for 14 days/);
+  assert.match(rendered.text, /not a booking or payment confirmation/);
+  assert.match(rendered.html, /Complete your trip details/);
+});
