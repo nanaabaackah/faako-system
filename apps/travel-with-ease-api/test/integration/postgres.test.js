@@ -25,7 +25,7 @@ import { IntakeConfiguration } from "../../src/enquiries/intake-configuration.js
 import { defaultIntakeDefinition, validateIntakeAdditionalAnswers } from "../../src/enquiries/intake-definition.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
 import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
-import { smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
+import { configuredSmartEnquirySchema, configuredQuestionnaireSnapshot, smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
 import { QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds, questions } from "../../src/enquiries/questionnaires/index.js";
 import { ContentPromotionImporter, createPromotionBundle } from "../../src/content/promotion.js";
 import { approvedEditorCopy } from "../../src/content/approved-copy.js";
@@ -1174,6 +1174,21 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       assert.deepEqual((await service.get(owner)).draft, original);
       assert.deepEqual((await service.active()).definition, draft);
       assert.deepEqual((await service.history(owner)).map(item => item.version), [2, 1]);
+      const repository = new PostgresLeadRepository(runtimePool, options);
+      const contact = { name: "Synthetic Traveller", email: "synthetic@example.invalid", phone: "+233200000000" };
+      const receipt = await repository.createNativeEnquiry({ submissionId: randomUUID(), enquiryType: "trip", service: "not_sure", destination: "Synthetic", travelTimeframe: "Flexible", travellers: 2, budget: "", ...contact, consent: true, website: "", entryType: "general", sourcePath: "/", context: {}, intakeVersion: before.version });
+      assert.equal((await repository.continuationContext(receipt.inquiryId)).questionnaireVersion, "cms.2");
+      await service.change(owner, "detailed-republish", 3, null, "activate");
+      const input = { submissionId: randomUUID(), questionnaireId: QUESTIONNAIRE_ID, questionnaireVersion: "cms.2", entryType: "general", sourcePath: "/plan-your-trip", context: {}, answers: progressiveAnswers(contact), contact, consent: true, website: "" };
+      const parsed = configuredSmartEnquirySchema(draft, 2).parse(input);
+      const completion = { ...parsed, configuredSnapshot: configuredQuestionnaireSnapshot(parsed, draft) };
+      await assert.rejects(repository.completeEnquiryContinuation(receipt.inquiryId, { ...completion, questionnaireVersion: "cms.3" }), { code: "enquiry_continuation_unavailable" });
+      const result = await repository.completeEnquiryContinuation(receipt.inquiryId, completion);
+      assert.equal(result.status, "completed");
+      assert.equal((await repository.completeEnquiryContinuation(receipt.inquiryId, completion)).replayed, true);
+      const stored = (await query("SELECT details FROM twe.enquiries WHERE organisation_id=$1 AND id=$2", [organisationId,receipt.inquiryId])).rows[0].details;
+      assert.equal(stored.questionnaireVersion, "cms.2");
+      assert.equal(stored.questionSnapshots["541981576"].label, "Destination(s) you are considering");
     } finally { await client.query("RESET ROLE"); client.release(); }
   });
 
