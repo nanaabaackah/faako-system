@@ -26,3 +26,16 @@ test("HTML and script-like strings are never interpreted as markup", () => {
   assert.deepEqual(inlineRuns(malicious),[{type:"text",text:malicious}]);
   assert.equal(plainRichText(malicious),malicious);
 });
+
+test("ordered lists retain starts, discontinuities and paragraph breaks consistently", () => {
+  assert.deepEqual(richTextBlocks("3. Third\n4. Fourth\n8. Eighth\n\n1. Restart\n2. Next"), [
+    { type: "ordered", start: 3, items: ["Third", "Fourth"] },
+    { type: "ordered", start: 8, items: ["Eighth"] },
+    { type: "ordered", start: 1, items: ["Restart", "Next"] },
+  ]);
+  assert.deepEqual(richTextBlocks("- First\n\n- Second"), [
+    { type: "unordered", items: ["First"] }, { type: "unordered", items: ["Second"] },
+  ]);
+  assert.equal(formatSelection("Pack\n\nFly", 0, 9, "ordered").value, "1. Pack\n\n1. Fly");
+  assert.equal(richTextBlocks("99999999999999999999. Literal")[0].type, "paragraph");
+});
