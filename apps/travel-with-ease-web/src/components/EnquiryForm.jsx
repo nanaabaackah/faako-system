@@ -122,7 +122,8 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
       <legend>{definition.title}</legend>
       <IntakeQuestionFields definition={definition} entryType={entry.entryType} form={form} setForm={setForm} update={update} additionalAnswers={additionalAnswers} setAnswer={setAnswer}/>
       <div className="enquiry-honeypot" aria-hidden="true"><label>Leave this blank<input name="website" value={form.website} onChange={update} tabIndex={-1} autoComplete="off" /></label></div>
-      <label className="enquiry-consent"><input name="consent" type="checkbox" checked={form.consent} onChange={update} required /><span>I agree that Travel With Ease may use these details to respond to my enquiry. <a href="/privacy">Privacy notice</a></span></label>
+      <label className="enquiry-consent"><input name="consent" type="checkbox" checked={form.consent} onChange={update} required /><span>I agree that Travel With Ease may use these details to respond to my enquiry.</span></label>
+      <a className="enquiry-privacy-note" href="/privacy">Privacy notice</a>
       {siteKey && <TurnstileChallenge siteKey={siteKey} resetCount={resetCount} onToken={setTurnstileToken} />}
       {hosted && !siteKey && <p>Online enquiries are temporarily unavailable. Contact us on WhatsApp.</p>}
       {siteKey && <Button type="button" variant="ghost" className="enquiry-security-retry" onClick={() => setResetCount((value) => value + 1)}>Retry security check</Button>}
