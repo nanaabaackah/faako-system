@@ -10,6 +10,8 @@ export type InitializeGoogleAnalyticsOptions = {
   consent?: GoogleAnalyticsConsentOptions;
   debugMode?: boolean;
   respectDoNotTrack?: boolean;
+  /** Opt-in for transactional/public sites: never initialise with query, fragment or referrer details. */
+  privatePageContext?: boolean;
 };
 
 export type TrackGoogleAnalyticsPageViewOptions = {
@@ -258,6 +260,7 @@ export const initializeGoogleAnalytics = ({
   consent = { analytics: true, marketing: false },
   debugMode = false,
   respectDoNotTrack = true,
+  privatePageContext = false,
 }: InitializeGoogleAnalyticsOptions = {}) => {
   const analyticsWindow = getAnalyticsWindow();
   const analyticsDocument = getAnalyticsDocument();
@@ -313,6 +316,10 @@ export const initializeGoogleAnalytics = ({
   if (!initializedIds.includes(resolvedMeasurementId)) {
     gtag("config", resolvedMeasurementId, {
       send_page_view: false,
+      ...(privatePageContext ? {
+        page_location: sanitizeAnalyticsPageLocation(analyticsWindow.location.href, analyticsWindow.location.origin).location,
+        page_referrer: "", allow_google_signals: false, allow_ad_personalization_signals: false,
+      } : {}),
       ...(debugMode ? { debug_mode: true } : {}),
     });
     initializedIds.push(resolvedMeasurementId);
