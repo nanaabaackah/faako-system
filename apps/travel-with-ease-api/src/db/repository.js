@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { transaction, verifyDatabaseIdentity } from "./database.js";
+import { INTAKE_FORM_ID, INTAKE_BASELINE_VERSION } from "../enquiries/intake-definition.js";
 import { continuationRecord, replayContinuation, submissionRecord, replaySubmission } from "../enquiries/submission.js";
 
 export class PostgresLeadRepository {
@@ -27,6 +28,15 @@ export class PostgresLeadRepository {
         "SELECT id, details->>'submissionFingerprint' AS fingerprint FROM twe.enquiries WHERE organisation_id = $1 AND details->>'submissionId' = $2",
         [this.organisationId, record.submissionId]);
       if (prior.rows[0]) return replaySubmission(prior.rows[0], record.fingerprint);
+      if (!data.questionnaireId) {
+        // Shared lock serializes new intake submissions with activation. Keep
+        // replay checks above this gate so accepted retries still work.
+        await client.query("SELECT pg_advisory_xact_lock_shared(hashtextextended($1, 0))", [`twe-intake:${this.organisationId}`]);
+        const { rows } = await client.query("SELECT active_version FROM twe.enquiry_form_drafts WHERE organisation_id=$1 AND form_id=$2", [this.organisationId, INTAKE_FORM_ID]);
+        if ((data.intakeVersion ?? INTAKE_BASELINE_VERSION) !== (rows[0]?.active_version ?? INTAKE_BASELINE_VERSION)) {
+          throw Object.assign(new Error("Outdated enquiry form."), { code: "intake_version_changed" });
+        }
+      }
       await client.query(
         `INSERT INTO twe.enquiries (id, organisation_id, kind, contact, details, notice_at)
          VALUES ($1, $2, $3, $4, $5, $6)`,
