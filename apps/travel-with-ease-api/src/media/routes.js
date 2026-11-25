@@ -26,8 +26,9 @@ export function mediaRoutes({ service, auth }) {
         .string()
         .max(2048)
         .parse(req.query.pageToken || "");
+      const folderId = req.query.folderId === undefined ? undefined : driveId.parse(req.query.folderId);
       res.json(
-        createSuccessResponse(await service.listDrive(pageToken), {
+        createSuccessResponse(await service.listDrive(pageToken, folderId), {
           requestId: req.requestId,
         }),
       );

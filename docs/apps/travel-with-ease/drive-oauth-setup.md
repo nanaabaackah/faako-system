@@ -9,9 +9,10 @@ This change enables an alternative authentication method, not background sync.
 
 1. Use a dedicated TWE media-only Google identity with Viewer access to the approved
    folder and no unrelated files. The Google Drive read-only OAuth scope can read
-   all files accessible to that identity; the application also enforces the exact
-   configured direct parent folder. Do not use a personal or general administrator
-   account. Nested folders and shortcuts are not imported by the existing picker.
+   all files accessible to that identity; the application also enforces the configured
+   folder tree. Do not use a personal or general administrator account. Browse
+   subfolders in the picker; shortcuts are not followed. Ancestry is verified
+   server-side on listing and download (maximum 12 parent levels).
 2. In a TWE-owned Google Cloud project enable Drive API, configure the consent
    screen and create an OAuth client approved under the organisation's policy.
    Request only https://www.googleapis.com/auth/drive.readonly with offline access.
