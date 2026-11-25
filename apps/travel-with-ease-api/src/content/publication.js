@@ -303,7 +303,7 @@ export class PublicationRepository {
   // reconciliation. Pending/building jobs are never implicitly approved.
   async staleDeployment() {
     const { rows } = await this.pool.query(
-      `SELECT id, status, build_token, source_sha, manifest, created_at, updated_at,
+      `SELECT id, status, build_token, source_sha, manifest, created_at, updated_at, updated_at::text AS lease_updated_at,
               last_error, recovery_deployment_id
        FROM twe.publication_jobs
        WHERE organisation_id = $1 AND environment = $2
@@ -361,7 +361,7 @@ export class PublicationRepository {
         AND updated_at=$6 AND updated_at <= now() - interval '10 minutes'
         AND recovery_deployment_id IS NULL AND last_error IS DISTINCT FROM 'staging_replay_claimed'
         RETURNING id`,
-        [this.organisationId, this.environment, job.id, job.build_token, terminal.id, job.updated_at],
+        [this.organisationId, this.environment, job.id, job.build_token, terminal.id, job.lease_updated_at ?? job.updated_at],
       );
       if (result.rowCount !== 1) return false;
       await appendAudit(client, { organisationId: this.organisationId, action: "content.deployment_terminal_failure", recordId: job.id, requestId: job.id });
