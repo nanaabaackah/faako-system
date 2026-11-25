@@ -7,6 +7,7 @@ const measurementId = analyticsMeasurementId({
   environment: import.meta.env.PUBLIC_APP_ENV,
   configuredId: import.meta.env.PUBLIC_GA_MEASUREMENT_ID || "",
   privacyAvailable,
+  pathname: Astro.url.pathname,
 });
 ---
 
@@ -15,9 +16,11 @@ const measurementId = analyticsMeasurementId({
 <script>
   import {
     initializeGoogleAnalytics,
+    isGoogleAnalyticsCollectionEnabled,
     setGoogleAnalyticsConsent,
     trackGoogleAnalyticsPageView,
   } from "@faako/utils";
+  import { analyticsInteraction } from "../lib/analytics.js";
 
   const storageKey = "twe-cookie-consent-v1";
   const config = document.querySelector("[data-analytics-config]");
@@ -51,6 +54,7 @@ const measurementId = analyticsMeasurementId({
         measurementId,
         consent: { analytics: true, marketing: false },
         respectDoNotTrack: true,
+        privatePageContext: true,
       });
     } else {
       setGoogleAnalyticsConsent(measurementId, {
@@ -62,6 +66,27 @@ const measurementId = analyticsMeasurementId({
     if (started) trackGoogleAnalyticsPageView({ measurementId });
   };
 
+  const track = (eventName: string) => {
+    if (!started || !measurementId || !isGoogleAnalyticsCollectionEnabled(measurementId)) return;
+    const interaction = analyticsInteraction(eventName, window.location.href, window.location.origin);
+    const analyticsWindow = window as Window & { gtag?: (...args: unknown[]) => void };
+    if (!interaction || typeof analyticsWindow.gtag !== "function") return;
+    const { name, ...safeContext } = interaction;
+    analyticsWindow.gtag("event", name, { send_to: measurementId, ...safeContext });
+  };
+  document.addEventListener("twe:enquiry-received", () => track("generate_lead"));
+  document.addEventListener("click", event => {
+    if (!(event.target instanceof Element)) return;
+    const link = event.target.closest("a[href]");
+    if (!(link instanceof HTMLAnchorElement)) return;
+    const destination = new URL(link.href, location.origin);
+    if (destination.protocol === "https:" && destination.hostname === "wa.me") track("whatsapp_click");
+    else if (destination.origin === location.origin && destination.hash === "#plan") track("plan_trip_click");
+  });
+  // Revocation in another tab must stop collection here too.
+  window.addEventListener("storage", event => {
+    if (event.key === storageKey || event.key === null) applyConsent(readConsent()?.analytics === true);
+  });
   const savedConsent = readConsent();
   if (savedConsent) applyConsent(savedConsent.analytics);
   document.addEventListener("twe:consent-changed", (event) => {

@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import Accordion from "./Accordion.astro";
 import ContentLink from "./ContentLink.astro";
 import ServicePanels from "./ServicePanels.astro";
@@ -17,7 +18,7 @@ interface Props {
     ctaPath: string;
     contactEmail: string;
     contactPhone: string;
-    entries: { heading: string; text: string; attribution: string }[];
+    entries: { heading: string; text: string; attribution: string; section?: "A" | "B" }[];
     image: {
       src: string;
       alt: string;
@@ -32,6 +33,11 @@ const page = Astro.url.pathname.replace(/\/$/, "");
 const services = page === "/services";
 const story = page === "/about";
 const terms = page === "/terms";
+const termsSection = (entry: { section?: "A" | "B" }, index: number) =>
+  entry.section || (index < 4 ? "A" : "B");
+const startsTermsSection = (index: number) =>
+  index === 0 || (content && termsSection(content.entries[index], index)
+    !== termsSection(content.entries[index - 1], index - 1));
 ---
 
 <section class:list={["published-content", {
@@ -46,7 +52,7 @@ const terms = page === "/terms";
         <header class="published-content__header">
           <div>
             <h1>{content.heading}</h1>
-            <p class="body-copy"><MoneyText text={content.body} /></p>
+            <RichText class="body-copy" value={content.body} money/>
           </div>
         {(content.image || content.imagePlacements?.header?.image || content.imagePlacements?.header?.mobileImage) && !story && (
           <PlacedImage image={content.image} placement={content.imagePlacements?.header}
@@ -60,24 +66,26 @@ const terms = page === "/terms";
         {content.entries.map((entry, index) =>
           accordion ? (
             <Accordion title={entry.heading}>
-              <p><MoneyText text={entry.text} /></p>
+              <RichText value={entry.text} money/>
               {entry.attribution && <p class={story ? "published-content__attribution" : undefined}>{entry.attribution}</p>}
             </Accordion>
           ) : (
             <section>
-              {terms && (index === 0 || index === 4) && (
-                <p class="published-content__terms-section">Section {index === 0 ? "A" : "B"}</p>
+              {terms && startsTermsSection(index) && (
+                <p class="published-content__terms-section">Section {termsSection(entry, index)}</p>
               )}
-              <h2 id={terms ? (index === 0 ? "planning-terms" : index === 4 ? "package-terms" : undefined) : undefined}><MoneyText text={entry.heading} /></h2>
-              <p><MoneyText text={entry.text} /></p>
+              <h2 id={terms && startsTermsSection(index)
+                ? (termsSection(entry, index) === "A" ? "planning-terms" : "package-terms")
+                : undefined}><MoneyText text={entry.heading} /></h2>
+              <RichText value={entry.text} money/>
               {entry.attribution && <p class={story ? "published-content__attribution" : undefined}>{entry.attribution}</p>}
             </section>
           ),
         )}
         </div>
         )}
-        {content.contactEmail && <p>{content.contactEmail}</p>}
-        {content.contactPhone && <p>{content.contactPhone}</p>}
+        {content.contactEmail && <p><a href={"mailto:" + content.contactEmail}>{content.contactEmail}</a></p>}
+        {content.contactPhone && <p><a href={"tel:" + content.contactPhone.replace(/[^+\\d]/g, "")}>{content.contactPhone}</a></p>}
         {content.ctaLabel && (
           <ContentLink button href={content.ctaPath}>
             {content.ctaLabel}

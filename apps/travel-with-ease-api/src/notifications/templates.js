@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   createSuccessResponse,
@@ -9,9 +10,17 @@ import { transaction } from "../db/database.js";
 import { appendAudit } from "../audit.js";
 import { ContentError } from "../content/schema.js";
 import {
-  defaultTemplateCopies,
+  defaultCopyForTemplate,
+  emailTemplateOptions,
+  generalTemplateSlug,
+  isTemplateSlug,
+  packageTemplateOption,
+  packageTemplatePattern,
+  packageTemplateSlug,
+  templateCandidates,
   renderEmailTemplate,
 } from "./template-catalogue.js";
+import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json" with { type: "json" };
 
 const singleLine = (max) =>
   z
@@ -28,32 +37,98 @@ export const templateCopySchema = z
     heading: singleLine(160),
     message: z.string().trim().min(1).max(3000),
     ctaLabel: singleLine(60),
+    continuationCtaLabel: singleLine(60).optional(),
   })
   .strict();
 const versionSchema = z.number().int().min(0).max(2147483646);
 const defaultSlug = "enquiry-acknowledgement";
-export const templateSlugSchema = z.enum([
-  "enquiry-acknowledgement",
-  "staff-invitation",
-]);
+export const templateSlugSchema = z.string().refine(isTemplateSlug, "Unknown email template.");
 
 export class EmailTemplates {
-  constructor(pool, organisationId) {
+  constructor(pool, organisationId, testSenderFactory = null) {
     this.pool = pool;
     this.organisationId = organisationId;
+    this.testSenderFactory = testSenderFactory;
   }
-  check(actor) {
-    if (!hasPermission(actor, "templates.manage", this.organisationId))
+  check(actor, slug = defaultSlug, activate = false) {
+    const permission = activate || slug === "staff-invitation" ? "templates.manage" : "templates.draft";
+    if (!hasPermission(actor, permission, this.organisationId))
       throw new ContentError(
         403,
         "permission_error",
         "Template access denied.",
       );
   }
-  async get(actor, templateSlug = defaultSlug) {
+  async packageOptions(client = this.pool, { publishedOnly = false } = {}) {
+    const { rows } = await client.query(
+      `SELECT c.publication_initialized, c.published_body, d.body AS draft_body
+       FROM twe.content_items c LEFT JOIN twe.content_revisions d ON d.id=c.draft_revision_id AND d.organisation_id=c.organisation_id
+       WHERE c.organisation_id=$1 AND c.kind='page' AND c.slug='packages'`,
+      [this.organisationId],
+    );
+    const row = rows[0];
+    const published = row?.publication_initialized ? row.published_body?.packages || [] : approvedRelease.pages.packages.packages;
+    const packages = new Map([...published, ...(publishedOnly ? [] : row?.draft_body?.packages || [])].map(item => [item.id, item]));
+    return [...packages.values()].map(packageTemplateOption).filter(Boolean).sort((a, b) => a.label.localeCompare(b.label));
+  }
+  async catalogue(actor) {
     this.check(actor);
+    return [...emailTemplateOptions.filter(option => option.automated || hasPermission(actor, "templates.manage", this.organisationId)), ...await this.packageOptions()];
+  }
+  async requireKnownPackage(slug) {
+    if (!packageTemplatePattern.test(slug)) return null;
+    const option = (await this.packageOptions()).find(item => item.slug === slug);
+    if (!option) throw new ContentError(404, "not_found", "Package template not found.");
+    return option;
+  }
+  async preview(actor, slug, copy) {
+    this.check(actor, slug);
+    const option = await this.requireKnownPackage(slug);
+    return renderEmailTemplate(slug, copy, option?.label);
+  }
+  async exportActiveCopies(packageIds) {
+    const slugs = [...emailTemplateOptions.map(option => option.slug), ...packageIds.map(id => "enquiry-package-" + id).filter(isTemplateSlug)];
+    const { rows } = await this.pool.query("SELECT slug,active FROM twe.email_templates WHERE organisation_id=$1 AND slug=ANY($2::text[]) AND active IS NOT NULL", [this.organisationId, slugs]);
+    const active = new Map(rows.map(row => [row.slug, templateCopySchema.parse(row.active)]));
+    // Only explicit individual overrides transfer. Missing package overrides
+    // must keep inheriting the shared package copy in production.
+    return Object.fromEntries(slugs.filter(slug => !packageTemplatePattern.test(slug) || active.has(slug)).map(slug => [slug, active.get(slug) || defaultCopyForTemplate(slug)]));
+  }
+  async activeForEnquiry(enquiry, client = this.pool) {
+    const candidates = templateCandidates(enquiry);
+    const { rows } = await client.query(
+      "SELECT slug,active FROM twe.email_templates WHERE organisation_id=$1 AND slug=ANY($2::text[]) AND active IS NOT NULL",
+      [this.organisationId, candidates],
+    );
+    const active = new Map(rows.map(row => [row.slug, row.active]));
+    // Context-specific defaults remain distinct from general. Individual
+    // package overrides inherit the active shared package template when absent.
+    const slug = candidates[0];
+    const effective = packageTemplatePattern.test(slug) ? (active.has(slug) ? slug : packageTemplateSlug) : slug;
+    return templateCopySchema.parse(active.get(effective) || defaultCopyForTemplate(effective) || active.get(generalTemplateSlug) || defaultCopyForTemplate(generalTemplateSlug));
+  }
+  async resolveDelivery(enquiry, client = this.pool) {
+    const details = { ...(enquiry.details || {}) };
+    const specific = "enquiry-package-" + details.selectedPackageId;
+    let packageTitle;
+    if (packageTemplatePattern.test(specific)) {
+      const known = (await this.packageOptions(client, { publishedOnly: true })).find(option => option.slug === specific);
+      packageTitle = known?.label;
+      // Never substitute an unverified visitor-supplied title or expose a
+      // draft package through a transactional message.
+      if (!known) details.selectedPackageId = null;
+    }
+    const serviceTitle = emailTemplateOptions.find(option => option.serviceId === details.selectedServiceId && option.serviceId)?.label;
+    return {
+      copy: await this.activeForEnquiry({ ...enquiry, details }, client),
+      context: { serviceTitle, packageTitle },
+    };
+  }
+  async get(actor, templateSlug = defaultSlug) {
     const slug = templateSlugSchema.parse(templateSlug);
-    const defaultCopy = defaultTemplateCopies[slug];
+    this.check(actor, slug);
+    await this.requireKnownPackage(slug);
+    const defaultCopy = packageTemplatePattern.test(slug) ? await this.activeCopy(packageTemplateSlug) : defaultCopyForTemplate(slug);
     const { rows } = await this.pool.query(
       "SELECT version,draft,active,active_version FROM twe.email_templates WHERE organisation_id=$1 AND slug=$2",
       [this.organisationId, slug],
@@ -67,6 +142,55 @@ export class EmailTemplates {
       active: rows[0]?.active || defaultCopy,
     };
   }
+  async history(actor, templateSlug = defaultSlug) {
+    const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug);
+    await this.requireKnownPackage(slug);
+    const { rows } = await this.pool.query(
+      "SELECT version,kind,copy,created_at FROM twe.email_template_revisions WHERE organisation_id=$1 AND slug=$2 ORDER BY version DESC LIMIT 50",
+      [this.organisationId, slug],
+    );
+    return rows;
+  }
+  async restore(actor, requestId, expectedVersion, revision, templateSlug = defaultSlug) {
+    const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug);
+    await this.requireKnownPackage(slug);
+    versionSchema.parse(revision);
+    const { rows } = await this.pool.query(
+      "SELECT copy FROM twe.email_template_revisions WHERE organisation_id=$1 AND slug=$2 AND version=$3",
+      [this.organisationId, slug, revision],
+    );
+    if (!rows[0]) throw new ContentError(404, "not_found", "Template revision not found.");
+    return this.change(actor, requestId, expectedVersion, rows[0].copy, false, slug, revision);
+  }
+  async sendTest(actor, requestId, copy, templateSlug = defaultSlug) {
+    const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug);
+    const packageLabel = (await this.requireKnownPackage(slug))?.label;
+    const validated = templateCopySchema.parse(copy);
+    const sender = this.testSenderFactory?.();
+    if (!sender) throw new ContentError(503, "service_unavailable", "Test email delivery is not configured.");
+    const attemptId = randomUUID();
+    // Persist the attempt before contacting the provider. A tenant-wide lock
+    // prevents concurrent requests bypassing the shared rate limit.
+    await transaction(this.pool, async client => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`twe-template-test:${this.organisationId}`]);
+      const { rows } = await client.query(
+        "SELECT count(*) FILTER (WHERE created_at > now() - interval '1 minute')::int AS recent, count(*)::int AS hourly FROM twe.audit_records WHERE organisation_id=$1 AND action='email_template.test_requested' AND created_at > now() - interval '1 hour'",
+        [this.organisationId],
+      );
+      if (rows[0].recent >= 1 || rows[0].hourly >= 10) throw new ContentError(429, "rate_limited", "Test email limit reached. Try again later.");
+      await appendAudit(client, { organisationId: this.organisationId, actorId: actor.id, action: "email_template.test_requested", recordId: attemptId, requestId });
+    });
+    try {
+      await sender.sendTemplateTest(slug, validated, attemptId, packageLabel);
+    } catch {
+      // The provider may have accepted an unacknowledged request. No retry.
+      throw new ContentError(503, "service_unavailable", "Test delivery was not confirmed. Check the test inbox before sending again.");
+    }
+    return { status: "provider_accepted", recipient: "testing@travelwitheasegh.com" };
+  }
   async activeCopy(templateSlug = defaultSlug) {
     const slug = templateSlugSchema.parse(templateSlug);
     const { rows } = await this.pool.query(
@@ -74,7 +198,7 @@ export class EmailTemplates {
       [this.organisationId, slug],
     );
     return templateCopySchema.parse(
-      rows[0]?.active || defaultTemplateCopies[slug],
+      rows[0]?.active || defaultCopyForTemplate(slug),
     );
   }
   async change(
@@ -84,9 +208,12 @@ export class EmailTemplates {
     copy,
     activate = false,
     templateSlug = defaultSlug,
+    restoredFrom = null,
   ) {
-    this.check(actor);
     const slug = templateSlugSchema.parse(templateSlug);
+    this.check(actor, slug, activate);
+    await this.requireKnownPackage(slug);
+    const inherited = packageTemplatePattern.test(slug) ? await this.activeCopy(packageTemplateSlug) : defaultCopyForTemplate(slug);
     versionSchema.parse(expectedVersion);
     const validated = activate ? null : templateCopySchema.parse(copy);
     return transaction(this.pool, async (client) => {
@@ -121,11 +248,15 @@ export class EmailTemplates {
             "UPDATE twe.email_templates SET draft=$3,version=version+1,updated_by=$4,updated_at=now() WHERE organisation_id=$1 AND slug=$2 RETURNING version,draft,active,active_version",
             [this.organisationId, slug, validated, actor.id],
           );
+      await client.query(
+        "INSERT INTO twe.email_template_revisions (organisation_id,slug,version,kind,copy,created_by) VALUES ($1,$2,$3,$4,$5,$6)",
+        [this.organisationId, slug, result.rows[0].version, activate ? "activated" : restoredFrom !== null ? "restored" : "draft", result.rows[0].draft, actor.id],
+      );
       await appendAudit(client, {
         organisationId: this.organisationId,
         actorId: actor.id,
         action:
-          slug === "staff-invitation"
+          restoredFrom !== null ? "email_template.restored" : slug === "staff-invitation"
             ? activate
               ? "email_template.staff_invitation.approved"
               : "email_template.staff_invitation.saved"
@@ -137,7 +268,7 @@ export class EmailTemplates {
       });
       return {
         ...result.rows[0],
-        active: result.rows[0].active || defaultTemplateCopies[slug],
+        active: result.rows[0].active || inherited,
       };
     });
   }
@@ -145,21 +276,32 @@ export class EmailTemplates {
 
 export function emailTemplateRoutes(service, auth) {
   const router = Router();
-  router.use(auth.requirePermission("templates.manage"));
+  router.use(auth.requirePermission("templates.draft"));
   const send = (req, res, data) =>
     res.json(createSuccessResponse(data, { requestId: req.requestId }));
+  router.get("/catalogue", async (req, res) => send(req, res, { items: await service.catalogue(req.staff) }));
   router.get(["/", "/:slug"], async (req, res) =>
     send(req, res, await service.get(req.staff, req.params.slug)),
   );
+  router.get("/:slug/history", async (req, res) =>
+    send(req, res, { items: await service.history(req.staff, req.params.slug) }),
+  );
+  router.post("/:slug/test", auth.requireMutation, async (req, res) => {
+    send(req, res, await service.sendTest(req.staff, req.requestId, templateCopySchema.parse(req.body), req.params.slug));
+  });
+  router.post("/:slug/restore", auth.requireMutation, async (req, res) => {
+    const input = z.object({ expectedVersion: versionSchema, revision: versionSchema }).strict().parse(req.body);
+    send(req, res, await service.restore(req.staff, req.requestId, input.expectedVersion, input.revision, req.params.slug));
+  });
   router.post(
     ["/preview", "/:slug/preview"],
     auth.requireMutation,
     async (req, res) => {
-      service.check(req.staff);
       const slug = templateSlugSchema.parse(req.params.slug || defaultSlug);
+      service.check(req.staff, slug);
       const copy = templateCopySchema.parse(req.body);
       send(req, res, {
-        ...renderEmailTemplate(slug, copy),
+        ...await service.preview(req.staff, slug, copy),
         preview: true,
       });
     },
@@ -189,6 +331,7 @@ export function emailTemplateRoutes(service, auth) {
   router.post(
     ["/activate", "/:slug/activate"],
     auth.requireMutation,
+    auth.requirePermission("templates.manage"),
     async (req, res) => {
       const input = z
         .object({ expectedVersion: versionSchema })

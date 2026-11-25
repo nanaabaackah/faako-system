@@ -6,7 +6,8 @@ const source = file => readFileSync(new URL(`../src/${file}`, import.meta.url), 
 test("homepage services keep a single approved editorial image and native non-ticket links", () => {
   const component = source("components/HomeServices.astro");
   assert.match(component, /<EditorialPhoto/);
-  assert.match(component, /placement=\{entries\[0\]\?\.imagePlacement\}/);
+  assert.match(component, /placement=\{placement \|\| entries\[0\]\?\.imagePlacement\}/);
+  assert.match(source("components/PublishedHome.astro"), /placement=\{content\.imagePlacements\?\.\["services-feature"\]\}/);
   assert.match(component, /serviceSlug\(entry.heading\)/);
   assert.match(component, /<MoneyText text=\{price\}/);
   assert.match(component, /<ContentLink href=\{/);

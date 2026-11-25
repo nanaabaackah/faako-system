@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import PublicFooter from "./PublicFooter.astro";
 import EnquiryForm from "./EnquiryForm.jsx";
 import photography from "../lib/assigned-photography.json";
@@ -14,6 +15,7 @@ const placement={focalY:60,mobileFocalY:50,mobileImage:!selected?.image&&!select
 const contactCopy = siteCopy("contact");
 const sharedCopy = siteCopy("site-appearance");
 const catalogue = Astro.props.catalogue || { services: [], packages: [] };
+const enquiryAvailable = Astro.props.enquiryAvailable !== false;
 ---
 
 <div class="closing-scene">
@@ -35,16 +37,16 @@ const catalogue = Astro.props.catalogue || { services: [], packages: [] };
       >
         <div class="cinematic-enquiry__copy">
           <h2 id="enquiry-heading">{contactCopy.enquiryHeading === "Where would you like to go?" ? <>Where would you<br />like to go?</> : contactCopy.enquiryHeading}</h2>
-          <p>
-            {contactCopy.enquiryBody}
-          </p>
+          <RichText value={contactCopy.enquiryBody}/>
           <slot name="intro" />
         </div>
         {
-          (
+          enquiryAvailable ? (
             <div class="cinematic-enquiry__form">
               <EnquiryForm client:load catalogue={catalogue} copy={{submitLabel:contactCopy.enquiryCta,whatsappLabel:contactCopy.whatsappCta,whatsappUrl:sharedCopy.whatsappUrl}} />
             </div>
+          ) : (
+            <div class="cinematic-enquiry__form"><a href={sharedCopy.whatsappUrl} rel="noreferrer">{contactCopy.whatsappCta}</a></div>
           )
         }
         {

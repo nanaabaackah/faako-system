@@ -24,6 +24,11 @@ const appMessages = new Map([
   ["Database environment or organisation does not match this application.", "database_identity_mismatch"],
   ["Migration history differs from this checkout; refusing to continue.", "migration_history_mismatch"],
   ["Out-of-order migrations are not allowed.", "migration_order_mismatch"],
+  ["Runtime role must be a simple PostgreSQL role name.", "runtime_role_invalid"],
+  ["Runtime role is missing or privileged.", "runtime_role_missing_or_privileged"],
+  ["Runtime role must not inherit other roles.", "runtime_role_membership_unsafe"],
+  ["Runtime role must not own TWE schema or tables.", "runtime_role_ownership_unsafe"],
+  ["Runtime role must not have schema CREATE.", "runtime_role_schema_create_unsafe"],
 ]);
 
 const guidance = Object.freeze({
@@ -31,6 +36,13 @@ const guidance = Object.freeze({
   database_identity_mismatch: "Confirm the expected production database and organisation identity. Do not point staging and production at the same database.",
   migration_history_mismatch: "Compare reviewed migration files and the existing migration ledger. Do not edit migration history or reset the database.",
   migration_order_mismatch: "Reconcile the reviewed migration sequence before redeployment. Do not change previously applied migrations.",
+  runtime_role_invalid: "Use a simple lowercase runtime PostgreSQL role name; do not use the migration role.",
+  runtime_role_missing_or_privileged: "Verify the dedicated runtime login exists and has no elevated PostgreSQL role attributes. Do not substitute an administrator.",
+  runtime_role_membership_unsafe: "Review runtime role memberships and remove unintended inherited privileges only through an approved database change.",
+  runtime_role_ownership_unsafe: "Verify the runtime role does not own the database, TWE schema or its tables; preserve migration ownership.",
+  runtime_role_schema_create_unsafe: "Verify the runtime role lacks CREATE on the TWE schema; keep DDL authority with the migration role.",
+  database_statement_timeout: "Review migration or grant execution time and blocking activity before a controlled rerun; do not bypass safeguards.",
+  database_lock_unavailable: "Inspect concurrent migration or database activity and lock contention before a controlled rerun.",
   database_tls_hostname_mismatch: "The database certificate does not match the connected hostname. Check the certificate SAN and connection endpoint; do not disable TLS verification.",
   database_tls_trust_failed: "Inspect the trusted CA certificate and database server certificate for this environment. Preserve full TLS verification.",
   database_dns_unavailable: "Confirm the private database hostname resolves from the TWE API service in the same Railway project/environment.",
@@ -81,6 +93,8 @@ export function classifyPredeployFailure(error) {
     if (tlsCodes.has(code)) return { code: "database_tls_trust_failed", guidance: guidance.database_tls_trust_failed };
     if (["28P01", "28000"].includes(code)) return { code: "database_authentication_failed", guidance: guidance.database_authentication_failed };
     if (code === "3D000") return { code: "database_missing", guidance: guidance.database_missing };
+    if (code === "57014") return { code: "database_statement_timeout", guidance: guidance.database_statement_timeout };
+    if (["55P03", "40P01"].includes(code)) return { code: "database_lock_unavailable", guidance: guidance.database_lock_unavailable };
     if (code === "42501") return { code: "database_permission_denied", guidance: guidance.database_permission_denied };
     if (["42P01", "3F000", "42704"].includes(code)) return { code: "database_object_missing", guidance: guidance.database_object_missing };
     if (code.startsWith("08")) return { code: "database_connection_failed", guidance: guidance.database_connection_failed };

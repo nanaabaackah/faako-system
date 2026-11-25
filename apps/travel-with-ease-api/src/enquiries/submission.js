@@ -22,7 +22,7 @@ export function submissionRecord(data, clock = () => new Date().toISOString()) {
     selectedPackageTitle: context.packageTitle || null,
     consentAcknowledgedAt: submittedAt,
     submittedAt,
-    ...validatedQuestionnaireSnapshot(data),
+    ...(data.configuredSnapshot || validatedQuestionnaireSnapshot(data)),
   } : {
     ...legacyData,
     source: "website_intake",

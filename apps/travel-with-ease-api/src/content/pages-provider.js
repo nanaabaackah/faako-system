@@ -126,17 +126,75 @@ export class PagesProvider {
     await verify(this.settings.origin, marker);
     return { id, origin };
   }
+  async terminalStagingDeployment(job, logger = {}, { allowAbandoned = false, now = Date.now() } = {}) {
+    const report = (reason, details = {}) => { logger.info?.({ eventName: "publication.terminal_evidence", jobId: job.id, reason, ...details }, "Checked terminal staging deployment evidence."); return null; };
+    // Do not infer failure from a skipped Git build, missing evidence, an
+    // incomplete scan, or a newer successful upload with the same SHA.
+    if (this.settings.environment !== "staging" || job.status !== "deploying" || job.recovery_deployment_id || job.last_error === "staging_replay_claimed" || !/^[a-f0-9]{40}$/.test(job.source_sha || "")) return report("ineligible");
+    const since = Date.parse(job.updated_at);
+    if (!Number.isFinite(since)) return report("invalid_lease_time");
+    const project = await this.request();
+    this.assertProject(project);
+    const candidates = [];
+    const seen = new Set();
+    let complete = false, competingUpload = false;
+    // Only an explicitly requested staging code-release recovery may inspect
+    // the larger bounded history. A truncated history is never absence proof.
+    const maxPages = allowAbandoned ? 120 : 40;
+    for (let page = 1; page <= maxPages; page++) {
+      const rows = await this.request(`/deployments?per_page=25&page=${page}&env=preview`);
+      if (!Array.isArray(rows) || rows.length > 25) return report("invalid_page");
+      for (const row of rows) {
+        if (!/^[a-f0-9-]{36}$/i.test(row.id || "") || seen.has(row.id)) return report("unstable_page", { pagesScanned: page });
+        seen.add(row.id);
+        const trigger = row.deployment_trigger;
+        if (row.environment !== "preview" || trigger?.metadata?.branch !== this.settings.branch || trigger?.type === "github:push") continue;
+        const rowTime = Date.parse(row.created_on);
+        if (!Number.isFinite(rowTime)) return report("invalid_candidate_time");
+        if (rowTime >= since - 5000 && !["success", "failure", "canceled", "skipped"].includes(row.latest_stage?.status) && row.is_skipped !== true) competingUpload = true;
+        // Only an actual Direct Upload can supply terminal evidence.
+        if (trigger?.metadata?.commit_hash !== job.source_sha) continue;
+        const created = Date.parse(row.created_on);
+        if (!Number.isFinite(created)) return report("invalid_candidate_time");
+        if (created < since - 5000) continue;
+        candidates.push(row);
+      }
+      if (rows.length < 25) { complete = true; break; }
+    }
+    if (complete && candidates.length === 0 && allowAbandoned && !competingUpload &&
+        job.manifest?.triggerType === "code_release" && now - since >= 60 * 60 * 1000 &&
+        /^[a-f0-9]{40}$/.test(this.settings.sourceSha || "") && job.source_sha !== this.settings.sourceSha) {
+      // Superseded automatic code release, no matching provider record after
+      // a complete preview scan, no pending competing direct upload, and a
+      // full hour since upload initiation. The caller must prove the separate
+      // last-live baseline and use the exact stale DB lease before closing.
+      return { status: "upload_not_found" };
+    }
+    if (!complete || candidates.length !== 1) return report(!complete ? "incomplete_scan" : candidates.length === 0 ? "no_direct_candidate" : "ambiguous_candidates", { scanned: seen.size, candidates: candidates.length });
+    const candidate = candidates[0];
+    const exact = await this.request(`/deployments/${candidate.id}`);
+    const trigger = exact.deployment_trigger;
+    const status = exact.is_skipped === true && ["skipped", "failure", "canceled", "success"].includes(exact.latest_stage?.status) ? "skipped" : exact.latest_stage?.status;
+    if (exact.id !== candidate.id || exact.environment !== "preview" || trigger?.type !== "ad_hoc" || trigger.metadata?.branch !== this.settings.branch || trigger.metadata?.commit_hash !== job.source_sha || Date.parse(exact.created_on) < since - 5000 || !Number.isFinite(Date.parse(exact.created_on)) || !["failure", "canceled", "skipped"].includes(status) || !Number.isFinite(Date.parse(exact.latest_stage?.ended_on))) return report("candidate_not_terminal", { deploymentId: candidate.id, providerStatus: ["active", "idle", "success", "failure", "canceled", "skipped"].includes(status) ? status : "unknown" });
+    // A legacy deployment without a job tag can only be reconciled for an
+    // automatic code release, with one unambiguous direct attempt. New
+    // uploads have their own publication job identifier in provider metadata.
+    const tag = trigger.metadata?.commit_message || "";
+    if (tag.startsWith("TWE publication ") ? tag !== `TWE publication ${job.id}` : job.manifest?.triggerType !== "code_release") return report("job_identity_mismatch", { deploymentId: candidate.id });
+    return { id: exact.id, status };
+  }
   async deploy(directory, job) {
     const project = await this.request();
     this.assertProject(project);
     const wrangler = fileURLToPath(new URL("bin/wrangler.js", import.meta.resolve("wrangler/package.json")));
     await this.run(process.execPath, [wrangler, "pages", "deploy", path.resolve(directory),
       "--project-name", this.settings.project, "--branch", this.settings.branch,
-      "--commit-hash", job.source_sha, "--commit-dirty=false"], {
+      "--commit-hash", job.source_sha, "--commit-dirty=false",
+      ...(job.id ? ["--commit-message", `TWE publication ${job.id}`] : [])], {
       PATH: process.env.PATH, ...(process.env.HOME ? { HOME: process.env.HOME } : {}),
       CLOUDFLARE_API_TOKEN: this.settings.token, CLOUDFLARE_ACCOUNT_ID: this.settings.accountId,
       CI: "true", WRANGLER_SEND_METRICS: "false",
-    }, { timeout: 180_000 });
+    }, { timeout: 300_000 });
     // Wrangler can return before the Pages deployment reaches its terminal
     // stage. Poll read-only provider status instead of treating that normal
     // transition as an uncertain upload or issuing another deployment.
@@ -146,14 +204,15 @@ export class PagesProvider {
       const candidates = deployments.filter(item => item.deployment_trigger?.metadata?.commit_hash === job.source_sha &&
         item.deployment_trigger?.metadata?.branch === this.settings.branch &&
         item.environment === this.expectedDeploymentEnvironment() &&
+        (!job.id || (item.deployment_trigger?.type === "ad_hoc" && item.deployment_trigger.metadata?.commit_message === `TWE publication ${job.id}`)) &&
         Date.parse(item.created_on) >= Date.parse(job.startedAt));
-      if (candidates.length === 1 && candidates[0].latest_stage?.status === "success") {
+      if (candidates.length === 1 && candidates[0].is_skipped !== true && candidates[0].latest_stage?.status === "success") {
         const deployment = candidates[0];
         const origin = deploymentOriginForProject(deployment, project, this.settings.project);
         if (!/^[a-f0-9-]{36}$/i.test(deployment.id)) throw new Error("Unexpected deployment identity.");
         return { id: deployment.id, origin };
       }
-      if (candidates.some(item => ["failure", "canceled"].includes(item.latest_stage?.status)))
+      if (candidates.some(item => ["failure", "canceled", "skipped"].includes(item.latest_stage?.status) || item.is_skipped === true))
         throw new Error("Pages deployment did not succeed.");
       if (attempt < 7) await this.wait(3_000);
     }
@@ -182,10 +241,11 @@ export class PagesProvider {
     };
     let pagesScanned = 0, rowsSeen = 0, candidates = 0, hasMore = false;
     let sourceMatches = 0, repeatedPages = 0, olderThanJob = 0;
+    const matchingSourceEvidence = [];
     const report = reason => logger.info?.({
       eventName: "publication.reconciliation_scan", reason,
       pagesScanned, rowsSeen, distinctDeployments: seen.size,
-      repeatedPages, sourceMatches, olderThanJob, candidates, verified: matches.length,
+      repeatedPages, sourceMatches, olderThanJob, candidates, verified: matches.length, matchingSourceEvidence,
       rejectionReasons: reasons,
     }, "Pages publication candidates checked.");
     for (let page = 1; page <= maxPages; page++) {
@@ -207,8 +267,23 @@ export class PagesProvider {
         seen.add(deployment.id);
         newOnPage++;
         const source = deployment.deployment_trigger?.metadata?.commit_hash;
-        if (source === job.source_sha) sourceMatches++;
-        if (deployment.latest_stage?.status !== "success") {
+        if (source === job.source_sha) {
+          sourceMatches++;
+          if (matchingSourceEvidence.length < 12) {
+            const type = deployment.deployment_trigger?.type;
+            const status = deployment.latest_stage?.status;
+            matchingSourceEvidence.push({
+              id: deployment.id,
+              trigger: ["github:push", "ad_hoc", "deploy_hook"].includes(type) ? type : "unknown",
+              status: ["active", "idle", "success", "failure", "canceled", "skipped"].includes(status) ? status : "unknown",
+              skipped: deployment.is_skipped === true,
+              skipReason: ["commit_message", "preview_deployments_disabled", "production_deployments_disabled", "path_config", "branch_config", "pages_to_workers_conversion", "superseded_queued_build"].includes(deployment.skip_reason) ? deployment.skip_reason : null,
+              correctBranch: deployment.deployment_trigger?.metadata?.branch === this.settings.branch,
+              correctEnvironment: deployment.environment === this.expectedDeploymentEnvironment(),
+            });
+          }
+        }
+        if (deployment.is_skipped === true || deployment.latest_stage?.status !== "success") {
           reasons.notSuccessful++;
           continue;
         }

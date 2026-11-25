@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { editorialValues } from "../../travel-with-ease-api/src/content/editorial-fields.js";
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8");
 
@@ -29,7 +30,9 @@ test("homepage follows the agreed enquiry-focused editorial journey", () => {
 test("homepage hero opens package discovery without losing the enquiry action", () => {
   const hero = source("components/CinematicHero.astro");
   assert.ok(hero.includes('home.ctaPath === "/#plan" ? "#plan" : home.ctaPath'));
-  assert.match(hero, /href="\/packages"/);
+  assert.match(hero, /publishedPage\(copy\.heroSecondaryPath\.slice\(1\)\) && <ContentLink href=\{copy\.heroSecondaryPath\}/);
+  assert.equal(editorialValues("home").heroSecondaryPath,"/packages");
+  assert.equal(editorialValues("home",{heroSecondaryPath:"/services"}).heroSecondaryPath,"/services");
   assert.ok(hero.includes('href="#about">{copy.heroScroll}'));
 });
 
@@ -63,7 +66,7 @@ test("homepage exposes both client-approved booking and personal planning flows"
   const process = source("components/JourneyProcess.astro");
   const stepper = source("components/HomeJourneyStepper.jsx");
   assert.match(process, /const homepageFlows: Props\["content"\]\["processFlows"\] = withUpdatedPackageFlow\(content\.processFlows\)/);
-  assert.match(process, /<HomeJourneyStepper flows=\{homepageFlows\} client:visible/);
+  assert.match(process, /<HomeJourneyStepper flows=\{readyFlows\} client:visible/);
   assert.match(process, /\["package", "planning"\] as const/);
   assert.match(process, /copy\.detailsLink/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);

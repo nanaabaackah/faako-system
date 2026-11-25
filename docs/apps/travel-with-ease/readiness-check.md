@@ -1,22 +1,19 @@
 # Travel With Ease — release readiness check
 
-Reviewed 2026-11-01. Source of truth:
-[implementation status, hosted evidence and recovery gates](./completion-status-2026-11-01.md).
-The feature-completion brief is **not complete or production-certified**.
+Reviewed 2026-11-25. Current source: [P3 release preparation](./release-preparation-2026-11-25.md). Staging acceptance is operator-confirmed on the P2 correction baseline `d3114b5`; this does not certify production.
 
 ## Current gates
 
 | Concern | Executable/current rule | Acceptance |
 | --- | --- | --- |
-| API startup | Both staging and production supported only with verified environment/organisation, migration checksums, persistent repositories and Access configuration | Staging health/readiness observed HTTP 200; production API checks timed out |
-| PostgreSQL | Actual server version is diagnostic, not an exact major-version gate; isolated CI uses PostgreSQL 17 | Runtime non-superuser/no BYPASSRLS, least privileges and matching identity still required |
-| Source provenance | Reviewed full `TWE_RELEASE_SHA` required by publication enqueue, not unrelated API startup | Exact deployed artifact/source marker must be verified; current public markers returned 404 |
-| Portal | Built React CMS can be embedded in the same Railway API process on the protected portal hostname; separate host/proxy remains optional | Both portal roots redirect to sign-in; authenticated workflow acceptance pending |
-| Browser API | Hosted `VITE_API_BASE_URL` empty; same-origin protected API routes | Do not fix sessions using public cross-origin tokens or bypass Access |
-| Workers | Publication and notification commands still reject hosted environments via their local-only guard | Complete reviewed hosted orchestration before enabling automatic deployment/delivery |
-| Roles | Explicit current matrix in `src/auth/permissions.js` | New Superadmin/Owner/Editor policy differs; implementation/test changes pending |
-| Public release | Only approved snapshot content; indexing requires production plus explicit indexable flag | Package/tip/advanced Journal/native intake/visual preview/autosave/automation gaps remain |
-| Operations | Separate credentials/resources, least privileges, approved migrations, recovery artifact | Live email receipt, monitoring, backup restore, UAT and release approval not verified |
+| API startup | Environment identity, checksummed migrations, persistent repositories and Access | Staging deployment successful; latest observed production API deployment failed |
+| PostgreSQL | Distinct runtime/migration roles, verified TLS, read-only predeploy check and isolated integration tests | Production migration and backup/restore evidence open |
+| Source provenance | Reviewed Git-linked SHA, exact publication artifact and marker | Staging accepted; production marker open |
+| Portal | Embedded React CMS on protected same-origin hostname; verified server session | Staging accepted; production role and Access smoke open |
+| Workers | Separate notification and publication workers on matching source | Both staging workers successful; production activation unverified |
+| Roles | Superadmin (platform_admin), Owner and Editor; backend enforcement | Staging accepted; production smoke open |
+| Public release | Approved published snapshot, controlled worker deployment; consent and indexing policy | Staging accepted; production content promotion and cutover open |
+| Operations | Existing provider references, least privilege, backup and recovery | Actual email receipt, GA4 reporting and production restore/cutover evidence open |
 
 ## Security controls to retain
 
@@ -30,7 +27,7 @@ The feature-completion brief is **not complete or production-certified**.
   derivatives. No credentials in client bundles, docs, screenshots or logs.
 - Immutable publication manifests, pinned source SHA, exact artifact and marker
   confirmation; retries must not republish an obsolete snapshot.
-- Fixed non-production testing recipient and production customer/notification CC.
+- Environment-specific non-production test routing and production customer notification routing; verify actual receipts separately.
 - Rate limits, validated inputs, redacted request-ID diagnostics and audit records.
 
 Read-only `preflight:hosted`, HTTP 200 and successful synthetic CI do not prove

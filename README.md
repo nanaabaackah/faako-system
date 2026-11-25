@@ -165,68 +165,18 @@ pnpm security:all
 
 ## Travel With Ease
 
-Latest: [local workspace preview, folder layout, email worker and staging handover](docs/apps/travel-with-ease/workspace-refinements-2026-11-08.md).
-The portal now separates React components, styles and utilities; public detail pages
-share accessible breadcrumbs and homepage services use an editorial photo/list.
-The continuous notification worker and hidden-input staging handover helper are
-implemented; real staging delivery/receipt and account handover remain pending.
+Current release status: [P3 release preparation — 2026-11-25](docs/apps/travel-with-ease/release-preparation-2026-11-25.md). Staging P0–P2 implementation and live acceptance are complete on `d3114b5`; production migration, worker, recovery and promotion gates remain open. The [TWE documentation index](docs/apps/travel-with-ease/README.md) retains historical decisions.
 
-The homepage visitor flow, navigation priorities, published-featured-package preview and compact services overview are described in [TWE homepage journey (2026-11-06)](docs/apps/travel-with-ease/homepage-journey-2026-11-06.md). These code changes do not by themselves certify a hosted deployment.
-
-See [package and planning-page refinement](docs/apps/travel-with-ease/packages-process-refinement-2026-11-06.md) for photo-led package layouts, four service detail pages, the expanded process example and the enquiry dropdown regression fix.
-
-The approved cinematic homepage, five-mockup CTA and enquiry/footer styling are
-preserved. **The broader feature-completion brief is not complete or certified
-production-ready.** See the [current implementation and hosted evidence](docs/apps/travel-with-ease/completion-status-2026-11-01.md).
-
-| Area | Code-backed status |
+| Surface | Current operating model |
 | --- | --- |
-| Public website | Astro multi-page site with supplied company/services copy, FAQs/legal information, photo-led package cards, article/Tips routes, 21-country experience map and shared enquiry/footer. Local and hosted builds read the same approved baseline; new hosted deployment is not verified. Synthetic website/portal routes and their staging write endpoint have been retired; the explicit loopback workspace reuses isolated fixtures outside hosted bundles. |
-| Packages | Dedicated `/packages` and detail routes, search/destination/occasion/group-friendly filters, itineraries/galleries and independently publishable records. Approved Zanzibar/Nairobi tiers include reference months/disclaimers; Singapore/combined-trip pricing remains coming soon. Native package enquiry context and hosted acceptance remain incomplete. |
-| Display currency | Footer preference updates marked package/service prices with indicative conversions while retaining original GHS. Existing cached rate service, exact minor-unit rounding, source dates, stale/error fallback and local/browser tests; hosted rates/deployment remain separately verifiable. See [currency operations](docs/apps/travel-with-ease/display-currency-2026-11-06.md). |
-| Travel Tips / Journal | Three source-derived Tips and two articles using supplied founder/itinerary copy; CMS collections, images, categories, listing/detail pages and independent record publication. Rich article blocks and hosted acceptance remain incomplete. |
-| Enquiries | Shared first-contact form, required Trip/Gift/Group/Celebration classification, validated API, exact-Origin/rate/honeypot checks, transactional PostgreSQL + notification-outbox persistence and duplicate protection. Turnstile integration requires per-environment keys. Full Google Form branches and authoritative package/tier context remain incomplete. |
-| CMS | Structured editors, approved-copy loading, debounced version-safe autosave, immutable revisions/restoration, authenticated short-lived actual Astro previews and viewport modes implemented locally. Single-process preview limitation and hosted UAT remain. |
-| Publishing | Immutable snapshots, pinned source, exact Pages artifact deployment worker, verification-before-Live, individual-record isolation and private R2 staging recovery implemented. Initial baseline, worker/provider configuration and actual staged deployment/rollback acceptance are pending; queued does not mean live. |
-| Staff | Cloudflare Access verification, server sessions, identity-bound activation/invitations, per-user tutorials, Account and role-filtered modules implemented. Hosted authenticated acceptance must be recorded separately. |
+| Public site | Astro with approved packages, services, Journal, Travel Tips, native enquiry forms and responsive brand design. |
+| CMS | React/Vite embedded in Railway API; structured content and rich text, autosave, private Astro preview, immutable revisions, media and contextual email templates. |
+| Publishing | PostgreSQL job, separate Railway worker, pinned source and snapshot, Cloudflare Pages deployment and marker verification before Live. |
+| Authentication | Cloudflare Access and verified server session; Superadmin (`platform_admin`), Owner and Editor, with backend permission enforcement. |
+| Email | Independent Railway notification worker and Resend; actual receipt is a separate acceptance check. |
+| Analytics | Consent-gated GA4, private route exclusion and published-content SEO/AEO. |
 
-TWE roles use `platform_admin` (displayed **Superadmin**), `owner`, `editor`.
-The final launch brief's explicit Superadmin application matrix is implemented
-with content/media/enquiry/publication/staff/template and technical permissions.
-Owner manages business content/publishing/staff; Editor drafts/previews/media
-and has authorised enquiry access, as retained by the final launch brief.
-Application roles never grant provider-account ownership or infrastructure credentials.
-
-The [CMS roles, imagery, activity and navigation extension](docs/apps/travel-with-ease/cms-access-imagery-activity-2026-11-04.md)
-adds Superadmin-only Owner/Editor assignment, role-aware invitations and an
-audited handover command; section-level desktop/mobile images, focal crops,
-ordered galleries and shared CTA/footer imagery; separate business/security
-activity; and five mobile shortcuts with a full drawer/collapsible sidebar.
-Migration 013 and staging acceptance are required before hosted use. Real account
-handover and production promotion are not implied by passing local checks.
-
-See [CMS runtime, worker configuration and initial recovery acceptance](docs/apps/travel-with-ease/cms-runtime-2026-11-03.md)
-and the [client editing guide](docs/apps/travel-with-ease/client-cms-guide.md).
-Website project `twe-concierge` uses develop previews for staging and main for
-production; the separate `twe-portal` project is not a content-publication target.
-Run `publication:once` / `notifications:once` in the configured backend workspace
-only after the documented migration/provider acceptance. `notifications:worker`
-provides continuous supervised delivery and `notifications:status` reads a
-redacted queue summary. None are part of
-the credential-isolated local `dev:twe` launcher.
-
-See the [approved content and decisions](docs/apps/travel-with-ease/approved-launch-content-2026-11-01.md),
-[client editing guide](docs/apps/travel-with-ease/client-cms-guide.md) and
-[Turnstile configuration](docs/apps/travel-with-ease/turnstile-and-enquiry-intake.md).
-
-Architecture: Astro public content → Express public endpoints; React/Vite CMS →
-same-origin protected Express routes → tenant-scoped PostgreSQL. Cloudflare
-provides Pages/Access, Railway hosts the API with embedded CMS, private R2 stores
-media, Google Drive supplies approved media imports, Resend handles queued mail,
-and GA4 loads only after eligible consent. No Next.js or Prisma migration
-conversion is part of TWE. Read the [architecture](docs/apps/travel-with-ease/architecture.md),
-[environment contract](docs/apps/travel-with-ease/env.md) and
-[Drive/R2 runbook](docs/apps/travel-with-ease/drive-r2-sync.md).
+Use existing Faako components and icons, preserve approved typography, and avoid unnecessary UI copy. No separate approval workflow is needed to transfer already approved staging content to production.
 
 ### TWE development and verification
 
@@ -257,34 +207,11 @@ documented disposable test database; it is mandatory in TWE foundation CI.
 | Protected staff CMS | https://portal-staging.travelwitheasegh.com | https://portal.travelwitheasegh.com |
 | API | https://staging-api.travelwitheasegh.com | https://api.travelwitheasegh.com |
 
-Retired website demo landing/list URLs redirect to real public pages. Synthetic
-detail URLs are not mapped to real offers. The protected portal `/demo` returns
-404; historical demo flags have no effect. HTTP fixtures remain test-only.
+Railway hosts the API and independent workers; Cloudflare provides Pages, Access and private R2. Full public content is published by the existing managed worker rather than a competing Git build. The `twe-concierge` Pages project is the public publication target; the separate portal project is not. Preserve the production holding page until an authorised cutover. See [release readiness](docs/apps/travel-with-ease/readiness-check.md), [production hardening](docs/apps/travel-with-ease/release-hardening-2026-11-24.md), [content promotion](docs/apps/travel-with-ease/cms-publishing-and-production-promotion-2026-11-20.md), [environment contract](docs/apps/travel-with-ease/env.md) and [client CMS guide](docs/apps/travel-with-ease/client-cms-guide.md).
 
-Pages branch configuration was confirmed by the user: staging tracks `develop`,
-production tracks `main`; repository-root build command
-`pnpm --filter @faako/travel-with-ease-web build`, output
-`apps/travel-with-ease-web/dist`. This is configuration evidence, not proof that
-the latest branch SHA is deployed. Record the provider deployment SHA and content
-marker independently. Read-only HTTPS observations on 2026-11-04: staging and production websites
-returned 200; staging API `/readyz` returned 200; production API `/readyz` returned
-502. This does not verify authentication or that the cleanup branch is deployed.
-Production API recovery, authenticated UAT, email receipt, restore drills and
-production acceptance remain unverified.
+CI is test-only. Merge a reviewed green PR into develop, verify staging, then separately approve main promotion and migration-first production deployment. Preserve the prior verified artifact and never reset a shared database. Actual email delivery, GA4 reporting, production backup restore and production acceptance remain separate evidence gates.
 
-TWE foundation CI runs lint/type/build/unit tests, shared UI checks, synthetic
-browser/accessibility tests and isolated PostgreSQL integration. Monorepo CI runs
-affected-surface gates. These workflows do not deploy CMS content automatically.
-Release: reviewed branch → green PR into `develop` → verified staging UAT →
-separately reviewed `develop` → `main` promotion → non-destructive production
-smoke. Preserve the previous verified artifact, source SHA and publication
-manifest; rollback to that artifact before confirming it live. Never reset the
-database or silently weaken a gate. See the [release and recovery guide](docs/apps/travel-with-ease/completion-status-2026-11-01.md#release-gates-and-recovery)
-and [migration runbook](docs/apps/travel-with-ease/predeploy-migrations-2026-10-27.md).
-
-Deferred: Travel Readiness PDF, Travel Plans staff module, client My Trips,
-customer trip management, booking/payment engine, full CRM and AI itinerary
-generation. Their historical roadmap descriptions are not implemented features.
+Deferred: Travel Readiness PDF, Travel Plans staff module, client My Trips, booking/payment engine, full CRM and AI itinerary generation.
 
 ## Environment And Data Safety
 

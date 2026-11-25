@@ -30,7 +30,8 @@ test("media and CMS copy do not expose developer or infrastructure setup details
   assert.doesNotMatch(media, /Baaba|R2 setup before uploads|notification worker/);
   assert.match(media, /Media uploads are unavailable/);
   assert.doesNotMatch(contentEditor, /November 16 two-path process|Re-select managed R2 images|free-checklist offers/);
-  assert.match(contentEditor, /deployment succeeds/);
+  assert.match(contentEditor, /The site changes only after deployment is verified/);
+  assert.doesNotMatch(contentEditor, /Your update is live only after deployment succeeds/);
 });
 
 test("Help menu retains all tutorial actions but does not show five controls by default", () => {
@@ -63,4 +64,25 @@ test("website removes technical configuration prose while keeping consent and pr
   assert.doesNotMatch(service, /Let’s start with your plans|Your approximate budget and the support you need/);
   assert.match(packageDetail, /per person sharing/i);
   assert.match(packageDetail, /booking/i);
+});
+
+test("new CMS editors retain Faako controls, concise labels and approved iconography", () => {
+  const intake = source("../src/components/IntakeFormEditor.jsx");
+  const detailed = source("../src/components/DetailedQuestionFields.jsx");
+  const email = source("../src/components/EmailTemplates.jsx");
+  const nav = source("../src/components/NavigationIcon.jsx");
+  const fields = source("../../../packages/ui/src/components/Fields.tsx");
+  const styles = source("../src/styles/global.css");
+  for (const component of [intake,detailed,email,nav]) {
+    assert.doesNotMatch(component, /(?:[\u{1F300}-\u{1FAFF}]|\uFE0F)/u);
+    assert.doesNotMatch(component, /<select\b|<textarea\b/);
+  }
+  assert.match(intake, /content-editor twe-form-editor/);
+  assert.doesNotMatch(intake, /<legend>\{field\.id\}/);
+  assert.doesNotMatch(email, /\{definition\.description\}/);
+  assert.match(nav, /name="ArrowRight4"/);
+  assert.match(fields, /ui-dropdown-field__caret" aria-hidden="true"><IconsaxIcon/);
+  assert.match(fields, /ui-dropdown-field__option-mark" aria-hidden="true"><IconsaxIcon/);
+  assert.match(styles, /-webkit-text-size-adjust: 100%/);
+  assert.match(styles, /\.twe-form-editor/);
 });

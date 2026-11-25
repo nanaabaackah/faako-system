@@ -1,5 +1,19 @@
 # Travel With Ease documentation
 
+Start with [current release preparation — 2026-11-25](./release-preparation-2026-11-25.md) and the [current readiness gates](./readiness-check.md). The operator confirmed staging Cloudflare and live acceptance after PRs #255/#256; production readiness is not yet established.
+
+- [Design and engineering standard](./design-engineering-standard.md)
+- [Client CMS guide](./client-cms-guide.md)
+- [Architecture](./architecture.md) and [environment contract](./env.md)
+- [Production hardening and migration preflight](./release-hardening-2026-11-24.md)
+- [CMS publishing and production promotion](./cms-publishing-and-production-promotion-2026-11-20.md)
+- [Staging operations](./staging-operations.md), [email delivery](./email-test-flow.md) and [Drive/R2 media](./drive-r2-sync.md)
+- [Security](./security.md), [implementation plan](./implementation-plan.md) and [progress log](./progress-log.md)
+
+## Historical implementation records
+
+The dated records below retain the evidence and decisions available at the time. Where claims conflict, the current release preparation and readiness gates take precedence.
+
 ## Email-only staff invitations — 2026-11-15
 
 [Cloudflare-verified email invitation flow](./cms-invitation-email-delivery-2026-11-15.md).

@@ -17,3 +17,16 @@ export function createSessionLoader(api) {
     return pending;
   };
 }
+
+// Foreground checks are read-only. Do not exchange a fresh token or replay a
+// mutation after expiry/revocation. Network failures are not sign-outs.
+export async function checkCurrentSession(api, previous) {
+  try {
+    const next = await api.get("/api/auth/session", { responseMode: "data", cache: "no-store", redirect: "error", signal: AbortSignal.timeout(10000) });
+    if (!next?.user || typeof next.csrfToken !== "string") return { status: "unavailable" };
+    if (next.user.id !== previous.user.id || next.user.organisationId !== previous.user.organisationId || next.user.role !== previous.user.role || next.csrfToken !== previous.csrfToken) return { status: "changed" };
+    return { status: "active" };
+  } catch (error) {
+    return { status: [401, 403].includes(error.status) ? "expired" : "unavailable" };
+  }
+}

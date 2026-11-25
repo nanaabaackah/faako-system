@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { transaction } from "../db/database.js";
 import { ContentError, contentForPage, pageSchema, contentMediaIds } from "./schema.js";
 import { appendAudit } from "../audit.js";
+import { assertImageLayoutAuthority } from "./image-layout-authority.js";
 
 export class ContentRepository {
   constructor(pool, organisationId) { this.pool = pool; this.organisationId = organisationId; }
@@ -34,13 +35,17 @@ export class ContentRepository {
   async save(page, body, expectedVersion, actor, requestId) {
     pageSchema.parse(page);
     const validated = contentForPage(page, body);
-    validated.entries=validated.entries.map(entry=>({...entry,id:entry.id||randomUUID()}));
     if (actor.organisationId !== this.organisationId) throw new ContentError(403, "permission_error", "Organisation access denied.");
     return transaction(this.pool, async (client) => {
       if (expectedVersion === 0) await client.query("INSERT INTO twe.content_items (id, organisation_id, kind, slug) VALUES ($1, $2, 'page', $3) ON CONFLICT (organisation_id, kind, slug) DO NOTHING", [randomUUID(), this.organisationId, page]);
-      const { rows } = await client.query("SELECT id, version FROM twe.content_items WHERE organisation_id = $1 AND kind = 'page' AND slug = $2 FOR UPDATE", [this.organisationId, page]);
+      const { rows } = await client.query("SELECT id, version, draft_revision_id FROM twe.content_items WHERE organisation_id = $1 AND kind = 'page' AND slug = $2 FOR UPDATE", [this.organisationId, page]);
       const item = rows[0];
       if (!item || item.version !== expectedVersion) throw new ContentError(409, "conflict", "This page changed. Reload before saving.");
+      const prior = item.draft_revision_id
+        ? await client.query("SELECT body FROM twe.content_revisions WHERE id = $1 AND organisation_id = $2", [item.draft_revision_id, this.organisationId])
+        : { rows: [] };
+      assertImageLayoutAuthority(prior.rows[0]?.body || null, validated, actor);
+      validated.entries = validated.entries.map(entry => ({ ...entry, id: entry.id || randomUUID() }));
       const imageIds = contentMediaIds(validated);
       for (const imageId of imageIds) {
         const media = await client.query("SELECT id FROM twe.media WHERE organisation_id = $1 AND id = $2 AND archived_at IS NULL FOR SHARE", [this.organisationId, imageId]);

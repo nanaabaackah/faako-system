@@ -9,28 +9,32 @@ import {
   AnimatedLoadingState,
   useToast,
 } from "@faako/ui";
-import { enquiryAnswerSections, formatEnquiryAnswer, initialEnquiryFields, legacyEnquiryFields } from "../lib/enquiryView.js";
+import { enquiryAnswerSections, formatEnquiryAnswer, initialEnquiryFields, legacyEnquiryFields, versionedIntakeFields } from "../lib/enquiryView.js";
 
 const statuses = ["new", "contacted", "closed"];
 const serviceOptions = [
   ["readiness", "Travel Readiness Session"], ["full_planning", "Full Trip Planning"],
   ["premium", "Premium Concierge"], ["group", "Group Trip Planning"],
 ];
-export default function Enquiries({ api, session }) {
+export default function Enquiries({ api, session, initialStatus = "", initialEnquiryId = null, onRefreshBlockedChange }) {
   const { pushToast } = useToast();
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(statuses.includes(initialStatus) ? initialStatus : "");
   const [category, setCategory] = useState("");
   const [service, setService] = useState("");
   const [packageFilter, setPackageFilter] = useState("");
   const [search, setSearch] = useState("");
   const [offset, setOffset] = useState(0);
   const [result, setResult] = useState({ items: [], nextOffset: null });
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(initialEnquiryId);
   const [selected, setSelected] = useState(null);
   const [revision, setRevision] = useState(0);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    onRefreshBlockedChange?.(busy || saving);
+    return () => onRefreshBlockedChange?.(false);
+  }, [busy, saving, onRefreshBlockedChange]);
   useEffect(() => {
     let active = true;
     setBusy(true);
@@ -147,7 +151,7 @@ export default function Enquiries({ api, session }) {
                     {selected.package && <div><dt>Package</dt><dd>{selected.package}</dd></div>}
                     {selected.details?.questionnaireVersion && <div><dt>Questionnaire version</dt><dd>{selected.details.questionnaireVersion}</dd></div>}
                     {selected.details?.questionnaireCompletedAt && <div><dt>Detailed questionnaire</dt><dd>Completed · <time dateTime={selected.details.questionnaireCompletedAt}>{new Date(selected.details.questionnaireCompletedAt).toLocaleString("en-GH", { timeZone: "Africa/Accra" })}</time></dd></div>}
-                    {!selected.details?.questionSnapshots && legacyEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}
+                    {!selected.details?.questionSnapshots && !selected.details?.intakeSnapshot && legacyEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll("_", " ")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}
                   </dl>
                 </section>
                 <aside className="workspace-panel enquiry-contact">
@@ -177,7 +181,11 @@ export default function Enquiries({ api, session }) {
                   </dl>
                 </aside>
               </div>
-              {selected.details?.questionSnapshots && initialEnquiryFields(selected.details).length > 0 && <section className="workspace-panel enquiry-answers">
+              {selected.details?.intakeSnapshot && <section className="workspace-panel enquiry-answers">
+                <h4>Initial enquiry · Version {selected.details.intakeSnapshot.version}</h4>
+                <dl className="detail-fields">{versionedIntakeFields(selected.details).map(item => <div key={item.id}><dt>{item.label}</dt><dd className="preserve-lines">{formatEnquiryAnswer(item.value)}</dd></div>)}</dl>
+              </section>}
+              {!selected.details?.intakeSnapshot && selected.details?.questionSnapshots && initialEnquiryFields(selected.details).length > 0 && <section className="workspace-panel enquiry-answers">
                 <h4>Initial enquiry</h4>
                 <dl className="detail-fields">{initialEnquiryFields(selected.details).map(([key, value]) => <div key={key}><dt>{key.replaceAll(/([A-Z])/g, " $1")}</dt><dd className="preserve-lines">{formatEnquiryAnswer(value)}</dd></div>)}</dl>
               </section>}
@@ -256,16 +264,15 @@ export default function Enquiries({ api, session }) {
             <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
           </div>
           {!busy && !error && (
-            <div className="workspace-kpis">
+            <div className="workspace-kpis" aria-label="Counts on this page">
               {statuses.map((value) => (
-                <KpiCard
-                  key={value}
+                <button type="button" className="twe-kpi-link" key={value} onClick={() => { setStatus(value); setOffset(0); }} aria-pressed={status === value} aria-label={`Filter ${value} enquiries`}><KpiCard
                   label={value[0].toUpperCase() + value.slice(1)}
                   value={
                     result.items.filter((item) => item.status === value).length
                   }
-                  
-                />
+                  detail="On this page"
+                /></button>
               ))}
             </div>
           )}
@@ -276,12 +283,10 @@ export default function Enquiries({ api, session }) {
             <ul className="enquiry-list">
               {result.items.map((item) => (
                 <li key={item.id}>
-                  <button type="button" onClick={() => setSelectedId(item.id)}>
-                    {item.demo ? "[STAGING DEMO] " : ""}
-                    {item.contact.name || "Traveller"}
-                  </button>
-                  <span className="enquiry-summary">{item.package || item.service || item.category}</span>
-                  <span className="enquiry-meta">
+                  <button className="enquiry-row-action" type="button" onClick={() => setSelectedId(item.id)} aria-label={`Open enquiry from ${item.contact.name || "Traveller"}`}>
+                    <strong className="enquiry-row-action__name">{item.demo ? "[STAGING DEMO] " : ""}{item.contact.name || "Traveller"}</strong>
+                    <span className="enquiry-summary">{item.package || item.service || item.category}</span>
+                    <span className="enquiry-meta">
                     <StatusPill
                       tone={
                         item.status === "new"
@@ -298,7 +303,8 @@ export default function Enquiries({ api, session }) {
                         timeZone: "Africa/Accra",
                       })}
                     </time>
-                  </span>
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

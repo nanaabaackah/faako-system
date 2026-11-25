@@ -51,6 +51,36 @@ export async function reconcileStalePublication({
         job, verify, marker, logger,
         { allowCurrentMismatch: settings?.environment === "staging" && Boolean(archive) },
       );
+      if (!deployed && settings?.environment === "staging" && job.status === "deploying" &&
+          typeof provider.terminalStagingDeployment === "function" && typeof publication.failTerminalStagingDeployment === "function") {
+        let terminal;
+        try {
+          terminal = await provider.terminalStagingDeployment(job, logger, { allowAbandoned: true });
+        } catch {
+          logger.warn?.({ eventName: "publication.terminal_evidence", jobId: job.id, reason: "provider_lookup_failed" }, "Terminal deployment lookup failed; no publication state changed.");
+          throw new Error("Terminal deployment evidence unavailable.");
+        }
+        if (terminal) {
+          const baseline = await publication.lastLive();
+          if (!baseline || baseline.id === job.id) throw new Error("No separate confirmed staging baseline.");
+          const baselineMarker = { jobId: baseline.id, sourceSha: baseline.source_sha, digest: manifestDigest(baseline.manifest) };
+          try {
+            await provider.verifiedStagingBaseline(baseline, verify, baselineMarker);
+          } catch {
+            logger.warn?.({ eventName: "publication.terminal_evidence", jobId: job.id, reason: "baseline_unverified" }, "Terminal evidence exists but the last live baseline could not be verified.");
+            throw new Error("Previous staging baseline not verified.");
+          }
+          if (terminal.status === "upload_not_found") {
+            // Recheck the last-live origin after the provider history scan.
+            await verify(settings.origin, baselineMarker);
+          }
+          if (!await publication.failTerminalStagingDeployment(job, terminal, baseline.id))
+            throw new Error("Stale publication lease or baseline changed.");
+          logger.warn?.({ eventName: "publication.terminal_failure_reconciled", jobId: job.id, deploymentId: terminal.id || null, providerStatus: terminal.status },
+            "Staging publication failure reconciled; previous verified publication retained.");
+          return { id: job.id, status: "failed" };
+        }
+      }
       if (!deployed) throw new Error("No unique verified Pages deployment.");
       if (deployed.currentMatches === false) {
         if (settings?.environment !== "staging" || job.status !== "verifying" ||
@@ -116,17 +146,18 @@ export async function reconcileStalePublication({
 
 export async function publishOne({ publication, media, provider, archive, settings, prepare = preparePublication,
   run = runReviewedCommand, verify = verifyPublishedMarker, logger = {},
-  originWait = defaultOriginWait, originAttempts = 13 }) {
+  originWait = defaultOriginWait, originAttempts = 13, sourceMatches = async () => true }) {
   // Validate the reviewed source before claiming a job; never build newer code
   // just because it happens to be deployed on Railway.
   const sha = await assertPublicationSource(settings.sourceSha, { run });
+  if (!await sourceMatches(settings)) return { status: "source_wait" };
   const reconciled = await reconcileStalePublication({
     publication, provider, archive, settings, verify, logger,
     originWait, originAttempts,
   });
   if (reconciled) return reconciled;
   await publication.coordinateSource?.();
-  const job = await publication.claim();
+  const job = await publication.claim(sha);
   if (!job) return { status: "idle" };
   let directory, previous, recovery, recoveryDirectory, deploymentStarted = false, deployed, confirmed = false, confirmationStarted = false;
   // Only predefined stages and reasons are recorded; provider errors, tokens,
@@ -173,6 +204,8 @@ export async function publishOne({ publication, media, provider, archive, settin
     }));
     stage = "archive_retain";
     if (archive) await archive.retain(job.id, out);
+    stage = "active_source_verification";
+    if (!await sourceMatches(settings)) throw new Error("Active API source changed before upload.");
     stage = "mark_deploying";
     await publication.transition(job.id, job.build_token, "building", "deploying");
     deploymentStarted = true;
@@ -194,9 +227,10 @@ export async function publishOne({ publication, media, provider, archive, settin
     await publication.confirm(job.id, job.build_token, deployed.id, manifestDigest(job.manifest));
     confirmed = true;
     return { id: job.id, status: "live", deploymentId: deployed.id };
-  } catch {
+  } catch (error) {
+    const reason = ["command_timeout", "command_spawn_failed", "command_exit_failed"].includes(error?.code) ? error.code : "pipeline_failure";
     logger.error?.({ eventName: "publication.release_stage_failed", jobId: job.id,
-      stage, deploymentStarted, confirmationStarted },
+      stage, reason, deploymentStarted, confirmationStarted },
       "Publication failed at a specific pipeline stage; no raw provider errors were logged.");
     if (settings.environment === "staging" && stage === "current_origin_marker" && deployed) {
       // Immutable Pages proof succeeded, but the current custom domain still

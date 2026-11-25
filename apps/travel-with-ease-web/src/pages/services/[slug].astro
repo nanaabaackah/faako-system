@@ -1,4 +1,6 @@
 ---
+import RichText from "../../components/RichText.astro";
+import { plainRichText } from "../../../../travel-with-ease-api/src/content/rich-text.js";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ContentLink from "../../components/ContentLink.astro";
 import Breadcrumbs from "../../components/Breadcrumbs.astro";
@@ -27,14 +29,14 @@ const images = [photography.hippos, photography.coast, photography.garden, photo
 const others: Props["service"][] = publishedServices(publishedPage("services")).filter((item: Props["service"]) => item.slug !== service.slug);
 ---
 
-<BaseLayout title={`${service.title} | Travel With Ease`} description={service.text.slice(0, 180)}>
+<BaseLayout title={`${service.title} | Travel With Ease`} description={plainRichText(service.text).slice(0, 180)}>
   <article class="service-detail editorial-wrap">
     <Breadcrumbs collection="Services" href="/services" title={service.title} />
     <header class="service-detail__hero">
       <div>
         <h1>{service.title}</h1>
         {service.fee && <p class="service-detail__fee"><MoneyText text={service.fee} /></p>}
-        <p class="service-detail__summary"><MoneyText text={service.text} /></p>
+        <RichText class="service-detail__summary" value={service.text} money/>
         <CurrencyAttribution />
         <ContentLink button href={`?service=${service.slug}#plan`}>{copy.detailCta}</ContentLink>
       </div>

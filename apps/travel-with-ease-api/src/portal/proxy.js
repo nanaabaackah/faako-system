@@ -5,7 +5,15 @@ import { buildSecurityHeaders } from "@faako/security";
 
 const id = "[a-fA-F0-9-]{36}";
 const page = `(?:${pageNames.join("|")})`;
+const template = "(?:enquiry-acknowledgement|staff-invitation|enquiry-(?:gift|group|celebration|package|service-(?:readiness|full-planning|premium|group))|enquiry-package-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})";
+const form = "(?:intake|detailed)";
 const routes = [
+  ["GET", /^\/api\/agent\/templates\/catalogue$/],
+  ["GET", new RegExp("^/api/agent/templates(?:/" + template + "(?:/history)?)?$")],
+  ["POST", new RegExp("^/api/agent/templates(?:/" + template + ")?/(?:draft|preview|activate)$")],
+  ["POST", new RegExp("^/api/agent/templates/" + template + "/(?:test|restore)$")],
+  ["GET", new RegExp("^/api/agent/enquiry-forms/" + form + "(?:/history)?$")],
+  ["POST", new RegExp("^/api/agent/enquiry-forms/" + form + "/(?:draft|activate|restore)$")],
   ["GET", /^\/api\/auth\/(activation|invitations)$/],
   ["POST", /^\/api\/auth\/(invitations|activation\/preview|activation\/claim|activation\/owner-invitation)$/],
   ["POST", new RegExp(`^/api/auth/(?:invitations|activation/owner-invitation)/${id}/revoke$`)],
@@ -14,7 +22,7 @@ const routes = [
   ["GET", /^\/api\/auth\/(status|session)$/],
   ["POST", /^\/api\/auth\/(access-session|logout|logout-all)$/],
   ["GET", /^\/api\/agent\/leads$/],
-  ["GET", /^\/api\/agent\/inquiries(?:\/[a-fA-F0-9-]{36})?$/],
+  ["GET", /^\/api\/agent\/inquiries(?:\/(?:summary|[a-fA-F0-9-]{36}))?$/],
   ["POST", /^\/api\/agent\/inquiries\/[a-fA-F0-9-]{36}\/status$/],
   ["GET", /^\/api\/agent\/administration\/(diagnostics|security-events|staff|staff-events|activity|security-activity|handover)$/],
   ["POST", /^\/api\/agent\/administration\/(staff|support-grants|handover)$/],

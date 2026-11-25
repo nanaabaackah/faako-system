@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
@@ -26,7 +27,7 @@ const featured = items
       <div class="home-section-heading">
         <div>
           <h2 id="featured-journeys-heading">{copy.featuredHeading}</h2>
-          <p>{copy.featuredBody}</p>
+          <RichText value={copy.featuredBody}/>
         </div>
         <ContentLink href="/packages">{copy.featuredCta}</ContentLink>
       </div>

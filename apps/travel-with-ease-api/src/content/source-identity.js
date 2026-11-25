@@ -38,3 +38,18 @@ export async function assertPublicationSource(expected, { env = process.env, run
   }
   return expected;
 }
+
+/** A stale worker may not rebase newer API jobs onto its own older checkout. */
+export async function activeApiSourceMatches({ apiOrigin, environment, sourceSha }, fetcher = fetch) {
+  try {
+    const origin = new URL(apiOrigin);
+    if (origin.protocol !== "https:" || origin.origin !== apiOrigin ||
+      !["staging", "production"].includes(environment) || !commitPattern.test(sourceSha || "")) return false;
+    const response = await fetcher(new URL("/api/public/release", origin), {
+      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return false;
+    const identity = await response.json();
+    return identity.environment === environment && identity.sourceSha === sourceSha;
+  } catch { return false; }
+}

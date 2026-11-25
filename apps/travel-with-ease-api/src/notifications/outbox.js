@@ -35,19 +35,22 @@ export class NotificationOutbox {
       const job = rows[0];
       if (job && !job.delivery_payload && typeof payload === "function") {
         const enquiry = await client.query(
-          `SELECT id, contact, created_at FROM twe.enquiries
+          `SELECT id, kind, contact, details, created_at FROM twe.enquiries
           WHERE organisation_id = $1 AND id = $2`,
           [this.organisationId, job.enquiry_id],
         );
         if (!enquiry.rows[0])
           throw new Error("notification_enquiry_unavailable");
         try {
-          job.delivery_payload = payload({
+          job.delivery_payload = await payload({
             id: enquiry.rows[0].id,
+            kind: enquiry.rows[0].kind,
             contact: enquiry.rows[0].contact,
+            details: enquiry.rows[0].details,
             createdAt: enquiry.rows[0].created_at,
-          });
-        } catch {
+          }, client);
+        } catch (error) {
+          if (error?.code === "template_lookup_failed") throw error;
           // A malformed legacy contact must not roll back the lease forever and
           // starve later jobs. Retain the enquiry; flag this delivery for review.
           await client.query(
@@ -80,17 +83,17 @@ export class NotificationOutbox {
   }
   async fail(job, reason = "delivery_failed") {
     await this.pool.query(
-      `UPDATE twe.notification_outbox SET status = CASE WHEN attempts >= 5 THEN 'failed' ELSE 'pending' END,
+      `UPDATE twe.notification_outbox SET status = CASE WHEN attempts >= 5 OR $4 = 'legacy_cc_review_required' THEN 'failed' ELSE 'pending' END,
       available_at = now() + interval '1 minute' * power(2, attempts), lease_until = NULL, lease_token = NULL,
-      delivery_payload = CASE WHEN attempts >= 5 THEN NULL ELSE delivery_payload END,
+      delivery_payload = CASE WHEN attempts >= 5 OR $4 = 'legacy_cc_review_required' THEN NULL ELSE delivery_payload END,
       last_error = $4 WHERE organisation_id = $1 AND id = $2 AND status = 'processing' AND lease_token = $3`,
-      [this.organisationId, job.id, job.lease_token, ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response"].includes(reason) ? reason : "delivery_failed"],
+      [this.organisationId, job.id, job.lease_token, ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response", "legacy_cc_review_required"].includes(reason) ? reason : "delivery_failed"],
     );
   }
 }
 
 export async function deliverOne(outbox, sender, logger) {
-  const job = await outbox.claim((contact) => sender.payload(contact));
+  const job = await outbox.claim((contact, client) => sender.preparePayload ? sender.preparePayload(contact, client) : sender.payload(contact));
   if (!job) return false;
   try {
     const providerId = await sender.send(job);
@@ -100,7 +103,7 @@ export async function deliverOne(outbox, sender, logger) {
         "Notification needs reconciliation",
       );
   } catch (error) {
-    const reason = ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response"].includes(error?.message) ? error.message : "delivery_failed";
+    const reason = ["provider_rejected", "delivery_configuration_changed", "invalid_provider_response", "legacy_cc_review_required"].includes(error?.message) ? error.message : "delivery_failed";
     await outbox.fail(job, reason);
     logger?.warn(
       { eventName: "notification.failed", jobId: job.id, reason },

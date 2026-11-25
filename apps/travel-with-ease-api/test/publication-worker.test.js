@@ -371,3 +371,31 @@ test("staging without an accepted archived baseline cannot replace the current w
   assert.equal((await publishOne(f.options)).status, "failed");
   assert.equal(f.events.includes("deployed"), false);
 });
+
+test("stale worker waits without coordinating or claiming a publication", async () => {
+  const f = fixture();
+  f.options.sourceMatches = async () => false;
+  f.options.publication.coordinateSource = async () => assert.fail("must not coordinate");
+  f.options.publication.claim = async () => assert.fail("must not claim");
+  assert.deepEqual(await publishOne(f.options), { status: "source_wait" });
+  assert.deepEqual(f.events, []);
+});
+
+test("worker rechecks active source after build and never uploads stale output", async () => {
+  const f = fixture();
+  let checks = 0;
+  f.options.sourceMatches = async () => ++checks === 1;
+  assert.equal((await publishOne(f.options)).status, "failed");
+  assert.deepEqual(f.events, ["built", "failed"]);
+});
+
+test("command failures expose only an allowlisted classification while preserving uncertain upload lock", async () => {
+  const f = fixture();
+  const logs = [];
+  f.options.logger = { error: data => logs.push(data) };
+  f.options.provider.deploy = async () => { throw Object.assign(new Error("synthetic private provider message"), { code: "command_timeout" }); };
+  assert.equal((await publishOne(f.options)).status, "deploying");
+  assert.equal(logs[0].reason, "command_timeout");
+  assert.equal(JSON.stringify(logs).includes("synthetic private provider message"), false);
+  assert.equal(f.events.includes("failed"), false);
+});

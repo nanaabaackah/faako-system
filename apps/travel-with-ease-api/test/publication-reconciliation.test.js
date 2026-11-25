@@ -454,3 +454,158 @@ test("staging replay claim uses existing database lease and permits only one upl
   assert.match(queries[0].sql, /last_error IS DISTINCT FROM 'staging_replay_claimed'/);
   assert.doesNotMatch(queries[0].sql, /updated_at\s*=/);
 });
+
+const terminalJob = { ...job, updated_at: "2026-11-23T08:01:00Z", manifest: { ...job.manifest, triggerType: "code_release" } };
+const directTerminal = {
+  ...deployment("11111111-1111-4111-8111-111111111111"),
+  latest_stage: { status: "skipped", ended_on: "2026-11-23T08:03:00Z" },
+  is_skipped: true,
+  deployment_trigger: { type: "ad_hoc", metadata: { branch: "develop", commit_hash: sha, commit_message: "" } },
+};
+function terminalProvider(rows, detail = directTerminal, environment = "staging") {
+  const p = provider([]);
+  p.settings.environment = environment;
+  p.request = async suffix => {
+    if (!suffix) return { name: "twe-concierge", production_branch: "main", subdomain: "twe-concierge.pages.dev" };
+    if (suffix.startsWith("/deployments?")) return rows;
+    assert.equal(suffix, "/deployments/" + detail.id);
+    return detail;
+  };
+  return p;
+}
+test("terminal staging recovery requires a unique completed direct upload, never a skipped Git build", async () => {
+  const git = { ...directTerminal, id: "22222222-2222-4222-8222-222222222222", deployment_trigger: { ...directTerminal.deployment_trigger, type: "github:push" } };
+  assert.deepEqual(await terminalProvider([git, directTerminal]).terminalStagingDeployment(terminalJob), { id: directTerminal.id, status: "skipped" });
+  assert.equal(await terminalProvider([git]).terminalStagingDeployment(terminalJob), null);
+  assert.equal(await terminalProvider([]).terminalStagingDeployment(terminalJob), null);
+  const other = { ...directTerminal, id: "33333333-3333-4333-8333-333333333333" };
+  assert.equal(await terminalProvider([directTerminal, other]).terminalStagingDeployment(terminalJob), null);
+  assert.equal(await terminalProvider([directTerminal], { ...directTerminal, latest_stage: { status: "active" } }).terminalStagingDeployment(terminalJob), null);
+  assert.equal(await terminalProvider([directTerminal], directTerminal, "production").terminalStagingDeployment(terminalJob), null);
+  assert.equal(await terminalProvider([directTerminal]).terminalStagingDeployment({ ...terminalJob, status: "verifying" }), null);
+  assert.equal(await terminalProvider([directTerminal]).terminalStagingDeployment({ ...terminalJob, updated_at: "2026-11-23T08:04:00Z" }), null);
+  const wrongTag = { ...directTerminal, deployment_trigger: { type: "ad_hoc", metadata: { ...directTerminal.deployment_trigger.metadata, commit_message: "TWE publication another-job" } } };
+  assert.equal(await terminalProvider([wrongTag], wrongTag).terminalStagingDeployment(terminalJob), null);
+  assert.equal(await terminalProvider([directTerminal]).terminalStagingDeployment({ ...terminalJob, manifest: { ...terminalJob.manifest, triggerType: "cms_publication" } }), null);
+});
+test("terminal recovery preserves verified website and refuses missing or changed evidence", async () => {
+  const baseline = { id: "bbbbbbbb-1111-4111-8111-111111111111", source_sha: "b".repeat(40), manifest: { pages: [] } };
+  let closed = 0, baselineVerified = 0;
+  const options = {
+    settings: { environment: "staging" },
+    publication: {
+      staleDeployment: async () => terminalJob,
+      lastLive: async () => baseline,
+      confirmed: async () => null,
+      failTerminalStagingDeployment: async (row, proof, baselineId) => {
+        assert.equal(row.id, terminalJob.id);
+        assert.equal(proof.id, directTerminal.id);
+        assert.equal(baselineId, baseline.id);
+        closed++;
+        return true;
+      },
+    },
+    provider: {
+      findPublicationDeployment: async () => null,
+      terminalStagingDeployment: async () => ({ id: directTerminal.id, status: "skipped" }),
+      verifiedStagingBaseline: async (_baseline, _verify, marker) => {
+        assert.equal(marker.digest, manifestDigest(baseline.manifest));
+        baselineVerified++;
+      },
+    },
+  };
+  assert.equal((await reconcileStalePublication(options)).status, "failed");
+  assert.equal(closed, 1);
+  assert.equal(baselineVerified, 1);
+  options.provider.verifiedStagingBaseline = async () => { throw new Error("Marker changed."); };
+  assert.equal((await reconcileStalePublication(options)).status, "recovery_required");
+  assert.equal(closed, 1);
+  options.provider.terminalStagingDeployment = async () => null;
+  assert.equal((await reconcileStalePublication(options)).status, "recovery_required");
+  assert.equal(closed, 1);
+});
+test("terminal failure preserves content pointers and requires stale lease and current baseline", async () => {
+  const queries = [];
+  const baselineId = "bbbbbbbb-1111-4111-8111-111111111111";
+  const repository = new PublicationRepository({ connect: async () => ({
+    query: async (sql, params) => {
+      queries.push({ sql, params });
+      if (sql.includes("status='live'")) return { rows: [{ id: baselineId }] };
+      return { rows: [], rowCount: 1 };
+    },
+    release() {},
+  }) }, { organisationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", environment: "staging", sourceSha: sha });
+  assert.equal(await repository.failTerminalStagingDeployment(terminalJob, { id: directTerminal.id, status: "skipped" }, baselineId), true);
+  assert.equal(queries.some(q => q.sql.includes("UPDATE twe.content_items")), false);
+  const update = queries.find(q => q.sql.includes("provider_terminal_failure"));
+  assert.match(update.sql, /build_token=\$4 AND status='deploying'/);
+  assert.match(update.sql, /updated_at=\$6/);
+  assert.equal(update.params[4], directTerminal.id);
+  assert.ok(queries.some(q => q.sql.includes("INSERT INTO twe.audit_records") && q.params.includes("content.deployment_terminal_failure")));
+  assert.equal(queries.at(-1).sql, "COMMIT");
+});
+
+test("skipped Git record is logged safely and cannot be treated as a successful publication", async () => {
+  const skipped = { ...directTerminal, latest_stage: { status: "success", ended_on: "2026-11-23T08:03:00Z" }, deployment_trigger: { type: "github:push", metadata: { branch: "develop", commit_hash: sha, commit_message: "private metadata" } } };
+  const logs = [];
+  const logger = { info: data => logs.push(data) };
+  const result = await provider([skipped]).findPublicationDeployment(job, async () => { throw Error("Skipped record must not be verified"); }, { jobId: job.id, sourceSha: sha, digest: manifestDigest(job.manifest) }, logger);
+  assert.equal(result, null);
+  assert.equal(logs[0].matchingSourceEvidence[0].skipped, true);
+  assert.equal(logs[0].matchingSourceEvidence[0].trigger, "github:push");
+  assert.equal(JSON.stringify(logs).includes("private metadata"), false);
+  assert.equal(await terminalProvider([skipped]).terminalStagingDeployment(terminalJob, logger), null);
+  assert.equal(logs.at(-1).reason, "no_direct_candidate");
+});
+test("explicit skipped flag on terminal Direct Upload is not misclassified as live", async () => {
+  const row = { ...directTerminal, latest_stage: { status: "success", ended_on: "2026-11-23T08:03:00Z" } };
+  assert.deepEqual(await terminalProvider([row], row).terminalStagingDeployment(terminalJob), { id: row.id, status: "skipped" });
+});
+
+test("abandoned automatic release requires complete absence evidence, a newer source and an hour of age", async () => {
+  const git = { ...directTerminal, deployment_trigger: { ...directTerminal.deployment_trigger, type: "github:push" } };
+  const options = { allowAbandoned: true, now: Date.parse("2026-11-23T10:00:00Z") };
+  const p = terminalProvider([git]);
+  p.settings.sourceSha = "b".repeat(40);
+  assert.deepEqual(await p.terminalStagingDeployment(terminalJob, {}, options), { status: "upload_not_found" });
+  assert.equal(await p.terminalStagingDeployment(terminalJob), null);
+  assert.equal(await p.terminalStagingDeployment(terminalJob, {}, { ...options, now: Date.parse("2026-11-23T08:20:00Z") }), null);
+  assert.equal(await p.terminalStagingDeployment({ ...terminalJob, manifest: { ...terminalJob.manifest, triggerType: "cms_publication" } }, {}, options), null);
+  p.settings.sourceSha = sha;
+  assert.equal(await p.terminalStagingDeployment(terminalJob, {}, options), null);
+  const pending = terminalProvider([{ ...directTerminal, is_skipped: false, latest_stage: { status: "active" }, deployment_trigger: { type: "ad_hoc", metadata: { branch: "develop", commit_hash: "c".repeat(40) } } }]);
+  pending.settings.sourceSha = "b".repeat(40);
+  assert.equal(await pending.terminalStagingDeployment(terminalJob, {}, options), null);
+  const truncated = terminalProvider([]);
+  truncated.settings.sourceSha = "b".repeat(40);
+  truncated.request = async suffix => !suffix ? { name: "twe-concierge", production_branch: "main" } : Array.from({ length: 25 }, (_, i) => ({ ...git, id: "11111111-1111-4111-8111-" + String(Number(new URL("https://example.invalid" + suffix).searchParams.get("page")) * 25 + i).padStart(12, "0") }));
+  assert.equal(await truncated.terminalStagingDeployment(terminalJob, {}, options), null);
+});
+test("abandoned code release closes only after baseline verification and retains all content pointers", async () => {
+  const baseline = { id: "bbbbbbbb-1111-4111-8111-111111111111", source_sha: "b".repeat(40), manifest: { pages: [] } };
+  const events = [];
+  const options = {
+    settings: { environment: "staging", origin: "https://staging.travelwitheasegh.com" },
+    publication: { staleDeployment: async () => terminalJob, lastLive: async () => baseline, confirmed: async () => null,
+      failTerminalStagingDeployment: async (_row, proof, id) => { assert.equal(proof.status, "upload_not_found"); assert.equal(id, baseline.id); events.push("closed"); return true; } },
+    provider: { findPublicationDeployment: async () => null, terminalStagingDeployment: async () => ({ status: "upload_not_found" }), verifiedStagingBaseline: async () => events.push("baseline") },
+    verify: async () => events.push("current"),
+  };
+  assert.equal((await reconcileStalePublication(options)).status, "failed");
+  assert.deepEqual(events, ["baseline", "current", "closed"]);
+  events.length = 0;
+  options.verify = async () => { throw new Error("Changed baseline"); };
+  assert.equal((await reconcileStalePublication(options)).status, "recovery_required");
+  assert.deepEqual(events, ["baseline"]);
+  const queries = [];
+  const repository = new PublicationRepository({ connect: async () => ({
+    query: async (sql, params) => { queries.push({ sql, params }); return sql.includes("status='live'") ? { rows: [{ id: baseline.id }] } : { rows: [], rowCount: 1 }; },
+    release() {},
+  }) }, { organisationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", environment: "staging", sourceSha: "b".repeat(40) });
+  assert.equal(await repository.failTerminalStagingDeployment(terminalJob, { status: "upload_not_found" }, baseline.id), true);
+  assert.equal(queries.some(q => q.sql.includes("UPDATE twe.content_items")), false);
+  const update = queries.find(q => q.sql.includes("provider_upload_not_found"));
+  assert.equal(update.params[4], null);
+  assert.match(update.sql, /interval '1 hour'/);
+  assert.ok(queries.some(q => q.params?.includes("content.deployment_upload_not_found")));
+});

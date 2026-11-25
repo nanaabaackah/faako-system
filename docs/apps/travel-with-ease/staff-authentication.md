@@ -68,7 +68,7 @@ the privileged operator path, bound to the environment's organisation UUID and
 owner/editor role. Never enrol by email suffix or turn an unknown login into an
 owner. Do not paste subject/secret values into committed SQL or Trello.
 
-Server sessions expire after one hour; cookie values are opaque and only hashes
+Legacy OIDC server sessions expire after one hour; Cloudflare Access staff sessions expire after at most twelve hours or the login assertion expiry, whichever comes first. Access cookies now persist across browser suspension until that same fixed expiry; no rolling extension is granted. On returning to the workspace, a read-only session check preserves the editor and does not create new sessions or retry writes. Cookie values are opaque and only hashes
 are stored. Logout revokes one session; `POST /api/auth/logout-all` revokes all
 sessions for the authenticated staff member. Both require exact portal Origin
 and CSRF. Browser-origin staff reads also reject other origins, including the

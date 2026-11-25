@@ -32,6 +32,7 @@ export function placementSlots(page) {
         shape: "Wide landscape",
         minWidth: 1920,
       },
+      { id: "services-feature", label: "Homepage services supporting image", shape: "Portrait or landscape", minWidth: 1280 },
     ];
   if (page === "about")
     return [

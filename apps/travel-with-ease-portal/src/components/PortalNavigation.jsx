@@ -85,7 +85,6 @@ export default function PortalNavigation({
       <aside className={`portal-sidebar${collapsed ? " is-collapsed" : ""}`}>
         <div className="portal-brand">
           <img src={logo} alt="Travel With Ease" width="184" height="72" />
-          <small>Staff workspace</small>
           {session && (
             <button
               ref={menu}

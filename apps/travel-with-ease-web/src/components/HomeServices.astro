@@ -1,4 +1,6 @@
 ---
+import RichText from "./RichText.astro";
+import { plainRichText } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import CurrencyAttribution from "./CurrencyAttribution.astro";
@@ -14,14 +16,16 @@ interface ServiceEntry {
   heading: string;
   serviceSlug?: string;
   text: string;
+  cardSummary?: string;
   imagePlacement?: ImagePlacement;
 }
 interface Props {
   heading: string;
   body: string;
   entries: ServiceEntry[];
+  placement?: ImagePlacement;
 }
-const { heading, body, entries } = Astro.props;
+const { heading, body, entries, placement } = Astro.props;
 ---
 
 <section id="services" class="home-services home-services--option-a editorial-wrap" aria-labelledby="home-services-heading">
@@ -29,13 +33,13 @@ const { heading, body, entries } = Astro.props;
     <div class="home-section-heading">
       <div>
         <h2 id="home-services-heading">{heading}</h2>
-        <p>{body}</p>
+        <RichText value={body}/>
       </div>
       <ContentLink href="/services">{siteCopy("home").servicesCta}</ContentLink>
     </div>
     <EditorialPhoto
       image={photography.garden}
-      placement={entries[0]?.imagePlacement}
+      placement={placement || entries[0]?.imagePlacement}
       class="home-services__photo"
       sizes="(max-width: 760px) 90vw, 32vw"
     />
@@ -44,7 +48,7 @@ const { heading, body, entries } = Astro.props;
     {entries.map((entry) => {
       const [title, ...priceParts] = entry.heading.split(" · ");
       const price = priceParts.join(" · ");
-      const summary = entry.text.split(/(?<=[.!?])\s+/)[0];
+      const summary = entry.cardSummary?.trim() || plainRichText(entry.text).split(/(?<=[.!?])\s+/)[0];
       return (
         <li class="home-services__item home-services__row">
           <div class="home-services__row-heading">

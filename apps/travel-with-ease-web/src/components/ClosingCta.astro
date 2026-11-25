@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import TopographyBackground from "./TopographyBackground.jsx";
@@ -19,9 +20,7 @@ const topographyColor = variant === "midnight" ? "#D8B56A" : "#15234B";
       <AnimatedContent client:visible className="closing-copy-motion" distance={24} duration={0.9} ease="power3.out" blur={4} stagger={0.08} threshold={0.16}>
         <div class="closing-copy">
           <h2 class="closing-copy__heading" id="closing-cta-heading">{copy.closingHeading}</h2>
-          <p class="closing-copy__body">
-            {copy.closingBody}
-          </p>
+          <RichText class="closing-copy__body" value={copy.closingBody}/>
           <ContentLink
             button
             href="#plan"
@@ -51,6 +50,8 @@ const topographyColor = variant === "midnight" ? "#D8B56A" : "#15234B";
 
       const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
       let reduceMotion = motion.matches;
+      let staticLayout = false;
+      const copyElement = stage.querySelector<HTMLElement>(".closing-copy");
       let height = 0;
       let frame = 0;
       let active = true;
@@ -66,7 +67,7 @@ const topographyColor = variant === "midnight" ? "#D8B56A" : "#15234B";
       };
 
       const update = () => {
-        if (!active || reduceMotion || frame) return;
+        if (!active || reduceMotion || staticLayout || frame) return;
         frame = requestAnimationFrame(() => {
           frame = 0;
           const progress = this.contains(document.activeElement)
@@ -79,9 +80,13 @@ const topographyColor = variant === "midnight" ? "#D8B56A" : "#15234B";
       const measure = () => {
         reduceMotion = motion.matches;
         height = Math.max(420, Math.min(620, window.innerHeight * 0.72));
-        stage.style.height = `${height}px`;
-        track.style.height = reduceMotion ? `${height}px` : `${height * 1.9}px`;
-        if (reduceMotion) apply(1);
+        const style = getComputedStyle(stage);
+        const requiredHeight = (copyElement?.scrollHeight || 0) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+        staticLayout = reduceMotion || requiredHeight > height * (window.innerWidth < 700 ? 0.72 : 0.68);
+        this.toggleAttribute("data-static-layout", staticLayout);
+        stage.style.height = staticLayout ? "" : `${height}px`;
+        track.style.height = staticLayout ? "" : `${height * 1.9}px`;
+        if (staticLayout) apply(1);
         else update();
       };
 
@@ -103,6 +108,8 @@ const topographyColor = variant === "midnight" ? "#D8B56A" : "#15234B";
       const revealForFocus = () => apply(1);
       this.dataset.ready = "true";
       measure();
+      const contentObserver = typeof ResizeObserver === "function" && copyElement ? new ResizeObserver(measure) : null;
+      if (contentObserver && copyElement) contentObserver.observe(copyElement);
       window.addEventListener("scroll", update, { passive: true });
       window.addEventListener("resize", measure, { passive: true });
       motion.addEventListener("change", motionChanged);
@@ -111,6 +118,7 @@ const topographyColor = variant === "midnight" ? "#D8B56A" : "#15234B";
 
       this.cleanup = () => {
         observer?.disconnect();
+        contentObserver?.disconnect();
         cancelAnimationFrame(frame);
         window.removeEventListener("scroll", update);
         window.removeEventListener("resize", measure);

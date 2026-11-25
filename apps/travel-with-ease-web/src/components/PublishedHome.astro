@@ -1,4 +1,5 @@
 ---
+import RichText from "./RichText.astro";
 import ContentLink from "./ContentLink.astro";
 import { siteCopy } from "../lib/editorial-copy.js";
 import EditorialPhoto from "./EditorialPhoto.astro";
@@ -35,7 +36,7 @@ const footprint = publishedPage("travel-footprint");
         <div class="journey-introduction__story">
           <h2>{about.heading}</h2>
           <div class="journey-introduction__copy">
-            <p>{about.body}</p>
+            <RichText value={about.body}/>
             <ContentLink href="/about">{siteCopy("home").aboutCta}</ContentLink>
           </div>
         </div>
@@ -43,7 +44,7 @@ const footprint = publishedPage("travel-footprint");
           <div class="journey-introduction__artwork">
             <EditorialPhoto
               image={about.image}
-              placement={about.imagePlacements?.feature}
+              placement={about.imagePlacements?.story || about.imagePlacements?.feature}
               class="journey-introduction__photo"
               sizes="(max-width: 760px) 90vw, 42vw"
             />
@@ -57,7 +58,7 @@ const footprint = publishedPage("travel-footprint");
 {services?.entries?.length > 0 && (
   <AnimatedContent client:visible className="home-scroll-motion" distance={28} duration={0.78} ease="power3.out" blur={3} threshold={0.12}>
     <div class="home-journey-chapters">
-      <HomeServices heading={services.heading} body={services.body} entries={services.entries} />
+      <HomeServices heading={services.heading} body={services.body} entries={services.entries} placement={content.imagePlacements?.["services-feature"]} />
     </div>
   </AnimatedContent>
 )}

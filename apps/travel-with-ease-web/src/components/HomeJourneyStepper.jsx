@@ -1,3 +1,5 @@
+import RichText from "./RichText.jsx";
+import "../styles/components/rich-text.css";
 import { useId, useRef, useState } from "react";
 import Stepper, { Step } from "./reactbits/Stepper.jsx";
 import "../styles/components/home-journey-stepper.css";
@@ -77,7 +79,7 @@ export default function HomeJourneyStepper({ flows, copy = {} }) {
         completedContent={
           <div className="journey-process__finished">
             <h3>{copy.finishHeading || "Ready when you are."}</h3>
-            <p>{copy.finishBody || "Share your ideas and we'll help you work out your next steps."}</p>
+            <RichText value={copy.finishBody || "Share your ideas and we'll help you work out your next steps."}/>
             <a className="journey-process__action" href="#plan">{copy.finishCta || "Plan my trip"}</a>
           </div>
         }
@@ -101,7 +103,7 @@ export default function HomeJourneyStepper({ flows, copy = {} }) {
           <Step key={index} title={entry.heading}>
             <div className="journey-process__step-copy">
               <h3>{entry.heading}</h3>
-              <p>{entry.text}</p>
+              <RichText value={entry.text}/>
             </div>
           </Step>
         ))}

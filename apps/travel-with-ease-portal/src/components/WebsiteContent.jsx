@@ -1,4 +1,6 @@
 import Button from "./ActionButton.jsx";
+import RichTextField from "./RichTextField.jsx";
+import RichText from "../../../travel-with-ease-web/src/components/RichText.jsx";
 import { useEffect, useRef, useState } from "react";
 import {
   SelectField,
@@ -21,6 +23,8 @@ import VisualPreview from "./VisualPreview.jsx";
 import ImagePlacements from './ImagePlacements.jsx';
 import { ActivityList } from './ActivityView.jsx';
 import HistoryDisclosure from "./HistoryDisclosure.jsx";
+import ServicesEditor from "./ServicesEditor.jsx";
+import TermsEditor from "./TermsEditor.jsx";
 import GalleryOrder from './GalleryOrder.jsx';
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json";
 import { approvedEditorCopy } from "../lib/approved-copy.js";
@@ -77,14 +81,27 @@ const emptyBody = () => ({
   editorialCopy: {},
 });
 
-export default function WebsiteContent({ api, session, onDirtyChange, initialPage = "home" }) {
+export default function WebsiteContent({ api, session, onDirtyChange, onRefreshBlockedChange, initialPage = "home", initialView }) {
   const { pushToast } = useToast();
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
   // Testimonials are edited as the homepage review section. Travel Tips retain
   // their own collection and must not be silently redirected to Journal.
-  const [page, setPage] = useState(initialPage === "testimonials" ? "home" : initialPage);
+  const [page, setPage] = useState(initialPage === "testimonials" ? "home" : pages.includes(initialPage) ? initialPage : "home");
   const [recordSlug, setRecordSlug] = useState("");
+  const [draftPages, setDraftPages] = useState(null);
+  const [draftListError, setDraftListError] = useState("");
+  const [draftListVisible, setDraftListVisible] = useState(initialView === "drafts");
+  const publicationPanel = useRef(null);
+  const initialPublicationFocus = useRef(initialView === "publication");
+  useEffect(() => {
+    if (!draftListVisible) return;
+    let active = true;
+    api.get("/api/agent/content", { responseMode: "data" }).then(result => {
+      if (active) setDraftPages((result.items || []).filter(item => item.draft_revision_id && item.draft_revision_id !== item.published_revision_id));
+    }).catch(error => { if (active) setDraftListError(error.message); });
+    return () => { active = false; };
+  }, [api, draftListVisible]);
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
   const [history, setHistory] = useState([]);
@@ -129,6 +146,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
   useEffect(() => {
+    onRefreshBlockedChange?.(dirty || saveState.status === "saving" || state.loading || publicationBusy || chooseImage || Boolean(confirmAction));
+    return () => onRefreshBlockedChange?.(false);
+  }, [dirty, saveState.status, state.loading, publicationBusy, chooseImage, confirmAction, onRefreshBlockedChange]);
+  useEffect(() => {
     if (!dirty) return;
     const warn = (event) => {
       event.preventDefault();
@@ -148,7 +169,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         try { return await api.get(`/api/agent/content/${page}`, { responseMode: "data" }); }
         catch (error) { if (error.status === 404) return { body: emptyBody(), version: 0 }; throw error; }
       },
-      onState: result => { if (active) { setSaveState(result); setDirty(result.dirty); } },
+      onState: result => { if (active) { setSaveState(result); setDirty(result.dirty); onDirtyChange(result.dirty); } },
       onSaved: (result, replace) => {
         if (!active) return;
         if (replace) { bodyRef.current = result.body; setBody(result.body); }
@@ -220,7 +241,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
         setJobs(publications.items);
         setDirty(false);
         setState({ loading: false, error: "", message: "" });
-        heading.current?.focus();
+        if (initialPublicationFocus.current) {
+          initialPublicationFocus.current = false;
+          publicationPanel.current?.focus();
+        } else heading.current?.focus();
       } catch (error) {
         if (active)
           setState({ loading: false, error: error.message, message: "" });
@@ -232,7 +256,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       autosave.dispose();
       if (writer.current === autosave) writer.current = null;
     };
-  }, [api, page, session.csrfToken]);
+  }, [api, page, session.csrfToken, onDirtyChange]);
   const change = (key, value) => {
     if(key==='entries')value=value.map(entry=>({...entry,id:entry.id||crypto.randomUUID(),...(page==="services" && !entry.serviceSlug && serviceSlug(entry.heading) && entry.text.trim() ? {serviceSlug:serviceSlug(entry.heading)} : {})}));
     if (["packages", "articles"].includes(key)) {
@@ -360,6 +384,21 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
     }
   }
 
+  const openDraft = nextPage => {
+    if (!pages.includes(nextPage) && nextPage !== "testimonials") return;
+    const target = nextPage === "testimonials" ? "home" : nextPage;
+    setDraftListVisible(false);
+    if (target !== page) { setState({ loading: true, error: "", message: "" }); setPage(target); }
+    else heading.current?.focus();
+  };
+  if (draftListVisible) return <section className="content-editor" aria-labelledby="draft-pages-heading">
+    <h2 id="draft-pages-heading">Pages with drafts</h2>
+    <Button type="button" icon="back" onClick={() => setDraftListVisible(false)}>All website sections</Button>
+    {draftListError && <InlineNotice tone="danger" title="Draft list unavailable" message={draftListError}/>}
+    {!draftPages && !draftListError && <AnimatedLoadingState compact title="Loading drafts"/>}
+    {draftPages?.length === 0 && <p>No unpublished drafts.</p>}
+    {draftPages?.map(item => <Button key={item.id || item.slug} type="button" onClick={() => openDraft(item.slug)}>{sectionLabel(item.slug)} · Version {item.version}</Button>)}
+  </section>;
   return (
     <section
       className="content-editor website-workspace"
@@ -428,9 +467,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       {(approvedRelease.pages[page] || reviewDrafts[page]) && (
         <section className="workspace-panel">
           <h3>{approvedRelease.pages[page] ? "Approved company copy" : "Starter copy for review"}</h3>
-          <p>
-            {approvedRelease.pages[page] ? "Replace this draft with the approved website copy." : "Load the review draft into the editor."}
-          </p>
           <Button
             type="button"
             disabled={state.loading}
@@ -458,7 +494,9 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
       {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
         <fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}>
-          <legend>Selected website fields</legend>
+          <legend>{sectionLabel(page)} content</legend>
+          <fieldset className="cms-editor-group">
+            <legend>Page introduction</legend>
           <TextField
             label="Heading"
             value={body.heading}
@@ -466,13 +504,14 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             required
             onChange={(e) => change("heading", e.target.value)}
           />
-          <TextareaField
+          <RichTextField
             label="Body text"
             value={body.body}
             maxLength={6000}
             rows={6}
             onChange={(e) => change("body", e.target.value)}
           />
+          </fieldset>
           {page !== "site-appearance" && <EditorialFields page={page} body={body} change={change} />}
           {page === "home" && (
             <>
@@ -555,39 +594,23 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "journal" && (
             <section aria-label="Journal articles">
               <h3>Journal articles</h3>
-              <p>
-                Edit each article, assign its series and choose where it appears.
-              </p>
               {(body.articles || []).map((article, index) => (
                 <fieldset key={index}>
                   <legend>Article {index + 1}</legend>
                   {[
-                    ["title", "Title", 120],
-                    [
-                      "slug",
-                      "URL name (lowercase words separated by hyphens)",
-                      80,
-                    ],
-                    ["excerpt", "Short introduction", 240],
-                    ["body", "Article text", 6000],
-                  ].map(([key, label, max]) => (
-                    <TextareaField
-                      key={key}
-                      label={label}
-                      required
-                      maxLength={max}
-                      value={article[key]}
-                      onChange={(event) =>
-                        change(
-                          "articles",
-                          body.articles.map((item, i) =>
-                            i === index
-                              ? { ...item, [key]: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
+                    ["Article card & listing", [["title", "Article title", 120], ["slug", "Article URL name", 80], ["excerpt", "Card summary", 240]]],
+                    ["Article detail page", [["body", "Full article", 6000]]],
+                  ].map(([group, fields]) => (
+                    <fieldset key={group} className="cms-editor-group">
+                      <legend>{group}</legend>
+                      {fields.map(([key, label, max]) => {
+                        const Field = key === "body" ? RichTextField : TextareaField;
+                        return <Field key={key} label={label} required={true}
+                          maxLength={max} value={article[key] || ""}
+                          onChange={event => change("articles", body.articles.map((item, i) =>
+                            i === index ? { ...item, [key]: event.target.value } : item))} />;
+                      })}
+                    </fieldset>
                   ))}
                   <DateField
                     label="Article date"
@@ -737,7 +760,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                         "articles",
                         body.articles.map((item, i) =>
                           i === index
-                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: undefined }
+                            ? { ...item, imageId: null, galleryImageIds: [], retainApprovedGallery: false, retainApprovedImage: false, imagePlacement: item.imagePlacement ? { ...item.imagePlacement, imageId: null, mobileImageId: null } : undefined }
                             : item,
                         ),
                       )
@@ -821,33 +844,19 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 <fieldset key={index}>
                   <legend>Tip {index + 1}</legend>
                   {[
-                    ["title", "Tip title", 120],
-                    ["slug", "Tip URL name", 80],
-                    ["excerpt", "Tip summary", 240],
-                    ["body", "Tip text", 6000],
-                    [
-                      "relatedArticle",
-                      "Related published Journal URL name (optional)",
-                      80,
-                    ],
-                  ].map(([key, label, max]) => (
-                    <TextareaField
-                      key={key}
-                      label={label}
-                      value={tip[key]}
-                      maxLength={max}
-                      required={key !== "relatedArticle"}
-                      onChange={(event) =>
-                        change(
-                          "tips",
-                          body.tips.map((item, i) =>
-                            i === index
-                              ? { ...item, [key]: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
+                    ["Travel tip card & listing", [["title", "Tip title", 120], ["slug", "Tip URL name", 80], ["excerpt", "Card summary", 240]]],
+                    ["Travel tip detail page", [["body", "Full travel tip", 6000], ["relatedArticle", "Related Journal URL name (optional)", 80]]],
+                  ].map(([group, fields]) => (
+                    <fieldset key={group} className="cms-editor-group">
+                      <legend>{group}</legend>
+                      {fields.map(([key, label, max]) => {
+                        const Field = key === "body" ? RichTextField : TextareaField;
+                        return <Field key={key} label={label} required={key !== "relatedArticle"}
+                          maxLength={max} value={tip[key] || ""}
+                          onChange={event => change("tips", body.tips.map((item, i) =>
+                            i === index ? { ...item, [key]: event.target.value } : item))} />;
+                      })}
+                    </fieldset>
                   ))}
                   <SelectField
                     label="Tip category"
@@ -1076,7 +1085,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           {page === "how-it-works" && (
             <section className="workspace-panel" aria-label="How It Works booking paths">
               <h3>Booking a package / Planning a trip with us</h3>
-              <p>Edit five package-booking steps or four planning steps. Each path also has a separate four-stage example.</p>
               {(["package", "planning"]).map((flowKey) => {
                 const flows = withUpdatedPackageFlow(body.processFlows || approvedRelease.pages["how-it-works"].processFlows);
                 const flow = flows[flowKey];
@@ -1095,7 +1103,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                           [flowKey]: { ...flow, steps: flow.steps.map((item, i) => i === index ? { ...item, heading: event.target.value } : item) },
                         })}
                       />
-                      <TextareaField
+                      <RichTextField
                         label="Step instructions"
                         value={step.text}
                         maxLength={2000}
@@ -1105,9 +1113,27 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                           [flowKey]: { ...flow, steps: flow.steps.map((item, i) => i === index ? { ...item, text: event.target.value } : item) },
                         })}
                       />
+                      <Button type="button" icon="close" disabled={flow.steps.length <= 1}
+                        onClick={() => change("processFlows", {
+                          ...flows,
+                          [flowKey]: {
+                            ...flow,
+                            ...(flowKey === "package" ? { customStepCount: true } : {}),
+                            steps: flow.steps.filter((_, i) => i !== index),
+                          },
+                        })}>Remove step {index + 1}</Button>
                     </fieldset>
                   ))}
-                  <TextareaField
+                  <Button type="button" icon="add" disabled={flow.steps.length >= 12}
+                    onClick={() => change("processFlows", {
+                      ...flows,
+                      [flowKey]: {
+                        ...flow,
+                        ...(flowKey === "package" ? { customStepCount: true } : {}),
+                        steps: [...flow.steps, { heading: "", text: "" }],
+                      },
+                    })}>Add step</Button>
+                  <RichTextField
                     label="Example introduction"
                     value={flow.example}
                     maxLength={2500}
@@ -1118,7 +1144,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                     })}
                   />
                   <fieldset>
-                    <legend>Worked example — four stages</legend>
+                    <legend>Worked example stages</legend>
                     {(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).map((step, index) => (
                       <fieldset key={index}>
                         <legend>Example stage {index + 1}</legend>
@@ -1136,7 +1162,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                             },
                           })}
                         />
-                        <TextareaField
+                        <RichTextField
                           label="Stage description"
                           value={step.text}
                           maxLength={2000}
@@ -1150,44 +1176,60 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                             },
                           })}
                         />
+                        <Button type="button" icon="close" disabled={(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).length <= 1}
+                          onClick={() => change("processFlows", {
+                            ...flows,
+                            [flowKey]: {
+                              ...flow,
+                              exampleSteps: (flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps)
+                                .filter((_, i) => i !== index),
+                            },
+                          })}>Remove example stage {index + 1}</Button>
                       </fieldset>
                     ))}
+                    <Button type="button" icon="add"
+                      disabled={(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps).length >= 12}
+                      onClick={() => change("processFlows", {
+                        ...flows,
+                        [flowKey]: {
+                          ...flow,
+                          exampleSteps: [
+                            ...(flow.exampleSteps || approvedRelease.pages["how-it-works"].processFlows[flowKey].exampleSteps),
+                            { heading: "", text: "" },
+                          ],
+                        },
+                      })}>Add example stage</Button>
                   </fieldset>
                   <p>{flowKey === "package" ? "Terms: Section B · Package bookings" : "Terms: Section A · Planning services"}</p>
                 </fieldset>;
               })}
             </section>
           )}
-          {!["packages", "journal", "travel-tips", "how-it-works"].includes(
+          {page === "services" && <ServicesEditor entries={body.entries}
+            onChange={entries => change("entries", entries)} />}
+          {page === "terms" && <TermsEditor entries={body.entries}
+            onChange={entries => change("entries", entries)} />}
+          {!["packages", "journal", "travel-tips", "how-it-works", "services", "terms"].includes(
             page,
           ) && (
             <>
               {body.entries.map((entry, index) => (
                 <fieldset key={index}>
                   <legend>Entry {index + 1}</legend>
-                  {[
-                    ["heading", "Title / question", 160],
-                    ["text", "Text / answer", 2000],
-                    ["attribution", "Attribution (where applicable)", 160],
-                  ].map(([key, label, max]) => (
-                    <TextareaField
-                      key={key}
-                      label={label}
-                      value={entry[key]}
-                      maxLength={max}
-                      required={key !== "attribution"}
-                      onChange={(event) =>
-                        change(
-                          "entries",
-                          body.entries.map((value, i) =>
-                            i === index
-                              ? { ...value, [key]: event.target.value }
-                              : value,
-                          ),
-                        )
-                      }
-                    />
-                  ))}
+                  <fieldset className="cms-editor-group">
+                    <legend>Section entry</legend>
+                    {[
+                      ["heading", "Title / question", 160],
+                      ["text", "Text / answer", 2000],
+                      ["attribution", "Attribution (where applicable)", 160],
+                    ].map(([key, label, max]) => {
+                      const Field = key === "text" ? RichTextField : TextareaField;
+                      return <Field key={key} label={label} value={entry[key] || ""} maxLength={max}
+                        required={key !== "attribution"}
+                        onChange={event => change("entries", body.entries.map((item, i) =>
+                          i === index ? { ...item, [key]: event.target.value } : item))} />;
+                    })}
+                  </fieldset>
                   <Button
                     type="button"
                     onClick={() =>
@@ -1309,11 +1351,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
           }}
         />
       )}
-      <section className="workspace-panel" data-tour="content-publication">
+      <section className="workspace-panel" data-tour="content-publication" ref={publicationPanel} tabIndex={-1}>
         <h3>Publication</h3>
-        <p>
-          Your update is live only after deployment succeeds.
-        </p>
         {["packages", "journal", "travel-tips"].includes(page) && <SelectField
           label="Publication scope" value={recordSlug} disabled={state.loading || dirty}
           onChange={event => setRecordSlug(event.target.value)}>
@@ -1354,7 +1393,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
             Refresh publication status
           </Button>
         </div>
-        <HistoryDisclosure title="Publication history" count={jobs.length}>
+        <HistoryDisclosure title="Publication history" count={jobs.length} initiallyOpen={initialView === "publication"}>
           <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
           renderAction={job=><>
             {job.needs_reconciliation && <p>Verification delayed — deployment reconciliation required. New publications remain blocked until the exact release is verified.</p>}
@@ -1379,11 +1418,11 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
       {preview && !visualPreview && (
         <section aria-label="Saved content preview">
           <h3>{preview.heading}</h3>
-          <p className="preserve-lines">{preview.body}</p>
+          <RichText value={preview.body}/>
           {preview.entries.map((entry, index) => (
             <div key={index}>
               <h4>{entry.heading}</h4>
-              <p>{entry.text}</p>
+              <RichText value={entry.text}/>
               {entry.attribution && <p>{entry.attribution}</p>}
             </div>
           ))}
@@ -1394,7 +1433,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 {article.date} · /journal/{article.slug}
               </p>
               <p>{article.excerpt}</p>
-              <p className="preserve-lines">{article.body}</p>
+              <RichText value={article.body}/>
             </article>
           ))}
           {(preview.packages || []).map((item) => (
@@ -1403,7 +1442,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               <p>
                 {item.destination} · /packages/{item.slug}
               </p>
-              <p>{item.overview}</p>
+              <RichText value={item.overview}/>
             </article>
           ))}
           {(preview.tips || []).map((tip) => (
@@ -1413,7 +1452,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
                 {tip.category} · /travel-tips/{tip.slug}
               </p>
               <p>{tip.excerpt}</p>
-              <p className="preserve-lines">{tip.body}</p>
+              <RichText value={tip.body}/>
             </article>
           ))}
           {(preview.footprint || []).length > 0 && (
@@ -1430,7 +1469,6 @@ export default function WebsiteContent({ api, session, onDirtyChange, initialPag
               ))}
             </ul>
           )}
-          <p>Text preview</p>
         </section>
       )}
       <section className="workspace-panel">

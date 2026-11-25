@@ -1,6 +1,8 @@
 // Public editorial fields only. Routes, pricing/consent rules and security controls remain fixed.
 export const editorialFields = {
   "home": [
+    ["heroSignature", "Hero · handwritten phrase", "A Little More You"],
+    ["heroSecondaryPath", "Hero · secondary button destination", "/packages"],
     [
       "heroSecondary",
       "Hero · secondary button",
@@ -73,6 +75,10 @@ export const editorialFields = {
     ]
   ],
   "how-it-works": [
+    ["packageExamplePath", "Package example · package URL", "/packages/nairobi"],
+    ["packageExampleAction", "Package example · enquiry button", "Ask about a package"],
+    ["planningExampleAction", "Planning example · enquiry button", "Tell us about your trip"],
+    ["readinessPath", "Travel readiness · service URL", "/services/travel-readiness-session"],
     [
       "packageTab",
       "Homepage · packages tab",

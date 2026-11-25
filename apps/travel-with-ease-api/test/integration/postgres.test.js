@@ -20,9 +20,12 @@ import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
 import { invitationEmailCode, readInvitationDeliveryConfig } from "../../src/onboarding/invitation-email.js";
 import { InvitationDeliveryOutbox } from "../../src/notifications/invitations.js";
+import { DETAILED_FORM_ID, defaultDetailedDefinition } from "../../src/enquiries/questionnaires/configuration.js";
+import { IntakeConfiguration } from "../../src/enquiries/intake-configuration.js";
+import { defaultIntakeDefinition, validateIntakeAdditionalAnswers } from "../../src/enquiries/intake-definition.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
 import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
-import { smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
+import { configuredSmartEnquirySchema, configuredQuestionnaireSnapshot, smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
 import { QUESTIONNAIRE_ID, QUESTIONNAIRE_VERSION, applicableQuestionIds, questions } from "../../src/enquiries/questionnaires/index.js";
 import { ContentPromotionImporter, createPromotionBundle } from "../../src/content/promotion.js";
 import { approvedEditorCopy } from "../../src/content/approved-copy.js";
@@ -112,7 +115,7 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   assert.deepEqual(await migrate(pool, options), []);
   await verifyDatabaseIdentity(pool, options);
 
-  await context.test("initial production promotion is tenant-scoped, audited and single-execution", async () => {
+  await context.test("initial production promotion is tenant-scoped, audited and safely replayable", async () => {
     const promotionOrg = "10000000-0000-4000-8000-000000000003";
     const actorId = randomUUID();
     await pool.query("INSERT INTO twe.organisations (id, name) VALUES ($1, 'Synthetic promoted TWE')", [promotionOrg]);
@@ -123,16 +126,43 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       approved.pages[slug] ? approvedEditorCopy(approved.pages[slug]) : (slug === "site-appearance" ? appearance : null)]));
     const bundle = createPromotionBundle({
       source: { environment: "staging", organisationId: promotionOrg,
-        publicationId: randomUUID(), sourceSha: "a".repeat(40), deploymentId: "synthetic-staging-deployment" },
+        publicationId: randomUUID(), sourceSha: "a".repeat(40), deploymentId: "synthetic-staging-deployment", approvedBaselineFingerprint: manifestDigest(approved.pages) },
       pages, media: [],
     });
     const store = { put: async () => assert.fail("No media is referenced"), remove: async () => assert.fail("No cleanup is expected") };
-    const importer = new ContentPromotionImporter(pool, store, { organisationId: promotionOrg, actorId });
-    assert.equal((await importer.apply(bundle, "integration-promotion")).status, "imported");
+    const productionSource = "b".repeat(40);
+    const importer = new ContentPromotionImporter(pool, store, { organisationId: promotionOrg, actorId, publicationSourceSha: productionSource });
+    const imported = await importer.apply(bundle, "integration-promotion");
+    assert.equal(imported.status, "imported");
+    const job = (await pool.query("SELECT id,status,source_sha,manifest FROM twe.publication_jobs WHERE organisation_id=$1 AND environment='production'", [promotionOrg])).rows[0];
+    assert.equal(job.id, imported.publicationId);
+    assert.equal(job.status, "pending");
+    assert.equal(job.source_sha, productionSource);
+    assert.equal(job.manifest.triggerType, "initial_promotion");
+    assert.deepEqual(Object.fromEntries(job.manifest.pages.map(page => [page.slug, page.body])), bundle.pages);
+    const wrongWorker = new PublicationRepository(pool, { organisationId: promotionOrg, environment: "production", sourceSha: "c".repeat(40) });
+    assert.equal(await wrongWorker.claim(), undefined);
+    assert.equal((await pool.query("SELECT status FROM twe.publication_jobs WHERE id=$1", [job.id])).rows[0].status, "pending");
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.content_items WHERE organisation_id=$1", [promotionOrg])).rows[0].n, pageNames.length);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='content.production_seed_imported'", [promotionOrg])).rows[0].n, 1);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.enquiries WHERE organisation_id=$1", [promotionOrg])).rows[0].n, 0);
-    await assert.rejects(importer.apply(bundle, "integration-promotion-replay"), /already initialised/);
+    const beforeReplay = (await pool.query("SELECT id, slug, version, draft_revision_id, published_revision_id FROM twe.content_items WHERE organisation_id=$1 ORDER BY slug", [promotionOrg])).rows;
+    const revisionCount = (await pool.query("SELECT count(*)::int AS n FROM twe.content_revisions WHERE organisation_id=$1", [promotionOrg])).rows[0].n;
+    assert.equal((await importer.apply(bundle, "integration-promotion-replay")).status, "already_imported");
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.publication_jobs WHERE organisation_id=$1", [promotionOrg])).rows[0].n, 1);
+    assert.deepEqual((await pool.query("SELECT id, slug, version, draft_revision_id, published_revision_id FROM twe.content_items WHERE organisation_id=$1 ORDER BY slug", [promotionOrg])).rows, beforeReplay);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.content_revisions WHERE organisation_id=$1", [promotionOrg])).rows[0].n, revisionCount);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='content.production_seed_imported'", [promotionOrg])).rows[0].n, 1);
+    const changedBundle = createPromotionBundle({ source: bundle.source, pages: { ...pages, home: { ...pages.home, heading: "Different staging content" } }, media: [] });
+    await assert.rejects(importer.apply(changedBundle, "integration-promotion-conflict"), /will not overwrite/);
+    const home = beforeReplay.find(row => row.slug === "home");
+    const draftId = randomUUID();
+    const edited = { ...bundle.pages.home, heading: "Production draft edit" };
+    await pool.query("INSERT INTO twe.content_revisions (id, organisation_id, content_id, version, body, editor_id) VALUES ($1,$2,$3,$4,$5,$6)", [draftId, promotionOrg, home.id, home.version + 1, edited, actorId]);
+    await pool.query("UPDATE twe.content_items SET version=$1, draft_revision_id=$2 WHERE organisation_id=$3 AND id=$4", [home.version + 1, draftId, promotionOrg, home.id]);
+    await assert.rejects(importer.apply(bundle, "integration-promotion-edited"), /will not overwrite/);
+    assert.equal((await pool.query("SELECT draft_revision_id FROM twe.content_items WHERE id=$1 AND organisation_id=$2", [home.id, promotionOrg])).rows[0].draft_revision_id, draftId);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM twe.audit_records WHERE organisation_id=$1 AND action='content.production_seed_imported'", [promotionOrg])).rows[0].n, 1);
   });
 
   await context.test("native intake and outbox are atomic, idempotent and tenant-scoped", async () => {
@@ -558,11 +588,11 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       assert.equal(await store().getSession(tokenHash), undefined);
       await assert.rejects(store().createSession(identity, replayHash, "9".repeat(64), "issue03-replay-revoked"), { code: "23505" });
 
-      const later = { ...identity, assertionHash: randomBytes(32).toString("hex"), expiresAt: new Date(Date.now() + 7_200_000) };
+      const later = { ...identity, assertionHash: randomBytes(32).toString("hex"), expiresAt: new Date(Date.now() + 86_400_000) };
       await store().createSession(later, freshHash, "9".repeat(64), "issue03-fresh-login");
       const bounded = await store().getSession(freshHash);
-      assert.ok(bounded.expires_at.getTime() <= Date.now() + 3_600_000, "New login remains capped at one hour");
-      assert.ok(bounded.expires_at.getTime() > Date.now() + 3_500_000);
+      assert.ok(bounded.expires_at.getTime() <= Date.now() + 43_200_000, "Access login remains capped at twelve hours");
+      assert.ok(bounded.expires_at.getTime() > Date.now() + 43_100_000);
       await store().revokeAll(staffId, "issue03-logout-all");
       assert.equal(await store().getSession(freshHash), undefined);
       assert.equal((await query(
@@ -809,7 +839,9 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     await assert.rejects(content.save('services',{...input,entries:[{...input.entries[0],imagePlacement:{imageId:replacement.id}}]},reverted.version,actor,'archived-placement'),/available image/);
     const foreignActor={id:(await pool.query("SELECT id FROM twe.staff_users WHERE organisation_id=$1 LIMIT 1",[otherOrg])).rows[0].id,organisationId:otherOrg};
     await assert.rejects(new ContentRepository(pool,otherOrg).save('site-appearance',{...body,imagePlacements:{'footer-background':{imageId:asset.id}}},0,foreignActor,'foreign-placement'),/available image/);
-    const globals=await content.save('site-appearance',{...body,imagePlacements:{'footer-background':{imageId:asset.id,mobileImageId:asset.id,focalY:20},'cta-laptop':{imageId:asset.id}}},0,actor,'shared-images');
+    const sharedImages={...body,imagePlacements:{'footer-background':{imageId:asset.id,mobileImageId:asset.id,focalY:20},'cta-laptop':{imageId:asset.id}}};
+    await assert.rejects(content.save('site-appearance',sharedImages,0,{...actor,role:'owner'},'owner-layout-denied'),{status:403});
+    const globals=await content.save('site-appearance',sharedImages,0,platform,'shared-images');
     const directory=await mkdtemp(path.join(tmpdir(),'twe-image-placement-'));
     const artifact=await preparePublication({id:randomUUID(),source_sha:'1'.repeat(40),manifest:{version:1,pages:[{slug:'services',body:reverted.body},{slug:'site-appearance',body:globals.body}]}},media,directory);
     const snapshot=JSON.parse(await readFile(artifact.snapshot,'utf8'));
@@ -850,6 +882,22 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       await templates.change(owner, "template-rollback-draft", 2, defaultEnquiryCopy);
       await templates.change(owner, "template-rollback-active", 3, null, true);
       assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+      const contextualSlug = "enquiry-service-premium";
+      const contextual = { ...(await templates.get(owner, contextualSlug)).draft, heading: "Reviewed Premium Concierge" };
+      await templates.change(owner, "contextual-template-draft", 0, contextual, false, contextualSlug);
+      assert.notEqual((await templates.activeForEnquiry({ details: { selectedServiceId: "premium" } })).heading, contextual.heading);
+      await templates.change(owner, "contextual-template-active", 1, null, true, contextualSlug);
+      assert.deepEqual(await templates.activeForEnquiry({ details: { selectedServiceId: "premium" } }), contextual);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+      assert.notEqual((await new EmailTemplates(runtimePool, otherOrg).activeCopy(contextualSlug)).heading, contextual.heading);
+      assert.equal((await templates.history(owner, contextualSlug)).length, 2);
+      const packageSlug = (await templates.catalogue(owner)).find(option => option.context === "package")?.slug;
+      assert.ok(packageSlug, "Approved package catalogue must be editable");
+      const packageCopy = { ...(await templates.get(owner, packageSlug)).draft, heading: "Reviewed specific package" };
+      await templates.change(owner, "package-template-draft", 0, packageCopy, false, packageSlug);
+      await templates.change(owner, "package-template-active", 1, null, true, packageSlug);
+      assert.deepEqual(await templates.activeCopy(packageSlug), packageCopy);
+      assert.notEqual((await templates.activeCopy("enquiry-package")).heading, packageCopy.heading);
     } finally { await client.query("RESET ROLE"); client.release(); }
   });
   await context.test("Drive sync uses runtime grants, keeps immutable revisions and isolates tenants", async () => {
@@ -1073,4 +1121,91 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     }
   });
   } finally { await publicationClient.query("RESET ROLE"); publicationClient.release(); }
+  await context.test("intake activation is tenant-scoped, immutable and blocks stale new submissions but not accepted retries", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const service = new IntakeConfiguration(runtimePool, organisationId);
+      const repository = new PostgresLeadRepository(runtimePool, options);
+      const owner = { ...actor, role: "owner" };
+      const editor = { ...actor, role: "editor" };
+      const original = defaultIntakeDefinition();
+      assert.deepEqual((await service.active()).definition, original);
+      const legacy = { submissionId: randomUUID(), enquiryType: "trip", service: "not_sure", destination: "Synthetic", travelTimeframe: "Flexible", travellers: 2, budget: "", name: "Synthetic Traveller", email: "synthetic@example.invalid", phone: "+233200000000", consent: true, website: "", entryType: "general", sourcePath: "/", context: {} };
+      const first = await repository.createNativeEnquiry(legacy);
+      const draft = { ...original, title: "Updated intake", additional: [{ id: "custom_preference", label: "Preferred planning style", description: "", type: "select", required: true, entries: ["general"], options: [{ value: "guided", label: "Guided" }, { value: "flexible", label: "Flexible" }] }] };
+      const saved = await service.change(editor, "intake-draft", 0, draft);
+      assert.equal(saved.activeVersion, 1);
+      assert.deepEqual((await service.active()).definition, original);
+      await assert.rejects(service.change(editor, "intake-denied", 1, null, "activate"), { status: 403 });
+      await assert.rejects(service.change(owner, "intake-stale", 0, draft), { status: 409 });
+      const activated = await service.change(owner, "intake-active", 1, null, "activate");
+      assert.equal(activated.activeVersion, 2);
+      assert.deepEqual((await service.version(1)).definition, original);
+      assert.deepEqual((await service.active()).definition, draft);
+      assert.equal((await new IntakeConfiguration(runtimePool, otherOrg).active()).version, 1);
+      await assert.rejects(new IntakeConfiguration(runtimePool, otherOrg).get(owner), { status: 403 });
+      assert.equal((await repository.createNativeEnquiry(legacy)).inquiryId, first.inquiryId);
+      await assert.rejects(repository.createNativeEnquiry({ ...legacy, submissionId: randomUUID() }), { code: "intake_version_changed" });
+      await assert.rejects(repository.createNativeEnquiry({ ...legacy, submissionId: randomUUID(), intakeVersion: 1 }), { code: "intake_version_changed" });
+      const snapshot = validateIntakeAdditionalAnswers(draft, "general", { custom_preference: "guided" });
+      const fresh = await repository.createNativeEnquiry({ ...legacy, submissionId: randomUUID(), intakeVersion: 2, intakeSnapshot: { version: 2, additional: snapshot } });
+      const stored = (await query("SELECT details FROM twe.enquiries WHERE organisation_id=$1 AND id=$2", [organisationId, fresh.inquiryId])).rows[0].details;
+      assert.equal(stored.intakeSnapshot.additional[0].options[0].label, "Guided");
+      await service.restore(editor, "intake-restore", 2, 1);
+      assert.equal((await service.active()).version, 2);
+      assert.deepEqual((await service.get(owner)).draft, original);
+      await assert.rejects(query("UPDATE twe.enquiry_form_versions SET definition='{}' WHERE organisation_id=$1", [organisationId]), /permission denied/);
+    } finally { await client.query("RESET ROLE"); client.release(); }
+  });
+
+  await context.test("detailed questionnaire versions are independent of intake versions and tenant scoped", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const service = new IntakeConfiguration(runtimePool, organisationId, DETAILED_FORM_ID);
+      const intake = new IntakeConfiguration(runtimePool, organisationId);
+      const owner = { ...actor, role: "owner" };
+      const editor = { ...actor, role: "editor" };
+      const before = await intake.active();
+      const original = defaultDetailedDefinition();
+      assert.equal((await service.active()).version, 1);
+      const draft = { ...original, continueLabel: "Next step" };
+      const saved = await service.change(editor, "detailed-draft", 0, draft);
+      assert.equal(saved.activeVersion, 1);
+      assert.deepEqual((await service.active()).definition, original);
+      await assert.rejects(service.change(editor, "detailed-denied", 1, null, "activate"), { status: 403 });
+      await assert.rejects(service.change(owner, "detailed-stale", 0, draft), { status: 409 });
+      assert.equal((await service.change(owner, "detailed-activate", 1, null, "activate")).activeVersion, 2);
+      assert.deepEqual((await service.active()).definition, draft);
+      assert.deepEqual((await service.version(1)).definition, original);
+      assert.deepEqual(await intake.active(), before);
+      assert.deepEqual((await new IntakeConfiguration(runtimePool, otherOrg, DETAILED_FORM_ID).active()).definition, original);
+      await assert.rejects(new IntakeConfiguration(runtimePool, otherOrg, DETAILED_FORM_ID).get(owner), { status: 403 });
+      await service.restore(editor, "detailed-restore", 2, 1);
+      assert.deepEqual((await service.get(owner)).draft, original);
+      assert.deepEqual((await service.active()).definition, draft);
+      assert.deepEqual((await service.history(owner)).map(item => item.version), [2, 1]);
+      const repository = new PostgresLeadRepository(runtimePool, options);
+      const contact = { name: "Synthetic Traveller", email: "synthetic@example.invalid", phone: "+233200000000" };
+      const receipt = await repository.createNativeEnquiry({ submissionId: randomUUID(), enquiryType: "trip", service: "not_sure", destination: "Synthetic", travelTimeframe: "Flexible", travellers: 2, budget: "", ...contact, consent: true, website: "", entryType: "general", sourcePath: "/", context: {}, intakeVersion: before.version });
+      assert.equal((await repository.continuationContext(receipt.inquiryId)).questionnaireVersion, "cms.2");
+      await service.change(owner, "detailed-republish", 3, null, "activate");
+      const input = { submissionId: randomUUID(), questionnaireId: QUESTIONNAIRE_ID, questionnaireVersion: "cms.2", entryType: "general", sourcePath: "/plan-your-trip", context: {}, answers: progressiveAnswers(contact), contact, consent: true, website: "" };
+      const parsed = configuredSmartEnquirySchema(draft, 2).parse(input);
+      const completion = { ...parsed, configuredSnapshot: configuredQuestionnaireSnapshot(parsed, draft) };
+      await assert.rejects(repository.completeEnquiryContinuation(receipt.inquiryId, { ...completion, questionnaireVersion: "cms.3" }), { code: "enquiry_continuation_unavailable" });
+      const result = await repository.completeEnquiryContinuation(receipt.inquiryId, completion);
+      assert.equal(result.status, "completed");
+      assert.equal((await repository.completeEnquiryContinuation(receipt.inquiryId, completion)).replayed, true);
+      const stored = (await query("SELECT details FROM twe.enquiries WHERE organisation_id=$1 AND id=$2", [organisationId,receipt.inquiryId])).rows[0].details;
+      assert.equal(stored.questionnaireVersion, "cms.2");
+      assert.equal(stored.questionSnapshots["541981576"].label, "Destination(s) you are considering");
+    } finally { await client.query("RESET ROLE"); client.release(); }
+  });
+
 });

@@ -22,8 +22,12 @@ test("only explicit GHS amounts become display prices and original wording remai
   const moneyComponent = readFileSync(new URL("../src/components/MoneyText.astro", import.meta.url), "utf8");
   assert.match(moneyComponent, /segment\.displayText/g);
   const publishedContent = readFileSync(new URL("../src/components/PublishedContent.astro", import.meta.url), "utf8");
-  assert.match(publishedContent, /<MoneyText text=\{entry\.text\}/);
-  assert.match(publishedContent, /<MoneyText text=\{content\.body\}/);
+  assert.match(publishedContent, /<RichText value=\{entry\.text\} money\/>/);
+  assert.match(publishedContent, /<RichText class="body-copy" value=\{content\.body\} money\/>/);
+  const richText = readFileSync(new URL("../src/components/RichText.astro", import.meta.url), "utf8");
+  const richInline = readFileSync(new URL("../src/components/RichInline.astro", import.meta.url), "utf8");
+  assert.match(richText, /<RichInline value=\{block\.text\} money=\{money\}/);
+  assert.match(richInline, /money \? <MoneyText text=\{run\.text\}/);
 });
 
 test("display conversion uses exact integer rounding and unambiguous ISO labels", () => {

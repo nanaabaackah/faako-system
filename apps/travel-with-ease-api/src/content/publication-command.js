@@ -32,7 +32,7 @@ try {
     const status = await run("git", ["status", "--porcelain", "--", "apps/travel-with-ease-api", "apps/travel-with-ease-web", "packages", "pnpm-lock.yaml", "package.json", "pnpm-workspace.yaml"]);
     if (status) throw new Error("Publication requires a clean reviewed checkout of TWE and shared dependencies.");
     const sha = await run("git", ["rev-parse", "HEAD"]);
-    job = await publication.claim();
+    job = await publication.claim(sha);
     if (job) {
       if (job.source_sha !== sha) throw new Error("Checkout does not match the requested publication source.");
       const directory = await mkdtemp(path.join(tmpdir(), "twe-publication-"));

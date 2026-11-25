@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { emailSchema, phoneSchema, isoDateSchema } from "@faako/validation";
 import { enquiryTypes } from "./content/catalogue-constants.js";
+import { intakeAdditionalAnswersSchema } from "./enquiries/intake-definition.js";
 import { SERVICE_OPTIONS } from "./enquiries/questionnaires/index.js";
 export { smartEnquirySchema } from "./enquiries/questionnaire-validation.js";
 
@@ -21,6 +22,8 @@ const nativeContextSchema = z.object({
 // omits the field so new enquiries cannot persist unstructured sensitive data.
 export const legacyNativeInquirySchema = z.object({
   submissionId: z.string().uuid(),
+  intakeVersion: z.number().int().min(1).max(2147483646).optional(),
+  additionalAnswers: intakeAdditionalAnswersSchema.optional(),
   turnstileToken: z.string().max(2048).default(""),
   enquiryType: z.enum(enquiryTypes.map(item => item.value)),
   service: z.enum(["not_sure", "readiness", "full_planning", "premium", "group"]),
@@ -38,6 +41,7 @@ export const legacyNativeInquirySchema = z.object({
   consent: z.literal(true),
   website: z.string().max(200).default(""),
 }).strict().superRefine((data, validation) => {
+  if (data.additionalAnswers !== undefined && data.intakeVersion === undefined) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["intakeVersion"], message: "Form version is required." });
   if (data.entryType === "service" && !data.context.serviceId) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["context", "serviceId"], message: "Choose a valid service." });
   if (data.entryType === "package" && !data.context.packageId) validation.addIssue({ code: z.ZodIssueCode.custom, path: ["context", "packageId"], message: "Choose a valid package." });
 }).transform((data) => {

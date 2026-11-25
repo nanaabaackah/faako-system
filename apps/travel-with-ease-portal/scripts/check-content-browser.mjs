@@ -43,6 +43,15 @@ try {
         assert.ok(box.width >= 44 && box.height >= 44, "Bottom navigation retains touch targets");
       }
     }
+    const filteredRequest = page.waitForRequest(request => { const url = new URL(request.url()); return url.pathname === "/api/agent/inquiries" && url.searchParams.get("status") === "new"; });
+    await page.getByRole("button", { name: "Open new enquiries", exact: true }).click();
+    await filteredRequest;
+    await expect(page.getByRole("button", { name: "Status", exact: true })).toContainText("new");
+    await navigate(width <= 800 ? "Home" : "Overview");
+    await page.getByRole("button", { name: "Open website drafts", exact: true }).click();
+    await page.getByRole("heading", { name: "Pages with drafts", exact: true }).waitFor();
+    await page.getByRole("button", { name: /^About · Version/ }).click();
+    await expect(page.getByRole("button", { name: "Section", exact: true })).toContainText("About");
     await navigate("Account");
     await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();
     assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");
@@ -74,7 +83,21 @@ try {
     await page.getByRole("option", { name: "Journal", exact: true }).click();
     await page.getByLabel("Travel tip series").first().waitFor();
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();
-    await page.getByLabel(/^Title/).fill("Changed demo article");
+    await page.getByRole("group", { name: "Article card & listing", exact: true }).first().getByLabel(/^Article title/).fill("Changed demo article");
+    const articleEditor = page.getByRole("group", { name: "Article detail page", exact: true }).first();
+    const articleBody = articleEditor.getByRole("textbox", { name: /^Full article/ });
+    await articleBody.fill("Pack your bag\nCheck your passport");
+    await articleBody.evaluate(node => node.setSelectionRange(0, 4));
+    await articleEditor.getByRole("button", { name: "Bold", exact: true }).click();
+    await expect(articleBody).toHaveValue("**Pack** your bag\nCheck your passport");
+    await articleBody.evaluate(node => node.setSelectionRange(0, node.value.length));
+    await articleEditor.getByRole("button", { name: "Bulleted list", exact: true }).click();
+    await expect(articleBody).toHaveValue("- **Pack** your bag\n- Check your passport");
+    await articleEditor.getByRole("button", { name: "Preview", exact: true }).click();
+    const formattedPreview = articleEditor.locator(".twe-rich-preview");
+    await expect(formattedPreview.locator("li strong")).toHaveText("Pack");
+    await expect(formattedPreview.locator("li")).toHaveCount(2);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, "Formatting controls wrap without overflow");
     await page.getByLabel("Website CTA button text (optional)").first().fill("Plan my trip");
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await page
@@ -207,7 +230,9 @@ try {
     await emailType.focus();
     await page.keyboard.press("Enter");
     await page.getByRole("option", { name: "Staff invitation", exact: true }).click();
-    await page.getByRole("heading", { name: "Staff invitation", exact: true }).waitFor();
+    await expect(emailType).toContainText("Staff invitation");
+    await page.getByText("Draft revision 0 · Default invitation copy", { exact: true }).waitFor();
+    await expect(page.getByLabel(/^Heading/)).toBeEnabled();
     await page.getByLabel(/^Heading/).fill("Synthetic team invitation");
     await emailType.click();
     await page.getByRole("option", { name: "Staff invitation", exact: true }).click();
@@ -230,12 +255,31 @@ try {
     await page.screenshot({ path: path.join(output, `invitation-template-${width}.png`), fullPage: true });
     await emailType.click();
     await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
-    await page.getByRole("heading", { name: "Enquiry acknowledgement", exact: true }).waitFor();
+    await expect(emailType).toContainText("Enquiry acknowledgement");
     await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
     await expect(page.getByLabel(/^Heading/)).toHaveValue("Synthetic acknowledgement");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     while (await notifications.count()) await notifications.first().click();
     await page.screenshot({ path: path.join(output, `templates-${width}.png`), fullPage: true });
+    await emailType.click();
+    await page.getByRole("option", { name: "Package — Sample journey", exact: true }).click();
+    await page.getByText("Draft revision 0 · Using shared package template", { exact: true }).waitFor();
+    await expect(page.getByLabel(/^Heading/)).toBeEnabled();
+    await page.getByLabel(/^Heading/).fill("Your sample journey enquiry");
+    await page.getByRole("button", { name: "Preview email", exact: true }).click();
+    const packagePreview = page.frameLocator('iframe[title="Sample journey preview"]');
+    await packagePreview.getByRole("heading", { name: "Your sample journey enquiry", exact: true }).waitFor();
+    assert.match(await packagePreview.locator("body").innerText(), /Sample journey/);
+    await page.getByRole("button", { name: "Mobile", exact: true }).click();
+    await expect(page.locator('iframe[title="Sample journey preview"]')).toHaveClass("template-preview-mobile");
+    await page.getByRole("button", { name: "Save draft", exact: true }).click();
+    await page.getByRole("button", { name: "Activate saved template", exact: true }).click();
+    await page.locator(".ui-erp-dialog-backdrop").getByRole("button", { name: "Activate template", exact: true }).click();
+    await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
+    await emailType.click();
+    await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
+    await expect(page.getByLabel(/^Heading/)).toHaveValue("Synthetic acknowledgement");
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
     assert.ok(requests.length > 0, "Actual API client exercised against isolated HTTP fixtures");
     await context.close();
   }

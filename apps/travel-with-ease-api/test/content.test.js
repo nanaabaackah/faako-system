@@ -227,7 +227,45 @@ test("package booking grows to five editable steps without changing personal pla
   assert.equal(parsed.processFlows.package.exampleSteps.length, 4);
   assert.deepEqual(contentForPage("how-it-works", parsed).processFlows.package.steps, parsed.processFlows.package.steps,
     "Revalidating a five-step draft never duplicates the final step");
+  const extended = structuredClone(parsed);
+  extended.processFlows.package.steps.push({ heading: "Optional sixth step", text: "Approved CMS extension" });
+  assert.equal(contentForPage("how-it-works", extended).processFlows.package.steps.length, 6);
+  const shortened = structuredClone(parsed);
+  shortened.processFlows.package.customStepCount = true;
+  shortened.processFlows.package.steps = shortened.processFlows.package.steps.slice(0, 2);
+  shortened.processFlows.planning.steps = shortened.processFlows.planning.steps.slice(0, 1);
+  shortened.processFlows.planning.exampleSteps = shortened.processFlows.planning.exampleSteps.slice(0, 2);
+  const deliberatelyEdited = contentForPage("how-it-works", shortened);
+  assert.equal(deliberatelyEdited.processFlows.package.steps.length, 2,
+    "Explicitly removed package steps must not be reinserted");
+  assert.equal(deliberatelyEdited.processFlows.planning.steps.length, 1);
+  assert.equal(deliberatelyEdited.processFlows.planning.exampleSteps.length, 2);
   const tooLong = structuredClone(parsed);
-  tooLong.processFlows.package.steps.push({ heading: "Invalid sixth step", text: "Not an approved process" });
+  tooLong.processFlows.package.steps = Array.from({ length: 13 }, (_, i) =>
+    ({ heading: `Step ${i + 1}`, text: "Beyond supported CMS limit" }));
   assert.throws(() => contentForPage("how-it-works", tooLong));
+});
+
+test("Services cards have separate descriptions and Terms retain Section A/B boundaries", () => {
+  const base = { heading: "Fixture", body: "", seoTitle: "Fixture", seoDescription: "Fixture" };
+  const entry = { heading: "Planning", text: "Long individual service detail", cardSummary: "Brief listing text" };
+  const service = contentForPage("services", { ...base, entries: [entry] });
+  assert.equal(service.entries[0].cardSummary, "Brief listing text");
+  assert.equal(service.entries[0].text, "Long individual service detail");
+  assert.equal(contentForPage("services", {
+    ...base, entries: [{ heading: "Planning", text: "Legacy description" }],
+  }).entries[0].cardSummary, undefined);
+  assert.throws(() => contentForPage("services", { ...base,
+    entries: [{ ...entry, cardSummary: "x".repeat(241) }] }));
+  const group = contentForPage("terms", { ...base, entries: [
+    { heading: "Planning", text: "A", section: "A" },
+    { heading: "Packages", text: "B", section: "B" },
+  ] });
+  assert.deepEqual(group.entries.map(item => item.section), ["A", "B"]);
+  assert.throws(() => contentForPage("terms", { ...base, entries: [
+    { heading: "Packages", text: "B", section: "B" },
+    { heading: "Planning", text: "A", section: "A" },
+  ] }));
+  assert.throws(() => contentForPage("services", { ...base,
+    entries: [{ ...entry, section: "B" }] }));
 });

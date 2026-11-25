@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { railwaySourceSha, requireRailwaySourceSha, assertPublicationSource } from "../src/content/source-identity.js";
+import { railwaySourceSha, requireRailwaySourceSha, assertPublicationSource, activeApiSourceMatches } from "../src/content/source-identity.js";
 
 const sha = "a".repeat(40);
 const other = "b".repeat(40);
@@ -42,4 +42,20 @@ test("local publication retains reviewed Git proof rather than allowing manual s
   const run = async (_command, args) => { calls++; return args[0] === "rev-parse" ? sha : ""; };
   assert.equal(await assertPublicationSource(sha, { env: { APP_ENV: "development" }, gitMetadataPresent: false, run }), sha);
   assert.equal(calls, 2);
+});
+
+test("active API release identity must match the exact source and environment", async () => {
+  const settings = { apiOrigin: "https://api.example.invalid", environment: "production", sourceSha: sha };
+  const response = (identity, ok = true) => async (url, options) => {
+    assert.equal(url.href, "https://api.example.invalid/api/public/release");
+    assert.equal(options.redirect, "error");
+    assert.equal(options.cache, "no-store");
+    return { ok, json: async () => identity };
+  };
+  assert.equal(await activeApiSourceMatches(settings, response({ environment: "production", sourceSha: sha })), true);
+  assert.equal(await activeApiSourceMatches(settings, response({ environment: "production", sourceSha: other })), false);
+  assert.equal(await activeApiSourceMatches(settings, response({ environment: "staging", sourceSha: sha })), false);
+  assert.equal(await activeApiSourceMatches(settings, response({}, false)), false);
+  assert.equal(await activeApiSourceMatches(settings, async () => { throw Error("offline"); }), false);
+  assert.equal(await activeApiSourceMatches({ ...settings, apiOrigin: "http://api.example.invalid" }, async () => assert.fail("must not fetch")), false);
 });

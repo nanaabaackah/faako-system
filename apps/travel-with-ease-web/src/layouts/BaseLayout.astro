@@ -13,6 +13,8 @@ import AnalyticsConsent from "../components/AnalyticsConsent.astro";
 import CookieNotice from "../components/CookieNotice.astro";
 import FloatingActions from "../components/FloatingActions.astro";
 import { sharingMetadata } from "../lib/sharing.js";
+import { pageDiscovery } from "../lib/discovery.js";
+import { plainRichText } from "../../../travel-with-ease-api/src/content/rich-text.js";
 import { publishedPage } from "../lib/published.js";
 import { siteBranding } from "../lib/branding.js";
 import { siteCopy } from "../lib/editorial-copy.js";
@@ -32,6 +34,13 @@ const canonical = canonicalUrl(path, site);
 const pageContent = publishedPage(path.replace(/^\/|\/$/g, "") || "home");
 const branding = siteBranding(publishedPage("site-appearance"));
 const enquiryCatalogue = publishedEnquiryCatalogue();
+// Load only the approved active heading/body faces plus the fixed navigation
+// and signature fonts. Preserve CMS-selectable Outfit without loading it by default.
+const fontFamilies = new Set(["family=Inter:wght@400;500;600;700;800", "family=Sassy+Frass"]);
+if ([branding.fonts.heading, branding.fonts.body].includes("quicksand")) fontFamilies.add("family=Quicksand:wght@400;500;600;700");
+if (branding.fonts.heading === "poiret-one") fontFamilies.add("family=Poiret+One");
+if ([branding.fonts.heading, branding.fonts.body].includes("outfit")) fontFamilies.add("family=Outfit:wght@400;500;600;700");
+const fontStylesheet = `https://fonts.googleapis.com/css2?${[...fontFamilies].sort().join("&")}&display=swap`;
 const sharing = sharingMetadata({
   site: site.href,
   image:
@@ -47,15 +56,11 @@ const approvedForIndexing =
   import.meta.env.PUBLIC_SITE_INDEXABLE === "true" &&
   site.hostname !== "travelwithease.example";
 const shouldIndex = approvedForIndexing && !noIndex && Boolean(pageContent);
-const schema = {
-  "@context": "https://schema.org",
-  "@type": "TravelAgency",
-  name: "Travel With Ease",
-  url: site.toString(),
-  areaServed: "Ghana",
-  description,
-};
-const jsonLd = serializeJsonLd(schema);
+const metadataDescription = plainRichText(description);
+const jsonLd = pageContent && !noIndex ? serializeJsonLd(pageDiscovery({
+  origin: site.href, canonical, pathname: path, title, description: metadataDescription,
+  content: pageContent, sharingImage: sharing.image, agencyDescription: publishedPage("home")?.seoDescription,
+})) : null;
 const breadcrumbs = Astro.props.breadcrumbs || [];
 if (!Array.isArray(breadcrumbs) || breadcrumbs.length > 10)
   throw new Error("Invalid breadcrumb list.");
@@ -92,7 +97,6 @@ const releaseSha = [
   process.env.TWE_RELEASE_SHA,
 ].find((value) => typeof value === "string" && /^[a-f0-9]{40}$/i.test(value));
 const visible = (href: string) =>
-  href === "/journal" ||
   (cinematic && href.startsWith("#")) ||
   Boolean(publishedPage(href === "/" ? "home" : href.slice(1)));
 const copy = siteCopy("site-appearance");
@@ -115,7 +119,8 @@ const navigation = [
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&family=Poiret+One&family=Quicksand:wght@400;500;600;700&family=Sassy+Frass&display=swap" />
+    <link rel="stylesheet" href={fontStylesheet} />
+    {path === "/plan-your-trip" && <meta name="referrer" content="no-referrer" /> }
     <meta name="theme-color" content="#010c33" />
     {releaseSha && <meta name="twe-release" content={releaseSha} />}
     {branding.favicon
@@ -125,7 +130,7 @@ const navigation = [
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="/site.webmanifest" />
     <title>{title}</title>
-    <meta name="description" content={description} />
+    <meta name="description" content={metadataDescription} />
     {
       googleSiteVerification && (
         <meta
@@ -144,7 +149,7 @@ const navigation = [
     <meta property="og:locale" content="en_GH" />
     <meta property="og:type" content={type} />
     <meta property="og:title" content={title} />
-    <meta property="og:description" content={description} />
+    <meta property="og:description" content={metadataDescription} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={sharing.image} />
     <meta property="og:image:width" content={String(sharing.width)} />
@@ -154,8 +159,8 @@ const navigation = [
     <meta name="twitter:image" content={sharing.image} />
     <meta name="twitter:image:alt" content={sharing.imageAlt} />
     <meta name="twitter:title" content={title} />
-    <meta name="twitter:description" content={description} />
-    <script is:inline type="application/ld+json" set:html={jsonLd} />
+    <meta name="twitter:description" content={metadataDescription} />
+    {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
     {
       breadcrumbJson && (
         <script
@@ -243,7 +248,7 @@ const navigation = [
       </nav>
     </header>
     </div>
-    <main id="main-content"><slot /></main>
+    <main id="main-content" tabindex="-1"><slot /></main>
     <slot name="closing" />
     {!Astro.slots.has("closing") && (
       <CinematicEnquiry enquiryAvailable={Boolean(publishedPage("contact"))} catalogue={enquiryCatalogue} />
@@ -278,6 +283,7 @@ const navigation = [
     const setOpen = (open: boolean) => {
       toggle.setAttribute("aria-expanded", String(open));
       nav.dataset.collapsed = String(!open && mobile.matches);
+      nav.inert = !open && mobile.matches;
       document.body.classList.toggle("twe-mobile-menu-open", open && mobile.matches);
     };
     toggle.hidden = false;
@@ -294,6 +300,9 @@ const navigation = [
     nav.addEventListener("click", (event) => {
       if ((event.target as Element).closest("a") && mobile.matches)
         setOpen(false);
+    });
+    document.addEventListener("click", event => {
+      if (mobile.matches && toggle.getAttribute("aria-expanded") === "true" && event.target instanceof Node && !nav.contains(event.target) && !toggle.contains(event.target)) setOpen(false);
     });
     toggle.addEventListener("keydown", (event) => {
       if (event.key === "Escape") setOpen(false);

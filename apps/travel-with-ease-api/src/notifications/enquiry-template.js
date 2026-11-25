@@ -1,3 +1,5 @@
+import { inlineRuns, richTextBlocks } from "../content/rich-text.js";
+
 const escapeHtml = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -10,6 +12,26 @@ const escapeHtml = (value) =>
         "'": "&#39;",
       })[character],
   );
+
+// Format only the small approved text dialect; every literal is HTML-escaped.
+function emailMessage(value) {
+  const inline = text => inlineRuns(text).map(run => {
+    const safe = escapeHtml(run.text).replace(/\n/g, "<br>");
+    return run.type === "bold" ? `<strong>${safe}</strong>` : run.type === "italic" ? `<em>${safe}</em>` : safe;
+  }).join("");
+  const style = 'style="font-size:16px;line-height:1.65"';
+  return richTextBlocks(value).map(block => {
+    if (block.type === "paragraph") return `<p ${style}>${inline(block.text)}</p>`;
+    const tag = block.type === "ordered" ? "ol" : "ul";
+    const start = tag === "ol" && Number.isSafeInteger(block.start) && block.start > 0 ? ` start="${block.start}"` : "";
+    return `<${tag}${start} ${style}>${block.items.map(item => `<li>${inline(item)}</li>`).join("")}</${tag}>`;
+  }).join("");
+}
+function plainEmailMessage(value) {
+  const plain = text => inlineRuns(text).map(run => run.text).join("");
+  return richTextBlocks(value).map(block => block.type === "paragraph" ? plain(block.text) :
+    block.items.map((item, index) => `${block.type === "ordered" ? (block.start || 1) + index + "." : "-"} ${plain(item)}`).join("\n")).join("\n\n");
+}
 
 // Brand and approved contact channels only; omit private business identifiers.
 export const defaultEnquiryCopy = Object.freeze({
@@ -33,16 +55,22 @@ export function enquiryTemplate({
   copy = defaultEnquiryCopy,
   ctaUrl = "https://travelwitheasegh.com",
   continuation = false,
+  context = {},
 } = {}) {
   const greeting = name.trim()
     ? `Hello ${name.trim().slice(0, 160)},`
     : "Hello,";
+  const safe = value => typeof value === "string" ? [...value].map(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 ? " " : character).join("").trim().slice(0, 160) : "";
+  const values = { customer: safe(name) || "traveller", service: safe(context.serviceTitle) || "your travel plans", package: safe(context.packageTitle) || "your selected package" };
+  const interpolate = value => value.replace(/\{\{(customer|service|package)\}\}/g, (_, key) => values[key]);
+  const limits = { subject: 160, heading: 160, message: 6000, ctaLabel: 60, continuationCtaLabel: 60 };
+  copy = Object.fromEntries(Object.entries(copy).map(([key, value]) => [key, interpolate(value).slice(0, limits[key] || 160)]));
   const heading = test ? "Email delivery preview" : copy.heading;
   const message = test
     ? "This is a test of the Travel With Ease email template. No enquiry, booking or payment was created by this preview."
     : `${copy.message}${continuation ? "\n\nComplete your trip details using the link below. Valid for 14 days." : ""}\n\nThis acknowledgement is not a booking or payment confirmation.`;
   const effectiveCopy = continuation
-    ? { ...copy, ctaLabel: "Complete your trip details" }
+    ? { ...copy, ctaLabel: copy.continuationCtaLabel || "Complete your trip details" }
     : copy;
   return brandedEmail({
     heading,
@@ -87,7 +115,7 @@ function brandedEmail({
 }) {
   const automatic =
     "This email was sent automatically by Travel With Ease.";
-  const text = `${heading}\n\n${greeting}\n\n${message}\n\n${copy.ctaLabel}: ${ctaUrl}\n\nTravel With Ease\ninfo@travelwitheasegh.com | +233 20 020 9170\nWhatsApp: https://wa.me/233208387020\nWebsite: https://travelwitheasegh.com\nInstagram: https://www.instagram.com/travelwitheasegh/\nTikTok: https://www.tiktok.com/@travelwitheaseghana\n\n${automatic}`;
+  const text = `${heading}\n\n${greeting}\n\n${plainEmailMessage(message)}\n\n${copy.ctaLabel}: ${ctaUrl}\n\nTravel With Ease\ninfo@travelwitheasegh.com | +233 20 020 9170\nWhatsApp: https://wa.me/233208387020\nWebsite: https://travelwitheasegh.com\nInstagram: https://www.instagram.com/travelwitheasegh/\nTikTok: https://www.tiktok.com/@travelwitheaseghana\n\n${automatic}`;
   // Inline styles and presentation tables are intentional for email clients.
   const html = `<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(heading)}</title></head>
 <body style="margin:0;background:#f4ede3;color:#010c33;font-family:Arial,Helvetica,sans-serif">
@@ -95,7 +123,7 @@ function brandedEmail({
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff">
 <tr><td style="padding:28px;background:#010c33"><a href="https://travelwitheasegh.com"><img src="https://travelwitheasegh.com/brand/Primary%20gold.png" width="208" alt="Travel With Ease" style="display:block;width:208px;max-width:100%;height:auto;border:0;color:#d8b56a"></a></td></tr>
 <tr><td style="padding:32px 24px;border-top:4px solid #d8b56a"><h1 style="margin:0 0 24px;font-size:26px;line-height:1.3">${escapeHtml(heading)}</h1>
-<p style="font-size:16px;line-height:1.65">${escapeHtml(greeting)}</p><p style="font-size:16px;line-height:1.65;white-space:pre-line">${escapeHtml(message)}</p>
+<p style="font-size:16px;line-height:1.65">${escapeHtml(greeting)}</p>${emailMessage(message)}
 <p style="margin:28px 0 8px"><a href="${escapeHtml(ctaUrl)}" style="display:inline-block;padding:14px 20px;background:#010c33;color:#ffffff;text-decoration:none;font-weight:bold">${escapeHtml(copy.ctaLabel)}</a></p></td></tr>
 <tr><td style="padding:24px;background:#f4ede3;font-size:13px;line-height:1.7">
 <p><a href="mailto:info@travelwitheasegh.com" style="color:#010c33">info@travelwitheasegh.com</a><br><a href="tel:+233200209170" style="color:#010c33">+233 20 020 9170</a> · <a href="https://wa.me/233208387020" style="color:#010c33">WhatsApp</a></p>

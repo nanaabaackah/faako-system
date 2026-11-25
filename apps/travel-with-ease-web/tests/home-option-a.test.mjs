@@ -42,7 +42,7 @@ test("protected hero, packages, footprint and closing CTA are preserved", () => 
 
 test("About uses the approved story content and available media, without new claims", () => {
   assert.match(home, /<h2>\{about\.heading\}<\/h2>/);
-  assert.match(home, /<p>\{about\.body\}<\/p>/);
+  assert.match(home, /<RichText value=\{about\.body\}\/>/);
   assert.match(home, /<EditorialPhoto[\s\S]*?image=\{about\.image\}/);
   assert.match(home, /\{about\.image && \(/);
   assert.ok(home.includes('<ContentLink href="/about">{siteCopy("home").aboutCta}</ContentLink>'));
@@ -61,7 +61,7 @@ test("services keep published labels, prices, currency formatting and direct lin
 
 test("process preserves the existing Stepper for both approved homepage routes", () => {
   assert.match(process, /const homepageFlows: Props\["content"\]\["processFlows"\] = withUpdatedPackageFlow\(content\.processFlows\)/);
-  assert.match(process, /<HomeJourneyStepper flows=\{homepageFlows\} client:visible/);
+  assert.match(process, /<HomeJourneyStepper flows=\{readyFlows\} client:visible/);
   assert.match(process, /"planning-process": page/);
   assert.match(process, /<noscript>[\s\S]*?journey-process__fallback/);
   assert.match(stepper, /label: "Packages"/);
@@ -134,7 +134,9 @@ test("package tickets reuse the React Bits ticket with visible headings, currenc
   assert.match(packageTicket, /rotateAmplitude=\{9\}/);
   assert.match(packageTicket, /flipped=\{flipped\}/);
   assert.match(packageTicket, /<Heading><a href=\{href\}>\{title\}<\/a><\/Heading>/);
-  assert.match(packageTicket, /import \{ ArrowRight4 \} from "@faako\/ui"/);
+  assert.match(packageTicket, /import \{ ArrowRight4, IconsaxIcon \} from "@faako\/ui"/);
+  assert.match(packageTicket, /<IconsaxIcon name="ArrowLeft4"/);
+  assert.doesNotMatch(ticketSkin, /\.twe-ticket__flip--back svg[^}]*rotate/);
   assert.match(packageTicket, /aria-label=\{`Explore \$\{title\} package`\}/);
   assert.doesNotMatch(packageTicket, /Your planning pass|Your journey, your way|↗|twe-ticket__label/);
   assert.match(ticketSkin, /twe-ticket__barcode/);

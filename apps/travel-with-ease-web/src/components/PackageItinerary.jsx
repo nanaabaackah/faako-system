@@ -1,3 +1,5 @@
+import RichText from "./RichText.jsx";
+import "../styles/components/rich-text.css";
 import AnimatedList from "./reactbits/AnimatedList.jsx";
 import "../styles/components/package-itinerary-interactive.css";
 
@@ -39,7 +41,7 @@ export default function PackageItinerary({ days = [] }) {
             <span className="twe-package-itinerary__day">Day {item.day}</span>
             <div className="twe-package-itinerary__copy">
               <h3>{item.title}</h3>
-              <p>{item.description}</p>
+              <RichText value={item.description}/>
             </div>
           </div>
         )}

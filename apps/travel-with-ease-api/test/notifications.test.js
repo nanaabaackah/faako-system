@@ -66,7 +66,7 @@ test("local/staging redirect only to testing regardless of entered contact or ob
     assert.equal(sent.length, 1);
   }
 });
-test("production acknowledges customer and CCs notifications with stable retries", async () => {
+test("production sends separately pinned customer and staff messages with stable retries", async () => {
   const sent = [];
   const sender = new ResendSender(
     readNotificationConfig({ ...env, APP_ENV: "production" }),
@@ -76,30 +76,63 @@ test("production acknowledges customer and CCs notifications with stable retries
     },
   );
   assert.throws(() => sender.payload({ email: "invalid" }));
+  const enquiryId = "57f9be65-c7aa-4bf8-97ce-e60fdb8e3c33";
   const payload = sender.payload({
-    name: "Traveller",
-    email: "customer@example.invalid",
+    id: enquiryId,
+    contact: { name: "Traveller", email: "customer@example.invalid" },
     notes: "private itinerary",
   });
   assert.deepEqual(payload.to, ["customer@example.invalid"]);
-  assert.deepEqual(payload.cc, ["notifications@travelwitheasegh.com"]);
-  assert.doesNotMatch(
-    payload.html + payload.text,
-    /private itinerary|staff workspace|api\/auth/,
-  );
-  const job = { id: "synthetic-job", delivery_payload: payload };
+  assert.equal(payload.cc, undefined);
+  assert.deepEqual(payload.staff.to, ["notifications@travelwitheasegh.com"]);
+  assert.doesNotMatch(payload.staff.html + payload.staff.text, /private itinerary|customer@example|continue=v1/);
+  const job = { id: "synthetic-job", enquiry_id: enquiryId, delivery_payload: payload };
   await sender.send(job);
   await sender.send(job);
-  assert.equal(
-    sent[0].options.headers["Idempotency-Key"],
-    sent[1].options.headers["Idempotency-Key"],
-  );
-  assert.equal(sent[0].options.body, sent[1].options.body);
-  assert.equal(sent[0].url, "https://api.resend.com/emails");
-  assert.equal(sent[0].options.redirect, "error");
-  await assert.rejects(
-    sender.send({ ...job, delivery_payload: { ...payload, cc: [] } }),
-  );
+  assert.equal(sent.length, 4);
+  for (let i = 0; i < 2; i++) {
+    assert.equal(sent[i].options.headers["Idempotency-Key"], sent[i + 2].options.headers["Idempotency-Key"]);
+    assert.equal(sent[i].options.body, sent[i + 2].options.body);
+    assert.equal(sent[i].url, "https://api.resend.com/emails");
+    assert.equal(sent[i].options.redirect, "error");
+    assert.equal(JSON.parse(sent[i].options.body).staff, undefined);
+  }
+  assert.notEqual(sent[0].options.headers["Idempotency-Key"], sent[1].options.headers["Idempotency-Key"]);
+  for (const changed of [{ ...payload, cc: [] }, { ...payload, staff: { ...payload.staff, to: ["attacker@example.invalid"] } }, { ...payload, staff: { ...payload.staff, text: "private link" } }]) {
+    await assert.rejects(sender.send({ ...job, delivery_payload: changed }));
+  }
+  assert.equal(sent.length, 4);
+});
+
+test("partial provider failure retries the same two requests without changing their idempotency keys", async () => {
+  const calls = [];
+  const accepted = new Map();
+  const sender = new ResendSender(readNotificationConfig({ ...env, APP_ENV: "production" }), async (_url, options) => {
+    const key = options.headers["Idempotency-Key"];
+    calls.push({ key, body: options.body });
+    if (key.endsWith("-staff") && calls.length === 2) return { ok: false };
+    if (!accepted.has(key)) accepted.set(key, "provider-" + accepted.size);
+    return { ok: true, json: async () => ({ id: accepted.get(key) }) };
+  });
+  const enquiryId = "57f9be65-c7aa-4bf8-97ce-e60fdb8e3c33";
+  const job = { id: "retry-job", enquiry_id: enquiryId, delivery_payload: sender.payload({ id: enquiryId, contact: { email: "customer@example.invalid" } }) };
+  await assert.rejects(sender.send(job), /provider_rejected/);
+  assert.equal(await sender.send(job), "provider-0");
+  assert.equal(accepted.size, 2);
+  assert.deepEqual(calls.slice(0, 2), calls.slice(2));
+});
+
+test("staging pair never sends to a real customer or staff mailbox", async () => {
+  const messages = [];
+  const sender = new ResendSender(readNotificationConfig(env), async (_url, options) => {
+    messages.push(JSON.parse(options.body));
+    return { ok: true, json: async () => ({ id: "synthetic" }) };
+  });
+  const enquiryId = "57f9be65-c7aa-4bf8-97ce-e60fdb8e3c33";
+  await sender.send({ id: "staging-job", enquiry_id: enquiryId, delivery_payload: sender.payload({ id: enquiryId, contact: { email: "real@example.invalid" } }) });
+  assert.equal(messages.length, 2);
+  assert.ok(messages.every(message => message.to[0] === "testing@travelwitheasegh.com" && !message.cc));
+  assert.doesNotMatch(JSON.stringify(messages), /real@example.invalid|notifications@travelwitheasegh.com/);
 });
 test("acknowledgement creates a private expiring questionnaire fragment without enquiry answers", () => {
   const sender = new ResendSender(
@@ -118,6 +151,7 @@ test("acknowledgement creates a private expiring questionnaire fragment without 
     contact: { name: "Traveller", email: "traveller@example.invalid" },
     answers: { passport: "must-not-appear" },
   });
+  assert.doesNotMatch(payload.staff.html + payload.staff.text, /continue=v1|traveller@example.invalid|passport/);
   for (const output of [payload.html, payload.text]) {
     assert.match(output, /Complete your trip details/);
     assert.match(output, /plan-your-trip#continue=v1\./);

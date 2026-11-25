@@ -38,6 +38,7 @@ test("enquiry inbox uses scoped queries, CSRF, version matching and an atomic au
     async connect() { return client; },
     async query(sql, values) {
       queries.push({ sql, values });
+      if (sql.includes("GROUP BY status")) return { rows: [{ status: "new", count: 42 }, { status: "contacted", count: 31 }] };
       if (sql.includes("FROM twe.enquiries") && sql.includes("LIMIT 26")) return { rows: [{
         id: sample.id, kind: sample.kind, status: sample.status,
         contact_name: sample.contact.name, created_at: sample.created_at,
@@ -81,6 +82,10 @@ test("enquiry inbox uses scoped queries, CSRF, version matching and an atomic au
   try {
     assert.equal((await request("/api/agent/inquiries?status=bogus")).status, 400);
     assert.equal((await request("/api/agent/inquiries?offset=-1")).status, 400);
+    const summary = await request("/api/agent/inquiries/summary");
+    assert.equal(summary.status, 200);
+    assert.deepEqual(JSON.parse(summary.text).data.counts, { new: 42, contacted: 31, closed: 0 });
+    assert.deepEqual(queries.find(item => item.sql.includes("GROUP BY status")).values, [organisation]);
     const list = await request("/api/agent/inquiries?status=new&kind=personalised&offset=0");
     assert.equal(list.status, 200);
     const listPayload = JSON.parse(list.text).data;

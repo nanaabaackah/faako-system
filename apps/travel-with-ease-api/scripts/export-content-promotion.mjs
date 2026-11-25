@@ -2,6 +2,10 @@ import { writeFile } from "node:fs/promises";
 import { createDatabase, verifyDatabaseIdentity } from "../src/db/database.js";
 import { PublicationRepository } from "../src/content/publication.js";
 import { exportPromotionBundle } from "../src/content/promotion.js";
+import { IntakeConfiguration } from "../src/enquiries/intake-configuration.js";
+import { INTAKE_FORM_ID } from "../src/enquiries/intake-definition.js";
+import { DETAILED_FORM_ID } from "../src/enquiries/questionnaires/configuration.js";
+import { EmailTemplates } from "../src/notifications/templates.js";
 import { MediaService } from "../src/media/service.js";
 import { readR2Config, R2Store } from "../src/media/r2.js";
 import approved from "../../travel-with-ease-web/content/approved-public-release.json" with { type: "json" };
@@ -19,7 +23,7 @@ try {
   const media = new MediaService(pool, organisationId, new R2Store(storage));
   const publication = new PublicationRepository(pool, { organisationId, environment: "staging", sourceSha: "" });
   const bundle = await exportPromotionBundle({ publication, media, approvedPages: approved.pages,
-    source: { organisationId } });
+    source: { organisationId }, templates: new EmailTemplates(pool, organisationId), forms: Object.fromEntries([INTAKE_FORM_ID, DETAILED_FORM_ID].map(id => [id, new IntakeConfiguration(pool, organisationId, id)])) });
   await writeFile(output, JSON.stringify(bundle), { mode: 0o600, flag: "wx" });
   console.log(JSON.stringify({ status: "exported", sourcePublicationId: bundle.source.publicationId,
     contentFingerprint: bundle.source.contentFingerprint }));

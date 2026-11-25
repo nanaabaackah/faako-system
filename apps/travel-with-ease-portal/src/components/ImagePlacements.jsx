@@ -15,6 +15,7 @@ const defaults = {
   alt: "",
 };
 export default function ImagePlacements({ page, body, change, api, session }) {
+  const canEditGeometry = session.user.role === "platform_admin";
   const [selection, setSelection] = useState(""),
     [picker, setPicker] = useState(null),
     [warning, setWarning] = useState(""),
@@ -136,7 +137,10 @@ export default function ImagePlacements({ page, body, change, api, session }) {
             <Button
               icon="refresh"
               onClick={() => {
-                target.update(null);
+                // Editors may reset source images without changing the
+                // Superadmin-controlled focal points or layout of this slot.
+                if (canEditGeometry) target.update(null);
+                else target.update({ ...value, imageId: null, mobileImageId: null, alt: "" });
                 setPicker(null);
                 setWarning("");
               }}
@@ -169,7 +173,7 @@ export default function ImagePlacements({ page, body, change, api, session }) {
           {warning && (
             <InlineNotice title="Image resolution" message={warning} />
           )}
-          {target.split && (
+          {canEditGeometry && target.split && (
             <SelectField
               label="Image position"
               value={value.layout}
@@ -181,7 +185,7 @@ export default function ImagePlacements({ page, body, change, api, session }) {
               ]}
             />
           )}
-          {!target.id?.startsWith("cta-") && (
+          {canEditGeometry && !target.id?.startsWith("cta-") && (
             <div className="image-placement-focus">
               {[
                 ["focalX", "Desktop horizontal focus"],
@@ -217,6 +221,7 @@ export default function ImagePlacements({ page, body, change, api, session }) {
                 hint="Optional accessibility override, not a visible caption."
               />
             )}
+          {!canEditGeometry && <p className="workspace-caption">Image layout and focal-point adjustments are managed by Superadmin.</p>}
           {picker && (
             <div>
               <h4>

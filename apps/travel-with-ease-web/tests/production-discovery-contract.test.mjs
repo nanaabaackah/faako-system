@@ -50,3 +50,15 @@ test("consent preferences control analytics and Search Console verification rema
   assert.match(config, /sitemap\(\{ filter:/);
   assert.match(robots, /sitemap-index\.xml/);
 });
+
+import { pageDiscovery } from "../src/lib/discovery.js";
+
+test("discovery graph describes published FAQs and services without invented offers", () => {
+  const common = { origin: "https://travelwithease.example", title: "Travel With Ease", description: "Travel planning from Ghana" };
+  const faq = pageDiscovery({ ...common, canonical: common.origin + "/faqs", pathname: "/faqs", content: { entries: [{ heading: "How do I enquire?", text: "**Send** an enquiry." }] } });
+  const page = faq["@graph"].find(node => node["@type"] === "FAQPage");
+  assert.equal(page.mainEntity[0].acceptedAnswer.text, "Send an enquiry.");
+  const service = pageDiscovery({ ...common, canonical: common.origin + "/services/planning", pathname: "/services/planning", content: { title: "Planning", text: "Personalised travel planning" } });
+  assert.ok(service["@graph"].some(node => node["@type"] === "Service"));
+  assert.doesNotMatch(JSON.stringify(service), /aggregateRating|offers|priceCurrency/);
+});

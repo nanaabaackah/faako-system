@@ -6,6 +6,10 @@ import { assertApiStartup } from "./staging-startup.js";
 import { createInlinePortal } from "./portal/inline.js";
 import { contentRoutes } from "./content/routes.js";
 import { enquiriesRoutes } from "./enquiries/routes.js";
+import { configuredSmartEnquirySchema, configuredQuestionnaireSnapshot } from "./enquiries/questionnaire-validation.js";
+import { DETAILED_FORM_ID } from "./enquiries/questionnaires/configuration.js";
+import { IntakeConfiguration, intakeConfigurationRoutes } from "./enquiries/intake-configuration.js";
+import { defaultIntakeDefinition, validateIntakeAdditionalAnswers, INTAKE_FORM_ID, INTAKE_BASELINE_VERSION } from "./enquiries/intake-definition.js";
 import { mediaRoutes } from "./media/routes.js";
 import { EmailTemplates, emailTemplateRoutes } from "./notifications/templates.js";
 import { createSecurityHeaders } from "./security/securityHeaders.js";
@@ -47,7 +51,7 @@ export const createLimiter = ({ limit, windowMs, maxClients = 10_000, clock = Da
 
 const issuesFor = (error) => error.issues.map((issue) => ({ field: issue.path.join("."), code: issue.code, message: issue.message }));
 
-export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, continuationLinks = null, logger = createLogger("travel-with-ease-api") }) => {
+export const createApp = ({ repository, estimatorService, currencyService, contentRepository, publicationRepository, previewService, mediaService, allowedOrigins = [], agentToken = "", staffAuth, startupReceipt, portal = null, environment = "test", turnstileVerifier = null, continuationLinks = null, templateTestSenderFactory = null, logger = createLogger("travel-with-ease-api") }) => {
   assertApiStartup({ environment, repository, staffAuth, allowedOrigins, agentToken, startupReceipt });
   if (contentRepository && !staffAuth) throw new Error("CMS requires staff sessions.");
   if (mediaService && !staffAuth) throw new Error("Media requires staff sessions.");
@@ -77,8 +81,30 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
   if (contentRepository && repository?.pool && repository?.organisationId && staffAuth) app.use("/api/agent/inquiries", enquiriesRoutes({ pool: repository.pool, organisationId: repository.organisationId, auth: staffAuth }));
   if (contentRepository) app.use("/api/agent/content", contentRoutes({ repository: contentRepository, publication: publicationRepository, preview: previewService, auth: staffAuth }));
   if (mediaService) app.use("/api/agent/media", mediaRoutes({ service: mediaService, auth: staffAuth }));
-  if (repository?.pool && staffAuth) app.use("/api/agent/templates", emailTemplateRoutes(new EmailTemplates(repository.pool, repository.organisationId), staffAuth));
+  if (repository?.pool && staffAuth) app.use("/api/agent/templates", emailTemplateRoutes(new EmailTemplates(repository.pool, repository.organisationId, templateTestSenderFactory), staffAuth));
 
+  const intakeConfiguration = repository?.pool && repository?.organisationId
+    ? new IntakeConfiguration(repository.pool, repository.organisationId) : null;
+  const detailedConfiguration = repository?.pool && repository?.organisationId
+    ? new IntakeConfiguration(repository.pool, repository.organisationId, DETAILED_FORM_ID) : null;
+  if (detailedConfiguration && staffAuth) app.use("/api/agent/enquiry-forms/detailed", intakeConfigurationRoutes(detailedConfiguration, staffAuth));
+  if (intakeConfiguration && staffAuth) app.use("/api/agent/enquiry-forms/intake", intakeConfigurationRoutes(intakeConfiguration, staffAuth));
+  app.get("/api/public/enquiry-forms/intake", createLimiter({ limit: 60, windowMs: 10 * 60_000 }), async (req, res) => {
+    try {
+      if (!intakeConfiguration) throw new Error("Form configuration unavailable.");
+      return res.json(createSuccessResponse(await intakeConfiguration.active(), { requestId: req.requestId }));
+    } catch {
+      return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "The enquiry form is temporarily unavailable." }, { requestId: req.requestId }));
+    }
+  });
+
+  // Public release identity contains only the deployed code SHA and environment.
+  // Workers must agree with the running API before coordinating any content release.
+  app.get("/api/public/release", (_req, res) => {
+    const sourceSha = publicationRepository?.sourceSha;
+    if (!["staging", "production"].includes(environment) || !/^[a-f0-9]{40}$/.test(sourceSha || "")) return res.sendStatus(503);
+    return res.json({ environment, sourceSha });
+  });
   app.get("/healthz", (_req, res) => res.json({ ok: true, service: "travel-with-ease-api" }));
   app.get("/readyz", async (req, res) => {
     try {
@@ -121,6 +147,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
         entryType: context.entryType,
         context: context.context,
         expiresAt: verified.expiresAt,
+        ...(context.questionnaireVersion?.startsWith("cms.") ? { questionnaire: await detailedConfiguration.version(Number(context.questionnaireVersion.slice(4))) } : {}),
       }, { requestId: req.requestId }));
     } catch {
       logger.error?.({ requestId: req.requestId, eventName: "enquiry.continuation_context_failed" }, "Enquiry continuation could not be opened");
@@ -139,14 +166,29 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     const questionnaire = Object.fromEntries(
       Object.entries(req.body || {}).filter(([key]) => key !== "continuationToken"),
     );
-    const parsed = smartEnquirySchema.safeParse(questionnaire);
+    let definition = null;
+    let schema = smartEnquirySchema;
+    if (typeof questionnaire.questionnaireVersion === "string" && /^cms\.[1-9]\d{0,9}$/.test(questionnaire.questionnaireVersion)) {
+      if (!detailedConfiguration) return continuationUnavailable(req, res);
+      try {
+        const version = Number(questionnaire.questionnaireVersion.slice(4));
+        const snapshot = await detailedConfiguration.version(version);
+        definition = snapshot.definition;
+        schema = configuredSmartEnquirySchema(definition, version);
+      } catch (error) {
+        if (error.status === 404 || error instanceof z.ZodError) return continuationUnavailable(req, res);
+        return res.status(503).json(createErrorResponse({ code: "service_unavailable", message: "The questionnaire is temporarily unavailable." }, { requestId: req.requestId }));
+      }
+    }
+    const parsed = schema.safeParse(questionnaire);
     if (!parsed.success) return res.status(400).json(createErrorResponse({
       code: "validation_error", message: "Please check your questionnaire details.", issues: issuesFor(parsed.error),
     }, { requestId: req.requestId }));
     if (parsed.data.website) return res.status(202).json(createSuccessResponse({ received: true }, { requestId: req.requestId }));
     try {
       await verifyEnquiryChallenge(req, parsed.data.turnstileToken);
-      const result = await repository.completeEnquiryContinuation(verified.enquiryId, parsed.data);
+      const data = definition ? { ...parsed.data, configuredSnapshot: configuredQuestionnaireSnapshot(parsed.data, definition) } : parsed.data;
+      const result = await repository.completeEnquiryContinuation(verified.enquiryId, data);
       return res.status(result.replayed ? 200 : 201).json(createSuccessResponse(result, { requestId: req.requestId }));
     } catch (error) {
       if (error instanceof TurnstileError) return res.status(error.status).json(createErrorResponse({ code: error.code, message: error.message }, { requestId: req.requestId }));
@@ -170,11 +212,43 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     try {
       await verifyEnquiryChallenge(req, parsed.data.turnstileToken);
       if (typeof repository?.createNativeEnquiry !== "function") throw new Error("Enquiry adapter unavailable.");
-      const result = await repository.createNativeEnquiry(parsed.data);
+      let data = parsed.data;
+      if (data.intakeVersion !== undefined) {
+        const version = data.intakeVersion;
+        let snapshot;
+        try {
+          snapshot = intakeConfiguration ? await intakeConfiguration.version(version)
+            : version === INTAKE_BASELINE_VERSION && !["staging", "production"].includes(environment)
+              ? { definition: defaultIntakeDefinition() } : null;
+          if (!snapshot) throw Object.assign(new Error("Unavailable form"), { status: 404 });
+        } catch (error) {
+          if (error.status !== 404) throw error;
+          return res.status(409).json(createErrorResponse({ code: "conflict", message: "This form version is unavailable. Reopen the enquiry before submitting." }, { requestId: req.requestId }));
+        }
+        let answers;
+        try { answers = validateIntakeAdditionalAnswers(snapshot.definition, data.entryType, data.additionalAnswers || {}); }
+        catch (error) {
+          if (!(error instanceof z.ZodError)) throw error;
+          return res.status(400).json(createErrorResponse({ code: "validation_error", message: "Check the additional enquiry answers.", issues: issuesFor(error) }, { requestId: req.requestId }));
+        }
+        const core = { ...data };
+        delete core.additionalAnswers;
+        data = { ...core, intakeSnapshot: {
+          formId: INTAKE_FORM_ID, version, title: snapshot.definition.title,
+          core: snapshot.definition.core.filter(field => field.id !== "budget" || data.entryType !== "package").map(field => ({
+            id: field.id, label: field.label, ...(field.options ? { selectedOption: field.options.find(option => option.value === data[field.id]) || null } : {}),
+          })),
+          additional: answers,
+        } };
+      }
+      const result = await repository.createNativeEnquiry(data);
       return res.status(result.replayed ? 200 : 201).json(createSuccessResponse(result, { requestId: req.requestId }));
     } catch (error) {
       if (error instanceof TurnstileError) return res.status(error.status).json(createErrorResponse({
         code: error.code, message: error.message,
+      }, { requestId: req.requestId }));
+      if (error.code === "intake_version_changed") return res.status(409).json(createErrorResponse({
+        code: "conflict", message: "The enquiry form has changed. Reload the questions before submitting again.",
       }, { requestId: req.requestId }));
       if (error.code === "enquiry_submission_conflict") return res.status(409).json(createErrorResponse({
         code: "conflict", message: "This submission reference was already used for different details. Start a new enquiry.",
