@@ -268,7 +268,7 @@ export function createWorkspaceFixture({role='owner', interactivePreview=false}=
         const slug = templateAction[1] || "enquiry-acknowledgement";
         let template = templates.get(slug);
         if (!template) return fail(400, "Unknown email template.");
-        if (templateAction[2] === "preview") return { ...renderEmailTemplate(slug, json), preview: true, demo: true };
+        if (templateAction[2] === "preview") return { ...renderEmailTemplate(slug, json, (pages.get("packages")?.body || pageBody("packages")).packages.map(packageTemplateOption).find(option => option?.slug === slug)?.label), preview: true, demo: true };
         if (json.expectedVersion !== template.version) return fail(409, "Reload the changed demo template.");
         const activate = path.endsWith("/activate");
         template = { ...template, ...(activate ? { active: copy(template.draft), active_version: template.version } : { draft: copy(json.copy) }), version: template.version + 1 };
