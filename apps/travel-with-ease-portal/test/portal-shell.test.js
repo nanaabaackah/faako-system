@@ -14,7 +14,7 @@ test("portal shell uses shared primitives and site-matched font definitions with
   const source = path => readFileSync(new URL(path, import.meta.url), "utf8");
   assert.match(source("../src/components/PortalNavigation.jsx"), /<ErpNavSidebar/);
   assert.match(source("../src/App.jsx"), /<ErpShellTopbar/);
-  assert.match(source("../src/App.jsx"), /dailyRefreshHourUtc={2}/);
+  assert.match(source("../src/App.jsx"), /dailyRefreshHourUtc=\{2\}/);
   const css = source("../src/styles/typography.css");
   for (const family of ["Poiret One", "Quicksand", "Inter"]) assert.ok(css.includes(family));
   assert.doesNotMatch(css, /Montserrat|https?:\/\//);

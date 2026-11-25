@@ -1,7 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { preparePortalFonts } from "./scripts/prepare-portal-fonts.mjs";
-export default defineConfig(async ({ command, mode }) => {
+export default defineConfig(({ command, mode }) => {
   const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
   if ((command === "build" && (env.TWE_WORKSPACE_PREVIEW === "true" || env.VITE_TWE_LOCAL_WORKSPACE === "true")) ||
       (env.TWE_WORKSPACE_PREVIEW === "true" && (env.APP_ENV !== "development" || env.NODE_ENV === "production"))) {
@@ -10,8 +10,7 @@ export default defineConfig(async ({ command, mode }) => {
   if (command === "build" && ["staging", "production"].includes(env.APP_ENV) && env.VITE_API_BASE_URL?.trim()) {
     throw new Error("Hosted staff portal builds require an empty VITE_API_BASE_URL for same-origin Access sessions.");
   }
-  await preparePortalFonts();
-  return {
+  return preparePortalFonts().then(() => ({
     plugins: [react()],
     server: {
       host: "127.0.0.1",
@@ -21,5 +20,5 @@ export default defineConfig(async ({ command, mode }) => {
         ...(env.TWE_WORKSPACE_PREVIEW === "true" ? { "/__workspace": "http://127.0.0.1:3090" } : {}),
       },
     },
-  };
+  }));
 });
