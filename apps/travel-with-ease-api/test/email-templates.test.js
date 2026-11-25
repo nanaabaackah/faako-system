@@ -235,3 +235,21 @@ test("email revision history and restore use the same tenant and template scope"
     ["tenant-a", "staff-invitation"], ["tenant-a", "staff-invitation", 7], ["tenant-a", "staff-invitation", 8],
   ]);
 });
+
+test("template test sends sample data to the fixed test mailbox in both hosted environments", async () => {
+  for (const environment of ["staging", "production"]) {
+    let message, key;
+    const sender = new ResendSender({ environment, from: "sender@example.invalid" });
+    sender.sendMessage = async (payload, attemptKey) => { message = payload; key = attemptKey; return "synthetic-id"; };
+    const attempt = "12345678-1234-4234-8234-123456789abc";
+    await sender.sendTemplateTest("staff-invitation", defaultInvitationCopy, attempt);
+    assert.deepEqual(message.to, ["testing@travelwitheasegh.com"]);
+    assert.match(message.subject, /^\[TEST\]/);
+    assert.match(message.text, /sample data only/);
+    assert.match(message.text, /does not grant workspace access/);
+    assert.equal(message.cc, undefined);
+    assert.equal(key, `twe-template-test-${environment}-${attempt}`);
+  }
+  const unavailable = new ResendSender({ environment: "test", from: "sender@example.invalid" });
+  await assert.rejects(unavailable.sendTemplateTest("enquiry-acknowledgement", defaultEnquiryCopy, "12345678-1234-4234-8234-123456789abc"), /test_delivery_unavailable/);
+});
