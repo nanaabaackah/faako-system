@@ -3,6 +3,7 @@ import { AnimatedLoadingState, InlineNotice, TextField, SelectField, ERPConfirmD
 import Button from "./ActionButton.jsx";
 import HistoryDisclosure from "./HistoryDisclosure.jsx";
 import IntakeFormPreview from "./IntakeFormPreview.jsx";
+import DetailedFormPreview from "./DetailedFormPreview.jsx";
 import DetailedQuestionFields from "./DetailedQuestionFields.jsx";
 import { createDraftAutosave } from "../lib/draft-autosave.js";
 
@@ -138,9 +139,9 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
     {loading ? <AnimatedLoadingState compact title="Loading enquiry form"/> : definition && record && <>
       <p role="status">Active version {record.activeVersion} · {saving ? "Saving draft…" : saveState.dirty ? "Unsaved changes" : "Draft saved"}</p>
       {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error}/>}
-      {detailed ? <DetailedQuestionFields definition={definition} edit={edit} blocked={blocked}/> : <>
       <div className="editor-actions"><Button type="button" icon="preview" aria-expanded={preview} onClick={() => setPreview(value => !value)}>{preview ? "Close preview" : "Preview draft"}</Button></div>
-      {preview && <IntakeFormPreview key={record.revision} definition={definition}/>}
+      {preview && (detailed ? <DetailedFormPreview key={record.revision} definition={definition}/> : <IntakeFormPreview key={record.revision} definition={definition}/>)}
+      {detailed ? <DetailedQuestionFields definition={definition} edit={edit} blocked={blocked}/> : <>
       <TextField label="Form heading" value={definition.title} maxLength={160} disabled={blocked} required onChange={event => edit(body => ({ ...body, title: event.target.value }))}/>
       <div className="cms-editor-groups">
         <h2>Core questions</h2>
