@@ -221,7 +221,9 @@ try {
     await emailType.focus();
     await page.keyboard.press("Enter");
     await page.getByRole("option", { name: "Staff invitation", exact: true }).click();
-    await page.getByRole("heading", { name: "Staff invitation", exact: true }).waitFor();
+    await expect(emailType).toContainText("Staff invitation");
+    await page.getByText("Draft revision 0 · Default invitation copy", { exact: true }).waitFor();
+    await expect(page.getByLabel(/^Heading/)).toBeEnabled();
     await page.getByLabel(/^Heading/).fill("Synthetic team invitation");
     await emailType.click();
     await page.getByRole("option", { name: "Staff invitation", exact: true }).click();
@@ -244,7 +246,7 @@ try {
     await page.screenshot({ path: path.join(output, `invitation-template-${width}.png`), fullPage: true });
     await emailType.click();
     await page.getByRole("option", { name: "Enquiry acknowledgement", exact: true }).click();
-    await page.getByRole("heading", { name: "Enquiry acknowledgement", exact: true }).waitFor();
+    await expect(emailType).toContainText("Enquiry acknowledgement");
     await page.getByText("Draft revision 2 · Active revision 1", { exact: true }).waitFor();
     await expect(page.getByLabel(/^Heading/)).toHaveValue("Synthetic acknowledgement");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
