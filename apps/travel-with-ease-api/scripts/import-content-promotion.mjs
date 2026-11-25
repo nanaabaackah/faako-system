@@ -18,7 +18,7 @@ if (mode === "--dry-run") {
   console.log(JSON.stringify({ status: "validated_offline", sourcePublicationId: bundle.source.publicationId,
     sourceSha: bundle.source.sourceSha, fingerprint: bundle.fingerprint,
     pages: Object.keys(bundle.pages).length, publishedPages: Object.values(bundle.pages).filter(Boolean).length,
-    media: bundle.media.length, emailTemplates: Object.keys(bundle.emailTemplates || {}).length }));
+    media: bundle.media.length, emailTemplates: Object.keys(bundle.emailTemplates || {}).length, enquiryForms: Object.values(bundle.enquiryForms || {}).map(({formId,version})=>({formId,version})) }));
 } else {
   if (process.env.APP_ENV !== "production" || process.env.NODE_ENV !== "production")
     throw new Error("Promotion import is production-only.");
