@@ -53,7 +53,13 @@ export async function reconcileStalePublication({
       );
       if (!deployed && settings?.environment === "staging" && job.status === "deploying" &&
           typeof provider.terminalStagingDeployment === "function" && typeof publication.failTerminalStagingDeployment === "function") {
-        const terminal = await provider.terminalStagingDeployment(job, logger);
+        let terminal;
+        try {
+          terminal = await provider.terminalStagingDeployment(job, logger);
+        } catch {
+          logger.warn?.({ eventName: "publication.terminal_evidence", jobId: job.id, reason: "provider_lookup_failed" }, "Terminal deployment lookup failed; no publication state changed.");
+          throw new Error("Terminal deployment evidence unavailable.");
+        }
         if (terminal) {
           const baseline = await publication.lastLive();
           if (!baseline || baseline.id === job.id) throw new Error("No separate confirmed staging baseline.");
