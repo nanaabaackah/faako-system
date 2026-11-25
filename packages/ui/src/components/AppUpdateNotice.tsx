@@ -15,6 +15,8 @@ export interface AppUpdateNoticeProps {
   refreshBlockedMessage?: string;
   /** Optional daily UTC hour for applying pending prompt-mode updates when safe. */
   dailyRefreshHourUtc?: number;
+  /** Optional marker for the exact app shell; never interpret a sign-in/error page as an update. */
+  expectedDocumentMarker?: string;
 }
 
 const nextUtcDeadline = (hour: number, now = Date.now()) => {
@@ -30,7 +32,7 @@ const normalizeAssetPath = (value: string) => {
     if (url.origin !== window.location.origin) return "";
     return `${url.pathname}${url.search}`;
   } catch {
-    return value;
+    return "";
   }
 };
 
@@ -42,8 +44,8 @@ const getDocumentBuildSignature = (doc: Document) => {
   ];
   const assets = assetSelectors.flatMap((selector) =>
     Array.from(doc.querySelectorAll(selector)).map((node) => {
-      if (node instanceof HTMLScriptElement) return node.src;
-      if (node instanceof HTMLLinkElement) return node.href;
+      if (node.tagName === "SCRIPT") return node.getAttribute("src") || "";
+      if (node.tagName === "LINK") return node.getAttribute("href") || "";
       return "";
     })
   );
@@ -74,6 +76,7 @@ export const AppUpdateNotice = ({
   refreshBlocked = false,
   refreshBlockedMessage = "Finish saving your current work before refreshing.",
   dailyRefreshHourUtc,
+  expectedDocumentMarker,
 }: AppUpdateNoticeProps) => {
   const [latestSignature, setLatestSignature] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -91,6 +94,7 @@ export const AppUpdateNotice = ({
   useEffect(() => {
     if (!enabled || typeof window === "undefined" || typeof document === "undefined") return;
 
+    if (expectedDocumentMarker && !document.querySelector(expectedDocumentMarker)) return;
     initialSignatureRef.current = getDocumentBuildSignature(document);
     if (!initialSignatureRef.current) return;
     try {
@@ -103,8 +107,11 @@ export const AppUpdateNotice = ({
 
     parserRef.current = new DOMParser();
     let cancelled = false;
+    let checking = false;
 
     const checkForUpdate = async () => {
+      if (checking || cancelled) return;
+      checking = true;
       try {
         const response = await fetch(getCheckUrl(checkUrl), {
           cache: "no-store",
@@ -118,7 +125,7 @@ export const AppUpdateNotice = ({
         if (cancelled) return;
 
         const nextDocument = parserRef.current?.parseFromString(html, "text/html");
-        if (!nextDocument) return;
+        if (!nextDocument || (expectedDocumentMarker && !nextDocument.querySelector(expectedDocumentMarker))) return;
 
         const nextSignature = getDocumentBuildSignature(nextDocument);
         let dismissedSignature = "";
@@ -152,10 +159,14 @@ export const AppUpdateNotice = ({
             return;
           }
           setLatestSignature(nextSignature);
+        } else if (scheduled && nextSignature) {
+          // A rollback or an already-dismissed newer signature cannot leave
+          // the old notice visible while a different build is pending.
+          setLatestSignature("");
         }
       } catch {
         // Update checks should never interrupt the active app session.
-      }
+      } finally { checking = false; }
     };
 
     const intervalId = window.setInterval(checkForUpdate, Math.max(30_000, checkIntervalMs));
@@ -171,7 +182,7 @@ export const AppUpdateNotice = ({
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", visibilityHandler);
     };
-  }, [autoRefreshStorageKey, checkIntervalMs, checkUrl, dailyRefreshHourUtc, enabled, mode, scheduled, storageKey]);
+  }, [autoRefreshStorageKey, checkIntervalMs, checkUrl, dailyRefreshHourUtc, enabled, mode, scheduled, storageKey, expectedDocumentMarker]);
 
   useEffect(() => {
     if (!enabled || !scheduled || !pendingUpdate || refreshBlocked || refreshing) return;
@@ -183,7 +194,11 @@ export const AppUpdateNotice = ({
       try {
         if (window.sessionStorage.getItem(autoRefreshStorageKey) === signature) return;
         window.sessionStorage.setItem(autoRefreshStorageKey, signature);
-      } catch { /* In-memory protection is still available. */ }
+      } catch {
+        // Without durable per-tab loop protection, keep manual Refresh available.
+        setLatestSignature(signature);
+        return;
+      }
       window.location.reload();
     };
     const timeout = window.setTimeout(applyIfDue, Math.max(0, deadline - Date.now()));
