@@ -224,7 +224,7 @@ test("contextual promotion transfers only active shared copies and overrides for
     organisationId, actorId: "44444444-4444-4444-8444-444444444444",
     transact: async (_pool, callback) => callback(client),
   });
-  await importer.import(bundle);
+  await importer.apply(bundle);
   const inserted = statements.filter(item => item.sql.includes("INSERT INTO twe.email_templates"));
   assert.equal(inserted.length, Object.keys(copies).length);
   assert.deepEqual(inserted.find(item => item.values[1] === slug).values[2], custom);
