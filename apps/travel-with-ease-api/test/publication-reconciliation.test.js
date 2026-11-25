@@ -544,3 +544,20 @@ test("terminal failure preserves content pointers and requires stale lease and c
   assert.ok(queries.some(q => q.sql.includes("INSERT INTO twe.audit_records") && q.params.includes("content.deployment_terminal_failure")));
   assert.equal(queries.at(-1).sql, "COMMIT");
 });
+
+test("skipped Git record is logged safely and cannot be treated as a successful publication", async () => {
+  const skipped = { ...directTerminal, latest_stage: { status: "success", ended_on: "2026-11-23T08:03:00Z" }, deployment_trigger: { type: "github:push", metadata: { branch: "develop", commit_hash: sha, commit_message: "private metadata" } } };
+  const logs = [];
+  const logger = { info: data => logs.push(data) };
+  const result = await provider([skipped]).findPublicationDeployment(job, async () => { throw Error("Skipped record must not be verified"); }, { jobId: job.id, sourceSha: sha, digest: manifestDigest(job.manifest) }, logger);
+  assert.equal(result, null);
+  assert.equal(logs[0].matchingSourceEvidence[0].skipped, true);
+  assert.equal(logs[0].matchingSourceEvidence[0].trigger, "github:push");
+  assert.equal(JSON.stringify(logs).includes("private metadata"), false);
+  assert.equal(await terminalProvider([skipped]).terminalStagingDeployment(terminalJob, logger), null);
+  assert.equal(logs.at(-1).reason, "no_direct_candidate");
+});
+test("explicit skipped flag on terminal Direct Upload is not misclassified as live", async () => {
+  const row = { ...directTerminal, latest_stage: { status: "success", ended_on: "2026-11-23T08:03:00Z" } };
+  assert.deepEqual(await terminalProvider([row], row).terminalStagingDeployment(terminalJob), { id: row.id, status: "skipped" });
+});
