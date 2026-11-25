@@ -20,10 +20,22 @@ import { emailTemplateOptions } from "../../../travel-with-ease-api/src/notifica
 export default function EmailTemplates({ api, session, onDirtyChange, onRefreshBlockedChange }) {
   const { pushToast } = useToast();
   const [slug, setSlug] = useState("enquiry-acknowledgement");
+  const [catalogue, setCatalogue] = useState(emailTemplateOptions);
+  const [catalogueError, setCatalogueError] = useState("");
+  const [catalogueReload, setCatalogueReload] = useState(0);
+  const [previewWidth, setPreviewWidth] = useState("desktop");
+  useEffect(() => {
+    let current = true;
+    setCatalogueError("");
+    api.get("/api/agent/templates/catalogue", { responseMode: "data" }).then(result => {
+      if (!current) return;
+      if (!Array.isArray(result.items)) throw new Error("Template catalogue unavailable.");
+      setCatalogue(result.items);
+    }).catch(error => { if (current) setCatalogueError(error.message); });
+    return () => { current = false; };
+  }, [api, catalogueReload]);
   const canActivate = session.user.permissions?.includes("templates.manage") === true;
-  const definition = emailTemplateOptions.find(
-    (option) => option.slug === slug,
-  );
+  const definition = catalogue.find(option => option.slug === slug) || emailTemplateOptions.find(option => option.slug === slug) || { slug, label: "Package enquiry", automated: true, context: "package" };
   const [reload, setReload] = useState(0);
   const [record, setRecord] = useState(null);
   const [copy, setCopy] = useState(null);
@@ -192,13 +204,14 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
           disabled={busy || saving || historyLoading || Boolean(confirmation)}
           onChange={changeTemplate}
         >
-          {emailTemplateOptions.filter(option => option.automated || canActivate).map((option) => (
+          {catalogue.filter(option => option.automated || canActivate).map((option) => (
             <option key={option.slug} value={option.slug}>
-              {option.label}
+              {option.context === "package" ? `Package — ${option.label}` : option.label}
             </option>
           ))}
         </SelectField>
       </section>
+      {catalogueError && <><InlineNotice tone="danger" title="Package templates unavailable" message={catalogueError}/><Button type="button" icon="refresh" onClick={() => setCatalogueReload(value => value + 1)}>Retry catalogue</Button></>}
       {error && (
         <InlineNotice
           tone="danger"
@@ -226,7 +239,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               Draft revision {record.version} ·{" "}
               {record.active_version == null
                 ? definition.automated
-                  ? "Default template active"
+                  ? definition.context === "package" ? "Using shared package template" : "Default template active"
                   : "Default invitation copy"
                 : `${definition.automated ? "Active" : "Approved"} revision ${record.active_version}`}
             </p>
@@ -248,6 +261,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               required
               onChange={(event) => edit("heading", event.target.value)}
             />
+            {definition.automated && <p className="template-variables">Personalisation: <code>{"{{customer}}"}</code> <code>{"{{service}}"}</code> <code>{"{{package}}"}</code></p>}
             <RichTextField
               disabled={busy || Boolean(confirmation)}
               label="Message"
@@ -298,7 +312,12 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
             {preview ? (
               <>
                 <p>Subject: {preview.subject}</p>
+                <div className="template-actions" role="group" aria-label="Preview size">
+                  <Button type="button" aria-pressed={previewWidth === "desktop"} onClick={() => setPreviewWidth("desktop")}>Desktop</Button>
+                  <Button type="button" aria-pressed={previewWidth === "mobile"} onClick={() => setPreviewWidth("mobile")}>Mobile</Button>
+                </div>
                 <iframe
+                  className={previewWidth === "mobile" ? "template-preview-mobile" : "template-preview-desktop"}
                   title={`${definition.label} preview`}
                   sandbox=""
                   referrerPolicy="no-referrer"
