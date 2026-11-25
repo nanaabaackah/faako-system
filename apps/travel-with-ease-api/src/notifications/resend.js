@@ -56,7 +56,14 @@ export class ResendSender {
     this.templateCopy = templateCopy;
     this.continuationLinks = continuationLinks;
   }
-  payload(enquiry = {}, { test = false } = {}) {
+  async preparePayload(enquiry, client) {
+    if (typeof this.templateCopy !== "function") return this.payload(enquiry);
+    let copy;
+    try { copy = await this.templateCopy(enquiry, client); }
+    catch { throw Object.assign(new Error("Template lookup failed."), { code: "template_lookup_failed" }); }
+    return this.payload(enquiry, { copy });
+  }
+  payload(enquiry = {}, { test = false, copy = this.templateCopy } = {}) {
     const production = this.config.environment === "production";
     const contact = enquiry.contact || enquiry;
     const continuation = !test && enquiry.id && enquiry.kind !== "legacy_estimator" && this.continuationLinks
@@ -68,16 +75,17 @@ export class ResendSender {
       ...enquiryTemplate({
         name: typeof contact.name === "string" ? contact.name : "",
         test,
-        copy: this.templateCopy,
+        copy,
+        context: { serviceTitle: enquiry.details?.selectedServiceTitle, packageTitle: enquiry.details?.selectedPackageTitle },
         continuation: Boolean(continuation),
         ...(continuation ? { ctaUrl: continuation.url } : {}),
       }),
       ...(!test && enquiry.id ? { staff: staffNotification(this.config, enquiry.id) } : {}),
     };
   }
-  async sendTemplateTest(slug, copy, attemptId) {
+  async sendTemplateTest(slug, copy, attemptId, packageLabel) {
     if (!["staging", "production"].includes(this.config.environment)) throw new Error("test_delivery_unavailable");
-    const rendered = renderEmailTemplate(slug, copy);
+    const rendered = renderEmailTemplate(slug, copy, packageLabel);
     const payload = {
       from: this.config.from, to: [testMailbox],
       subject: "[TEST] " + rendered.subject,
