@@ -16,6 +16,8 @@ export default function MediaLibrary({ api, session, onSelect }) {
   const [configured, setConfigured] = useState(false);
   const [driveConfigured, setDriveConfigured] = useState(false);
   const [driveItems, setDriveItems] = useState([]);
+  const [driveFolders, setDriveFolders] = useState([]);
+  const [drivePath, setDrivePath] = useState([]);
   const [driveSelection, setDriveSelection] = useState("");
   const [driveNext, setDriveNext] = useState("");
   const [driveLoaded, setDriveLoaded] = useState(false);
@@ -112,13 +114,15 @@ export default function MediaLibrary({ api, session, onSelect }) {
       setState({ loading: false, error: error.message, message: "" });
     }
   }
-  async function browseDrive(append = false) {
+  async function browseDrive(append = false, path = drivePath) {
     setState({ loading: true, error: "", message: "" });
     try {
       const token = append ? driveNext : "";
+      const params = new URLSearchParams();
+      if (token) params.set("pageToken", token);
+      if (path.length) params.set("folderId", path.at(-1).id);
       const result = await api.get(
-        "/api/agent/media/drive" +
-          (token ? "?pageToken=" + encodeURIComponent(token) : ""),
+        "/api/agent/media/drive" + (params.size ? "?" + params.toString() : ""),
         { responseMode: "data" },
       );
       if (!result.configured || !Array.isArray(result.items))
@@ -134,6 +138,10 @@ export default function MediaLibrary({ api, session, onSelect }) {
             ]
           : result.items,
       );
+      setDriveFolders((current) => append
+        ? [...new Map([...current, ...(result.folders || [])].map((folder) => [folder.id, folder])).values()]
+        : result.folders || []);
+      setDrivePath(path);
       setDriveNext(result.nextPageToken || "");
       setDriveLoaded(true);
       if (!append) setDriveSelection("");
@@ -142,7 +150,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         error: "",
         message: result.incomplete
           ? "Drive returned an incomplete listing. Refresh before relying on missing files. Nothing was imported, deleted or published."
-          : "Drive folder refreshed. No images were imported or published.",
+          : "",
       });
     } catch (error) {
       setState({ loading: false, error: error.message, message: "" });
@@ -286,7 +294,22 @@ export default function MediaLibrary({ api, session, onSelect }) {
         >
           Refresh Drive folder
         </Button>
-        {driveLoaded && (
+        {driveLoaded && drivePath.length > 0 && (
+          <div className="editor-actions">
+            <Button type="button" disabled={state.loading} onClick={() => browseDrive(false, [])}>Drive root</Button>
+            <Button type="button" disabled={state.loading} onClick={() => browseDrive(false, drivePath.slice(0, -1))}>Back</Button>
+            <span>{drivePath.map((folder) => folder.name).join(" / ")}</span>
+          </div>
+        )}
+        {driveLoaded && driveFolders.length > 0 && (
+          <div className="editor-actions" aria-label="Drive subfolders">
+            {driveFolders.map((folder) => (
+              <Button key={folder.id} type="button" disabled={state.loading}
+                onClick={() => browseDrive(false, [...drivePath, folder])}>{folder.name}</Button>
+            ))}
+          </div>
+        )}
+        {driveLoaded && driveItems.length > 0 && (
           <form onSubmit={importDrive}>
             <fieldset disabled={state.loading || !driveConfigured}>
               <legend>Import from the approved folder</legend>
@@ -331,10 +354,8 @@ export default function MediaLibrary({ api, session, onSelect }) {
             </fieldset>
           </form>
         )}
-        {driveLoaded && !driveItems.length && (
-          <p>
-            No supported images found.
-          </p>
+        {driveLoaded && !driveItems.length && !driveFolders.length && !driveNext && (
+          <p>No supported images or subfolders found.</p>
         )}
         {driveNext && (
           <Button
@@ -342,7 +363,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
             disabled={state.loading}
             onClick={() => browseDrive(true)}
           >
-            Load more Drive images
+            Load more
           </Button>
         )}
       </section>
@@ -430,7 +451,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
         <div className="workspace-empty">
           <h4>Your library is empty</h4>
           <p>
-            Upload your first photo.
+            Import from Drive or upload a photo.
           </p>
         </div>
       )}

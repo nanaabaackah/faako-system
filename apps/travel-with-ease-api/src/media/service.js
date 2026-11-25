@@ -153,10 +153,10 @@ export class MediaService {
       this.processing -= 1;
     }
   }
-  async listDrive(pageToken = "") {
+  async listDrive(pageToken = "", folderId) {
     if (!this.drive || !this.store)
       return { configured: false, items: [], nextPageToken: "" };
-    const result = await this.drive.list(pageToken);
+    const result = await this.drive.list(pageToken, folderId);
     const { rows } = await this.pool.query(
       "SELECT id, source_file_id, source_version, archived_at FROM twe.media WHERE organisation_id=$1 AND source_folder_id=$2 AND (source_file_id, source_version) IN (SELECT * FROM unnest($3::text[], $4::text[]))",
       [

@@ -410,3 +410,47 @@ test("OAuth refresh is server-only, cached, read-only and redacts upstream error
     return true;
   });
 });
+
+test("nested Drive folder browsing and importing remain within the approved tree", async () => {
+  const child = "synthetic_child_123";
+  const grandchild = "synthetic_grandchild_123";
+  const outside = "synthetic_outside_123";
+  const folder = (id, parent) => ({ id, name: id, mimeType: "application/vnd.google-apps.folder", parents: [parent], trashed: false });
+  const image = file({ parents: [grandchild] });
+  let downloaded = false;
+  const drive = reader(async (url) => {
+    const id = url.pathname.split("/").at(-1);
+    if (url.searchParams.get("alt") === "media") {
+      downloaded = true;
+      return new Response(bytes, { headers: { "content-type": "image/png" } });
+    }
+    if (id === "files") {
+      const q = url.searchParams.get("q");
+      if (q.includes(grandchild)) return json({ files: [image] });
+      if (q.includes(child)) return json({ files: [folder(grandchild, child)] });
+      return json({ files: [folder(child, folderId), folder(outside, outside)] });
+    }
+    if (id === child) return json(folder(child, folderId));
+    if (id === grandchild) return json(folder(grandchild, child));
+    if (id === outside) return json(folder(outside, outside));
+    return json(image);
+  });
+  assert.deepEqual((await drive.list()).folders, [{ id: child, name: child }]);
+  assert.deepEqual((await drive.list("", child)).folders, [{ id: grandchild, name: grandchild }]);
+  assert.equal((await drive.list("", grandchild)).items[0].id, fileId);
+  await assert.rejects(drive.list("", outside), { status: 400 });
+  assert.deepEqual(await drive.download(await drive.metadata(fileId)), bytes);
+  assert.equal(downloaded, true);
+});
+
+test("a moved or foreign nested folder is denied before image download", async () => {
+  const child = "synthetic_child_123";
+  let downloaded = false;
+  const drive = reader(async (url) => {
+    if (url.searchParams.get("alt") === "media") downloaded = true;
+    if (url.pathname.endsWith(child)) return json({ id: child, name: child, mimeType: "application/vnd.google-apps.folder", parents: [child], trashed: false });
+    return json(file({ parents: [child] }));
+  });
+  await assert.rejects(drive.metadata(fileId), { status: 400 });
+  assert.equal(downloaded, false);
+});

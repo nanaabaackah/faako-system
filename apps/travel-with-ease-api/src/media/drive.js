@@ -8,6 +8,14 @@ const tokenEndpoint = "https://oauth2.googleapis.com/token";
 const scope = "https://www.googleapis.com/auth/drive.readonly";
 const pkcs8Header = "-----BEGIN PRIVATE KEY-----"; // security-scan-ok: PEM format marker only, not key material.
 export const driveId = z.string().regex(/^[A-Za-z0-9_-]{10,200}$/);
+const folderMime = "application/vnd.google-apps.folder";
+const folderSchema = z.object({
+  id: driveId,
+  name: z.string().min(1).max(1024),
+  mimeType: z.literal(folderMime),
+  parents: z.array(driveId).max(10),
+  trashed: z.literal(false),
+});
 const mime = z.enum(["image/jpeg", "image/png", "image/webp"]);
 const fileSchema = z.object({
   id: driveId,
@@ -195,19 +203,47 @@ export class DriveReader {
       throw unavailable();
     }
   }
-  validateFile(input) {
+  validateFile(input, parentId = this.config.folderId) {
     const parsed = fileSchema.safeParse(input);
-    if (!parsed.success || !parsed.data.parents.includes(this.config.folderId))
+    if (!parsed.success || !parsed.data.parents.includes(parentId))
       throw new ContentError(
         400,
         "validation_error",
-        "Choose a downloadable JPEG, PNG or WebP up to 8 MiB directly inside the configured media folder.",
+        "Choose a downloadable JPEG, PNG or WebP up to 8 MiB inside the configured media folder or its subfolders.",
       );
     return parsed.data;
   }
-  async list(pageToken = "") {
+  // Verify ancestry on each nested listing and import, never trust a browser
+  // folder ID, cached listing, shortcut or caller-supplied path.
+  async assertFolder(folderId) {
+    driveId.parse(folderId);
+    const visited = new Set();
+    let current = folderId;
+    for (let depth = 0; depth < 12; depth++) {
+      if (current === this.config.folderId) return;
+      if (visited.has(current)) break;
+      visited.add(current);
+      const response = await this.request(
+        { fields: "id,name,mimeType,parents,trashed", supportsAllDrives: "true" },
+        `/${current}`,
+      );
+      let data;
+      try {
+        data = JSON.parse((await readBytes(response, 16_384)).toString());
+      } catch {
+        throw unavailable();
+      }
+      const parsed = folderSchema.safeParse(data);
+      if (!parsed.success || parsed.data.id !== current || parsed.data.parents.length !== 1) break;
+      current = parsed.data.parents[0];
+    }
+    if (current === this.config.folderId) return;
+    throw new ContentError(400, "validation_error", "Choose a folder within the approved Drive media folder.");
+  }
+  async list(pageToken = "", folderId = this.config.folderId) {
     z.string().max(2048).parse(pageToken);
-    const query = `'${this.config.folderId}' in parents and trashed = false and (mimeType = 'image/jpeg' or mimeType = 'image/png' or mimeType = 'image/webp')`;
+    await this.assertFolder(folderId);
+    const query = `'${folderId}' in parents and trashed = false and (mimeType = '${folderMime}' or mimeType = 'image/jpeg' or mimeType = 'image/png' or mimeType = 'image/webp')`;
     const response = await this.request({
       q: query,
       fields: `nextPageToken,incompleteSearch,files(${fields})`,
@@ -231,10 +267,18 @@ export class DriveReader {
           data.nextPageToken.length > 2048))
     )
       throw unavailable();
+    // Recheck the folder after listing in case it was moved while fetching.
+    if (folderId !== this.config.folderId) await this.assertFolder(folderId);
     const items = [];
+    const folders = [];
     for (const file of data.files) {
+      const folder = folderSchema.safeParse(file);
+      if (folder.success && folder.data.parents.includes(folderId)) {
+        folders.push({ id: folder.data.id, name: folder.data.name });
+        continue;
+      }
       try {
-        const item = this.validateFile(file);
+        const item = this.validateFile(file, folderId);
         items.push({
           id: item.id,
           name: item.name,
@@ -248,6 +292,7 @@ export class DriveReader {
     }
     return {
       items,
+      folders,
       nextPageToken: data.nextPageToken || "",
       incomplete: data.incompleteSearch === true,
     };
@@ -264,11 +309,19 @@ export class DriveReader {
     } catch {
       throw unavailable();
     }
-    const file = this.validateFile(data);
+    const parsed = fileSchema.safeParse(data);
+    if (!parsed.success || parsed.data.parents.length !== 1)
+      throw new ContentError(400, "validation_error", "Choose a supported image within the approved Drive media folder.");
+    const file = parsed.data;
     if (file.id !== id) throw unavailable();
+    await this.assertFolder(file.parents[0]);
     return file;
   }
   async download(file) {
+    // Verify the source has not moved outside the approved tree before reading.
+    const before = await this.metadata(file.id);
+    if (before.version !== file.version || before.md5Checksum !== file.md5Checksum)
+      throw new ContentError(409, "conflict", "The Drive image changed during download. Refresh the folder and try again.");
     const response = await this.request(
       { alt: "media", supportsAllDrives: "true" },
       `/${file.id}`,
