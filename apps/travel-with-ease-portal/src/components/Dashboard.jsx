@@ -2,7 +2,7 @@ import Button from "./ActionButton.jsx";
 import NavigationIcon from "./NavigationIcon.jsx";
 import "../styles/dashboard-navigation.css";
 import { useEffect, useState } from "react";
-import { KpiCard, InlineNotice, AnimatedLoadingState } from "@faako/ui";
+import { KpiCard, InlineNotice, AnimatedLoadingState, StatusPill } from "@faako/ui";
 
 export default function Dashboard({
   api,
@@ -117,18 +117,16 @@ export default function Dashboard({
                 {enquiries.slice(0, 5).map((item) => (
                   <li key={item.id}>
                     <button className="dashboard-enquiry-link" type="button" onClick={() => onNavigate("enquiries", { enquiryId: item.id })} aria-label={`Open enquiry from ${item.contact.name || "Traveller"}`}>
-                      <strong>{item.contact.name || "Traveller"}</strong>
+                      <span className="dashboard-enquiry-copy"><strong>{item.contact.name || "Traveller"}</strong>
                       <span>
                         {item.kind === "package"
                           ? "Package enquiry"
                           : item.kind === "personalised"
                             ? "Personalised trip"
                             : "Estimator enquiry"}
-                      </span>
+                      </span></span>
+                      <StatusPill tone={item.status === "new" ? "warning" : item.status === "contacted" ? "info" : "neutral"}>{item.status}</StatusPill>
                     </button>
-                    <span className={`status-label status-${item.status}`}>
-                      {item.status}
-                    </span>
                   </li>
                 ))}
               </ul>
@@ -151,7 +149,7 @@ export default function Dashboard({
               <NavigationIcon name="media" />
             </button>
           )}
-          {session.user.role === "owner" && (
+          {permissions.includes("staff.manage") && (
             <button onClick={() => onNavigate("staff")}>
               <strong>Staff access</strong>
               <NavigationIcon name="staff" />
@@ -181,7 +179,7 @@ export default function Dashboard({
             <ul className="dashboard-drafts">
               {drafts.map((item) => (
                 <li key={item.id || item.slug}>
-                  <button className="dashboard-enquiry-link" type="button" onClick={() => onNavigate("content", { page: item.slug })}>{item.slug}</button>
+                  <button className="dashboard-draft-link" type="button" onClick={() => onNavigate("content", { page: item.slug === "testimonials" ? "home" : item.slug })}>{item.slug}</button>
                   <span>Draft version {item.version}</span>
                   <span className="status-label">Awaiting publication</span>
                 </li>
