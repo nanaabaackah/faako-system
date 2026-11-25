@@ -1,3 +1,4 @@
+import { navigateWorkspace } from "./navigate-workspace.mjs";
 // Tests exercise the real API client; fixtures are not application code.
 import { mockWorkspaceApi } from "../test/fixtures/browser-api.js";
 import { createRequire } from "node:module";
@@ -29,11 +30,11 @@ try {
     const page = await context.newPage();
     const requests = [];
     const writes = [];
-    const navigate=async(name)=>{let button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();if(!await button.count()){await page.getByRole('button',{name:/^Menu/}).click();button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();}await button.click();};
+    const navigate = name => navigateWorkspace(page, name);
     await mockWorkspaceApi(page, {role: "owner", requests, writes, templateDelay: 100, contentDelay: 200});
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
-    if (width <= 800) {
+    if (width <= 900) {
       const nav = page.locator(".twe-bottom-nav");
       const navBox = await nav.boundingBox();
       assert.ok(Math.abs(navBox.x + navBox.width / 2 - width / 2) <= 1, "Floating navigation is centred");
@@ -47,7 +48,7 @@ try {
     await page.getByRole("button", { name: "Open new enquiries", exact: true }).click();
     await filteredRequest;
     await expect(page.getByRole("button", { name: "Status", exact: true })).toContainText("new");
-    await navigate(width <= 800 ? "Home" : "Overview");
+    await navigate(width <= 900 ? "Home" : "Overview");
     await page.getByRole("button", { name: "Open website drafts", exact: true }).click();
     await page.getByRole("heading", { name: "Pages with drafts", exact: true }).waitFor();
     await page.getByRole("button", { name: /^About · Version/ }).click();

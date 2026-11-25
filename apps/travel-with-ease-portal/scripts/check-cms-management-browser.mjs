@@ -1,3 +1,4 @@
+import { navigateWorkspace } from "./navigate-workspace.mjs";
 import { mockWorkspaceApi } from "../test/fixtures/browser-api.js";
 import { createRequire } from "node:module";
 import { mkdtemp } from "node:fs/promises";
@@ -33,13 +34,9 @@ try {
     await page.goto(origin + "/");
     const visible = (name) =>
       page.getByRole("button", { name, exact: true }).filter({ visible: true });
-    const navigate = async (name) => {
-      if (!(await visible(name).count()))
-        await page.getByRole("button", { name: /^Menu/ }).click();
-      await visible(name).first().click();
-    };
-    await visible(width <= 800 ? "Home" : "Overview").first().waitFor();
-    if (width <= 800) {
+    const navigate = name => navigateWorkspace(page, name);
+    await visible(width <= 900 ? "Home" : "Overview").first().waitFor();
+    if (width <= 900) {
       const bottom = page.locator(".twe-bottom-nav");
       assert.deepEqual(await bottom.locator("button").allTextContents(), [
         "Home",
@@ -74,10 +71,10 @@ try {
         .click({ position: { x: width - 2, y: 880 } });
       await drawer.waitFor({ state: "hidden" });
     } else {
-      await visible("Collapse sidebar").click();
+      await visible("Collapse navigation").click();
       await page.reload();
-      await visible("Expand sidebar").waitFor();
-      await visible("Expand sidebar").click();
+      await visible("Expand navigation").waitFor();
+      await visible("Expand navigation").click();
     }
     await navigate("Staff");
     await page
@@ -120,7 +117,7 @@ try {
       .getByText("staff · role changed", { exact: true })
       .filter({ visible: true })
       .waitFor();
-    if (width <= 800)
+    if (width <= 900)
       assert.equal(
         await page.locator(".twe-bottom-nav [aria-current]").count(),
         0,
@@ -188,9 +185,9 @@ try {
     await page.unroute("**/api/**");
     await mockWorkspaceApi(page, {role: "editor", requests});
     await page.goto(origin);
-    await visible(width <= 800 ? "Home" : "Overview").first().waitFor();
-    if (width <= 800) await page.getByRole("button", { name: /^Menu/ }).click();
-    for (const name of ["Staff", "Activity", "System"])
+    await visible(width <= 900 ? "Home" : "Overview").first().waitFor();
+    if (width <= 900) await page.getByRole("button", { name: /^Menu/ }).click();
+    for (const name of ["Staff", "Activity", "System", "Administration", "Staff access", "System administration"])
       assert.equal(await visible(name).count(), 0);
     assert.ok(requests.length > 0, "Actual API client exercised against isolated HTTP fixtures");
     assert.deepEqual(errors, []);
