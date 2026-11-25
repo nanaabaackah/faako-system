@@ -161,9 +161,22 @@ test("real HTTP preview isolates roles, mutations, tutorial progress and reset",
       "/api/agent/administration/activity",
       "/api/agent/administration/diagnostics",
       "/api/agent/administration/staff",
-      "/api/agent/templates",
+      "/api/agent/templates/staff-invitation",
+      "/api/agent/templates/staff-invitation/history",
     ])
       assert.equal((await request(path)).status, 403);
+    const customerTemplate = await request("/api/agent/templates");
+    assert.equal(customerTemplate.status, 200);
+    const savedTemplate = await request("/api/agent/templates/enquiry-acknowledgement/draft", {
+      expectedVersion: customerTemplate.body.data.version,
+      copy: { ...customerTemplate.body.data.draft, heading: "Editor draft only" },
+    });
+    assert.equal(savedTemplate.status, 200);
+    assert.equal(savedTemplate.body.data.draft.heading, "Editor draft only");
+    assert.deepEqual(savedTemplate.body.data.active, customerTemplate.body.data.active);
+    for (const path of ["/api/agent/templates/activate", "/api/agent/templates/enquiry-acknowledgement/activate", "/api/agent/templates/staff-invitation/draft", "/api/agent/templates/staff-invitation/preview", "/api/agent/templates/staff-invitation/restore", "/api/agent/templates/staff-invitation/test"]) {
+      assert.equal((await request(path, { expectedVersion: savedTemplate.body.data.version })).status, 403);
+    }
     assert.equal(
       (await request("/api/auth/tutorials")).body.data.catalogue.some(
         (tour) => tour.id === "staff",
