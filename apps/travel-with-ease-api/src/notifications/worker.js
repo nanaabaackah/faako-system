@@ -50,8 +50,7 @@ try {
   const tick = async () => {
     // Preserve customer acknowledgement delivery even when optional staff
     // invitation processing is unconfigured or needs a manual repair.
-    const copy = await templates.activeCopy();
-    const enquiryAttempted = await deliverOne(outbox, new ResendSender(config, fetch, copy, continuationLinks), logger);
+    const enquiryAttempted = await deliverOne(outbox, new ResendSender(config, fetch, (enquiry, client) => templates.resolveDelivery(enquiry, client), continuationLinks), logger);
     let invitationAttempted = false;
     if (invitationOutbox) {
       try {

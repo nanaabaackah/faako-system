@@ -41,3 +41,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.template-preview iframe.template-preview-desktop { max-width: 600px; margin-inline: auto; }
+.template-preview iframe.template-preview-mobile { max-width: 390px; margin-inline: auto; }
+.template-variables { margin: 0; font-size: 0.8rem; overflow-wrap: anywhere; }
+.template-variables code { white-space: nowrap; }
+.template-preview .template-actions { margin-block: 12px; }
+.template-preview .template-actions [aria-pressed="true"] { border-color: currentColor; font-weight: 600; }

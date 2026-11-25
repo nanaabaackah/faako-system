@@ -6,6 +6,7 @@ import { approvedEditorCopy } from "./approved-copy.js";
 import { INTAKE_FORM_ID, defaultIntakeDefinition, intakeDefinitionSchema } from "../enquiries/intake-definition.js";
 import { DETAILED_FORM_ID, defaultDetailedDefinition, detailedDefinitionSchema } from "../enquiries/questionnaires/configuration.js";
 import { templateCopySchema } from "../notifications/templates.js";
+import { emailTemplateOptions, packageTemplatePattern } from "../notifications/template-catalogue.js";
 import { PublicationRepository } from "./publication.js";
 import approvedRelease from "../../../travel-with-ease-web/content/approved-public-release.json" with { type: "json" };
 
@@ -17,7 +18,8 @@ const stable = (value) => Array.isArray(value) ? value.map(stable)
 const fingerprint = (value) => sha256(JSON.stringify(stable(value)));
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const hex = /^[a-f0-9]{64}$/;
-const templateSlugs = ["enquiry-acknowledgement", "staff-invitation"];
+const legacyTemplateSlugs = ["enquiry-acknowledgement", "staff-invitation"];
+const templateSlugs = emailTemplateOptions.map(option => option.slug);
 
 const formSpecs = {
   [INTAKE_FORM_ID]: { schema: intakeDefinitionSchema, defaults: defaultIntakeDefinition },
@@ -61,9 +63,13 @@ export function createPromotionBundle({ source, pages, media = [], emailTemplate
   // template copy only, never draft, delivery payload or recipient configuration.
   let validatedTemplates;
   if (emailTemplates !== undefined) {
-    if (!emailTemplates || Object.keys(emailTemplates).sort().join("|") !== [...templateSlugs].sort().join("|"))
-      throw new Error("Promotion must include both active email templates.");
-    validatedTemplates = Object.fromEntries(templateSlugs.map(slug => [slug, templateCopySchema.parse(emailTemplates[slug])]));
+    if (!emailTemplates || typeof emailTemplates !== "object" || Array.isArray(emailTemplates)) throw new Error("Invalid active email templates.");
+    const slugs = Object.keys(emailTemplates);
+    const legacy = slugs.length === legacyTemplateSlugs.length && legacyTemplateSlugs.every(slug => slugs.includes(slug));
+    const allowedPackages = new Set((validatedPages.packages?.packages || []).map(item => "enquiry-package-" + item.id));
+    if (!legacy && (!templateSlugs.every(slug => slugs.includes(slug)) || slugs.some(slug => !templateSlugs.includes(slug) && !(packageTemplatePattern.test(slug) && allowedPackages.has(slug)))))
+      throw new Error("Promotion must include every shared template and only published package overrides.");
+    validatedTemplates = Object.fromEntries(slugs.map(slug => [slug, templateCopySchema.parse(emailTemplates[slug])]));
   }
   let validatedForms;
   if (enquiryForms !== undefined) {
@@ -117,7 +123,9 @@ export async function exportPromotionBundle({ publication, media, source, approv
     transferred.push({ id, altText: stored.alt_text, rights: stored.rights, objects });
   }
   const emailTemplates = templates
-    ? Object.fromEntries(await Promise.all(templateSlugs.map(async slug => [slug, await templates.activeCopy(slug)])))
+    ? typeof templates.exportActiveCopies === "function"
+      ? await templates.exportActiveCopies((pages.packages?.packages || []).map(item => item.id))
+      : Object.fromEntries(await Promise.all(legacyTemplateSlugs.map(async slug => [slug, await templates.activeCopy(slug)])))
     : undefined;
   const enquiryForms = forms ? Object.fromEntries(await Promise.all(formIds.map(async id => [id, await forms[id].active()]))) : undefined;
   return createPromotionBundle({
@@ -152,8 +160,8 @@ export class ContentPromotionImporter {
       fingerprint(row.published_body ?? null) !== fingerprint(bundle.pages[row.slug]) ||
       fingerprint(row.draft_body ?? null) !== fingerprint(bundle.pages[row.slug]))) return false;
     if (bundle.emailTemplates) {
-      const result = await client.query("SELECT slug, draft, active FROM twe.email_templates WHERE organisation_id=$1 AND slug = ANY($2::text[])", [this.organisationId, templateSlugs]);
-      if (result.rows.length !== templateSlugs.length || result.rows.some(row =>
+      const result = await client.query("SELECT slug, draft, active FROM twe.email_templates WHERE organisation_id=$1 AND slug = ANY($2::text[])", [this.organisationId, Object.keys(bundle.emailTemplates)]);
+      if (result.rows.length !== Object.keys(bundle.emailTemplates).length || result.rows.some(row =>
         !Object.hasOwn(bundle.emailTemplates, row.slug) || fingerprint(row.active) !== fingerprint(bundle.emailTemplates[row.slug]) ||
         fingerprint(row.draft) !== fingerprint(bundle.emailTemplates[row.slug]))) return false;
     }
@@ -222,9 +230,9 @@ export class ContentPromotionImporter {
           }
         }
         if (bundle.emailTemplates) {
-          const existingTemplates = await client.query("SELECT count(*)::int AS count FROM twe.email_templates WHERE organisation_id=$1 AND slug = ANY($2::text[])", [this.organisationId, templateSlugs]);
+          const existingTemplates = await client.query("SELECT count(*)::int AS count FROM twe.email_templates WHERE organisation_id=$1", [this.organisationId]);
           if (existingTemplates.rows[0].count !== 0) throw new Error("Production email templates already exist; promotion will not overwrite them.");
-          for (const slug of templateSlugs) {
+          for (const slug of Object.keys(bundle.emailTemplates)) {
             const copy = bundle.emailTemplates[slug];
             await client.query(`INSERT INTO twe.email_templates (organisation_id, slug, version, draft, active, active_version, updated_by)
               VALUES ($1,$2,2,$3,$3,1,$4)`, [this.organisationId, slug, copy, this.actorId]);

@@ -6,6 +6,7 @@ import { INTAKE_FORM_ID, defaultIntakeDefinition } from "../src/enquiries/intake
 import { DETAILED_FORM_ID, defaultDetailedDefinition } from "../src/enquiries/questionnaires/configuration.js";
 import { pageNames } from "../src/content/schema.js";
 import { approvedEditorCopy } from "../src/content/approved-copy.js";
+import { defaultTemplateCopies } from "../src/notifications/template-catalogue.js";
 
 const organisationId = "11111111-1111-4111-8111-111111111111";
 const publicationId = "22222222-2222-4222-8222-222222222222";
@@ -127,7 +128,7 @@ test("promotion exports only active email copy and verifies its integrity", asyn
   const tampered = structuredClone(bundle);
   tampered.emailTemplates["staff-invitation"].message = "Changed";
   assert.throws(() => verifyPromotionBundle(tampered), /integrity/);
-  assert.throws(() => createPromotionBundle({ source, pages, emailTemplates: { "staff-invitation": active } }), /both active/);
+  assert.throws(() => createPromotionBundle({ source, pages, emailTemplates: { "staff-invitation": active } }), /every shared template/);
   const statements = [];
   const client = { query: async (sql, values) => {
     statements.push({ sql, values });
@@ -200,4 +201,31 @@ test("promotion carries only active form versions, rejects tampering and seeds i
   assert.deepEqual(statements.filter(({sql})=>sql.startsWith("INSERT INTO twe.enquiry_form_drafts")).map(({values})=>[values[1],values[2]]), [[INTAKE_FORM_ID,3],[DETAILED_FORM_ID,2]]);
   assert.equal(statements.filter(({sql})=>sql.startsWith("INSERT INTO twe.enquiry_form_versions")).length,4);
   assert.equal(statements.some(({sql})=>/INSERT INTO twe\.(enquiries|staff_sessions|notification_outbox)\b/.test(sql)),false);
+});
+
+test("contextual promotion transfers only active shared copies and overrides for published packages", async () => {
+  const slug = "enquiry-package-" + pages.packages.packages[0].id;
+  const custom = { ...defaultTemplateCopies["enquiry-package"], heading: "Reviewed package" };
+  const copies = { ...defaultTemplateCopies, [slug]: custom };
+  const bundle = createPromotionBundle({ source, pages, emailTemplates: copies });
+  assert.deepEqual(verifyPromotionBundle(bundle).emailTemplates, copies);
+  const unknown = "enquiry-package-30000000-0000-4000-8000-000000000099";
+  assert.throws(() => createPromotionBundle({ source, pages, emailTemplates: { ...copies, [unknown]: custom } }), /only published package overrides/);
+  const incomplete = { ...copies }; delete incomplete["enquiry-service-premium"];
+  assert.throws(() => createPromotionBundle({ source, pages, emailTemplates: incomplete }), /every shared template/);
+  const statements = [];
+  const client = { query: async (sql, values) => {
+    statements.push({ sql, values });
+    if (sql.startsWith("SELECT role")) return { rows: [{ role: "owner", active: true }] };
+    if (sql.startsWith("SELECT count")) return { rows: [{ count: 0 }] };
+    return { rows: [], rowCount: 1 };
+  } };
+  const importer = new ContentPromotionImporter({}, { put: async () => {}, remove: async () => {} }, {
+    organisationId, actorId: "44444444-4444-4444-8444-444444444444",
+    transact: async (_pool, callback) => callback(client),
+  });
+  await importer.apply(bundle);
+  const inserted = statements.filter(item => item.sql.includes("INSERT INTO twe.email_templates"));
+  assert.equal(inserted.length, Object.keys(copies).length);
+  assert.deepEqual(inserted.find(item => item.values[1] === slug).values[2], custom);
 });

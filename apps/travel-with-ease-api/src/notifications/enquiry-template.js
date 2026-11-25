@@ -55,16 +55,22 @@ export function enquiryTemplate({
   copy = defaultEnquiryCopy,
   ctaUrl = "https://travelwitheasegh.com",
   continuation = false,
+  context = {},
 } = {}) {
   const greeting = name.trim()
     ? `Hello ${name.trim().slice(0, 160)},`
     : "Hello,";
+  const safe = value => typeof value === "string" ? [...value].map(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 ? " " : character).join("").trim().slice(0, 160) : "";
+  const values = { customer: safe(name) || "traveller", service: safe(context.serviceTitle) || "your travel plans", package: safe(context.packageTitle) || "your selected package" };
+  const interpolate = value => value.replace(/\{\{(customer|service|package)\}\}/g, (_, key) => values[key]);
+  const limits = { subject: 160, heading: 160, message: 6000, ctaLabel: 60, continuationCtaLabel: 60 };
+  copy = Object.fromEntries(Object.entries(copy).map(([key, value]) => [key, interpolate(value).slice(0, limits[key] || 160)]));
   const heading = test ? "Email delivery preview" : copy.heading;
   const message = test
     ? "This is a test of the Travel With Ease email template. No enquiry, booking or payment was created by this preview."
     : `${copy.message}${continuation ? "\n\nComplete your trip details using the link below. Valid for 14 days." : ""}\n\nThis acknowledgement is not a booking or payment confirmation.`;
   const effectiveCopy = continuation
-    ? { ...copy, ctaLabel: "Complete your trip details" }
+    ? { ...copy, ctaLabel: copy.continuationCtaLabel || "Complete your trip details" }
     : copy;
   return brandedEmail({
     heading,

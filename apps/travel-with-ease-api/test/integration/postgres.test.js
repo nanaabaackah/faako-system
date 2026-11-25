@@ -882,6 +882,22 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       await templates.change(owner, "template-rollback-draft", 2, defaultEnquiryCopy);
       await templates.change(owner, "template-rollback-active", 3, null, true);
       assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+      const contextualSlug = "enquiry-service-premium";
+      const contextual = { ...(await templates.get(owner, contextualSlug)).draft, heading: "Reviewed Premium Concierge" };
+      await templates.change(owner, "contextual-template-draft", 0, contextual, false, contextualSlug);
+      assert.notEqual((await templates.activeForEnquiry({ details: { selectedServiceId: "premium" } })).heading, contextual.heading);
+      await templates.change(owner, "contextual-template-active", 1, null, true, contextualSlug);
+      assert.deepEqual(await templates.activeForEnquiry({ details: { selectedServiceId: "premium" } }), contextual);
+      assert.deepEqual(await templates.activeCopy(), defaultEnquiryCopy);
+      assert.notEqual((await new EmailTemplates(runtimePool, otherOrg).activeCopy(contextualSlug)).heading, contextual.heading);
+      assert.equal((await templates.history(owner, contextualSlug)).length, 2);
+      const packageSlug = (await templates.catalogue(owner)).find(option => option.context === "package")?.slug;
+      assert.ok(packageSlug, "Approved package catalogue must be editable");
+      const packageCopy = { ...(await templates.get(owner, packageSlug)).draft, heading: "Reviewed specific package" };
+      await templates.change(owner, "package-template-draft", 0, packageCopy, false, packageSlug);
+      await templates.change(owner, "package-template-active", 1, null, true, packageSlug);
+      assert.deepEqual(await templates.activeCopy(packageSlug), packageCopy);
+      assert.notEqual((await templates.activeCopy("enquiry-package")).heading, packageCopy.heading);
     } finally { await client.query("RESET ROLE"); client.release(); }
   });
   await context.test("Drive sync uses runtime grants, keeps immutable revisions and isolates tenants", async () => {
