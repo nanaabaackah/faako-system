@@ -217,3 +217,21 @@ test("email formatting is semantic, safe and equivalent in the plain-text altern
   assert.match(rendered.text, /not a booking or payment confirmation/);
   assert.match(rendered.html, /Complete your trip details/);
 });
+
+test("email revision history and restore use the same tenant and template scope", async () => {
+  const calls = [];
+  const actor = { id: "staff", role: "owner", organisationId: "tenant-a" };
+  const service = new EmailTemplates({ async query(sql, values) {
+    calls.push({ sql, values });
+    return { rows: values.length === 3 && values[2] !== 7 ? [] : [{ version: 7, kind: "draft", copy: defaultInvitationCopy }] };
+  } }, "tenant-a");
+  assert.equal((await service.history(actor, "staff-invitation"))[0].version, 7);
+  service.change = async (...args) => args;
+  assert.deepEqual(await service.restore(actor, "request", 9, 7, "staff-invitation"),
+    [actor, "request", 9, defaultInvitationCopy, false, "staff-invitation", 7]);
+  await assert.rejects(service.restore(actor, "request", 9, 8, "staff-invitation"), { status: 404 });
+  await assert.rejects(service.history({ ...actor, organisationId: "tenant-b" }), { status: 403 });
+  assert.deepEqual(calls.map(call => call.values), [
+    ["tenant-a", "staff-invitation"], ["tenant-a", "staff-invitation", 7], ["tenant-a", "staff-invitation", 8],
+  ]);
+});
