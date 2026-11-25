@@ -60,7 +60,7 @@ export function enquiryTemplate({
   const greeting = name.trim()
     ? `Hello ${name.trim().slice(0, 160)},`
     : "Hello,";
-  const safe = value => typeof value === "string" ? value.replace(/[\r\n\u0000-\u001f\u007f]/g, " ").trim().slice(0, 160) : "";
+  const safe = value => typeof value === "string" ? [...value].map(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 ? " " : character).join("").trim().slice(0, 160) : "";
   const values = { customer: safe(name) || "traveller", service: safe(context.serviceTitle) || "your travel plans", package: safe(context.packageTitle) || "your selected package" };
   const interpolate = value => value.replace(/\{\{(customer|service|package)\}\}/g, (_, key) => values[key]);
   copy = Object.fromEntries(Object.entries(copy).map(([key, value]) => [key, interpolate(value)]));
