@@ -230,7 +230,7 @@ function StaffWorkspace() {
     ["content", "Content", session?.user.permissions?.includes("content.read")],
     ["appearance", "Appearance", session?.user.permissions?.includes("content.read")],
     ["media", "Media", session?.user.permissions?.includes("media.read")],
-    ["templates", "Templates", session?.user.permissions?.includes("templates.manage")],
+    ["templates", "Templates", session?.user.permissions?.includes("templates.draft")],
     ["staff", "Staff", session?.user.permissions?.includes("staff.manage")],
     ['activity','Activity',session?.user.permissions?.includes('audit.business.read')],
     [
@@ -452,7 +452,7 @@ function StaffWorkspace() {
             section === "enquiries" && (
               <Enquiries api={api} session={session} />
             )}
-          {!state.loading && session?.user.permissions?.includes("templates.manage") && section === "templates" && (
+          {!state.loading && session?.user.permissions?.includes("templates.draft") && section === "templates" && (
             <EmailTemplates api={api} session={session} onDirtyChange={setDirty} onRefreshBlockedChange={setEditorBusy} />
           )}
           {!state.loading && session && section === "system" && (
