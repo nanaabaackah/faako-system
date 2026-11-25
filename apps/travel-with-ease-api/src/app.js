@@ -6,6 +6,7 @@ import { assertApiStartup } from "./staging-startup.js";
 import { createInlinePortal } from "./portal/inline.js";
 import { contentRoutes } from "./content/routes.js";
 import { enquiriesRoutes } from "./enquiries/routes.js";
+import { DETAILED_FORM_ID } from "./enquiries/questionnaires/configuration.js";
 import { IntakeConfiguration, intakeConfigurationRoutes } from "./enquiries/intake-configuration.js";
 import { defaultIntakeDefinition, validateIntakeAdditionalAnswers, INTAKE_FORM_ID, INTAKE_BASELINE_VERSION } from "./enquiries/intake-definition.js";
 import { mediaRoutes } from "./media/routes.js";
@@ -83,6 +84,9 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
 
   const intakeConfiguration = repository?.pool && repository?.organisationId
     ? new IntakeConfiguration(repository.pool, repository.organisationId) : null;
+  const detailedConfiguration = repository?.pool && repository?.organisationId
+    ? new IntakeConfiguration(repository.pool, repository.organisationId, DETAILED_FORM_ID) : null;
+  if (detailedConfiguration && staffAuth) app.use("/api/agent/enquiry-forms/detailed", intakeConfigurationRoutes(detailedConfiguration, staffAuth));
   if (intakeConfiguration && staffAuth) app.use("/api/agent/enquiry-forms/intake", intakeConfigurationRoutes(intakeConfiguration, staffAuth));
   app.get("/api/public/enquiry-forms/intake", createLimiter({ limit: 60, windowMs: 10 * 60_000 }), async (req, res) => {
     try {
