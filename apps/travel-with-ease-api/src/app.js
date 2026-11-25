@@ -226,6 +226,9 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
       if (error instanceof TurnstileError) return res.status(error.status).json(createErrorResponse({
         code: error.code, message: error.message,
       }, { requestId: req.requestId }));
+      if (error.code === "intake_version_changed") return res.status(409).json(createErrorResponse({
+        code: "conflict", message: "The enquiry form has changed. Reload the questions before submitting again.",
+      }, { requestId: req.requestId }));
       if (error.code === "enquiry_submission_conflict") return res.status(409).json(createErrorResponse({
         code: "conflict", message: "This submission reference was already used for different details. Start a new enquiry.",
       }, { requestId: req.requestId }));
