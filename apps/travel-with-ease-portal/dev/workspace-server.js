@@ -40,7 +40,7 @@ function permissionFor(path, method) {
     return method === "GET" ? "media.read" : "media.write";
   if (path.startsWith("/api/agent/inquiries"))
     return method === "GET" ? "enquiries.read" : "enquiries.write";
-  if (path.startsWith("/api/agent/templates")) return "templates.manage";
+  if (path.startsWith("/api/agent/templates")) return /\/staff-invitation(?:\/|$)|\/activate$/.test(path) ? "templates.manage" : "templates.draft";
   if (path.includes("/security-activity")) return "security.read";
   if (path.includes("/diagnostics")) return "system.read";
   if (path.includes("/activity")) return "audit.business.read";
