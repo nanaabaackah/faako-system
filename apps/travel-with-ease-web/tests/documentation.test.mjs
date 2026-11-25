@@ -12,6 +12,7 @@ const docs = [
   "docs/apps/travel-with-ease/README.md",
   "docs/apps/travel-with-ease/completion-status-2026-11-01.md",
   "docs/apps/travel-with-ease/readiness-check.md",
+  "docs/apps/travel-with-ease/release-preparation-2026-11-25.md",
   "docs/apps/travel-with-ease/architecture.md",
   "docs/apps/travel-with-ease/env.md",
   "docs/apps/travel-with-ease/implementation-plan.md",
@@ -108,6 +109,7 @@ test("documented TWE and root pnpm script commands exist", () => {
   for (const filename of [
     "README.md",
     "docs/apps/travel-with-ease/completion-status-2026-11-01.md",
+    "docs/apps/travel-with-ease/release-preparation-2026-11-25.md",
   ]) {
     const body = read(filename);
     for (const match of body.matchAll(

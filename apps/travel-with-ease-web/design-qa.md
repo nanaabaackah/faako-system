@@ -1,5 +1,7 @@
 # Journey Chapters and mobile closing scene QA
 
+> Historical test, retired 2026-11-25; use check-redesign-browser.mjs, check-collections-browser.mjs and check-public-followup.mjs for current coverage.
+
 Date: 2026-11-02. Result: **passed for the local public-site refinement**.
 This is not a production release or completion of the CMS work.
 
