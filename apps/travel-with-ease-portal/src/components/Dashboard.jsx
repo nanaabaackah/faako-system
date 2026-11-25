@@ -1,5 +1,6 @@
 import Button from "./ActionButton.jsx";
 import NavigationIcon from "./NavigationIcon.jsx";
+import "../styles/dashboard-navigation.css";
 import { useEffect, useState } from "react";
 import { KpiCard, InlineNotice, AnimatedLoadingState } from "@faako/ui";
 
