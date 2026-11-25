@@ -126,13 +126,55 @@ export class PagesProvider {
     await verify(this.settings.origin, marker);
     return { id, origin };
   }
+  async terminalStagingDeployment(job) {
+    // Do not infer failure from a skipped Git build, missing evidence, an
+    // incomplete scan, or a newer successful upload with the same SHA.
+    if (this.settings.environment !== "staging" || job.status !== "deploying" || job.recovery_deployment_id || job.last_error === "staging_replay_claimed" || !/^[a-f0-9]{40}$/.test(job.source_sha || "")) return null;
+    const since = Date.parse(job.updated_at);
+    if (!Number.isFinite(since)) return null;
+    const project = await this.request();
+    this.assertProject(project);
+    const candidates = [];
+    const seen = new Set();
+    let complete = false;
+    for (let page = 1; page <= 40; page++) {
+      const rows = await this.request(`/deployments?per_page=25&page=${page}&env=preview`);
+      if (!Array.isArray(rows) || rows.length > 25) return null;
+      for (const row of rows) {
+        if (!/^[a-f0-9-]{36}$/i.test(row.id || "") || seen.has(row.id)) return null;
+        seen.add(row.id);
+        const trigger = row.deployment_trigger;
+        if (row.environment !== "preview" || trigger?.metadata?.branch !== this.settings.branch || trigger?.type === "github:push") continue;
+        // Only an actual Direct Upload can supply terminal evidence.
+        if (trigger?.metadata?.commit_hash !== job.source_sha) continue;
+        const created = Date.parse(row.created_on);
+        if (!Number.isFinite(created)) return null;
+        if (created < since - 5000) continue;
+        candidates.push(row);
+      }
+      if (rows.length < 25) { complete = true; break; }
+    }
+    if (!complete || candidates.length !== 1) return null;
+    const candidate = candidates[0];
+    const exact = await this.request(`/deployments/${candidate.id}`);
+    const trigger = exact.deployment_trigger;
+    const status = exact.latest_stage?.status;
+    if (exact.id !== candidate.id || exact.environment !== "preview" || trigger?.type !== "ad_hoc" || trigger.metadata?.branch !== this.settings.branch || trigger.metadata?.commit_hash !== job.source_sha || Date.parse(exact.created_on) < since - 5000 || !Number.isFinite(Date.parse(exact.created_on)) || !["failure", "canceled", "skipped"].includes(status) || !Number.isFinite(Date.parse(exact.latest_stage?.ended_on))) return null;
+    // A legacy deployment without a job tag can only be reconciled for an
+    // automatic code release, with one unambiguous direct attempt. New
+    // uploads have their own publication job identifier in provider metadata.
+    const tag = trigger.metadata?.commit_message || "";
+    if (tag.startsWith("TWE publication ") ? tag !== `TWE publication ${job.id}` : job.manifest?.triggerType !== "code_release") return null;
+    return { id: exact.id, status };
+  }
   async deploy(directory, job) {
     const project = await this.request();
     this.assertProject(project);
     const wrangler = fileURLToPath(new URL("bin/wrangler.js", import.meta.resolve("wrangler/package.json")));
     await this.run(process.execPath, [wrangler, "pages", "deploy", path.resolve(directory),
       "--project-name", this.settings.project, "--branch", this.settings.branch,
-      "--commit-hash", job.source_sha, "--commit-dirty=false"], {
+      "--commit-hash", job.source_sha, "--commit-dirty=false",
+      ...(job.id ? ["--commit-message", `TWE publication ${job.id}`] : [])], {
       PATH: process.env.PATH, ...(process.env.HOME ? { HOME: process.env.HOME } : {}),
       CLOUDFLARE_API_TOKEN: this.settings.token, CLOUDFLARE_ACCOUNT_ID: this.settings.accountId,
       CI: "true", WRANGLER_SEND_METRICS: "false",
@@ -153,7 +195,7 @@ export class PagesProvider {
         if (!/^[a-f0-9-]{36}$/i.test(deployment.id)) throw new Error("Unexpected deployment identity.");
         return { id: deployment.id, origin };
       }
-      if (candidates.some(item => ["failure", "canceled"].includes(item.latest_stage?.status)))
+      if (candidates.some(item => ["failure", "canceled", "skipped"].includes(item.latest_stage?.status) || item.is_skipped === true))
         throw new Error("Pages deployment did not succeed.");
       if (attempt < 7) await this.wait(3_000);
     }
