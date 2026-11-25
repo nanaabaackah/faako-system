@@ -20,6 +20,8 @@ import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
 import { invitationEmailCode, readInvitationDeliveryConfig } from "../../src/onboarding/invitation-email.js";
 import { InvitationDeliveryOutbox } from "../../src/notifications/invitations.js";
+import { IntakeConfiguration } from "../../src/enquiries/intake-configuration.js";
+import { defaultIntakeDefinition, validateIntakeAdditionalAnswers } from "../../src/enquiries/intake-definition.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
 import { defaultEnquiryCopy, defaultInvitationCopy } from "../../src/notifications/enquiry-template.js";
 import { smartEnquirySchema } from "../../src/enquiries/questionnaire-validation.js";
@@ -1102,4 +1104,44 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
     }
   });
   } finally { await publicationClient.query("RESET ROLE"); publicationClient.release(); }
+  await context.test("intake activation is tenant-scoped, immutable and blocks stale new submissions but not accepted retries", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const service = new IntakeConfiguration(runtimePool, organisationId);
+      const repository = new PostgresLeadRepository(runtimePool, options);
+      const owner = { ...actor, role: "owner" };
+      const editor = { ...actor, role: "editor" };
+      const original = defaultIntakeDefinition();
+      assert.deepEqual((await service.active()).definition, original);
+      const legacy = { submissionId: randomUUID(), enquiryType: "trip", service: "not_sure", destination: "Synthetic", travelTimeframe: "Flexible", travellers: 2, budget: "", name: "Synthetic Traveller", email: "synthetic@example.invalid", phone: "+233200000000", consent: true, website: "", entryType: "general", sourcePath: "/", context: {} };
+      const first = await repository.createNativeEnquiry(legacy);
+      const draft = { ...original, title: "Updated intake", additional: [{ id: "custom_preference", label: "Preferred planning style", description: "", type: "select", required: true, entries: ["general"], options: [{ value: "guided", label: "Guided" }, { value: "flexible", label: "Flexible" }] }] };
+      const saved = await service.change(editor, "intake-draft", 0, draft);
+      assert.equal(saved.activeVersion, 1);
+      assert.deepEqual((await service.active()).definition, original);
+      await assert.rejects(service.change(editor, "intake-denied", 1, null, "activate"), { status: 403 });
+      await assert.rejects(service.change(owner, "intake-stale", 0, draft), { status: 409 });
+      const activated = await service.change(owner, "intake-active", 1, null, "activate");
+      assert.equal(activated.activeVersion, 2);
+      assert.deepEqual((await service.version(1)).definition, original);
+      assert.deepEqual((await service.active()).definition, draft);
+      assert.equal((await new IntakeConfiguration(runtimePool, otherOrg).active()).version, 1);
+      await assert.rejects(new IntakeConfiguration(runtimePool, otherOrg).get(owner), { status: 403 });
+      assert.equal((await repository.createNativeEnquiry(legacy)).inquiryId, first.inquiryId);
+      await assert.rejects(repository.createNativeEnquiry({ ...legacy, submissionId: randomUUID() }), { code: "intake_version_changed" });
+      await assert.rejects(repository.createNativeEnquiry({ ...legacy, submissionId: randomUUID(), intakeVersion: 1 }), { code: "intake_version_changed" });
+      const snapshot = validateIntakeAdditionalAnswers(draft, "general", { custom_preference: "guided" });
+      const fresh = await repository.createNativeEnquiry({ ...legacy, submissionId: randomUUID(), intakeVersion: 2, intakeSnapshot: { version: 2, additional: snapshot } });
+      const stored = (await query("SELECT details FROM twe.enquiries WHERE organisation_id=$1 AND id=$2", [organisationId, fresh.inquiryId])).rows[0].details;
+      assert.equal(stored.intakeSnapshot.additional[0].options[0].label, "Guided");
+      await service.restore(editor, "intake-restore", 2, 1);
+      assert.equal((await service.active()).version, 2);
+      assert.deepEqual((await service.get(owner)).draft, original);
+      await assert.rejects(query("UPDATE twe.enquiry_form_versions SET definition='{}' WHERE organisation_id=$1", [organisationId]), /permission denied/);
+    } finally { await client.query("RESET ROLE"); client.release(); }
+  });
+
 });
