@@ -87,7 +87,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
     session.user.permissions?.includes("content.publish") === true;
   // Testimonials are edited as the homepage review section. Travel Tips retain
   // their own collection and must not be silently redirected to Journal.
-  const [page, setPage] = useState(initialPage === "testimonials" ? "home" : initialPage);
+  const [page, setPage] = useState(initialPage === "testimonials" ? "home" : pages.includes(initialPage) ? initialPage : "home");
   const [recordSlug, setRecordSlug] = useState("");
   const [draftPages, setDraftPages] = useState(null);
   const [draftListError, setDraftListError] = useState("");
