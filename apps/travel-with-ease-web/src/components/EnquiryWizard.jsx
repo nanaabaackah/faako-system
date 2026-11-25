@@ -28,7 +28,7 @@ function questionError(question, value, answers) {
   return "";
 }
 
-function Question({ question, value, onChange, error }) {
+export function Question({ question, value, onChange, error }) {
   const describedBy = `${question.id}-hint${error ? ` ${question.id}-error` : ""}`;
   if (question.type === "CHECKBOX") {
     const selected = Array.isArray(value) ? value : [];
@@ -43,7 +43,7 @@ function Question({ question, value, onChange, error }) {
       {error && <p id={`${question.id}-error`} className="question-error" role="alert">{error}</p>}
     </fieldset>;
   }
-  if (question.type === "DROPDOWN") return <div className="question-field"><label htmlFor={`question-${question.id}`}>{question.label}</label><SelectField id={`question-${question.id}`} value={value || ""} required={question.required} onChangeValue={onChange}><option value="">Choose an option</option>{question.options.map(option => <option key={option} value={option}>{option}</option>)}</SelectField>{question.description && <p className="question-hint">{question.description}</p>}{error && <p className="question-error" role="alert">{error}</p>}</div>;
+  if (question.type === "DROPDOWN") return <div className="question-field"><SelectField label={question.label} id={`question-${question.id}`} value={value || ""} required={question.required} onChangeValue={onChange}><option value="">Choose an option</option>{question.options.map(option => <option key={option} value={option}>{option}</option>)}</SelectField>{question.description && <p className="question-hint">{question.description}</p>}{error && <p className="question-error" role="alert">{error}</p>}</div>;
   if (question.type === "MULTIPLE_CHOICE") return <fieldset className="question-field" aria-describedby={describedBy}>
     <legend>{question.label}{question.required && <span aria-hidden="true"> *</span>}</legend>
     {question.description && <p id={`${question.id}-hint`} className="question-hint">{question.description}</p>}
