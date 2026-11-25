@@ -3,9 +3,10 @@ import { AnimatedLoadingState, InlineNotice, TextField, SelectField, ERPConfirmD
 import Button from "./ActionButton.jsx";
 import HistoryDisclosure from "./HistoryDisclosure.jsx";
 import IntakeFormPreview from "./IntakeFormPreview.jsx";
+import DetailedQuestionFields from "./DetailedQuestionFields.jsx";
 import { createDraftAutosave } from "../lib/draft-autosave.js";
 
-const endpoint = "/api/agent/enquiry-forms/intake";
+
 const contexts = ["general", "service", "package"];
 const types = [["text", "Short text"], ["textarea", "Long text"], ["select", "Dropdown"], ["multiselect", "Multiple selection"], ["date", "Date"], ["number", "Number"]];
 const isChoice = type => ["select", "multiselect"].includes(type);
@@ -19,7 +20,8 @@ const reorder = (items, index, delta) => {
   return result;
 };
 
-export default function IntakeFormEditor({ api, session, onDirtyChange, onRefreshBlockedChange }) {
+export default function IntakeFormEditor({ api, session, onDirtyChange, onRefreshBlockedChange, detailed = false }) {
+  const endpoint = "/api/agent/enquiry-forms/" + (detailed ? "detailed" : "intake");
   const [record, setRecord] = useState(null);
   const [definition, setDefinition] = useState(null);
   const [saveState, setSaveState] = useState({ status: "saved", dirty: false, error: "" });
@@ -73,7 +75,7 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
     }).catch(error => { if (current) setError(error.message); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; autosave.dispose(); if (writer.current === autosave) writer.current = null; };
-  }, [api, session.csrfToken, onDirtyChange]);
+  }, [api, session.csrfToken, onDirtyChange, endpoint]);
   function edit(transform) {
     if (blocked || !bodyRef.current) return;
     const next = transform(bodyRef.current);
@@ -130,12 +132,13 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
       {custom && <Button type="button" icon="plus" disabled={blocked || field.options.length >= 20} onClick={() => fieldEdit(group, field.id, item => ({ ...item, options: [...item.options, newOption("New choice")] }))}>Add choice</Button>}
     </div>;
   }
-  return <section className="workspace-panel" aria-label="Initial enquiry form">
+  return <section className="workspace-panel" aria-label={detailed ? "Detailed questionnaire" : "Initial enquiry form"}>
     {error && <InlineNotice tone="danger" title="Form action unsuccessful" message={error}/>}
     {notice && <p role="status">{notice}</p>}
     {loading ? <AnimatedLoadingState compact title="Loading enquiry form"/> : definition && record && <>
       <p role="status">Active version {record.activeVersion} · {saving ? "Saving draft…" : saveState.dirty ? "Unsaved changes" : "Draft saved"}</p>
       {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error}/>}
+      {detailed ? <DetailedQuestionFields definition={definition} edit={edit} blocked={blocked}/> : <>
       <div className="editor-actions"><Button type="button" icon="preview" aria-expanded={preview} onClick={() => setPreview(value => !value)}>{preview ? "Close preview" : "Preview draft"}</Button></div>
       {preview && <IntakeFormPreview key={record.revision} definition={definition}/>}
       <TextField label="Form heading" value={definition.title} maxLength={160} disabled={blocked} required onChange={event => edit(body => ({ ...body, title: event.target.value }))}/>
@@ -168,6 +171,7 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
         </fieldset>)}
         <Button type="button" icon="plus" disabled={blocked || definition.additional.length >= 12} onClick={() => edit(body => ({ ...body, additional: [...body.additional, { id: identifier("custom_"), label: "New question", description: "", type: "text", required: false, entries: [...contexts], options: [] }] }))}>Add question</Button>
       </div>
+      </>}
       <div className="editor-actions">
         <Button type="button" icon="save" disabled={blocked || saving || !saveState.dirty} onClick={() => writer.current?.flush()}>Save draft</Button>
         {canPublish && <Button type="button" icon="check" disabled={blocked || saving || saveState.dirty || record.revision === 0} onClick={() => setConfirmation({ action: "activate" })}>Activate form</Button>}
