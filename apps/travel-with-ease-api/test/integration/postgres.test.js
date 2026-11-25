@@ -20,6 +20,7 @@ import { TutorialService } from "../../src/onboarding/service.js";
 import { Invitations } from "../../src/onboarding/invitations.js";
 import { invitationEmailCode, readInvitationDeliveryConfig } from "../../src/onboarding/invitation-email.js";
 import { InvitationDeliveryOutbox } from "../../src/notifications/invitations.js";
+import { DETAILED_FORM_ID, defaultDetailedDefinition } from "../../src/enquiries/questionnaires/configuration.js";
 import { IntakeConfiguration } from "../../src/enquiries/intake-configuration.js";
 import { defaultIntakeDefinition, validateIntakeAdditionalAnswers } from "../../src/enquiries/intake-definition.js";
 import { EmailTemplates } from "../../src/notifications/templates.js";
@@ -1141,6 +1142,38 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
       assert.equal((await service.active()).version, 2);
       assert.deepEqual((await service.get(owner)).draft, original);
       await assert.rejects(query("UPDATE twe.enquiry_form_versions SET definition='{}' WHERE organisation_id=$1", [organisationId]), /permission denied/);
+    } finally { await client.query("RESET ROLE"); client.release(); }
+  });
+
+  await context.test("detailed questionnaire versions are independent of intake versions and tenant scoped", async () => {
+    const client = await pool.connect();
+    try {
+      await client.query("SET ROLE twe_test_runtime");
+      const query = (...args) => client.query(...args);
+      const runtimePool = { query, connect: async () => ({ query, release() {} }) };
+      const service = new IntakeConfiguration(runtimePool, organisationId, DETAILED_FORM_ID);
+      const intake = new IntakeConfiguration(runtimePool, organisationId);
+      const owner = { ...actor, role: "owner" };
+      const editor = { ...actor, role: "editor" };
+      const before = await intake.active();
+      const original = defaultDetailedDefinition();
+      assert.equal((await service.active()).version, 1);
+      const draft = { ...original, continueLabel: "Next step" };
+      const saved = await service.change(editor, "detailed-draft", 0, draft);
+      assert.equal(saved.activeVersion, 1);
+      assert.deepEqual((await service.active()).definition, original);
+      await assert.rejects(service.change(editor, "detailed-denied", 1, null, "activate"), { status: 403 });
+      await assert.rejects(service.change(owner, "detailed-stale", 0, draft), { status: 409 });
+      assert.equal((await service.change(owner, "detailed-activate", 1, null, "activate")).activeVersion, 2);
+      assert.deepEqual((await service.active()).definition, draft);
+      assert.deepEqual((await service.version(1)).definition, original);
+      assert.deepEqual(await intake.active(), before);
+      assert.deepEqual((await new IntakeConfiguration(runtimePool, otherOrg, DETAILED_FORM_ID).active()).definition, original);
+      await assert.rejects(new IntakeConfiguration(runtimePool, otherOrg, DETAILED_FORM_ID).get(owner), { status: 403 });
+      await service.restore(editor, "detailed-restore", 2, 1);
+      assert.deepEqual((await service.get(owner)).draft, original);
+      assert.deepEqual((await service.active()).definition, draft);
+      assert.deepEqual((await service.history(owner)).map(item => item.version), [2, 1]);
     } finally { await client.query("RESET ROLE"); client.release(); }
   });
 
