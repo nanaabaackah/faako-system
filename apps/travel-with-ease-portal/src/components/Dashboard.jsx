@@ -19,6 +19,7 @@ export default function Dashboard({
       canEnquire
         ? api.get("/api/agent/inquiries", { responseMode: "data" })
         : null,
+      canEnquire ? api.get("/api/agent/inquiries/summary", { responseMode: "data" }) : null,
       canEdit ? api.get("/api/agent/content", { responseMode: "data" }) : null,
       canEdit
         ? api.get("/api/agent/content/publication-jobs", {
@@ -26,8 +27,8 @@ export default function Dashboard({
           })
         : null,
     ])
-      .then(([enquiries, content, jobs]) => {
-        if (active) setData({ enquiries, content, jobs });
+      .then(([enquiries, summary, content, jobs]) => {
+        if (active) setData({ enquiries, summary, content, jobs });
       })
       .catch(() => {
         if (active)
@@ -50,8 +51,7 @@ export default function Dashboard({
   if (!data)
     return (
       <AnimatedLoadingState
-        title="Loading your workspace"
-        message="Preparing the latest dashboard information."
+        title="Loading dashboard"
       />
     );
   const enquiries = data.enquiries?.items || [];
@@ -63,33 +63,20 @@ export default function Dashboard({
   const latest = data.jobs?.items?.[0];
   return (
     <div className="dashboard">
-      <section className="dashboard-welcome">
-        <div>
-          <h2>Make room for the next journey.</h2>
-        </div>
-        {canEnquire && (
-          <Button icon="enquiries" onClick={() => onNavigate("enquiries")}>
-            View enquiry inbox
-          </Button>
-        )}
-      </section>
       <div className="dashboard-metrics" aria-label="Workspace indicators">
         {canEnquire && (
           <>
-            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("enquiries")} aria-label="Open new enquiries">
+            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("enquiries", { status: "new" })} aria-label="Open new enquiries">
             <KpiCard
               label="New enquiries"
-              value={enquiries.filter((item) => item.status === "new").length}
-              detail={`In the latest ${enquiries.length} enquiries`}
+              value={data.summary?.counts?.new ?? 0}
               tone="warning"
             />
             </button>
-            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("enquiries")} aria-label="Open contacted enquiries">
+            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("enquiries", { status: "contacted" })} aria-label="Open contacted enquiries">
             <KpiCard
               label="Contacted"
-              value={
-                enquiries.filter((item) => item.status === "contacted").length
-              }
+              value={data.summary?.counts?.contacted ?? 0}
               
               tone="info"
             />
@@ -98,14 +85,14 @@ export default function Dashboard({
         )}
         {canEdit && (
           <>
-            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("content")} aria-label="Open website drafts">
+            <button type="button" className="twe-kpi-link" onClick={() => onNavigate("content", { view: "drafts" })} aria-label="Open website drafts">
             <KpiCard
               label="Pages with drafts"
               value={drafts.length}
               detail="Saved revisions not yet published"
             />
             </button>
-            <button type="button" className="twe-kpi-link metric-word" onClick={() => onNavigate("content")} aria-label="Open publication history">
+            <button type="button" className="twe-kpi-link metric-word" onClick={() => onNavigate("content", { view: "publication" })} aria-label="Open publication history">
             <KpiCard
               className="metric-word"
               label="Latest publication"
@@ -128,7 +115,7 @@ export default function Dashboard({
               <ul className="dashboard-enquiries">
                 {enquiries.slice(0, 5).map((item) => (
                   <li key={item.id}>
-                    <div>
+                    <button className="dashboard-enquiry-link" type="button" onClick={() => onNavigate("enquiries", { enquiryId: item.id })} aria-label={`Open enquiry from ${item.contact.name || "Traveller"}`}>
                       <strong>{item.contact.name || "Traveller"}</strong>
                       <span>
                         {item.kind === "package"
@@ -137,7 +124,7 @@ export default function Dashboard({
                             ? "Personalised trip"
                             : "Estimator enquiry"}
                       </span>
-                    </div>
+                    </button>
                     <span className={`status-label status-${item.status}`}>
                       {item.status}
                     </span>
@@ -154,28 +141,24 @@ export default function Dashboard({
           {canEdit && (
             <button onClick={() => onNavigate("content")}>
               <strong>Website content</strong>
-              <span>Edit copy, review drafts and request publication.</span>
               <NavigationIcon name="content" />
             </button>
           )}
           {permissions.includes("media.read") && (
             <button onClick={() => onNavigate("media")}>
               <strong>Media library</strong>
-              <span>Manage approved images and their usage rights.</span>
               <NavigationIcon name="media" />
             </button>
           )}
           {session.user.role === "owner" && (
             <button onClick={() => onNavigate("staff")}>
               <strong>Staff access</strong>
-              <span>Manage your team's access to this workspace.</span>
               <NavigationIcon name="staff" />
             </button>
           )}
           {permissions.includes("system.read") && (
             <button onClick={() => onNavigate("system")}>
               <strong>System administration</strong>
-              <span>Review technical health and security events.</span>
               <NavigationIcon name="system" />
             </button>
           )}
@@ -197,7 +180,7 @@ export default function Dashboard({
             <ul className="dashboard-drafts">
               {drafts.map((item) => (
                 <li key={item.id || item.slug}>
-                  <strong>{item.slug}</strong>
+                  <button className="dashboard-enquiry-link" type="button" onClick={() => onNavigate("content", { page: item.slug })}>{item.slug}</button>
                   <span>Draft version {item.version}</span>
                   <span className="status-label">Awaiting publication</span>
                 </li>
