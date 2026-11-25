@@ -94,6 +94,9 @@ export const detailedDefinitionSchema = z.object({
       const routing = [branching.serviceRouterQuestionId, "1997323435", branching.notSureQuestionId];
       if (first && routing.some(id => !first.questionIds.includes(id))) issue(["steps"], "Support routing questions must stay together in the first step.");
     }
+    for (const [parent, child] of [[branching.groupDestinationStatusQuestionId, branching.groupDestinationDetailsQuestionId], [branching.groupCostCoverageQuestionId, branching.groupCostCoverageDetailsQuestionId]]) {
+      if (sequence.includes(child) && sequence.indexOf(parent) >= sequence.indexOf(child)) issue(["steps"], "Protected follow-up questions must follow their routing question.");
+    }
     for (const id of sequence) {
       const item = ids.get(id);
       if (!item?.condition) continue;
