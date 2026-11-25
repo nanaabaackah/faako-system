@@ -97,6 +97,7 @@ export default function EnquiryForm({ catalogue = { services: [], packages: [] }
       const reference = data.inquiryId.slice(0, 8).toUpperCase();
       setStatus({ state: "success", message: "Enquiry received." });
       setConfirmation({ reference });
+      if (data.replayed !== true) document.dispatchEvent(new Event("twe:enquiry-received"));
       setForm({ ...initial, ...entry.preset });
       setAdditionalAnswers({});
       operation.current = null;
