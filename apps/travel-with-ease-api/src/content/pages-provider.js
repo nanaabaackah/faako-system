@@ -194,7 +194,7 @@ export class PagesProvider {
       PATH: process.env.PATH, ...(process.env.HOME ? { HOME: process.env.HOME } : {}),
       CLOUDFLARE_API_TOKEN: this.settings.token, CLOUDFLARE_ACCOUNT_ID: this.settings.accountId,
       CI: "true", WRANGLER_SEND_METRICS: "false",
-    }, { timeout: 180_000 });
+    }, { timeout: 300_000 });
     // Wrangler can return before the Pages deployment reaches its terminal
     // stage. Poll read-only provider status instead of treating that normal
     // transition as an uncertain upload or issuing another deployment.
