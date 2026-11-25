@@ -44,7 +44,7 @@ const footprint = publishedPage("travel-footprint");
           <div class="journey-introduction__artwork">
             <EditorialPhoto
               image={about.image}
-              placement={about.imagePlacements?.feature}
+              placement={about.imagePlacements?.story || about.imagePlacements?.feature}
               class="journey-introduction__photo"
               sizes="(max-width: 760px) 90vw, 42vw"
             />
