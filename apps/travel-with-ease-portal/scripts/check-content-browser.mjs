@@ -76,6 +76,20 @@ try {
     for (const label of ["Packages", "Journal", "Travel Tips", "Footprint"]) {
       assert.equal(await page.locator(".portal-shell > aside nav").getByRole("button", { name: label, exact: true }).count(), 0, "Collections stay inside Content");
     }
+    const commands = page.locator(".twe-cms-command-bar");
+    await expect(commands.getByRole("button", { name: "Save draft", exact: true })).toBeVisible();
+    assert.equal(await commands.evaluate(node => getComputedStyle(node).position), "sticky");
+    await page.getByRole("navigation", { name: "Current page sections" }).getByRole("button", { name: "SEO", exact: true }).click();
+    await expect(page.locator('[data-cms-section="seo"]')).toBeFocused();
+    await expect(page.getByLabel("SEO title")).toBeVisible();
+    const disclosure = page.locator(".twe-cms-section-disclosure").first();
+    if (await disclosure.count()) {
+      await disclosure.locator("summary").click();
+      await expect(disclosure).not.toHaveAttribute("open", "");
+      await disclosure.locator("summary").click();
+      await expect(disclosure).toHaveAttribute("open", "");
+    }
+    await page.getByRole("navigation", { name: "Current page sections" }).getByRole("button", { name: "Page content", exact: true }).click();
     const headingInput = page.getByLabel(/^Heading/);
     assert.equal(await headingInput.evaluate(element => getComputedStyle(element).borderTopWidth), "0px", "No nested input border");
     await headingInput.focus();

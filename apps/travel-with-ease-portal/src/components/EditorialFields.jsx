@@ -2,6 +2,7 @@ import { TextField, TextareaField } from "@faako/ui";
 import { editorialFields, editorialValues, approvedTravellerReviews } from "../../../travel-with-ease-api/src/content/editorial-fields.js";
 import Button from "./ActionButton.jsx";
 import RichTextField from "./RichTextField.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
 
 export default function EditorialFields({ page, body, change }) {
   const fields = editorialFields[page] || [];
@@ -18,15 +19,18 @@ export default function EditorialFields({ page, body, change }) {
   return <>
     {fields.length > 0 && <section className="cms-editor-groups" aria-label="Page sections and labels">
       {[...grouped].map(([context, groupFields]) => (
-        <fieldset key={context} className="cms-editor-group">
-          <legend>{context}</legend>
+        <details key={context} className="twe-cms-section-disclosure" open>
+          <summary><span>{context}</span><NavigationIcon name="arrow"/></summary>
+          <fieldset className="cms-editor-group">
+          <legend className="twe-visually-hidden">{context}</legend>
           {groupFields.map(([key, label, fallback]) => {
             const Field = key.endsWith("Body") || key === "companyDetails" ? RichTextField : fallback.length > 120 ? TextareaField : TextField;
             return <Field key={key} label={label} maxLength={2000} required
               value={body.editorialCopy?.[key] ?? values[key]}
               onChange={event => change("editorialCopy", { ...body.editorialCopy, [key]: event.target.value })} />;
           })}
-        </fieldset>
+          </fieldset>
+        </details>
       ))}
     </section>}
     {page === "home" && <section className="cms-editor-groups" aria-label="Traveller reviews">

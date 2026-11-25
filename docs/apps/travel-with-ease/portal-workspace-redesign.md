@@ -12,3 +12,9 @@ Acceptance: shared navigation desktop, collapse/expand and context visibility, p
 - Independent dashboard resources for summary, recent records, drafts and publication jobs. A failed request no longer masks other data or reports false zero counts. Manual refresh retries each resource. Publication activity uses actual returned jobs; no invented trends.
 - Enquiry list and selected detail fetch independently; preserve filters and pagination on selection. Wide workspace uses master-detail view, smaller screens retain full-width detail and restore focus on return. Existing version checks, CSRF, permission checks, snapshot rendering and status-only writes remain intact.
 - Browser regression coverage includes partial dashboard failure; final live visual acceptance remains outstanding.
+
+## Phase 3 — website editing workspace
+- Current section heading replaces the duplicate Website content heading. Section picker remains available in both editor and preview modes; a guarded draft-list shortcut and current-page outline jump to copy, imagery, SEO, publication and revision history.
+- Sticky save/preview/publication command bar uses the existing form submit, autosave and publication handlers; no duplicate publish button or changed publication scope. The publication shortcut focuses the existing scope and confirmation panel. Existing private viewport preview now supports full-width preview as well as desktop split view.
+- Expandable editorial groups start open, retain their existing fieldsets and validation; invalid fields open their containing disclosure. SEO receives its own group. Read-only and publication-busy controls are tightened. Technical image geometry remains Superadmin-only.
+- Browser acceptance now checks sticky commands, outline focus and disclosure interactions. No new API endpoints or provider config; publication and restore remain unchanged. Rendered staging review still required.
