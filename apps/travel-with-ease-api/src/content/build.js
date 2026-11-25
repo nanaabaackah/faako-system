@@ -8,13 +8,13 @@ export function runReviewedCommand(command, args, env, { cwd = root, timeout = 1
     let output = "", settled = false;
     const finish = (error) => {
       if (settled) return; settled = true; clearTimeout(timer);
-      if (error) reject(new Error("The reviewed build command did not complete.")); else resolve(output.trim());
+      if (error) reject(Object.assign(new Error("The reviewed build command did not complete."), { code: error })); else resolve(output.trim());
     };
-    const timer = setTimeout(() => { child.kill("SIGKILL"); finish(true); }, timeout);
+    const timer = setTimeout(() => { child.kill("SIGKILL"); finish("command_timeout"); }, timeout);
     child.stdout.on("data", chunk => { if (output.length < 100_000) output += chunk.toString().slice(0, 100_000 - output.length); });
     child.stderr.resume(); // Build output may contain private paths: never return it to clients/logs.
-    child.on("error", () => finish(true));
-    child.on("close", code => finish(code !== 0));
+    child.on("error", () => finish("command_spawn_failed"));
+    child.on("close", code => finish(code === 0 ? null : "command_exit_failed"));
   });
 }
 
