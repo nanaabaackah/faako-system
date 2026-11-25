@@ -1,2 +1,4 @@
-.dashboard-enquiry-link { display: grid; gap: 4px; min-width: 0; color: inherit; background: transparent; border: 0; padding: 8px; text-align: start; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
-.dashboard-enquiry-link:focus-visible, .twe-kpi-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.dashboard-enquiry-link { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 12px; min-width: 0; color: inherit; background: transparent; border: 0; padding: 8px; min-height: 44px; text-align: start; font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.dashboard-enquiry-copy { display: grid; min-width: 0; gap: 4px; }
+.dashboard-draft-link { color: inherit; background: transparent; border: 0; font: inherit; text-align: start; cursor: pointer; min-height: 44px; }
+.dashboard-enquiry-link:focus-visible, .dashboard-draft-link:focus-visible, .twe-kpi-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
