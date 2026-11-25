@@ -35,13 +35,14 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
   const [historyError, setHistoryError] = useState("");
   const [historyLoading, setHistoryLoading] = useState(false);
   const [saveState, setSaveState] = useState({ status: "saved", error: "" });
+  const historyRequest = useRef(0);
   const writer = useRef(null);
   const copyRef = useRef(null);
   const saving = saveState.status === "saving";
   useEffect(() => {
-    onRefreshBlockedChange?.(dirty || busy || saving || !record || Boolean(confirmation));
+    onRefreshBlockedChange?.(dirty || busy || saving || historyLoading || !record || Boolean(confirmation));
     return () => onRefreshBlockedChange?.(false);
-  }, [dirty, busy, saving, record, confirmation, onRefreshBlockedChange]);
+  }, [dirty, busy, saving, historyLoading, record, confirmation, onRefreshBlockedChange]);
   // Preview branding is bundled locally; the actual outgoing email retains
   // absolute public asset URLs for email-client compatibility.
   const previewHtml = preview?.html
@@ -97,18 +98,21 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
     };
   }, [api, slug, session.csrfToken, onDirtyChange]);
   useEffect(() => {
+    historyRequest.current++;
     setHistory([]);
     setHistoryError("");
     setHistoryLoading(false);
+    return () => { historyRequest.current++; };
   }, [slug, record?.version]);
   async function loadHistory() {
+    const request = ++historyRequest.current;
     setHistoryLoading(true);
     setHistoryError("");
     try {
       const result = await api.get(`/api/agent/templates/${slug}/history`, { responseMode: "data" });
-      setHistory(Array.isArray(result.items) ? result.items : []);
-    } catch (error) { setHistoryError(error.message); }
-    finally { setHistoryLoading(false); }
+      if (historyRequest.current === request) setHistory(Array.isArray(result.items) ? result.items : []);
+    } catch (error) { if (historyRequest.current === request) setHistoryError(error.message); }
+    finally { if (historyRequest.current === request) setHistoryLoading(false); }
   }
   function changeTemplate(event) {
     if (busy || saving || historyLoading || event.target.value === slug) return;
