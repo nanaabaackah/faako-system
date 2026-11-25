@@ -126,7 +126,7 @@ export class PagesProvider {
     await verify(this.settings.origin, marker);
     return { id, origin };
   }
-  async terminalStagingDeployment(job, logger = {}) {
+  async terminalStagingDeployment(job, logger = {}, { allowAbandoned = false, now = Date.now() } = {}) {
     const report = (reason, details = {}) => { logger.info?.({ eventName: "publication.terminal_evidence", jobId: job.id, reason, ...details }, "Checked terminal staging deployment evidence."); return null; };
     // Do not infer failure from a skipped Git build, missing evidence, an
     // incomplete scan, or a newer successful upload with the same SHA.
@@ -137,8 +137,11 @@ export class PagesProvider {
     this.assertProject(project);
     const candidates = [];
     const seen = new Set();
-    let complete = false;
-    for (let page = 1; page <= 40; page++) {
+    let complete = false, competingUpload = false;
+    // Only an explicitly requested staging code-release recovery may inspect
+    // the larger bounded history. A truncated history is never absence proof.
+    const maxPages = allowAbandoned ? 120 : 40;
+    for (let page = 1; page <= maxPages; page++) {
       const rows = await this.request(`/deployments?per_page=25&page=${page}&env=preview`);
       if (!Array.isArray(rows) || rows.length > 25) return report("invalid_page");
       for (const row of rows) {
@@ -146,6 +149,9 @@ export class PagesProvider {
         seen.add(row.id);
         const trigger = row.deployment_trigger;
         if (row.environment !== "preview" || trigger?.metadata?.branch !== this.settings.branch || trigger?.type === "github:push") continue;
+        const rowTime = Date.parse(row.created_on);
+        if (!Number.isFinite(rowTime)) return report("invalid_candidate_time");
+        if (rowTime >= since - 5000 && !["success", "failure", "canceled", "skipped"].includes(row.latest_stage?.status) && row.is_skipped !== true) competingUpload = true;
         // Only an actual Direct Upload can supply terminal evidence.
         if (trigger?.metadata?.commit_hash !== job.source_sha) continue;
         const created = Date.parse(row.created_on);
@@ -154,6 +160,15 @@ export class PagesProvider {
         candidates.push(row);
       }
       if (rows.length < 25) { complete = true; break; }
+    }
+    if (complete && candidates.length === 0 && allowAbandoned && !competingUpload &&
+        job.manifest?.triggerType === "code_release" && now - since >= 60 * 60 * 1000 &&
+        /^[a-f0-9]{40}$/.test(this.settings.sourceSha || "") && job.source_sha !== this.settings.sourceSha) {
+      // Superseded automatic code release, no matching provider record after
+      // a complete preview scan, no pending competing direct upload, and a
+      // full hour since upload initiation. The caller must prove the separate
+      // last-live baseline and use the exact stale DB lease before closing.
+      return { status: "upload_not_found" };
     }
     if (!complete || candidates.length !== 1) return report(!complete ? "incomplete_scan" : candidates.length === 0 ? "no_direct_candidate" : "ambiguous_candidates", { scanned: seen.size, candidates: candidates.length });
     const candidate = candidates[0];
