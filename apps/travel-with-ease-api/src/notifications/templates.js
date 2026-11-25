@@ -37,6 +37,7 @@ export const templateCopySchema = z
     heading: singleLine(160),
     message: z.string().trim().min(1).max(3000),
     ctaLabel: singleLine(60),
+    continuationCtaLabel: singleLine(60).optional(),
   })
   .strict();
 const versionSchema = z.number().int().min(0).max(2147483646);
@@ -58,7 +59,7 @@ export class EmailTemplates {
         "Template access denied.",
       );
   }
-  async packageOptions(client = this.pool) {
+  async packageOptions(client = this.pool, { publishedOnly = false } = {}) {
     const { rows } = await client.query(
       `SELECT c.publication_initialized, c.published_body, d.body AS draft_body
        FROM twe.content_items c LEFT JOIN twe.content_revisions d ON d.id=c.draft_revision_id AND d.organisation_id=c.organisation_id
@@ -67,7 +68,7 @@ export class EmailTemplates {
     );
     const row = rows[0];
     const published = row?.publication_initialized ? row.published_body?.packages || [] : approvedRelease.pages.packages.packages;
-    const packages = new Map([...published, ...(row?.draft_body?.packages || [])].map(item => [item.id, item]));
+    const packages = new Map([...published, ...(publishedOnly ? [] : row?.draft_body?.packages || [])].map(item => [item.id, item]));
     return [...packages.values()].map(packageTemplateOption).filter(Boolean).sort((a, b) => a.label.localeCompare(b.label));
   }
   async catalogue(actor) {
@@ -75,14 +76,14 @@ export class EmailTemplates {
     return [...emailTemplateOptions.filter(option => option.automated || hasPermission(actor, "templates.manage", this.organisationId)), ...await this.packageOptions()];
   }
   async requireKnownPackage(slug) {
-    if (!packageTemplatePattern.test(slug)) return;
-    if (!(await this.packageOptions()).some(option => option.slug === slug))
-      throw new ContentError(404, "not_found", "Package template not found.");
+    if (!packageTemplatePattern.test(slug)) return null;
+    const option = (await this.packageOptions()).find(item => item.slug === slug);
+    if (!option) throw new ContentError(404, "not_found", "Package template not found.");
+    return option;
   }
   async preview(actor, slug, copy) {
     this.check(actor, slug);
-    await this.requireKnownPackage(slug);
-    const option = packageTemplatePattern.test(slug) ? (await this.packageOptions()).find(item => item.slug === slug) : null;
+    const option = await this.requireKnownPackage(slug);
     return renderEmailTemplate(slug, copy, option?.label);
   }
   async exportActiveCopies(packageIds) {
@@ -105,6 +106,23 @@ export class EmailTemplates {
     const slug = candidates[0];
     const effective = packageTemplatePattern.test(slug) ? (active.has(slug) ? slug : packageTemplateSlug) : slug;
     return templateCopySchema.parse(active.get(effective) || defaultCopyForTemplate(effective) || active.get(generalTemplateSlug) || defaultCopyForTemplate(generalTemplateSlug));
+  }
+  async resolveDelivery(enquiry, client = this.pool) {
+    const details = { ...(enquiry.details || {}) };
+    const specific = "enquiry-package-" + details.selectedPackageId;
+    let packageTitle;
+    if (packageTemplatePattern.test(specific)) {
+      const known = (await this.packageOptions(client, { publishedOnly: true })).find(option => option.slug === specific);
+      packageTitle = known?.label;
+      // Never substitute an unverified visitor-supplied title or expose a
+      // draft package through a transactional message.
+      if (!known) details.selectedPackageId = null;
+    }
+    const serviceTitle = emailTemplateOptions.find(option => option.serviceId === details.selectedServiceId && option.serviceId)?.label;
+    return {
+      copy: await this.activeForEnquiry({ ...enquiry, details }, client),
+      context: { serviceTitle, packageTitle },
+    };
   }
   async get(actor, templateSlug = defaultSlug) {
     const slug = templateSlugSchema.parse(templateSlug);
@@ -149,8 +167,7 @@ export class EmailTemplates {
   async sendTest(actor, requestId, copy, templateSlug = defaultSlug) {
     const slug = templateSlugSchema.parse(templateSlug);
     this.check(actor, slug);
-    await this.requireKnownPackage(slug);
-    const packageLabel = packageTemplatePattern.test(slug) ? (await this.packageOptions()).find(item => item.slug === slug)?.label : undefined;
+    const packageLabel = (await this.requireKnownPackage(slug))?.label;
     const validated = templateCopySchema.parse(copy);
     const sender = this.testSenderFactory?.();
     if (!sender) throw new ContentError(503, "service_unavailable", "Test email delivery is not configured.");
