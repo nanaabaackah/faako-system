@@ -51,6 +51,21 @@ export async function reconcileStalePublication({
         job, verify, marker, logger,
         { allowCurrentMismatch: settings?.environment === "staging" && Boolean(archive) },
       );
+      if (!deployed && settings?.environment === "staging" && job.status === "deploying" &&
+          typeof provider.terminalStagingDeployment === "function" && typeof publication.failTerminalStagingDeployment === "function") {
+        const terminal = await provider.terminalStagingDeployment(job);
+        if (terminal) {
+          const baseline = await publication.lastLive();
+          if (!baseline || baseline.id === job.id) throw new Error("No separate confirmed staging baseline.");
+          const baselineMarker = { jobId: baseline.id, sourceSha: baseline.source_sha, digest: manifestDigest(baseline.manifest) };
+          await provider.verifiedStagingBaseline(baseline, verify, baselineMarker);
+          if (!await publication.failTerminalStagingDeployment(job, terminal, baseline.id))
+            throw new Error("Stale publication lease or baseline changed.");
+          logger.warn?.({ eventName: "publication.terminal_failure_reconciled", jobId: job.id, deploymentId: terminal.id, providerStatus: terminal.status },
+            "Terminal staging upload reconciled; previous verified publication retained.");
+          return { id: job.id, status: "failed" };
+        }
+      }
       if (!deployed) throw new Error("No unique verified Pages deployment.");
       if (deployed.currentMatches === false) {
         if (settings?.environment !== "staging" || job.status !== "verifying" ||
