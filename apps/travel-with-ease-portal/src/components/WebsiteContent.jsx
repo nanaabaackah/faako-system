@@ -81,7 +81,7 @@ const emptyBody = () => ({
   editorialCopy: {},
 });
 
-export default function WebsiteContent({ api, session, onDirtyChange, onRefreshBlockedChange, initialPage = "home" }) {
+export default function WebsiteContent({ api, session, onDirtyChange, onRefreshBlockedChange, initialPage = "home", initialView }) {
   const { pushToast } = useToast();
   const canPublish =
     session.user.permissions?.includes("content.publish") === true;
@@ -89,6 +89,19 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
   // their own collection and must not be silently redirected to Journal.
   const [page, setPage] = useState(initialPage === "testimonials" ? "home" : initialPage);
   const [recordSlug, setRecordSlug] = useState("");
+  const [draftPages, setDraftPages] = useState(null);
+  const [draftListError, setDraftListError] = useState("");
+  const [draftListVisible, setDraftListVisible] = useState(initialView === "drafts");
+  const publicationPanel = useRef(null);
+  const initialPublicationFocus = useRef(initialView === "publication");
+  useEffect(() => {
+    if (!draftListVisible) return;
+    let active = true;
+    api.get("/api/agent/content", { responseMode: "data" }).then(result => {
+      if (active) setDraftPages((result.items || []).filter(item => item.draft_revision_id && item.draft_revision_id !== item.published_revision_id));
+    }).catch(error => { if (active) setDraftListError(error.message); });
+    return () => { active = false; };
+  }, [api, draftListVisible]);
   const [body, setBody] = useState(emptyBody);
   const [version, setVersion] = useState(0);
   const [history, setHistory] = useState([]);
@@ -228,7 +241,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
         setJobs(publications.items);
         setDirty(false);
         setState({ loading: false, error: "", message: "" });
-        heading.current?.focus();
+        if (initialPublicationFocus.current) {
+          initialPublicationFocus.current = false;
+          publicationPanel.current?.focus();
+        } else heading.current?.focus();
       } catch (error) {
         if (active)
           setState({ loading: false, error: error.message, message: "" });
@@ -368,6 +384,21 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
     }
   }
 
+  const openDraft = nextPage => {
+    if (!pages.includes(nextPage) && nextPage !== "testimonials") return;
+    const target = nextPage === "testimonials" ? "home" : nextPage;
+    setDraftListVisible(false);
+    if (target !== page) { setState({ loading: true, error: "", message: "" }); setPage(target); }
+    else heading.current?.focus();
+  };
+  if (draftListVisible) return <section className="content-editor" aria-labelledby="draft-pages-heading">
+    <h2 id="draft-pages-heading">Pages with drafts</h2>
+    <Button type="button" icon="back" onClick={() => setDraftListVisible(false)}>All website sections</Button>
+    {draftListError && <InlineNotice tone="danger" title="Draft list unavailable" message={draftListError}/>}
+    {!draftPages && !draftListError && <AnimatedLoadingState compact title="Loading drafts"/>}
+    {draftPages?.length === 0 && <p>No unpublished drafts.</p>}
+    {draftPages?.map(item => <Button key={item.id || item.slug} type="button" onClick={() => openDraft(item.slug)}>{sectionLabel(item.slug)} · Version {item.version}</Button>)}
+  </section>;
   return (
     <section
       className="content-editor website-workspace"
@@ -1320,7 +1351,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           }}
         />
       )}
-      <section className="workspace-panel" data-tour="content-publication">
+      <section className="workspace-panel" data-tour="content-publication" ref={publicationPanel} tabIndex={-1}>
         <h3>Publication</h3>
         {["packages", "journal", "travel-tips"].includes(page) && <SelectField
           label="Publication scope" value={recordSlug} disabled={state.loading || dirty}
@@ -1362,7 +1393,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
             Refresh publication status
           </Button>
         </div>
-        <HistoryDisclosure title="Publication history" count={jobs.length}>
+        <HistoryDisclosure title="Publication history" count={jobs.length} initiallyOpen={initialView === "publication"}>
           <ActivityList title="Publication history" items={jobs.map(job=>({...job,action:`${job.status === 'failed' && job.last_error === 'cancelled_by_operator' ? 'cancelled' : job.status} · ${job.target?.page||'website'}`,record_id:job.deployment_id||job.id}))}
           renderAction={job=><>
             {job.needs_reconciliation && <p>Verification delayed — deployment reconciliation required. New publications remain blocked until the exact release is verified.</p>}
