@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   createSuccessResponse,
@@ -38,9 +39,10 @@ export const templateSlugSchema = z.enum([
 ]);
 
 export class EmailTemplates {
-  constructor(pool, organisationId) {
+  constructor(pool, organisationId, testSenderFactory = null) {
     this.pool = pool;
     this.organisationId = organisationId;
+    this.testSenderFactory = testSenderFactory;
   }
   check(actor) {
     if (!hasPermission(actor, "templates.manage", this.organisationId))
@@ -86,6 +88,32 @@ export class EmailTemplates {
     );
     if (!rows[0]) throw new ContentError(404, "not_found", "Template revision not found.");
     return this.change(actor, requestId, expectedVersion, rows[0].copy, false, slug, revision);
+  }
+  async sendTest(actor, requestId, copy, templateSlug = defaultSlug) {
+    this.check(actor);
+    const slug = templateSlugSchema.parse(templateSlug);
+    const validated = templateCopySchema.parse(copy);
+    const sender = this.testSenderFactory?.();
+    if (!sender) throw new ContentError(503, "service_unavailable", "Test email delivery is not configured.");
+    const attemptId = randomUUID();
+    // Persist the attempt before contacting the provider. A tenant-wide lock
+    // prevents concurrent requests bypassing the shared rate limit.
+    await transaction(this.pool, async client => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [`twe-template-test:${this.organisationId}`]);
+      const { rows } = await client.query(
+        "SELECT count(*) FILTER (WHERE created_at > now() - interval '1 minute')::int AS recent, count(*)::int AS hourly FROM twe.audit_records WHERE organisation_id=$1 AND action='email_template.test_requested' AND created_at > now() - interval '1 hour'",
+        [this.organisationId],
+      );
+      if (rows[0].recent >= 1 || rows[0].hourly >= 10) throw new ContentError(429, "rate_limited", "Test email limit reached. Try again later.");
+      await appendAudit(client, { organisationId: this.organisationId, actorId: actor.id, action: "email_template.test_requested", recordId: attemptId, requestId });
+    });
+    try {
+      await sender.sendTemplateTest(slug, validated, attemptId);
+    } catch {
+      // The provider may have accepted an unacknowledged request. No retry.
+      throw new ContentError(503, "service_unavailable", "Test delivery was not confirmed. Check the test inbox before sending again.");
+    }
+    return { status: "provider_accepted", recipient: "testing@travelwitheasegh.com" };
   }
   async activeCopy(templateSlug = defaultSlug) {
     const slug = templateSlugSchema.parse(templateSlug);
@@ -179,6 +207,9 @@ export function emailTemplateRoutes(service, auth) {
   router.get("/:slug/history", async (req, res) =>
     send(req, res, { items: await service.history(req.staff, req.params.slug) }),
   );
+  router.post("/:slug/test", auth.requireMutation, async (req, res) => {
+    send(req, res, await service.sendTest(req.staff, req.requestId, templateCopySchema.parse(req.body), req.params.slug));
+  });
   router.post("/:slug/restore", auth.requireMutation, async (req, res) => {
     const input = z.object({ expectedVersion: versionSchema, revision: versionSchema }).strict().parse(req.body);
     send(req, res, await service.restore(req.staff, req.requestId, input.expectedVersion, input.revision, req.params.slug));
