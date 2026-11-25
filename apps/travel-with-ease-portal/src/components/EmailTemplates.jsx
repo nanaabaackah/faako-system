@@ -279,6 +279,14 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               required
               onChange={(event) => edit("ctaLabel", event.target.value)}
             />
+            {definition.automated && <TextField
+              disabled={busy || Boolean(confirmation)}
+              label="Questionnaire button label"
+              value={copy.continuationCtaLabel ?? "Complete your trip details"}
+              maxLength={60}
+              required
+              onChange={event => edit("continuationCtaLabel", event.target.value)}
+            />}
             <div className="template-actions">
               <Button
                 type="button"
