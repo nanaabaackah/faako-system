@@ -36,8 +36,20 @@ const unavailable = () =>
 export function readDriveConfig(env = process.env) {
   const raw = env.TWE_GOOGLE_SERVICE_ACCOUNT_JSON?.trim();
   const folderId = env.TWE_GOOGLE_DRIVE_MEDIA_FOLDER_ID?.trim();
-  if (!raw && !folderId) return null;
+  const clientId = env.TWE_GOOGLE_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = env.TWE_GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+  const refreshToken = env.TWE_GOOGLE_OAUTH_REFRESH_TOKEN?.trim();
+  const oauth = [clientId, clientSecret, refreshToken];
+  if (!raw && !folderId && !oauth.some(Boolean)) return null;
   try {
+    if (oauth.some(Boolean)) {
+      // Never silently select between credential modes or fall back to another app.
+      if (raw || !oauth.every(Boolean) ||
+        !/^[A-Za-z0-9._-]{1,512}\.apps\.googleusercontent\.com$/.test(clientId) ||
+        clientSecret.length > 2048 || refreshToken.length > 8192 ||
+        /\s/.test(clientSecret) || /\s/.test(refreshToken)) throw new Error();
+      return { mode: "oauth", clientId, clientSecret, refreshToken, folderId: driveId.parse(folderId) };
+    }
     if (!raw || raw.length > 32_768) throw new Error();
     const account = JSON.parse(raw);
     if (
@@ -112,25 +124,40 @@ export class DriveReader {
   }
   async requestToken() {
     try {
-      const key = await importPKCS8(this.config.privateKey, "RS256");
-      const assertion = await new SignJWT({ scope })
-        .setProtectedHeader({ alg: "RS256", typ: "JWT" })
-        .setIssuer(this.config.email)
-        .setAudience(tokenEndpoint)
-        .setIssuedAt()
-        .setExpirationTime("5m")
-        .sign(key);
+      let body;
+      if (this.config.mode === "oauth") {
+        body = new URLSearchParams({
+          grant_type: "refresh_token",
+          client_id: this.config.clientId,
+          client_secret: this.config.clientSecret,
+          refresh_token: this.config.refreshToken,
+        });
+      } else {
+        const key = await importPKCS8(this.config.privateKey, "RS256");
+        const assertion = await new SignJWT({ scope })
+          .setProtectedHeader({ alg: "RS256", typ: "JWT" })
+          .setIssuer(this.config.email)
+          .setAudience(tokenEndpoint)
+          .setIssuedAt()
+          .setExpirationTime("5m")
+          .sign(key);
+        body = new URLSearchParams({
+          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+          assertion,
+        });
+      }
       const response = await this.fetcher(tokenEndpoint, {
         method: "POST",
         redirect: "error",
         signal: AbortSignal.timeout(15_000),
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-          assertion,
-        }),
+        body,
       });
       const token = JSON.parse((await readBytes(response, 16_384)).toString());
+      // Google can omit scope on refresh. If supplied, reject anything other
+      // than the reviewed read-only grant; provisioning must request only it.
+      if (this.config.mode === "oauth" && token.scope !== undefined &&
+        (typeof token.scope !== "string" || token.scope.trim() !== scope)) throw unavailable();
       if (
         typeof token.access_token !== "string" ||
         !token.access_token.length ||
