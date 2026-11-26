@@ -39,3 +39,9 @@ Acceptance: shared navigation desktop, collapse/expand and context visibility, p
 - Unified activity disclosure records replace duplicate mobile/desktop lists, so the complete row opens the audit references and any permitted actions. Filter controls are collapsed by default; category, date, cursor pagination and retry behavior are retained. Invitation history shares the same record component.
 - System diagnostics no longer repeats the Staff page. Environment health remains visible and stored job counts expand by status; technical access remains Superadmin-only. Account settings prioritises session expiry and hides the workspace reference until requested.
 - Browser regression now opens staff and activity records by their entire surface. Existing cross-role tests and actual confirmation flows are retained. CI and live staging acceptance remain required.
+
+## Phase 7 — responsive consolidation
+- Enquiries keep status/search available, with category/service/package filters in a collapsible group that preserves applied filters and shows an active count. List dates are concise; full detail remains accessible.
+- CMS editorial groups, reviews, package records, Journal articles, tips and footprint records use full-width disclosure summaries; existing values are mounted, new records open immediately and desktop starts expanded. Existing invalid-field reveal, autosave, publication and collection contracts remain.
+- Media defaults to compact list on small screens; the grid selection now works on small screens too. Thumbnail requests use the existing authenticated API transport, fetch near the viewport and revoke blob URLs. No public image URL or additional credentials. Secondary actions are hidden only when none are available.
+- The core CMS and administration browser suites now cover 320, 390, 600, 768, 1024, 1440px. Browser acceptance is pending. No public-site changes or deployment.

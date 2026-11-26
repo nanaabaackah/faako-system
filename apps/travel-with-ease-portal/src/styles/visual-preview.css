@@ -124,3 +124,7 @@
   .twe-cms-anchor { scroll-margin-top: 180px; }
   .twe-cms-outline button { flex: 1 1 120px; }
 }
+
+.portal-shell .twe-cms-workspace :is(section[aria-label="Packages"],section[aria-label="Journal articles"],section[aria-label="Travel tips"]) { display:grid; gap:12px; min-width:0; }
+.portal-shell .twe-cms-workspace .twe-builder-body > fieldset { margin:0; border:0; padding:0; min-width:0; background:transparent; }
+@media(max-width:600px){.portal-shell .twe-cms-workspace .twe-builder-body fieldset{padding:12px;gap:10px;}.portal-shell .twe-cms-workspace .twe-builder-body > fieldset{padding:0;}.portal-shell .twe-cms-workspace .twe-builder-disclosure > summary{padding:10px;}.portal-shell .twe-cms-outline button{min-width:0;overflow-wrap:anywhere;}.portal-shell .twe-cms-workspace :is(.cms-editor-group,fieldset) > *{min-width:0;max-width:100%;}}

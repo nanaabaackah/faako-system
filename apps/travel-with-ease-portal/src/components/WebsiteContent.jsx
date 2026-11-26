@@ -1,4 +1,5 @@
 import Button from "./ActionButton.jsx";
+import BuilderDisclosure from "./BuilderDisclosure.jsx";
 import NavigationIcon from "./NavigationIcon.jsx";
 import RichTextField from "./RichTextField.jsx";
 import RichText from "../../../travel-with-ease-web/src/components/RichText.jsx";
@@ -637,8 +638,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
             <section aria-label="Journal articles">
               <h3>Journal articles</h3>
               {(body.articles || []).map((article, index) => (
-                <fieldset key={index}>
-                  <legend>Article {index + 1}</legend>
+                <BuilderDisclosure key={index} title={article.title || "New article"} detail={article.date} initiallyOpen={!article.title}>
+                <fieldset><legend className="twe-visually-hidden">Article {index + 1}</legend>
                   {[
                     ["Article card & listing", [["title", "Article title", 120], ["slug", "Article URL name", 80], ["excerpt", "Card summary", 240]]],
                     ["Article detail page", [["body", "Full article", 6000]]],
@@ -841,7 +842,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                   >
                     Remove article {index + 1}
                   </Button>
-                </fieldset>
+                </fieldset></BuilderDisclosure>
               ))}
               <Button
                 type="button"
@@ -877,14 +878,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           {page === "travel-tips" && (
             <section aria-label="Travel tips">
               <h3>Travel tips</h3>
-              <p>
-                Save and preview this collection before requesting publication.
-                All tips in the saved collection are published together.
-                Removing a tip and publishing withdraws it.
-              </p>
+ 
               {body.tips.map((tip, index) => (
-                <fieldset key={index}>
-                  <legend>Tip {index + 1}</legend>
+                <BuilderDisclosure key={index} title={tip.title || "New tip"} detail={tip.category} initiallyOpen={!tip.title}>
+                <fieldset><legend className="twe-visually-hidden">Tip {index + 1}</legend>
                   {[
                     ["Travel tip card & listing", [["title", "Tip title", 120], ["slug", "Tip URL name", 80], ["excerpt", "Card summary", 240]]],
                     ["Travel tip detail page", [["body", "Full travel tip", 6000], ["relatedArticle", "Related Journal URL name (optional)", 80]]],
@@ -1011,7 +1008,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                   >
                     Remove tip {index + 1}
                   </Button>
-                </fieldset>
+                </fieldset></BuilderDisclosure>
               ))}
               <Button
                 type="button"
@@ -1048,8 +1045,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                 Enter confirmed trips by country. Count Zanzibar under Tanzania.
               </p>
               {(body.footprint || []).map((row, index) => (
-                <fieldset key={index}>
-                  <legend>Country {index + 1}</legend>
+                <BuilderDisclosure key={index} title={countries.find(country => country.code === row.countryCode)?.name || "New country"} detail={row.total != null ? row.total + " verified trips" : ""} initiallyOpen={!row.countryCode}>
+                <fieldset><legend className="twe-visually-hidden">Country {index + 1}</legend>
                   <SelectField
                     label="Country"
                     required
@@ -1108,7 +1105,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                   >
                     Remove country {index + 1}
                   </Button>
-                </fieldset>
+                </fieldset></BuilderDisclosure>
               ))}
               <Button
                 type="button"

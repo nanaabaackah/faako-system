@@ -20,7 +20,7 @@ const browser = await chromium.launch({
     : {}),
 });
 try {
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of [320, 390, 600, 768, 1024, 1440]) {
     console.log("Checking isolated CMS content at " + width + "px");
     const context = await browser.newContext({
       viewport: { width, height: 900 },
@@ -86,8 +86,10 @@ try {
     await page.getByRole("navigation", { name: "Current page sections" }).getByRole("button", { name: "SEO", exact: true }).click();
     await expect(page.locator('[data-cms-section="seo"]')).toBeFocused();
     await expect(page.getByLabel("SEO title")).toBeVisible();
-    const disclosure = page.locator(".twe-cms-section-disclosure").first();
+    const disclosure = page.locator(".twe-cms-workspace .twe-builder-disclosure").first();
     if (await disclosure.count()) {
+      if (!(await disclosure.evaluate(node => node.open))) await disclosure.locator("summary").click();
+      await expect(disclosure).toHaveAttribute("open", "");
       await disclosure.locator("summary").click();
       await expect(disclosure).not.toHaveAttribute("open", "");
       await disclosure.locator("summary").click();
@@ -114,6 +116,9 @@ try {
     assert.equal(await page.getByRole("option", { name: "Travel tips", exact: true }).count(), 1,
       "Travel Tips remains available as its own CMS collection");
     await page.getByRole("option", { name: "Journal", exact: true }).click();
+    const articleRecord = page.getByRole("region", {name:"Journal articles",exact:true}).locator(".twe-builder-disclosure").first();
+    await articleRecord.waitFor();
+    if (!(await articleRecord.evaluate(node => node.open))) await articleRecord.locator("summary").click();
     await page.getByLabel("Travel tip series").first().waitFor();
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();
     await page.getByRole("group", { name: "Article card & listing", exact: true }).first().getByLabel(/^Article title/).fill("Changed demo article");
@@ -140,6 +145,10 @@ try {
       .getByRole("heading", { name: "Changed demo article", exact: true })
       .waitFor();
     await select("travel-footprint");
+    const countryField = page.getByLabel(/^Combined verified total/).first();
+    await countryField.waitFor({state:"attached"});
+    const countryRecord = countryField.locator("xpath=ancestor::details[1]");
+    if (!(await countryRecord.evaluate(node => node.open))) await countryRecord.locator("summary").click();
     await page
       .getByLabel(/^Combined verified total/)
       .first()
@@ -320,7 +329,7 @@ try {
   console.log(
     JSON.stringify({
       passed: true,
-      widths: [320, 390, 768, 1440],
+      widths: [320, 390, 600, 768, 1024, 1440],
       screenshots: output,
       scope: "Real portal components and API transport using isolated Playwright HTTP fixtures",
     }),

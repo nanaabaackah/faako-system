@@ -1,4 +1,5 @@
 import Button from "./ActionButton.jsx";
+import BuilderDisclosure from "./BuilderDisclosure.jsx";
 import RichTextField from "./RichTextField.jsx";
 import GalleryOrder from './GalleryOrder.jsx';
 import { TextField, TextareaField, SelectField } from "@faako/ui";
@@ -15,8 +16,8 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
       <h3>Packages</h3>
 
       {items.map((item, index) => (
-        <fieldset key={item.id}>
-          <legend>Package {index + 1}</legend>
+        <BuilderDisclosure key={item.id} title={item.title || "New package"} detail={item.destination || "Package"} initiallyOpen={!item.title}>
+        <fieldset><legend className="twe-visually-hidden">Package {index + 1}</legend>
           {[
             ["Card & listing", [
               ["title", "Package title", 120],
@@ -296,7 +297,7 @@ export default function PackageEditor({ items, onChange, onChooseImage }) {
           >
             Remove package {index + 1}
           </Button>
-        </fieldset>
+        </fieldset></BuilderDisclosure>
       ))}
       <Button
         type="button"

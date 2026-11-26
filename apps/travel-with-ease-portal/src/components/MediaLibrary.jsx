@@ -10,12 +10,39 @@ import {
   useToast,
 } from "@faako/ui";
 
+// Authenticated API transport, even when the API and portal use different origins.
+function AssetThumbnail({ api, id, configured }) {
+  const host = useRef(null);
+  const [visible, setVisible] = useState(false);
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    if (!configured || !host.current) return;
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect(); }
+    }, { rootMargin: "160px" });
+    observer.observe(host.current);
+    return () => observer.disconnect();
+  }, [configured]);
+  useEffect(() => {
+    if (!configured || !visible) return;
+    let current = true, objectUrl;
+    api.get(`/api/agent/media/${id}/preview`, { responseMode: "blob" }).then(blob => {
+      if (!current || !(blob instanceof Blob) || blob.type !== "image/webp" || blob.size > 10 * 1024 * 1024) return;
+      objectUrl = URL.createObjectURL(blob);
+      setSrc(objectUrl);
+    }).catch(() => {});
+    return () => { current = false; if (objectUrl) URL.revokeObjectURL(objectUrl); setSrc(""); };
+  }, [api, id, configured, visible]);
+  return <span ref={host} className="twe-asset-image"><NavigationIcon name="media"/>{src && <img src={src} alt="" onError={() => setSrc("")}/>}</span>;
+}
+
 export default function MediaLibrary({ api, session, onSelect }) {
   const { pushToast } = useToast();
   const [items, setItems] = useState([]);
   const [librarySearch, setLibrarySearch] = useState("");
   const [driveSearch, setDriveSearch] = useState("");
-  const [layout, setLayout] = useState("grid");
+  const [layout, setLayout] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 600px)").matches ? "list" : "grid");
   const canWrite = session.user.permissions?.includes("media.write") === true;
   const [configured, setConfigured] = useState(false);
   const [driveConfigured, setDriveConfigured] = useState(false);
@@ -422,11 +449,11 @@ export default function MediaLibrary({ api, session, onSelect }) {
             <button type="button" className="twe-asset-primary" disabled={state.loading || (!onSelect && !configured)}
               aria-label={onSelect ? `Use ${item.alt_text}` : `Preview ${item.alt_text}`}
               onClick={() => onSelect ? onSelect(item) : showPreview(item)}>
-              <span className="twe-asset-image"><NavigationIcon name="media"/><img src={`/api/agent/media/${item.id}/preview`} alt="" loading="lazy" onError={event => { event.currentTarget.hidden = true; }}/></span>
+              <AssetThumbnail key={item.id} api={api} id={item.id} configured={configured}/>
               <span className="twe-asset-copy"><strong>{item.alt_text}</strong><small>{item.width && item.height ? `${item.width} × ${item.height}px` : "Image"}</small></span>
               <NavigationIcon name="arrow"/>
             </button>
-            <details className="twe-asset-actions">
+            {(onSelect || canWrite) && <details className="twe-asset-actions">
               <summary><span>More actions</span><NavigationIcon name="arrow"/></summary>
               <div className="editor-actions">
               {onSelect && <Button type="button" disabled={state.loading || !configured} onClick={() => showPreview(item)}>Preview {item.alt_text}</Button>}
@@ -450,7 +477,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
               </Button>
               </>}
               </div>
-            </details>
+            </details>}
           </li>
         ))}
       </ul>

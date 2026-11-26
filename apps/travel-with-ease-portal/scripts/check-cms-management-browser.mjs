@@ -19,7 +19,7 @@ const browser = await chromium.launch({
     : {}),
 });
 try {
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of [320, 390, 600, 768, 1024, 1440]) {
     const context = await browser.newContext({
       viewport: { width, height: 900 },
       hasTouch: width < 768,
@@ -191,7 +191,7 @@ try {
   console.log(
     JSON.stringify({
       passed: true,
-      widths: [320, 390, 768, 1440],
+      widths: [320, 390, 600, 768, 1024, 1440],
       screenshots: output,
       scope:
         "Role controls, placement drafts, activity, responsive navigation and keyboard",

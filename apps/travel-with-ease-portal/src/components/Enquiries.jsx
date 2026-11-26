@@ -24,6 +24,7 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
   const [service, setService] = useState("");
   const [packageFilter, setPackageFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [advancedFilters, setAdvancedFilters] = useState(false);
   const [offset, setOffset] = useState(0);
   const [result, setResult] = useState({ items: [], nextOffset: null });
   const [selectedId, setSelectedId] = useState(initialEnquiryId);
@@ -258,6 +259,10 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
                 </option>
               ))}
             </SelectField>
+            <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
+            <Button type="button" icon={advancedFilters ? "up" : "down"} aria-expanded={advancedFilters}
+              onClick={() => setAdvancedFilters(value => !value)}>More filters{[category,service,packageFilter].filter(Boolean).length ? " (" + [category,service,packageFilter].filter(Boolean).length + ")" : ""}</Button>
+            {advancedFilters && <>
             <SelectField
               label="Enquiry category"
               value={category}
@@ -277,7 +282,8 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
               {serviceOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </SelectField>
             <TextField label="Package" value={packageFilter} onChange={(event) => { setPackageFilter(event.target.value); setOffset(0); }} placeholder="Package name or ID" />
-            <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
+            <Button type="button" variant="ghost" disabled={!category && !service && !packageFilter} onClick={() => { setCategory(""); setService(""); setPackageFilter(""); setOffset(0); }}>Clear additional filters</Button>
+            </>}
           </div>
           {listError && <InlineNotice tone="danger" title="Enquiries unavailable" message={listError}/>}
           {listBusy && <AnimatedLoadingState compact title="Loading enquiries"/>}
@@ -317,8 +323,8 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
                       {item.status}
                     </StatusPill>
                     <time dateTime={item.created_at}>
-                      {new Date(item.created_at).toLocaleString("en-GH", {
-                        timeZone: "Africa/Accra",
+                      {new Date(item.created_at).toLocaleDateString("en-GH", {
+                        timeZone: "Africa/Accra", day:"numeric", month:"short", year:"numeric",
                       })}
                     </time>
                     </span>
