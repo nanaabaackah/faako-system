@@ -150,3 +150,7 @@
     transition: none;
   }
 }
+
+/* Software release, not CMS content revision. */
+.twe-sidebar-footer { display: grid; gap: 6px; min-width: 0; }
+.twe-release-label { display: block; padding: 4px 8px; color: inherit; opacity: .75; font-size: .72rem; line-height: 1.4; overflow-wrap: anywhere; text-align: center; }

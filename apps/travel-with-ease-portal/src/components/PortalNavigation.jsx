@@ -5,6 +5,9 @@ import NavigationIcon from "./NavigationIcon.jsx";
 import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
 import brandMark from "../../../travel-with-ease-web/public/brand/navy symbol.png";
 import "../styles/navigation.css";
+import { version } from "../../package.json";
+
+const releaseLabel = version === "0.0.0" ? "Pre-release" : `v${version}`;
 
 const mobileShortcutIds = [
   "overview",
@@ -113,12 +116,15 @@ export default function PortalNavigation({
               ))}
             </div>
           )}
-          footer={account && <button type="button" className="twe-sidebar-account"
-            aria-label="Account" title={collapsed ? "Account" : undefined}
-            aria-current={section === "settings" ? "page" : undefined}
-            onClick={() => navigate("settings")}>
-            <NavigationIcon name="staff"/><span>Account</span>
-          </button>}
+          footer={<div className="twe-sidebar-footer">
+            {account && <button type="button" className="twe-sidebar-account"
+              aria-label="Account" title={collapsed ? "Account" : undefined}
+              aria-current={section === "settings" ? "page" : undefined}
+              onClick={() => navigate("settings")}>
+              <NavigationIcon name="staff"/><span>Account</span>
+            </button>}
+            <small className="twe-release-label" title={releaseLabel}>{collapsed ? (version === "0.0.0" ? "Pre" : `v${version.split(".")[0]}`) : releaseLabel}</small>
+          </div>}
         />
       )}
       <aside className={`portal-sidebar twe-mobile-sidebar${session ? " has-session" : ""}`}>
@@ -149,6 +155,7 @@ export default function PortalNavigation({
         <nav aria-label="All workspace modules">
           {navigation.map((item) => button(item))}
         </nav>
+        <small className="twe-release-label">{releaseLabel}</small>
 
       </ERPDrawer>
       {session && (
