@@ -244,7 +244,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
           </div></section>;
         })}
         {!matches.length && <p>No matching templates.</p>}
-      </section>
+      </section>}
       {catalogueError && <><InlineNotice tone="danger" title="Package templates unavailable" message={catalogueError}/><Button type="button" icon="refresh" onClick={() => setCatalogueReload(value => value + 1)}>Retry catalogue</Button></>}
       {error && (
         <InlineNotice
