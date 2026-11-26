@@ -66,7 +66,10 @@ try {
     await page.getByRole("heading", { name: "Account settings", exact: true, level: 2 }).waitFor();
     await expect(page.locator(".account-summary")).toContainText("Session expires:");
     assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");
-    assert.equal(await page.locator(".account-details").getByText("synthetic-workspace", { exact: true }).isVisible(), true);
+    const workspaceReference = page.locator(".account-workspace details").filter({ hasText: "Workspace reference" });
+    await expect(workspaceReference.getByText("synthetic-workspace", { exact: true })).toBeHidden();
+    await workspaceReference.locator("summary").click();
+    await expect(workspaceReference.getByText("synthetic-workspace", { exact: true })).toBeVisible();
     await page.locator(".account-workspace").getByRole("button", { name: "Sign out all devices", exact: true }).click();
     const signOutDialog = page.locator(".ui-erp-dialog-backdrop");
     await signOutDialog.getByRole("button", { name: "Cancel", exact: true }).click();
