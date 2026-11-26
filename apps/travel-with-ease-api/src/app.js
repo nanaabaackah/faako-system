@@ -17,7 +17,7 @@ import { estimateSchema, inquirySchema, nativeInquirySchema, smartEnquirySchema 
 import { TurnstileError } from "./enquiries/turnstile.js";
 import { currencyDisplayRoutes } from "./currency/display-routes.js";
 import { z } from "zod";
-import { version } from "../package.json" with { type: "json" };
+import packageManifest from "../package.json" with { type: "json" };
 
 const safeEqual = (left, right) => {
   const a = Buffer.from(String(left));
@@ -104,7 +104,7 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
   app.get("/api/public/release", (_req, res) => {
     const sourceSha = publicationRepository?.sourceSha;
     if (!["staging", "production"].includes(environment) || !/^[a-f0-9]{40}$/.test(sourceSha || "")) return res.sendStatus(503);
-    return res.json({ environment, sourceSha, version });
+    return res.json({ environment, sourceSha, version: packageManifest.version });
   });
   app.get("/healthz", (_req, res) => res.json({ ok: true, service: "travel-with-ease-api" }));
   app.get("/readyz", async (req, res) => {

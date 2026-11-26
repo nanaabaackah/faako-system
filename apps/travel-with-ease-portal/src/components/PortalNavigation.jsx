@@ -5,7 +5,9 @@ import NavigationIcon from "./NavigationIcon.jsx";
 import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
 import brandMark from "../../../travel-with-ease-web/public/brand/navy symbol.png";
 import "../styles/navigation.css";
-import { version } from "../../package.json";
+import packageManifest from "../../package.json";
+
+const { version } = packageManifest;
 
 const releaseLabel = version === "0.0.0" ? "Pre-release" : `v${version}`;
 
