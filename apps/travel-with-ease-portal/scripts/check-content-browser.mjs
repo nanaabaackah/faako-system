@@ -185,15 +185,9 @@ try {
     await page
       .getByRole("button", { name: "Refresh Drive folder", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Drive image", exact: true })
-      .click();
-    await page
-      .getByRole("option", {
-        name: "Demo photo — no Drive connection",
-        exact: true,
-      })
-      .click();
+    const driveCard = page.getByRole("button", { name: /^Demo photo — no Drive connection/ });
+    await driveCard.click();
+    await expect(driveCard).toHaveAttribute("aria-pressed", "true");
     const driveForm = page.getByRole("group", {
       name: "Import from the approved folder",
       exact: true,

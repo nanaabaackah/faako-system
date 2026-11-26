@@ -185,9 +185,8 @@ export default function Dashboard({
             <ul className="dashboard-drafts">
               {drafts.map((item) => (
                 <li key={item.id || item.slug}>
-                  <button className="dashboard-draft-link" type="button" onClick={() => onNavigate("content", { page: item.slug === "testimonials" ? "home" : item.slug })}>{item.slug.replaceAll("-", " ").replace(/^./, letter => letter.toUpperCase())}</button>
-                  <span>Draft version {item.version}</span>
-                  <span className="status-label">Awaiting publication</span>
+                  <button className="dashboard-draft-link" type="button" onClick={() => onNavigate("content", { page: item.slug === "testimonials" ? "home" : item.slug })}><span><strong>{item.slug.replaceAll("-", " ").replace(/^./, letter => letter.toUpperCase())}</strong><small>Draft version {item.version}</small></span>
+                  <StatusPill tone="neutral">Awaiting publication</StatusPill><NavigationIcon name="arrow"/></button>
                 </li>
               ))}
             </ul>

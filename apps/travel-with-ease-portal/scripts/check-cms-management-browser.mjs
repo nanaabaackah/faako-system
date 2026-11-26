@@ -142,13 +142,7 @@ try {
       .waitFor();
     await visible("Choose desktop image").click();
     await visible("Refresh Drive folder").click();
-    await visible("Drive image").click();
-    await page
-      .getByRole("option", {
-        name: "Demo photo — no Drive connection",
-        exact: true,
-      })
-      .click();
+    await page.getByRole("button", { name: /^Demo photo — no Drive connection/ }).click();
     await page
       .getByRole("group", {
         name: "Import from the approved folder",
