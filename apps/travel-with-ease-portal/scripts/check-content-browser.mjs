@@ -92,8 +92,10 @@ try {
     await page.getByRole("navigation", { name: "Current page sections" }).getByRole("button", { name: "Page content", exact: true }).click();
     const headingInput = page.getByLabel(/^Heading/);
     assert.equal(await headingInput.evaluate(element => getComputedStyle(element).borderTopWidth), "0px", "No nested input border");
+    await expect(headingInput).toBeEnabled();
     await headingInput.focus();
-    assert.equal(await headingInput.evaluate(element => getComputedStyle(element.closest(".ui-field__control")).outlineWidth), "3px", "Wrapper keeps visible focus");
+    await expect(headingInput).toBeFocused();
+    await expect(headingInput.locator("xpath=ancestor::*[contains(concat(' ',normalize-space(@class),' '),' ui-field__control ')][1]")).toHaveCSS("outline-width", "3px");
     const select = async (value) => {
       await page.getByRole("button", { name: "Section", exact: true }).click();
       const label = value.replaceAll("-", " ");
