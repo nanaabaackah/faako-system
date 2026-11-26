@@ -19,6 +19,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
   const canWrite = session.user.permissions?.includes("media.write") === true;
   const [configured, setConfigured] = useState(false);
   const [driveConfigured, setDriveConfigured] = useState(false);
+  const [sync, setSync] = useState(null);
   const [driveItems, setDriveItems] = useState([]);
   const [driveFolders, setDriveFolders] = useState([]);
   const [drivePath, setDrivePath] = useState([]);
@@ -38,6 +39,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
     setItems(result.items);
     setConfigured(result.configured);
     setDriveConfigured(result.driveConfigured === true);
+    setSync(result.driveSync || null);
   }, [api]);
   useEffect(() => {
     let active = true;
@@ -297,6 +299,11 @@ export default function MediaLibrary({ api, session, onSelect }) {
           Refresh Drive folder
         </Button>
         </div>
+        {sync && <div className="twe-drive-sync-status" role="status">
+          <span>{sync.enabled ? "Automatic sync enabled" : "Manual import"}</span>
+          {sync.enabled && <span>{sync.running ? "Syncing" : sync.lastError ? "Sync needs attention" : sync.lastScanAt ? "Last scan " + new Date(sync.lastScanAt).toLocaleString("en-GH", { timeZone: "Africa/Accra" }) : "Waiting for first scan"}</span>}
+          {sync.enabled && <Button type="button" variant="ghost" icon="refresh" disabled={state.loading} onClick={() => load().catch(() => setState({ loading: false, error: "Library could not refresh.", message: "" }))}>Refresh library</Button>}
+        </div>}
         {driveLoaded && drivePath.length > 0 && (
           <div className="editor-actions">
             <Button type="button" disabled={state.loading} onClick={() => browseDrive(false, [])}>Drive root</Button>
@@ -323,7 +330,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
                     aria-pressed={driveSelection === item.id} disabled={state.loading || item.archived}
                     onClick={() => setDriveSelection(item.id)}>
                     <NavigationIcon name="media"/>
-                    <span><strong>{item.name}</strong><small>{item.archived ? "Archived revision" : item.importedId ? "Imported" : "Not imported"}</small></span>
+                    <span><strong>{item.name}</strong><small>{item.archived ? "Archived revision" : item.importedId ? "Imported" : item.syncEligible === false ? "Needs alternative text" : "Not imported"}</small></span>
                     <NavigationIcon name={driveSelection === item.id ? "check" : "arrow"}/>
                   </button>
                 ))}

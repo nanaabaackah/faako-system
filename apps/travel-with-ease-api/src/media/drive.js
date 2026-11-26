@@ -31,9 +31,10 @@ const fileSchema = z.object({
   parents: z.array(driveId).max(10),
   trashed: z.literal(false),
   capabilities: z.object({ canDownload: z.literal(true) }),
+  description: z.string().max(32768).optional(),
 });
 const fields =
-  "id,name,mimeType,size,version,md5Checksum,parents,trashed,capabilities(canDownload)";
+  "id,name,mimeType,size,version,md5Checksum,parents,trashed,capabilities(canDownload),description";
 const unavailable = () =>
   new ContentError(
     503,
@@ -285,6 +286,7 @@ export class DriveReader {
           mimeType: item.mimeType,
           size: item.size,
           version: item.version,
+          syncEligible: Boolean(item.description?.trim() && item.description.trim().length <= 500),
         });
       } catch {
         /* Unsupported, inaccessible or moved files are never offered. */
