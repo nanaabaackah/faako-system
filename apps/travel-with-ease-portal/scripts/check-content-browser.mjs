@@ -90,6 +90,9 @@ try {
       await expect(disclosure).toHaveAttribute("open", "");
     }
     await page.getByRole("navigation", { name: "Current page sections" }).getByRole("button", { name: "Page content", exact: true }).click();
+    // The outline intentionally moves focus on the next animation frame.
+    // Wait for that focus transfer before testing the field's own focus ring.
+    await expect(page.locator('[data-cms-section="copy"]')).toBeFocused();
     const headingInput = page.getByLabel(/^Heading/);
     assert.equal(await headingInput.evaluate(element => getComputedStyle(element).borderTopWidth), "0px", "No nested input border");
     await expect(headingInput).toBeEnabled();
