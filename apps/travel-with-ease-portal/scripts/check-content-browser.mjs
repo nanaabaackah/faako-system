@@ -239,6 +239,13 @@ try {
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     assert.ok(requests.length > 0, "Actual API client exercised against isolated HTTP fixtures");
     await navigate("Templates");
+    await page.getByRole("button", { name: "Browse templates", exact: true }).click();
+    const templateCatalogue = page.getByRole("region", { name: "Template catalogue" });
+    await templateCatalogue.getByLabel("Search templates").fill("Enquiry acknowledgement");
+    const selectedTemplate = templateCatalogue.getByRole("button", { name: "Enquiry acknowledgement", exact: true });
+    await expect(selectedTemplate).toHaveAttribute("aria-current", "true");
+    await selectedTemplate.click();
+    await expect(templateCatalogue).toHaveCount(0);
     await page.getByLabel(/^Heading/).fill("Synthetic acknowledgement");
     await page.getByRole("button", { name: "Preview email", exact: true }).click();
     await page.frameLocator('iframe[title="Enquiry acknowledgement preview"]')

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatedLoadingState, InlineNotice, TextField, SelectField, ERPConfirmDialog } from "@faako/ui";
 import Button from "./ActionButton.jsx";
 import HistoryDisclosure from "./HistoryDisclosure.jsx";
+import BuilderDisclosure from "./BuilderDisclosure.jsx";
+import "../styles/email-templates.css";
 import IntakeFormPreview from "./IntakeFormPreview.jsx";
 import DetailedFormPreview from "./DetailedFormPreview.jsx";
 import DetailedQuestionFields from "./DetailedQuestionFields.jsx";
@@ -139,24 +141,30 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
     {!loading && error && !record && <Button type="button" icon="refresh" onClick={() => { setError(""); setReload(value => value + 1); }}>Retry</Button>}
     {notice && <p role="status">{notice}</p>}
     {loading ? <AnimatedLoadingState compact title="Loading enquiry form"/> : definition && record && <>
+      <div className="twe-communication-command-bar">
       <p className="twe-editor-status" role="status">Active version {record.activeVersion} · {saving ? "Saving draft…" : saveState.dirty ? "Unsaved changes" : "Draft saved"}</p>
+      <div className="editor-actions">
+        <Button type="button" icon="preview" aria-expanded={preview} onClick={() => setPreview(value => !value)}>{preview ? "Close preview" : "Preview draft"}</Button>
+        <Button type="button" icon="save" disabled={blocked || saving || !saveState.dirty} onClick={() => writer.current?.flush()}>Save draft</Button>
+        {canPublish && <Button type="button" icon="check" disabled={blocked || saving || saveState.dirty || record.revision === 0} onClick={() => setConfirmation({ action: "activate" })}>Activate form</Button>}
+      </div>
+      </div>
       {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error}/>}
-      <div className="editor-actions"><Button type="button" icon="preview" aria-expanded={preview} onClick={() => setPreview(value => !value)}>{preview ? "Close preview" : "Preview draft"}</Button></div>
       {preview && (detailed ? <DetailedFormPreview key={record.revision} definition={definition}/> : <IntakeFormPreview key={record.revision} definition={definition}/>)}
       {detailed ? <DetailedQuestionFields definition={definition} edit={edit} blocked={blocked}/> : <>
       <TextField label="Form heading" value={definition.title} maxLength={160} disabled={blocked} required onChange={event => edit(body => ({ ...body, title: event.target.value }))}/>
       <div className="cms-editor-groups">
         <h2>Core questions</h2>
-        {definition.core.map((field, index) => <fieldset className="cms-editor-group" key={field.id}>
-          <legend>{field.label}</legend>
+        {definition.core.map((field, index) => <BuilderDisclosure key={field.id} title={field.label} detail="Core question">
+          <fieldset className="cms-editor-group"><legend className="twe-visually-hidden">{field.label}</legend>
           <TextField label="Question label" value={field.label} required maxLength={160} disabled={blocked} onChange={event => fieldEdit("core", field.id, item => ({ ...item, label: event.target.value }))}/>
           {!field.options && <TextField label="Placeholder" value={field.placeholder || ""} maxLength={240} disabled={blocked} onChange={event => fieldEdit("core", field.id, item => ({ ...item, placeholder: event.target.value }))}/>}
           {choices("core", field)}
           {orderControls("core", field, index)}
-        </fieldset>)}
+        </fieldset></BuilderDisclosure>)}
         <h2>Additional questions</h2>
-        {definition.additional.map((field, index) => <fieldset className="cms-editor-group" key={field.id}>
-          <legend>Question {index + 1}</legend>
+        {definition.additional.map((field, index) => <BuilderDisclosure key={field.id} title={field.label || "Untitled question"} detail={field.required ? "Required" : "Optional"} initiallyOpen={field.label === "New question"}>
+          <fieldset className="cms-editor-group"><legend className="twe-visually-hidden">Question {index + 1}</legend>
           <TextField label="Question label" value={field.label} required maxLength={160} disabled={blocked} onChange={event => fieldEdit("additional", field.id, item => ({ ...item, label: event.target.value }))}/>
           <TextField label="Description" value={field.description} maxLength={240} disabled={blocked} onChange={event => fieldEdit("additional", field.id, item => ({ ...item, description: event.target.value }))}/>
           <SelectField label="Answer type" value={field.type} disabled={blocked} onChange={event => {
@@ -171,14 +179,10 @@ export default function IntakeFormEditor({ api, session, onDirtyChange, onRefres
           </SelectField>)}
           {isChoice(field.type) && choices("additional", field)}
           {orderControls("additional", field, index)}
-        </fieldset>)}
+        </fieldset></BuilderDisclosure>)}
         <Button type="button" icon="plus" disabled={blocked || definition.additional.length >= 12} onClick={() => edit(body => ({ ...body, additional: [...body.additional, { id: identifier("custom_"), label: "New question", description: "", type: "text", required: false, entries: [...contexts], options: [] }] }))}>Add question</Button>
       </div>
       </>}
-      <div className="editor-actions">
-        <Button type="button" icon="save" disabled={blocked || saving || !saveState.dirty} onClick={() => writer.current?.flush()}>Save draft</Button>
-        {canPublish && <Button type="button" icon="check" disabled={blocked || saving || saveState.dirty || record.revision === 0} onClick={() => setConfirmation({ action: "activate" })}>Activate form</Button>}
-      </div>
       <HistoryDisclosure title="Activated versions" count={history.length}>
         <Button type="button" icon="refresh" disabled={blocked || saving} onClick={loadHistory}>Load history</Button>
         {history.map(item => <div key={item.version} className="editor-actions">

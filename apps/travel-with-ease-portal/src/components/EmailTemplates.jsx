@@ -9,6 +9,7 @@ import {
   useToast,
 } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
 import RichTextField from "./RichTextField.jsx";
 import HistoryDisclosure from "./HistoryDisclosure.jsx";
 import logo from "../../../travel-with-ease-web/public/brand/Primary gold.png";
@@ -24,6 +25,8 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
   const [catalogueError, setCatalogueError] = useState("");
   const [catalogueReload, setCatalogueReload] = useState(0);
   const [previewWidth, setPreviewWidth] = useState("desktop");
+  const [catalogueSearch, setCatalogueSearch] = useState("");
+  const [catalogueOpen, setCatalogueOpen] = useState(false);
   useEffect(() => {
     let current = true;
     setCatalogueError("");
@@ -129,9 +132,13 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
     finally { if (historyRequest.current === request) setHistoryLoading(false); }
   }
   function changeTemplate(event) {
-    if (busy || saving || historyLoading || event.target.value === slug) return;
-    if (dirty) { setConfirmation({ kind: "switch", slug: event.target.value }); return; }
-    switchTemplate(event.target.value);
+    chooseTemplate(event.target.value);
+  }
+  function chooseTemplate(nextSlug) {
+    if (busy || saving || historyLoading || confirmation || nextSlug === slug) return;
+    if (!catalogue.some(option => option.slug === nextSlug && (option.automated || canActivate))) return;
+    if (dirty) { setConfirmation({ kind: "switch", slug: nextSlug }); return; }
+    switchTemplate(nextSlug);
   }
   function switchTemplate(nextSlug) {
     setDirty(false);
@@ -144,6 +151,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
     setRecord(null);
     setCopy(null);
     setSlug(nextSlug);
+    setCatalogueOpen(false);
   }
   function edit(field, value) {
     if (busy || !copyRef.current) return;
@@ -195,8 +203,16 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
       setBusy(false);
     }
   }
+  const available = catalogue.filter(option => option.automated || canActivate);
+  const categories = [
+    ["General acknowledgements", option => option.automated && !["service", "package"].includes(option.context)],
+    ["Service templates", option => option.context === "service"],
+    ["Package templates", option => option.context === "package"],
+    ["Staff invitations", option => !option.automated],
+  ];
+  const matches = available.filter(option => option.label.toLowerCase().includes(catalogueSearch.trim().toLowerCase()));
   return (
-    <div className="email-templates">
+    <div className="email-templates twe-communications-workspace">
       <section className="template-intro">
         <SelectField
           label="Email type"
@@ -210,6 +226,24 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
             </option>
           ))}
         </SelectField>
+        <Button type="button" icon={catalogueOpen ? "up" : "down"} aria-expanded={catalogueOpen}
+          onClick={() => setCatalogueOpen(value => !value)}>{catalogueOpen ? "Close template catalogue" : "Browse templates"}</Button>
+      </section>
+      {catalogueOpen && <section className="twe-template-catalogue" aria-label="Template catalogue">
+        <TextField label="Search templates" value={catalogueSearch} onChange={event => setCatalogueSearch(event.target.value)}/>
+        {categories.map(([label, predicate]) => {
+          const items = matches.filter(predicate);
+          if (!items.length) return null;
+          return <section key={label}><h3>{label}</h3><div className="twe-template-card-grid">
+            {items.map(option => <button type="button" key={option.slug} className="twe-template-card"
+              aria-current={slug === option.slug ? "true" : undefined}
+              disabled={busy || saving || historyLoading || Boolean(confirmation)}
+              onClick={() => { if (slug === option.slug) setCatalogueOpen(false); else chooseTemplate(option.slug); }}>
+              <NavigationIcon name="templates"/><span>{option.label}</span><NavigationIcon name={slug === option.slug ? "check" : "arrow"}/>
+            </button>)}
+          </div></section>;
+        })}
+        {!matches.length && <p>No matching templates.</p>}
       </section>
       {catalogueError && <><InlineNotice tone="danger" title="Package templates unavailable" message={catalogueError}/><Button type="button" icon="refresh" onClick={() => setCatalogueReload(value => value + 1)}>Retry catalogue</Button></>}
       {error && (
@@ -227,15 +261,9 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
           <AnimatedLoadingState compact title="Loading templates" />
         )
       ) : (
-        <div className="template-workspace">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              action("draft");
-            }}
-            aria-label="Email template copy"
-          >
-            <p>
+        <>
+        <div className="twe-communication-command-bar">
+          <div><p className="twe-communication-version">
               Draft revision {record.version} ·{" "}
               {record.active_version == null
                 ? definition.automated
@@ -243,7 +271,22 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
                   : "Default invitation copy"
                 : `${definition.automated ? "Active" : "Approved"} revision ${record.active_version}`}
             </p>
-            <p role="status">{saving ? "Saving draft…" : dirty ? "Unsaved changes" : "Draft saved"}</p>
+            <p role="status">{saving ? "Saving draft…" : dirty ? "Unsaved changes" : "Draft saved"}</p></div>
+          <div className="template-actions">
+            <Button type="button" icon="preview" disabled={busy || Boolean(confirmation)} onClick={() => action("preview")}>Preview email</Button>
+            <Button type="submit" form="twe-email-copy-form" icon="save" disabled={busy || saving || !dirty || Boolean(confirmation)}>Save draft</Button>
+            {canActivate && <Button type="button" icon="check" disabled={busy || saving || dirty || record.version === 0 || Boolean(confirmation)}
+              onClick={() => setConfirmation({ kind: "activate" })}>{definition.automated ? "Activate saved template" : "Approve saved template"}</Button>}
+          </div>
+        </div>
+        <div className="template-workspace">
+          <form id="twe-email-copy-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              action("draft");
+            }}
+            aria-label="Email template copy"
+          >
             {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error} />}
             <TextField
               disabled={busy || Boolean(confirmation)}
@@ -287,30 +330,10 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
               required
               onChange={event => edit("continuationCtaLabel", event.target.value)}
             />}
-            <div className="template-actions">
-              <Button
-                type="button"
-                icon="preview"
-                disabled={busy}
-                onClick={() => action("preview")}
-              >
-                Preview email
-              </Button>
-              <Button type="button" disabled={busy || saving || dirty} onClick={() => setConfirmation({ kind: "test" })}>Send test email</Button>
-              <Button type="submit" icon="save" disabled={busy || saving || !dirty}>
-                Save draft
-              </Button>
-              {canActivate && <Button
-                type="button"
-                icon="check"
-                disabled={busy || saving || dirty || record.version === 0}
-                onClick={() => setConfirmation({ kind: "activate" })}
-              >
-                {definition.automated
-                  ? "Activate saved template"
-                  : "Approve saved template"}
-              </Button>}
-            </div>
+            <details className="twe-builder-disclosure twe-template-test">
+              <summary><span>Test email</span><NavigationIcon name="arrow"/></summary>
+              <div className="twe-builder-body"><Button type="button" disabled={busy || saving || dirty || Boolean(confirmation)} onClick={() => setConfirmation({ kind: "test" })}>Send test email</Button></div>
+            </details>
           </form>
           <section
             className="template-preview"
@@ -337,6 +360,7 @@ export default function EmailTemplates({ api, session, onDirtyChange, onRefreshB
             )}
           </section>
         </div>
+        </>
       )}
       {record && <HistoryDisclosure title="Version history" count={history.length}>
         <Button type="button" icon="refresh" disabled={busy || saving || historyLoading} onClick={loadHistory}>{historyLoading ? "Loading…" : "Load history"}</Button>
