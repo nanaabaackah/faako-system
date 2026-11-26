@@ -1,5 +1,8 @@
 -- Scheduled imports are system actions, not impersonated staff actions.
--- Existing staff creator references remain intact. System imports must have Drive provenance.
-ALTER TABLE twe.media ALTER COLUMN created_by DROP NOT NULL;
--- Import writes provenance in the same transaction after insertion; a deferred
--- constraint trigger is unnecessary because the reviewed server path owns both writes.
+-- Existing staff creator references remain intact. A system-created asset
+-- must have validated Drive provenance; migration 009 enforces completeness.
+ALTER TABLE twe.media
+  ALTER COLUMN created_by DROP NOT NULL,
+  ADD CONSTRAINT media_system_creator_requires_drive CHECK (
+    created_by IS NOT NULL OR source_folder_id IS NOT NULL
+  );

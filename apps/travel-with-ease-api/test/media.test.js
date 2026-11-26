@@ -57,7 +57,7 @@ test("failed media uploads clean up candidate objects and release processing cap
 test("replacement lookups reserve capacity and release it when lookup fails", async () => {
   const lookups = [];
   const service = new MediaService({ query: () => new Promise((resolve) => lookups.push(resolve)) }, "synthetic-org", {});
-  const upload = () => service.upload(null, "image/png", { alt: "Synthetic fixture", rights: "Generated test fixture" }, { organisationId: "synthetic-org" }, "test-request", "synthetic-replacement");
+  const upload = () => service.upload(null, "image/png", { alt: "Synthetic fixture", rights: "Generated test fixture" }, { id: "synthetic-user", organisationId: "synthetic-org" }, "test-request", "synthetic-replacement");
   const first = assert.rejects(upload(), { status: 404 });
   const second = assert.rejects(upload(), { status: 404 });
   assert.equal(service.processing, 2);

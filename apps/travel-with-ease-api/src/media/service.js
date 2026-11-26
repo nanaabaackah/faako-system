@@ -96,8 +96,8 @@ export class MediaService {
       const original = outputs.at(-1);
       await transaction(this.pool, async (client) => {
         await client.query(
-          `INSERT INTO twe.media (id, organisation_id, object_key, mime_type, byte_size, width, height, alt_text, rights, derivatives, created_by)
-          VALUES ($1, $2, $3, 'image/webp', $4, $5, $6, $7, $8, $9, $10)`,
+          `INSERT INTO twe.media (id, organisation_id, object_key, mime_type, byte_size, width, height, alt_text, rights, derivatives, created_by, source_folder_id, source_file_id, source_version, source_checksum)
+          VALUES ($1, $2, $3, 'image/webp', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             id,
             this.organisationId,
@@ -109,20 +109,12 @@ export class MediaService {
             fields.rights,
             JSON.stringify(variants),
             actor.id,
+            source?.folderId ?? null,
+            source?.fileId ?? null,
+            source?.version ?? null,
+            source?.checksum ?? null,
           ],
         );
-        if (source)
-          await client.query(
-            "UPDATE twe.media SET source_folder_id=$1, source_file_id=$2, source_version=$3, source_checksum=$4 WHERE organisation_id=$5 AND id=$6",
-            [
-              source.folderId,
-              source.fileId,
-              source.version,
-              source.checksum,
-              this.organisationId,
-              id,
-            ],
-          );
         await appendAudit(client, {
           organisationId: this.organisationId,
           actorId: actor.id,
