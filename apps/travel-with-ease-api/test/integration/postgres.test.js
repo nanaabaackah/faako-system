@@ -902,10 +902,10 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
   });
   await context.test("Drive sync uses runtime grants, keeps immutable revisions and isolates tenants", async () => {
     const client = await pool.connect();
-    let version = "1", downloads = 0;
+    let version = "1", downloads = 0, description;
     const drive = {
       config: { folderId: "synthetic_folder_123" },
-      async metadata() { return { id: "synthetic_image_123", version, md5Checksum: "a".repeat(32), mimeType: "image/png" }; },
+      async metadata() { return { id: "synthetic_image_123", version, md5Checksum: "a".repeat(32), mimeType: "image/png", description }; },
       async download() { downloads++; return image; },
       async list() { return { items: [{ id: "synthetic_image_123", version, name: "Synthetic fixture" }], nextPageToken: "" }; },
     };
@@ -942,6 +942,20 @@ test("isolated PostgreSQL migrations, constraints, scope and atomic enquiry/outb
         replica.importDrive({ ...input, version }, actor, "drive-race")));
       assert.equal(race[0].id, race[1].id, "Replicas converge on one immutable source revision");
       assert.equal(objects.size, beforeRace + 3, "Losing replica leaves no orphan R2 derivatives");
+      version = "4";
+      const beforeAuto = downloads;
+      assert.deepEqual(await sync.syncDrive({ fileId: input.fileId, version }, "sync-needs-description"), { needsDescription: true });
+      assert.equal(downloads, beforeAuto);
+      description = "Synthetic landscape description";
+      const automatic = await sync.syncDrive({ fileId: input.fileId, version }, "sync-automatic");
+      const persisted = (await query("SELECT created_by, source_version, alt_text FROM twe.media WHERE organisation_id=$1 AND id=$2", [organisationId, automatic.id])).rows[0];
+      assert.deepEqual(persisted, { created_by: null, source_version: "4", alt_text: description });
+      const systemAudit = (await query("SELECT action, actor_id FROM twe.audit_records WHERE organisation_id=$1 AND record_id=$2", [organisationId, automatic.id])).rows;
+      assert.ok(systemAudit.some(row => row.action === "media.drive_synced" && row.actor_id === null));
+      assert.equal((await sync.syncDrive({ fileId: input.fileId, version }, "sync-repeat")).id, automatic.id);
+      assert.equal(downloads, beforeAuto + 1);
+      assert.equal((await content.get("home")).body.imageId, first.id);
+      await assert.rejects(query("UPDATE twe.media SET created_by=NULL WHERE organisation_id=$1 AND id=$2", [organisationId, asset.id]), { code: "23514" });
       // Return to the fixture used by the publication assertions below.
       const selected = await content.get("home");
       await content.save("home", { ...body, imageId: asset.id }, selected.version, actor, "drive-restore-selection");

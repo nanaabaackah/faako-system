@@ -39,7 +39,7 @@
   height: auto;
   object-fit: contain;
 }
-.portal-shell nav button {
+.portal-shell .portal-sidebar nav button {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -153,8 +153,8 @@
   font-size: 12px;
   color: #535966;
 }
-@media (max-width: 800px) {
-  .portal-shell > aside > nav {
+@media (max-width: 900px) {
+  .portal-shell > .portal-sidebar > nav {
     display: none;
   }
   .portal-shell > .ui-page-shell {
@@ -193,7 +193,7 @@
   --twe-rule: #d7d3cd;
   --twe-muted: #535966;
   --twe-radius-control: 6px;
-  --twe-radius-card: 8px;
+  --twe-radius-card: 16px;
 }
 * {
   box-sizing: border-box;
@@ -208,7 +208,7 @@ body {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
 }
-.portal-shell > aside {
+.portal-shell > .portal-sidebar {
   background: var(--sys-accent);
   color: var(--sys-accent-contrast);
   padding: 24px;
@@ -230,17 +230,17 @@ body {
 .portal-brand small {
   color: #b6b1a9;
 }
-.portal-shell nav {
+.portal-shell .portal-sidebar nav {
   display: grid;
   gap: 8px;
   margin-top: 32px;
 }
-.portal-shell nav a,
-.portal-shell nav > span {
+.portal-shell .portal-sidebar nav a,
+.portal-shell .portal-sidebar nav > span {
   padding: 8px 0;
   color: inherit;
 }
-.portal-shell nav button {
+.portal-shell .portal-sidebar nav button {
   color: inherit;
   background: none;
   border: 0;
@@ -249,7 +249,7 @@ body {
   font: inherit;
   cursor: pointer;
 }
-.portal-shell nav button[aria-current] {
+.portal-shell .portal-sidebar nav button[aria-current] {
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -312,7 +312,7 @@ body {
   max-width: 100%;
   height: auto;
 }
-.portal-shell nav small {
+.portal-shell .portal-sidebar nav small {
   display: block;
   color: #b6b1a9;
   font-size: 12px;
@@ -343,14 +343,14 @@ select:focus-visible {
 .portal-shell aside a:focus-visible {
   outline-color: #7ab8ff;
 }
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .portal-shell {
     grid-template-columns: minmax(0, 1fr);
   }
-  .portal-shell > aside {
+  .portal-shell > .portal-sidebar {
     padding: 16px;
   }
-  .portal-shell nav {
+  .portal-shell .portal-sidebar nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: 16px;
   }
@@ -364,7 +364,7 @@ select:focus-visible {
   grid-template-columns: 224px minmax(0, 1fr);
   background: #f7f5f1;
 }
-.portal-shell > aside {
+.portal-shell > .portal-sidebar {
   background: var(--twe-navy);
   padding: 32px 20px;
 }
@@ -378,11 +378,11 @@ select:focus-visible {
   margin-top: 5px;
   font-size: 12px;
 }
-.portal-shell nav {
+.portal-shell .portal-sidebar nav {
   gap: 5px;
   margin-top: 42px;
 }
-.portal-shell nav button {
+.portal-shell .portal-sidebar nav button {
   padding: 13px 14px;
   border-radius: 4px;
   min-height: 44px;
@@ -628,11 +628,11 @@ select:focus-visible {
     padding: 24px;
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .portal-shell {
     grid-template-columns: 1fr;
   }
-  .portal-shell > aside {
+  .portal-shell > .portal-sidebar {
     padding: 18px;
   }
   .portal-shell > .portal-sidebar nav {
@@ -662,7 +662,7 @@ select:focus-visible {
 .portal-shell {
   background: #f6f7f9;
 }
-.portal-shell > aside {
+.portal-shell > .portal-sidebar {
   padding-top: 28px;
 }
 .portal-shell > .ui-page-shell {
@@ -833,8 +833,8 @@ select:focus-visible {
   border-radius: 8px;
   background: white;
 }
-@media (min-width: 801px) {
-  .portal-shell > aside {
+@media (min-width: 901px) {
+  .portal-shell > .portal-sidebar {
     position: sticky;
     top: 0;
     height: 100vh;
@@ -843,7 +843,7 @@ select:focus-visible {
     margin-top: -6px;
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .portal-shell .twe-action-button .action-icon {
     display: none;
   }
@@ -1344,7 +1344,7 @@ select:focus-visible {
 @media (prefers-reduced-motion: reduce) {
   .portal-shell .twe-kpi-link .ui-kpi-card { transition: none; }
 }
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .portal-shell .content-editor .cms-editor-group {
     padding: 14px;
     gap: 12px;
@@ -1419,7 +1419,7 @@ select:focus-visible {
 
 /* Keep the shared update notice above the mobile workspace navigation. */
 .portal-shell .twe-app-update-notice .ui-app-update-notice__button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .portal-shell .twe-app-update-notice {
     bottom: calc(100px + env(safe-area-inset-bottom));
     left: max(0.75rem, env(safe-area-inset-left));
@@ -1464,4 +1464,91 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .portal-shell .twe-form-editor .editor-actions > .ui-button { flex: 1 1 100%; min-width: 0; width: 100%; }
   .portal-shell .twe-form-editor .editor-actions > .ui-field { flex-basis: 100%; }
   .portal-shell .twe-form-editor :is(.ui-field__input,.ui-field__textarea,.ui-dropdown-field__trigger), .portal-shell .email-templates :is(.ui-field__input,.ui-field__textarea,.ui-dropdown-field__trigger) { font-size: 16px; }
+}
+
+/* Phase 1: shared Faako workspace foundation; module layouts keep their current behaviour. */
+.portal-shell {
+  --twe-workspace-shell: #e5e7eb;
+  --twe-workspace-surface: #f8f9fb;
+  --erp-sidebar-bg: transparent;
+  --erp-sidebar-panel: transparent;
+  --erp-sidebar-border: #cbd1d9;
+  --erp-sidebar-ink: #010c33;
+  --erp-sidebar-muted: #47556a;
+  --erp-sidebar-accent: #010c33;
+  --erp-sidebar-active-bg: #ffffff;
+  --erp-sidebar-search-bg: #f4f5f7;
+  --erp-sidebar-icon-bg: transparent;
+  --erp-icon-ring: transparent;
+  --erp-brand-mark-bg: #f4ede3;
+  --erp-brand-mark-ring: transparent;
+  --erp-link-active-border: transparent;
+  --erp-link-hover-border: transparent;
+  --erp-link-hover-bg: #f0f2f5;
+  --erp-sidebar-shadow: none;
+  --erp-panel: #f8f9fb;
+  --erp-border: #d8dde5;
+  --erp-ink: #010c33;
+  --erp-topbar-bg: transparent;
+  --ui-app-sidebar-panel-gap: .8rem;
+  --ui-app-sidebar-panel-padding: .65rem;
+  --ui-app-sidebar-link-padding-block: .55rem;
+  --ui-app-sidebar-link-padding-inline: .55rem;
+  --ui-app-sidebar-link-padding-inline-start: .55rem;
+  --ui-app-sidebar-link-radius: 11px;
+  --ui-app-sidebar-link-gap: .65rem;
+  --ui-app-sidebar-icon-box-size: 25px;
+  --ui-app-sidebar-icon-size: 20px;
+  --ui-app-sidebar-label-size: .84rem;
+  --ui-app-sidebar-search-gap: .4rem;
+  --ui-app-sidebar-search-padding-block: .6rem;
+  --ui-app-sidebar-search-padding-inline: .55rem;
+  --ui-app-sidebar-search-font-size: .8rem;
+  --ui-app-sidebar-brand-mark-size: 42px;
+  --ui-app-sidebar-brand-title-size: .9rem;
+  --ui-app-sidebar-collapsed-link-padding: .5rem;
+  background: var(--twe-workspace-shell);
+}
+.portal-shell > .ui-page-shell { min-width: 0; max-width: none; background: var(--twe-workspace-surface); }
+.portal-shell .twe-workspace-topbar { min-height: 64px; padding: 0 0 12px; margin: 0; align-items: center; border-bottom: 1px solid var(--erp-border); }
+.twe-workspace-topbar h1 { margin: 0; font-size: clamp(1.65rem, 3vw, 2.1rem); overflow-wrap: anywhere; }
+.twe-workspace-topbar .erp-shell-topbar__actions { flex-wrap: wrap; justify-content: flex-end; }
+.twe-session-role { color: var(--sys-muted); font-size: .8rem; text-transform: capitalize; }
+.twe-visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.portal-shell .twe-faako-sidebar { display: block; padding: .65rem .4rem; min-height: calc(100dvh - 16px); }
+.twe-faako-sidebar .erp-nav-sidebar__panel { height: calc(100dvh - 38px); background: transparent; border: 0; box-shadow: none; backdrop-filter: none; }
+.twe-faako-sidebar .erp-nav-sidebar__brand-link { background: none; border: 0; font: inherit; text-align: left; cursor: pointer; padding: 0; }
+.twe-faako-sidebar .erp-nav-sidebar__brand-mark-image { object-fit: contain; }
+.twe-faako-sidebar .erp-nav-sidebar__link { width: 100%; min-height: 44px; text-align: left; font: inherit; cursor: pointer; background: transparent; border: 0; border-radius: 11px; }
+.twe-faako-sidebar .erp-nav-sidebar__link.is-active { background: var(--erp-sidebar-active-bg); color: var(--erp-sidebar-accent); }
+.twe-faako-sidebar .erp-nav-sidebar__link::before { display: none; }
+.twe-faako-sidebar .erp-nav-sidebar__link:hover { transform: none; background: var(--erp-link-hover-bg); }
+.twe-faako-sidebar .erp-nav-sidebar__label { font-weight: 700; }
+.twe-faako-sidebar .erp-nav-sidebar__footer { gap: .25rem; }
+.twe-context-nav { display: grid; gap: 3px; margin: 0 0 6px 18px; padding: 5px 0 5px 9px; border-inline-start: 1px solid var(--erp-sidebar-border); }
+.twe-context-nav button, .twe-sidebar-account { display: flex; align-items: center; gap: .65rem; min-height: 44px; width: 100%; min-width: 0; background: transparent; color: var(--erp-sidebar-muted); border: 0; text-align: left; padding: .5rem .6rem; font: inherit; font-size: .83rem; cursor: pointer; border-radius: 9px; }
+.twe-context-nav button[aria-current], .twe-sidebar-account[aria-current] { background: #fff; color: var(--twe-navy); font-weight: 700; }
+.twe-context-nav button:hover, .twe-sidebar-account:hover { background: var(--erp-link-hover-bg); }
+.twe-context-nav button svg, .twe-sidebar-account svg { flex: 0 0 18px; width: 18px; height: 18px; }
+.twe-context-nav button span { min-width: 0; overflow-wrap: anywhere; }
+.twe-faako-sidebar.is-collapsed .twe-sidebar-account span { display: none; }
+.twe-faako-sidebar.is-collapsed .twe-sidebar-account { justify-content: center; padding: .5rem; }
+@media (min-width: 901px) {
+  .portal-shell { grid-template-columns: 245px minmax(0, 1fr); padding: 8px; gap: 6px; align-items: start; }
+  .portal-shell:has(.twe-faako-sidebar.is-collapsed) { grid-template-columns: 84px minmax(0, 1fr); }
+  .portal-shell > .twe-mobile-sidebar.has-session { display: none; }
+  .portal-shell > .ui-page-shell { min-height: calc(100dvh - 16px); border: 1px solid #d8dde5; border-radius: 20px; padding: 22px clamp(18px, 2.2vw, 36px) 36px; }
+  .portal-shell .twe-faako-sidebar { top: 8px; }
+}
+@media (max-width: 900px) {
+  .portal-shell { grid-template-columns: minmax(0, 1fr); }
+  .portal-shell .twe-faako-sidebar { display: none; }
+  .portal-shell > .twe-mobile-sidebar { background: var(--twe-navy); padding: 12px 16px; }
+  .portal-shell > .ui-page-shell { min-width: 0; }
+  .portal-shell .twe-workspace-topbar { flex-wrap: wrap; gap: 6px; }
+  .twe-workspace-topbar h1 { font-size: 1.7rem; }
+  .twe-workspace-topbar .erp-shell-topbar__actions { margin-left: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twe-faako-sidebar :is(.erp-nav-sidebar__link, .erp-nav-sidebar__panel) { transition: none; }
 }

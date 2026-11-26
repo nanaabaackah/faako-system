@@ -2,6 +2,7 @@ import Button from "./ActionButton.jsx";
 import { useEffect, useState } from "react";
 import { IconsaxIcon, InlineNotice, StatusPill, ERPConfirmDialog } from "@faako/ui";
 import "../styles/account-settings.css";
+import "../styles/activity.css";
 
 export default function AccountSettings({ api, session, onLogout, onHandoverCompleted }) {
   const [handover, setHandover] = useState(null);
@@ -27,22 +28,23 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
       data-tour="account-settings"
     >
       <header className="workspace-intro">
-        <h2 id="account-settings-heading">Account and workspace settings</h2>
+        <h2 id="account-settings-heading">Account settings</h2>
       </header>
       <div className="account-summary">
         <span className="account-summary__icon"><IconsaxIcon name="ShieldTick" /></span>
         <div>
           <h3>Your staff account</h3>
+          <p>Session expires: {expiresLabel}</p>
         </div>
         <StatusPill tone="neutral"><span className="account-role">{role}</span></StatusPill>
       </div>
       <div className="account-grid">
         <section className="workspace-panel" aria-labelledby="account-access-heading">
           <h3 id="account-access-heading">Workspace access</h3>
-          <dl className="account-details">
-            <div><dt>Workspace reference</dt><dd>{session.user.organisationId || "Unavailable"}</dd></div>
-            <div><dt>Session expires</dt><dd>{expiresLabel}</dd></div>
-          </dl>
+          <details className="twe-admin-disclosure">
+            <summary><span>Workspace reference</span><IconsaxIcon name="ArrowRight4"/></summary>
+            <div className="twe-admin-disclosure-body"><code>{session.user.organisationId || "Unavailable"}</code></div>
+          </details>
         </section>
         <section className="workspace-panel account-security" aria-labelledby="account-security-heading">
           <h3 id="account-security-heading">Sign-in and security</h3>

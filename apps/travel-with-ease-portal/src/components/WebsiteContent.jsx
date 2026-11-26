@@ -1,4 +1,6 @@
 import Button from "./ActionButton.jsx";
+import BuilderDisclosure from "./BuilderDisclosure.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
 import RichTextField from "./RichTextField.jsx";
 import RichText from "../../../travel-with-ease-web/src/components/RichText.jsx";
 import { useEffect, useRef, useState } from "react";
@@ -122,6 +124,25 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
   const writer = useRef(null);
   const bodyRef = useRef(body);
   const heading = useRef(null);
+  const workspace = useRef(null);
+  const canWrite = session.user.permissions?.includes("content.write") === true;
+  const jumpTo = target => {
+    setEditorView("editor");
+    requestAnimationFrame(() => {
+      const region = workspace.current?.querySelector('[data-cms-section="' + target + '"]');
+      if (!region) return;
+      region.focus({ preventScroll: true });
+      region.scrollIntoView({ block: "start", behavior: "instant" });
+    });
+  };
+  // Open any collapsed editor group before native form validation tries to focus it.
+  const revealInvalidField = event => {
+    let node = event.target;
+    while (node && node !== event.currentTarget) {
+      if (node.tagName === "DETAILS") node.open = true;
+      node = node.parentElement;
+    }
+  };
   useEffect(() => {
     if (!jobs.some(job => ["pending", "building", "deploying", "verifying"].includes(job.status))) return;
     let active = true;
@@ -401,19 +422,14 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
   </section>;
   return (
     <section
-      className="content-editor website-workspace"
+      className="content-editor website-workspace twe-cms-workspace"
+      ref={workspace}
       aria-labelledby="content-heading"
     >
       <h2 id="content-heading" tabIndex={-1} ref={heading}>
-        Website content
+        {sectionLabel(page)}
       </h2>
-      {visualPreview && <div className="cms-editor-view-switch" aria-label="Editing view">
-        <Button type="button" aria-pressed={editorView === "editor"} onClick={() => setEditorView("editor")}>Editor</Button>
-        <Button type="button" aria-pressed={editorView === "preview"} onClick={() => setEditorView("preview")}>Website preview</Button>
-      </div>}
-      <div className={`cms-editing-layout${visualPreview ? " cms-editing-layout--with-preview" : ""}`} data-view={editorView}>
-      <div className="cms-editing-layout__fields">
-      <div data-tour="content-pages">
+      <div className="twe-cms-section-picker" data-tour="content-pages">
         <SelectField
           label="Section"
           value={page}
@@ -440,7 +456,31 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
             </option>
           ))}
         </SelectField>
+        <Button type="button" variant="ghost" icon="content" disabled={state.loading || dirty || publicationBusy}
+          onClick={() => setDraftListVisible(true)}>Pages with drafts</Button>
       </div>
+      <div className="twe-cms-command-bar">
+        <p role="status" aria-live="polite" className="draft-save-status" data-save-state={saveState.status}>
+          {saveState.status === "saving" ? "Saving…" : saveState.status === "error" ? "Error — unsaved edits retained" : dirty ? "Unsaved" : `Saved · version ${version}`}
+        </p>
+        <div className="twe-cms-command-actions">
+          <Button icon="save" variant="primary" type="submit" form="twe-content-draft-form"
+            disabled={!canWrite || state.loading || publicationBusy || saveState.status === "saving" || editorView === "preview"}>Save draft</Button>
+          <Button icon="preview" type="button" disabled={state.loading || !version || dirty || publicationBusy} onClick={showPreview}>Preview saved content</Button>
+          <Button icon="arrow" type="button" variant="ghost" disabled={state.loading} onClick={() => jumpTo("publication")}>Publication</Button>
+        </div>
+      </div>
+      <nav className="twe-cms-outline" aria-label="Current page sections">
+        {(page === "site-appearance" ? [["images","Images & brand"],["copy","Content"]] :
+          [["copy","Page content"],["images","Images & layout"],["seo","SEO"]]).concat([["publication","Publication"],["versions","Version history"]]).map(([target,label]) =>
+          <button key={target} type="button" onClick={() => jumpTo(target)} disabled={state.loading}>
+            <NavigationIcon name={target === "images" ? "media" : "content"}/><span>{label}</span>
+          </button>)}
+      </nav>
+      {visualPreview && <div className="cms-editor-view-switch" aria-label="Editing view">
+        <Button type="button" aria-pressed={editorView === "editor"} onClick={() => setEditorView("editor")}>Editor</Button>
+        <Button type="button" aria-pressed={editorView === "preview"} onClick={() => setEditorView("preview")}>Website preview</Button>
+      </div>}
       {state.error && (
         <InlineNotice
           tone="danger"
@@ -449,10 +489,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
         />
       )}
       {saveState.error && <InlineNotice tone="danger" title="Draft not saved" message={saveState.error} />}
-      <p role="status" aria-live="polite" className="draft-save-status">
-        {saveState.status === "saving" ? "Saving…" : saveState.status === "error" ? "Error — unsaved edits retained" : dirty ? "Unsaved" : `Saved · version ${version}`}
-        
-      </p>
+      <div className={`cms-editing-layout${visualPreview ? " cms-editing-layout--with-preview" : ""}`} data-view={editorView}>
+      <div className="cms-editing-layout__fields">
       {state.loading ? (
         <AnimatedLoadingState
           compact
@@ -465,11 +503,11 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
         state.message && <p role="status">{state.message}</p>
       )}
       {(approvedRelease.pages[page] || reviewDrafts[page]) && (
-        <section className="workspace-panel">
-          <h3>{approvedRelease.pages[page] ? "Approved company copy" : "Starter copy for review"}</h3>
+        <section className="twe-cms-reference-actions">
+          <strong>{approvedRelease.pages[page] ? "Approved company copy" : "Starter copy for review"}</strong>
           <Button
             type="button"
-            disabled={state.loading}
+            disabled={state.loading || !canWrite || publicationBusy}
             onClick={() => {
               const replace = () => {
                 const draft = { ...emptyBody(), ...(approvedRelease.pages[page] ? approvedEditorCopy(approvedRelease.pages[page]) : structuredClone(reviewDrafts[page])) };
@@ -477,6 +515,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                 setBody(draft);
                 writer.current?.edit(draft);
                 setPreview(null);
+                setVisualPreview(null);
+                setEditorView("editor");
               };
               if (dirty) setConfirmAction({ kind: "replace", title: "Replace unsaved edits?", message: "The current unsaved fields will be replaced by the approved review copy.", label: "Replace edits", run: replace });
               else replace();
@@ -486,14 +526,17 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           </Button>
         </section>
       )}
+      <div className="twe-cms-anchor" data-cms-section="images" tabIndex={-1}>
       {!state.loading && page==='site-appearance' && <BrandAppearance branding={body.branding} change={change} api={api} session={session}
         disabled={!session.user.permissions?.includes("content.write") || state.loading}/>}
       {!state.loading && page==='footer' && <BrandAppearance branding={body.branding} change={change} api={api} session={session}
         assetKeys={['footerLogoId']} showFonts={false} disabled={!session.user.permissions?.includes("content.write") || state.loading}/>}
-      {!state.loading&&<ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/>}
-      {page==='site-appearance'&&<form onSubmit={save}><fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}><EditorialFields page={page} body={body} change={change}/><div className="editor-actions"><Button icon="save" type="submit">Save draft</Button><Button icon="preview" type="button" disabled={!version||dirty} onClick={showPreview}>Preview saved content</Button></div></fieldset></form>}
-      {page!=='site-appearance'&&<form data-tour="content-draft" onSubmit={save}>
-        <fieldset disabled={state.loading || !session.user.permissions?.includes("content.write")}>
+      {!state.loading&&<fieldset className="twe-cms-image-fieldset" disabled={!canWrite || publicationBusy}><ImagePlacements key={page} page={page} body={body} change={change} api={api} session={session}/></fieldset>}
+      </div>
+      <div className="twe-cms-anchor" data-cms-section="copy" tabIndex={-1}>
+      {page==='site-appearance'&&<form id="twe-content-draft-form" onSubmit={save} onInvalidCapture={revealInvalidField}><fieldset disabled={state.loading || !canWrite || publicationBusy}><EditorialFields page={page} body={body} change={change}/></fieldset></form>}
+      {page!=='site-appearance'&&<form id="twe-content-draft-form" data-tour="content-draft" onSubmit={save} onInvalidCapture={revealInvalidField}>
+        <fieldset className="twe-cms-main-fieldset" disabled={state.loading || !canWrite || publicationBusy}>
           <legend>{sectionLabel(page)} content</legend>
           <fieldset className="cms-editor-group">
             <legend>Page introduction</legend>
@@ -595,8 +638,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
             <section aria-label="Journal articles">
               <h3>Journal articles</h3>
               {(body.articles || []).map((article, index) => (
-                <fieldset key={index}>
-                  <legend>Article {index + 1}</legend>
+                <BuilderDisclosure key={index} title={article.title || "New article"} detail={article.date} initiallyOpen={!article.title}>
+                <fieldset><legend className="twe-visually-hidden">Article {index + 1}</legend>
                   {[
                     ["Article card & listing", [["title", "Article title", 120], ["slug", "Article URL name", 80], ["excerpt", "Card summary", 240]]],
                     ["Article detail page", [["body", "Full article", 6000]]],
@@ -799,7 +842,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                   >
                     Remove article {index + 1}
                   </Button>
-                </fieldset>
+                </fieldset></BuilderDisclosure>
               ))}
               <Button
                 type="button"
@@ -835,14 +878,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           {page === "travel-tips" && (
             <section aria-label="Travel tips">
               <h3>Travel tips</h3>
-              <p>
-                Save and preview this collection before requesting publication.
-                All tips in the saved collection are published together.
-                Removing a tip and publishing withdraws it.
-              </p>
+ 
               {body.tips.map((tip, index) => (
-                <fieldset key={index}>
-                  <legend>Tip {index + 1}</legend>
+                <BuilderDisclosure key={index} title={tip.title || "New tip"} detail={tip.category} initiallyOpen={!tip.title}>
+                <fieldset><legend className="twe-visually-hidden">Tip {index + 1}</legend>
                   {[
                     ["Travel tip card & listing", [["title", "Tip title", 120], ["slug", "Tip URL name", 80], ["excerpt", "Card summary", 240]]],
                     ["Travel tip detail page", [["body", "Full travel tip", 6000], ["relatedArticle", "Related Journal URL name (optional)", 80]]],
@@ -969,7 +1008,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                   >
                     Remove tip {index + 1}
                   </Button>
-                </fieldset>
+                </fieldset></BuilderDisclosure>
               ))}
               <Button
                 type="button"
@@ -1006,8 +1045,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                 Enter confirmed trips by country. Count Zanzibar under Tanzania.
               </p>
               {(body.footprint || []).map((row, index) => (
-                <fieldset key={index}>
-                  <legend>Country {index + 1}</legend>
+                <BuilderDisclosure key={index} title={countries.find(country => country.code === row.countryCode)?.name || "New country"} detail={row.total != null ? row.total + " verified trips" : ""} initiallyOpen={!row.countryCode}>
+                <fieldset><legend className="twe-visually-hidden">Country {index + 1}</legend>
                   <SelectField
                     label="Country"
                     required
@@ -1066,7 +1105,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
                   >
                     Remove country {index + 1}
                   </Button>
-                </fieldset>
+                </fieldset></BuilderDisclosure>
               ))}
               <Button
                 type="button"
@@ -1257,6 +1296,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
               </Button>
             </>
           )}
+          <fieldset className="cms-editor-group twe-cms-anchor" data-cms-section="seo" tabIndex={-1}>
+          <legend>Search engine optimisation</legend>
           <TextField
             label="SEO title"
             value={body.seoTitle}
@@ -1271,26 +1312,18 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
             required
             onChange={(e) => change("seoDescription", e.target.value)}
           />
-          <div className="editor-actions">
-            <Button icon="save" variant="primary" type="submit">
-              Save draft
-            </Button>
-            <Button
-              type="button"
-              disabled={!version || dirty}
-              onClick={showPreview}
-            >
-              Preview saved content
-            </Button>
-          </div>
+          </fieldset>
         </fieldset>
       </form>}
+      </div>
+      <section className="workspace-panel twe-cms-legacy-image" aria-label="Page image">
+      <h3>Page image</h3>
       <p>
         {body.imageId ? "Image selected" : "No image selected"}
       </p>
       <Button
         type="button"
-        disabled={state.loading}
+        disabled={state.loading || !canWrite || publicationBusy}
         onClick={() => {
           setTipImage(null);
           setCollectionImage(null);
@@ -1302,7 +1335,7 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
       {body.imageId && (
         <Button
           type="button"
-          disabled={state.loading}
+          disabled={state.loading || !canWrite || publicationBusy}
           onClick={() => change("imageId", null)}
         >
           Remove image from draft
@@ -1351,7 +1384,8 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           }}
         />
       )}
-      <section className="workspace-panel" data-tour="content-publication" ref={publicationPanel} tabIndex={-1}>
+      </section>
+      <section className="workspace-panel twe-cms-anchor" data-cms-section="publication" data-tour="content-publication" ref={publicationPanel} tabIndex={-1}>
         <h3>Publication</h3>
         {["packages", "journal", "travel-tips"].includes(page) && <SelectField
           label="Publication scope" value={recordSlug} disabled={state.loading || dirty}
@@ -1471,10 +1505,10 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           )}
         </section>
       )}
-      <section className="workspace-panel">
+      <section className="workspace-panel twe-cms-anchor" data-cms-section="versions" tabIndex={-1}>
         <HistoryDisclosure title="Version history" count={history.length}>
           <ActivityList title="Content revision history" items={history.map(revision=>({...revision,action:`Saved revision ${revision.version}`,actor_id:revision.editor_id,record_id:revision.id}))}
-          renderAction={revision=><Button type="button" disabled={state.loading} onClick={()=>setConfirmAction({ kind: "restore", title: `Restore version ${revision.version}?`, message: "This creates a new draft from the selected revision. Nothing is published automatically.", label: "Restore version", run: () => revert(revision.id) })}>Restore version {revision.version}</Button>}/>
+          renderAction={revision=><Button type="button" disabled={state.loading || !canWrite || publicationBusy} onClick={()=>setConfirmAction({ kind: "restore", title: `Restore version ${revision.version}?`, message: "This creates a new draft from the selected revision. Nothing is published automatically.", label: "Restore version", run: () => revert(revision.id) })}>Restore version {revision.version}</Button>}/>
         </HistoryDisclosure>
       </section>
       </div>

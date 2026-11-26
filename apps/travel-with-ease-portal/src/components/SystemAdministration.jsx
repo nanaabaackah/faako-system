@@ -1,7 +1,8 @@
 import Button from "./ActionButton.jsx";
 import { useEffect, useState } from "react";
-import { DataTable,InlineNotice, AnimatedLoadingState } from "@faako/ui";
-import StaffAccess from "./StaffAccess.jsx";
+import { InlineNotice, AnimatedLoadingState, StatusPill } from "@faako/ui";
+import NavigationIcon from "./NavigationIcon.jsx";
+import "../styles/activity.css";
 import ActivityView from './ActivityView.jsx';
 
 export default function SystemAdministration({ api, session }) {
@@ -37,10 +38,10 @@ export default function SystemAdministration({ api, session }) {
     );
   return (
     <section className="system-workspace" aria-labelledby="system-heading">
-      <h2 id="system-heading">System Administration</h2>
-      <StaffAccess api={api} session={session} />
-      
+      <div className="twe-admin-toolbar">
+      <h2 id="system-heading">System diagnostics</h2>
       <Button icon="refresh" type="button" disabled={!data&&!error} onClick={()=>setRefresh(value=>value+1)}>Refresh diagnostics</Button>
+      </div>
       {error && (
         <InlineNotice
           tone="danger"
@@ -71,14 +72,20 @@ export default function SystemAdministration({ api, session }) {
             </dl>
           </div>
           <div className="system-job-grid">
-            <section className="workspace-panel">
-              <h3>Publication jobs</h3>
-              <DataTable caption="Publication jobs by stored status" rows={data.diagnostics.publication} rowKey="status" state={data.diagnostics.publication.length?'ready':'empty'} emptyTitle="No publication jobs" emptyMessage="" columns={[{id:'status',header:'Status',accessor:'status'},{id:'count',header:'Jobs',accessor:'count'}]}/>
-            </section>
-            <section className="workspace-panel">
-              <h3>Notification jobs</h3>
-              <DataTable caption="Notification jobs by stored status" rows={data.diagnostics.notifications} rowKey="status" state={data.diagnostics.notifications.length?'ready':'empty'} emptyTitle="No notification jobs" emptyMessage="" columns={[{id:'status',header:'Status',accessor:'status'},{id:'count',header:'Jobs',accessor:'count'}]}/>
-            </section>
+            <details className="twe-admin-disclosure twe-system-jobs">
+              <summary><span><strong>Publication jobs</strong><small>{data.diagnostics.publication.length ? data.diagnostics.publication.reduce((sum, row) => sum + Number(row.count), 0) + " stored jobs" : "No jobs"}</small></span><NavigationIcon name="arrow"/></summary>
+              <div className="twe-admin-disclosure-body">
+                <dl className="twe-job-counts">{data.diagnostics.publication.map(row => <div key={row.status}><dt><StatusPill tone={row.status === "failed" ? "danger" : "neutral"}>{row.status}</StatusPill></dt><dd>{row.count}</dd></div>)}</dl>
+                {!data.diagnostics.publication.length && <p>No publication jobs.</p>}
+              </div>
+            </details>
+            <details className="twe-admin-disclosure twe-system-jobs">
+              <summary><span><strong>Notification jobs</strong><small>{data.diagnostics.notifications.length ? data.diagnostics.notifications.reduce((sum, row) => sum + Number(row.count), 0) + " stored jobs" : "No jobs"}</small></span><NavigationIcon name="arrow"/></summary>
+              <div className="twe-admin-disclosure-body">
+                <dl className="twe-job-counts">{data.diagnostics.notifications.map(row => <div key={row.status}><dt><StatusPill tone={row.status === "failed" ? "danger" : "neutral"}>{row.status}</StatusPill></dt><dd>{row.count}</dd></div>)}</dl>
+                {!data.diagnostics.notifications.length && <p>No notification jobs.</p>}
+              </div>
+            </details>
           </div>
           <ActivityView api={api} security />
         </>

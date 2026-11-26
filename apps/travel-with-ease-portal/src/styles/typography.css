@@ -1,12 +1,60 @@
+/* Match the public website's approved typography, using compact workspace sizes.
+   Font files are pinned, verified and bundled locally by Vite; no browser CDN requests. */
 @font-face {
-  font-family: "Montserrat";
-  src: url("../../../travel-with-ease-web/public/fonts/montserrat-latin-800.woff2")
-    format("woff2");
-  font-style: normal;
-  font-weight: 800;
-  font-display: swap;
+  font-family: "Poiret One";
+  src: url("/fonts/twe/poiret-one.woff2") format("woff2");
+  font-style: normal; font-weight: 400; font-display: swap;
 }
-body :is(h1, h2, h3, h4, h5, h6) {
-  font-family: "Montserrat", Arial, sans-serif !important;
-  font-weight: 800 !important;
+@font-face {
+  font-family: "Poiret One";
+  src: url("/fonts/twe/poiret-one-latin-ext.woff2") format("woff2");
+  font-style: normal; font-weight: 400; font-display: swap;
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "Quicksand";
+  src: url("/fonts/twe/quicksand.woff2") format("woff2");
+  font-style: normal; font-weight: 300 700; font-display: swap;
+}
+@font-face {
+  font-family: "Quicksand";
+  src: url("/fonts/twe/quicksand-latin-ext.woff2") format("woff2");
+  font-style: normal; font-weight: 300 700; font-display: swap;
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/twe/inter.woff2") format("woff2");
+  font-style: normal; font-weight: 100 900; font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/twe/inter-latin-ext.woff2") format("woff2");
+  font-style: normal; font-weight: 100 900; font-display: swap;
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+:root {
+  --twe-font-display: "Poiret One", "Trebuchet MS", Arial, sans-serif;
+  --twe-font-body: "Quicksand", "Trebuchet MS", Arial, sans-serif;
+  --twe-font-impact: "Inter", Arial, sans-serif;
+}
+html, body { font-family: var(--twe-font-body); }
+body { font-size: 15px; line-height: 1.5; font-weight: 500; }
+body .portal-shell :is(h1,h2,h3) {
+  font-family: var(--twe-font-display);
+  font-weight: 400;
+  -webkit-text-stroke: .024em currentColor;
+  paint-order: stroke fill;
+  letter-spacing: -.025em;
+  line-height: 1.18;
+}
+body .portal-shell :is(h4,h5,h6,legend) { font-family: var(--twe-font-body); font-weight: 600; line-height: 1.3; }
+body :is(button,input,select,textarea,.ui-field__input,.ui-dropdown-field__option,.ui-dropdown-field__value,.ui-dropdown-field__trigger) { font-family: var(--twe-font-body); }
+body .portal-shell :is(.erp-nav-sidebar__label,.erp-nav-sidebar__title,.twe-context-nav button,.twe-sidebar-account,.twe-bottom-nav__tab) {
+  font-family: var(--twe-font-impact);
+  font-weight: 800;
+}
+body .portal-shell .ui-kpi-card__value { font-family: var(--twe-font-impact); font-weight: 700; font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) {
+  body .portal-shell :is(input:not([type=checkbox]):not([type=radio]),textarea,.ui-dropdown-field__trigger) { font-size: 16px; }
 }

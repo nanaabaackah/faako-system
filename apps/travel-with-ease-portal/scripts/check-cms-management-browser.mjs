@@ -1,3 +1,4 @@
+import { navigateWorkspace } from "./navigate-workspace.mjs";
 import { mockWorkspaceApi } from "../test/fixtures/browser-api.js";
 import { createRequire } from "node:module";
 import { mkdtemp } from "node:fs/promises";
@@ -18,7 +19,7 @@ const browser = await chromium.launch({
     : {}),
 });
 try {
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of [320, 390, 600, 768, 1024, 1440]) {
     const context = await browser.newContext({
       viewport: { width, height: 900 },
       hasTouch: width < 768,
@@ -33,13 +34,9 @@ try {
     await page.goto(origin + "/");
     const visible = (name) =>
       page.getByRole("button", { name, exact: true }).filter({ visible: true });
-    const navigate = async (name) => {
-      if (!(await visible(name).count()))
-        await page.getByRole("button", { name: /^Menu/ }).click();
-      await visible(name).first().click();
-    };
-    await visible(width <= 800 ? "Home" : "Overview").first().waitFor();
-    if (width <= 800) {
+    const navigate = name => navigateWorkspace(page, name);
+    await visible(width <= 900 ? "Home" : "Overview").first().waitFor();
+    if (width <= 900) {
       const bottom = page.locator(".twe-bottom-nav");
       assert.deepEqual(await bottom.locator("button").allTextContents(), [
         "Home",
@@ -74,15 +71,18 @@ try {
         .click({ position: { x: width - 2, y: 880 } });
       await drawer.waitFor({ state: "hidden" });
     } else {
-      await visible("Collapse sidebar").click();
+      await visible("Collapse navigation").click();
       await page.reload();
-      await visible("Expand sidebar").waitFor();
-      await visible("Expand sidebar").click();
+      await visible("Expand navigation").waitFor();
+      await visible("Expand navigation").click();
     }
     await navigate("Staff");
     await page
-      .getByRole("heading", { name: "Your team, with the right access" })
+      .getByRole("heading", { name: "Staff accounts", exact: true })
       .waitFor();
+    const staffRow = page.locator(".twe-admin-staff-row").filter({hasText:"demo-editor"}).first();
+    await staffRow.click();
+    assert.equal(await staffRow.getAttribute("aria-expanded"), "true");
     await page
       .getByRole("button", { name: "Change role", exact: true })
       .first()
@@ -120,17 +120,15 @@ try {
       .getByText("staff · role changed", { exact: true })
       .filter({ visible: true })
       .waitFor();
-    if (width <= 800)
+    if (width <= 900)
       assert.equal(
         await page.locator(".twe-bottom-nav [aria-current]").count(),
         0,
         "Side-only pages must not highlight Overview",
       );
-    await page
-      .getByText("Details", { exact: true })
-      .filter({ visible: true })
-      .first()
-      .click();
+    const activityRecord = page.locator(".twe-activity-record").filter({hasText:"staff · role changed"}).first();
+    await activityRecord.locator("summary").click();
+    assert.equal(await activityRecord.evaluate(node => node.open), true);
     await page
       .getByText("DEMO-ROLE", { exact: true })
       .filter({ visible: true })
@@ -145,13 +143,7 @@ try {
       .waitFor();
     await visible("Choose desktop image").click();
     await visible("Refresh Drive folder").click();
-    await visible("Drive image").click();
-    await page
-      .getByRole("option", {
-        name: "Demo photo — no Drive connection",
-        exact: true,
-      })
-      .click();
+    await page.getByRole("button", { name: /^Demo photo — no Drive connection/ }).click();
     await page
       .getByRole("group", {
         name: "Import from the approved folder",
@@ -188,9 +180,9 @@ try {
     await page.unroute("**/api/**");
     await mockWorkspaceApi(page, {role: "editor", requests});
     await page.goto(origin);
-    await visible(width <= 800 ? "Home" : "Overview").first().waitFor();
-    if (width <= 800) await page.getByRole("button", { name: /^Menu/ }).click();
-    for (const name of ["Staff", "Activity", "System"])
+    await visible(width <= 900 ? "Home" : "Overview").first().waitFor();
+    if (width <= 900) await page.getByRole("button", { name: /^Menu/ }).click();
+    for (const name of ["Staff", "Activity", "System", "Administration", "Staff access", "System administration"])
       assert.equal(await visible(name).count(), 0);
     assert.ok(requests.length > 0, "Actual API client exercised against isolated HTTP fixtures");
     assert.deepEqual(errors, []);
@@ -199,7 +191,7 @@ try {
   console.log(
     JSON.stringify({
       passed: true,
-      widths: [320, 390, 768, 1440],
+      widths: [320, 390, 600, 768, 1024, 1440],
       screenshots: output,
       scope:
         "Role controls, placement drafts, activity, responsive navigation and keyboard",

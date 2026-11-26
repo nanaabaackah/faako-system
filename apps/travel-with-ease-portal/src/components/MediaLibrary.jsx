@@ -1,20 +1,52 @@
 import Button from "./ActionButton.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
 import "../styles/media-library.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   InlineNotice,
   TextField,
-  SelectField,
-  AnimatedLoadingState,
+   AnimatedLoadingState,
   ERPConfirmDialog,
   useToast,
 } from "@faako/ui";
 
+// Authenticated API transport, even when the API and portal use different origins.
+function AssetThumbnail({ api, id, configured }) {
+  const host = useRef(null);
+  const [visible, setVisible] = useState(false);
+  const [src, setSrc] = useState("");
+  useEffect(() => {
+    if (!configured || !host.current) return;
+    if (typeof IntersectionObserver === "undefined") { setVisible(true); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) { setVisible(true); observer.disconnect(); }
+    }, { rootMargin: "160px" });
+    observer.observe(host.current);
+    return () => observer.disconnect();
+  }, [configured]);
+  useEffect(() => {
+    if (!configured || !visible) return;
+    let current = true, objectUrl;
+    api.get(`/api/agent/media/${id}/preview`, { responseMode: "blob" }).then(blob => {
+      if (!current || !(blob instanceof Blob) || blob.type !== "image/webp" || blob.size > 10 * 1024 * 1024) return;
+      objectUrl = URL.createObjectURL(blob);
+      setSrc(objectUrl);
+    }).catch(() => {});
+    return () => { current = false; if (objectUrl) URL.revokeObjectURL(objectUrl); setSrc(""); };
+  }, [api, id, configured, visible]);
+  return <span ref={host} className="twe-asset-image"><NavigationIcon name="media"/>{src && <img src={src} alt="" onError={() => setSrc("")}/>}</span>;
+}
+
 export default function MediaLibrary({ api, session, onSelect }) {
   const { pushToast } = useToast();
   const [items, setItems] = useState([]);
+  const [librarySearch, setLibrarySearch] = useState("");
+  const [driveSearch, setDriveSearch] = useState("");
+  const [layout, setLayout] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 600px)").matches ? "list" : "grid");
+  const canWrite = session.user.permissions?.includes("media.write") === true;
   const [configured, setConfigured] = useState(false);
   const [driveConfigured, setDriveConfigured] = useState(false);
+  const [sync, setSync] = useState(null);
   const [driveItems, setDriveItems] = useState([]);
   const [driveFolders, setDriveFolders] = useState([]);
   const [drivePath, setDrivePath] = useState([]);
@@ -34,6 +66,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
     setItems(result.items);
     setConfigured(result.configured);
     setDriveConfigured(result.driveConfigured === true);
+    setSync(result.driveSync || null);
   }, [api]);
   useEffect(() => {
     let active = true;
@@ -144,7 +177,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
       setDrivePath(path);
       setDriveNext(result.nextPageToken || "");
       setDriveLoaded(true);
-      if (!append) setDriveSelection("");
+      if (!append) { setDriveSelection(""); setDriveSearch(""); }
       setState({
         loading: false,
         error: "",
@@ -159,7 +192,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
   async function importDrive(event) {
     event.preventDefault();
     const item = driveItems.find((value) => value.id === driveSelection);
-    if (!item) return;
+    if (!item || !canWrite || item.archived) return;
     const fields = new FormData(event.currentTarget);
     setState({ loading: true, error: "", message: "" });
     try {
@@ -248,7 +281,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
       className="content-editor media-workspace"
       aria-labelledby="media-heading"
     >
-      <h2 id="media-heading">Media library</h2>
+      <h2 id="media-heading">{onSelect ? "Choose image" : "Media library"}</h2>
       <div ref={notice} tabIndex={-1}>
         {state.error && (
           <InlineNotice
@@ -274,26 +307,30 @@ export default function MediaLibrary({ api, session, onSelect }) {
           message="Photo storage is not connected for this workspace. Ask Faako for help; your existing content is unchanged."
         />
       )}
-      <section
-        className="workspace-panel"
+      {canWrite && <section
+        className="workspace-panel twe-drive-browser"
         aria-labelledby="drive-media-heading"
       >
-        <h3 id="drive-media-heading">Google Drive → image library</h3>
-        <p>
-          Import photos from Drive. Changes appear on the website when published.
-        </p>
+        <div className="twe-media-toolbar">
+          <h3 id="drive-media-heading">Google Drive</h3>
         {!driveConfigured && !state.loading && (
           <p>
             Drive import is unavailable. {configured ? "You can upload a JPG, PNG or WebP directly." : "Private image storage must be connected first."}
           </p>
         )}
-        <Button
+        <Button icon="refresh"
           type="button"
           disabled={state.loading || !driveConfigured}
           onClick={() => browseDrive(false)}
         >
           Refresh Drive folder
         </Button>
+        </div>
+        {sync && <div className="twe-drive-sync-status" role="status">
+          <span>{sync.enabled ? "Automatic sync enabled" : "Manual import"}</span>
+          {sync.enabled && <span>{sync.running ? "Syncing" : sync.lastError ? "Sync needs attention" : sync.lastScanAt ? "Last scan " + new Date(sync.lastScanAt).toLocaleString("en-GH", { timeZone: "Africa/Accra" }) : "Waiting for first scan"}</span>}
+          {sync.enabled && <Button type="button" variant="ghost" icon="refresh" disabled={state.loading} onClick={() => load().catch(() => setState({ loading: false, error: "Library could not refresh.", message: "" }))}>Refresh library</Button>}
+        </div>}
         {driveLoaded && drivePath.length > 0 && (
           <div className="editor-actions">
             <Button type="button" disabled={state.loading} onClick={() => browseDrive(false, [])}>Drive root</Button>
@@ -302,10 +339,10 @@ export default function MediaLibrary({ api, session, onSelect }) {
           </div>
         )}
         {driveLoaded && driveFolders.length > 0 && (
-          <div className="editor-actions" aria-label="Drive subfolders">
+          <div className="twe-drive-folders" aria-label="Drive subfolders">
             {driveFolders.map((folder) => (
-              <Button key={folder.id} type="button" disabled={state.loading}
-                onClick={() => browseDrive(false, [...drivePath, folder])}>{folder.name}</Button>
+              <button className="twe-drive-folder" key={folder.id} type="button" disabled={state.loading}
+                onClick={() => browseDrive(false, [...drivePath, folder])}><NavigationIcon name="content"/><span>{folder.name}</span><NavigationIcon name="arrow"/></button>
             ))}
           </div>
         )}
@@ -313,25 +350,20 @@ export default function MediaLibrary({ api, session, onSelect }) {
           <form onSubmit={importDrive}>
             <fieldset disabled={state.loading || !driveConfigured}>
               <legend>Import from the approved folder</legend>
-              <SelectField
-                label="Drive image"
-                value={driveSelection}
-                onChange={(event) => setDriveSelection(event.target.value)}
-                options={[
-                  { value: "", label: "Choose an image" },
-                  ...driveItems.map((item) => ({
-                    value: item.id,
-                    label:
-                      item.name +
-                      (item.importedId
-                        ? " — already imported"
-                        : item.archived
-                          ? " — archived revision"
-                          : ""),
-                  })),
-                ]}
-                required
-              />
+              <TextField label="Search this folder" value={driveSearch} onChange={event => setDriveSearch(event.target.value)}/>
+              <div className="twe-drive-files" role="group" aria-label="Drive images">
+                {driveItems.filter(item => item.name.toLowerCase().includes(driveSearch.trim().toLowerCase())).map(item => (
+                  <button type="button" className="twe-drive-file" key={item.id}
+                    aria-pressed={driveSelection === item.id} disabled={state.loading || item.archived}
+                    onClick={() => setDriveSelection(item.id)}>
+                    <NavigationIcon name="media"/>
+                    <span><strong>{item.name}</strong><small>{item.archived ? "Archived revision" : item.importedId ? "Imported" : item.syncEligible === false ? "Needs alternative text" : "Not imported"}</small></span>
+                    <NavigationIcon name={driveSelection === item.id ? "check" : "arrow"}/>
+                  </button>
+                ))}
+              </div>
+              {driveSearch && !driveItems.some(item => item.name.toLowerCase().includes(driveSearch.trim().toLowerCase())) && <p>No matching images on this page.</p>}
+              {driveSelection && <>
               <TextField
                 label="Alternative text"
                 name="alt"
@@ -351,6 +383,7 @@ export default function MediaLibrary({ api, session, onSelect }) {
               >
                 Import selected image
               </Button>
+              </>}
             </fieldset>
           </form>
         )}
@@ -366,8 +399,8 @@ export default function MediaLibrary({ api, session, onSelect }) {
             Load more
           </Button>
         )}
-      </section>
-      <form data-tour="media-upload" ref={form} onSubmit={upload}>
+      </section>}
+      {canWrite && <form data-tour="media-upload" ref={form} onSubmit={upload}>
         <fieldset disabled={state.loading || !configured}>
           <legend>
             {replacement
@@ -401,31 +434,30 @@ export default function MediaLibrary({ api, session, onSelect }) {
             </Button>
           )}
         </fieldset>
-      </form>
-      <h3>
-        Active library <span className="library-count">{items.length}</span>
-      </h3>
-      <ul className="media-list">
-        {items.map((item) => (
+      </form>}
+      <div className="twe-media-toolbar">
+        <h3>Active library <span className="library-count">{items.length}</span></h3>
+        <div className="twe-media-view-options" role="group" aria-label="Library view">
+          <Button type="button" icon="media" aria-pressed={layout === "grid"} onClick={() => setLayout("grid")}>Grid</Button>
+          <Button type="button" icon="content" aria-pressed={layout === "list"} onClick={() => setLayout("list")}>List</Button>
+        </div>
+      </div>
+      <TextField label="Search library" value={librarySearch} onChange={event => setLibrarySearch(event.target.value)} />
+      <ul className={`media-list twe-asset-list twe-asset-list--${layout}`}>
+        {items.filter(item => (item.alt_text || "").toLowerCase().includes(librarySearch.trim().toLowerCase())).map((item) => (
           <li key={item.id}>
-            <h3>{item.alt_text}</h3>
-            <div className="editor-actions">
-              <Button
-                type="button"
-                disabled={state.loading || !configured}
-                onClick={() => showPreview(item)}
-              >
-                Preview {item.alt_text}
-              </Button>
-              {onSelect && (
-                <Button
-                  type="button"
-                  disabled={state.loading}
-                  onClick={() => onSelect(item)}
-                >
-                  Use {item.alt_text}
-                </Button>
-              )}
+            <button type="button" className="twe-asset-primary" disabled={state.loading || (!onSelect && !configured)}
+              aria-label={onSelect ? `Use ${item.alt_text}` : `Preview ${item.alt_text}`}
+              onClick={() => onSelect ? onSelect(item) : showPreview(item)}>
+              <AssetThumbnail key={item.id} api={api} id={item.id} configured={configured}/>
+              <span className="twe-asset-copy"><strong>{item.alt_text}</strong><small>{item.width && item.height ? `${item.width} × ${item.height}px` : "Image"}</small></span>
+              <NavigationIcon name="arrow"/>
+            </button>
+            {(onSelect || canWrite) && <details className="twe-asset-actions">
+              <summary><span>More actions</span><NavigationIcon name="arrow"/></summary>
+              <div className="editor-actions">
+              {onSelect && <Button type="button" disabled={state.loading || !configured} onClick={() => showPreview(item)}>Preview {item.alt_text}</Button>}
+              {canWrite && <>
               <Button
                 type="button"
                 disabled={state.loading || !configured}
@@ -443,10 +475,13 @@ export default function MediaLibrary({ api, session, onSelect }) {
               >
                 Archive {item.alt_text}
               </Button>
-            </div>
+              </>}
+              </div>
+            </details>}
           </li>
         ))}
       </ul>
+      {librarySearch && !items.some(item => (item.alt_text || "").toLowerCase().includes(librarySearch.trim().toLowerCase())) && <p>No matching images.</p>}
       {!state.loading && !state.error && !items.length && (
         <div className="workspace-empty">
           <h4>Your library is empty</h4>

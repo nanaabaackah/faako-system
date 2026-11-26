@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TextField, InlineNotice, SelectField } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
 import { ActivityList } from "./ActivityView.jsx";
 
 const deliveryLabels = {
@@ -154,8 +155,8 @@ export default function Invitations({ api, session, installer = false }) {
         />
       )}
       {!installer && (
-        <details>
-          <summary>Staff access audit history</summary>
+        <details className="twe-admin-disclosure">
+          <summary><span>Staff access audit history</span><NavigationIcon name="arrow"/></summary>
           <ActivityList
             title="Staff access audit history" emptyTitle="No staff access changes yet"
             emptyMessage="Role and access changes will appear here." items={events}

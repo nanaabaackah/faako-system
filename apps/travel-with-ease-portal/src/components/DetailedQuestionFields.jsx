@@ -1,5 +1,6 @@
 import { TextField, TextareaField, SelectField, InlineNotice } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import BuilderDisclosure from "./BuilderDisclosure.jsx";
 import { detailedDefinitionSchema, protectedQuestionIds, DETAILED_ROUTES } from "../../../travel-with-ease-api/src/enquiries/questionnaires/configuration.js";
 
 const routeLabels = { router: "Undecided", planning: "Full planning / premium", safe_general: "Readiness", package: "Package", group: "Group planning" };
@@ -37,8 +38,8 @@ export default function DetailedQuestionFields({ definition, edit, blocked }) {
     <TextField label="Continue button" value={definition.continueLabel} maxLength={240} required disabled={blocked} onChange={event => edit(body => ({ ...body, continueLabel:event.target.value }))}/>
     <TextField label="Submit button" value={definition.submitLabel} maxLength={240} required disabled={blocked} onChange={event => edit(body => ({ ...body, submitLabel:event.target.value }))}/>
     {!checked.success && <InlineNotice tone="warning" title="Resolve configuration issues before activation" message={checked.error.issues[0].message}/>}
-    {definition.steps.map((step,index) => <fieldset className="cms-editor-group" key={step.id}>
-      <legend>{step.title}</legend>
+    {definition.steps.map((step,index) => <BuilderDisclosure key={step.id} title={step.title || "Untitled step"} detail={step.questionIds.length + " questions"} initiallyOpen={step.title === "New step"}>
+      <fieldset className="cms-editor-group"><legend className="twe-visually-hidden">{step.title}</legend>
       <TextField label="Step title" value={step.title} maxLength={240} required disabled={blocked} onChange={event => stepEdit(step.id,item => ({ ...item,title:event.target.value }))}/>
       {DETAILED_ROUTES.map(route => <SelectField key={route} label={routeLabels[route]} value={step.routes.includes(route)?"show":"hide"} disabled={blocked || (step.routes.length===1 && step.routes.includes(route))} onChangeValue={value => stepEdit(step.id,item => ({ ...item,routes:value==="show"?[...new Set([...item.routes,route])]:item.routes.filter(name=>name!==route) }))}><option value="show">Show step</option><option value="hide">Hide step</option></SelectField>)}
       <div className="editor-actions">
@@ -52,8 +53,8 @@ export default function DetailedQuestionFields({ definition, edit, blocked }) {
         const locked=protectedQuestionIds.includes(id);
         const candidates=definition.questions.filter(item=>item.id!==id && choice(item.type));
         const dependency=candidates.find(item=>item.id===question.condition?.questionId);
-        return <fieldset className="cms-editor-group" key={id}>
-          <legend>{question.label}</legend>
+        return <BuilderDisclosure key={id} title={question.label || "Untitled question"} detail={locked ? "Core question" : question.required ? "Required" : "Optional"} initiallyOpen={question.label === "New question"}>
+          <fieldset className="cms-editor-group"><legend className="twe-visually-hidden">{question.label}</legend>
           <TextField label="Question label" value={question.label} maxLength={240} required disabled={blocked} onChange={event=>field(id,item=>({...item,label:event.target.value}))}/>
           <TextareaField label="Description" value={question.description} maxLength={2000} disabled={blocked} onChange={event=>field(id,item=>({...item,description:event.target.value}))}/>
           <SelectField label="Answer type" value={question.type} disabled={blocked||locked} onChangeValue={type=>field(id,item=>({...item,type,options:choice(type)?(choice(item.type)?item.options:["Choice 1","Choice 2"]):[]}))}>{types.map(([value,label])=><option key={value} value={value}>{label}</option>)}</SelectField>
@@ -76,10 +77,10 @@ export default function DetailedQuestionFields({ definition, edit, blocked }) {
             <Button type="button" icon="down" disabled={blocked||position===step.questionIds.length-1} onClick={()=>stepEdit(step.id,item=>({...item,questionIds:reorder(item.questionIds,position,1)}))}>Move question down</Button>
             {!locked&&<Button type="button" icon="close" disabled={blocked||step.questionIds.length===1} onClick={()=>edit(body=>clean({...body,steps:body.steps.map(item=>item.id===step.id?{...item,questionIds:item.questionIds.filter(value=>value!==id)}:item)}))}>Remove question</Button>}
           </div>
-        </fieldset>;
+        </fieldset></BuilderDisclosure>;
       })}
       <Button type="button" icon="plus" disabled={blocked||definition.questions.length>=100||step.questionIds.length>=50} onClick={()=>appendQuestion(step.id)}>Add question</Button>
-    </fieldset>)}
+    </fieldset></BuilderDisclosure>)}
     <Button type="button" icon="plus" disabled={blocked||definition.steps.length>=40||definition.questions.length>=100} onClick={addStep}>Add step</Button>
   </div>;
 }

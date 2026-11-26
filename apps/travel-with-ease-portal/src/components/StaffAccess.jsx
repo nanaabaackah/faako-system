@@ -10,6 +10,8 @@ import {
   ERPConfirmDialog,
 } from "@faako/ui";
 import Invitations from "./Invitations.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
+import "../styles/activity.css";
 import "../styles/activation.css";
 
 export default function StaffAccess({ api, session }) {
@@ -24,6 +26,9 @@ export default function StaffAccess({ api, session }) {
   const owner = session.user.role === "owner";
   const allowed = owner || session.user.role === "platform_admin";
   const canAssign = session.user.permissions?.includes('staff.roles.manage');
+  const [search,setSearch]=useState("");
+  const [staffStatus,setStaffStatus]=useState("all");
+  const [expandedStaff,setExpandedStaff]=useState(null);
   const [roleTarget,setRoleTarget]=useState(null);
   const [nextRole,setNextRole]=useState('editor');
   const [approval,setApproval]=useState('');
@@ -62,14 +67,17 @@ export default function StaffAccess({ api, session }) {
     setBusy(true);
     setMessage("");
     try {
-      const result = await api.post(`/api/agent/administration/${path}`, {
+      await api.post(`/api/agent/administration/${path}`, {
         json,
         responseMode: "data",
         headers: { "X-CSRF-Token": session.csrfToken },
       });
-      await load();
+      // A successful mutation must not be mistaken for a failed write when
+      // refreshing the roster fails.
+      try { await load(); }
+      catch { setMessage("Action recorded. Refresh staff before making another change."); return true; }
       setMessage(
-        `Action recorded${path === "support-grants" ? `; support grant ${result.id} expires within 15 minutes` : ""}.`,
+        path === "support-grants" ? "Support access approved for 15 minutes." : "Action recorded.",
       );
       return true;
     } catch (error) {
@@ -84,7 +92,7 @@ export default function StaffAccess({ api, session }) {
   return (
     <section className="staff-workspace" aria-labelledby="staff-access-heading">
       <div className="workspace-intro">
-        <h2 id="staff-access-heading">Your team, with the right access</h2>
+        <h2 id="staff-access-heading">Staff accounts</h2>
       </div>
       {loading ? (
         <AnimatedLoadingState
@@ -97,24 +105,91 @@ export default function StaffAccess({ api, session }) {
           <KpiCard
             label="Staff accounts"
             value={staff.length}
-            detail="Accounts returned for this workspace"
-          />
+           />
           <KpiCard
             label="Active"
             value={staff.filter((user) => user.active).length}
-            detail="Currently enabled"
-          />
+           />
           <KpiCard
             label="Editors"
             value={staff.filter((user) => user.role === "editor").length}
-            detail="Business content role"
-          />
+           />
         </div>
       )}
       {message && (
         <InlineNotice title="Staff access result" message={message} />
       )}
-      {allowed && <Invitations api={api} session={session} />}
+      <div className="twe-admin-toolbar">
+        <TextField label="Search staff" value={search} onChange={event => setSearch(event.target.value)}/>
+        <SelectField label="Account status" value={staffStatus} onChangeValue={setStaffStatus} options={[{value:"all",label:"All accounts"},{value:"active",label:"Active"},{value:"inactive",label:"Inactive"}]}/>
+        <Button type="button" icon="refresh" disabled={busy || loading} onClick={async () => { setLoading(true); setMessage(""); try { await load(); } catch { setMessage("Staff information is unavailable. Check your session."); } finally { setLoading(false); } }}>Refresh staff</Button>
+      </div>
+      {!loading && <ul className="staff-list twe-admin-staff-list">
+        {staff.filter(user => (staffStatus === "all" || (staffStatus === "active") === user.active) &&
+          [user.id, user.role === "platform_admin" ? "Superadmin" : user.role].some(value => String(value).toLowerCase().includes(search.trim().toLowerCase()))).map((user) => (
+          <li key={user.id}>
+            <button type="button" className="twe-admin-staff-row" aria-expanded={expandedStaff === user.id}
+              onClick={() => setExpandedStaff(current => current === user.id ? null : user.id)}>
+              <NavigationIcon name="staff"/>
+              <span className="staff-identity">
+                <strong>{user.role === "platform_admin" ? "Superadmin" : user.role.replaceAll("_", " ")}</strong>
+                <small>{user.id === session.user.id ? "Your account" : user.id}</small>
+              </span>
+              <StatusPill tone={user.active ? "success" : "neutral"}>{user.active ? "Active" : "Inactive"}</StatusPill>
+              <NavigationIcon name={expandedStaff === user.id ? "down" : "arrow"}/>
+            </button>
+            {expandedStaff === user.id && <div className="twe-admin-staff-detail">
+              <dl><dt>Account reference</dt><dd><code>{user.id}</code></dd></dl>
+              {owner && user.role === "platform_admin" && user.active && <TextField label="Approved support ticket reference" maxLength={120} value={reason} onChange={event => setReason(event.target.value)} placeholder="SUP-123"/>}
+              <div className="editor-actions">
+            {['editor','owner'].includes(user.role) && (user.role === 'editor' || canAssign) && (
+              <Button
+                variant={user.active ? "danger" : "primary"}
+                type="button"
+                disabled={busy}
+                onClick={() => setAccessConfirmation({ title: `${user.active ? "Revoke" : "Activate"} ${user.role} access?`, message: "Existing sessions will be revoked.", label: user.active ? "Revoke access" : "Activate", run: () => mutate(`staff/${user.id}/status`, { active: !user.active }) })}
+              >
+                {user.active ? "Revoke access" : "Activate"}
+              </Button>
+            )}
+            {canAssign && ['owner','editor'].includes(user.role) && (
+              <Button icon="staff" type="button" disabled={busy} onClick={()=>{setRoleTarget(user);setNextRole(user.role==='owner'?'editor':'owner');setApproval('');}}>Change role</Button>
+            )}
+            {(!owner || user.role === "editor") && (
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={() => setAccessConfirmation({ title: "Revoke staff sessions?", message: "This ends the staff member’s local sessions and support grants.", label: "Revoke sessions", run: () => mutate(`staff/${user.id}/revoke-sessions`, {}) })}
+              >
+                Revoke sessions
+              </Button>
+            )}
+            {owner && user.role === "platform_admin" && user.active && (
+              <Button
+                type="button"
+                disabled={
+                  busy || !/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/.test(reason)
+                }
+                onClick={() => setAccessConfirmation({ title: "Approve temporary support access?", message: "This permits read-only private client-record access for 15 minutes and will be audited.", label: "Approve support access", run: () => mutate("support-grants", {
+                      userId: user.id,
+                      reasonReference: reason,
+                      minutes: 15,
+                    }) })}
+              >
+                Approve 15-minute support
+              </Button>
+            )}
+              </div>
+            </div>}
+          </li>
+        ))}
+        {!staff.some(user => (staffStatus === "all" || (staffStatus === "active") === user.active) &&
+          [user.id, user.role === "platform_admin" ? "Superadmin" : user.role].some(value => String(value).toLowerCase().includes(search.trim().toLowerCase()))) && <li className="twe-admin-empty">No matching staff accounts.</li>}
+      </ul>}
+      <details className="twe-admin-disclosure">
+        <summary><span>Invitations and access setup</span><NavigationIcon name="arrow"/></summary>
+        <div className="twe-admin-disclosure-body">
+      <Invitations api={api} session={session} />
       {owner && !staff.some((user) => user.active && user.role === "platform_admin") && (
         <form
           className="staff-provision"
@@ -173,65 +248,9 @@ export default function StaffAccess({ api, session }) {
           </Button>
         </form>
       )}
-      {owner && (
-        <TextField
-          label="Approved support ticket reference"
-          maxLength={120}
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="SUP-123"
-        />
-      )}
-      <ul className="staff-list">
-        {staff.map((user) => (
-          <li key={user.id}>
-            <div className="staff-identity">
-              <strong>{user.role === "platform_admin" ? "Superadmin" : user.role.replaceAll("_", " ")}</strong>
-              <code>{user.id}</code>
-            </div>
-            <StatusPill tone={user.active ? "success" : "neutral"}>
-              {user.active ? "Active" : "Inactive"}
-            </StatusPill>
-            {['editor','owner'].includes(user.role) && (user.role === 'editor' || canAssign) && (
-              <Button
-                variant={user.active ? "danger" : "primary"}
-                type="button"
-                disabled={busy}
-                onClick={() => setAccessConfirmation({ title: `${user.active ? "Revoke" : "Activate"} ${user.role} access?`, message: "Existing sessions will be revoked.", label: user.active ? "Revoke access" : "Activate", run: () => mutate(`staff/${user.id}/status`, { active: !user.active }) })}
-              >
-                {user.active ? "Revoke access" : "Activate"}
-              </Button>
-            )}
-            {canAssign && ['owner','editor'].includes(user.role) && (
-              <Button icon="staff" type="button" disabled={busy} onClick={()=>{setRoleTarget(user);setNextRole(user.role==='owner'?'editor':'owner');setApproval('');}}>Change role</Button>
-            )}
-            {(!owner || user.role === "editor") && (
-              <Button
-                type="button"
-                disabled={busy}
-                onClick={() => setAccessConfirmation({ title: "Revoke staff sessions?", message: "This ends the staff member’s local sessions and support grants.", label: "Revoke sessions", run: () => mutate(`staff/${user.id}/revoke-sessions`, {}) })}
-              >
-                Revoke sessions
-              </Button>
-            )}
-            {owner && user.role === "platform_admin" && user.active && (
-              <Button
-                type="button"
-                disabled={
-                  busy || !/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/.test(reason)
-                }
-                onClick={() => setAccessConfirmation({ title: "Approve temporary support access?", message: "This permits read-only private client-record access for 15 minutes and will be audited.", label: "Approve support access", run: () => mutate("support-grants", {
-                      userId: user.id,
-                      reasonReference: reason,
-                      minutes: 15,
-                    }) })}
-              >
-                Approve 15-minute support
-              </Button>
-            )}
-          </li>
-        ))}
-      </ul>
+ 
+        </div>
+      </details>
       <ERPConfirmDialog open={Boolean(roleTarget)} title="Change staff role" confirmTone="primary" confirmLabel="Confirm role change" loading={busy}
         disabled={!/^[A-Za-z0-9][A-Za-z0-9._/-]{2,119}$/.test(approval)||nextRole===roleTarget?.role}
         onCancel={()=>setRoleTarget(null)} onClose={()=>{if(!busy)setRoleTarget(null);}}

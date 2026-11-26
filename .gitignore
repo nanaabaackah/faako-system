@@ -28,3 +28,6 @@ SECURITY_AUDIT.md
 
 # Rebuilt from approved TTNGH source logo during Astro dev/build
 apps/ttngh/public/images/brand/ttngh-logo-header.webp
+
+# Verified Fontsource assets prepared locally by the TWE portal Vite config.
+apps/travel-with-ease-portal/public/fonts/twe/

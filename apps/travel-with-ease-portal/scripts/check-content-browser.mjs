@@ -1,3 +1,4 @@
+import { navigateWorkspace } from "./navigate-workspace.mjs";
 // Tests exercise the real API client; fixtures are not application code.
 import { mockWorkspaceApi } from "../test/fixtures/browser-api.js";
 import { createRequire } from "node:module";
@@ -19,7 +20,7 @@ const browser = await chromium.launch({
     : {}),
 });
 try {
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of [320, 390, 600, 768, 1024, 1440]) {
     console.log("Checking isolated CMS content at " + width + "px");
     const context = await browser.newContext({
       viewport: { width, height: 900 },
@@ -29,11 +30,11 @@ try {
     const page = await context.newPage();
     const requests = [];
     const writes = [];
-    const navigate=async(name)=>{let button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();if(!await button.count()){await page.getByRole('button',{name:/^Menu/}).click();button=page.getByRole('button',{name,exact:true}).filter({visible:true}).first();}await button.click();};
+    const navigate = name => navigateWorkspace(page, name);
     await mockWorkspaceApi(page, {role: "owner", requests, writes, templateDelay: 100, contentDelay: 200});
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
-    if (width <= 800) {
+    if (width <= 900) {
       const nav = page.locator(".twe-bottom-nav");
       const navBox = await nav.boundingBox();
       assert.ok(Math.abs(navBox.x + navBox.width / 2 - width / 2) <= 1, "Floating navigation is centred");
@@ -47,15 +48,28 @@ try {
     await page.getByRole("button", { name: "Open new enquiries", exact: true }).click();
     await filteredRequest;
     await expect(page.getByRole("button", { name: "Status", exact: true })).toContainText("new");
-    await navigate(width <= 800 ? "Home" : "Overview");
+    await navigate(width <= 900 ? "Home" : "Overview");
+    // A failing summary must not prevent unrelated CMS or recent-enquiry data from loading.
+    await page.route("**/api/agent/inquiries/summary", route => route.fulfill({
+      status: 503, json: { ok: false, error: { code: "service_unavailable", message: "Synthetic summary outage" } },
+    }));
+    await page.locator(".dashboard-toolbar").getByRole("button", { name: "Refresh", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Open new enquiries", exact: true })).toContainText("Unavailable");
+    await expect(page.getByRole("button", { name: "Open website drafts", exact: true })).not.toContainText("Unavailable");
+    await expect(page.getByRole("heading", { name: "Recent enquiries", exact: true })).toBeVisible();
+    await page.unroute("**/api/agent/inquiries/summary");
     await page.getByRole("button", { name: "Open website drafts", exact: true }).click();
     await page.getByRole("heading", { name: "Pages with drafts", exact: true }).waitFor();
     await page.getByRole("button", { name: /^About · Version/ }).click();
     await expect(page.getByRole("button", { name: "Section", exact: true })).toContainText("About");
     await navigate("Account");
-    await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Account settings", exact: true, level: 2 }).waitFor();
+    await expect(page.locator(".account-summary")).toContainText("Session expires:");
     assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");
-    assert.equal(await page.locator(".account-details").getByText("synthetic-workspace", { exact: true }).isVisible(), true);
+    const workspaceReference = page.locator(".account-workspace details").filter({ hasText: "Workspace reference" });
+    await expect(workspaceReference.getByText("synthetic-workspace", { exact: true })).toBeHidden();
+    await workspaceReference.locator("summary").click();
+    await expect(workspaceReference.getByText("synthetic-workspace", { exact: true })).toBeVisible();
     await page.locator(".account-workspace").getByRole("button", { name: "Sign out all devices", exact: true }).click();
     const signOutDialog = page.locator(".ui-erp-dialog-backdrop");
     await signOutDialog.getByRole("button", { name: "Cancel", exact: true }).click();
@@ -66,10 +80,31 @@ try {
     for (const label of ["Packages", "Journal", "Travel Tips", "Footprint"]) {
       assert.equal(await page.locator(".portal-shell > aside nav").getByRole("button", { name: label, exact: true }).count(), 0, "Collections stay inside Content");
     }
+    const commands = page.locator(".twe-cms-command-bar");
+    await expect(commands.getByRole("button", { name: "Save draft", exact: true })).toBeVisible();
+    assert.equal(await commands.evaluate(node => getComputedStyle(node).position), "sticky");
+    await page.getByRole("navigation", { name: "Current page sections" }).getByRole("button", { name: "SEO", exact: true }).click();
+    await expect(page.locator('[data-cms-section="seo"]')).toBeFocused();
+    await expect(page.getByLabel("SEO title")).toBeVisible();
+    const disclosure = page.locator(".twe-cms-workspace .twe-builder-disclosure").first();
+    if (await disclosure.count()) {
+      if (!(await disclosure.evaluate(node => node.open))) await disclosure.locator("summary").click();
+      await expect(disclosure).toHaveAttribute("open", "");
+      await disclosure.locator("summary").click();
+      await expect(disclosure).not.toHaveAttribute("open", "");
+      await disclosure.locator("summary").click();
+      await expect(disclosure).toHaveAttribute("open", "");
+    }
+    await page.getByRole("navigation", { name: "Current page sections" }).getByRole("button", { name: "Page content", exact: true }).click();
+    // The outline intentionally moves focus on the next animation frame.
+    // Wait for that focus transfer before testing the field's own focus ring.
+    await expect(page.locator('[data-cms-section="copy"]')).toBeFocused();
     const headingInput = page.getByLabel(/^Heading/);
     assert.equal(await headingInput.evaluate(element => getComputedStyle(element).borderTopWidth), "0px", "No nested input border");
+    await expect(headingInput).toBeEnabled();
     await headingInput.focus();
-    assert.equal(await headingInput.evaluate(element => getComputedStyle(element.closest(".ui-field__control")).outlineWidth), "3px", "Wrapper keeps visible focus");
+    await expect(headingInput).toBeFocused();
+    await expect(headingInput.locator("xpath=ancestor::*[contains(concat(' ',normalize-space(@class),' '),' ui-field__control ')][1]")).toHaveCSS("outline-width", "3px");
     const select = async (value) => {
       await page.getByRole("button", { name: "Section", exact: true }).click();
       const label = value.replaceAll("-", " ");
@@ -81,6 +116,9 @@ try {
     assert.equal(await page.getByRole("option", { name: "Travel tips", exact: true }).count(), 1,
       "Travel Tips remains available as its own CMS collection");
     await page.getByRole("option", { name: "Journal", exact: true }).click();
+    const articleRecord = page.getByRole("region", {name:"Journal articles",exact:true}).locator(".twe-builder-disclosure").first();
+    await articleRecord.waitFor();
+    if (!(await articleRecord.evaluate(node => node.open))) await articleRecord.locator("summary").click();
     await page.getByLabel("Travel tip series").first().waitFor();
     await page.getByLabel("Website CTA button text (optional)").first().waitFor();
     await page.getByRole("group", { name: "Article card & listing", exact: true }).first().getByLabel(/^Article title/).fill("Changed demo article");
@@ -107,6 +145,10 @@ try {
       .getByRole("heading", { name: "Changed demo article", exact: true })
       .waitFor();
     await select("travel-footprint");
+    const countryField = page.getByLabel(/^Combined verified total/).first();
+    await countryField.waitFor({state:"attached"});
+    const countryRecord = countryField.locator("xpath=ancestor::details[1]");
+    if (!(await countryRecord.evaluate(node => node.open))) await countryRecord.locator("summary").click();
     await page
       .getByLabel(/^Combined verified total/)
       .first()
@@ -159,15 +201,9 @@ try {
     await page
       .getByRole("button", { name: "Refresh Drive folder", exact: true })
       .click();
-    await page
-      .getByRole("button", { name: "Drive image", exact: true })
-      .click();
-    await page
-      .getByRole("option", {
-        name: "Demo photo — no Drive connection",
-        exact: true,
-      })
-      .click();
+    const driveCard = page.getByRole("button", { name: /^Demo photo — no Drive connection/ });
+    await driveCard.click();
+    await expect(driveCard).toHaveAttribute("aria-pressed", "true");
     const driveForm = page.getByRole("group", {
       name: "Import from the approved folder",
       exact: true,
@@ -216,6 +252,13 @@ try {
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     assert.ok(requests.length > 0, "Actual API client exercised against isolated HTTP fixtures");
     await navigate("Templates");
+    await page.getByRole("button", { name: "Browse templates", exact: true }).click();
+    const templateCatalogue = page.getByRole("region", { name: "Template catalogue" });
+    await templateCatalogue.getByLabel("Search templates").fill("Enquiry acknowledgement");
+    const selectedTemplate = templateCatalogue.getByRole("button", { name: "Enquiry acknowledgement", exact: true });
+    await expect(selectedTemplate).toHaveAttribute("aria-current", "true");
+    await selectedTemplate.click();
+    await expect(templateCatalogue).toHaveCount(0);
     await page.getByLabel(/^Heading/).fill("Synthetic acknowledgement");
     await page.getByRole("button", { name: "Preview email", exact: true }).click();
     await page.frameLocator('iframe[title="Enquiry acknowledgement preview"]')
@@ -286,7 +329,7 @@ try {
   console.log(
     JSON.stringify({
       passed: true,
-      widths: [320, 390, 768, 1440],
+      widths: [320, 390, 600, 768, 1024, 1440],
       screenshots: output,
       scope: "Real portal components and API transport using isolated Playwright HTTP fixtures",
     }),

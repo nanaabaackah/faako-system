@@ -21,6 +21,7 @@ export class MediaService {
     this.drive = drive;
     this.processing = 0;
     this.driveImporting = false;
+    this.syncStatus = null;
   }
   async list() {
     const { rows } = await this.pool.query(
@@ -30,6 +31,7 @@ export class MediaService {
     return {
       configured: Boolean(this.store),
       driveConfigured: Boolean(this.store && this.drive),
+      ...(this.syncStatus ? { driveSync: this.syncStatus() } : {}),
       items: rows,
     };
   }
@@ -49,6 +51,7 @@ export class MediaService {
     requestId,
     replaceId,
     source = null,
+    automatic = false,
   ) {
     if (!this.store)
       throw new ContentError(
@@ -68,6 +71,8 @@ export class MediaService {
         "rate_limited",
         "Image processing is busy. Please retry shortly.",
       );
+    if (!actor.id && (!automatic || !source || actor.id !== null))
+      throw new ContentError(403, "permission_error", "Media creator is required.");
     const fields = mediaMetadataSchema.parse(metadata);
     this.processing += 1;
     const keys = [];
@@ -91,8 +96,8 @@ export class MediaService {
       const original = outputs.at(-1);
       await transaction(this.pool, async (client) => {
         await client.query(
-          `INSERT INTO twe.media (id, organisation_id, object_key, mime_type, byte_size, width, height, alt_text, rights, derivatives, created_by)
-          VALUES ($1, $2, $3, 'image/webp', $4, $5, $6, $7, $8, $9, $10)`,
+          `INSERT INTO twe.media (id, organisation_id, object_key, mime_type, byte_size, width, height, alt_text, rights, derivatives, created_by, source_folder_id, source_file_id, source_version, source_checksum)
+          VALUES ($1, $2, $3, 'image/webp', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
           [
             id,
             this.organisationId,
@@ -104,25 +109,18 @@ export class MediaService {
             fields.rights,
             JSON.stringify(variants),
             actor.id,
+            source?.folderId ?? null,
+            source?.fileId ?? null,
+            source?.version ?? null,
+            source?.checksum ?? null,
           ],
         );
-        if (source)
-          await client.query(
-            "UPDATE twe.media SET source_folder_id=$1, source_file_id=$2, source_version=$3, source_checksum=$4 WHERE organisation_id=$5 AND id=$6",
-            [
-              source.folderId,
-              source.fileId,
-              source.version,
-              source.checksum,
-              this.organisationId,
-              id,
-            ],
-          );
         await appendAudit(client, {
           organisationId: this.organisationId,
           actorId: actor.id,
-          action: source
-            ? "media.drive_imported"
+          action: automatic
+            ? "media.drive_synced"
+            : source ? "media.drive_imported"
             : replaceId
               ? "media.replacement_created"
               : "media.uploaded",
@@ -203,6 +201,13 @@ export class MediaService {
     return rows[0];
   }
   async importDrive(input, actor, requestId) {
+    return this.#importDrive(input, actor, requestId, false);
+  }
+  // Server scheduler only. No HTTP route accepts a system identity or this flag.
+  async syncDrive(input, requestId) {
+    return this.#importDrive(input, { id: null, organisationId: this.organisationId }, requestId, true);
+  }
+  async #importDrive(input, actor, requestId, automatic) {
     if (actor.organisationId !== this.organisationId)
       throw new ContentError(
         403,
@@ -221,10 +226,6 @@ export class MediaService {
         "rate_limited",
         "A Drive image is already being imported. Wait for it to finish.",
       );
-    const fields = mediaMetadataSchema.parse({
-      alt: input.alt,
-      rights: 'TWE-owned photography; approved TWE Drive folder.',
-    });
     this.driveImporting = true;
     try {
       const file = await this.drive.metadata(input.fileId);
@@ -242,6 +243,12 @@ export class MediaService {
       };
       const existing = await this.driveRevision(source);
       if (existing) return { id: existing.id, unchanged: true };
+      const alt = automatic ? file.description?.trim() : input.alt;
+      if (automatic && (!alt || alt.length > 500)) return { needsDescription: true };
+      const fields = mediaMetadataSchema.parse({
+        alt,
+        rights: 'TWE-owned photography; approved TWE Drive folder.',
+      });
       const bytes = await this.drive.download(file);
       try {
         const asset = await this.upload(
@@ -252,6 +259,7 @@ export class MediaService {
           requestId,
           null,
           source,
+          automatic,
         );
         return { ...asset, unchanged: false };
       } catch (error) {

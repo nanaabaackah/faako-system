@@ -1,5 +1,6 @@
 import Button from "./ActionButton.jsx";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import "../styles/dashboard-navigation.css";
 import {
   SelectField,
   TextField,
@@ -23,23 +24,30 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
   const [service, setService] = useState("");
   const [packageFilter, setPackageFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [advancedFilters, setAdvancedFilters] = useState(false);
   const [offset, setOffset] = useState(0);
   const [result, setResult] = useState({ items: [], nextOffset: null });
   const [selectedId, setSelectedId] = useState(initialEnquiryId);
   const [selected, setSelected] = useState(null);
   const [revision, setRevision] = useState(0);
-  const [busy, setBusy] = useState(false);
+  const [listBusy, setListBusy] = useState(true);
+  const [detailBusy, setDetailBusy] = useState(Boolean(initialEnquiryId));
+  const [listError, setListError] = useState("");
+  const busy = listBusy || detailBusy;
+  const detailRef = useRef(null);
+  const rowRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     onRefreshBlockedChange?.(busy || saving);
     return () => onRefreshBlockedChange?.(false);
   }, [busy, saving, onRefreshBlockedChange]);
+  // Keep the list mounted independently of the selected detail. Changing
+  // selection never refetches or resets the current page and filters.
   useEffect(() => {
     let active = true;
-    setBusy(true);
-    setError("");
-    setSelected(null);
+    setListBusy(true);
+    setListError("");
     const query = new URLSearchParams({
       offset: String(offset),
       ...(status ? { status } : {}),
@@ -48,26 +56,37 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
       ...(packageFilter ? { package: packageFilter } : {}),
       ...(search ? { search } : {}),
     });
-    const request = selectedId
-      ? api.get(`/api/agent/inquiries/${selectedId}`, { responseMode: "data" })
-      : api.get(`/api/agent/inquiries?${query}`, { responseMode: "data" });
-    request
-      .then((data) => {
-        if (active) {
-          if (selectedId) setSelected(data);
-          else setResult(data);
-        }
-      })
-      .catch((err) => {
-        if (active) setError(err.message);
-      })
-      .finally(() => {
-        if (active) setBusy(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [api, offset, status, category, service, packageFilter, search, selectedId, revision]);
+    api.get(`/api/agent/inquiries?${query}`, { responseMode: "data" })
+      .then(data => { if (active) setResult(data); })
+      .catch(() => { if (active) setListError("Enquiries could not load. Try refreshing."); })
+      .finally(() => { if (active) setListBusy(false); });
+    return () => { active = false; };
+  }, [api, offset, status, category, service, packageFilter, search, revision]);
+  useEffect(() => {
+    let active = true;
+    setError("");
+    setSelected(null);
+    if (!selectedId) { setDetailBusy(false); return; }
+    setDetailBusy(true);
+    api.get(`/api/agent/inquiries/${selectedId}`, { responseMode: "data" })
+      .then(data => { if (active) setSelected(data); })
+      .catch(err => { if (active) setError(err.message); })
+      .finally(() => { if (active) setDetailBusy(false); });
+    return () => { active = false; };
+  }, [api, selectedId, revision]);
+  const chooseEnquiry = (id, event) => {
+    if (saving || id === selectedId) return;
+    rowRef.current = event.currentTarget;
+    setSelectedId(id);
+    requestAnimationFrame(() => {
+      if (matchMedia("(max-width: 1199px)").matches) detailRef.current?.focus();
+    });
+  };
+  const closeDetail = () => {
+    if (saving) return;
+    setSelectedId(null);
+    requestAnimationFrame(() => rowRef.current?.focus());
+  };
   async function changeStatus(nextStatus) {
     setSaving(true);
     setError("");
@@ -90,16 +109,8 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
       className="content-editor enquiries-workspace"
       aria-labelledby="enquiries-heading"
     >
-      <div className="workspace-intro">
+      <div className="enquiry-workspace-toolbar">
         <h2 id="enquiries-heading">Traveller inbox</h2>
-      </div>
-      {error && (
-        <InlineNotice
-          tone="danger"
-          title="Enquiry request unsuccessful"
-          message={error}
-        />
-      )}
       <Button
         icon="refresh"
         type="button"
@@ -108,17 +119,22 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
       >
         Refresh
       </Button>
+      </div>
+      <div className={`enquiry-workspace-split${selectedId ? " has-selection" : ""}`}>
+        <div className="enquiry-workspace-detail" ref={detailRef} tabIndex={-1} aria-label="Enquiry details">
       {selectedId ? (
         <>
           <Button
             icon="back"
             type="button"
             disabled={saving}
-            onClick={() => setSelectedId(null)}
+            onClick={closeDetail}
           >
             Back to enquiries
           </Button>
-          {selected && (
+          {error && <InlineNotice tone="danger" title="Enquiry request unsuccessful" message={error}/>}
+          {detailBusy && <AnimatedLoadingState compact title="Loading enquiry"/>}
+          {selected?.id === selectedId && (
             <article className="enquiry-detail">
               <header className="enquiry-detail-heading">
                 <div>
@@ -224,8 +240,9 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
             </article>
           )}
         </>
-      ) : (
-        <>
+      ) : <div className="enquiry-empty-detail"><h3>Select an enquiry</h3></div>}
+        </div>
+        <div className="enquiry-workspace-list">
           <div className="workspace-filters" data-tour="enquiry-filters">
             <SelectField
               label="Status"
@@ -242,6 +259,10 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
                 </option>
               ))}
             </SelectField>
+            <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
+            <Button type="button" icon={advancedFilters ? "up" : "down"} aria-expanded={advancedFilters}
+              onClick={() => setAdvancedFilters(value => !value)}>More filters{[category,service,packageFilter].filter(Boolean).length ? " (" + [category,service,packageFilter].filter(Boolean).length + ")" : ""}</Button>
+            {advancedFilters && <>
             <SelectField
               label="Enquiry category"
               value={category}
@@ -261,9 +282,12 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
               {serviceOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </SelectField>
             <TextField label="Package" value={packageFilter} onChange={(event) => { setPackageFilter(event.target.value); setOffset(0); }} placeholder="Package name or ID" />
-            <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
+            <Button type="button" variant="ghost" disabled={!category && !service && !packageFilter} onClick={() => { setCategory(""); setService(""); setPackageFilter(""); setOffset(0); }}>Clear additional filters</Button>
+            </>}
           </div>
-          {!busy && !error && (
+          {listError && <InlineNotice tone="danger" title="Enquiries unavailable" message={listError}/>}
+          {listBusy && <AnimatedLoadingState compact title="Loading enquiries"/>}
+          {!listBusy && !listError && (
             <div className="workspace-kpis" aria-label="Counts on this page">
               {statuses.map((value) => (
                 <button type="button" className="twe-kpi-link" key={value} onClick={() => { setStatus(value); setOffset(0); }} aria-pressed={status === value} aria-label={`Filter ${value} enquiries`}><KpiCard
@@ -276,14 +300,14 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
               ))}
             </div>
           )}
-          {!busy && !error && !result.items.length && (
+          {!listBusy && !listError && !result.items.length && (
             <p>No enquiries match these filters.</p>
           )}
-          {!busy && !error && (
+          {!listBusy && !listError && (
             <ul className="enquiry-list">
               {result.items.map((item) => (
                 <li key={item.id}>
-                  <button className="enquiry-row-action" type="button" onClick={() => setSelectedId(item.id)} aria-label={`Open enquiry from ${item.contact.name || "Traveller"}`}>
+                  <button className="enquiry-row-action" type="button" disabled={saving} aria-current={selectedId === item.id ? "true" : undefined} onClick={event => chooseEnquiry(item.id, event)} aria-label={`Open enquiry from ${item.contact.name || "Traveller"}`}>
                     <strong className="enquiry-row-action__name">{item.demo ? "[STAGING DEMO] " : ""}{item.contact.name || "Traveller"}</strong>
                     <span className="enquiry-summary">{item.package || item.service || item.category}</span>
                     <span className="enquiry-meta">
@@ -299,8 +323,8 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
                       {item.status}
                     </StatusPill>
                     <time dateTime={item.created_at}>
-                      {new Date(item.created_at).toLocaleString("en-GH", {
-                        timeZone: "Africa/Accra",
+                      {new Date(item.created_at).toLocaleDateString("en-GH", {
+                        timeZone: "Africa/Accra", day:"numeric", month:"short", year:"numeric",
                       })}
                     </time>
                     </span>
@@ -326,19 +350,9 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
               Next
             </Button>
           </div>
-        </>
-      )}
-      {(busy || saving) && (
-        <AnimatedLoadingState
-          compact
-          title={saving ? "Saving status" : "Loading enquiries"}
-          message={
-            saving
-              ? "Saving status…"
-              : "Loading enquiries…"
-          }
-        />
-      )}
+        </div>
+      </div>
+      {saving && <AnimatedLoadingState compact title="Saving status"/>}
     </section>
   );
 }

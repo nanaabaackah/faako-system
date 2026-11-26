@@ -1,3 +1,4 @@
+import { navigateWorkspace } from "./navigate-workspace.mjs";
 // The deployed-bundle change is simulated at the same-origin HTML boundary.
 import { mockWorkspaceApi } from "../test/fixtures/browser-api.js";
 import { createRequire } from "node:module";
@@ -20,14 +21,7 @@ try {
     });
     await page.goto(origin, { waitUntil: "domcontentloaded" });
     await page.locator(".session-toolbar").waitFor();
-    const navigate = async name => {
-      let button = page.getByRole("button", { name, exact: true }).filter({visible:true}).first();
-      if (!await button.count()) {
-        await page.getByRole("button", { name: /^Menu/ }).click();
-        button = page.getByRole("button", { name, exact: true }).filter({visible:true}).first();
-      }
-      await button.click();
-    };
+    const navigate = name => navigateWorkspace(page, name);
     // Hold the first CMS save until the update notice is visible. A failed
     // acknowledgement must also keep the current draft protected.
     let failSave = true;
@@ -78,7 +72,7 @@ try {
     await page.getByRole("button", { name: "Save draft", exact: true }).click();
     await expect(refresh).toBeEnabled();
     await expect(heading).toHaveValue("Pending template update fixture");
-    if (width <= 800) {
+    if (width <= 900) {
       const banner = await notice.boundingBox();
       const nav = await page.locator(".twe-bottom-nav").boundingBox();
       assert.ok(banner && nav && banner.y + banner.height <= nav.y, "Update prompt must not cover mobile navigation");
@@ -119,7 +113,7 @@ try {
       return route.fulfill({ status: 503, json: { ok:false, error:{ code:"service_unavailable", message:"Synthetic template save failure" } } });
     });
     if (dirtyAtDeadline) {
-      await page.getByRole("button", { name: "Templates", exact: true }).filter({ visible: true }).first().click();
+      await navigateWorkspace(page, "Templates");
       await page.getByLabel(/^Heading/).fill("Keep this edit across the deadline");
       await page.clock.runFor(1500);
       await expect(page.getByText("Draft not saved", { exact: true })).toBeVisible();

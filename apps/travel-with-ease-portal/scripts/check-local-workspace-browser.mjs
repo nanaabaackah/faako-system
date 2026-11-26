@@ -1,3 +1,4 @@
+import { navigateWorkspace } from "./navigate-workspace.mjs";
 // Actual local fixture server and portal; no Playwright API interception.
 import { createRequire } from "node:module";
 import { mkdtemp } from "node:fs/promises";
@@ -77,20 +78,7 @@ try {
       path: path.join(output, `dashboard-${width}.png`),
       fullPage: true,
     });
-    const navigate = async (name) => {
-      let button = page
-        .getByRole("button", { name, exact: true })
-        .filter({ visible: true })
-        .first();
-      if (!(await button.count())) {
-        await page.getByRole("button", { name: /^Menu/ }).click();
-        button = page
-          .getByRole("button", { name, exact: true })
-          .filter({ visible: true })
-          .first();
-      }
-      await button.click();
-    };
+    const navigate = name => navigateWorkspace(page, name);
     await navigate("Content");
     await page.getByLabel(/^Heading/).fill("Local-only edited heading");
     await page.waitForFunction(() =>

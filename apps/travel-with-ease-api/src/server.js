@@ -28,6 +28,7 @@ import { PublicationRepository } from "./content/publication.js";
 import { railwaySourceSha } from "./content/source-identity.js";
 import { PreviewService } from "./content/preview.js";
 import { MediaService } from "./media/service.js";
+import { startDriveSync } from "./media/sync.js";
 import { readR2Config, R2Store } from "./media/r2.js";
 import { readDriveConfig, DriveReader } from "./media/drive.js";
 import { prepareHostedStartup } from "./staging-startup.js";
@@ -121,7 +122,13 @@ const app = createApp({ repository, currencyService, estimatorService: new Estim
 const server = app.listen(port, deployed ? undefined : "127.0.0.1", () => logger.info({ port, environment }, "API listening"));
 server.requestTimeout = 30_000;
 server.headersTimeout = 15_000;
+// Optional, bounded background work in the existing API; no extra Railway service.
+const driveSync = deployed && process.env.TWE_DRIVE_SYNC_ENABLED === "true" && mediaService?.drive && mediaSettings
+  ? startDriveSync({ service: mediaService, pool, logger })
+  : null;
+if (mediaService && !driveSync) mediaService.syncStatus = () => ({ enabled: false });
 for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => {
-  server.close(async () => { if (pool) await pool.end(); process.exit(0); });
+  driveSync?.stop();
+  server.close(async () => { await driveSync?.done(); if (pool) await pool.end(); process.exit(0); });
   setTimeout(() => process.exit(1), 10_000).unref();
 });

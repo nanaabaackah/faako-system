@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import {
-  DataTable,
-  SelectField,
+   SelectField,
   DateField,
   InlineNotice,
   AnimatedLoadingState,
 } from "@faako/ui";
 import Button from "./ActionButton.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
 import "../styles/activity.css";
 
 const label = (value) =>
@@ -23,8 +23,7 @@ export function ActivityList({
 }) {
   const [copyError, setCopyError] = useState("");
   const details = (row) => (
-    <details className="activity-details">
-      <summary>Details</summary>
+    <div className="activity-details">
       <dl>
         <dt>Record</dt>
         <dd>
@@ -78,52 +77,24 @@ export function ActivityList({
         )}
       </dl>
       {renderAction?.(row)}
-    </details>
+    </div>
   );
   return (
     <div className="activity-results">
       {copyError && (
         <InlineNotice title="Copy unavailable" message={copyError} />
       )}
-      <div className="activity-desktop">
-        <DataTable
-          title={title}
-          caption={title}
-          rows={items}
-          rowKey="id"
-          state={items.length ? "ready" : "empty"}
-          emptyTitle={emptyTitle}
-          emptyMessage={emptyMessage}
-          columns={[
-            {
-              id: "action",
-              header: "Activity",
-              render: (row) => <strong>{label(row.action)}</strong>,
-            },
-            {
-              id: "date",
-              header: "When",
-              render: (row) => date(row.created_at),
-            },
-            { id: "details", header: "Reference", render: details },
-          ]}
-        />
-      </div>
-      <div className="activity-mobile" role="list" aria-label={title}>
-        {items.length ? (
-          items.map((row) => (
-            <article role="listitem" key={row.id}>
-              <strong>{label(row.action)}</strong>
+      <div className="twe-activity-list" role="list" aria-label={title}>
+        {items.length ? items.map(row => (
+          <details className="twe-admin-disclosure twe-activity-record" role="listitem" key={row.id}>
+            <summary>
+              <span className="twe-activity-action"><NavigationIcon name="content"/><strong>{label(row.action)}</strong></span>
               <time dateTime={row.created_at}>{date(row.created_at)}</time>
-              {details(row)}
-            </article>
-          ))
-        ) : (
-          <div className="activity-empty">
-            <strong>{emptyTitle}</strong>
-            <p>{emptyMessage}</p>
-          </div>
-        )}
+              <NavigationIcon name="arrow"/>
+            </summary>
+            <div className="twe-admin-disclosure-body">{details(row)}</div>
+          </details>
+        )) : <div className="activity-empty"><strong>{emptyTitle}</strong>{emptyMessage && <p>{emptyMessage}</p>}</div>}
       </div>
     </div>
   );
@@ -131,6 +102,7 @@ export function ActivityList({
 
 export default function ActivityView({ api, security = false }) {
   const [filters, setFilters] = useState({ category: "all", from: "", to: "" });
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [query, setQuery] = useState({ category: "all" }),
     [cursor, setCursor] = useState(""),
     [pages, setPages] = useState([]),
@@ -180,12 +152,13 @@ export default function ActivityView({ api, security = false }) {
       aria-label={security ? "Security activity" : "Workspace activity"}
     >
       <h2>{security ? "Security activity" : "Workspace activity"}</h2>
-      <p>
-        {security
-          ? "Authentication, security and technical administration events."
-          : "Changes to this workspace’s content, media, publishing and team access."}
-      </p>
-      <form
+      <div className="twe-admin-toolbar">
+        <Button type="button" icon={filtersOpen ? "up" : "down"} aria-expanded={filtersOpen} onClick={() => setFiltersOpen(value => !value)}>
+          Filters{Object.keys(query).filter(key => key !== "category" || query.category !== "all").length ? ` (${Object.keys(query).filter(key => key !== "category" || query.category !== "all").length})` : ""}
+        </Button>
+        <Button icon="refresh" type="button" disabled={loading} onClick={() => setRefresh(v => v + 1)}>Refresh activity</Button>
+      </div>
+      {filtersOpen && <form
         className="activity-filters"
         onSubmit={(event) => {
           event.preventDefault();
@@ -194,6 +167,7 @@ export default function ActivityView({ api, security = false }) {
           setQuery(
             Object.fromEntries(Object.entries(filters).filter(([, v]) => v)),
           );
+          setFiltersOpen(false);
         }}
       >
         <SelectField
@@ -224,14 +198,8 @@ export default function ActivityView({ api, security = false }) {
         <Button type="submit" icon="filter">
           Apply filters
         </Button>
-      </form>
-      <Button
-        icon="refresh"
-        disabled={loading}
-        onClick={() => setRefresh((v) => v + 1)}
-      >
-        Refresh activity
-      </Button>
+        <Button type="button" variant="ghost" onClick={() => { setFilters({category:"all",from:"",to:""}); setQuery({category:"all"}); setCursor(""); setPages([]); }}>Reset filters</Button>
+      </form>}
       {loading ? (
         <AnimatedLoadingState
           compact
