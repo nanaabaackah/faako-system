@@ -89,3 +89,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.portal-shell .account-summary { border-radius:var(--twe-radius-card); }
+.portal-shell .account-summary h3 { margin:0 0 4px; }
+.portal-shell .account-summary p { overflow-wrap:anywhere; }
+@media(max-width:600px){.portal-shell .account-summary{padding:14px;gap:10px;}.portal-shell .account-summary__icon{width:36px;height:36px;}.portal-shell .account-grid{gap:12px;}}

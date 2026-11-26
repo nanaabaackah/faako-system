@@ -78,8 +78,11 @@ try {
     }
     await navigate("Staff");
     await page
-      .getByRole("heading", { name: "Your team, with the right access" })
+      .getByRole("heading", { name: "Staff accounts", exact: true })
       .waitFor();
+    const staffRow = page.locator(".twe-admin-staff-row").filter({hasText:"demo-editor"}).first();
+    await staffRow.click();
+    assert.equal(await staffRow.getAttribute("aria-expanded"), "true");
     await page
       .getByRole("button", { name: "Change role", exact: true })
       .first()
@@ -123,11 +126,9 @@ try {
         0,
         "Side-only pages must not highlight Overview",
       );
-    await page
-      .getByText("Details", { exact: true })
-      .filter({ visible: true })
-      .first()
-      .click();
+    const activityRecord = page.locator(".twe-activity-record").filter({hasText:"staff · role changed"}).first();
+    await activityRecord.locator("summary").click();
+    assert.equal(await activityRecord.evaluate(node => node.open), true);
     await page
       .getByText("DEMO-ROLE", { exact: true })
       .filter({ visible: true })
