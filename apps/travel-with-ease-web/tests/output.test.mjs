@@ -77,6 +77,8 @@ test("published package itinerary stays visible in static HTML and gallery keeps
   assert.match(html, /Arrive on the north coast/);
   assert.match(html, /Meet your airport transfer/);
   assert.match(html, /twe-package-itinerary/);
+  assert.match(html, /<ol[^>]*class="twe-package-itinerary"/);
+  assert.equal((html.match(/data-itinerary-day="/g) || []).length, 6);
   assert.match(html, /twe-package-gallery__fallback/);
   assert.match(html, /View larger image/);
   assert.match(html, /\/media\/zanzibar-/);
