@@ -63,7 +63,8 @@ try {
     await page.getByRole("button", { name: /^About · Version/ }).click();
     await expect(page.getByRole("button", { name: "Section", exact: true })).toContainText("About");
     await navigate("Account");
-    await page.getByRole("heading", { name: "Account and workspace settings", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "Account settings", exact: true }).waitFor();
+    await expect(page.locator(".account-summary")).toContainText("Session expires:");
     assert.equal(await page.locator(".account-summary").evaluate(node => getComputedStyle(node).backgroundColor), "rgb(1, 12, 51)");
     assert.equal(await page.locator(".account-details").getByText("synthetic-workspace", { exact: true }).isVisible(), true);
     await page.locator(".account-workspace").getByRole("button", { name: "Sign out all devices", exact: true }).click();
