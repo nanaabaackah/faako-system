@@ -111,27 +111,25 @@ test("short enquiry preserves catalogue context while the private page owns the 
   assert.doesNotMatch(enquiry + wizard, /localStorage|sessionStorage/);
 });
 
-test("approved package itineraries use restrained AnimatedList and remain server-rendered", () => {
+test("approved package itineraries reveal on page scroll and remain server-rendered", () => {
   const detail = source("components/PackageDetail.astro");
   const island = source("components/PackageItinerary.jsx");
   const style = source("styles/components/package-itinerary-interactive.css");
   assert.match(detail, /<PackageItinerary[\s\S]*?client:visible/);
   assert.match(detail, /\.sort\(\(a, b\) => a\.day - b\.day\)/);
   assert.doesNotMatch(detail, /<Accordion/);
-  assert.match(island, /import AnimatedList from "\.\/reactbits\/AnimatedList\.jsx"/);
-  assert.match(island, /renderItem=\{item =>/);
-  assert.match(island, /semantic="list"/);
-  assert.match(source("components/reactbits/AnimatedList.jsx"), /role=\{listMode \? 'listitem' : 'option'\}/);
-  assert.match(island, /showGradients=\{false\}/);
-  assert.match(island, /frame=\{false\}/);
-  assert.match(island, /animation="fade"/);
-  assert.match(island, /gap=\{6\}/);
-  assert.match(island, /maxHeight=\{460\}/);
-  assert.match(island, /stagger=\{0\.05\}/);
-  assert.match(style, /overflow-y: auto/);
-  assert.match(style, /background: var\(--al-tile\)/);
-  assert.match(style, /max-height: 460px/);
-  assert.match(style, /animated-list\[data-animated\].*item:not\(\[data-state\]\) \{ opacity: 1; \}/);
+  assert.match(island, /<ol[^>]*role="list"/);
+  assert.match(island, /<li[^>]*role="listitem"/);
+  assert.match(island, /<RichText value=\{day\.text\}/);
+  assert.match(island, /new IntersectionObserver/);
+  assert.match(island, /root: null/);
+  assert.match(island, /observer\.unobserve\(stop\)/);
+  assert.match(island, /observer\?\.disconnect\(\)/);
+  assert.match(island, /prefers-reduced-motion: reduce/);
+  assert.match(style, /@keyframes twe-itinerary-reveal/);
+  assert.match(style, /data-connected.*route::after/);
+  assert.match(style, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.doesNotMatch(island + style, /AnimatedList|max-height:|overflow-y: auto|display: none|visibility: hidden/);
   assert.equal(approved.pages.packages.packages.find(item => item.slug === "zanzibar").itinerary.length, 6);
   assert.equal(approved.pages.packages.packages.find(item => item.slug === "nairobi").itinerary.length, 4);
 });

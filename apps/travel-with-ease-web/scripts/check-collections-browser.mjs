@@ -74,23 +74,34 @@ try {
     await firstTicket.locator(".twe-ticket--front h2 a").click();
     await page.waitForURL("**/packages/zanzibar");
     await page.getByRole("heading", { name: "Zanzibar", exact: true }).waitFor();
-    // Package detail now has the approved static day-by-day content inside
-    // a semantic React Bits AnimatedList, rather than accordion disclosures.
-    const itinerary = page.locator(".twe-package-itinerary [role=list]");
-    await itinerary.scrollIntoViewIfNeeded();
-    assert.equal(await itinerary.locator('[role="listitem"]').count(), 6);
+    // The itinerary uses the page scroll, not a nested scroll window.
+    const itinerary = page.locator(".twe-package-itinerary[role=list]");
+    const days = itinerary.locator('[role="listitem"]');
+    // The surrounding acceptance suite defaults to reduced motion. Test the
+    // actual reveal in normal-motion mode before verifying the accessible fallback.
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await days.first().evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    assert.equal(await days.count(), 6);
     await expect(itinerary).toContainText("Arrive on the north coast");
     await expect(itinerary).toContainText("Homeward");
     await page.waitForFunction(() => {
       const island = document.querySelector("#package-itinerary astro-island");
       return Boolean(island && !island.hasAttribute("ssr"));
     }, null, { timeout: 20000 });
-    const daysViewport = itinerary; // role=list is AnimatedList's scroll viewport
-    await expect(daysViewport).toHaveCSS("overflow-y", "auto");
-    assert.equal(await daysViewport.evaluate(el => el.scrollHeight > el.clientHeight), true,
-      "The published itinerary has a dedicated scroll window for the fade reveal");
-    await daysViewport.evaluate(el => { el.scrollTop = el.scrollHeight; });
-    await expect(itinerary.locator('[role="listitem"]').last()).toHaveAttribute("data-state", "in");
+    await days.first().evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await expect(days.first()).toHaveAttribute("data-revealed", "true");
+    assert.equal(await itinerary.evaluate(el => el.scrollHeight <= el.clientHeight + 1), true,
+      "All itinerary days occupy normal document flow");
+    await days.last().evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
+    await expect(days.last()).toHaveAttribute("data-revealed", "true");
+    await expect(days.first()).toHaveAttribute("data-connected", "true");
+    await expect(days.first()).toHaveAttribute("data-revealed", "true");
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(days.last().locator(".twe-package-itinerary__entry")).toHaveCSS("animation-name", "none");
+    await expect(days.last().locator(".twe-package-itinerary__entry")).toHaveCSS("opacity", "1");
+    await expect(days.first()).not.toHaveAttribute("data-revealed", "true");
+    await expect(days.last()).not.toHaveAttribute("data-revealed", "true");
+    // Keep the remainder of the acceptance suite in its original reduced-motion mode.
     // Masonry hydrates after its island becomes visible; its SSR gallery links
     // remain readable and clickable while the layout and images load.
     const gallery = page.locator(".twe-package-gallery");

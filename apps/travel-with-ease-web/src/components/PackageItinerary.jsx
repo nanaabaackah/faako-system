@@ -1,62 +1,68 @@
+import { useEffect, useRef } from "react";
 import RichText from "./RichText.jsx";
 import "../styles/components/rich-text.css";
-import AnimatedList from "./reactbits/AnimatedList.jsx";
 import "../styles/components/package-itinerary-interactive.css";
 
-/* A day-by-day editorial list. Every approved day stays in the DOM and readable,
-   including before hydration, without motion, and with JavaScript disabled. */
-/** @param {{ days: { day: number, title: string, text: string }[] }} props */
+/* Keep all published days in the HTML. Motion is progressive enhancement:
+   the page scrolls normally, and visiting a day never hides earlier content. */
+/** @param {{ days: { day: number; title: string; text: string }[] }} props */
 export default function PackageItinerary({ days = [] }) {
+  const timelineRef = useRef(null);
+
+  useEffect(() => {
+    const timeline = timelineRef.current;
+    if (!timeline || typeof IntersectionObserver === "undefined") return;
+    const stops = Array.from(timeline.querySelectorAll("li[data-itinerary-day]"));
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let observer;
+    const reset = () => {
+      observer?.disconnect();
+      for (const stop of stops) {
+        stop.removeAttribute("data-revealed");
+        stop.removeAttribute("data-connected");
+        stop.style.removeProperty("--itinerary-delay");
+      }
+      if (preference.matches) return;
+      observer = new IntersectionObserver(entries => {
+        const arriving = entries.filter(entry => entry.isIntersecting)
+          .sort((a, b) => stops.indexOf(a.target) - stops.indexOf(b.target));
+        arriving.forEach((entry, order) => {
+          const stop = entry.target;
+          const index = stops.indexOf(stop);
+          stop.style.setProperty("--itinerary-delay", `${Math.min(order, 2) * 120}ms`);
+          stop.setAttribute("data-revealed", "true");
+          for (const previous of stops.slice(0, index)) {
+            previous.setAttribute("data-connected", "true");
+          }
+          observer.unobserve(stop);
+        });
+      }, { root: null, rootMargin: "0px 0px -8% 0px", threshold: 0 });
+      stops.forEach(stop => observer.observe(stop));
+    };
+    reset();
+    preference.addEventListener("change", reset);
+    return () => {
+      observer?.disconnect();
+      preference.removeEventListener("change", reset);
+    };
+  }, [days.length]);
+
   if (!days.length) return null;
-  const items = days.map((day, index) => ({
-    id: `day-${day.day}-${index}`,
-    day: day.day,
-    title: day.title,
-    description: day.text
-  }));
   return (
-    <div className="twe-package-itinerary" aria-label="Day-by-day itinerary">
-      <AnimatedList
-        items={items}
-        semantic="list"
-        initialSelectedIndex={-1}
-        selectOnHover={false}
-        enableArrowNavigation={false}
-        animation="fade"
-        animateOnce
-        stagger={0.05}
-        showGradients={false}
-        displayScrollbar={false}
-        frame={false}
-        theme="light"
-        accentColor="#010c33"
-        radius={8}
-        gap={6}
-        width="100%"
-        maxHeight={460}
-        className="twe-package-itinerary__list"
-        itemClassName="twe-package-itinerary__item"
-        renderItem={item => (
+    <ol ref={timelineRef} className="twe-package-itinerary" role="list" aria-label="Day-by-day itinerary">
+      {days.map((day, index) => (
+        <li className="twe-package-itinerary__item" role="listitem" key={`day-${day.day}-${index}`} data-itinerary-day={day.day}>
+          <span className="twe-package-itinerary__marker" aria-hidden="true" />
+          {index < days.length - 1 && <span className="twe-package-itinerary__route" aria-hidden="true" />}
           <div className="twe-package-itinerary__entry">
-            <span className="twe-package-itinerary__day">Day {item.day}</span>
+            <span className="twe-package-itinerary__day">Day {day.day}</span>
             <div className="twe-package-itinerary__copy">
-              <h3>{item.title}</h3>
-              <RichText value={item.description}/>
+              <h3>{day.title}</h3>
+              <RichText value={day.text}/>
             </div>
           </div>
-        )}
-        style={{
-          "--al-ink": "var(--brand-navy)",
-          "--al-muted": "#5d6372",
-          "--al-tile": "rgba(255, 255, 255, 0.52)",
-          "--al-tile-edge": "rgb(1 12 51 / 12%)",
-          "--al-tile-highlight": "rgb(255 255 255 / 38%)",
-          "--al-tile-shadow": "none",
-          "--al-well": "transparent",
-          "--al-ring": "var(--brand-navy)",
-          "--al-ring-fill": "rgb(1 12 51 / 6%)"
-        }}
-      />
-    </div>
+        </li>
+      ))}
+    </ol>
   );
 }

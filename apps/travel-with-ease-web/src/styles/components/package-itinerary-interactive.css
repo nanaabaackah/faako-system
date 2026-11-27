@@ -1,63 +1,103 @@
-/* React Bits AnimatedList simple/fade preset, adapted to TWE's published itinerary.
-   Scroll-reveal stays visible; all days stay in server-rendered HTML without JS. */
-.twe-package-itinerary { width: 100%; min-width: 0; }
-.twe-package-itinerary .animated-list[data-animated] .animated-list__item:not([data-state]) { opacity: 1; }
-.twe-package-itinerary .animated-list {
-  font-family: var(--font-body, Quicksand, sans-serif);
-  max-width: 100%;
-}
-.twe-package-itinerary .animated-list__viewport {
-  padding: 4px;
-  max-height: 460px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scrollbar-width: none;
-  overscroll-behavior: contain;
-  border-radius: var(--twe-radius-card);
-}
-.twe-package-itinerary .animated-list__viewport::-webkit-scrollbar { display: none; }
-.twe-package-itinerary .animated-list__item {
-  display: block;
-  min-height: 0;
+/* Editorial journey: native page scrolling and readable static HTML. */
+.package-experience .twe-package-itinerary {
+  --itinerary-marker: 34px;
+  --itinerary-rail: 50px;
+  --itinerary-gap: 20px;
+  list-style: none;
+  width: 100%;
+  min-width: 0;
   padding: 0;
+  margin: 24px 0 0;
+  font-family: var(--font-body, Quicksand, sans-serif);
+  color: var(--brand-navy);
+}
+.package-experience .twe-package-itinerary__item {
+  position: relative;
+  display: block;
+  list-style: none;
+  min-width: 0;
   margin: 0;
-  border: 0;
-  border-radius: var(--twe-radius-card);
-  background: var(--al-tile);
-  box-shadow: none;
-  color: var(--brand-navy);
-  user-select: text;
-  -webkit-user-select: text;
-  cursor: default;
+  padding: 0 0 var(--itinerary-gap) var(--itinerary-rail);
 }
-.twe-package-itinerary .animated-list__rim {
-  box-shadow: inset 0 0 0 1px rgb(1 12 51 / 13%);
-}
-.twe-package-itinerary .animated-list__item:hover {
-  filter: none;
-  background: #eae1d4;
-}
-.twe-package-itinerary .animated-list__indicator { display: none; }
-.twe-package-itinerary .twe-package-itinerary__entry {
+.package-experience .twe-package-itinerary__item:last-child { padding-bottom: 0; }
+.twe-package-itinerary__marker {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: var(--itinerary-marker);
+  height: var(--itinerary-marker);
   display: grid;
-  grid-template-columns: minmax(76px, .18fr) minmax(0, 1fr);
-  gap: 12px 20px;
-  padding: 19px 21px;
-}
-.twe-package-itinerary .twe-package-itinerary__day {
-  font: 800 .85rem/1.35 var(--font-impact, Inter, sans-serif);
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid rgb(1 12 51 / 32%);
+  background: #fffaf2;
   color: var(--brand-navy);
-  padding-top: 4px;
-  white-space: nowrap;
+  transition: background-color 400ms ease, color 400ms ease, border-color 400ms ease;
 }
-.twe-package-itinerary .twe-package-itinerary__copy { min-width: 0; }
-.twe-package-itinerary .twe-package-itinerary__copy h3 {
+.twe-package-itinerary__marker::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  background: currentColor;
+  border-radius: 50%;
+}
+.twe-package-itinerary__route {
+  position: absolute;
+  left: calc(var(--itinerary-marker) / 2 - 1px);
+  top: calc(var(--itinerary-marker) / 2);
+  width: 2px;
+  height: 100%;
+  background: repeating-linear-gradient(to bottom, rgb(1 12 51 / 28%) 0 5px, transparent 5px 10px);
+}
+.twe-package-itinerary__route::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--brand-navy);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 550ms cubic-bezier(.22, .61, .36, 1);
+}
+.twe-package-itinerary__item[data-connected] .twe-package-itinerary__route::after { transform: scaleY(1); }
+.twe-package-itinerary__item[data-revealed] .twe-package-itinerary__marker {
+  background: var(--brand-navy);
+  border-color: var(--brand-navy);
+  color: white;
+}
+.twe-package-itinerary__entry {
+  min-width: 0;
+  padding: 19px 21px;
+  border: 1px solid rgb(1 12 51 / 13%);
+  border-radius: var(--twe-radius-card);
+  background: rgba(255, 255, 255, .52);
+  overflow-wrap: anywhere;
+}
+.twe-package-itinerary__item[data-revealed] .twe-package-itinerary__entry {
+  animation: twe-itinerary-reveal 560ms cubic-bezier(.22, .61, .36, 1) var(--itinerary-delay, 0ms) both;
+}
+@keyframes twe-itinerary-reveal {
+  from { opacity: .4; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* Keyboard access never waits for a decorative entrance. */
+.twe-package-itinerary__item:focus-within .twe-package-itinerary__entry {
+  animation: none;
+}
+.twe-package-itinerary__day {
+  display: block;
+  font: 800 .85rem/1.35 var(--font-impact, Inter, sans-serif);
+  margin-bottom: 8px;
+  color: var(--brand-navy);
+}
+.twe-package-itinerary__copy { min-width: 0; }
+.twe-package-itinerary__copy h3 {
   font: 800 clamp(1.25rem, 2.1vw, 1.8rem)/1.22 var(--font-display, "Poiret One", sans-serif);
   -webkit-text-stroke: .02em currentColor;
   color: var(--brand-navy);
   margin: 0 0 8px;
 }
-.twe-package-itinerary .twe-package-itinerary__copy p {
+.twe-package-itinerary__copy p {
   margin: 0;
   color: var(--brand-navy);
   font-size: .95rem;
@@ -65,22 +105,16 @@
   max-width: 60ch;
   white-space: pre-line;
 }
-.twe-package-itinerary .animated-list__viewport:focus-visible {
-  outline: 3px solid var(--brand-sky);
-  outline-offset: 3px;
-}
 @media (max-width: 480px) {
-  .twe-package-itinerary .animated-list__viewport { max-height: 440px; }
-  .twe-package-itinerary .twe-package-itinerary__entry {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 7px;
-    padding: 17px;
+  .package-experience .twe-package-itinerary {
+    --itinerary-marker: 26px;
+    --itinerary-rail: 38px;
+    --itinerary-gap: 16px;
   }
+  .twe-package-itinerary__entry { padding: 15px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .twe-package-itinerary .animated-list__item {
-    transition: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
+  .twe-package-itinerary__marker,
+  .twe-package-itinerary__route::after { transition: none; }
+  .twe-package-itinerary__item[data-revealed] .twe-package-itinerary__entry { animation: none; }
 }
