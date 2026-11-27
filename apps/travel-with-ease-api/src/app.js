@@ -17,6 +17,7 @@ import { estimateSchema, inquirySchema, nativeInquirySchema, smartEnquirySchema 
 import { TurnstileError } from "./enquiries/turnstile.js";
 import { currencyDisplayRoutes } from "./currency/display-routes.js";
 import { z } from "zod";
+import packageManifest from "../package.json" with { type: "json" };
 
 const safeEqual = (left, right) => {
   const a = Buffer.from(String(left));
@@ -98,12 +99,12 @@ export const createApp = ({ repository, estimatorService, currencyService, conte
     }
   });
 
-  // Public release identity contains only the deployed code SHA and environment.
+  // Public release identity contains only non-sensitive build metadata.
   // Workers must agree with the running API before coordinating any content release.
   app.get("/api/public/release", (_req, res) => {
     const sourceSha = publicationRepository?.sourceSha;
     if (!["staging", "production"].includes(environment) || !/^[a-f0-9]{40}$/.test(sourceSha || "")) return res.sendStatus(503);
-    return res.json({ environment, sourceSha });
+    return res.json({ environment, sourceSha, version: packageManifest.version });
   });
   app.get("/healthz", (_req, res) => res.json({ ok: true, service: "travel-with-ease-api" }));
   app.get("/readyz", async (req, res) => {

@@ -224,7 +224,18 @@ try {
       name: "Dismiss notification",
       exact: true,
     });
-    while (await notifications.count()) await notifications.first().click();
+    // Toasts also expire automatically; a dismissal racing that expiry is
+    // successful cleanup, not a failed user action. Keep genuine failures fatal.
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const before = await notifications.count();
+      if (!before) break;
+      try {
+        await notifications.first().click({ timeout: 2000 });
+      } catch (error) {
+        if (error.name !== "TimeoutError" || await notifications.count() >= before) throw error;
+      }
+    }
+    await expect(notifications).toHaveCount(0);
     await page.screenshot({
       path: path.join(output, `drive-media-${width}.png`),
       fullPage: true,

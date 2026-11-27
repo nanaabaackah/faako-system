@@ -12,6 +12,7 @@ Staging candidate: `d3114b53d4dbc1c8be9ecdf62307b8710b3521ea` (P2 and refresh-ra
 | P3-26 Regression | Require fresh CI for this branch and develop after merge; record hosted smoke evidence separately. |
 | P3-27 Production preparation | Open: production API migration/runtime readiness, worker activation, backup/restore evidence and approved snapshot promotion. |
 | P3-28 Cutover | Open: verified production publication, smoke and rollback readiness before retiring holding page. |
+| P3-29 Software release versioning | Required: synchronize product version, verify deployed component identities, prepare release notes and register the first production tag after cutover. See [release versioning](./software-versioning.md). |
 
 ## Operating model
 
