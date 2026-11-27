@@ -52,16 +52,14 @@ expired/revoked/wrong-organisation denial, PKCE/state/nonce rejection tests,
 controlled provider redirects and an observed recovery drill. Until then, keep
 hosted startup blocked. Do not deploy the legacy development token screen.
 
-## Historical OIDC implementation notes (2026-10-21; not active setup)
+## Historical OIDC implementation notes (2026-10-21; retired 2026-11-22)
 
-The existing `openid-client` integration remains the established protocol adapter;
-no new vendor or account has been silently selected. Baaba/Faako must register a
-confidential OIDC web application with the chosen MFA-capable provider, separately
-for staging and production. Register exactly `TWE_API_ORIGIN/api/auth/callback`;
-set issuer/client ID/client secret and a verified provider-specific MFA `acr`
-value. Merely naming an assurance string is not proof that MFA was enforced.
-The provider must support the code/PKCE flow and return the configured assurance
-claim. Test weak-assurance rejection, MFA enrolment and recovery before acceptance.
+The unused `openid-client` adapter and its configuration parser were removed after
+repository-wide reference tracing confirmed that Cloudflare Access is the only
+executable provider. The active Access configuration continues to reject every
+non-empty `TWE_OIDC_*` value, so retiring dead compatibility code does not broaden
+authentication or change the session model. The remaining notes in this section
+record the superseded design only; they are not setup instructions.
 
 Provision each approved issuer/subject explicitly into `twe.staff_users` through
 the privileged operator path, bound to the environment's organisation UUID and
@@ -81,7 +79,7 @@ performs provider recovery/re-enrolment with the approved staff member. Active
 membership is checked on every request. Re-enable only after recovery acceptance.
 Application logout does not terminate a provider-wide SSO session.
 
-## Historical dependency decision: openid-client 6.8.8
+## Historical dependency decision: openid-client 6.8.8 (retired)
 
 1. Meets the requirement for an established configurable identity protocol.
 2. Faako's shared security package supplies headers/permissions, not this OIDC
@@ -94,9 +92,10 @@ Application logout does not terminate a provider-wide SSO session.
    remain operational responsibilities. No vendor account or subscription is chosen.
 7. Vetted protocol validation justifies the dependency over custom JWT/OAuth code.
 
-The version was checked against npm before installation. Source/API reference:
-[openid-client](https://github.com/panva/openid-client). This library choice is
-not evidence of configured MFA, valid staff sessions or a working live login.
+The version was checked against npm before installation. It was removed on
+2026-11-22 because no executable path consumed it. Source/API reference:
+[openid-client](https://github.com/panva/openid-client). This historical library
+choice is not evidence of configured MFA, valid staff sessions or a working login.
 ## Historical OIDC login-assistance milestone — 2026-10-22
 
 - Remember me is opt-in cookie persistence, not a longer authentication grant. Checked: HttpOnly cookie survives browser closure for at most one hour; unchecked: session cookie. Server expiry remains one hour in both cases, and browser session restoration may restore session cookies. MFA, staff provisioning and revocation remain mandatory.

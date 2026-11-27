@@ -3,20 +3,6 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createApp, createLimiter } from "../src/app.js";
 import { createStaffAuth } from "../src/auth/routes.js";
-import { readAuthConfig } from "../src/auth/config.js";
-
-test("OIDC is disabled without configuration and partial/insecure configuration fails closed", () => {
-  assert.equal(readAuthConfig({}), null);
-  assert.throws(() => readAuthConfig({ TWE_OIDC_ISSUER: "https://id.example.invalid" }));
-  const config = { TWE_OIDC_ISSUER: "https://id.example.invalid", TWE_OIDC_CLIENT_ID: "synthetic", TWE_OIDC_CLIENT_SECRET: "synthetic-only", TWE_OIDC_MFA_ACR: "test-mfa", TWE_API_ORIGIN: "http://localhost:3090", TWE_PORTAL_ORIGIN: "http://localhost:5188" };
-  assert.equal(readAuthConfig(config).secure, false);
-  assert.equal(readAuthConfig({ ...config, TWE_OIDC_RECOVERY_URL: "https://id.example.invalid/recover" }).recoveryUrl, "https://id.example.invalid/recover");
-  assert.throws(() => readAuthConfig({ ...config, TWE_OIDC_REGISTRATION_URL: "javascript:alert(1)" }));
-  assert.throws(() => readAuthConfig({ ...config, TWE_OIDC_RECOVERY_URL: "https://secret@id.example.invalid/recover" }));
-  assert.throws(() => readAuthConfig({ ...config, APP_ENV: "staging" }));
-  assert.throws(() => readAuthConfig({ ...config, TWE_OIDC_ISSUER: "http://id.example.invalid" }));
-  assert.throws(() => readAuthConfig({ ...config, TWE_PORTAL_ORIGIN: "https://portal.example.invalid/path" }));
-});
 
 test("server sessions protect routes, reject replay/CSRF, enforce roles and revoke on logout", async (context) => {
   const flows = new Map();
