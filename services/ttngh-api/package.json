@@ -17,7 +17,8 @@
     "media:status": "node scripts/media-command.mjs status",
     "media:approve": "node scripts/media-command.mjs approve",
     "media:to-sanity": "node scripts/media-command.mjs to-sanity",
-    "media:list": "node scripts/media-command.mjs list"
+    "media:list": "node scripts/media-command.mjs list",
+    "db:media:deploy": "node scripts/deploy-media-database.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1149.0",
