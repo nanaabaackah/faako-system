@@ -2,11 +2,11 @@
 
 ## Decision
 
-**Overall readiness after the implementation follow-up: 81/100. Launch decision for the complete requested scope: NO-GO.**
+**Overall readiness after the implementation follow-up: 82/100. Launch decision for the complete requested scope: NO-GO.**
 
 The public visitor site and API are operational: production returned successful site and API health responses, the live calendar returned the expected 25 November board meeting, all local frontend/Studio/API tests passed, and a live-content build produced 22 valid pages. The reviewed Drive-to-R2 workflow is now integrated and its isolation, migration and approval gates pass locally; staging already has the required variable names configured. The complete requested scope is still blocked by authenticated Sanity draft preview/click-to-edit and by real staging execution of the media plan/migration/provider handoff. The patched Astro dependency is also not deployed from this audit branch.
 
-No production mutation, form submission, merge, migration or deployment was performed.
+No production mutation, form submission, migration or deployment was performed. The implementation is under review in PR #268; its TTNGH website and Studio workflow completed successfully at commit `de0210f12`.
 
 ## Scorecard
 
@@ -20,7 +20,7 @@ No production mutation, form submission, merge, migration or deployment was perf
 | API, enquiries and integrations | 9/10 | Health reports enquiries ready; 57 API tests passed; origin, Turnstile, persistence and outbox controls verified without a real submission. |
 | Security and privacy | 13/15 | Strong API controls and deployed headers; critical Astro advisory fixed locally; Studio upgraded; CSP still permits inline code. |
 | Performance, SEO and analytics | 4/5 | 22-page metadata/link/JSON-LD check passed; active impact imagery now uses responsive WebP assets; build assets remain about 15 MB and no current field-CWV run was available. |
-| Deployment, CI and monitoring | 4/5 | A path-scoped website/Studio build and responsive-homepage workflow is included locally but has not yet run on GitHub. |
+| Deployment, CI and monitoring | 5/5 | The path-scoped website/Studio workflow passed on GitHub, including frozen install, deterministic build validation, Studio build and 390/768/1440 px browser QA. |
 | Cleanup and maintainability | 5/5 | A dedicated cleanup audit records removed, retained and deferred candidates; provider and payment ownership decisions remain explicit follow-up work. |
 
 ## Findings by priority
@@ -33,7 +33,7 @@ No production mutation, form submission, merge, migration or deployment was perf
 
 1. **Secure preview is absent.** The current architecture intentionally exposes only published content and states that draft-preview sessions do not exist. There is no Sanity Presentation tool, authenticated preview session, draft-mode route or click-to-edit integration. A preview host's DNS/authentication could not be verified from repository access. Implement this as an explicit architecture/security change; do not expose draft queries to public clients.
 2. **Drive-to-R2 workflow is integrated but not provider-verified.** The 28-commit implementation is merged into this audit branch, including nested traversal, immutable provenance, dry runs, approval gates and operator documentation. All 65 API/media tests pass, and Railway staging exposes the required variable names with values redacted. Deploy to isolated staging, run the separately approved media migration, then prove read-only Drive discovery, private R2 staging, idempotent reruns, approval and Sanity handoff before production use.
-3. **Frontend/Studio CI was missing; implementation is awaiting its first GitHub run.** `.github/workflows/ttngh-site.yml` now adds frozen install, website/Studio tests, a deterministic CMS-fixture build, built-page validation, Studio build and homepage browser checks at 390/768/1440 px. It is not operationally verified until the workflow runs green on GitHub.
+3. **Frontend/Studio CI was missing; resolved.** `.github/workflows/ttngh-site.yml` now adds frozen install, website/Studio tests, a deterministic CMS-fixture build, built-page validation, Studio build and homepage browser checks at 390/768/1440 px. GitHub Actions run `46158120012` passed at commit `de0210f12` after updating the declared Playwright runner for GitHub's Ubuntu 26 image.
 
 ### P2 — next release
 
@@ -41,7 +41,7 @@ No production mutation, form submission, merge, migration or deployment was perf
 2. **CSP retains `'unsafe-inline'`.** This is a defence-in-depth gap, not evidence of an active exploit. Remove only after Astro/analytics/Turnstile compatibility is proven with hashes or nonces on preview.
 3. **Studio dependency-tree follow-up.** Sanity Studio was upgraded from 6.18.0 to the current supported 6.25.0 with current direct React/styled-components releases; schema tests and the production Studio build pass. Continue monitoring transitive editor/build advisories rather than imposing unverified monorepo-wide overrides.
 4. **Provider/dashboard evidence is incomplete.** Railway health and Cloudflare response headers were verified from production, but dashboard configuration, rollback controls, Cloudflare preview indexing and GitHub PR/check state require authenticated owner access.
-5. **Motion assertion stabilized locally.** The signature check now waits for the frame style to initialize and allows the animation frame to settle before measuring. The targeted 768 px normal/reduced-motion run passes; the first GitHub run remains the independent confirmation.
+5. **Motion assertion stabilized and independently verified.** The signature check now waits for the frame style to initialize and allows the animation frame to settle before measuring. The targeted 768 px normal/reduced-motion run passes locally, and the complete responsive browser job passed on GitHub.
 
 ### P3 — backlog
 
@@ -87,7 +87,7 @@ No production mutation, form submission, merge, migration or deployment was perf
 - Previously accepted work from PR commits `bd8b5a607` and `a80951ca9` is already ancestral to both `origin/develop` and `origin/main`; it was not reopened without contrary evidence.
 - Turnstile branch: seven unique commits and five commits behind current develop at inspection time.
 - Media branch: 28 unique commits and five commits behind current develop at inspection time.
-- GitHub CLI authentication was invalid, so PR mergeability, reviews and check-run conclusions are **unknown**, not assumed green.
+- PR #268 targets `develop`. Its TTNGH website and Studio workflow passed at commit `de0210f12`; repository-wide checks remain release gates before merge and promotion.
 - No merge or deployment was performed.
 
 ## Verification record

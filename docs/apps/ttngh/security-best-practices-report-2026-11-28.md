@@ -6,7 +6,7 @@ Scope: `apps/ttngh`, `apps/ttngh/studio`, `services/ttngh-api`, their direct sha
 
 No credential exposure, public draft leak, SQL injection path, open redirect, browser token storage, unsafe retry of enquiry mutations or production authorization bypass was found. The API has strong boundary validation, exact-origin enforcement, bounded parsing, rate limits, Turnstile verification, parameterized SQL, request IDs, signed/fresh webhooks, restricted outbound hooks, timeouts and generic errors.
 
-One critical build-time Astro advisory and later rendering advisories were found and remediated locally by pinning 7.3.8, the newest version compatible with the repository's Node 22.18 runtime. Sanity Studio has since been upgraded from 6.18.0 to the supported 6.25.0 and frontend CI has been added. The remaining material gaps are absence of a secure preview implementation, inline CSP allowances and independent deployment/CI evidence.
+One critical build-time Astro advisory and later rendering advisories were found and remediated locally by pinning 7.3.8, the newest version compatible with the repository's Node 22.18 runtime. Sanity Studio has since been upgraded from 6.18.0 to the supported 6.25.0 and frontend CI has been added and independently verified. The remaining material gaps are absence of a secure preview implementation, inline CSP allowances and deployment evidence.
 
 ## Findings
 
@@ -34,10 +34,10 @@ One critical build-time Astro advisory and later rendering advisories were found
 - Evidence: Sanity Studio was upgraded from 6.18.0 to the current supported 6.25.0, together with current direct React and styled-components releases. All 10 schema tests and the production Studio build pass. The editor/build tree is separate from the public static visitor runtime.
 - Recommendation: continue supported Studio upgrades and normal origin/access controls. Validate any future TTNGH-scoped override before use; do not add a monorepo-wide override without testing every affected application.
 
-### SEC-05 — Frontend security/build CI added (P1, implementation complete; first run pending)
+### SEC-05 — Frontend security/build CI added (P1, resolved)
 
-- Evidence: `.github/workflows/ttngh-site.yml` now runs frozen install, website/Studio tests, deterministic production build, built-site validation, Studio build and responsive Playwright QA for TTNGH paths.
-- Recommendation: require the workflow after its first successful GitHub run and keep the supported Node/pnpm versions explicit.
+- Evidence: `.github/workflows/ttngh-site.yml` now runs frozen install, website/Studio tests, deterministic production build, built-site validation, Studio build and responsive Playwright QA for TTNGH paths. GitHub Actions run `46158120012` passed at commit `de0210f12`.
+- Recommendation: keep the workflow required for TTNGH changes and keep the supported Node, pnpm and Playwright versions explicit.
 
 ## Positive controls verified
 
