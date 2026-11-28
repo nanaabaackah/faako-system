@@ -142,6 +142,17 @@ export class MediaSync {
     return { id, assetId, unchanged:false };
   }
 
+  async list({ status = "imported", limit = 50 } = {}) {
+    if (!["imported","approved","archived"].includes(status) || !Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw new Error("Select a valid media review status and page limit");
+    const result = await this.pool.query(
+      "SELECT id, source_name, source_path, source_version, status, sanity_asset_id FROM ttngh_media.assets WHERE status=$1 ORDER BY created_at DESC,id LIMIT $2",
+      [status, limit]
+    );
+    // Private terminal only, never used in public HTTP responses.
+    return { items: result.rows };
+  }
+
   async status() {
     const result = await this.pool.query(
       "SELECT status, COUNT(*)::integer AS count, COUNT(sanity_asset_id)::integer AS in_sanity FROM ttngh_media.assets GROUP BY status ORDER BY status"
