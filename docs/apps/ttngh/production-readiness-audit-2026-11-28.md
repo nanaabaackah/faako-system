@@ -2,9 +2,9 @@
 
 ## Decision
 
-**Overall readiness after the implementation follow-up: 75/100. Launch decision for the complete requested scope: NO-GO.**
+**Overall readiness after the implementation follow-up: 81/100. Launch decision for the complete requested scope: NO-GO.**
 
-The public visitor site and API are operational: production returned successful site and API health responses, the live calendar returned the expected 25 November board meeting, all local frontend/Studio/API tests passed, and a live-content build produced 22 valid pages. The complete requested scope is still blocked by two P1 gaps: there is no authenticated Sanity draft-preview/click-to-edit workflow, and the Drive-to-R2 media work remains on an unmerged branch without staging/provider verification. The patched Astro dependency is also not deployed from this audit branch.
+The public visitor site and API are operational: production returned successful site and API health responses, the live calendar returned the expected 25 November board meeting, all local frontend/Studio/API tests passed, and a live-content build produced 22 valid pages. The reviewed Drive-to-R2 workflow is now integrated and its isolation, migration and approval gates pass locally; staging already has the required variable names configured. The complete requested scope is still blocked by authenticated Sanity draft preview/click-to-edit and by real staging execution of the media plan/migration/provider handoff. The patched Astro dependency is also not deployed from this audit branch.
 
 No production mutation, form submission, merge, migration or deployment was performed.
 
@@ -13,13 +13,13 @@ No production mutation, form submission, merge, migration or deployment was perf
 | Area | Score | Evidence summary |
 | --- | ---: | --- |
 | UI/UX and content | 14/15 | Milestones now extend the existing impact section, while dedicated news and resource sections give the homepage a clearer evidence and content hierarchy. |
-| Responsive behaviour and accessibility | 8/10 | Calendar and gallery/news browser QA passed from 320/375 through 1440 px; keyboard/error/empty/XSS states covered; no current Safari or screen-reader session. |
-| Sanity, preview and publishing | 7/15 | Publication safeguards and signed rebuild webhook exist; Studio authoring UX improved; no secure draft preview or click-to-edit. |
+| Responsive behaviour and accessibility | 9/10 | Calendar and gallery/news browser QA passed from 320/375 through 1440 px; keyboard/error/empty/XSS states covered; mobile cookie notice reduced; no current Safari or screen-reader session. |
+| Sanity, preview and publishing | 8/15 | Publication safeguards and signed rebuild webhook exist; Studio authoring UX improved and upgraded to 6.25.0; no secure draft preview or click-to-edit. |
 | Events and calendar | 9/10 | Live API data and local responsive/keyboard states verified; no provider-side edit was made. |
-| Drive/R2 media | 3/10 | Substantial implementation exists on a remote branch, but is not merged, deployed or provider-tested. |
+| Drive/R2 media | 6/10 | The gated workflow is integrated and 65 API/media tests pass; staging variables exist, but the isolated migration and real provider plan/sync/handoff have not run. |
 | API, enquiries and integrations | 9/10 | Health reports enquiries ready; 57 API tests passed; origin, Turnstile, persistence and outbox controls verified without a real submission. |
-| Security and privacy | 12/15 | Strong API controls and deployed headers; critical Astro advisory fixed locally; CSP still permits inline code and Studio CLI advisories remain. |
-| Performance, SEO and analytics | 4/5 | 22-page metadata/link/JSON-LD check passed; header logo optimized; build assets remain about 15 MB and no current field-CWV run was available. |
+| Security and privacy | 13/15 | Strong API controls and deployed headers; critical Astro advisory fixed locally; Studio upgraded; CSP still permits inline code. |
+| Performance, SEO and analytics | 4/5 | 22-page metadata/link/JSON-LD check passed; active impact imagery now uses responsive WebP assets; build assets remain about 15 MB and no current field-CWV run was available. |
 | Deployment, CI and monitoring | 4/5 | A path-scoped website/Studio build and responsive-homepage workflow is included locally but has not yet run on GitHub. |
 | Cleanup and maintainability | 5/5 | A dedicated cleanup audit records removed, retained and deferred candidates; provider and payment ownership decisions remain explicit follow-up work. |
 
@@ -32,22 +32,22 @@ No production mutation, form submission, merge, migration or deployment was perf
 ### P1 — launch blockers
 
 1. **Secure preview is absent.** The current architecture intentionally exposes only published content and states that draft-preview sessions do not exist. There is no Sanity Presentation tool, authenticated preview session, draft-mode route or click-to-edit integration. A preview host's DNS/authentication could not be verified from repository access. Implement this as an explicit architecture/security change; do not expose draft queries to public clients.
-2. **Drive-to-R2 workflow is not integrated or provider-verified.** `origin/feat/ttngh-drive-r2-safe-nested-sync-20261128` contains 28 commits beyond its base, including nested traversal, immutable provenance, dry runs, approval gates and operator documentation. It is also five commits behind current `origin/develop`. Rebase/review it, run isolated migrations, and prove read-only Drive discovery, R2 staging, idempotent reruns, approval and Sanity handoff with real staging credentials before merge or deployment.
+2. **Drive-to-R2 workflow is integrated but not provider-verified.** The 28-commit implementation is merged into this audit branch, including nested traversal, immutable provenance, dry runs, approval gates and operator documentation. All 65 API/media tests pass, and Railway staging exposes the required variable names with values redacted. Deploy to isolated staging, run the separately approved media migration, then prove read-only Drive discovery, private R2 staging, idempotent reruns, approval and Sanity handoff before production use.
 3. **Frontend/Studio CI was missing; implementation is awaiting its first GitHub run.** `.github/workflows/ttngh-site.yml` now adds frozen install, website/Studio tests, a deterministic CMS-fixture build, built-page validation, Studio build and homepage browser checks at 390/768/1440 px. It is not operationally verified until the workflow runs green on GitHub.
 
 ### P2 — next release
 
 1. **Turnstile still requires a manual button in production; fixed locally.** The audit branch removes the button, loads verification once the form approaches the viewport, retries once when connectivity returns, preserves server-side verification and updates the privacy disclosure. Unit and mocked browser checks pass. Preview verification and deployment remain required.
 2. **CSP retains `'unsafe-inline'`.** This is a defence-in-depth gap, not evidence of an active exploit. Remove only after Astro/analytics/Turnstile compatibility is proven with hashes or nonces on preview.
-3. **Studio dependency-tree advisories remain.** The final TTNGH-scoped audit has no critical finding, but reports 8 high, 21 moderate and 8 low advisories. Apart from two residual Astro findings described above, the paths are in the Sanity editor/build tree (`dompurify`, `undici`, `js-yaml`, `smol-toml`, `minimatch`, `uuid`), not the public static visitor bundle. Upgrade when Sanity's supported tree resolves them or validate a narrowly scoped override; do not impose a monorepo-wide override from this audit.
+3. **Studio dependency-tree follow-up.** Sanity Studio was upgraded from 6.18.0 to the current supported 6.25.0 with current direct React/styled-components releases; schema tests and the production Studio build pass. Continue monitoring transitive editor/build advisories rather than imposing unverified monorepo-wide overrides.
 4. **Provider/dashboard evidence is incomplete.** Railway health and Cloudflare response headers were verified from production, but dashboard configuration, rollback controls, Cloudflare preview indexing and GitHub PR/check state require authenticated owner access.
-5. **Motion assertion has one observed flake.** The full route/viewport motion run passed its route loops, then once missed a timing-sensitive scroll-expansion assertion at home/768; targeted reproduction passed. The script now reports route/width evidence and supports targeted reruns. Stabilize the timing assertion in CI.
+5. **Motion assertion stabilized locally.** The signature check now waits for the frame style to initialize and allows the animation frame to settle before measuring. The targeted 768 px normal/reduced-motion run passes; the first GitHub run remains the independent confirmation.
 
 ### P3 — backlog
 
 1. Measure current Core Web Vitals on representative mobile hardware and reduce oversized editorial photography where the quality trade-off is acceptable.
 2. Decide whether dormant payment modules remain a tracked future capability or should be removed in a separate change. They are not mounted by the current API and were not deleted during this audit.
-3. The cookie notice can obscure lower mobile gallery content until dismissed. It is functional and expected, but a smaller mobile treatment would improve browsing comfort.
+3. Recheck the reduced mobile cookie notice on physical iOS and Android devices; browser QA confirms the compact treatment does not create overflow.
 
 ## Implemented in this audit branch
 
@@ -61,6 +61,8 @@ No production mutation, form submission, merge, migration or deployment was perf
 - Pinned Astro 7.3.8 to remediate the critical and applicable higher-severity advisories while retaining Node 22.18 compatibility.
 - Added automatic near-viewport Turnstile loading with updated privacy copy and browser assertions.
 - Added TTNGH website/Studio CI, declared Playwright as TTNGH's QA dependency and removed unused `@faako/core`.
+- Integrated the separately gated Drive-to-R2 media workflow and verified all 65 API/media tests without applying a database migration.
+- Upgraded Sanity Studio to 6.25.0, stabilized scroll-expansion QA, reduced the mobile cookie notice and replaced three oversized/unused JPGs with responsive approved WebP assets.
 - Added the separate [codebase cleanup audit](codebase-cleanup-audit-2026-11-28.md).
 
 ## Content inventory
@@ -94,7 +96,7 @@ No production mutation, form submission, merge, migration or deployment was perf
 | --- | --- |
 | Website unit/integration tests | 62/62 passed |
 | Studio schema tests | 10/10 passed |
-| API tests | 57/57 passed using local isolated sockets/providers |
+| API tests | 65/65 passed using local isolated sockets/providers, including media migration/isolation/approval gates |
 | TTNGH production-content build | 22 pages built |
 | Built-site validation | Unique metadata, one H1, JSON-LD, local assets and destinations verified on all 22 pages |
 | Studio production build | Passed |
@@ -111,8 +113,8 @@ Fresh visual evidence was captured during the audit under `/private/tmp/ttngh-au
 ## Required path to GO
 
 1. Review this branch's Turnstile implementation independently from the media migration/provider work.
-2. Implement authenticated, noindex draft preview and click-to-edit under an approved architecture/security design.
-3. Run the media workflow end-to-end in staging with real provider permissions and explicit migration approval; record rollback evidence.
+2. Approve and implement a separate SSR preview deployment using Sanity-managed authentication, server-only read tokens, signed draft-mode enablement, noindex and click-to-edit. The static production site must remain unchanged.
+3. Deploy the integrated media workflow to staging, run the separate media migration with explicit approval, then execute plan/status/sync/approval/Sanity handoff and record rollback evidence.
 4. Obtain green GitHub API and website/Studio checks on the final branch set.
 5. Deploy the Astro fix to preview, rerun built-site/browser/security checks, then deploy production and verify headers, health, calendar, contact behaviour, webhook rebuild and rollback.
 

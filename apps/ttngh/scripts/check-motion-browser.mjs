@@ -101,7 +101,11 @@ try {
           const top = window.scrollY + track.getBoundingClientRect().top;
           window.scrollTo({ top: top + stage.getBoundingClientRect().height * 1.1 * progress, behavior: "instant" });
         }, fraction);
-        await page.waitForTimeout(130);
+        await page.waitForFunction(
+          element => element.querySelector(".scroll-expand__frame")?.style.clipPath.includes("inset("),
+          await scroll.elementHandle(),
+        );
+        await page.waitForTimeout(250);
         return scroll.evaluate(element => {
           const frame = element.querySelector(".scroll-expand__frame");
           const overlay = element.querySelector(".scroll-expand__overlay");

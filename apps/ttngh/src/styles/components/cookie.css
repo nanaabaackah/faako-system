@@ -65,12 +65,33 @@
 
 @media (max-width: 580px) {
   .cookie-notice {
+    right: 0.5rem;
+    bottom: 0.5rem;
     grid-template-columns: 1fr;
+    width: calc(100% - 1rem);
+    padding: 0.8rem;
+    gap: 0.6rem;
+    border-radius: var(--radius-lg);
+  }
+
+  .cookie-notice strong {
+    margin-bottom: 0.1rem;
+    font-size: 0.9rem;
+  }
+
+  .cookie-notice p {
+    font-size: 0.72rem;
+    line-height: 1.35;
   }
 
   .cookie-notice-actions {
     justify-content: space-between;
-    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+
+  .cookie-notice-actions button {
+    padding-inline: 0.75rem;
+    font-size: 0.72rem;
   }
 }
 

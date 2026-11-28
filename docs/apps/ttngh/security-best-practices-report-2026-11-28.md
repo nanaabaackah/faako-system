@@ -6,7 +6,7 @@ Scope: `apps/ttngh`, `apps/ttngh/studio`, `services/ttngh-api`, their direct sha
 
 No credential exposure, public draft leak, SQL injection path, open redirect, browser token storage, unsafe retry of enquiry mutations or production authorization bypass was found. The API has strong boundary validation, exact-origin enforcement, bounded parsing, rate limits, Turnstile verification, parameterized SQL, request IDs, signed/fresh webhooks, restricted outbound hooks, timeouts and generic errors.
 
-One critical build-time Astro advisory and later rendering advisories were found and remediated locally by pinning 7.3.8, the newest version compatible with the repository's Node 22.18 runtime. The remaining material gaps are absence of a secure preview implementation, inline CSP allowances, lack of frontend CI enforcement and Sanity Studio/editor dependency advisories.
+One critical build-time Astro advisory and later rendering advisories were found and remediated locally by pinning 7.3.8, the newest version compatible with the repository's Node 22.18 runtime. Sanity Studio has since been upgraded from 6.18.0 to the supported 6.25.0 and frontend CI has been added. The remaining material gaps are absence of a secure preview implementation, inline CSP allowances and independent deployment/CI evidence.
 
 ## Findings
 
@@ -29,15 +29,15 @@ One critical build-time Astro advisory and later rendering advisories were found
 - Positive controls: the same policy restricts default/base/object/frame ancestors, allows Turnstile only in `frame-src`, and limits image/connect sources. Production also returned CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, strict referrer policy and a restrictive permissions policy.
 - Recommendation: inventory Astro inline output, analytics and Turnstile; introduce hashes/nonces on preview; remove allowances only after browser and deployment compatibility tests.
 
-### SEC-04 — Sanity Studio/editor transitive advisories (P2)
+### SEC-04 — Sanity Studio/editor dependency maintenance (P2, direct update completed)
 
-- Evidence: after the Astro pin, the TTNGH-scoped audit has no critical finding and reports 8 high, 21 moderate and 8 low advisories. Apart from the two residual Astro findings in SEC-01, all paths are in the Sanity editor/build tree: `dompurify`, `undici`, `js-yaml`, `smol-toml`, `minimatch` and `uuid`. They are not shipped into the static visitor runtime, but the authenticated Studio still requires supported upgrades and normal origin/access controls.
-- Recommendation: monitor supported Sanity releases and upgrade when the dependency tree resolves them. Validate a TTNGH-scoped override before use; do not add a monorepo-wide override without testing every affected application.
+- Evidence: Sanity Studio was upgraded from 6.18.0 to the current supported 6.25.0, together with current direct React and styled-components releases. All 10 schema tests and the production Studio build pass. The editor/build tree is separate from the public static visitor runtime.
+- Recommendation: continue supported Studio upgrades and normal origin/access controls. Validate any future TTNGH-scoped override before use; do not add a monorepo-wide override without testing every affected application.
 
-### SEC-05 — CI does not enforce frontend security/build checks (P1)
+### SEC-05 — Frontend security/build CI added (P1, implementation complete; first run pending)
 
-- Evidence: `.github/workflows/ttngh-api.yml:7-12` is path-scoped only to `services/ttngh-api/**`; no TTNGH website/Studio workflow was found.
-- Recommendation: add a path-scoped workflow for dependency audit, tests, production build, built-site checks and focused Playwright QA. Pin the supported Node/pnpm versions and fail on a frozen-lock mismatch.
+- Evidence: `.github/workflows/ttngh-site.yml` now runs frozen install, website/Studio tests, deterministic production build, built-site validation, Studio build and responsive Playwright QA for TTNGH paths.
+- Recommendation: require the workflow after its first successful GitHub run and keep the supported Node/pnpm versions explicit.
 
 ## Positive controls verified
 
@@ -56,7 +56,7 @@ One critical build-time Astro advisory and later rendering advisories were found
 
 - Website tests: 62/62 passed.
 - Studio tests: 10/10 passed; Studio build passed.
-- API tests: 57/57 passed with local isolated providers and sockets.
+- API tests: 65/65 passed with local isolated providers and sockets, including media isolation and migration gates.
 - Production-content build: 22 pages; built HTML passed metadata, H1, JSON-LD, asset and destination checks.
 - Production API health: HTTP 200, enquiries reported ready.
 - `git diff --check`: passed.

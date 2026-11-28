@@ -5,14 +5,14 @@
 28 November 2026: the public website and Railway API are operational, published
 Sanity content builds successfully, the public calendar feed returns current data,
 and the enquiry health state reports ready. The complete production-readiness
-recommendation remains **NO-GO** until authenticated draft preview and the Drive→R2
-media workflow are integrated and staging/provider-verified. See the current
+recommendation remains **NO-GO** until authenticated draft preview is approved and
+the integrated Drive→R2 media workflow is staging/provider-verified. See the current
 [production-readiness audit](production-readiness-audit-2026-11-28.md),
 [security review](security-best-practices-report-2026-11-28.md), and
 [codebase cleanup audit](codebase-cleanup-audit-2026-11-28.md).
 
 The audit did not send a real enquiry, mutate provider content, migrate a shared
-database, merge or deploy. CMS publish/withdrawal rebuilds, private provider
+database or deploy. CMS publish/withdrawal rebuilds, private provider
 settings, rollback controls and operational ownership still require authenticated
 owner verification. Follow [deployment](deployment.md), [content operations](content-operations.md)
 and [email operations](email-operations.md). Historical Phase 1/2 and October status
