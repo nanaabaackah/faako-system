@@ -19,6 +19,7 @@ test("journal detail uses real editorial metadata and a two-column related-readi
   assert.match(article, /journal-detail__related-item/);
   assert.match(article, /journal-detail__more-grid/);
   assert.match(article, /<ContentLink button href="\/packages">Explore packages/);
+  assert.match(css, /body main \.journal-detail \.journal-detail__planning h2 \{ color: var\(--brand-cream\); \}/);
   assert.match(article, /navigator\.share/);
   assert.match(css, /@media \(max-width: 960px\)/);
   assert.match(css, /@media \(max-width: 640px\)/);

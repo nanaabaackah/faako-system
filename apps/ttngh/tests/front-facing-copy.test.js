@@ -65,6 +65,9 @@ test("Faako shared icon and reduced-motion calendar support remain", () => {
   assert.match(icons, /"arrow-left": ArrowLeft4, "arrow-right": ArrowRight4/);
   assert.match(source("components/MonthCalendar.astro"), /data-month-prev aria-label="Previous month"><Icon name="arrow-left"/);
   assert.match(source("components/MonthCalendar.astro"), /data-month-next aria-label="Next month"><Icon name="arrow-right"/);
+  assert.doesNotMatch(source("components/ContactForm.astro"), /data-load-verification|Load security check/);
+  assert.match(source("scripts/contact-form.ts"), /IntersectionObserver/);
+  assert.match(source("scripts/contact-form.ts"), /loadVerification/);
   assert.match(source("components/MonthCalendar.astro"), /month-calendar-sr-only/);
   assert.match(source("styles/components/month-calendar.css"), /prefers-reduced-motion/);
   assert.match(source("components/ScrollExpandSection.astro"), /prefers-reduced-motion/);

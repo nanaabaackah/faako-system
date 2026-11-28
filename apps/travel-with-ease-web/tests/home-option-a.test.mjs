@@ -138,6 +138,7 @@ test("package tickets reuse the React Bits ticket with visible headings, currenc
   assert.match(packageTicket, /<IconsaxIcon name="ArrowLeft4"/);
   assert.doesNotMatch(ticketSkin, /\.twe-ticket__flip--back svg[^}]*rotate/);
   assert.match(packageTicket, /aria-label=\{`Explore \$\{title\} package`\}/);
+  assert.match(packageTicket, /<span>View package<\/span>/);
   assert.doesNotMatch(packageTicket, /Your planning pass|Your journey, your way|↗|twe-ticket__label/);
   assert.match(ticketSkin, /twe-ticket__barcode/);
   assert.match(ticketSkin, /-webkit-mask: none/);

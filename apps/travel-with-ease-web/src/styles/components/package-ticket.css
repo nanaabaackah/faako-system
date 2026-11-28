@@ -237,12 +237,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  gap: 8px;
+  width: auto;
+  min-height: 40px;
+  padding: 8px 12px;
   border: 1px solid rgb(1 12 51 / 45%);
   border-radius: var(--twe-radius-button);
   background: rgb(1 12 51 / 4%);
   color: var(--brand-navy);
+  font: 800 .78rem/1.25 var(--font-impact, Inter, sans-serif);
   text-decoration: none;
 }
 .twe-ticket__link:hover { background: rgb(1 12 51 / 11%); }
@@ -252,6 +255,7 @@
   .twe-ticket__main .twe-ticket__content :is(h2,h3) { font-size: clamp(1.65rem, 6.3vw, 1.95rem); }
   .twe-ticket__summary { font-size: .84rem; }
   .twe-ticket__description { max-height: 99px; font-size: .8rem; }
+  .twe-ticket__actions { padding-inline-end: 52px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .twe-package-ticket .tilted-card__body,
