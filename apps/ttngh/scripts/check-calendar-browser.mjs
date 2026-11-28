@@ -27,7 +27,10 @@ try {
   for (const width of [320, 375, 390, 430, 768, 1024, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: "reduce" });
     const page = await context.newPage();
-    await page.route("https://**/*", route => route.abort()); // Keep QA independent of external fonts/analytics.
+    await page.route("https://**/*", route => {
+      if (new URL(route.request().url()).pathname === "/api/calendar/events") return route.fallback();
+      return route.abort();
+    }); // Keep QA independent of external fonts/analytics while allowing the synthetic API route below.
     let mode = "hold", release;
     const gate = new Promise(resolve => { release = resolve; });
     let calls = 0;

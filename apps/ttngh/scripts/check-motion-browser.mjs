@@ -11,7 +11,9 @@ try {
   const screenshots = process.env.TTNGH_MOTION_SCREENSHOT_DIR;
   if (screenshots) await mkdir(screenshots, { recursive: true });
   const paths = ["/", "/about", "/programmes", "/events", "/impact", "/team", "/get-involved", "/contact", "/news", "/resources", "/support-us", "/cms", "/privacy", "/terms", "/404.html"];
-  paths.push(...(await readdir(new URL("../dist/events/", import.meta.url), { withFileTypes: true })).filter(entry => entry.isDirectory()).map(entry => "/events/" + entry.name));
+  paths.push(...(await readdir(new URL("../dist/events/", import.meta.url), { withFileTypes: true }))
+    .filter(entry => entry.isDirectory() && entry.name !== "stories")
+    .map(entry => "/events/" + entry.name));
   const widths=process.env.TTNGH_QA_WIDTHS ? process.env.TTNGH_QA_WIDTHS.split(',').map(Number) : [320,375,390,430,768,1024,1440];
   assert.ok(widths.every(width=>Number.isInteger(width)&&width>=320&&width<=1920));
   for (const reducedMotion of process.env.TTNGH_CONTACT_QA_ONLY ? [] : ["no-preference", "reduce"]) for (const width of widths) {
@@ -76,8 +78,12 @@ try {
   }
 
   // Confirm that the CTA actually expands and reverses while scrolling on all layouts.
-  for (const path of ["/", "/about", "/programmes", "/events"]) {
-    for (const width of [390, 768, 1440]) {
+  const signaturePaths = process.env.TTNGH_CONTACT_QA_ONLY ? [] : process.env.TTNGH_SIGNATURE_QA_PATHS?.split(",") || ["/", "/about", "/programmes", "/events"];
+  const signatureWidths = process.env.TTNGH_SIGNATURE_QA_WIDTHS?.split(",").map(Number) || [390, 768, 1440];
+  assert.ok(signaturePaths.every(path => path.startsWith("/") && !path.includes("..")));
+  assert.ok(signatureWidths.every(width => Number.isInteger(width) && width >= 320 && width <= 1920));
+  for (const path of signaturePaths) {
+    for (const width of signatureWidths) {
       const context = await browser.newContext({
         viewport: { width, height: 900 },
         reducedMotion: "no-preference",
@@ -111,7 +117,7 @@ try {
       const middle = await measureAt(0.5);
       const end = await measureAt(1);
       const reverse = await measureAt(0);
-      assert.ok(start.inset > middle.inset && middle.inset > end.inset, `${path}/${width}: frame expands with scroll`);
+      assert.ok(start.inset > middle.inset && middle.inset > end.inset, `${path}/${width}: frame expands with scroll ${JSON.stringify({start,middle,end})}`);
       assert.ok(start.overlay < 0.1 && end.overlay > 0.99, `${path}/${width}: CTA reveals after expansion`);
       assert.ok(Math.abs(reverse.inset - start.inset) < 0.5, `${path}/${width}: expansion reverses while scrolling up`);
       if (start.scale !== null) assert.ok(start.scale > middle.scale && middle.scale > end.scale, `${path}/${width}: photo scale responds to scroll`);
@@ -190,9 +196,10 @@ try {
     await page.goto(server.origin + "/contact");
     const essential = page.getByRole("button", { name: "Essential only", exact: true });
     if (await essential.isVisible()) await essential.click();
-    assert.equal(verifyLoads, 0, "Turnstile must remain manually loaded");
-    await page.locator("[data-load-verification]").click();
+    assert.equal(await page.locator("[data-load-verification]").count(), 0, "Manual verification button has been removed");
+    await page.locator("[data-contact-form]").scrollIntoViewIfNeeded();
     await page.waitForFunction(() => typeof window.testVerify === "function");
+    assert.equal(verifyLoads, 1, "Turnstile loads automatically when the form is visible");
     const form = page.locator("[data-contact-form]"), button = form.locator('[type="submit"]');
     await page.evaluate(() => window.testVerify());
     await button.click();

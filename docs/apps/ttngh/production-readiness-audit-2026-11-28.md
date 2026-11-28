@@ -1,0 +1,118 @@
+# TTNGH production-readiness audit — 28 November 2026
+
+## Decision
+
+**Overall readiness after the implementation follow-up: 75/100. Launch decision for the complete requested scope: NO-GO.**
+
+The public visitor site and API are operational: production returned successful site and API health responses, the live calendar returned the expected 25 November board meeting, all local frontend/Studio/API tests passed, and a live-content build produced 22 valid pages. The complete requested scope is still blocked by two P1 gaps: there is no authenticated Sanity draft-preview/click-to-edit workflow, and the Drive-to-R2 media work remains on an unmerged branch without staging/provider verification. The patched Astro dependency is also not deployed from this audit branch.
+
+No production mutation, form submission, merge, migration or deployment was performed.
+
+## Scorecard
+
+| Area | Score | Evidence summary |
+| --- | ---: | --- |
+| UI/UX and content | 14/15 | Milestones now extend the existing impact section, while dedicated news and resource sections give the homepage a clearer evidence and content hierarchy. |
+| Responsive behaviour and accessibility | 8/10 | Calendar and gallery/news browser QA passed from 320/375 through 1440 px; keyboard/error/empty/XSS states covered; no current Safari or screen-reader session. |
+| Sanity, preview and publishing | 7/15 | Publication safeguards and signed rebuild webhook exist; Studio authoring UX improved; no secure draft preview or click-to-edit. |
+| Events and calendar | 9/10 | Live API data and local responsive/keyboard states verified; no provider-side edit was made. |
+| Drive/R2 media | 3/10 | Substantial implementation exists on a remote branch, but is not merged, deployed or provider-tested. |
+| API, enquiries and integrations | 9/10 | Health reports enquiries ready; 57 API tests passed; origin, Turnstile, persistence and outbox controls verified without a real submission. |
+| Security and privacy | 12/15 | Strong API controls and deployed headers; critical Astro advisory fixed locally; CSP still permits inline code and Studio CLI advisories remain. |
+| Performance, SEO and analytics | 4/5 | 22-page metadata/link/JSON-LD check passed; header logo optimized; build assets remain about 15 MB and no current field-CWV run was available. |
+| Deployment, CI and monitoring | 4/5 | A path-scoped website/Studio build and responsive-homepage workflow is included locally but has not yet run on GitHub. |
+| Cleanup and maintainability | 5/5 | A dedicated cleanup audit records removed, retained and deferred candidates; provider and payment ownership decisions remain explicit follow-up work. |
+
+## Findings by priority
+
+### P0 — resolved locally
+
+1. **Astro build/runtime advisories.** `pnpm audit --prod` identified critical AVIF optimization and later rendering advisories in 7.1.3. `apps/ttngh` now pins 7.3.8, the newest release compatible with the repository's Node 22.18 runtime. The remaining Astro findings are a low-severity dynamic-tag issue (no untrusted dynamic tag names were found) and an image-endpoint issue in `@astrojs/node` (TTNGH is a static build and does not use that adapter). Moving to 7.4.7+ requires upgrading the build runtime to Node 22.23.4+. This fix is not in production until reviewed, merged and deployed.
+
+### P1 — launch blockers
+
+1. **Secure preview is absent.** The current architecture intentionally exposes only published content and states that draft-preview sessions do not exist. There is no Sanity Presentation tool, authenticated preview session, draft-mode route or click-to-edit integration. A preview host's DNS/authentication could not be verified from repository access. Implement this as an explicit architecture/security change; do not expose draft queries to public clients.
+2. **Drive-to-R2 workflow is not integrated or provider-verified.** `origin/feat/ttngh-drive-r2-safe-nested-sync-20261128` contains 28 commits beyond its base, including nested traversal, immutable provenance, dry runs, approval gates and operator documentation. It is also five commits behind current `origin/develop`. Rebase/review it, run isolated migrations, and prove read-only Drive discovery, R2 staging, idempotent reruns, approval and Sanity handoff with real staging credentials before merge or deployment.
+3. **Frontend/Studio CI was missing; implementation is awaiting its first GitHub run.** `.github/workflows/ttngh-site.yml` now adds frozen install, website/Studio tests, a deterministic CMS-fixture build, built-page validation, Studio build and homepage browser checks at 390/768/1440 px. It is not operationally verified until the workflow runs green on GitHub.
+
+### P2 — next release
+
+1. **Turnstile still requires a manual button in production; fixed locally.** The audit branch removes the button, loads verification once the form approaches the viewport, retries once when connectivity returns, preserves server-side verification and updates the privacy disclosure. Unit and mocked browser checks pass. Preview verification and deployment remain required.
+2. **CSP retains `'unsafe-inline'`.** This is a defence-in-depth gap, not evidence of an active exploit. Remove only after Astro/analytics/Turnstile compatibility is proven with hashes or nonces on preview.
+3. **Studio dependency-tree advisories remain.** The final TTNGH-scoped audit has no critical finding, but reports 8 high, 21 moderate and 8 low advisories. Apart from two residual Astro findings described above, the paths are in the Sanity editor/build tree (`dompurify`, `undici`, `js-yaml`, `smol-toml`, `minimatch`, `uuid`), not the public static visitor bundle. Upgrade when Sanity's supported tree resolves them or validate a narrowly scoped override; do not impose a monorepo-wide override from this audit.
+4. **Provider/dashboard evidence is incomplete.** Railway health and Cloudflare response headers were verified from production, but dashboard configuration, rollback controls, Cloudflare preview indexing and GitHub PR/check state require authenticated owner access.
+5. **Motion assertion has one observed flake.** The full route/viewport motion run passed its route loops, then once missed a timing-sensitive scroll-expansion assertion at home/768; targeted reproduction passed. The script now reports route/width evidence and supports targeted reruns. Stabilize the timing assertion in CI.
+
+### P3 — backlog
+
+1. Measure current Core Web Vitals on representative mobile hardware and reduce oversized editorial photography where the quality trade-off is acceptable.
+2. Decide whether dormant payment modules remain a tracked future capability or should be removed in a separate change. They are not mounted by the current API and were not deleted during this audit.
+3. The cookie notice can obscure lower mobile gallery content until dismissed. It is functional and expected, but a smaller mobile treatment would improve browsing comfort.
+
+## Implemented in this audit branch
+
+- Replaced generic fallback homepage/mission language with Ghana- and service-specific copy.
+- Expanded the homepage impact section with milestone highlights, and added dedicated latest-news and reviewed-resource sections. News falls back to verified local press-coverage records when no CMS news article is published; resources retain an honest archive/empty state rather than invented content.
+- Consolidated the featured-event heading, description and CTA; changed the impact heading to a dated factual framing.
+- Added Studio document groups, clearer field labels/help, advanced-SEO collapsing and safe defaults for review/consent/registration/verification states while preserving publication safeguards.
+- Fixed calendar browser interception so the synthetic calendar route is tested rather than aborted.
+- Fixed motion route discovery so the `events/stories` directory is not treated as a page, added targeted rerun controls and improved assertion evidence.
+- Added regression tests for the copy, Studio defaults/groups and motion script behaviour.
+- Pinned Astro 7.3.8 to remediate the critical and applicable higher-severity advisories while retaining Node 22.18 compatibility.
+- Added automatic near-viewport Turnstile loading with updated privacy copy and browser assertions.
+- Added TTNGH website/Studio CI, declared Playwright as TTNGH's QA dependency and removed unused `@faako/core`.
+- Added the separate [codebase cleanup audit](codebase-cleanup-audit-2026-11-28.md).
+
+## Content inventory
+
+| Location | Previous issue | Decision/status |
+| --- | --- | --- |
+| Home fallback hero | Broad “empowering” language | Rewritten to name mental-health education, counselling, advocacy, Tema and Ghana. |
+| Homepage milestones | Only impact numbers and a deep-page milestone list | Integrated a four-item milestone block into the existing homepage impact section and linked it to the complete impact story. |
+| Homepage news | Mixed with resources and disappeared when CMS news was empty | Added a dedicated latest-news section using published CMS articles or verified local press coverage. |
+| Homepage resources | Mixed with news | Added a separate reviewed-resource section with explicit archive/empty handling. |
+| About mission | Generic empowerment phrase | Tightened without inventing a programme claim. |
+| Impact heading | Undated “Our impact” framing | Changed to “Milestones since July 2023”. |
+| Featured event | Repeated/weak “what's happening” language | Consolidated as previous-event evidence with one “View event stories” CTA. |
+| Contact verification | Manual load button | Removed locally; verification now lazy-loads near the form with guarded retry/failure states. |
+| Contact privacy wording | Described user-triggered loading | Updated to describe near-viewport Cloudflare loading and direct-contact alternatives. |
+| Calendar instructions and legal/CMS notices | Specific, useful operational copy | Retained. |
+| Eyebrow labels / decorative emoji | No verified repetitive eyebrow or inappropriate UI emoji issue | No speculative deletion. |
+
+## Branch and deployment evidence
+
+- Audit base: `origin/develop` at the start of the audit; working branch `audit/ttngh-production-readiness-20261128`.
+- Previously accepted work from PR commits `bd8b5a607` and `a80951ca9` is already ancestral to both `origin/develop` and `origin/main`; it was not reopened without contrary evidence.
+- Turnstile branch: seven unique commits and five commits behind current develop at inspection time.
+- Media branch: 28 unique commits and five commits behind current develop at inspection time.
+- GitHub CLI authentication was invalid, so PR mergeability, reviews and check-run conclusions are **unknown**, not assumed green.
+- No merge or deployment was performed.
+
+## Verification record
+
+| Check | Result |
+| --- | --- |
+| Website unit/integration tests | 62/62 passed |
+| Studio schema tests | 10/10 passed |
+| API tests | 57/57 passed using local isolated sockets/providers |
+| TTNGH production-content build | 22 pages built |
+| Built-site validation | Unique metadata, one H1, JSON-LD, local assets and destinations verified on all 22 pages |
+| Studio production build | Passed |
+| Calendar browser QA | Passed at 320, 375, 390, 430, 768, 1024 and 1440 px; no overflow; 48/52 px controls; keyboard, error, empty and XSS-safe states covered |
+| Homepage browser QA | Passed at 390, 768 and 1440 px against live published content and the deterministic CMS fixture; milestones, news/resources, destinations, local images and overflow verified |
+| Gallery/news/event-detail browser QA | Passed at 375, 768 and 1440 px |
+| Production site/API | Site 200; API `/health` 200 with enquiries ready; calendar returned three events in the inspected range |
+| Production response headers | CSP, frame denial, nosniff, referrer and permissions policies present |
+| Dependency audit | No TTNGH-scoped critical finding after the Astro pin; Studio/editor transitive findings and two non-applicable/low Astro findings remain |
+| Repository diff | `git diff --check` passed |
+
+Fresh visual evidence was captured during the audit under `/private/tmp/ttngh-audit-motion/`, `/private/tmp/ttngh-audit-gallery/`, `/private/tmp/ttngh-home-implementation/` and `/tmp/ttngh-calendar-agenda-*.png`. These are local audit artefacts, not production assets.
+
+## Required path to GO
+
+1. Review this branch's Turnstile implementation independently from the media migration/provider work.
+2. Implement authenticated, noindex draft preview and click-to-edit under an approved architecture/security design.
+3. Run the media workflow end-to-end in staging with real provider permissions and explicit migration approval; record rollback evidence.
+4. Obtain green GitHub API and website/Studio checks on the final branch set.
+5. Deploy the Astro fix to preview, rerun built-site/browser/security checks, then deploy production and verify headers, health, calendar, contact behaviour, webhook rebuild and rollback.
+

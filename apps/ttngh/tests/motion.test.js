@@ -23,9 +23,9 @@ test("reveal is selected, observer driven and fail-open", () => {
   assert.doesNotMatch(css, /\[data-reveal\]\s*\{[^}]*opacity:\s*0/);
   for (const page of ["privacy", "terms", "contact"]) assert.doesNotMatch(read("pages/" + page + ".astro"), /data-reveal/);
 });
-test("contact preserves token checks, duplicate guard, reset and manual verification", () => {
+test("contact preserves token checks, duplicate guard, reset and automatic verification", () => {
   const script = read("scripts/contact-form.ts");
-  for (const pattern of [/if\(busy\)return/, /if\(!token\)/, /provider\?\.reset\(widget\)/, /AbortSignal.timeout\(30000\)/, /load.addEventListener\("click"/, /form.reset\(\)/, /setAsyncButtonState\(submit,"working"\)/, /setAsyncButtonState\(submit,"success"\)/, /setAsyncButtonState\(submit,"error"\)/]) assert.match(script, pattern);
+  for (const pattern of [/if\(busy\)return/, /if\(!token\)/, /provider\?\.reset\(widget\)/, /AbortSignal.timeout\(30000\)/, /IntersectionObserver/, /loadVerification/, /form.reset\(\)/, /setAsyncButtonState\(submit,"working"\)/, /setAsyncButtonState\(submit,"success"\)/, /setAsyncButtonState\(submit,"error"\)/]) assert.match(script, pattern);
 });
 test("signature motion and calendar failure behaviour remain", () => {
   assert.match(read("components/ScrollExpandSection.astro"), /requestAnimationFrame/);
@@ -78,4 +78,9 @@ test("observer construction and observation errors recover without hiding conten
   assert.match(script,/try \{\s*observer =/);
   assert.match(script,/try \{ observer.observe\(element\); \} catch \{ reveal\(element\); \}/);
   assert.ok(script.indexOf("setTimeout")<script.indexOf('element.setAttribute("data-reveal-pending"'));
+});
+test("browser motion QA does not invent an events stories index route", () => {
+  const script=readFileSync(new URL("../scripts/check-motion-browser.mjs",import.meta.url),"utf8");
+  assert.match(script,/entry\.name !== "stories"/);
+  assert.match(script,/TTNGH_CONTACT_QA_ONLY \? \[\] : process\.env\.TTNGH_SIGNATURE_QA_PATHS/);
 });

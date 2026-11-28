@@ -19,6 +19,19 @@ test("public templates do not show internal publication or editorial-status inst
   }
 });
 
+test("code-authored fallback copy avoids generic repeated section language", () => {
+  const combined = ["pages/index.astro", "pages/about.astro", "pages/impact.astro", "components/FeaturedEvent.astro"]
+    .map(source).join("\n");
+  for (const phrase of ["Together, we are building", "Keep the conversation going", "Highlights from our journey", "Explore our previous events", "Explore previous events"]) {
+    assert.doesNotMatch(combined, new RegExp(phrase));
+  }
+  assert.match(source("pages/index.astro"), /based in Tema and working across Ghana/);
+  assert.match(source("pages/index.astro"), /Milestones since July 2023/);
+  assert.match(source("pages/index.astro"), /Latest news from TTNGH/);
+  assert.match(source("pages/index.astro"), /Practical mental health resources/);
+  assert.match(source("pages/impact.astro"), /Milestones since July 2023/);
+});
+
 test("donation prompts stay accurate while donation payment details remain unverified", () => {
   const cta = source("components/ScrollExpandSection.astro");
   const donation = source("pages/support-us.astro");
@@ -55,4 +68,6 @@ test("Faako shared icon and reduced-motion calendar support remain", () => {
   assert.match(source("components/MonthCalendar.astro"), /month-calendar-sr-only/);
   assert.match(source("styles/components/month-calendar.css"), /prefers-reduced-motion/);
   assert.match(source("components/ScrollExpandSection.astro"), /prefers-reduced-motion/);
+  assert.doesNotMatch(source("components/ContactForm.astro"), /data-load-verification|Load security check/);
+  assert.match(source("scripts/contact-form.ts"), /IntersectionObserver/);
 });

@@ -6,6 +6,21 @@ const image={asset:{_ref:"image-test"},url:"https://cdn.sanity.io/images/test/pr
 const base={_id:"test",publishState:"published",title:"Test publication",slug:{current:"test-publication"},summary:"A clear test summary.",body:"Approved test body.",seo:{description:"A sufficiently detailed description used to validate the CMS publication boundary."},image,author:"Test author",publishedAt:"2025-01-01T00:00:00Z"};
 const resource={...base,_type:"resource",owner:"Editor",reviewer:"Reviewer",lastReviewed:"2025-01-01T00:00:00Z",reviewState:"approved",sources:[{title:"Source",url:"https://example.org/source"}]};
 test("all nine requested document types exist without a testimonial type",()=>{assert.equal(schemaTypes.length,9);assert.ok(!schemaTypes.some(schema=>schema.name==="testimonial"));for(const schema of schemaTypes)assert.ok(schema.validation);});
+test("editor fields are grouped and safe workflow defaults reduce repetitive setup",()=>{
+ for(const schema of schemaTypes){
+  assert.deepEqual(schema.groups.map(group=>group.name),["content","governance","advanced"]);
+  assert.ok(schema.fields.every(field=>["content","governance","advanced"].includes(field.group)));
+  assert.equal(schema.initialValue.publishState,"draft");
+ }
+ const event=schemaTypes.find(schema=>schema.name==="event");
+ assert.equal(event.initialValue.registrationState,"not-open");
+ assert.equal(event.initialValue.timezone,"Africa/Accra");
+ assert.equal(event.fields.find(field=>field.name==="calendarUid").group,"advanced");
+ assert.equal(event.fields.find(field=>field.name==="owner").group,"governance");
+ for(const [type,key] of [["programme","safeguardingState"],["resource","reviewState"],["teamMember","consentStatus"],["impactStat","verificationStatus"]]) {
+  assert.equal(schemaTypes.find(schema=>schema.name===type).initialValue[key],"pending");
+ }
+});
 test("approved resource passes both editor and build validation",()=>{assert.deepEqual(contentIssues(resource),[]);assert.equal(validateCmsDocuments([resource]).length,1);});
 test("drafts, releases and unpublished records are excluded",()=>{assert.equal(validateCmsDocuments([{...resource,_id:"drafts.test"},{...resource,_id:"versions.release.test"},{...resource,publishState:"draft"}]).length,0);});
 test("resources require reviewer, source, review date and relevant urgent notice",()=>{for(const patch of [{reviewer:""},{sources:[]},{lastReviewed:""},{reviewState:"pending"},{urgentSupportRelevant:true}])assert.throws(()=>validateCmsDocuments([{...resource,...patch}]));});
