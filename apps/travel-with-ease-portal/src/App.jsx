@@ -270,8 +270,6 @@ function StaffWorkspace() {
             }[section]}</h1>}
             actions={<>
               <span className="twe-session-role"><span className="twe-visually-hidden">Signed in as </span><strong>{session.user.role === "platform_admin" ? "Superadmin" : session.user.role.replaceAll("_", " ")}</strong></span>
-              <Button icon="logout" variant="ghost" type="button"
-                disabled={loggingOut || pendingWrites > 0} onClick={() => logout()}>Sign out</Button>
             </>}
           />
         ) : <PageHeader title="Staff sign-in" />}

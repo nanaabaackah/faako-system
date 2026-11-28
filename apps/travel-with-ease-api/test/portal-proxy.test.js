@@ -24,6 +24,8 @@ test("portal upstream allows only fixed HTTPS origins outside local tests", () =
   assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/content/publication-jobs/${publicationId}/delete`), false);
   const mediaId = "234c845f-49e7-4566-8752-a23a3ad0185c";
   assert.equal(isAllowedPortalApiRoute("GET", "/api/agent/media/drive"), true);
+  assert.equal(isAllowedPortalApiRoute("GET", "/api/agent/media/drive/synthetic_image_123/preview"), true);
+  assert.equal(isAllowedPortalApiRoute("GET", "/api/agent/media/drive/bad/preview"), false);
   assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/media/drive/import"), true);
   assert.equal(isAllowedPortalApiRoute("POST", "/api/agent/media/upload"), true);
   assert.equal(isAllowedPortalApiRoute("POST", `/api/agent/media/${mediaId}/replace`), true);

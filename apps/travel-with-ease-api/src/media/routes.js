@@ -56,6 +56,17 @@ export function mediaRoutes({ service, auth }) {
         );
     },
   );
+  router.get(
+    "/drive/:id/preview",
+    auth.requirePermission("media.write"),
+    async (req, res) => {
+      const bytes = await service.previewDrive(driveId.parse(req.params.id));
+      res.setHeader("Content-Type", "image/webp");
+      res.setHeader("Content-Disposition", "inline; filename=drive-preview.webp");
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.send(bytes);
+    },
+  );
   router.get("/:id/preview", async (req, res) => {
     const bytes = await service.preview(id(req.params.id));
     res.setHeader("Content-Type", "image/webp");

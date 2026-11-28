@@ -70,6 +70,12 @@
     repeating-radial-gradient(ellipse at 92% 116%, transparent 0 26px, rgb(216 181 106 / 30%) 27px 28px, transparent 29px 44px);
 }
 
+/* The fallback is only for pre-hydration and static rendering. Do not layer
+   its synthetic rings beneath the live topography canvas. */
+:global(.closing-cta:has(.closing-topography-canvas .topography-canvas)) .closing-topography-fallback {
+  opacity: 0;
+}
+
 .closing-topography-canvas {
   z-index: -2;
   opacity: 1;

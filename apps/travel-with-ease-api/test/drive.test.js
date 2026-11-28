@@ -290,6 +290,10 @@ test("Drive routes enforce media permissions, CSRF, input validation and platfor
       imports++;
       return { id: "synthetic-asset" };
     },
+    async previewDrive(id) {
+      assert.equal(id, fileId);
+      return Buffer.from("synthetic-webp-preview");
+    },
   };
   const auth = {
     requirePermission: (permission) => (req, res, next) => {
@@ -321,6 +325,10 @@ test("Drive routes enforce media permissions, CSRF, input validation and platfor
       200,
     );
   }
+  const preview = await fetch(origin + `/drive/${fileId}/preview`);
+  assert.equal(preview.status, 200);
+  assert.equal(preview.headers.get("content-type"), "image/webp");
+  assert.equal(await preview.text(), "synthetic-webp-preview");
   const body = JSON.stringify({
     fileId,
     version: "1",

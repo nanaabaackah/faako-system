@@ -10,6 +10,15 @@ Start with [current release preparation — 2026-11-25](./release-preparation-20
 - [Staging operations](./staging-operations.md), [email delivery](./email-test-flow.md) and [Drive/R2 media](./drive-r2-sync.md)
 - [Security](./security.md), [implementation plan](./implementation-plan.md) and [progress log](./progress-log.md)
 
+## Production-readiness audit — 2026-11-22
+
+The current [provider-first production-readiness audit](./audits/2026-11-22-production-readiness/README.md)
+reconciles the preserved remediation register, cleanup, infrastructure ownership,
+environment variables, verification evidence and release gates. Its current
+decision is **NO-GO** because the latest production deployment failed and the
+production API health endpoint was unavailable; local fixes do not override those
+hosted gates.
+
 ## Historical implementation records
 
 The dated records below retain the evidence and decisions available at the time. Where claims conflict, the current release preparation and readiness gates take precedence.
