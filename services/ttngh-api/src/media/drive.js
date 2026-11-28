@@ -286,7 +286,10 @@ export class DriveReader {
           mimeType: item.mimeType,
           size: item.size,
           version: item.version,
-          syncEligible: Boolean(item.description?.trim() && item.description.trim().length <= 500),
+          md5Checksum: item.md5Checksum,
+          // Discovery includes images without Drive descriptions; all imports stay private
+          // until explicitly approved with alternative text and rights evidence.
+          syncEligible: true,
         });
       } catch {
         /* Unsupported, inaccessible or moved files are never offered. */
