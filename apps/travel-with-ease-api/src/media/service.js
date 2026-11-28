@@ -3,7 +3,7 @@ import { z } from "zod";
 import { transaction } from "../db/database.js";
 import { appendAudit } from "../audit.js";
 import { ContentError } from "../content/schema.js";
-import { prepareImage } from "./images.js";
+import { prepareImage, prepareImagePreview } from "./images.js";
 
 export const mediaMetadataSchema = z
   .object({
@@ -199,6 +199,17 @@ export class MediaService {
         "The Drive revision no longer matches the imported image. Refresh and review its source.",
       );
     return rows[0];
+  }
+  async previewDrive(id) {
+    if (!this.drive)
+      throw new ContentError(
+        503,
+        "service_unavailable",
+        "Google Drive image previews are not configured.",
+      );
+    const file = await this.drive.metadata(id);
+    const bytes = await this.drive.download(file);
+    return prepareImagePreview(bytes, file.mimeType);
   }
   async importDrive(input, actor, requestId) {
     return this.#importDrive(input, actor, requestId, false);

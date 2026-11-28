@@ -26,9 +26,14 @@ test("global portal avoids duplicate success toasts, sign-out buttons and routin
 
 test("media and CMS copy do not expose developer or infrastructure setup details", () => {
   const media = source("../src/components/MediaLibrary.jsx");
+  const mediaStyles = source("../src/styles/media-library.css");
   const contentEditor = source("../src/components/WebsiteContent.jsx");
   assert.doesNotMatch(media, /Baaba|R2 setup before uploads|notification worker/);
   assert.match(media, /Media uploads are unavailable/);
+  assert.match(media, /\/api\/agent\/media\/drive\/\$\{id\}\/preview/);
+  assert.match(media, /twe-drive-image/);
+  assert.match(mediaStyles, /\.twe-drive-file \.twe-drive-image[\s\S]*?aspect-ratio:4\/3/);
+  assert.match(mediaStyles, /\.twe-drive-files \{ grid-template-columns:repeat\(2,minmax\(0,1fr\)\); \}/);
   assert.doesNotMatch(contentEditor, /November 16 two-path process|Re-select managed R2 images|free-checklist offers/);
   assert.match(contentEditor, /The site changes only after deployment is verified/);
   assert.doesNotMatch(contentEditor, /Your update is live only after deployment succeeds/);

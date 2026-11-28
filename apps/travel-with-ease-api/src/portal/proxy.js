@@ -4,6 +4,7 @@ import { createErrorResponse, errorCodeForStatus, resolveRequestId } from "@faak
 import { buildSecurityHeaders } from "@faako/security";
 
 const id = "[a-fA-F0-9-]{36}";
+const driveFileId = "[A-Za-z0-9_-]{10,200}";
 const page = `(?:${pageNames.join("|")})`;
 const template = "(?:enquiry-acknowledgement|staff-invitation|enquiry-(?:gift|group|celebration|package|service-(?:readiness|full-planning|premium|group))|enquiry-package-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})";
 const form = "(?:intake|detailed)";
@@ -33,7 +34,7 @@ const routes = [
   ["GET", new RegExp(`^/api/agent/content/previews/${id}(?:/files/(?!.*(?:\\.\\.|//))(?:[a-zA-Z0-9_./-]|%20){1,500})?$`)],
   ["POST", new RegExp(`^/api/agent/content/${page}/visual-preview$`)],
   ["POST", new RegExp(`^/api/agent/content/(?:publication-jobs/${id}/(?:retry|cancel)|${page}/(?:draft|publish|unpublish|revert/${id}))$`)],
-  ["GET", new RegExp(`^/api/agent/media(?:/drive|/${id}/preview)?/?$`)],
+  ["GET", new RegExp(`^/api/agent/media(?:/drive(?:/${driveFileId}/preview)?|/${id}/preview)?/?$`)],
   ["POST", new RegExp(`^/api/agent/media/(?:upload|drive/import|${id}/(?:replace|archive))$`)],
 ];
 

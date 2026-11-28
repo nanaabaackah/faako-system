@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import sharp from "sharp";
-import { prepareImage, MAX_UPLOAD_BYTES } from "../src/media/images.js";
+import { prepareImage, prepareImagePreview, MAX_UPLOAD_BYTES } from "../src/media/images.js";
 import { MediaService } from "../src/media/service.js";
 import { readR2Config } from "../src/media/r2.js";
 import { createApp, createLimiter } from "../src/app.js";
@@ -34,6 +34,16 @@ test("transparent mockups retain alpha without enlarging low-resolution images",
     assert.equal(meta.hasAlpha,true);assert.equal(meta.width,32);
     assert.equal(meta.exif,undefined);
   }
+});
+
+test("private Drive previews are bounded metadata-free WebP thumbnails", async () => {
+  const preview = await prepareImagePreview(await fixture(), "image/png");
+  const metadata = await sharp(preview).metadata();
+  assert.equal(metadata.format, "webp");
+  assert.equal(metadata.width, 32);
+  assert.equal(metadata.height, 24);
+  assert.equal(metadata.exif, undefined);
+  await assert.rejects(prepareImagePreview(Buffer.from("invalid"), "image/png"), { status: 400 });
 });
 
 test("R2 is optional, rejects partial configuration and enforces environment bucket isolation", () => {
