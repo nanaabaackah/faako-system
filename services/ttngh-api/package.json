@@ -11,9 +11,17 @@
     "dev": "node --env-file-if-exists=.env --watch src/server.js",
     "test": "node --test test/*.test.js",
     "db:deploy": "node scripts/deploy-database.mjs",
-    "test:db": "node --test test/integration/*.test.js"
+    "test:db": "node --test test/integration/*.test.js",
+    "media:plan": "node scripts/media-command.mjs plan",
+    "media:sync": "node scripts/media-command.mjs sync",
+    "media:status": "node scripts/media-command.mjs status",
+    "media:approve": "node scripts/media-command.mjs approve",
+    "media:to-sanity": "node scripts/media-command.mjs to-sanity",
+    "media:list": "node scripts/media-command.mjs list",
+    "db:media:deploy": "node scripts/deploy-media-database.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1149.0",
     "@faako/api-contracts": "workspace:*",
     "@faako/logger": "workspace:*",
     "@faako/security": "workspace:*",
@@ -23,6 +31,8 @@
     "express-rate-limit": "8.7.1",
     "node-ical": "0.27.3",
     "zod": "^3.24.0",
-    "pg": "^8.20.0"
+    "pg": "^8.20.0",
+    "jose": "6.2.12",
+    "sharp": "0.34.5"
   }
 }
