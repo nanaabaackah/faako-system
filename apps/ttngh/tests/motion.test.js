@@ -23,9 +23,9 @@ test("reveal is selected, observer driven and fail-open", () => {
   assert.doesNotMatch(css, /\[data-reveal\]\s*\{[^}]*opacity:\s*0/);
   for (const page of ["privacy", "terms", "contact"]) assert.doesNotMatch(read("pages/" + page + ".astro"), /data-reveal/);
 });
-test("contact preserves token checks, duplicate guard, reset and manual verification", () => {
+test("contact preserves token checks, duplicate guard, reset and automatic verification", () => {
   const script = read("scripts/contact-form.ts");
-  for (const pattern of [/if\(busy\)return/, /if\(!token\)/, /provider\?\.reset\(widget\)/, /AbortSignal.timeout\(30000\)/, /load.addEventListener\("click"/, /form.reset\(\)/, /setAsyncButtonState\(submit,"working"\)/, /setAsyncButtonState\(submit,"success"\)/, /setAsyncButtonState\(submit,"error"\)/]) assert.match(script, pattern);
+  for (const pattern of [/if\(busy\)return/, /if\(!token\)/, /provider\?\.reset\(widget\)/, /AbortSignal.timeout\(30000\)/, /IntersectionObserver/, /form.reset\(\)/, /setAsyncButtonState\(submit,"working"\)/, /setAsyncButtonState\(submit,"success"\)/, /setAsyncButtonState\(submit,"error"\)/]) assert.match(script, pattern);
 });
 test("signature motion and calendar failure behaviour remain", () => {
   assert.match(read("components/ScrollExpandSection.astro"), /requestAnimationFrame/);
