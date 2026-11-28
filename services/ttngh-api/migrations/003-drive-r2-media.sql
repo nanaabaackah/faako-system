@@ -22,4 +22,9 @@ CREATE TABLE ttngh_media.assets (
   UNIQUE (source_file_id, source_version, source_checksum)
 );
 CREATE INDEX assets_review_index ON ttngh_media.assets(status, created_at DESC);
+CREATE TABLE ttngh_media.schema_migrations (
+  name text PRIMARY KEY,
+  checksum char(64) NOT NULL,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
 COMMIT;
