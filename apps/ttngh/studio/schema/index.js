@@ -4,6 +4,26 @@ const titled = [text("title", 120, true), slug, text("summary", 320, true), seo]
 const date = name => ({ name, type: "datetime", validation: Rule => Rule.required() });
 const bool = name => ({ name, type: "boolean", initialValue: false });
 const order = { name: "sortOrder", type: "number", initialValue: 0 };
+const governanceFields = new Set(["publishState", "owner", "reviewer", "reviewState", "lastReviewed", "safeguardingState", "consentStatus", "verificationStatus", "capacityApproved", "publicLinksApproved", "sources", "urgentSupportRelevant", "urgentSupportNotice"]);
+const advancedFields = new Set(["seo", "calendarUid", "timezone", "sortOrder"]);
+const fieldHelp = {
+ publishState: "Keep this as Draft until the content and approvals are complete. Only Published records appear on the website.",
+ owner: "Person responsible for keeping this content accurate.",
+ reviewer: "Person who completed the content review.",
+ sortOrder: "Optional display order. Lower numbers appear first.",
+};
+const editorField = field => ({
+ ...field,
+ group: advancedFields.has(field.name) ? "advanced" : governanceFields.has(field.name) ? "governance" : "content",
+ ...(field.description || !fieldHelp[field.name] ? {} : { description: fieldHelp[field.name] }),
+});
+const initialValues = {
+ programme: { safeguardingState: "pending" },
+ event: { registrationState: "not-open", timezone: "Africa/Accra" },
+ resource: { reviewState: "pending" },
+ teamMember: { consentStatus: "pending" },
+ impactStat: { verificationStatus: "pending" },
+};
 const documents = {
  siteSettings: [text("organisationName",120,true),text("tagline",120,true),text("summary",1000,true),text("email",160,true),text("phone",80),text("whatsapp",80),text("address",500),links("socials"),seo,text("registrationDetails",2000)],
  homePage: [text("heroTitle",120,true),text("heroSubtitle",320,true),text("introduction",2000,true),refs("featuredProgrammes",["programme"]),ref("featuredEvent","event"),refs("featuredUpdates",["newsArticle","resource"]),refs("impact",["impactStat"]),links("actions"),refs("partners",["partner"])],
@@ -17,7 +37,12 @@ const documents = {
 };
 export const schemaTypes = Object.entries(documents).map(([name, fields]) => ({
  name, type:"document", title:name.replace(/([A-Z])/g," $1").replace(/^./,c=>c.toUpperCase()),
- fields:[choice("publishState",["draft","published"]),...fields], initialValue:{publishState:"draft"},
+ groups:[
+  { name:"content", title:"Content", default:true },
+  { name:"governance", title:"Review and publishing" },
+  { name:"advanced", title:"Advanced settings" },
+ ],
+ fields:[choice("publishState",["draft","published"],"draft"),...fields].map(editorField), initialValue:{publishState:"draft",...(initialValues[name]||{})},
  validation:Rule=>Rule.custom(doc=>!doc || doc.publishState!=="published" || contentIssues(doc).join(" ") || true),
  preview:{select:{title:["siteSettings"].includes(name)?"organisationName":name==="homePage"?"heroTitle":name==="impactStat"?"label":["teamMember","partner"].includes(name)?"name":"title",media:name==="partner"?"logo":"image"}},
 }));

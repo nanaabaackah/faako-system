@@ -26,8 +26,8 @@ test('page social fields beat SEO/content, which beat site defaults', () => {
 });
 test('page image beats site image; optional social image beats page image', () => {
   const asset = {url:'https://cdn.sanity.io/images/project/production/approved.jpg',width:1200,height:630,alt:'Participants at a community event'};
-  const input = {image:{url:'/images/home/closing-community.jpg'},siteSeo:{socialImage:asset}};
-  assert.match(socialMetadata(input).image.url,/thethrivingnetworkgh.org\/images\/home/);
+  const input = {image:{url:'/images/refresh/closing-community-1600.webp'},siteSeo:{socialImage:asset}};
+  assert.match(socialMetadata(input).image.url,/thethrivingnetworkgh.org\/images\/refresh/);
   assert.deepEqual(socialMetadata({...input,seo:{socialImage:asset}}).image,asset);
   assert.deepEqual(socialMetadata({siteSeo:input.siteSeo}).image,asset);
   assert.equal(socialMetadata({article:true}).type,'article');

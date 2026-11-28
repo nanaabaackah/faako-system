@@ -1,0 +1,70 @@
+name: TTNGH website and Studio
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "apps/ttngh/**"
+      - "packages/api-client/**"
+      - "packages/discovery/**"
+      - "packages/theme/**"
+      - "packages/ui/**"
+      - "packages/utils/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/ttngh-site.yml"
+  push:
+    branches: [develop, main]
+    paths:
+      - "apps/ttngh/**"
+      - "packages/api-client/**"
+      - "packages/discovery/**"
+      - "packages/theme/**"
+      - "packages/ui/**"
+      - "packages/utils/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/ttngh-site.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ttngh-site-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    name: Website, Studio and responsive homepage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Test website and Studio
+        run: |
+          pnpm --filter @faako/ttngh test
+          pnpm --dir apps/ttngh/studio test
+      - name: Build deterministic CMS fixture
+        env:
+          TTNGH_FIXTURE_BUILD: "true"
+          SANITY_PROJECT_ID: fixture
+          SANITY_DATASET: production
+          TTNGH_CMS_REQUIRED: "true"
+          NODE_OPTIONS: --import=${{ github.workspace }}/apps/ttngh/tests/fixture-loader.mjs
+        run: pnpm --filter @faako/ttngh build
+      - name: Validate built pages
+        run: pnpm --filter @faako/ttngh test:seo
+      - name: Build Studio
+        run: pnpm --dir apps/ttngh/studio build
+      - name: Install browser for responsive QA
+        run: pnpm --filter @faako/ttngh exec playwright install --with-deps chromium
+      - name: Check homepage at mobile, tablet and desktop widths
+        run: pnpm --filter @faako/ttngh test:home-browser
