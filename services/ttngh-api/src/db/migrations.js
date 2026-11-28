@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 
 // Approved for automatic deployment: contact enquiries only. The existing
 // 001-donations.sql foundation requires separate approval and remains manual.
-export const approvedMigrationFiles = Object.freeze(["002-enquiries.sql", "003-drive-r2-media.sql"]);
+export const approvedMigrationFiles = Object.freeze(["002-enquiries.sql"]);
 
 export class MigrationError extends Error {
   constructor(code) {
@@ -72,14 +72,14 @@ export async function deployMigrations(pool, migrations) {
     const executed = [];
     for (const migration of approved) {
       if (applied.has(migration.name)) continue;
-      const names = migration.name === "002-enquiries.sql"
-        ? ["ttngh_contact.enquiries", "ttngh_contact.notification_outbox"]
-        : ["ttngh_media.assets"];
-      // Fail closed if a schema exists without its exact recorded migration.
-      const existing = await client.query("SELECT to_regclass($1) AS first, to_regclass($2) AS second",
-        [names[0], names[1] || names[0]]);
-      if (existing.rows[0]?.first || existing.rows[0]?.second)
+      const existing = await client.query(
+        "SELECT to_regclass('ttngh_contact.enquiries') AS enquiries, " +
+        "to_regclass('ttngh_contact.notification_outbox') AS notification_outbox"
+      );
+      if (existing.rows[0]?.enquiries || existing.rows[0]?.notification_outbox) {
+        // Never silently adopt or overwrite a partially created legacy schema.
         throw new MigrationError("migration_untracked_schema");
+      }
       await client.query(migration.sql);
       await client.query(
         "INSERT INTO ttngh_contact.schema_migrations (name, checksum) VALUES ($1, $2)",
@@ -91,7 +91,6 @@ export async function deployMigrations(pool, migrations) {
     // Both relations must also be readable using the Railway API's own role.
     await client.query("SELECT id FROM ttngh_contact.enquiries LIMIT 0");
     await client.query("SELECT id FROM ttngh_contact.notification_outbox LIMIT 0");
-    await client.query("SELECT id FROM ttngh_media.assets LIMIT 0");
     await client.query("COMMIT");
     transactionOpen = false;
     return executed;
