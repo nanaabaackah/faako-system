@@ -66,7 +66,8 @@ try {
           assert.equal(await nav.locator('[aria-current="page"]').count(), 1);
           assert.equal(await tab.evaluate((node) => getComputedStyle(node).backgroundColor), "rgb(255, 255, 255)");
           for (const inactive of await nav.locator("button:not([aria-current])").all()) {
-            await expect(inactive.locator("span")).toBeHidden();
+            if (width >= 600) await expect(inactive.locator("span")).toBeVisible();
+            else await expect(inactive.locator("span")).toBeHidden();
             assert.ok(await inactive.getAttribute("aria-label"));
           }
           for (const button of await nav.getByRole("button").all()) {

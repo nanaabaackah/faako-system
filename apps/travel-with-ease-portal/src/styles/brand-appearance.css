@@ -1,4 +1,4 @@
-.brand-appearance { display:grid; gap:18px; }
+.brand-appearance { display:grid; gap:var(--twe-space-section); }
 .brand-appearance > h3 { margin:0; }
 .brand-appearance > p { margin:0; color:var(--twe-muted, #566070); }
 .brand-appearance__fonts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:clamp(14px,2vw,24px); }

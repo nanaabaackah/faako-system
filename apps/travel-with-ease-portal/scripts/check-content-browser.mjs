@@ -47,7 +47,7 @@ try {
     const filteredRequest = page.waitForRequest(request => { const url = new URL(request.url()); return url.pathname === "/api/agent/inquiries" && url.searchParams.get("status") === "new"; });
     await page.getByRole("button", { name: "Open new enquiries", exact: true }).click();
     await filteredRequest;
-    await expect(page.getByRole("button", { name: "Status", exact: true })).toContainText("new");
+    await expect(page.getByRole("button", { name: "Status", exact: true })).toContainText("New");
     await navigate(width <= 900 ? "Home" : "Overview");
     // A failing summary must not prevent unrelated CMS or recent-enquiry data from loading.
     await page.route("**/api/agent/inquiries/summary", route => route.fulfill({

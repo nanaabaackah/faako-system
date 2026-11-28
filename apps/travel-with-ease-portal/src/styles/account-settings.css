@@ -1,6 +1,6 @@
 .account-workspace {
   display: grid;
-  gap: 20px;
+  gap: var(--twe-space-section);
   min-width: 0;
 }
 .account-summary {
@@ -46,7 +46,7 @@
 .account-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: var(--twe-space-grid);
 }
 .account-details {
   margin: 0;

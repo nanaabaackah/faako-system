@@ -1,7 +1,7 @@
 .template-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 24px;
+  gap: var(--twe-space-grid);
 }
 .template-workspace > * {
   min-width: 0;
@@ -50,7 +50,7 @@
 .template-preview .template-actions [aria-pressed="true"] { border-color: currentColor; font-weight: 600; }
 
 /* Communications and form builders: compact records, full-surface controls. */
-.portal-shell .twe-communications-workspace { display:grid; gap:14px; min-width:0; }
+.portal-shell .twe-communications-workspace { display:grid; gap:var(--twe-space-section); min-width:0; }
 .portal-shell .template-intro { display:flex; align-items:end; flex-wrap:wrap; gap:10px; max-width:none; }
 .template-intro > :first-child { flex:1 1 240px; min-width:0; }
 .twe-template-catalogue { display:grid; gap:12px; min-width:0; border:1px solid var(--sys-border); background:var(--sys-surface); border-radius:var(--twe-radius-card); padding:14px; }

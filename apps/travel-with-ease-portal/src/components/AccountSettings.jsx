@@ -49,12 +49,15 @@ export default function AccountSettings({ api, session, onLogout, onHandoverComp
         <section className="workspace-panel account-security" aria-labelledby="account-security-heading">
           <h3 id="account-security-heading">Sign-in and security</h3>
           <p>Password recovery and sign-in settings are managed by your work account.</p>
-          <Button
-            type="button"
-            variant="danger"
-            icon="logout"
-            onClick={() => setConfirmation({ kind: "logout", title: "Sign out all devices?", message: "Every active Travel With Ease portal session for this account will end.", label: "Sign out all devices" })}
-          >Sign out all devices</Button>
+          <div className="editor-actions">
+            <Button type="button" icon="logout" onClick={() => onLogout(false)}>Sign out this device</Button>
+            <Button
+              type="button"
+              variant="danger"
+              icon="logout"
+              onClick={() => setConfirmation({ kind: "logout", title: "Sign out all devices?", message: "Every active Travel With Ease portal session for this account will end.", label: "Sign out all devices" })}
+            >Sign out all devices</Button>
+          </div>
         </section>
       </div>
       {handover && (
