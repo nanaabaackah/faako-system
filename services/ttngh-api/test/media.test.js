@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Buffer } from "node:buffer";
 import { enumerateDriveImages, MediaSync } from "../src/media/sync.js";
 import { readR2Config } from "../src/media/r2.js";
 import { readDriveConfig } from "../src/media/drive.js";
@@ -9,7 +8,6 @@ const fixtureId = "abcDEFghi123456789";
 const nestedId = "nestedDEFghi1234567";
 const file = { id: fixtureId, name: "Approved later.png", mimeType: "image/png", size: 68,
   version: "3", md5Checksum: "a".repeat(32), syncEligible: true };
-const pixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO6SkWgAAAAASUVORK5CYII=", "base64");
 
 test("Drive media reads must be scoped to TTNGH variables and approved roots", () => {
   assert.equal(readDriveConfig({ TWE_GOOGLE_SERVICE_ACCOUNT_JSON: "another app" }), null);
