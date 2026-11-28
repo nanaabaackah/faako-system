@@ -10,8 +10,8 @@ const hasFlag = name => args.includes("--" + name);
 let pool;
 
 try {
-  if (!["plan","sync","status","approve","to-sanity"].includes(operation))
-    throw new Error("Use plan, sync, status, approve or to-sanity");
+  if (!["plan","sync","status","list","approve","to-sanity"].includes(operation))
+    throw new Error("Use plan, sync, status, list, approve or to-sanity");
   const databaseUrl = process.env.DATABASE_URL?.trim();
   if (!databaseUrl || !/^postgres(ql)?:\/\//.test(databaseUrl))
     throw new Error("An approved TTNGH database is required");
@@ -24,7 +24,7 @@ try {
   const apply = operation === "sync" && hasFlag("apply");
   if (apply && process.env.TTNGH_MEDIA_SYNC_ENABLED !== "true")
     throw new Error("TTNGH media sync apply is disabled");
-  if (operation === "approve" && process.env.TTNGH_MEDIA_APPROVAL_ENABLED !== "true")
+  if (["approve","list"].includes(operation) && process.env.TTNGH_MEDIA_APPROVAL_ENABLED !== "true")
     throw new Error("TTNGH media approval is disabled");
   if (operation === "to-sanity" && process.env.TTNGH_MEDIA_SANITY_EXPORT_ENABLED !== "true")
     throw new Error("TTNGH media Sanity export is disabled");
@@ -39,6 +39,8 @@ try {
     result = await service.sync({ apply, maxFiles: Number(option("max-files") || 1000) });
   } else if (operation === "status") {
     result = await service.status();
+  } else if (operation === "list") {
+    result = await service.list({ status: option("status") || "imported", limit: Number(option("limit") || 50) });
   } else if (operation === "approve") {
     result = await service.approve(option("id"), { alt: option("alt"), rights: option("rights") });
   } else {
