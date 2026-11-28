@@ -38,7 +38,7 @@ export default function TopographyBackground({ color = "#D8B56A" }) {
       mouseInteraction={false}
       hoverEffect="light"
       clickEffect="none"
-      markers="dots"
+      markers="none"
       glitch={0}
       intro
       lightMode={false}

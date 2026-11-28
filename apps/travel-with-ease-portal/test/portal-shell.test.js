@@ -20,3 +20,9 @@ test("portal shell uses shared primitives and site-matched font definitions with
   assert.doesNotMatch(css, /Montserrat|https?:\/\//);
   assert.match(source("../public/_headers"), /font-src 'self' data:/);
 });
+test("portal spacing does not apply legacy label margins to shared fields", () => {
+  const css = readFileSync(new URL("../src/styles/global.css", import.meta.url), "utf8");
+  assert.match(css, /\.content-editor label:not\(\.ui-field\)/);
+  assert.doesNotMatch(css, /\.content-editor label\s*\{/);
+  for (const token of ["--twe-space-section", "--twe-space-grid"]) assert.ok(css.includes(token));
+});

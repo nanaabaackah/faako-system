@@ -1085,9 +1085,6 @@ importers:
       jose:
         specifier: 6.2.12
         version: 6.2.12
-      openid-client:
-        specifier: 6.8.8
-        version: 6.8.8
       pg:
         specifier: 8.20.0
         version: 8.20.0
@@ -1125,9 +1122,6 @@ importers:
       react-dom:
         specifier: ^19.1.1
         version: 19.3.0(react@19.3.0)
-      react-router-dom:
-        specifier: ^7.18.0
-        version: 7.18.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
     devDependencies:
       '@eslint/js':
         specifier: ^9.25.0

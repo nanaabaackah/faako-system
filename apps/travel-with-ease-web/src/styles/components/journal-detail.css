@@ -211,13 +211,17 @@
 .journal-detail__more-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 2.6vw, 32px); }
 .journal-detail__more-card { min-width: 0; }
 .journal-detail__more-card > a { display: block; text-decoration: none; color: var(--brand-navy); }
-.journal-detail__more-card .placed-image { display: block; width: 100%; }
-.journal-detail__more-card img {
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
-  border-radius: var(--twe-radius-media);
+.journal-detail__more-card .placed-image {
   display: block;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--twe-radius-media);
+}
+.journal-detail__more-card img {
+  display: block;
+  width: 100%;
+  height: clamp(170px, 15vw, 220px);
+  object-fit: cover;
 }
 .journal-detail__more-card > a > div { padding: 16px 0; }
 .journal-detail__more-card span { color: #77551b; font-size: .78rem; font-weight: 700; }
@@ -240,5 +244,6 @@
   .journal-detail__more-grid { grid-template-columns: minmax(0, 1fr); }
   .journal-detail__more-card > a { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 16px; }
   .journal-detail__more-card > a > div { padding: 0; }
-  .journal-detail__more-card img { aspect-ratio: 1.1; height: 110px; }
+  .journal-detail__more-card .placed-image,
+  .journal-detail__more-card img { height: 110px; }
 }

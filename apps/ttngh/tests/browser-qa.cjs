@@ -51,8 +51,9 @@ if (fixture) routes.push('/programmes/fixture-programme','/news/fixture-news','/
   await page.goto(base+'/contact');
   const submit=page.locator('[data-contact-form] button[type="submit"]');
   if(fixture) {
-   assert.equal(securityLoads,0);assert.equal(await submit.isDisabled(),true);
-   await page.locator('[data-load-verification]').click();await page.waitForFunction(()=>window.testVerification);
+   assert.equal(await page.locator('[data-load-verification]').count(),0);assert.equal(await submit.isDisabled(),true);
+   await page.locator('[data-contact-form]').scrollIntoViewIfNeeded();await page.waitForFunction(()=>window.testVerification);
+   assert.equal(securityLoads,1);
    await submit.click();assert.equal(deliveries,0);
    await page.locator('[name="name"]').fill('Test sender');await page.locator('[name="email"]').fill('test@example.org');await page.locator('[name="topic"]').selectOption({label:'Other enquiry'});await page.locator('[name="message"]').fill('Non-sensitive synthetic enquiry for local QA.');await page.locator('[name="consent"]').check();
    await page.evaluate(()=>window.testVerification['expired-callback']());assert.equal(await submit.isDisabled(),true);

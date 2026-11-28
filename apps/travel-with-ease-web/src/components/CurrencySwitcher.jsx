@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { createBrowserApiClient } from "@faako/api-client/browser";
-// eslint-disable-next-line no-unused-vars -- JSX component
 import { SelectField, Button, IconsaxIcon } from "@faako/ui";
 import {
   applyDisplayCurrency,

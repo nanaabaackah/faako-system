@@ -467,7 +467,16 @@ export default function WebsiteContent({ api, session, onDirtyChange, onRefreshB
           <Button icon="save" variant="primary" type="submit" form="twe-content-draft-form"
             disabled={!canWrite || state.loading || publicationBusy || saveState.status === "saving" || editorView === "preview"}>Save draft</Button>
           <Button icon="preview" type="button" disabled={state.loading || !version || dirty || publicationBusy} onClick={showPreview}>Preview saved content</Button>
-          <Button icon="arrow" type="button" variant="ghost" disabled={state.loading} onClick={() => jumpTo("publication")}>Publication</Button>
+          <details className="twe-cms-publication-menu">
+            <summary><NavigationIcon name="arrow"/><span>Publication</span></summary>
+            <div className="twe-cms-publication-menu__body">
+              <p>Review the saved draft and publication status before changing the live website.</p>
+              <Button icon="content" type="button" variant="ghost" disabled={state.loading}
+                onClick={(event) => { event.currentTarget.closest("details").open = false; jumpTo("publication"); }}>
+                Open publication controls
+              </Button>
+            </div>
+          </details>
         </div>
       </div>
       <nav className="twe-cms-outline" aria-label="Current page sections">

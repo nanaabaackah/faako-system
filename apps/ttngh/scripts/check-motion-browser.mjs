@@ -190,9 +190,10 @@ try {
     await page.goto(server.origin + "/contact");
     const essential = page.getByRole("button", { name: "Essential only", exact: true });
     if (await essential.isVisible()) await essential.click();
-    assert.equal(verifyLoads, 0, "Turnstile must remain manually loaded");
-    await page.locator("[data-load-verification]").click();
+    assert.equal(await page.locator("[data-load-verification]").count(), 0, "Manual verification button has been removed");
+    await page.locator("[data-contact-form]").scrollIntoViewIfNeeded();
     await page.waitForFunction(() => typeof window.testVerify === "function");
+    assert.equal(verifyLoads, 1, "Turnstile loads automatically when the form is visible");
     const form = page.locator("[data-contact-form]"), button = form.locator('[type="submit"]');
     await page.evaluate(() => window.testVerify());
     await button.click();

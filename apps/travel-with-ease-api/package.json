@@ -36,7 +36,6 @@
     "@faako/validation": "workspace:*",
     "express": "^5.2.1",
     "jose": "6.2.12",
-    "openid-client": "6.8.8",
     "pg": "8.20.0",
     "sharp": "0.34.5",
     "wrangler": "4.156.1",

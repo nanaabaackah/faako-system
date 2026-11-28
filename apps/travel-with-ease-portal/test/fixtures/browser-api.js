@@ -18,9 +18,9 @@ export async function mockWorkspaceApi(page, { role = 'owner', requests = [], wr
     if (request.method() === "GET" && /^\/api\/agent\/content\/privacy(?:\/revisions)?$/.test(url.pathname) && contentDelay) {
       await new Promise(resolve => setTimeout(resolve, contentDelay));
     }
-    if (/^\/api\/agent\/media\/[^/]+\/preview$/.test(url.pathname)) {
-      return route.fulfill({ contentType: "image/svg+xml",
-        body: '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="#f4ede3"/></svg>' });
+    if (/^\/api\/agent\/media\/(?:drive\/[^/]+\/preview|[^/]+\/preview)$/.test(url.pathname)) {
+      return route.fulfill({ contentType: "image/webp",
+        body: Buffer.from("UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA", "base64") });
     }
     try {
       const data = request.method() === 'POST'

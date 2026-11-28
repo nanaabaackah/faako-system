@@ -11,7 +11,7 @@ import {
 } from "@faako/ui";
 
 // Authenticated API transport, even when the API and portal use different origins.
-function AssetThumbnail({ api, id, configured }) {
+function AssetThumbnail({ api, id, configured, drive = false }) {
   const host = useRef(null);
   const [visible, setVisible] = useState(false);
   const [src, setSrc] = useState("");
@@ -27,14 +27,17 @@ function AssetThumbnail({ api, id, configured }) {
   useEffect(() => {
     if (!configured || !visible) return;
     let current = true, objectUrl;
-    api.get(`/api/agent/media/${id}/preview`, { responseMode: "blob" }).then(blob => {
+    const path = drive
+      ? `/api/agent/media/drive/${id}/preview`
+      : `/api/agent/media/${id}/preview`;
+    api.get(path, { responseMode: "blob" }).then(blob => {
       if (!current || !(blob instanceof Blob) || blob.type !== "image/webp" || blob.size > 10 * 1024 * 1024) return;
       objectUrl = URL.createObjectURL(blob);
       setSrc(objectUrl);
     }).catch(() => {});
     return () => { current = false; if (objectUrl) URL.revokeObjectURL(objectUrl); setSrc(""); };
-  }, [api, id, configured, visible]);
-  return <span ref={host} className="twe-asset-image"><NavigationIcon name="media"/>{src && <img src={src} alt="" onError={() => setSrc("")}/>}</span>;
+  }, [api, id, configured, drive, visible]);
+  return <span ref={host} className={`twe-asset-image${drive ? " twe-drive-image" : ""}`}><NavigationIcon name="media"/>{src && <img src={src} alt="" onError={() => setSrc("")}/>}</span>;
 }
 
 export default function MediaLibrary({ api, session, onSelect }) {
@@ -356,8 +359,8 @@ export default function MediaLibrary({ api, session, onSelect }) {
                   <button type="button" className="twe-drive-file" key={item.id}
                     aria-pressed={driveSelection === item.id} disabled={state.loading || item.archived}
                     onClick={() => setDriveSelection(item.id)}>
-                    <NavigationIcon name="media"/>
-                    <span><strong>{item.name}</strong><small>{item.archived ? "Archived revision" : item.importedId ? "Imported" : item.syncEligible === false ? "Needs alternative text" : "Not imported"}</small></span>
+                    <AssetThumbnail api={api} id={item.id} configured={driveConfigured} drive/>
+                    <span className="twe-drive-file-copy"><strong>{item.name}</strong><small>{item.archived ? "Archived revision" : item.importedId ? "Imported" : item.syncEligible === false ? "Needs alternative text" : "Not imported"}</small></span>
                     <NavigationIcon name={driveSelection === item.id ? "check" : "arrow"}/>
                   </button>
                 ))}

@@ -46,8 +46,9 @@ separation is mandatory, not just different subdomains.
    Record project/environment/service IDs privately in the deployment inventory.
    Do not create production resources under this task without separate approval.
 3. For the approved empty staging DB, configure `TWE_MIGRATION_DATABASE_URL`,
-   `TWE_ORGANISATION_ID`, `APP_ENV=staging`, `TWE_DATABASE_TLS=require` and the
-   trusted CA when necessary. Review all numbered SQL files and run
+   `TWE_ORGANISATION_ID` and `APP_ENV=staging`. Omit `TWE_DATABASE_TLS` because
+   verified TLS is the default; configure `TWE_DATABASE_CA` only when provider
+   certificate-chain evidence requires a private CA. Review all numbered SQL files and run
    `pnpm --filter @faako/travel-with-ease-api db:migrate --plan`, then explicitly
    approved `db:migrate --initialise`. The historical `db/001_phase1.sql` is not
    part of this runner. Provision the organisation and approved issuer/subject
@@ -61,11 +62,12 @@ separation is mandatory, not just different subdomains.
    Test with the actual runtime role; current local drills use a disposable owner
    and do not prove production least privilege. A separate provisioning role
    manages staff membership. Do not grant runtime DDL to resolve a permission error.
-5. In TWE Cloudflare via delegated access, create separate stage draft-media and
-   backup R2 buckets, names beginning `twe-staging-`, with public access disabled.
-   Scope separate credentials to media versus backup duties. Production uses
-   separate `twe-production-` buckets and keys. Set the four `TWE_R2_*` names in
+5. In TWE Cloudflare via delegated access, create separate private draft-media R2
+   buckets, names beginning `twe-staging-`. Production uses separate
+   `twe-production-` media buckets and keys. Set the four `TWE_R2_*` names in
    API/worker secrets, never frontend variables. Verify unauthenticated reads fail.
+   Railway's configured database/volume backups are the backup authority; do not
+   create a duplicate R2 backup pipeline without a separately evidenced gap.
 6. Create an isolated Cloudflare Pages project for the staging **public Astro
    website**. Serve the Vite **staff portal** from a separately deployed Express
    portal service with its static build and fixed same-origin API proxy (see the
@@ -194,18 +196,16 @@ an alert drill. No monitor or alert delivery is claimed configured.
 
 ## Backup and restore acceptance
 
-1. Faako enables provider-supported backups for the isolated Railway environment
-   and records retention/restore permissions. Confirm coverage rather than assuming
-   an attached volume is backed up. TWE approves retention and privacy requirements.
-2. Schedule a PostgreSQL 17 custom-format logical export using a read-only backup
-   role and private temporary files. Encrypt with an approved maintained backup
-   tool before upload to the dedicated private R2 backup bucket. Choose/configure
-   that tool and key recovery under separate review; no custom encryption scheme
-   is introduced here. Keep encryption keys separate from backup objects.
-3. Verify export/encryption/upload exit status, object size and checksum. Alert on
-   failure or excessive age; never record a successful backup from a started job.
-   Record schema/source versions, timestamp and object identity without secrets.
-4. Restore into a **new isolated** PostgreSQL 17 target, never production or an
+1. Inspect the already-configured Railway backups for the isolated environment and
+   record the covered service/volume, schedule, actual recovery points, retention,
+   permissions and failure visibility. TWE approves retention and privacy
+   requirements. Provider documentation is not project-configuration evidence.
+2. Do not schedule a second `pg_dump`/R2 backup pipeline by default. Add an off-site
+   or logical-export layer only after a reviewed requirement identifies a recovery
+   threat, retention period or portability need that Railway backups do not cover.
+3. Alert on missing/excessively old provider recovery points and stale restore
+   drills. Record timestamps and recovery-point identity without secrets.
+4. Restore a selected provider recovery point into a **new isolated** target, never production or an
    existing shared DB. Check every table, constraints, migrations, audit history,
    media references and application access using synthetic data. Restore media
    objects too before claiming full recovery. Record elapsed time and measured RPO/RTO.
@@ -213,8 +213,8 @@ an alert drill. No monitor or alert delivery is claimed configured.
    restore requires an explicit data-loss/target approval and rollback plan.
 
 The local `test:db:isolated` runner exercises a plain synthetic dump/restore and
-restart fingerprint, not encrypted off-site backup scheduling or recovery of R2
-objects. Those remain external/implementation acceptance requirements.
+restart fingerprint, not Railway recovery-point availability or recovery of R2
+media objects. Those remain external acceptance requirements.
 
 ## Exit evidence required
 

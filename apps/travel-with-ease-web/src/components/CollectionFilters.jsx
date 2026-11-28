@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-// eslint-disable-next-line no-unused-vars -- JSX components, matching the existing website island convention
 import { TextField, SelectField } from "@faako/ui";
 
 /**

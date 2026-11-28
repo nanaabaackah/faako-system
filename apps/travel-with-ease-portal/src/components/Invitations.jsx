@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TextField, InlineNotice, SelectField } from "@faako/ui";
 import Button from "./ActionButton.jsx";
 import NavigationIcon from "./NavigationIcon.jsx";
@@ -29,7 +29,7 @@ export default function Invitations({ api, session, installer = false }) {
     ? { "X-TWE-Session-Init": "1" }
     : { "X-CSRF-Token": session.csrfToken };
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     if (installer) return;
     const response = await api.get("/api/auth/invitations", { responseMode: "data" });
     setItems(response.items);
@@ -40,11 +40,11 @@ export default function Invitations({ api, session, installer = false }) {
     } catch {
       // Auditing remains enforced server-side even when history cannot load.
     }
-  }
+  }, [api, installer]);
 
   useEffect(() => {
     if (!installer) refresh().catch(() => setError("Invitations could not be loaded."));
-  }, [api, installer]);
+  }, [installer, refresh]);
 
   async function mutate(url, json) {
     setBusy(true);

@@ -5,7 +5,7 @@
 }
 .cms-editing-layout {
   display: grid;
-  gap: 24px;
+  gap: var(--twe-space-grid);
   align-items: start;
 }
 .cms-editing-layout > * {
@@ -83,7 +83,7 @@
 }
 
 /* Phase 3: a stable command bar, section outline and contained editor. */
-.portal-shell .twe-cms-workspace { display: grid; gap: 14px; min-width: 0; }
+.portal-shell .twe-cms-workspace { display: grid; gap: var(--twe-space-section); min-width: 0; }
 .twe-cms-workspace > h2 { margin: 0; }
 .twe-cms-section-picker { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
 .twe-cms-section-picker > :first-child { flex: 1 1 240px; min-width: 0; }
@@ -93,6 +93,15 @@
 .twe-cms-command-bar .draft-save-status[data-save-state="error"] { color: var(--sys-danger); }
 .twe-cms-command-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .twe-cms-command-actions button { min-height: 44px; }
+.twe-cms-publication-menu { position: relative; min-width: 0; }
+.twe-cms-publication-menu > summary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 12px; border: 1px solid transparent; border-radius: var(--twe-radius-control); color: #47556e; font-size: 13px; font-weight: 600; list-style: none; cursor: pointer; }
+.twe-cms-publication-menu > summary::-webkit-details-marker { display: none; }
+.twe-cms-publication-menu > summary svg { width: 18px; height: 18px; }
+.twe-cms-publication-menu > summary:focus-visible { outline: 3px solid #7ab8ff; outline-offset: 2px; }
+.twe-cms-publication-menu[open] > summary { background: #edf1f7; color: var(--twe-navy); }
+.twe-cms-publication-menu__body { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; width: min(310px, calc(100vw - 32px)); display: grid; gap: 8px; padding: 14px; border: 1px solid var(--sys-border); border-radius: 12px; background: var(--sys-surface); box-shadow: 0 12px 28px rgb(1 12 51 / 14%); }
+.twe-cms-publication-menu__body p { margin: 0; color: var(--sys-muted); font-size: .82rem; line-height: 1.5; }
+.twe-cms-publication-menu__body .ui-button { width: 100%; justify-content: flex-start; }
 .twe-cms-outline { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; }
 .twe-cms-outline button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; min-height: 44px; border: 1px solid var(--sys-border); border-radius: 10px; background: var(--sys-surface); color: var(--sys-text); font: inherit; font-size: .82rem; cursor: pointer; }
 .twe-cms-outline button:focus-visible { outline: 2px solid var(--sys-accent); outline-offset: 2px; }
@@ -118,9 +127,12 @@
 }
 @media (max-width: 600px) {
   .twe-cms-command-bar { padding: 8px; gap: 6px; }
-  .twe-cms-command-actions { flex: 1 1 100%; }
-  .twe-cms-command-actions button { flex: 1 1 90px; min-width: 0; padding: 8px; font-size: .76rem; }
+  .twe-cms-command-actions { flex: 1 1 100%; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); width: 100%; }
+  .twe-cms-command-actions button { min-width: 0; padding: 8px; font-size: .82rem; }
   .twe-cms-command-actions .action-icon { display: none; }
+  .twe-cms-publication-menu { grid-column: 1/-1; }
+  .twe-cms-publication-menu > summary { width: 100%; border-color: var(--sys-border); background: var(--sys-surface); }
+  .twe-cms-publication-menu__body { position: static; width: 100%; margin-top: 6px; box-shadow: none; }
   .twe-cms-anchor { scroll-margin-top: 180px; }
   .twe-cms-outline button { flex: 1 1 120px; }
 }

@@ -23,8 +23,10 @@
 .twe-media-toolbar { justify-content:space-between; }
 .twe-media-toolbar h3 { margin:0; }
 .twe-drive-folders, .twe-drive-files { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr)); gap:8px; min-width:0; }
-.twe-drive-folder, .twe-drive-file { display:grid; grid-template-columns:22px minmax(0,1fr) 20px; align-items:center; gap:10px; min-width:0; min-height:48px; padding:12px; border:1px solid var(--sys-border); border-radius:10px; background:white; color:var(--twe-navy); text-align:start; font:inherit; cursor:pointer; overflow-wrap:anywhere; }
-.twe-drive-file span, .twe-asset-copy { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
+.twe-drive-folder { display:grid; grid-template-columns:22px minmax(0,1fr) 20px; align-items:center; gap:10px; min-width:0; min-height:48px; padding:12px; border:1px solid var(--sys-border); border-radius:10px; background:white; color:var(--twe-navy); text-align:start; font:inherit; cursor:pointer; overflow-wrap:anywhere; }
+.twe-drive-file { display:grid; grid-template-columns:minmax(0,1fr) 20px; align-items:start; gap:10px; min-width:0; padding:8px; border:1px solid var(--sys-border); border-radius:10px; background:white; color:var(--twe-navy); text-align:start; font:inherit; cursor:pointer; overflow:hidden; }
+.twe-drive-file .twe-drive-image { grid-column:1/-1; width:100%; aspect-ratio:4/3; }
+.twe-drive-file-copy, .twe-asset-copy { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
 .twe-drive-file small,.twe-asset-copy small { color:var(--sys-muted); }
 .twe-drive-file[aria-pressed="true"] { background:#e8edf5; border-color:var(--twe-navy); }
 .twe-drive-file:disabled,.twe-drive-folder:disabled { opacity:.55; cursor:not-allowed; }
@@ -50,7 +52,8 @@
   .portal-shell .media-workspace .twe-asset-list { grid-template-columns:minmax(0,1fr); }
   .twe-asset-primary { grid-template-columns:64px minmax(0,1fr) 20px; }
   .twe-asset-image { grid-column:auto; }
-  .twe-drive-folders,.twe-drive-files { grid-template-columns:minmax(0,1fr); }
+  .twe-drive-folders { grid-template-columns:minmax(0,1fr); }
+  .twe-drive-files { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
 .twe-drive-sync-status { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; font-size:.82rem; color:var(--sys-muted); }
