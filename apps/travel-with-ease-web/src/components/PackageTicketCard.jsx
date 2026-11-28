@@ -98,6 +98,7 @@ export default function PackageTicketCard({
                   aria-label={`Explore ${title} package`}
                   title="Explore package"
                 >
+                  <span>View package</span>
                   <ArrowRight4 size={20} aria-hidden="true" focusable="false" />
                 </a>
               </div>

@@ -17,6 +17,8 @@ test("Journal listing follows chosen contemporary editorial design and uses ever
   assert.match(source, /orderedItems\.map\(item => \(/);
   assert.match(source, /find\(item => item\.featuredOnJournal\)/);
   assert.match(source, /CollectionFilters client:load scope="journal-archive"/);
+  assert.match(styles, /body main \.journal-landing__hero h3 \{ color:#fff; \}/);
+  assert.match(styles, /body main \.journal-landing__hero p \{ color:#f5f1e8; \}/);
   assert.match(source, /data-category=\{item\.category/);
   assert.match(source, /data-series=\{item\.series/);
   assert.match(source, /<PlacedImage image=\{feature\.image\}/);

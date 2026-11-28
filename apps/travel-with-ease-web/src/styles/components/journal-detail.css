@@ -189,6 +189,10 @@
   color: var(--brand-cream);
 }
 .journal-detail__planning p { color: #f1e9dd; font-size: .94rem; line-height: 1.6; }
+/* This navy card is nested in the light editorial wrapper. Keep its heading
+   and supporting copy on the inverse palette despite global heading rules. */
+body main .journal-detail .journal-detail__planning h2 { color: var(--brand-cream); }
+body main .journal-detail .journal-detail__planning p { color: #f1e9dd; }
 .journal-detail__planning .twe-content-link.button { display: inline-flex; margin-top: 10px; }
 .journal-detail__package-link {
   display: flex;

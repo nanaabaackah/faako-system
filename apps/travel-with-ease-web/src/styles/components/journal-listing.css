@@ -25,6 +25,10 @@
 .journal-landing__hero h3 a::after { content:""; position:absolute; inset:0; z-index:1; }
 .journal-landing__hero h3 a:focus-visible { outline:3px solid #f0ca75; outline-offset:5px; }
 .journal-landing__hero p { max-width:53ch; margin:0; color:#f5f1e8; line-height:1.55; font-size:clamp(.94rem,1.15vw,1.05rem); }
+/* The hero sits inside the light editorial wrapper, so explicitly retain its
+   inverse palette over the photograph instead of inheriting page text colors. */
+body main .journal-landing__hero h3 { color:#fff; }
+body main .journal-landing__hero p { color:#f5f1e8; }
 .journal-landing__hero-arrow { display:grid; place-items:center; position:absolute; right:28px; bottom:28px; width:44px; height:44px; border-radius:50%; background:#daa940; color:#010c33; }
 .journal-landing__hero-arrow svg { width:23px; height:23px; }
 .journal-landing__rail { display:grid; grid-template-rows:repeat(3,minmax(0,1fr)); }
