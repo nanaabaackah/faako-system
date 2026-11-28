@@ -7,8 +7,8 @@ import {
   readApprovedMigrations, deployMigrations
 } from "../src/db/migrations.js";
 
-function mockDatabase({ enquiries = false, outbox = false, history = [], failMigration = false } = {}) {
-  let state = { enquiries, outbox, history: history.map((x) => ({ ...x })) };
+function mockDatabase({ enquiries = false, outbox = false, media = false, history = [], failMigration = false } = {}) {
+  let state = { enquiries, outbox, media, history: history.map((x) => ({ ...x })) };
   let before = null;
   let fail = failMigration;
   const statements = [];
@@ -33,8 +33,8 @@ function mockDatabase({ enquiries = false, outbox = false, history = [], failMig
       }
       if (sql.startsWith("SELECT to_regclass(")) {
         return { rows: [{
-          enquiries: state.enquiries ? "ttngh_contact.enquiries" : null,
-          notification_outbox: state.outbox ? "ttngh_contact.notification_outbox" : null
+          first: params[0] === "ttngh_media.assets" ? state.media ? "ttngh_media.assets" : null : state.enquiries ? "ttngh_contact.enquiries" : null,
+          second: params[1] === "ttngh_media.assets" ? state.media ? "ttngh_media.assets" : null : state.outbox ? "ttngh_contact.notification_outbox" : null
         }] };
       }
       if (sql.includes("CREATE TABLE ttngh_contact.enquiries")) {
@@ -45,11 +45,13 @@ function mockDatabase({ enquiries = false, outbox = false, history = [], failMig
         state.enquiries = true;
         state.outbox = true;
       }
+      if (sql.includes("CREATE TABLE ttngh_media.assets")) state.media = true;
       if (sql.startsWith("INSERT INTO ttngh_contact.schema_migrations")) {
         state.history.push({ name: params[0], checksum: params[1] });
       }
       if (sql.startsWith("SELECT id FROM ttngh_contact.enquiries") && !state.enquiries ||
-          sql.startsWith("SELECT id FROM ttngh_contact.notification_outbox") && !state.outbox) {
+          sql.startsWith("SELECT id FROM ttngh_contact.notification_outbox") && !state.outbox ||
+          sql.startsWith("SELECT id FROM ttngh_media.assets") && !state.media) {
         throw Object.assign(new Error("missing table"), { code: "42P01" });
       }
       return { rows: [] };
@@ -60,8 +62,10 @@ function mockDatabase({ enquiries = false, outbox = false, history = [], failMig
 }
 
 test("automatic migration inventory includes enquiries but never donations", async () => {
-  assert.deepEqual(approvedMigrationFiles, ["002-enquiries.sql"]);
-  const [migration] = await readApprovedMigrations();
+  assert.deepEqual(approvedMigrationFiles, ["002-enquiries.sql", "003-drive-r2-media.sql"]);
+  const [migration, media] = await readApprovedMigrations();
+  assert.equal(media.name, "003-drive-r2-media.sql");
+  assert.match(media.sql, /CREATE TABLE ttngh_media.assets/);
   assert.equal(migration.name, "002-enquiries.sql");
   assert.match(migration.checksum, /^[a-f0-9]{64}$/);
   assert.match(migration.sql, /CREATE TABLE ttngh_contact.enquiries/);
@@ -72,10 +76,11 @@ test("automatic migration inventory includes enquiries but never donations", asy
 
 test("first pre-deploy applies enquiry migration, records checksum and verifies tables", async () => {
   const db = mockDatabase();
-  assert.deepEqual(await deployMigrations(db.pool), ["002-enquiries.sql"]);
+  assert.deepEqual(await deployMigrations(db.pool), ["002-enquiries.sql", "003-drive-r2-media.sql"]);
   assert.equal(db.state.enquiries, true);
   assert.equal(db.state.outbox, true);
-  assert.equal(db.state.history.length, 1);
+  assert.equal(db.state.media, true);
+  assert.equal(db.state.history.length, 2);
   assert.equal(db.state.history[0].name, "002-enquiries.sql");
   assert.match(db.state.history[0].checksum, /^[a-f0-9]{64}$/);
   assert.ok(db.statements.includes("SELECT pg_advisory_xact_lock(821026002)"));
@@ -87,8 +92,9 @@ test("second and later pre-deploys skip the existing migration", async () => {
   const db = mockDatabase();
   await deployMigrations(db.pool);
   assert.deepEqual(await deployMigrations(db.pool), []);
-  assert.equal(db.state.history.length, 1);
+  assert.equal(db.state.history.length, 2);
   assert.equal(db.statements.filter((sql) => sql.includes("CREATE TABLE ttngh_contact.enquiries")).length, 1);
+  assert.equal(db.statements.filter((sql) => sql.includes("CREATE TABLE ttngh_media.assets")).length, 1);
 });
 
 test("untracked existing schema stops without adopting or altering it", async () => {
@@ -118,7 +124,7 @@ test("a migration failure rolls back and is safely retried", async () => {
   assert.equal(db.state.enquiries, false);
   assert.equal(db.state.outbox, false);
   assert.equal(db.state.history.length, 0);
-  assert.deepEqual(await deployMigrations(db.pool), ["002-enquiries.sql"]);
+  assert.deepEqual(await deployMigrations(db.pool), ["002-enquiries.sql", "003-drive-r2-media.sql"]);
 });
 
 test("Railway runs migrations before API start, not on PostgreSQL service", () => {
