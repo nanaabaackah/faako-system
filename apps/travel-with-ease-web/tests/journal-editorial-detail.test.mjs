@@ -22,6 +22,8 @@ test("journal detail uses real editorial metadata and a two-column related-readi
   assert.match(article, /navigator\.share/);
   assert.match(css, /@media \(max-width: 960px\)/);
   assert.match(css, /@media \(max-width: 640px\)/);
+  assert.match(css, /journal-detail__more-card img[\s\S]*?height: clamp\(170px, 15vw, 220px\)/);
+  assert.match(css, /journal-detail__more-card \.placed-image,[\s\S]*?journal-detail__more-card img \{ height: 110px; \}/);
   assert.match(page, /b\.date\.localeCompare\(a\.date\)/);
   for (const field of ["category", "author", "date", "image", "title", "slug"]) assert.ok(article.includes("item." + field));
 });

@@ -13,6 +13,10 @@ import {
 import { enquiryAnswerSections, formatEnquiryAnswer, initialEnquiryFields, legacyEnquiryFields, versionedIntakeFields } from "../lib/enquiryView.js";
 
 const statuses = ["new", "contacted", "closed"];
+const displayLabel = (value = "") => {
+  const words = value.replaceAll("_", " ").replaceAll("-", " ");
+  return words ? words[0].toUpperCase() + words.slice(1) : words;
+};
 const serviceOptions = [
   ["readiness", "Travel Readiness Session"], ["full_planning", "Full Trip Planning"],
   ["premium", "Premium Concierge"], ["group", "Group Trip Planning"],
@@ -96,7 +100,7 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
         json: { status: nextStatus, expectedVersion: selected.version },
         headers: { "X-CSRF-Token": session.csrfToken },
       });
-      pushToast({ tone: "success", title: "Enquiry updated", message: `Marked ${nextStatus}. No message was sent to the traveller.` });
+      pushToast({ tone: "success", title: "Enquiry updated", message: `Marked ${displayLabel(nextStatus)}. No message was sent to the traveller.` });
       setRevision((value) => value + 1);
     } catch (err) {
       setError(err.message);
@@ -120,12 +124,56 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
         Refresh
       </Button>
       </div>
+      <div className="workspace-filters enquiry-workspace-filters" data-tour="enquiry-filters">
+        <SelectField
+          label="Status"
+          value={status}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setOffset(0);
+          }}
+        >
+          <option value="">All statuses</option>
+          {statuses.map((value) => (
+            <option key={value} value={value}>
+              {displayLabel(value)}
+            </option>
+          ))}
+        </SelectField>
+        <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
+        <Button className="enquiry-more-filters" type="button" icon={advancedFilters ? "up" : "down"} aria-expanded={advancedFilters}
+          onClick={() => setAdvancedFilters(value => !value)}>More filters{[category,service,packageFilter].filter(Boolean).length ? " (" + [category,service,packageFilter].filter(Boolean).length + ")" : ""}</Button>
+        {advancedFilters && <>
+        <SelectField
+          label="Enquiry category"
+          value={category}
+          onChange={(event) => {
+            setCategory(event.target.value);
+            setOffset(0);
+          }}
+        >
+          <option value="">All categories</option>
+          <option value="general">General</option>
+          <option value="service">Service</option>
+          <option value="package">Package</option>
+          <option value="direct">Direct</option>
+        </SelectField>
+        <SelectField label="Service" value={service} onChange={(event) => { setService(event.target.value); setOffset(0); }}>
+          <option value="">All services</option>
+          {serviceOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </SelectField>
+        <TextField label="Package" value={packageFilter} onChange={(event) => { setPackageFilter(event.target.value); setOffset(0); }} placeholder="Package name or ID" />
+        <Button className="enquiry-clear-filters" type="button" variant="ghost" disabled={!category && !service && !packageFilter} onClick={() => { setCategory(""); setService(""); setPackageFilter(""); setOffset(0); }}>Clear additional filters</Button>
+        </>}
+      </div>
       <div className={`enquiry-workspace-split${selectedId ? " has-selection" : ""}`}>
         <div className="enquiry-workspace-detail" ref={detailRef} tabIndex={-1} aria-label="Enquiry details">
       {selectedId ? (
         <>
           <Button
             icon="back"
+            variant="ghost"
+            className="enquiry-back-button"
             type="button"
             disabled={saving}
             onClick={closeDetail}
@@ -154,7 +202,7 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
                         : "neutral"
                   }
                 >
-                  {selected.status}
+                  {displayLabel(selected.status)}
                 </StatusPill>
               </header>
               <div className="detail-columns">
@@ -229,7 +277,7 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
                         loadingLabel="Saving status…"
                         onClick={() => changeStatus(value)}
                       >
-                        Mark {value}
+                        Mark {displayLabel(value)}
                       </Button>
                     ))}
                   </div>
@@ -243,55 +291,13 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
       ) : <div className="enquiry-empty-detail"><h3>Select an enquiry</h3></div>}
         </div>
         <div className="enquiry-workspace-list">
-          <div className="workspace-filters" data-tour="enquiry-filters">
-            <SelectField
-              label="Status"
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setOffset(0);
-              }}
-            >
-              <option value="">All statuses</option>
-              {statuses.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </SelectField>
-            <TextField label="Search" value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); }} placeholder="Traveller or reference" />
-            <Button type="button" icon={advancedFilters ? "up" : "down"} aria-expanded={advancedFilters}
-              onClick={() => setAdvancedFilters(value => !value)}>More filters{[category,service,packageFilter].filter(Boolean).length ? " (" + [category,service,packageFilter].filter(Boolean).length + ")" : ""}</Button>
-            {advancedFilters && <>
-            <SelectField
-              label="Enquiry category"
-              value={category}
-              onChange={(event) => {
-                setCategory(event.target.value);
-                setOffset(0);
-              }}
-            >
-              <option value="">All categories</option>
-              <option value="general">General</option>
-              <option value="service">Service</option>
-              <option value="package">Package</option>
-              <option value="direct">Direct</option>
-            </SelectField>
-            <SelectField label="Service" value={service} onChange={(event) => { setService(event.target.value); setOffset(0); }}>
-              <option value="">All services</option>
-              {serviceOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </SelectField>
-            <TextField label="Package" value={packageFilter} onChange={(event) => { setPackageFilter(event.target.value); setOffset(0); }} placeholder="Package name or ID" />
-            <Button type="button" variant="ghost" disabled={!category && !service && !packageFilter} onClick={() => { setCategory(""); setService(""); setPackageFilter(""); setOffset(0); }}>Clear additional filters</Button>
-            </>}
-          </div>
           {listError && <InlineNotice tone="danger" title="Enquiries unavailable" message={listError}/>}
           {listBusy && <AnimatedLoadingState compact title="Loading enquiries"/>}
           {!listBusy && !listError && (
             <div className="workspace-kpis" aria-label="Counts on this page">
               {statuses.map((value) => (
                 <button type="button" className="twe-kpi-link" key={value} onClick={() => { setStatus(value); setOffset(0); }} aria-pressed={status === value} aria-label={`Filter ${value} enquiries`}><KpiCard
-                  label={value[0].toUpperCase() + value.slice(1)}
+                  label={displayLabel(value)}
                   value={
                     result.items.filter((item) => item.status === value).length
                   }
@@ -320,7 +326,7 @@ export default function Enquiries({ api, session, initialStatus = "", initialEnq
                             : "neutral"
                       }
                     >
-                      {item.status}
+                      {displayLabel(item.status)}
                     </StatusPill>
                     <time dateTime={item.created_at}>
                       {new Date(item.created_at).toLocaleDateString("en-GH", {

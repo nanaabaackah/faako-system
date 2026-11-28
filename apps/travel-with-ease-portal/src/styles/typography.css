@@ -49,6 +49,12 @@ body .portal-shell :is(h1,h2,h3) {
   line-height: 1.18;
 }
 body .portal-shell :is(h4,h5,h6,legend) { font-family: var(--twe-font-body); font-weight: 600; line-height: 1.3; }
+body .portal-shell :is(.dashboard-panel h2,.workspace-panel h3,.workspace-panel h4,.twe-admin-toolbar h2,.enquiry-workspace-toolbar h2) {
+  font-family: var(--twe-font-body);
+  font-weight: 700;
+  letter-spacing: -.01em;
+  -webkit-text-stroke: 0;
+}
 body :is(button,input,select,textarea,.ui-field__input,.ui-dropdown-field__option,.ui-dropdown-field__value,.ui-dropdown-field__trigger) { font-family: var(--twe-font-body); }
 body .portal-shell :is(.erp-nav-sidebar__label,.erp-nav-sidebar__title,.twe-context-nav button,.twe-sidebar-account,.twe-bottom-nav__tab) {
   font-family: var(--twe-font-impact);

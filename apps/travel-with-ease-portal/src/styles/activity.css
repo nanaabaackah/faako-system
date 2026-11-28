@@ -1,6 +1,6 @@
 .activity-workspace {
   display: grid;
-  gap: 18px;
+  gap: var(--twe-space-section);
 }
 .activity-filters {
   display: grid;
@@ -73,7 +73,7 @@
 
 /* Administration: use native full-width disclosures for records, with actions
    and technical identifiers inside the selected record, not in the list. */
-.portal-shell .staff-workspace { display:grid; gap:16px; min-width:0; }
+.portal-shell .staff-workspace { display:grid; gap:var(--twe-space-section); min-width:0; }
 .portal-shell .staff-workspace .workspace-kpis { margin:0; }
 .twe-admin-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:10px; min-width:0; }
 .twe-admin-toolbar h2 { flex:1 1 auto; margin:0; }
