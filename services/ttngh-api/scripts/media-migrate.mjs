@@ -1,7 +1,6 @@
 // Explicit operator migration. Never part of Railway's enquiry pre-deploy command.
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import pg from "pg";
 
 export async function deployMediaSchema(pool, raw) {
   const file = raw || await readFile(new URL("../migrations/003-drive-r2-media.sql", import.meta.url), "utf8");
